@@ -22,52 +22,121 @@ export default function DashboardPage({
   onLogout,
   onTokenUpdated,
 }: DashboardProps) {
+  // 1. Xác định vai trò & Kiểm tra quyền Admin tối cao
+  const officialRoles = (user.roles && user.roles.length > 0 ? user.roles : [user.role]).filter(
+    (r) => r && r !== 'customer'
+  );
+  const isPendingCustomer = officialRoles.length === 0;
+  const isAdmin = user.role === 'admin' || Boolean(user.roles && user.roles.includes('admin'));
+
+  // 2. Khởi tạo State với Clean URL (/users): Chỉ Admin mới được phép kích hoạt route /users
   const [activeTab, setActiveTabState] = useState<'inventory' | 'users'>(() => {
     const pathname = window.location.pathname.toLowerCase();
+    const isUsersPath = pathname === '/users' || pathname.startsWith('/users/') || pathname === '/admin' || pathname.startsWith('/admin/');
+
+    // Dọn sạch tàn dư query parameter cũ (?tab=users, ?view=users) nếu người dùng truy cập link cũ
     const params = new URLSearchParams(window.location.search);
-    const viewParam = (params.get('view') || params.get('tab') || '').toLowerCase();
-    const hash = window.location.hash.replace('#', '').toLowerCase();
-    const isAdminOrUsersPath = pathname === '/admin' || pathname.startsWith('/admin/') || pathname === '/users' || pathname.startsWith('/users/');
-    if (viewParam === 'users' || viewParam === 'admin' || hash === 'users' || hash === 'admin' || isAdminOrUsersPath) {
-      return 'users';
+    const hasOldTabParam = params.has('tab') || params.has('view');
+
+    if (isUsersPath || hasOldTabParam) {
+      if (isAdmin) {
+        // Chuẩn hóa Clean URL về /users nếu còn dính query param
+        if (hasOldTabParam || pathname !== '/users') {
+          try {
+            window.history.replaceState({}, '', '/users');
+          } catch {
+            // ignore
+          }
+        }
+        return 'users';
+      }
+
+      // [ROUTE GUARD] Tài khoản không phải Admin cố tình vào /users -> Đẩy về '/' và dọn sạch URL
+      try {
+        window.history.replaceState({}, '', '/');
+      } catch {
+        // ignore
+      }
     }
     return 'inventory';
   });
 
+  // 3. Chuyển đổi Route Clean URL: /users cho trang Quản trị, / cho trang Kho hàng
   const setActiveTab = (tab: 'inventory' | 'users') => {
-    setActiveTabState(tab);
-    try {
-      if (tab === 'users') {
-        window.history.pushState({}, '', '/?tab=users');
-      } else {
-        // Đưa đường dẫn về sạch gốc trang chủ (/), xóa bỏ /admin hoặc param thừa trên URL
-        window.history.pushState({}, '', '/');
+    if (tab === 'users') {
+      if (!isAdmin) {
+        setActiveTabState('inventory');
+        try {
+          window.history.replaceState({}, '', '/');
+        } catch {
+          // ignore
+        }
+        return;
       }
-    } catch {
-      // ignore
+      setActiveTabState('users');
+      try {
+        window.history.pushState({}, '', '/users');
+      } catch {
+        // ignore
+      }
+    } else {
+      setActiveTabState('inventory');
+      try {
+        window.history.pushState({}, '', '/');
+      } catch {
+        // ignore
+      }
     }
   };
 
+  // 4. [REACTIVE GUARD] Tự động bảo vệ khi phiên thay đổi (ví dụ: switch sang tài khoản không phải Admin)
+  useEffect(() => {
+    if (activeTab === 'users' && !isAdmin) {
+      setActiveTabState('inventory');
+      try {
+        window.history.replaceState({}, '', '/');
+      } catch {
+        // ignore
+      }
+    }
+  }, [activeTab, isAdmin, user.username]);
+
+  // 5. Đồng bộ sự kiện Lịch sử trình duyệt (Back/Forward - popstate) chuẩn Clean URL
   useEffect(() => {
     const syncFromUrl = () => {
       const pathname = window.location.pathname.toLowerCase();
+      const isUsersPath = pathname === '/users' || pathname.startsWith('/users/') || pathname === '/admin' || pathname.startsWith('/admin/');
       const params = new URLSearchParams(window.location.search);
-      const viewParam = (params.get('view') || params.get('tab') || '').toLowerCase();
-      const hash = window.location.hash.replace('#', '').toLowerCase();
-      const isAdminOrUsersPath = pathname === '/admin' || pathname.startsWith('/admin/') || pathname === '/users' || pathname.startsWith('/users/');
-      if (viewParam === 'users' || viewParam === 'admin' || hash === 'users' || hash === 'admin' || isAdminOrUsersPath) {
-        setActiveTabState('users');
+      const hasOldTabParam = (params.get('tab') || params.get('view') || '').toLowerCase() === 'users';
+
+      if (isUsersPath || hasOldTabParam) {
+        if (isAdmin) {
+          if (pathname !== '/users' || hasOldTabParam) {
+            try {
+              window.history.replaceState({}, '', '/users');
+            } catch {
+              // ignore
+            }
+          }
+          setActiveTabState('users');
+        } else {
+          setActiveTabState('inventory');
+          try {
+            window.history.replaceState({}, '', '/');
+          } catch {
+            // ignore
+          }
+        }
       } else {
         setActiveTabState('inventory');
       }
     };
+
     window.addEventListener('popstate', syncFromUrl);
-    window.addEventListener('hashchange', syncFromUrl);
     return () => {
       window.removeEventListener('popstate', syncFromUrl);
-      window.removeEventListener('hashchange', syncFromUrl);
     };
-  }, []);
+  }, [isAdmin]);
   const [products, setProducts] = useState<ProductItem[]>([]);
   const [productSearchTerm, setProductSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -136,14 +205,6 @@ export default function DashboardPage({
 
   const remainingSeconds = sessionInfo.remainingSeconds;
   const isWarningZone = remainingSeconds > 0 && remainingSeconds <= 120;
-
-  // Xác định các vai trò chính thức (lọc bỏ 'customer' nếu đã có vai trò chính thức)
-  const officialRoles = (user.roles && user.roles.length > 0 ? user.roles : [user.role]).filter(
-    (r) => r && r !== 'customer'
-  );
-  // Tài khoản chỉ bị xem là 'Chờ cấp quyền' khi CHƯA có bất kỳ vai trò nghiệp vụ chính thức nào
-  const isPendingCustomer = officialRoles.length === 0;
-  const isAdmin = user.role === 'admin' || (user.roles && user.roles.includes('admin'));
 
   useEffect(() => {
     if (isPendingCustomer) {
