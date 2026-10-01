@@ -4,6 +4,7 @@ import { sessionManager, SessionState } from '../services/sessionManager';
 import SecurityModal from './SecurityModal';
 import { UserManagementView } from './UserManagementView';
 import CreateCustomerModal from './CreateCustomerModal';
+import { StatusToastHost, emitStatusToast } from './StatusToast';
 import { AccessDeniedView } from './AccessDeniedView';
 import './dashboard.css';
 
@@ -1539,10 +1540,15 @@ export default function DashboardPage({
         onClose={() => setIsCreateAccountModalOpen(false)}
         token={token}
         onSuccess={(msg) => {
-          // Bắn sự kiện cập nhật để trang phân quyền tải lại ngay tức thì và nhận thông báo
+          // Bắn sự kiện cập nhật để trang phân quyền tải lại ngay tức thì
           window.dispatchEvent(new CustomEvent('USER_ACCOUNTS_CHANGED', { detail: { message: msg } }));
+          // Thông báo nổi góc phải màn hình: hiển thị ở MỌI tab (kể cả khi tạo từ Popover Avatar / Sidebar Drawer)
+          emitStatusToast({ message: msg.replace(/^✅\s*/, ''), title: 'Tạo tài khoản thành công' });
         }}
       />
+
+      {/* Ổ thông báo nổi góc phải màn hình (dùng chung cho mọi thao tác tài khoản) */}
+      <StatusToastHost />
     </div>
   );
 }
