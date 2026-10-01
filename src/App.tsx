@@ -154,7 +154,11 @@ function App() {
       setResetMessage(response.message);
       setCountdown(60); // Bắt đầu đếm ngược 60 giây
     } catch (requestError) {
-      setResetError(requestError instanceof Error ? requestError.message : 'Không thể gửi yêu cầu.');
+      let errorMessage = requestError instanceof Error ? requestError.message : 'Không thể gửi yêu cầu.';
+      if (errorMessage === 'Failed to fetch') {
+        errorMessage = 'Vui lòng xem lại thông tin tài khoản!';
+      }
+      setResetError(errorMessage);
     } finally {
       setIsSubmitting(false);
     }

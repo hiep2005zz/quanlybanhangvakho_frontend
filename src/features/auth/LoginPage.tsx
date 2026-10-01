@@ -9,16 +9,25 @@ interface LoginPageProps {
   onForgotPassword?: () => void;
 }
 
-export default function LoginPage({ onLoginSuccess, expiredMessage, onClearExpiredMessage, onForgotPassword }: LoginPageProps) {
+export default function LoginPage({
+  onLoginSuccess,
+  expiredMessage,
+  onClearExpiredMessage,
+  onForgotPassword,
+}: LoginPageProps) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
-  const formatNotice = (msg: string) => msg.startsWith('⚠️') ? msg : `⚠️ ${msg}`;
+  const formatNotice = (msg: string) => {
+    return msg.startsWith('⚠️') ? msg : `⚠️ ${msg}`;
+  };
 
   const [sessionExpiredNotice, setSessionExpiredNotice] = useState<string | null>(() => {
-    const stored = sessionStorage.getItem(AUTH_STORAGE.EXPIRED_MESSAGE) || localStorage.getItem(AUTH_STORAGE.EXPIRED_MESSAGE);
+    const stored =
+      sessionStorage.getItem(AUTH_STORAGE.EXPIRED_MESSAGE) ||
+      localStorage.getItem(AUTH_STORAGE.EXPIRED_MESSAGE);
     if (stored) return formatNotice(stored);
     if (expiredMessage) return formatNotice(expiredMessage);
     const params = new URLSearchParams(window.location.search);
@@ -27,12 +36,14 @@ export default function LoginPage({ onLoginSuccess, expiredMessage, onClearExpir
     }
     return null;
   });
-
   const [lockRemaining, setLockRemaining] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(false);
 
+  // Cập nhật thông báo hết hạn nếu prop thay đổi hoặc có query param
   useEffect(() => {
-    const stored = sessionStorage.getItem(AUTH_STORAGE.EXPIRED_MESSAGE) || localStorage.getItem(AUTH_STORAGE.EXPIRED_MESSAGE);
+    const stored =
+      sessionStorage.getItem(AUTH_STORAGE.EXPIRED_MESSAGE) ||
+      localStorage.getItem(AUTH_STORAGE.EXPIRED_MESSAGE);
     if (stored) {
       setSessionExpiredNotice(formatNotice(stored));
     } else if (expiredMessage) {
@@ -45,6 +56,7 @@ export default function LoginPage({ onLoginSuccess, expiredMessage, onClearExpir
     }
   }, [expiredMessage]);
 
+  // Flash Notice: Dọn sạch bộ nhớ lưu trữ và URL ngay sau khi đã nhận, tự động ẩn sau 5s
   useEffect(() => {
     if (sessionExpiredNotice) {
       sessionStorage.removeItem(AUTH_STORAGE.EXPIRED_MESSAGE);
@@ -55,9 +67,28 @@ export default function LoginPage({ onLoginSuccess, expiredMessage, onClearExpir
         url.searchParams.delete('expired');
         window.history.replaceState({}, '', url.pathname + (url.search ? url.search : ''));
       }
+
+      // Tự động mất thông báo sau 5 giây
+      const timer = setTimeout(() => {
+        setSessionExpiredNotice(null);
+      }, 5000);
+      return () => clearTimeout(timer);
     }
   }, [sessionExpiredNotice, onClearExpiredMessage]);
 
+  const handleCloseExpiredNotice = () => {
+    setSessionExpiredNotice(null);
+    sessionStorage.removeItem(AUTH_STORAGE.EXPIRED_MESSAGE);
+    localStorage.removeItem(AUTH_STORAGE.EXPIRED_MESSAGE);
+    onClearExpiredMessage?.();
+    if (typeof window !== 'undefined' && window.location.search.includes('expired')) {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('expired');
+      window.history.replaceState({}, '', url.pathname + (url.search ? url.search : ''));
+    }
+  };
+
+  // Kiểm tra trạng thái khóa khi load trang
   useEffect(() => {
     const lockUntilStr = localStorage.getItem('lockout_until');
     if (lockUntilStr) {
@@ -72,6 +103,7 @@ export default function LoginPage({ onLoginSuccess, expiredMessage, onClearExpir
     }
   }, []);
 
+  // Bộ đếm ngược thời gian khóa
   useEffect(() => {
     if (lockRemaining <= 0) return;
     const timer = setInterval(() => {
@@ -88,6 +120,16 @@ export default function LoginPage({ onLoginSuccess, expiredMessage, onClearExpir
     return () => clearInterval(timer);
   }, [lockRemaining]);
 
+  // Tự động ẩn thông báo lỗi sau 5 giây
+  useEffect(() => {
+    if (errorMessage) {
+      const errorTimer = setTimeout(() => {
+        setErrorMessage('');
+      }, 5000);
+      return () => clearTimeout(errorTimer);
+    }
+  }, [errorMessage]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (lockRemaining > 0 || isLoading) return;
@@ -100,6 +142,7 @@ export default function LoginPage({ onLoginSuccess, expiredMessage, onClearExpir
       const cleanPassword = password.trim();
       const data = await loginApi(cleanUsername, cleanPassword);
 
+      // Đăng nhập thành công
       localStorage.removeItem('login_failed_count');
       localStorage.removeItem('lockout_until');
       sessionStorage.removeItem(AUTH_STORAGE.EXPIRED_MESSAGE);
@@ -109,13 +152,15 @@ export default function LoginPage({ onLoginSuccess, expiredMessage, onClearExpir
       setErrorMessage('');
       onLoginSuccess(data.user, data.access_token);
     } catch (err: any) {
+      // Trường hợp bị khóa 15 phút (HTTP 429)
       if (err.lock_remaining_seconds) {
         const lockUntil = Date.now() + err.lock_remaining_seconds * 1000;
         localStorage.setItem('lockout_until', lockUntil.toString());
         setLockRemaining(err.lock_remaining_seconds);
         setErrorMessage('');
       } else {
-        const remainInfo = err.remaining_attempts !== undefined ? ` (Bạn còn ${err.remaining_attempts} lần thử)` : '';
+        const remainInfo =
+          err.remaining_attempts !== undefined ? ` (Bạn còn ${err.remaining_attempts} lần thử)` : '';
         setErrorMessage((err.message || 'Tên đăng nhập hoặc mật khẩu không chính xác.') + remainInfo);
       }
     } finally {
@@ -124,210 +169,264 @@ export default function LoginPage({ onLoginSuccess, expiredMessage, onClearExpir
   };
 
   const formatTime = (secs: number) => {
-    const m = Math.floor(secs / 60).toString().padStart(2, '0');
+    const m = Math.floor(secs / 60)
+      .toString()
+      .padStart(2, '0');
     const s = (secs % 60).toString().padStart(2, '0');
     return `${m}:${s}`;
   };
 
+
   return (
-    <div className="login-container">
-      <div className="login-left">
-        <div className="login-left-content">
-          <h1>Hệ Thống Quản Lý Kho<br /><span className="highlight-text">& Bán Hàng Thông Minh</span></h1>
-          <p className="left-desc">
-            Tối ưu hóa quy trình vận hành kho bãi, kiểm soát tồn kho thời gian thực và quản trị doanh số bán hàng đa kênh chính xác, chuẩn mực.
+    <div className="login-split-container">
+      {/* ================= NỬA BÊN TRÁI: VISUAL (50%) ================= */}
+      <section className="login-visual-pane">
+        <div className="visual-bg-image" />
+        <div className="visual-gradient-overlay" />
+        <div className="visual-noise" />
+
+        {/* Nội dung trung tâm của phần Visual */}
+        <div className="visual-content">
+          {/* Logo & Brand Box */}
+          <div className="visual-brand-header">
+            <div className="visual-logo-box">
+              <svg
+                width="34"
+                height="34"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+                <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+                <line x1="12" y1="22.08" x2="12" y2="12" />
+              </svg>
+            </div>
+            <div className="visual-brand-badge">ENTERPRISE WMS & COMMERCE</div>
+          </div>
+
+          <h1 className="visual-headline">
+            Hệ Thống Quản Lý Kho <br />
+            <span className="gradient-text">&amp; Bán Hàng Thông Minh</span>
+          </h1>
+
+          <p className="visual-slogan">
+            Tối ưu hóa quy trình vận hành kho bãi, kiểm soát tồn kho thời gian thực và quản trị doanh số
+            bán hàng đa kênh chính xác, chuẩn mực.
           </p>
-          <div className="feature-list">
-            <div className="feature-item">
-              <div className="feature-icon-box">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+
+          {/* Feature Highlights Bullets */}
+          <div className="visual-features">
+            <div className="feature-pill">
+              <div className="feature-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                  <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
                 </svg>
               </div>
               <div className="feature-text">
-                <span className="feature-title">Báo cáo Lãi/Lỗ Tức thì</span>
-                <span className="feature-subtitle">Kiểm soát giá vốn chuẩn xác</span>
+                <strong>Báo cáo Lãi/Lỗ Tức thì</strong>
+                <span>Kiểm soát giá vốn chuẩn xác</span>
               </div>
             </div>
-            <div className="feature-item">
-              <div className="feature-icon-box">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
+
+            <div className="feature-pill">
+              <div className="feature-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                  <path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                 </svg>
               </div>
               <div className="feature-text">
-                <span className="feature-title">Điều chuyển Kho & Tồn kho</span>
-                <span className="feature-subtitle">Cảnh báo hết hàng tự động</span>
+                <strong>Điều chuyển Kho &amp; Tồn kho</strong>
+                <span>Cảnh báo hết hàng tự động</span>
               </div>
             </div>
-            <div className="feature-item">
-              <div className="feature-icon-box">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
+
+            <div className="feature-pill">
+              <div className="feature-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                  <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                  <circle cx="9" cy="7" r="4" />
+                  <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75" />
                 </svg>
               </div>
               <div className="feature-text">
-                <span className="feature-title">Phân quyền 7 Cấp độ</span>
-                <span className="feature-subtitle">Bảo mật dữ liệu tối đa</span>
-              </div>
-            </div>
-            <div className="feature-item">
-              <div className="feature-icon-box">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
-                </svg>
-              </div>
-              <div className="feature-text">
-                <span className="feature-title">Thống kê & Báo cáo</span>
-                <span className="feature-subtitle">Trực quan biểu đồ thời gian thực</span>
+                <strong>Phân quyền 7 Cấp độ</strong>
+                <span>Bảo mật dữ liệu tối đa</span>
               </div>
             </div>
           </div>
-          
+
+          <div className="visual-footer">
+            <span>© 2026 Enterprise Warehouse &amp; Sales Management. All rights reserved.</span>
+          </div>
         </div>
-      </div>
+      </section>
 
-      <div className="login-right">
-        <div className="login-right-content">
-          <div className="login-badge">CỔNG TRUY CẬP HỆ THỐNG</div>
-          <div className="login-header">
-            <h2>Đăng nhập tài khoản</h2>
-            <p>Chào mừng bạn quay trở lại. Vui lòng nhập thông tin để tiếp tục.</p>
+      {/* ================= NỬA BÊN PHẢI: FORM ĐĂNG NHẬP (50%) ================= */}
+      <section className="login-form-pane w-full lg:w-1/2 min-h-screen flex items-center justify-center">
+        <div className="form-card-container w-full h-full min-h-screen flex flex-col justify-center">
+          {/* Header Form */}
+          <div className="form-header">
+            <h2 className="form-title">Đăng nhập tài khoản</h2>
           </div>
 
+          {/* Thông báo phiên hết hạn (Flash notice) */}
           {sessionExpiredNotice && (
             <div className="session-expired-alert" role="alert">
-              <span>{sessionExpiredNotice}</span>
+              <div className="session-expired-content">
+                <span>{sessionExpiredNotice}</span>
+              </div>
+              <button
+                type="button"
+                className="session-expired-close-btn"
+                onClick={handleCloseExpiredNotice}
+                title="Đóng thông báo"
+                aria-label="Đóng"
+              >
+                <svg
+                  width="15"
+                  height="15"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              </button>
             </div>
           )}
 
+          {/* Cảnh báo khóa 15 phút */}
           {lockRemaining > 0 ? (
             <div className="lock-alert">
+              <div className="lock-icon-wrap">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                </svg>
+              </div>
               <p>Tài khoản đã bị tạm khóa do nhập sai quá 5 lần liên tiếp. Vui lòng thử lại sau:</p>
               <div className="lock-timer">{formatTime(lockRemaining)}</div>
             </div>
           ) : (
-            <form className="login-form" onSubmit={handleSubmit}>
+            <form className="auth-form" onSubmit={handleSubmit}>
+              {/* Thông báo lỗi chung */}
               {errorMessage && (
-                <div className="error-alert">
+                <div className="error-alert" role="alert">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="7" x2="12" y2="13" />
+                    <line x1="12" y1="17" x2="12.01" y2="17" />
+                  </svg>
                   <span>{errorMessage}</span>
                 </div>
               )}
 
-              <div className="form-group">
-                <div className="form-label-row">
-                  <label htmlFor="username">Tên đăng nhập</label>
-                </div>
-                <div className="input-container">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="input-icon" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
-                  </svg>
+              {/* Ô Tên đăng nhập */}
+              <div className="field-group">
+                <label htmlFor="username">Tên đăng nhập</label>
+                <div className="input-box">
+                  <span className="input-icon">
+                    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                      <circle cx="12" cy="7" r="4" />
+                    </svg>
+                  </span>
                   <input
                     id="username"
                     type="text"
-                    placeholder="admin"
+                    placeholder="Nhập tên đăng nhập hoặc email"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     disabled={lockRemaining > 0 || isLoading}
                     required
+                    autoComplete="username"
                   />
                 </div>
               </div>
 
-              <div className="form-group">
-                <div className="form-label-row">
-                  <label htmlFor="password">Mật khẩu</label>
-                </div>
-                <div className="input-container">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="input-icon" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
-                  </svg>
+              {/* Ô Mật khẩu */}
+              <div className="field-group">
+                <label htmlFor="password">Mật khẩu</label>
+                <div className="input-box">
+                  <span className="input-icon">
+                    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                    </svg>
+                  </span>
                   <input
                     id="password"
                     type={showPassword ? 'text' : 'password'}
-                    placeholder="Mật khẩu"
+                    placeholder="••••••••"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     disabled={lockRemaining > 0 || isLoading}
                     required
+                    autoComplete="current-password"
                   />
                   <button
                     type="button"
                     className="toggle-pwd-btn"
                     onClick={() => setShowPassword(!showPassword)}
-                    onMouseDown={(e) => e.preventDefault()}
+                    aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
                   >
                     {showPassword ? (
-                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" style={{width: '18px', height: '18px'}}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" />
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+                        <line x1="1" y1="1" x2="23" y2="23" />
                       </svg>
                     ) : (
-                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" style={{width: '18px', height: '18px'}}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                        <circle cx="12" cy="12" r="3" />
                       </svg>
                     )}
                   </button>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '8px', marginBottom: '-8px' }}>
-                  <button
-                    type="button"
-                    className="forgot-password"
-                    onClick={onForgotPassword}
-                  >
-                    Quên mật khẩu?
-                  </button>
-                </div>
+                {onForgotPassword && (
+                  <div className="forgot-pwd-row">
+                    <button
+                      type="button"
+                      className="forgot-pwd-btn"
+                      onClick={onForgotPassword}
+                    >
+                      Quên mật khẩu?
+                    </button>
+                  </div>
+                )}
               </div>
 
-              <button type="submit" className="submit-btn" disabled={lockRemaining > 0 || isLoading}>
-                {isLoading ? 'Đang xác thực...' : 'Đăng nhập hệ thống \u2192'}
+              {/* Nút Đăng nhập */}
+              <button
+                type="submit"
+                className="login-submit-btn"
+                disabled={lockRemaining > 0 || isLoading}
+              >
+                {isLoading ? (
+                  <span className="btn-loading-content">
+                    <span className="btn-spinner" />
+                    Đang đăng nhập...
+                  </span>
+                ) : (
+                  <span className="btn-normal-content">
+                    Đăng nhập
+                  </span>
+                )}
               </button>
             </form>
           )}
 
-          <div className="demo-roles">
-            <div className="demo-roles-header">
-              <span className="title">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" style={{width: '16px', height: '16px'}}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
-                </svg>
-                7 Vai Trò Nghiệp Vụ (Click để chọn nhanh)
-              </span>
-              <span className="demo-roles-hint">Mật khẩu chung: <strong style={{fontWeight: 800}}>123</strong></span>
-            </div>
-            <div className="roles-grid">
-              {[
-                { u: 'admin', label: 'Quản trị hệ thống', desc: 'Toàn quyền + Giá vốn + Kho', color: '#ef4444' },
-                { u: 'sales_manager', label: 'Quản lý kinh doanh', desc: 'Xem giá vốn & lãi', color: '#a855f7' },
-                { u: 'sales', label: 'Nhân viên kinh doanh', desc: 'Chặn giá vốn & kho', color: '#3b82f6' },
-                { u: 'kho', label: 'Thủ kho', desc: 'Thao tác kho, ẩn giá vốn', color: '#10b981' },
-                { u: 'warehouse_mgr', label: 'Quản lý kho', desc: 'Quản lý kho & mua hàng', color: '#10b981' },
-                { u: 'ketoan', label: 'Kế toán công nợ', desc: 'Sổ sách & đối trừ nợ', color: '#f59e0b' },
-                { u: 'customer', label: 'Đại lý', desc: 'Tự đặt hàng & xem nợ', color: '#3b82f6' },
-              ].map((role) => (
-                <button
-                  key={role.u}
-                  type="button"
-                  className="role-card"
-                  onClick={() => {
-                    setUsername(role.u);
-                    setPassword('123');
-                  }}
-                >
-                  <div className="role-title">
-                    <span className="role-dot" style={{ background: role.color }}></span>
-                    <span style={{ color: role.color }}>{role.label}</span>
-                  </div>
-                  <div className="role-desc">
-                    {role.desc}
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
         </div>
-      </div>
+      </section>
     </div>
   );
 }

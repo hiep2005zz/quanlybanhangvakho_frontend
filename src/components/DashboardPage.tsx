@@ -4,6 +4,7 @@ import { sessionManager, SessionState } from '../services/sessionManager';
 import SecurityModal from './SecurityModal';
 import { UserManagementView } from './UserManagementView';
 import CreateCustomerModal from './CreateCustomerModal';
+import { StatusToastHost, emitStatusToast } from './StatusToast';
 import { AccessDeniedView } from './AccessDeniedView';
 import './dashboard.css';
 
@@ -74,6 +75,7 @@ export default function DashboardPage({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [sessionInfo, setSessionInfo] = useState<SessionState>(() => sessionManager.getSessionState());
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
@@ -227,6 +229,17 @@ export default function DashboardPage({
               aria-label="Mở rộng menu"
               title="Mở rộng menu"
               className="hamburger-left-btn"
+              style={{
+                width: '40px',
+                height: '40px',
+                padding: 0,
+                margin: 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+                transform: 'none',
+              }}
             >
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
                 <span style={{ width: '18px', height: '2px', background: '#334155', borderRadius: '2px' }}></span>
@@ -421,7 +434,7 @@ export default function DashboardPage({
                 {user.branch && (
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span>Kho / Địa bàn:</span>
-                    <strong style={{ color: '#334155' }}>📍 {user.branch}</strong>
+                    <strong style={{ color: '#334155' }}>{user.branch}</strong>
                   </div>
                 )}
               </div>
@@ -535,14 +548,10 @@ export default function DashboardPage({
                 </button>
 
                 <button
-                  onClick={async () => {
+                  onClick={() => {
                     if (isLoggingOut) return;
-                    setIsLoggingOut(true);
-                    try {
-                      await onLogout();
-                    } finally {
-                      setIsLoggingOut(false);
-                    }
+                    setIsUserMenuOpen(false);
+                    setShowLogoutConfirm(true);
                   }}
                   disabled={isLoggingOut}
                   style={{
@@ -717,15 +726,10 @@ export default function DashboardPage({
         }}>
           <button
             className="sidebar-logout-btn"
-            onClick={async () => {
+            onClick={() => {
               if (isLoggingOut) return;
-              setIsLoggingOut(true);
-              try {
-                await onLogout();
-              } finally {
-                setIsLoggingOut(false);
-                setIsMenuOpen(false);
-              }
+              setIsMenuOpen(false);
+              setShowLogoutConfirm(true);
             }}
             disabled={isLoggingOut}
           >
@@ -885,14 +889,9 @@ export default function DashboardPage({
               </button>
 
               <button
-                onClick={async () => {
+                onClick={() => {
                   if (isLoggingOut) return;
-                  setIsLoggingOut(true);
-                  try {
-                    await onLogout();
-                  } finally {
-                    setIsLoggingOut(false);
-                  }
+                  setShowLogoutConfirm(true);
                 }}
                 style={{
                   width: '100%',
@@ -1513,10 +1512,129 @@ export default function DashboardPage({
         onClose={() => setIsCreateAccountModalOpen(false)}
         token={token}
         onSuccess={(msg) => {
-          // Bắn sự kiện cập nhật để trang phân quyền tải lại ngay tức thì và nhận thông báo
+          // Bắn sự kiện cập nhật để trang phân quyền tải lại ngay tức thì
           window.dispatchEvent(new CustomEvent('USER_ACCOUNTS_CHANGED', { detail: { message: msg } }));
+          // Thông báo nổi góc phải màn hình: hiển thị ở MỌI tab (kể cả khi tạo từ Popover Avatar / Sidebar Drawer)
+          emitStatusToast({ message: msg.replace(/^✅\s*/, ''), title: 'Tạo tài khoản thành công' });
         }}
       />
+
+      {/* Modal Popup Xác nhận đăng xuất ở giữa màn hình */}
+      {showLogoutConfirm && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(15, 23, 42, 0.65)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 99999,
+            padding: '16px',
+            animation: 'fadeInCard 0.15s ease-out'
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: '#ffffff',
+              borderRadius: '16px',
+              padding: '24px',
+              maxWidth: '380px',
+              width: '100%',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+              textAlign: 'center',
+              border: '1px solid #e2e8f0'
+            }}
+          >
+            {/* Icon cảnh báo tròn */}
+            <div
+              style={{
+                width: '52px',
+                height: '52px',
+                borderRadius: '50%',
+                backgroundColor: '#fef2f2',
+                color: '#dc2626',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: '0 auto 16px auto',
+                border: '1px solid #fee2e2'
+              }}
+            >
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                <polyline points="16 17 21 12 16 7" />
+                <line x1="21" y1="12" x2="9" y2="12" />
+              </svg>
+            </div>
+
+            <h3 style={{ fontSize: '18px', fontWeight: '700', color: '#0f172a', margin: '0 0 8px 0' }}>
+              Xác nhận đăng xuất
+            </h3>
+            <p style={{ fontSize: '14px', color: '#64748b', lineHeight: '1.5', margin: '0 0 24px 0' }}>
+              Bạn có chắc chắn muốn đăng xuất khỏi hệ thống không?
+            </p>
+
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '10px' }}>
+              <button
+                type="button"
+                onClick={() => setShowLogoutConfirm(false)}
+                style={{
+                  flex: 1,
+                  padding: '9px 16px',
+                  borderRadius: '10px',
+                  border: '1px solid #cbd5e1',
+                  backgroundColor: '#ffffff',
+                  color: '#334155',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'background 0.15s ease'
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f1f5f9')}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#ffffff')}
+              >
+                Hủy bỏ
+              </button>
+
+              <button
+                type="button"
+                onClick={async () => {
+                  setShowLogoutConfirm(false);
+                  setIsLoggingOut(true);
+                  try {
+                    await onLogout();
+                  } finally {
+                    setIsLoggingOut(false);
+                  }
+                }}
+                style={{
+                  flex: 1,
+                  padding: '9px 16px',
+                  borderRadius: '10px',
+                  border: 'none',
+                  backgroundColor: '#dc2626',
+                  color: '#ffffff',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 8px rgba(220, 38, 38, 0.25)',
+                  transition: 'background 0.15s ease'
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#b91c1c')}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#dc2626')}
+              >
+                Đăng xuất
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+
+      {/* Ổ thông báo nổi góc phải màn hình (dùng chung cho mọi thao tác tài khoản) */}
+      <StatusToastHost />
     </div>
   );
 }
