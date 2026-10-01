@@ -4,6 +4,7 @@ import { sessionManager, SessionState } from '../services/sessionManager';
 import SecurityModal from './SecurityModal';
 import { UserManagementView } from './UserManagementView';
 import CreateCustomerModal from './CreateCustomerModal';
+import { StatusToastHost, emitStatusToast } from './StatusToast';
 import { AccessDeniedView } from './AccessDeniedView';
 import './dashboard.css';
 
@@ -228,6 +229,17 @@ export default function DashboardPage({
               aria-label="Mở rộng menu"
               title="Mở rộng menu"
               className="hamburger-left-btn"
+              style={{
+                width: '40px',
+                height: '40px',
+                padding: 0,
+                margin: 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+                transform: 'none',
+              }}
             >
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
                 <span style={{ width: '18px', height: '2px', background: '#334155', borderRadius: '2px' }}></span>
@@ -1515,10 +1527,13 @@ export default function DashboardPage({
         onClose={() => setIsCreateAccountModalOpen(false)}
         token={token}
         onSuccess={(msg) => {
-          // Bắn sự kiện cập nhật để trang phân quyền tải lại ngay tức thì và nhận thông báo
+          // Bắn sự kiện cập nhật để trang phân quyền tải lại ngay tức thì
           window.dispatchEvent(new CustomEvent('USER_ACCOUNTS_CHANGED', { detail: { message: msg } }));
+          // Thông báo nổi góc phải màn hình: hiển thị ở MỌI tab (kể cả khi tạo từ Popover Avatar / Sidebar Drawer)
+          emitStatusToast({ message: msg.replace(/^✅\s*/, ''), title: 'Tạo tài khoản thành công' });
         }}
       />
+
       {/* Modal Popup Xác nhận đăng xuất ở giữa màn hình */}
       {showLogoutConfirm && (
         <div
@@ -1631,6 +1646,10 @@ export default function DashboardPage({
           </div>
         </div>
       )}
+
+
+      {/* Ổ thông báo nổi góc phải màn hình (dùng chung cho mọi thao tác tài khoản) */}
+      <StatusToastHost />
     </div>
   );
 }
