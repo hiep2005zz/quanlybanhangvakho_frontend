@@ -146,6 +146,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
   const [userToEdit, setUserToEdit] = useState<UserAccount | null>(null);
   const [isSubmittingEdit, setIsSubmittingEdit] = useState<boolean>(false);
   const [editModalError, setEditModalError] = useState<string | null>(null);
+  const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState<boolean>(false);
   const [editFormData, setEditFormData] = useState<{
     full_name: string;
     email: string;
@@ -191,10 +192,14 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
       if (!target.closest('.user-action-dropdown-container')) {
         setActiveDropdownUserId(null);
       }
+      if (!target.closest('.role-select-dropdown-container')) {
+        setIsRoleDropdownOpen(false);
+      }
     };
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         setActiveDropdownUserId(null);
+        setIsRoleDropdownOpen(false);
       }
     };
     window.addEventListener('click', handleOutsideClick);
@@ -738,9 +743,9 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
               }}
             >
               <option value="all">Tất cả trạng thái</option>
-              <option value="active">🟢 Đang hoạt động</option>
-              <option value="locked">🔴 Tạm khóa / Đã nghỉ</option>
-              <option value="handover">⚠️ Cần bàn giao đại lý</option>
+              <option value="active">Đang hoạt động</option>
+              <option value="locked">Tạm khóa / Đã nghỉ</option>
+              <option value="handover">Cần bàn giao đại lý</option>
             </select>
           </div>
 
@@ -927,8 +932,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                             {u.email || <span style={{ color: '#94a3b8' }}>Chưa cập nhật email</span>}
                           </div>
                           {u.phone && (
-                            <div style={{ fontSize: '12px', color: '#0284c7', marginTop: '3px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                              <span>📞</span>
+                            <div style={{ fontSize: '12px', color: '#0284c7', marginTop: '3px' }}>
                               <span style={{ fontFamily: 'ui-monospace, SFMono-Regular, monospace' }}>{u.phone}</span>
                             </div>
                           )}
@@ -1003,10 +1007,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
 
                         {/* Kho / Địa bàn */}
                         <td style={{ padding: '14px 16px', color: '#334155', fontSize: '13px' }}>
-                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                            <span>📍</span>
-                            <span>{u.branch || 'Kho Tổng Hà Nội'}</span>
-                          </span>
+                          <span>{u.branch || 'Kho Tổng Hà Nội'}</span>
                         </td>
 
                         {/* Trạng thái & Cảnh báo bàn giao */}
@@ -1698,64 +1699,145 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
 
                     // Với nhân viên thông thường: Không cho phép gán vai trò Admin, chỉ hiển thị các vai trò nghiệp vụ
                     const availableRoles = ROLES_LIST.filter((r) => r.role !== 'admin');
+                    const currentRoles = editFormData.roles || [];
+                    const selectedRoleObjects = availableRoles.filter((r) => currentRoles.includes(r.role));
+
                     return (
-                      <div>
+                      <div className="role-select-dropdown-container" style={{ position: 'relative' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                           <label style={{ fontSize: '13px', fontWeight: '600', color: '#334155' }}>
-                            Vai trò hệ thống (Gán nhiều vai trò cùng lúc) <span style={{ color: '#ef4444' }}>*</span>
+                            Vai trò hệ thống <span style={{ color: '#ef4444' }}>*</span>
                           </label>
                           <span style={{ fontSize: '12px', color: '#64748b' }}>
-                            Đã chọn: <strong style={{ color: '#2563eb' }}>{editFormData.roles?.length || 0}</strong> vai trò
+                            Đã chọn: <strong style={{ color: '#2563eb' }}>{currentRoles.length}</strong> vai trò
                           </span>
                         </div>
 
-                        {/* Danh sách vai trò nghiệp vụ */}
+                        {/* Thanh chọn Dropdown (Giống ô select Kho/Địa bàn nhưng hỗ trợ xem & chọn nhiều vai trò) */}
                         <div
-                          className="roles-grid-scroll"
+                          onClick={() => setIsRoleDropdownOpen((prev) => !prev)}
                           style={{
-                            display: 'grid',
-                            gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))',
+                            width: '100%',
+                            minHeight: '40px',
+                            padding: '6px 12px',
+                            borderRadius: '8px',
+                            border: `1.5px solid ${isRoleDropdownOpen ? '#2563eb' : '#cbd5e1'}`,
+                            background: '#ffffff',
+                            color: '#0f172a',
+                            fontSize: '13.5px',
+                            boxSizing: 'border-box',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
                             gap: '8px',
-                            background: '#f8fafc',
-                            border: '1px solid #e2e8f0',
-                            borderRadius: '10px',
-                            padding: '10px',
-                            maxHeight: '190px',
-                            overflowY: 'auto',
-                            scrollbarWidth: 'none',
-                            msOverflowStyle: 'none',
+                            boxShadow: isRoleDropdownOpen ? '0 0 0 3px rgba(37, 99, 235, 0.12)' : 'none',
+                            transition: 'all 0.15s ease',
                           }}
                         >
-                          {availableRoles.map((r) => {
-                            const currentRoles = editFormData.roles || [];
-                            const isChecked = currentRoles.includes(r.role);
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center', flex: 1 }}>
+                            {selectedRoleObjects.length > 0 ? (
+                              selectedRoleObjects.map((r) => (
+                                <span
+                                  key={r.role}
+                                  style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '5px',
+                                    background: `${r.badgeColor}15`,
+                                    border: `1px solid ${r.badgeColor}40`,
+                                    color: r.badgeColor,
+                                    fontSize: '12px',
+                                    fontWeight: '600',
+                                    padding: '2px 8px',
+                                    borderRadius: '6px',
+                                  }}
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: r.badgeColor }} />
+                                  {r.title}
+                                  <span
+                                    title="Bỏ chọn"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      const nextRoles = currentRoles.filter((code) => code !== r.role);
+                                      setEditFormData({
+                                        ...editFormData,
+                                        role: nextRoles[0] || 'sales',
+                                        roles: nextRoles,
+                                      });
+                                    }}
+                                    style={{
+                                      cursor: 'pointer',
+                                      marginLeft: '2px',
+                                      fontWeight: 'bold',
+                                      fontSize: '13px',
+                                      lineHeight: 1,
+                                    }}
+                                  >
+                                    ×
+                                  </span>
+                                </span>
+                              ))
+                            ) : (
+                              <span style={{ color: '#94a3b8', fontSize: '13.5px' }}>
+                                Chọn vai trò hệ thống...
+                              </span>
+                            )}
+                          </div>
 
-                            return (
-                              <label
-                                key={r.role}
-                                style={{
-                                  display: 'flex',
-                                  alignItems: 'flex-start',
-                                  gap: '12px',
-                                  padding: '10px 12px',
-                                  borderRadius: '10px',
-                                  border: `1px solid ${isChecked ? r.badgeColor : '#e2e8f0'}`,
-                                  background: isChecked ? `${r.badgeColor}12` : '#ffffff',
-                                  cursor: 'pointer',
-                                  transition: 'all 0.15s ease',
-                                  boxShadow: isChecked ? `0 2px 6px ${r.badgeColor}18` : '0 1px 2px 0 rgb(0 0 0 / 0.05)',
-                                }}
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={isChecked}
-                                  onChange={(e) => {
-                                    const checked = e.target.checked;
+                          {/* Mũi tên Dropdown */}
+                          <svg
+                            width="16"
+                            height="16"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="#64748b"
+                            strokeWidth="2.2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            style={{
+                              transform: isRoleDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                              transition: 'transform 0.2s ease',
+                              flexShrink: 0,
+                            }}
+                          >
+                            <polyline points="6 9 12 15 18 9" />
+                          </svg>
+                        </div>
+
+                        {/* Danh sách Dropdown Menu thả xuống */}
+                        {isRoleDropdownOpen && (
+                          <div
+                            style={{
+                              position: 'absolute',
+                              top: 'calc(100% + 4px)',
+                              left: 0,
+                              right: 0,
+                              background: '#ffffff',
+                              border: '1px solid #cbd5e1',
+                              borderRadius: '10px',
+                              boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.12), 0 8px 10px -6px rgba(0, 0, 0, 0.06)',
+                              zIndex: 1000,
+                              maxHeight: '230px',
+                              overflowY: 'auto',
+                              padding: '6px',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: '4px',
+                            }}
+                          >
+                            {availableRoles.map((r) => {
+                              const isChecked = currentRoles.includes(r.role);
+                              return (
+                                <div
+                                  key={r.role}
+                                  onClick={() => {
                                     let nextRoles: string[];
-                                    if (checked) {
-                                      nextRoles = [...currentRoles.filter((code) => code !== r.role && code !== 'admin'), r.role];
+                                    if (isChecked) {
+                                      nextRoles = currentRoles.filter((code) => code !== r.role);
                                     } else {
-                                      nextRoles = currentRoles.filter((code) => code !== r.role && code !== 'admin');
+                                      nextRoles = [...currentRoles.filter((code) => code !== 'admin'), r.role];
                                     }
                                     setEditFormData({
                                       ...editFormData,
@@ -1763,20 +1845,55 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                                       roles: nextRoles,
                                     });
                                   }}
-                                  style={{ marginTop: '2px', cursor: 'pointer', accentColor: r.badgeColor, width: '16px', height: '16px' }}
-                                />
-                                <div style={{ fontSize: '12.5px', lineHeight: '1.4' }}>
-                                  <div style={{ fontWeight: '700', color: isChecked ? r.badgeColor : '#0f172a', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                    {r.title}
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    padding: '8px 12px',
+                                    borderRadius: '8px',
+                                    background: isChecked ? `${r.badgeColor}12` : '#ffffff',
+                                    border: `1px solid ${isChecked ? r.badgeColor : 'transparent'}`,
+                                    cursor: 'pointer',
+                                    transition: 'all 0.15s ease',
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    if (!isChecked) e.currentTarget.style.background = '#f8fafc';
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    if (!isChecked) e.currentTarget.style.background = '#ffffff';
+                                  }}
+                                >
+                                  <div>
+                                    <div style={{ fontSize: '13px', fontWeight: isChecked ? '700' : '600', color: isChecked ? r.badgeColor : '#1e293b' }}>
+                                      {r.title}
+                                    </div>
+                                    <div style={{ fontSize: '11px', color: '#64748b', marginTop: '1px' }}>
+                                      {r.description}
+                                    </div>
                                   </div>
-                                  <div style={{ fontSize: '11px', color: '#64748b', marginTop: '3px' }}>
-                                    {r.description}
+
+                                  <div style={{
+                                    width: '18px',
+                                    height: '18px',
+                                    borderRadius: '4px',
+                                    border: `1.5px solid ${isChecked ? r.badgeColor : '#cbd5e1'}`,
+                                    background: isChecked ? r.badgeColor : '#ffffff',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    color: '#ffffff',
+                                    fontSize: '11px',
+                                    fontWeight: 'bold',
+                                    flexShrink: 0,
+                                    marginLeft: '8px'
+                                  }}>
+                                    {isChecked && '✓'}
                                   </div>
                                 </div>
-                              </label>
-                            );
-                          })}
-                        </div>
+                              );
+                            })}
+                          </div>
+                        )}
 
                         {/* Cảnh báo ràng buộc kho nếu có vai trò kho */}
                         {hasWarehouseRole(editFormData.roles || []) && (
@@ -1823,7 +1940,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                   >
                     {BRANCH_OPTIONS.map((branch) => (
                       <option key={branch} value={branch}>
-                        📍 {branch}
+                        {branch}
                       </option>
                     ))}
                   </select>
@@ -1851,8 +1968,8 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                       cursor: userToEdit.username.toLowerCase() === currentUser.username.toLowerCase() ? 'not-allowed' : 'pointer'
                     }}
                   >
-                    <option value="true">🟢 Đang hoạt động (Bình thường)</option>
-                    <option value="false">🔴 Tạm khóa / Đã nghỉ việc (Chặn đăng nhập)</option>
+                    <option value="true">Đang hoạt động (Bình thường)</option>
+                    <option value="false">Tạm khóa / Đã nghỉ việc (Chặn đăng nhập)</option>
                   </select>
                 </div>
 

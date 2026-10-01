@@ -56,7 +56,7 @@ export default function LoginPage({
     }
   }, [expiredMessage]);
 
-  // Flash Notice: Dọn sạch bộ nhớ lưu trữ và URL ngay sau khi đã nhận
+  // Flash Notice: Dọn sạch bộ nhớ lưu trữ và URL ngay sau khi đã nhận, tự động ẩn sau 5s
   useEffect(() => {
     if (sessionExpiredNotice) {
       sessionStorage.removeItem(AUTH_STORAGE.EXPIRED_MESSAGE);
@@ -67,6 +67,12 @@ export default function LoginPage({
         url.searchParams.delete('expired');
         window.history.replaceState({}, '', url.pathname + (url.search ? url.search : ''));
       }
+
+      // Tự động mất thông báo sau 5 giây
+      const timer = setTimeout(() => {
+        setSessionExpiredNotice(null);
+      }, 5000);
+      return () => clearTimeout(timer);
     }
   }, [sessionExpiredNotice, onClearExpiredMessage]);
 
@@ -113,6 +119,16 @@ export default function LoginPage({
     }, 1000);
     return () => clearInterval(timer);
   }, [lockRemaining]);
+
+  // Tự động ẩn thông báo lỗi sau 5 giây
+  useEffect(() => {
+    if (errorMessage) {
+      const errorTimer = setTimeout(() => {
+        setErrorMessage('');
+      }, 5000);
+      return () => clearTimeout(errorTimer);
+    }
+  }, [errorMessage]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -305,10 +321,10 @@ export default function LoginPage({
               {/* Thông báo lỗi chung */}
               {errorMessage && (
                 <div className="error-alert" role="alert">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
                     <circle cx="12" cy="12" r="10" />
-                    <line x1="12" y1="8" x2="12" y2="12" />
-                    <line x1="12" y1="16" x2="12.01" y2="16" />
+                    <line x1="12" y1="7" x2="12" y2="13" />
+                    <line x1="12" y1="17" x2="12.01" y2="17" />
                   </svg>
                   <span>{errorMessage}</span>
                 </div>
