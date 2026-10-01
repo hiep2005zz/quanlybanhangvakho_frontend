@@ -133,12 +133,6 @@ export default function LoginPage({ onLoginSuccess, expiredMessage, onClearExpir
     <div className="login-container">
       <div className="login-left">
         <div className="login-left-content">
-          <div className="saas-badge">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M21 7.5l-9-5.25L3 7.5m18 0l-9 5.25m9-5.25v9l-9 5.25M3 7.5l9 5.25M3 7.5v9l9 5.25m0-9v9" />
-            </svg>
-            ENTERPRISE WMS & COMMERCE
-          </div>
           <h1>Hệ Thống Quản Lý Kho<br /><span className="highlight-text">& Bán Hàng Thông Minh</span></h1>
           <p className="left-desc">
             Tối ưu hóa quy trình vận hành kho bãi, kiểm soát tồn kho thời gian thực và quản trị doanh số bán hàng đa kênh chính xác, chuẩn mực.
@@ -177,10 +171,19 @@ export default function LoginPage({ onLoginSuccess, expiredMessage, onClearExpir
                 <span className="feature-subtitle">Bảo mật dữ liệu tối đa</span>
               </div>
             </div>
+            <div className="feature-item">
+              <div className="feature-icon-box">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
+                </svg>
+              </div>
+              <div className="feature-text">
+                <span className="feature-title">Thống kê & Báo cáo</span>
+                <span className="feature-subtitle">Trực quan biểu đồ thời gian thực</span>
+              </div>
+            </div>
           </div>
-        </div>
-        <div className="login-footer">
-          © 2026 Enterprise Warehouse & Sales Management. All rights reserved.
+          
         </div>
       </div>
 
@@ -234,13 +237,6 @@ export default function LoginPage({ onLoginSuccess, expiredMessage, onClearExpir
               <div className="form-group">
                 <div className="form-label-row">
                   <label htmlFor="password">Mật khẩu</label>
-                  <button
-                    type="button"
-                    className="forgot-password"
-                    onClick={onForgotPassword}
-                  >
-                    Quên mật khẩu?
-                  </button>
                 </div>
                 <div className="input-container">
                   <svg xmlns="http://www.w3.org/2000/svg" className="input-icon" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
@@ -271,6 +267,15 @@ export default function LoginPage({ onLoginSuccess, expiredMessage, onClearExpir
                         <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                       </svg>
                     )}
+                  </button>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '8px', marginBottom: '-8px' }}>
+                  <button
+                    type="button"
+                    className="forgot-password"
+                    onClick={onForgotPassword}
+                  >
+                    Quên mật khẩu?
                   </button>
                 </div>
               </div>
