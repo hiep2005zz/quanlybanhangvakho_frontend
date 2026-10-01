@@ -277,21 +277,6 @@ export default function DashboardPage({
               <h1 className="brand-title-shimmer" style={{ fontSize: '17px', fontWeight: '700', margin: 0, color: '#0f172a', letterSpacing: '-0.02em' }}>
                 Hệ Thống Quản Lý Kho & Bán Hàng
               </h1>
-              <span
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  fontSize: '11px',
-                  background: '#eff6ff',
-                  border: '1px solid #bfdbfe',
-                  padding: '1.5px 7px',
-                  borderRadius: '999px',
-                  color: '#1d4ed8',
-                  fontWeight: '700',
-                }}
-              >
-                PRO
-              </span>
             </div>
           </div>
         </div>
