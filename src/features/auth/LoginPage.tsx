@@ -56,7 +56,7 @@ export default function LoginPage({
     }
   }, [expiredMessage]);
 
-  // Flash Notice: Dọn sạch bộ nhớ lưu trữ và URL ngay sau khi đã nhận
+  // Flash Notice: Dọn sạch bộ nhớ lưu trữ và URL ngay sau khi đã nhận, tự động ẩn sau 5s
   useEffect(() => {
     if (sessionExpiredNotice) {
       sessionStorage.removeItem(AUTH_STORAGE.EXPIRED_MESSAGE);
@@ -67,6 +67,12 @@ export default function LoginPage({
         url.searchParams.delete('expired');
         window.history.replaceState({}, '', url.pathname + (url.search ? url.search : ''));
       }
+
+      // Tự động mất thông báo sau 5 giây
+      const timer = setTimeout(() => {
+        setSessionExpiredNotice(null);
+      }, 5000);
+      return () => clearTimeout(timer);
     }
   }, [sessionExpiredNotice, onClearExpiredMessage]);
 
