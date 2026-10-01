@@ -227,6 +227,17 @@ export default function DashboardPage({
               aria-label="Mở rộng menu"
               title="Mở rộng menu"
               className="hamburger-left-btn"
+              style={{
+                width: '40px',
+                height: '40px',
+                padding: 0,
+                margin: 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+                transform: 'none',
+                  }}
             >
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
                 <span style={{ width: '18px', height: '2px', background: '#334155', borderRadius: '2px' }}></span>
@@ -234,7 +245,7 @@ export default function DashboardPage({
                 <span style={{ width: '18px', height: '2px', background: '#334155', borderRadius: '2px' }}></span>
               </div>
             </button>
-          )}
+          )}  
 
           <div
             className="brand-logo-animated"
