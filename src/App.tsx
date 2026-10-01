@@ -123,11 +123,38 @@ function App() {
     }
   }, [authToken, currentUser?.username]);
 
+  // [CLEAN URL] Tự động làm sạch URL khi ở trạng thái Chưa đăng nhập (loại bỏ /users, ?tab=users)
+  useEffect(() => {
+    if (!currentUser || !authToken) {
+      const pathname = window.location.pathname.toLowerCase();
+      const search = window.location.search;
+      const isReset = pathname.includes('reset-password') || new URLSearchParams(search).has('token');
+
+      // Nếu không phải luồng đặt lại mật khẩu mà URL dính /users hoặc params thừa -> đưa về sạch '/'
+      if (!isReset && (pathname === '/users' || pathname.startsWith('/users/') || pathname === '/admin' || (search && !new URLSearchParams(search).has('expired')))) {
+        try {
+          window.history.replaceState({}, '', '/');
+        } catch {
+          // ignore
+        }
+      }
+    }
+  }, [currentUser, authToken]);
+
   const handleLoginSuccess = (user: User, token: string) => {
     setSessionExpiredMsg(null);
     setCurrentUser(user);
     setAuthToken(token);
     sessionManager.start(token, user.username);
+    // Nếu không phải admin thì làm sạch URL về trang chủ '/'
+    const isUserAdmin = user.role === 'admin' || Boolean(user.roles && user.roles.includes('admin'));
+    if (!isUserAdmin) {
+      try {
+        window.history.replaceState({}, '', '/');
+      } catch {
+        // ignore
+      }
+    }
   };
 
   const handleLogout = async () => {
@@ -139,6 +166,12 @@ function App() {
     setCurrentUser(null);
     setAuthToken(null);
     setSessionExpiredMsg(null);
+    // Dọn sạch URL triệt để về trang gốc '/' khi đăng xuất
+    try {
+      window.history.replaceState({}, '', '/');
+    } catch {
+      // ignore
+    }
   };
 
   // Xử lý yêu cầu gửi email đặt lại mật khẩu (chống spam với isSubmitting và countdown 60s)
