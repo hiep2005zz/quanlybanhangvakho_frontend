@@ -135,11 +135,24 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
   const [error, setError] = useState<string | null>(null);
 
   // Filter, Search & Pagination (S1-08 / S1-10: 20 dòng/trang mặc định)
+  const [searchInput, setSearchInput] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [selectedRoleFilter, setSelectedRoleFilter] = useState<string>('all');
   const [selectedStatusFilter, setSelectedStatusFilter] = useState<string>('all');
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(20);
+
+  // Áp dụng Debounce 400ms: Chỉ khi người dùng ngừng gõ phím sau 400ms thì mới trigger cập nhật searchTerm/lọc
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearchTerm(searchInput);
+      setCurrentPage(1);
+    }, 400);
+
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [searchInput]);
 
 
   // Modal Edit State
@@ -667,11 +680,8 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
           <input
             type="text"
             placeholder="Tìm theo tên, email, số điện thoại, kho..."
-            value={searchTerm}
-            onChange={(e) => {
-              setSearchTerm(e.target.value);
-              setCurrentPage(1);
-            }}
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
             style={{
               width: '100%',
               padding: '9px 12px 9px 36px',
