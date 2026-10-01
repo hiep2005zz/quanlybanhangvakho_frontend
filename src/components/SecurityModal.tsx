@@ -10,6 +10,45 @@ interface SecurityModalProps {
   onTokenUpdated?: (newToken: string) => void;
 }
 
+const toggleBtnStyle: React.CSSProperties = {
+  position: 'absolute',
+  top: '50%',
+  right: '8px',
+  width: '32px',
+  height: '32px',
+  marginTop: '-16px',
+  transform: 'none',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  background: '#ffffff',
+  border: 'none',
+  borderRadius: '10px',
+  boxShadow: '0 2px 8px rgba(15, 23, 42, 0.10)',
+  padding: 0,
+  color: '#64748b',
+  cursor: 'pointer',
+  lineHeight: 1,
+};
+
+// Con mắt mở: đang HIỆN mật khẩu
+const EyeIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+    <circle cx="12" cy="12" r="3" />
+  </svg>
+);
+
+// Con mắt gạch chéo: đang ẨN mật khẩu
+const EyeOffIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+    <line x1="1" y1="1" x2="23" y2="23" />
+  </svg>
+);
+
 export default function SecurityModal({
   isOpen,
   onClose,
@@ -313,7 +352,7 @@ export default function SecurityModal({
                 required
                 style={{
                   width: '100%',
-                  padding: '11px 40px 11px 14px',
+                  padding: '11px 48px 11px 14px',
                   background: '#ffffff',
                   border: '1px solid #cbd5e1',
                   borderRadius: '8px',
@@ -329,21 +368,10 @@ export default function SecurityModal({
               <button
                 type="button"
                 onClick={() => setShowCurrent(!showCurrent)}
-                style={{
-                  position: 'absolute',
-                  right: '12px',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  background: 'none',
-                  border: 'none',
-                  color: '#64748b',
-                  cursor: 'pointer',
-                  fontSize: '15px',
-                  padding: 0,
-                }}
+                style={toggleBtnStyle}
                 title={showCurrent ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
               >
-                {showCurrent ? '👁️' : '🔒'}
+                {showCurrent ? <EyeIcon /> : <EyeOffIcon />}
               </button>
             </div>
           </div>
@@ -363,7 +391,7 @@ export default function SecurityModal({
                 required
                 style={{
                   width: '100%',
-                  padding: '11px 40px 11px 14px',
+                  padding: '11px 48px 11px 14px',
                   background: '#ffffff',
                   border: '1px solid #cbd5e1',
                   borderRadius: '8px',
@@ -379,21 +407,10 @@ export default function SecurityModal({
               <button
                 type="button"
                 onClick={() => setShowNew(!showNew)}
-                style={{
-                  position: 'absolute',
-                  right: '12px',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  background: 'none',
-                  border: 'none',
-                  color: '#64748b',
-                  cursor: 'pointer',
-                  fontSize: '15px',
-                  padding: 0,
-                }}
+                style={toggleBtnStyle}
                 title={showNew ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
               >
-                {showNew ? '👁️' : '🔒'}
+                {showNew ? <EyeIcon /> : <EyeOffIcon />}
               </button>
             </div>
 
@@ -434,7 +451,7 @@ export default function SecurityModal({
                 required
                 style={{
                   width: '100%',
-                  padding: '11px 40px 11px 14px',
+                  padding: '11px 48px 11px 14px',
                   background: '#ffffff',
                   border: '1px solid #cbd5e1',
                   borderRadius: '8px',
@@ -450,21 +467,10 @@ export default function SecurityModal({
               <button
                 type="button"
                 onClick={() => setShowConfirm(!showConfirm)}
-                style={{
-                  position: 'absolute',
-                  right: '12px',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  background: 'none',
-                  border: 'none',
-                  color: '#64748b',
-                  cursor: 'pointer',
-                  fontSize: '15px',
-                  padding: 0,
-                }}
+                style={toggleBtnStyle}
                 title={showConfirm ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
               >
-                {showConfirm ? '👁️' : '🔒'}
+                {showConfirm ? <EyeIcon /> : <EyeOffIcon />}
               </button>
             </div>
             {confirmPassword.length > 0 && !isMatch && (
