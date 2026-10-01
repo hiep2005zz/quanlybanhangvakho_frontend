@@ -165,15 +165,22 @@ class SessionManager {
           }
 
           if (event.data?.type === 'PASSWORD_CHANGED') {
-            // Chỉ thu hồi nếu đổi mật khẩu cho đúng tài khoản đang đăng nhập ở tab này
-            if (this.currentUsername && event.data?.username && event.data.username !== this.currentUsername) {
+            // Kiểm tra đúng tài khoản đang đăng nhập
+            const eventUser = (event.data?.username || '').toLowerCase().trim();
+            const thisUser = (this.currentUsername || '').toLowerCase().trim();
+            if (thisUser && eventUser && eventUser !== thisUser) {
               return;
             }
-            // Nếu tab này đã cập nhật token mới rồi thì không thu hồi
-            if (this.currentToken && event.data?.newToken === this.currentToken) {
-              return;
+
+            // Vì các tab này cùng trên một máy tính / cùng một trình duyệt:
+            // Cập nhật ngay Token mới vào sessionStorage & localStorage và thông báo cho App cập nhật
+            // Nhờ đó các tab trên máy này KHÔNG BỊ OUT, còn máy khác (thiết bị khác) cầm token cũ sẽ bị Backend đá văng 401 ngay lập tức.
+            if (event.data?.newToken) {
+              this.currentToken = event.data.newToken;
+              sessionStorage.setItem(AUTH_STORAGE.TOKEN, event.data.newToken);
+              localStorage.setItem(AUTH_STORAGE.TOKEN, event.data.newToken);
+              this.tokenRefreshListeners.forEach((listener) => listener(event.data.newToken));
             }
-            this.forceExpire('Phiên làm việc đã bị thu hồi do đổi mật khẩu từ một cửa sổ khác. Vui lòng đăng nhập lại.');
           }
 
           if (event.data?.type === 'USER_ROLE_UPDATED') {
