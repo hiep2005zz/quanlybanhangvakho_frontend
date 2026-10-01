@@ -449,7 +449,7 @@ export default function DashboardPage({
                 {user.branch && (
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span>Kho / Địa bàn:</span>
-                    <strong style={{ color: '#334155' }}>📍 {user.branch}</strong>
+                    <strong style={{ color: '#334155' }}>{user.branch}</strong>
                   </div>
                 )}
               </div>
