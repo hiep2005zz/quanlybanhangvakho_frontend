@@ -9,16 +9,25 @@ interface LoginPageProps {
   onForgotPassword?: () => void;
 }
 
-export default function LoginPage({ onLoginSuccess, expiredMessage, onClearExpiredMessage, onForgotPassword }: LoginPageProps) {
+export default function LoginPage({
+  onLoginSuccess,
+  expiredMessage,
+  onClearExpiredMessage,
+  onForgotPassword,
+}: LoginPageProps) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
-  const formatNotice = (msg: string) => msg.startsWith('⚠️') ? msg : `⚠️ ${msg}`;
+  const formatNotice = (msg: string) => {
+    return msg.startsWith('⚠️') ? msg : `⚠️ ${msg}`;
+  };
 
   const [sessionExpiredNotice, setSessionExpiredNotice] = useState<string | null>(() => {
-    const stored = sessionStorage.getItem(AUTH_STORAGE.EXPIRED_MESSAGE) || localStorage.getItem(AUTH_STORAGE.EXPIRED_MESSAGE);
+    const stored =
+      sessionStorage.getItem(AUTH_STORAGE.EXPIRED_MESSAGE) ||
+      localStorage.getItem(AUTH_STORAGE.EXPIRED_MESSAGE);
     if (stored) return formatNotice(stored);
     if (expiredMessage) return formatNotice(expiredMessage);
     const params = new URLSearchParams(window.location.search);
@@ -27,12 +36,14 @@ export default function LoginPage({ onLoginSuccess, expiredMessage, onClearExpir
     }
     return null;
   });
-
   const [lockRemaining, setLockRemaining] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(false);
 
+  // Cập nhật thông báo hết hạn nếu prop thay đổi hoặc có query param
   useEffect(() => {
-    const stored = sessionStorage.getItem(AUTH_STORAGE.EXPIRED_MESSAGE) || localStorage.getItem(AUTH_STORAGE.EXPIRED_MESSAGE);
+    const stored =
+      sessionStorage.getItem(AUTH_STORAGE.EXPIRED_MESSAGE) ||
+      localStorage.getItem(AUTH_STORAGE.EXPIRED_MESSAGE);
     if (stored) {
       setSessionExpiredNotice(formatNotice(stored));
     } else if (expiredMessage) {
@@ -45,6 +56,7 @@ export default function LoginPage({ onLoginSuccess, expiredMessage, onClearExpir
     }
   }, [expiredMessage]);
 
+  // Flash Notice: Dọn sạch bộ nhớ lưu trữ và URL ngay sau khi đã nhận
   useEffect(() => {
     if (sessionExpiredNotice) {
       sessionStorage.removeItem(AUTH_STORAGE.EXPIRED_MESSAGE);
@@ -63,8 +75,14 @@ export default function LoginPage({ onLoginSuccess, expiredMessage, onClearExpir
     sessionStorage.removeItem(AUTH_STORAGE.EXPIRED_MESSAGE);
     localStorage.removeItem(AUTH_STORAGE.EXPIRED_MESSAGE);
     onClearExpiredMessage?.();
+    if (typeof window !== 'undefined' && window.location.search.includes('expired')) {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('expired');
+      window.history.replaceState({}, '', url.pathname + (url.search ? url.search : ''));
+    }
   };
 
+  // Kiểm tra trạng thái khóa khi load trang
   useEffect(() => {
     const lockUntilStr = localStorage.getItem('lockout_until');
     if (lockUntilStr) {
@@ -79,6 +97,7 @@ export default function LoginPage({ onLoginSuccess, expiredMessage, onClearExpir
     }
   }, []);
 
+  // Bộ đếm ngược thời gian khóa
   useEffect(() => {
     if (lockRemaining <= 0) return;
     const timer = setInterval(() => {
@@ -107,6 +126,7 @@ export default function LoginPage({ onLoginSuccess, expiredMessage, onClearExpir
       const cleanPassword = password.trim();
       const data = await loginApi(cleanUsername, cleanPassword);
 
+      // Đăng nhập thành công
       localStorage.removeItem('login_failed_count');
       localStorage.removeItem('lockout_until');
       sessionStorage.removeItem(AUTH_STORAGE.EXPIRED_MESSAGE);
@@ -116,13 +136,15 @@ export default function LoginPage({ onLoginSuccess, expiredMessage, onClearExpir
       setErrorMessage('');
       onLoginSuccess(data.user, data.access_token);
     } catch (err: any) {
+      // Trường hợp bị khóa 15 phút (HTTP 429)
       if (err.lock_remaining_seconds) {
         const lockUntil = Date.now() + err.lock_remaining_seconds * 1000;
         localStorage.setItem('lockout_until', lockUntil.toString());
         setLockRemaining(err.lock_remaining_seconds);
         setErrorMessage('');
       } else {
-        const remainInfo = err.remaining_attempts !== undefined ? ` (Bạn còn ${err.remaining_attempts} lần thử)` : '';
+        const remainInfo =
+          err.remaining_attempts !== undefined ? ` (Bạn còn ${err.remaining_attempts} lần thử)` : '';
         setErrorMessage((err.message || 'Tên đăng nhập hoặc mật khẩu không chính xác.') + remainInfo);
       }
     } finally {
@@ -131,41 +153,170 @@ export default function LoginPage({ onLoginSuccess, expiredMessage, onClearExpir
   };
 
   const formatTime = (secs: number) => {
-    const m = Math.floor(secs / 60).toString().padStart(2, '0');
+    const m = Math.floor(secs / 60)
+      .toString()
+      .padStart(2, '0');
     const s = (secs % 60).toString().padStart(2, '0');
     return `${m}:${s}`;
   };
 
+  const roleList = [
+    {
+      u: 'admin',
+      label: 'Quản trị hệ thống',
+      color: '#dc2626',
+      bg: '#fef2f2',
+      border: '#fecaca',
+      desc: 'Toàn quyền + Giá vốn + Kho',
+    },
+    {
+      u: 'sales_manager',
+      label: 'Quản lý kinh doanh',
+      color: '#7c3aed',
+      bg: '#f5f3ff',
+      border: '#ddd6fe',
+      desc: 'Xem giá vốn & lãi',
+    },
+    {
+      u: 'sales',
+      label: 'Nhân viên kinh doanh',
+      color: '#2563eb',
+      bg: '#eff6ff',
+      border: '#bfdbfe',
+      desc: 'Chặn giá vốn & kho',
+    },
+    {
+      u: 'kho',
+      label: 'Thủ kho',
+      color: '#16a34a',
+      bg: '#f0fdf4',
+      border: '#bbf7d0',
+      desc: 'Thao tác kho, ẩn giá vốn',
+    },
+    {
+      u: 'warehouse_mgr',
+      label: 'Quản lý kho',
+      color: '#059669',
+      bg: '#ecfdf5',
+      border: '#a7f3d0',
+      desc: 'Quản lý kho & mua hàng',
+    },
+    {
+      u: 'ketoan',
+      label: 'Kế toán công nợ',
+      color: '#d97706',
+      bg: '#fffbeb',
+      border: '#fde68a',
+      desc: 'Sổ sách & đối trừ nợ',
+    },
+    {
+      u: 'customer',
+      label: 'Đại lý',
+      color: '#0284c7',
+      bg: '#f0f9ff',
+      border: '#bae6fd',
+      desc: 'Tự đặt hàng & xem nợ',
+    },
+  ];
+
   return (
-    <div className="login-container">
-      <div className="login-left">
-        <div className="login-left-content">
-          <div className="saas-badge">✨ Nền tảng SaaS v2.0</div>
-          <h1>HỆ THỐNG QUẢN LÝ<br />BÁN HÀNG & KHO</h1>
-          <p className="left-desc">
-            Giải pháp toàn diện giúp doanh nghiệp tối ưu hóa quy trình bán hàng, kiểm soát tồn kho chặt chẽ và theo dõi doanh thu theo thời gian thực.
+    <div className="login-split-container">
+      {/* ================= NỬA BÊN TRÁI: VISUAL (50%) ================= */}
+      <section className="login-visual-pane">
+        <div className="visual-bg-image" />
+        <div className="visual-gradient-overlay" />
+        <div className="visual-noise" />
+
+        {/* Nội dung trung tâm của phần Visual */}
+        <div className="visual-content">
+          {/* Logo & Brand Box */}
+          <div className="visual-brand-header">
+            <div className="visual-logo-box">
+              <svg
+                width="34"
+                height="34"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+                <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+                <line x1="12" y1="22.08" x2="12" y2="12" />
+              </svg>
+            </div>
+            <div className="visual-brand-badge">ENTERPRISE WMS & COMMERCE</div>
+          </div>
+
+          <h1 className="visual-headline">
+            Hệ Thống Quản Lý Kho <br />
+            <span className="gradient-text">&amp; Bán Hàng Thông Minh</span>
+          </h1>
+
+          <p className="visual-slogan">
+            Tối ưu hóa quy trình vận hành kho bãi, kiểm soát tồn kho thời gian thực và quản trị doanh số
+            bán hàng đa kênh chính xác, chuẩn mực.
           </p>
-          <div className="feature-list">
-            <div className="feature-item">
-              <span className="feature-icon">📦</span> Quản lý kho vận hành thông minh
+
+          {/* Feature Highlights Bullets */}
+          <div className="visual-features">
+            <div className="feature-pill">
+              <div className="feature-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                  <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                </svg>
+              </div>
+              <div className="feature-text">
+                <strong>Báo cáo Lãi/Lỗ Tức thì</strong>
+                <span>Kiểm soát giá vốn chuẩn xác</span>
+              </div>
             </div>
-            <div className="feature-item">
-              <span className="feature-icon">📊</span> Báo cáo doanh thu thời gian thực
+
+            <div className="feature-pill">
+              <div className="feature-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                  <path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                </svg>
+              </div>
+              <div className="feature-text">
+                <strong>Điều chuyển Kho &amp; Tồn kho</strong>
+                <span>Cảnh báo hết hàng tự động</span>
+              </div>
             </div>
-            <div className="feature-item">
-              <span className="feature-icon">🔒</span> Phân quyền bảo mật đa lớp
+
+            <div className="feature-pill">
+              <div className="feature-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                  <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                  <circle cx="9" cy="7" r="4" />
+                  <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                </svg>
+              </div>
+              <div className="feature-text">
+                <strong>Phân quyền 7 Cấp độ</strong>
+                <span>Bảo mật dữ liệu tối đa</span>
+              </div>
             </div>
+          </div>
+
+          <div className="visual-footer">
+            <span>© 2026 Enterprise Warehouse &amp; Sales Management. All rights reserved.</span>
           </div>
         </div>
-      </div>
+      </section>
 
-      <div className="login-right">
-        <div className="login-right-content">
-          <div className="login-header">
-            <h2>Chào mừng trở lại!</h2>
-            <p>Vui lòng đăng nhập tài khoản của bạn để tiếp tục truy cập vào hệ thống.</p>
+      {/* ================= NỬA BÊN PHẢI: FORM ĐĂNG NHẬP (50%) ================= */}
+      <section className="login-form-pane w-full lg:w-1/2 min-h-screen flex items-center justify-center">
+        <div className="form-card-container w-full h-full min-h-screen flex flex-col justify-center">
+          {/* Header Form */}
+          <div className="form-header">
+            <h2 className="form-title">Đăng nhập tài khoản</h2>
           </div>
 
+          {/* Thông báo phiên hết hạn (Flash notice) */}
           {sessionExpiredNotice && (
             <div className="session-expired-alert" role="alert">
               <div className="session-expired-content">
@@ -175,114 +326,149 @@ export default function LoginPage({ onLoginSuccess, expiredMessage, onClearExpir
                 type="button"
                 className="session-expired-close-btn"
                 onClick={handleCloseExpiredNotice}
+                title="Đóng thông báo"
+                aria-label="Đóng"
               >
-                &times;
+                <svg
+                  width="15"
+                  height="15"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
               </button>
             </div>
           )}
 
+          {/* Cảnh báo khóa 15 phút */}
           {lockRemaining > 0 ? (
             <div className="lock-alert">
+              <div className="lock-icon-wrap">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                </svg>
+              </div>
               <p>Tài khoản đã bị tạm khóa do nhập sai quá 5 lần liên tiếp. Vui lòng thử lại sau:</p>
               <div className="lock-timer">{formatTime(lockRemaining)}</div>
             </div>
           ) : (
-            <form className="login-form" onSubmit={handleSubmit}>
+            <form className="auth-form" onSubmit={handleSubmit}>
+              {/* Thông báo lỗi chung */}
               {errorMessage && (
-                <div className="error-alert">
+                <div className="error-alert" role="alert">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="8" x2="12" y2="12" />
+                    <line x1="12" y1="16" x2="12.01" y2="16" />
+                  </svg>
                   <span>{errorMessage}</span>
                 </div>
               )}
 
-              <div className="form-group">
+              {/* Ô Tên đăng nhập */}
+              <div className="field-group">
                 <label htmlFor="username">Tên đăng nhập</label>
-                <div className="input-container">
+                <div className="input-box">
+                  <span className="input-icon">
+                    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                      <circle cx="12" cy="7" r="4" />
+                    </svg>
+                  </span>
                   <input
                     id="username"
                     type="text"
-                    placeholder="admin"
+                    placeholder="Nhập tên đăng nhập hoặc email"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     disabled={lockRemaining > 0 || isLoading}
                     required
+                    autoComplete="username"
                   />
                 </div>
               </div>
 
-              <div className="form-group">
+              {/* Ô Mật khẩu */}
+              <div className="field-group">
                 <label htmlFor="password">Mật khẩu</label>
-                <div className="input-container">
+                <div className="input-box">
+                  <span className="input-icon">
+                    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                    </svg>
+                  </span>
                   <input
                     id="password"
                     type={showPassword ? 'text' : 'password'}
-                    placeholder="Mật khẩu"
+                    placeholder="••••••••"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     disabled={lockRemaining > 0 || isLoading}
                     required
+                    autoComplete="current-password"
                   />
                   <button
                     type="button"
                     className="toggle-pwd-btn"
                     onClick={() => setShowPassword(!showPassword)}
+                    aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
                   >
-                    {showPassword ? 'Ẩn' : 'Hiện'}
+                    {showPassword ? (
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+                        <line x1="1" y1="1" x2="23" y2="23" />
+                      </svg>
+                    ) : (
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                        <circle cx="12" cy="12" r="3" />
+                      </svg>
+                    )}
                   </button>
                 </div>
+                {onForgotPassword && (
+                  <div className="forgot-pwd-row">
+                    <button
+                      type="button"
+                      className="forgot-pwd-btn"
+                      onClick={onForgotPassword}
+                    >
+                      Quên mật khẩu?
+                    </button>
+                  </div>
+                )}
               </div>
 
-              <div className="form-actions">
-                <button
-                  type="button"
-                  className="forgot-password"
-                  onClick={onForgotPassword}
-                >
-                  Quên mật khẩu?
-                </button>
-              </div>
-
-              <button type="submit" className="submit-btn" disabled={lockRemaining > 0 || isLoading}>
-                {isLoading ? 'Đang xác thực...' : 'Đăng nhập'}
+              {/* Nút Đăng nhập */}
+              <button
+                type="submit"
+                className="login-submit-btn"
+                disabled={lockRemaining > 0 || isLoading}
+              >
+                {isLoading ? (
+                  <span className="btn-loading-content">
+                    <span className="btn-spinner" />
+                    Đang đăng nhập...
+                  </span>
+                ) : (
+                  <span className="btn-normal-content">
+                    Đăng nhập
+                  </span>
+                )}
               </button>
             </form>
           )}
 
-          <div className="demo-roles">
-            <div className="demo-roles-header">
-              <span>Trải nghiệm nhanh các vai trò:</span>
-              <span className="demo-roles-hint">(Mật khẩu chung: <strong>123</strong>)</span>
-            </div>
-            <div className="roles-grid">
-              {[
-                { u: 'admin', label: 'Quản trị hệ thống', desc: 'Toàn quyền + Giá vốn + Kho' },
-                { u: 'sales_manager', label: 'Quản lý kinh doanh', desc: 'Xem giá vốn & lãi' },
-                { u: 'sales', label: 'Nhân viên kinh doanh', desc: 'Chặn giá vốn & kho' },
-                { u: 'kho', label: 'Thủ kho', desc: 'Thao tác kho, ẩn giá vốn' },
-                { u: 'warehouse_mgr', label: 'Quản lý kho', desc: 'Quản lý kho & mua hàng' },
-                { u: 'ketoan', label: 'Kế toán công nợ', desc: 'Sổ sách & đối trừ nợ' },
-                { u: 'customer', label: 'Đại lý', desc: 'Tự đặt hàng & xem nợ' },
-              ].map((role) => (
-                <button
-                  key={role.u}
-                  type="button"
-                  className="role-card"
-                  onClick={() => {
-                    setUsername(role.u);
-                    setPassword('123');
-                  }}
-                >
-                  <div className="role-title">
-                    <strong>{role.label}</strong>
-                  </div>
-                  <div className="role-desc">
-                    <code>{role.u}</code> • {role.desc}
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
         </div>
-      </div>
+      </section>
     </div>
   );
 }
