@@ -114,6 +114,16 @@ export default function LoginPage({
     return () => clearInterval(timer);
   }, [lockRemaining]);
 
+  // Tự động ẩn thông báo lỗi sau 5 giây
+  useEffect(() => {
+    if (errorMessage) {
+      const errorTimer = setTimeout(() => {
+        setErrorMessage('');
+      }, 5000);
+      return () => clearTimeout(errorTimer);
+    }
+  }, [errorMessage]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (lockRemaining > 0 || isLoading) return;
