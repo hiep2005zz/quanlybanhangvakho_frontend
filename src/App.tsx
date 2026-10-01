@@ -229,145 +229,135 @@ function App() {
   }
 
   // Màn hình Quên mật khẩu / Đặt lại mật khẩu
+  // Màn hình Quên mật khẩu / Đặt lại mật khẩu
   if (authView === 'forgot' || authView === 'reset') {
     return (
       <>
         {videoBackground}
-        <main className="auth-page">
-        <section className="auth-card" aria-labelledby="page-title">
-          <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-            <div
-              style={{
-                width: '54px',
-                height: '54px',
-                margin: '0 auto 14px',
-                background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #ec4899 100%)',
-                borderRadius: '16px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                boxShadow: '0 10px 25px rgba(99, 102, 241, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.35), inset 0 -1px 0 rgba(255,255,255,0.08)',
-                border: '1px solid rgba(255, 255, 255, 0.2)',
-                color: '#ffffff',
-              }}
-            >
-              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
-                <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
-                <line x1="12" y1="22.08" x2="12" y2="12" />
-              </svg>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', width: '100vw', padding: '20px' }}>
+          <div className="login-right-content" style={{ background: '#ffffff', padding: '40px', borderRadius: '16px', boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05)', maxWidth: '460px', width: '100%' }}>
+            <div className="login-header" style={{ textAlign: 'center', marginBottom: '28px' }}>
+              <h2>{authView === 'forgot' ? 'Lấy lại quyền truy cập' : 'Đặt lại mật khẩu mới'}</h2>
+              <p>
+                {authView === 'forgot'
+                  ? 'Nhập email tài khoản để nhận liên kết đặt lại mật khẩu có hiệu lực trong 30 phút.'
+                  : 'Tạo mật khẩu mới cho tài khoản của bạn (tối thiểu 8 ký tự).'}
+              </p>
             </div>
-            <p className="eyebrow">HỆ THỐNG QUẢN LÝ KHO & BÁN HÀNG</p>
-            <h1 id="page-title">
-              {authView === 'forgot' ? 'Lấy lại quyền truy cập' : 'Đặt lại mật khẩu mới'}
-            </h1>
-            <p className="intro">
-              {authView === 'forgot'
-                ? 'Nhập email tài khoản để nhận liên kết đặt lại mật khẩu có hiệu lực trong 30 phút.'
-                : 'Tạo mật khẩu mới cho tài khoản của bạn (tối thiểu 8 ký tự).'}
-            </p>
+
+            {resetMessage && <div className="error-alert" style={{ background: '#dcfce7', borderColor: '#bbf7d0', color: '#15803d', marginBottom: '20px' }}>{resetMessage}</div>}
+            {resetError && <div className="error-alert" style={{ marginBottom: '20px' }}>{resetError}</div>}
+
+            {authView === 'forgot' ? (
+              <form className="login-form" onSubmit={handleForgotRequest}>
+                <div className="form-group">
+                  <label htmlFor="email">Email tài khoản hoặc Tên đăng nhập</label>
+                  <div className="input-container">
+                    <input
+                      id="email"
+                      type="text"
+                      value={forgotEmail}
+                      onChange={(event) => setForgotEmail(event.target.value)}
+                      placeholder="Nhập email hoặc tên đăng nhập"
+                      autoComplete="username email"
+                      required
+                    />
+                  </div>
+                </div>
+                
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '8px' }}>
+                  <button type="submit" className="submit-btn" disabled={isSubmitting || countdown > 0}>
+                    {isSubmitting
+                      ? 'Đang gửi...'
+                      : countdown > 0
+                      ? `Gửi lại sau (${countdown}s)`
+                      : 'Gửi liên kết đặt lại'}
+                  </button>
+                  <button
+                    type="button"
+                    className="submit-btn"
+                    style={{ background: '#f3f4f6', color: '#374151', boxShadow: 'none' }}
+                    onClick={() => {
+                      setResetMessage('');
+                      setResetError('');
+                      setAuthView('login');
+                    }}
+                  >
+                    ← Quay lại Đăng nhập
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <form className="login-form" onSubmit={handleResetSubmit}>
+                <div className="form-group">
+                  <label htmlFor="new-password">Mật khẩu mới</label>
+                  <div className="input-container">
+                    <input
+                      id="new-password"
+                      type={showResetNewPassword ? 'text' : 'password'}
+                      value={resetNewPassword}
+                      onChange={(event) => setResetNewPassword(event.target.value)}
+                      minLength={8}
+                      placeholder="Tối thiểu 8 ký tự"
+                      autoComplete="new-password"
+                      required
+                    />
+                    <button
+                      type="button"
+                      className="toggle-pwd-btn"
+                      onClick={() => setShowResetNewPassword(!showResetNewPassword)}
+                    >
+                      {showResetNewPassword ? 'Ẩn' : 'Hiện'}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="confirm-password">Xác nhận mật khẩu mới</label>
+                  <div className="input-container">
+                    <input
+                      id="confirm-password"
+                      type={showResetConfirmPassword ? 'text' : 'password'}
+                      value={resetConfirmPassword}
+                      onChange={(event) => setResetConfirmPassword(event.target.value)}
+                      minLength={8}
+                      placeholder="Nhập lại mật khẩu mới"
+                      autoComplete="new-password"
+                      required
+                    />
+                    <button
+                      type="button"
+                      className="toggle-pwd-btn"
+                      onClick={() => setShowResetConfirmPassword(!showResetConfirmPassword)}
+                    >
+                      {showResetConfirmPassword ? 'Ẩn' : 'Hiện'}
+                    </button>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '8px' }}>
+                  <button type="submit" className="submit-btn" disabled={isSubmitting}>
+                    {isSubmitting ? 'Đang cập nhật...' : 'Xác nhận đặt lại mật khẩu'}
+                  </button>
+                  <button
+                    type="button"
+                    className="submit-btn"
+                    style={{ background: '#f3f4f6', color: '#374151', boxShadow: 'none' }}
+                    onClick={() => {
+                      window.history.replaceState({}, '', window.location.pathname.replace(/\/reset-password.*/, '') || '/');
+                      setResetToken('');
+                      setResetMessage('');
+                      setResetError('');
+                      setAuthView('login');
+                    }}
+                  >
+                    ← Quay lại Đăng nhập
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
-
-          {authView === 'forgot' ? (
-            <form onSubmit={handleForgotRequest}>
-              <label htmlFor="email">Email tài khoản hoặc Tên đăng nhập</label>
-              <input
-                id="email"
-                type="text"
-                value={forgotEmail}
-                onChange={(event) => setForgotEmail(event.target.value)}
-                placeholder="Nhập email (ví dụ: hiep2005zz@gmail.com) hoặc admin"
-                autoComplete="username email"
-                required
-              />
-              <button type="submit" disabled={isSubmitting || countdown > 0}>
-                {isSubmitting
-                  ? 'Đang gửi...'
-                  : countdown > 0
-                  ? `Gửi lại sau (${countdown}s)`
-                  : 'Gửi liên kết đặt lại'}
-              </button>
-              <button
-                type="button"
-                className="secondary"
-                onClick={() => {
-                  setResetMessage('');
-                  setResetError('');
-                  setAuthView('login');
-                }}
-              >
-                ← Quay lại Đăng nhập
-              </button>
-            </form>
-          ) : (
-            <form onSubmit={handleResetSubmit}>
-              <label htmlFor="new-password">Mật khẩu mới</label>
-              <div className="pwd-input-wrapper">
-                <input
-                  id="new-password"
-                  type={showResetNewPassword ? 'text' : 'password'}
-                  value={resetNewPassword}
-                  onChange={(event) => setResetNewPassword(event.target.value)}
-                  minLength={8}
-                  placeholder="Tối thiểu 8 ký tự"
-                  autoComplete="new-password"
-                  required
-                />
-                <button
-                  type="button"
-                  className="reset-toggle-pwd-btn"
-                  onClick={() => setShowResetNewPassword(!showResetNewPassword)}
-                  aria-label={showResetNewPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
-                >
-                  {showResetNewPassword ? 'Ẩn' : 'Hiện'}
-                </button>
-              </div>
-
-              <label htmlFor="confirm-password">Xác nhận mật khẩu mới</label>
-              <div className="pwd-input-wrapper">
-                <input
-                  id="confirm-password"
-                  type={showResetConfirmPassword ? 'text' : 'password'}
-                  value={resetConfirmPassword}
-                  onChange={(event) => setResetConfirmPassword(event.target.value)}
-                  minLength={8}
-                  placeholder="Nhập lại mật khẩu mới"
-                  autoComplete="new-password"
-                  required
-                />
-                <button
-                  type="button"
-                  className="reset-toggle-pwd-btn"
-                  onClick={() => setShowResetConfirmPassword(!showResetConfirmPassword)}
-                  aria-label={showResetConfirmPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
-                >
-                  {showResetConfirmPassword ? 'Ẩn' : 'Hiện'}
-                </button>
-              </div>
-
-              <button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? 'Đang cập nhật...' : 'Xác nhận đặt lại mật khẩu'}
-              </button>
-              <button
-                type="button"
-                className="secondary"
-                onClick={() => {
-                  window.history.replaceState({}, '', window.location.pathname.replace(/\/reset-password.*/, '') || '/');
-                  setResetToken('');
-                  setResetMessage('');
-                  setResetError('');
-                  setAuthView('login');
-                }}
-              >
-                ← Quay lại Đăng nhập
-              </button>
-            </form>
-          )}
-
-          {resetMessage && <p className="message success" role="status">{resetMessage}</p>}
-          {resetError && <p className="message error" role="alert">{resetError}</p>}
-        </section>
-      </main>
+        </div>
       </>
     );
   }
