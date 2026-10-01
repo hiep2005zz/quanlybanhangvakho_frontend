@@ -154,7 +154,11 @@ function App() {
       setResetMessage(response.message);
       setCountdown(60); // Bắt đầu đếm ngược 60 giây
     } catch (requestError) {
-      setResetError(requestError instanceof Error ? requestError.message : 'Không thể gửi yêu cầu.');
+      let errorMessage = requestError instanceof Error ? requestError.message : 'Không thể gửi yêu cầu.';
+      if (errorMessage === 'Failed to fetch') {
+        errorMessage = 'Vui lòng xem lại thông tin tài khoản!';
+      }
+      setResetError(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
@@ -291,7 +295,7 @@ function App() {
               <form className="login-form" onSubmit={handleResetSubmit}>
                 <div className="form-group">
                   <label htmlFor="new-password">Mật khẩu mới</label>
-                  <div className="input-container">
+                  <div className="pwd-input-wrapper">
                     <input
                       id="new-password"
                       type={showResetNewPassword ? 'text' : 'password'}
@@ -304,7 +308,7 @@ function App() {
                     />
                     <button
                       type="button"
-                      className="toggle-pwd-btn"
+                      className="reset-toggle-pwd-btn"
                       onClick={() => setShowResetNewPassword(!showResetNewPassword)}
                     >
                       {showResetNewPassword ? 'Ẩn' : 'Hiện'}
@@ -314,7 +318,7 @@ function App() {
 
                 <div className="form-group">
                   <label htmlFor="confirm-password">Xác nhận mật khẩu mới</label>
-                  <div className="input-container">
+                  <div className="pwd-input-wrapper">
                     <input
                       id="confirm-password"
                       type={showResetConfirmPassword ? 'text' : 'password'}
@@ -327,7 +331,7 @@ function App() {
                     />
                     <button
                       type="button"
-                      className="toggle-pwd-btn"
+                      className="reset-toggle-pwd-btn"
                       onClick={() => setShowResetConfirmPassword(!showResetConfirmPassword)}
                     >
                       {showResetConfirmPassword ? 'Ẩn' : 'Hiện'}
