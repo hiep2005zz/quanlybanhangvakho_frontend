@@ -369,27 +369,6 @@ button.secondary:hover {
   100% { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-/* Thông báo trạng thái tài khoản (khóa/mở khóa):
-   trượt ra từ mép phải màn hình -> dừng lại -> trượt ngược vào lại mép phải */
-@keyframes accountStatusToastEnter {
-  0%   { opacity: 0; transform: translate3d(120%, -16px, 0) scale(0.94); }
-  66%  { opacity: 1; transform: translate3d(-8px, 0, 0) scale(1.01); }
-  84%  { opacity: 1; transform: translate3d(3px, 0, 0) scale(1); }
-  100% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
-}
-
-@keyframes accountStatusToastExit {
-  0%   { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
-  30%  { opacity: 1; transform: translate3d(-5px, 0, 0) scale(1); }
-  100% { opacity: 0; transform: translate3d(120%, -16px, 0) scale(0.96); }
-}
-
-/* Thanh tiến trình đếm ngược thời gian tự ẩn của thông báo */
-@keyframes accountStatusToastProgress {
-  from { transform: scaleX(1); }
-  to   { transform: scaleX(0); }
-}
-
 @keyframes slowRotate {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
@@ -430,21 +409,5 @@ button.secondary:hover {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
-  }
-}
-
-/* Ngoại lệ: GIỮ NGUYÊN hiệu ứng trượt cho RIÊNG thông báo trạng thái tài khoản,
-   kể cả khi hệ điều hành / trình duyệt bật chế độ "giảm chuyển động" (prefers-reduced-motion).
-   Nhờ vậy người dùng luôn nhìn thấy được hiệu ứng thông báo.
-   (Quy tắc có độ ưu tiên cao hơn khối * !important phía trên nên sẽ thắng.) */
-@media (prefers-reduced-motion: reduce) {
-  .status-toast {
-    animation-duration: 620ms !important;
-  }
-  .status-toast.status-toast--exiting {
-    animation-duration: 460ms !important;
-  }
-  .status-toast-progress {
-    animation-duration: 5000ms !important;
   }
 }

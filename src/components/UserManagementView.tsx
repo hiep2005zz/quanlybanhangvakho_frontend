@@ -12,7 +12,6 @@ import {
   UserUpdatePayload,
 } from '../services/api';
 import { sessionManager } from '../services/sessionManager';
-import { emitStatusToast } from './StatusToast';
 
 interface UserManagementViewProps {
   currentUser: User;
@@ -133,6 +132,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
   const [users, setUsers] = useState<UserAccount[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   // Filter, Search & Pagination (S1-08 / S1-10: 20 dòng/trang mặc định)
   const [searchTerm, setSearchTerm] = useState<string>('');
@@ -222,16 +222,30 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
   useEffect(() => {
     loadUsers();
 
-    // Lắng nghe sự kiện tạo/thay đổi tài khoản -> tự động cập nhật danh sách.
-    // (Thông báo nổi góc phải do StatusToastHost toàn cục ở DashboardPage đảm nhiệm)
-    const handleAccountsChanged = () => {
+    // Lắng nghe sự kiện tạo hoặc thay đổi tài khoản người dùng để tự động cập nhật ngay tức thì và hiện thông báo
+    const handleAccountsChanged = (e: any) => {
       loadUsers();
+      const msg = e?.detail?.message;
+      if (msg) {
+        setSuccessMessage(msg);
+      } else {
+        setSuccessMessage('✅ Tạo tài khoản thành công!');
+      }
     };
     window.addEventListener('USER_ACCOUNTS_CHANGED', handleAccountsChanged);
     return () => {
       window.removeEventListener('USER_ACCOUNTS_CHANGED', handleAccountsChanged);
     };
   }, [token]);
+
+  // Tự động ẩn thông báo thành công sau 5 giây
+  useEffect(() => {
+    if (!successMessage) return;
+    const timer = setTimeout(() => {
+      setSuccessMessage(null);
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, [successMessage]);
   // Helper kiểm tra vai trò kho
   const hasWarehouseRole = (roles: string[]) => roles.some((r) => r === 'warehouse' || r === 'warehouse_manager');
   const isWarehouseBranch = (b: string) => b.startsWith('Kho ');
@@ -318,8 +332,6 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
 
     setIsSubmittingEdit(true);
     try {
-      const wasActive = userToEdit.is_active && userToEdit.status !== 'LOCKED';
-      const isStatusChanged = wasActive !== editFormData.is_active;
       const updatePayload: UserUpdatePayload = {
         full_name: editFormData.full_name.trim(),
         email: editFormData.email.trim() || undefined,
@@ -342,18 +354,9 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
       }
 
       const updated = await updateUserApi(token, userToEdit.username, updatePayload);
-      if (isStatusChanged) {
-        const statusAction = editFormData.is_active ? 'mở khóa' : 'tạm khóa';
-        emitStatusToast({
-          message: `Tài khoản "${updated.full_name}" (@${updated.username}) đã được ${statusAction} thành công.`,
-          title: 'Cập nhật trạng thái tài khoản',
-        });
-      } else {
-        emitStatusToast({
-          message: `Đã cập nhật thành công thông tin nhân viên "${updated.full_name}" (@${updated.username}).`,
-          title: 'Cập nhật thông tin nhân viên',
-        });
-      }
+      setSuccessMessage(
+        `✅ Đã cập nhật thành công thông tin nhân viên "${updated.full_name}" (@${updated.username}).`
+      );
       // Phát tín hiệu đồng bộ vai trò tức thì cho các tab/cửa sổ đang mở
       sessionManager.broadcastUserUpdate(userToEdit.username);
       if (userToEdit.username.toLowerCase() === currentUser.username.toLowerCase()) {
@@ -409,7 +412,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
 
     try {
       const res = await handoverDealersApi(token, handoverUser.username, targetSaleUsername);
-      emitStatusToast({ message: res.message, title: 'Bàn giao đại lý thành công' });
+      setSuccessMessage(`✅ ${res.message}`);
       setHandoverUser(null);
       loadUsers();
     } catch (err: any) {
@@ -437,7 +440,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
     setDeleteModalError(null);
     try {
       const res = await deleteUserApi(token, userToDelete.username);
-      emitStatusToast({ message: res.message, title: 'Xóa tài khoản thành công' });
+      setSuccessMessage(`✅ ${res.message}`);
       setUserToDelete(null);
       loadUsers();
     } catch (err: any) {
@@ -628,6 +631,30 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
           </button>
         )}
       </div>
+
+      {/* Success Notification Alert */}
+      {successMessage && (
+        <div style={{
+          background: '#dcfce7',
+          border: '1px solid #bbf7d0',
+          color: '#15803d',
+          padding: '12px 16px',
+          borderRadius: '10px',
+          fontSize: '14px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '12px',
+        }}>
+          <div>{successMessage}</div>
+          <button
+            onClick={() => setSuccessMessage(null)}
+            style={{ background: 'none', border: 'none', color: '#15803d', cursor: 'pointer', fontSize: '16px' }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {/* Error Alert */}
       {error && (
