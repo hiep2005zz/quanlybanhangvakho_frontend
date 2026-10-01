@@ -291,7 +291,7 @@ function App() {
               <form className="login-form" onSubmit={handleResetSubmit}>
                 <div className="form-group">
                   <label htmlFor="new-password">Mật khẩu mới</label>
-                  <div className="input-container">
+                  <div className="pwd-input-wrapper">
                     <input
                       id="new-password"
                       type={showResetNewPassword ? 'text' : 'password'}
@@ -304,7 +304,7 @@ function App() {
                     />
                     <button
                       type="button"
-                      className="toggle-pwd-btn"
+                      className="reset-toggle-pwd-btn"
                       onClick={() => setShowResetNewPassword(!showResetNewPassword)}
                     >
                       {showResetNewPassword ? 'Ẩn' : 'Hiện'}
@@ -314,7 +314,7 @@ function App() {
 
                 <div className="form-group">
                   <label htmlFor="confirm-password">Xác nhận mật khẩu mới</label>
-                  <div className="input-container">
+                  <div className="pwd-input-wrapper">
                     <input
                       id="confirm-password"
                       type={showResetConfirmPassword ? 'text' : 'password'}
@@ -327,7 +327,7 @@ function App() {
                     />
                     <button
                       type="button"
-                      className="toggle-pwd-btn"
+                      className="reset-toggle-pwd-btn"
                       onClick={() => setShowResetConfirmPassword(!showResetConfirmPassword)}
                     >
                       {showResetConfirmPassword ? 'Ẩn' : 'Hiện'}
