@@ -40,13 +40,8 @@ export default function DashboardPage({
   const isSalesManager = user.role === 'sales_manager' || Boolean(user.roles && user.roles.includes('sales_manager'));
   const canManageCategories = isAdmin || isSalesManager;
 
-<<<<<<< HEAD
-  // 2. Khởi tạo State với Clean URL (/users, /audit-logs, /categories): Chỉ Admin mới được phép kích hoạt
-  const [activeTab, setActiveTabState] = useState<'inventory' | 'users' | 'categories' | 'audit-logs'>(() => {
-=======
-  // 2. Khởi tạo State với Clean URL (/users, /audit-logs, /profile)
-  const [activeTab, setActiveTabState] = useState<'inventory' | 'users' | 'audit-logs' | 'profile'>(() => {
->>>>>>> origin/test
+  // 2. Khởi tạo State với Clean URL (/users, /audit-logs, /categories, /profile)
+  const [activeTab, setActiveTabState] = useState<'inventory' | 'users' | 'categories' | 'audit-logs' | 'profile'>(() => {
     const pathname = window.location.pathname.toLowerCase();
     const isUsersPath = pathname === '/users' || pathname.startsWith('/users/') || pathname === '/admin' || pathname.startsWith('/admin/');
     const isCategoriesPath = pathname === '/categories';
@@ -99,10 +94,16 @@ export default function DashboardPage({
     return 'inventory';
   });
 
-<<<<<<< HEAD
-  // 3. Chuyển đổi Route Clean URL: /users cho trang Quản trị, /categories cho nhóm hàng, /audit-logs cho trang Nhật ký, / cho trang Kho hàng
-  const setActiveTab = (tab: 'inventory' | 'users' | 'categories' | 'audit-logs') => {
-    if (tab === 'users') {
+  // 3. Chuyển đổi Route Clean URL
+  const setActiveTab = (tab: 'inventory' | 'users' | 'categories' | 'audit-logs' | 'profile') => {
+    if (tab === 'profile') {
+      setActiveTabState('profile');
+      try {
+        window.history.pushState({}, '', '/profile');
+      } catch {
+        // ignore
+      }
+    } else if (tab === 'users') {
       if (!isAdmin) {
         setActiveTabState('inventory');
         try {
@@ -111,18 +112,7 @@ export default function DashboardPage({
           // ignore
         }
         return;
-=======
-  // 3. Chuyển đổi Route Clean URL: /users, /audit-logs, /profile, /
-  const setActiveTab = (tab: 'inventory' | 'users' | 'audit-logs' | 'profile') => {
-    if (tab === 'profile') {
-      setActiveTabState('profile');
-      try {
-        window.history.pushState({}, '', '/profile');
-      } catch {
-        // ignore
->>>>>>> origin/test
       }
-    } else if (tab === 'users') {
       setActiveTabState('users');
       try {
         window.history.pushState({}, '', '/users');
@@ -162,7 +152,6 @@ export default function DashboardPage({
     }
   };
 
-<<<<<<< HEAD
   // 4. [REACTIVE GUARD] Tự động bảo vệ khi phiên thay đổi (ví dụ: switch sang tài khoản không phải Admin)
   useEffect(() => {
     if ((activeTab === 'users' || activeTab === 'audit-logs') && !isAdmin) {
@@ -183,9 +172,6 @@ export default function DashboardPage({
   }, [activeTab, isAdmin, canManageCategories, user.username]);
 
   // 5. Đồng bộ sự kiện Lịch sử trình duyệt (Back/Forward - popstate) chuẩn Clean URL
-=======
-  // 4. Đồng bộ sự kiện Lịch sử trình duyệt (Back/Forward - popstate) chuẩn Clean URL
->>>>>>> origin/test
   useEffect(() => {
     const syncFromUrl = () => {
       const pathname = window.location.pathname.toLowerCase();
@@ -221,7 +207,7 @@ export default function DashboardPage({
             // ignore
           }
         }
-<<<<<<< HEAD
+        setActiveTabState('users');
       } else if (pathname === '/categories') {
         if (canManageCategories) {
           setActiveTabState('categories');
@@ -233,9 +219,6 @@ export default function DashboardPage({
             // ignore
           }
         }
-=======
-        setActiveTabState('users');
->>>>>>> origin/test
       } else {
         setActiveTabState('inventory');
       }
