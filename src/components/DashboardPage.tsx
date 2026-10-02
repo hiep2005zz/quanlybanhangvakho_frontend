@@ -159,8 +159,17 @@ export default function DashboardPage({
     };
   }, []);
   const [products, setProducts] = useState<ProductItem[]>([]);
+  const [productSearchInput, setProductSearchInput] = useState('');
   const [productSearchTerm, setProductSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
+
+  // Debounce tìm kiếm sản phẩm: Chỉ lọc khi người dùng ngừng nhập 350ms
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setProductSearchTerm(productSearchInput);
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [productSearchInput]);
 
   const [isCostVisible, setIsCostVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -1442,8 +1451,8 @@ export default function DashboardPage({
                   <input
                     type="text"
                     placeholder="Tìm theo mã hoặc tên sản phẩm..."
-                    value={productSearchTerm}
-                    onChange={(e) => setProductSearchTerm(e.target.value)}
+                    value={productSearchInput}
+                    onChange={(e) => setProductSearchInput(e.target.value)}
                     style={{
                       width: '100%',
                       padding: '7px 12px 7px 32px',

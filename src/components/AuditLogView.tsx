@@ -310,9 +310,6 @@ export const AuditLogView: React.FC<AuditLogViewProps> = ({ currentUser: _curren
         return `Hạn mức: ${oldLimit} ➔ ${newLimit}`;
       }
       if (log.action_type === 'INVOICE_EDIT') {
-<<<<<<< HEAD
-        return `Trạng thái: ${newObj?.status || 'Đã cập nhật'}`;
-=======
         const rawStatus = newObj?.status;
         const statusMap: Record<string, string> = {
           'CANCELLED': 'Đã hủy',
@@ -328,7 +325,6 @@ export const AuditLogView: React.FC<AuditLogViewProps> = ({ currentUser: _curren
         };
         const statusVi = (rawStatus && statusMap[rawStatus.toUpperCase()]) ? statusMap[rawStatus.toUpperCase()] : (rawStatus || 'Đã cập nhật');
         return `Trạng thái: ${statusVi}`;
->>>>>>> origin/test
       }
       if (log.action_type === 'INVOICE_CANCEL') {
         return 'Đã hủy hóa đơn';
