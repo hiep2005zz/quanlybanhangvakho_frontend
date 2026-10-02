@@ -728,4 +728,178 @@ export async function clearAllAuditLogsApi(token: string): Promise<{ message: st
   return data;
 }
 
+// ==========================================
+// CHÍNH SÁCH CHIẾT KHẤU THEO SẢN LƯỢNG (VOLUME DISCOUNT)
+// ==========================================
+
+export interface DiscountTier {
+  id?: number;
+  min_quantity: number;
+  max_quantity?: number | null;
+  discount_percent: number;
+}
+
+export interface DiscountPolicy {
+  id: number;
+  code: string;
+  name: string;
+  category: string;
+  target_dealer_type: string;
+  description?: string | null;
+  is_active: boolean;
+  tiers: DiscountTier[];
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DiscountListResponse {
+  items: DiscountPolicy[];
+  total: number;
+}
+
+export interface DiscountPolicyCreatePayload {
+  name: string;
+  category?: string;
+  target_dealer_type?: string;
+  description?: string;
+  is_active?: boolean;
+  tiers: {
+    min_quantity: number;
+    max_quantity?: number | null;
+    discount_percent: number;
+  }[];
+}
+
+export interface DiscountCalculateResult {
+  product_id: number;
+  product_name: string;
+  quantity: number;
+  base_price: number;
+  cost_price?: number | null;
+  applied_policy_name?: string | null;
+  applied_tier_label?: string | null;
+  discount_percent: number;
+  unit_discount_amount: number;
+  final_unit_price: number;
+  subtotal_before_discount: number;
+  total_discount_amount: number;
+  final_total_amount: number;
+  estimated_profit?: number | null;
+  profit_margin_percent?: number | null;
+}
+
+export async function getDiscountPoliciesApi(
+  token: string,
+  params: { category?: string; is_active?: boolean } = {}
+): Promise<DiscountListResponse> {
+  const query = new URLSearchParams();
+  if (params.category && params.category !== 'ALL') {
+    query.set('category', params.category);
+  }
+  if (params.is_active !== undefined) {
+    query.set('is_active', String(params.is_active));
+  }
+
+  const url = `${API_BASE_URL}/discounts${query.toString() ? `?${query.toString()}` : ''}`;
+  const response = await authenticatedFetch(url, { method: 'GET' }, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi tải chính sách chiết khấu (Mã lỗi ${response.status})`);
+  }
+  return data;
+}
+
+export async function createDiscountPolicyApi(
+  payload: DiscountPolicyCreatePayload,
+  token: string
+): Promise<DiscountPolicy> {
+  const url = `${API_BASE_URL}/discounts`;
+  const response = await authenticatedFetch(
+    url,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    },
+    token
+  );
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi tạo chính sách chiết khấu (Mã lỗi ${response.status})`);
+  }
+  return data;
+}
+
+export async function updateDiscountPolicyApi(
+  id: number,
+  payload: Partial<DiscountPolicyCreatePayload>,
+  token: string
+): Promise<DiscountPolicy> {
+  const url = `${API_BASE_URL}/discounts/${id}`;
+  const response = await authenticatedFetch(
+    url,
+    {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    },
+    token
+  );
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi cập nhật chính sách chiết khấu (Mã lỗi ${response.status})`);
+  }
+  return data;
+}
+
+export async function toggleDiscountPolicyStatusApi(
+  id: number,
+  token: string
+): Promise<DiscountPolicy> {
+  const url = `${API_BASE_URL}/discounts/${id}/toggle-status`;
+  const response = await authenticatedFetch(url, { method: 'PATCH' }, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi thay đổi trạng thái chính sách (Mã lỗi ${response.status})`);
+  }
+  return data;
+}
+
+export async function deleteDiscountPolicyApi(
+  id: number,
+  token: string
+): Promise<{ message: string; deleted_id: number }> {
+  const url = `${API_BASE_URL}/discounts/${id}`;
+  const response = await authenticatedFetch(url, { method: 'DELETE' }, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi xóa chính sách chiết khấu (Mã lỗi ${response.status})`);
+  }
+  return data;
+}
+
+export async function calculateDiscountApi(
+  productId: number,
+  quantity: number,
+  token: string
+): Promise<DiscountCalculateResult> {
+  const url = `${API_BASE_URL}/discounts/calculate`;
+  const response = await authenticatedFetch(
+    url,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ product_id: productId, quantity: quantity }),
+    },
+    token
+  );
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi tính chiết khấu tự động (Mã lỗi ${response.status})`);
+  }
+  return data;
+}
+
+
 

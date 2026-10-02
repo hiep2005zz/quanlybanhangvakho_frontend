@@ -8,6 +8,7 @@ import { StatusToastHost, emitStatusToast } from './StatusToast';
 import { AccessDeniedView } from './AccessDeniedView';
 import { AuditLogView } from './AuditLogView';
 import { ProductAuditDrawer } from './ProductAuditDrawer';
+import DiscountPolicyView from './DiscountPolicyView';
 import './dashboard.css';
 
 
@@ -31,19 +32,45 @@ export default function DashboardPage({
   );
   const isPendingCustomer = officialRoles.length === 0;
   const isAdmin = user.role === 'admin' || Boolean(user.roles && user.roles.includes('admin'));
+  const isSalesManager = user.role === 'sales_manager' || Boolean(user.roles && user.roles.includes('sales_manager'));
+  const canAccessDiscounts =
+    isAdmin ||
+    isSalesManager ||
+    officialRoles.includes('sales') ||
+    user.role === 'sales' ||
+    officialRoles.includes('accountant') ||
+    user.role === 'accountant' ||
+    Boolean(user.permissions && (user.permissions.includes('discount:read') || user.permissions.includes('discount:manage')));
 
-  // 2. Khởi tạo State với Clean URL (/users, /audit-logs): Chỉ Admin mới được phép kích hoạt
-  const [activeTab, setActiveTabState] = useState<'inventory' | 'users' | 'audit-logs'>(() => {
+  // 2. Khởi tạo State với Clean URL (/users, /audit-logs, /discounts)
+  const [activeTab, setActiveTabState] = useState<'inventory' | 'users' | 'audit-logs' | 'discounts'>(() => {
     const pathname = window.location.pathname.toLowerCase();
     const isUsersPath = pathname === '/users' || pathname.startsWith('/users/') || pathname === '/admin' || pathname.startsWith('/admin/');
     const isAuditPath = pathname === '/audit-logs' || pathname.startsWith('/audit-logs/');
+    const isDiscountsPath = pathname === '/discounts' || pathname.startsWith('/discounts/');
 
-    // Dọn sạch tàn dư query parameter cũ (?tab=users, ?tab=audit-logs) nếu người dùng truy cập link cũ
+    // Dọn sạch tàn dư query parameter cũ (?tab=users, ?tab=audit-logs, ?tab=discounts) nếu người dùng truy cập link cũ
     const params = new URLSearchParams(window.location.search);
     const hasOldTabParam = params.has('tab') || params.has('view');
     const oldTabVal = (params.get('tab') || params.get('view') || '').toLowerCase();
 
-    if (isAuditPath || oldTabVal === 'audit-logs' || oldTabVal === 'audit') {
+    if (isDiscountsPath || oldTabVal === 'discounts' || oldTabVal === 'discount') {
+      if (canAccessDiscounts) {
+        if (hasOldTabParam || pathname !== '/discounts') {
+          try {
+            window.history.replaceState({}, '', '/discounts');
+          } catch {
+            // ignore
+          }
+        }
+        return 'discounts';
+      }
+      try {
+        window.history.replaceState({}, '', '/');
+      } catch {
+        // ignore
+      }
+    } else if (isAuditPath || oldTabVal === 'audit-logs' || oldTabVal === 'audit') {
       if (isAdmin) {
         if (hasOldTabParam || pathname !== '/audit-logs') {
           try {
@@ -82,8 +109,8 @@ export default function DashboardPage({
     return 'inventory';
   });
 
-  // 3. Chuyển đổi Route Clean URL: /users cho trang Quản trị, /audit-logs cho trang Nhật ký, / cho trang Kho hàng
-  const setActiveTab = (tab: 'inventory' | 'users' | 'audit-logs') => {
+  // 3. Chuyển đổi Route Clean URL: /users cho trang Quản trị, /audit-logs cho trang Nhật ký, /discounts cho Chiết khấu, / cho trang Kho hàng
+  const setActiveTab = (tab: 'inventory' | 'users' | 'audit-logs' | 'discounts') => {
     if (tab === 'users') {
       if (!isAdmin) {
         setActiveTabState('inventory');
@@ -116,6 +143,22 @@ export default function DashboardPage({
       } catch {
         // ignore
       }
+    } else if (tab === 'discounts') {
+      if (!canAccessDiscounts) {
+        setActiveTabState('inventory');
+        try {
+          window.history.replaceState({}, '', '/');
+        } catch {
+          // ignore
+        }
+        return;
+      }
+      setActiveTabState('discounts');
+      try {
+        window.history.pushState({}, '', '/discounts');
+      } catch {
+        // ignore
+      }
     } else {
       setActiveTabState('inventory');
       try {
@@ -126,7 +169,7 @@ export default function DashboardPage({
     }
   };
 
-  // 4. [REACTIVE GUARD] Tự động bảo vệ khi phiên thay đổi (ví dụ: switch sang tài khoản không phải Admin)
+  // 4. [REACTIVE GUARD] Tự động bảo vệ khi phiên thay đổi (ví dụ: switch sang tài khoản không đủ quyền)
   useEffect(() => {
     if ((activeTab === 'users' || activeTab === 'audit-logs') && !isAdmin) {
       setActiveTabState('inventory');
@@ -135,8 +178,15 @@ export default function DashboardPage({
       } catch {
         // ignore
       }
+    } else if (activeTab === 'discounts' && !canAccessDiscounts) {
+      setActiveTabState('inventory');
+      try {
+        window.history.replaceState({}, '', '/');
+      } catch {
+        // ignore
+      }
     }
-  }, [activeTab, isAdmin, user.username]);
+  }, [activeTab, isAdmin, canAccessDiscounts, user.username]);
 
   // 5. Đồng bộ sự kiện Lịch sử trình duyệt (Back/Forward - popstate) chuẩn Clean URL
   useEffect(() => {
@@ -144,10 +194,29 @@ export default function DashboardPage({
       const pathname = window.location.pathname.toLowerCase();
       const isUsersPath = pathname === '/users' || pathname.startsWith('/users/') || pathname === '/admin' || pathname.startsWith('/admin/');
       const isAuditPath = pathname === '/audit-logs' || pathname.startsWith('/audit-logs/');
+      const isDiscountsPath = pathname === '/discounts' || pathname.startsWith('/discounts/');
       const params = new URLSearchParams(window.location.search);
       const tabParam = (params.get('tab') || params.get('view') || '').toLowerCase();
 
-      if (isAuditPath || tabParam === 'audit-logs' || tabParam === 'audit') {
+      if (isDiscountsPath || tabParam === 'discounts' || tabParam === 'discount') {
+        if (canAccessDiscounts) {
+          if (pathname !== '/discounts' || tabParam) {
+            try {
+              window.history.replaceState({}, '', '/discounts');
+            } catch {
+              // ignore
+            }
+          }
+          setActiveTabState('discounts');
+        } else {
+          setActiveTabState('inventory');
+          try {
+            window.history.replaceState({}, '', '/');
+          } catch {
+            // ignore
+          }
+        }
+      } else if (isAuditPath || tabParam === 'audit-logs' || tabParam === 'audit') {
         if (isAdmin) {
           if (pathname !== '/audit-logs' || tabParam) {
             try {
@@ -192,7 +261,7 @@ export default function DashboardPage({
     return () => {
       window.removeEventListener('popstate', syncFromUrl);
     };
-  }, [isAdmin]);
+  }, [isAdmin, canAccessDiscounts]);
   const [products, setProducts] = useState<ProductItem[]>([]);
   const [productSearchTerm, setProductSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -675,6 +744,61 @@ export default function DashboardPage({
                   </button>
                 )}
 
+                {canAccessDiscounts && (
+                  <button
+                    onClick={() => {
+                      setIsUserMenuOpen(false);
+                      setActiveTab('discounts');
+                    }}
+                    id="btn-popover-discounts"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px',
+                      width: '100%',
+                      padding: '10px 14px',
+                      borderRadius: '10px',
+                      background: activeTab === 'discounts' ? '#f5f3ff' : '#f8fafc',
+                      border: activeTab === 'discounts' ? '1px solid #ddd6fe' : '1px solid #e2e8f0',
+                      color: activeTab === 'discounts' ? '#7c3aed' : '#1e293b',
+                      fontSize: '13.5px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      transition: 'all 0.18s ease',
+                      boxShadow: 'none',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = '#f5f3ff';
+                      e.currentTarget.style.borderColor = '#c4b5fd';
+                      e.currentTarget.style.color = '#7c3aed';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = activeTab === 'discounts' ? '#f5f3ff' : '#f8fafc';
+                      e.currentTarget.style.borderColor = activeTab === 'discounts' ? '#ddd6fe' : '#e2e8f0';
+                      e.currentTarget.style.color = activeTab === 'discounts' ? '#7c3aed' : '#1e293b';
+                    }}
+                    title="Khai báo & Quản lý chính sách chiết khấu theo sản lượng"
+                  >
+                    <div style={{
+                      width: '28px',
+                      height: '28px',
+                      borderRadius: '8px',
+                      background: '#ede9fe',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#7c3aed',
+                    }}>
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="19" y1="5" x2="5" y2="19" />
+                        <circle cx="6.5" cy="6.5" r="2.5" />
+                        <circle cx="17.5" cy="17.5" r="2.5" />
+                      </svg>
+                    </div>
+                    <span>Chính sách chiết khấu</span>
+                  </button>
+                )}
+
 
                 <button
                   onClick={() => {
@@ -915,6 +1039,27 @@ export default function DashboardPage({
               <span style={{ fontWeight: activeTab === 'audit-logs' ? '700' : '500', fontSize: '14.5px' }}>Nhật ký thao tác</span>
             </div>
           )}
+
+          {/* Mục Chính sách chiết khấu - Dành cho Quản lý kinh doanh, Admin, Sales, Kế toán */}
+          {canAccessDiscounts && (
+            <div
+              className={`sidebar-menu-item ${activeTab === 'discounts' ? 'active' : ''}`}
+              id="btn-sidebar-discounts"
+              onClick={() => {
+                setActiveTab('discounts');
+                handleCloseMenu();
+              }}
+            >
+              <div className="sidebar-icon-box">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="19" y1="5" x2="5" y2="19" />
+                  <circle cx="6.5" cy="6.5" r="2.5" />
+                  <circle cx="17.5" cy="17.5" r="2.5" />
+                </svg>
+              </div>
+              <span style={{ fontWeight: activeTab === 'discounts' ? '700' : '500', fontSize: '14.5px' }}>Chính sách chiết khấu</span>
+            </div>
+          )}
         </div>
 
 
@@ -973,6 +1118,21 @@ export default function DashboardPage({
           <AccessDeniedView
             currentUser={user}
             requiredPermission="Quản trị hệ thống (Admin)"
+            onBackToWorkflow={() => setActiveTab('inventory')}
+            onLogout={onLogout}
+          />
+        )
+      ) : activeTab === 'discounts' ? (
+        canAccessDiscounts ? (
+          <DiscountPolicyView
+            token={token}
+            user={user}
+            onBackToHome={() => setActiveTab('inventory')}
+          />
+        ) : (
+          <AccessDeniedView
+            currentUser={user}
+            requiredPermission="Chính sách chiết khấu (sales_manager / sales / accountant)"
             onBackToWorkflow={() => setActiveTab('inventory')}
             onLogout={onLogout}
           />
