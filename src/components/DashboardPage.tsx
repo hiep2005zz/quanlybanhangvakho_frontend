@@ -12,6 +12,7 @@ import SupplierManagementView from './SupplierManagementView';
 import { AuditLogView } from './AuditLogView';
 import { ProductAuditDrawer } from './ProductAuditDrawer';
 import { ProfileView } from './ProfileView';
+import { ProductBulkImportModal } from './ProductBulkImportModal';
 import './dashboard.css';
 
 interface DashboardProps {
@@ -39,7 +40,7 @@ export default function DashboardPage({
     officialRoles.length === 0 &&
     (!user.branch || user.branch === 'Chưa phân công');
   const isAdmin = user.role === 'admin' || Boolean(user.roles && user.roles.includes('admin'));
-  
+
   // Quyền quản lý nhà cung cấp
   const SUPPLIER_ROLES = ['admin', 'warehouse', 'warehouse_manager'];
   const canManageSuppliers = officialRoles.some((r) => SUPPLIER_ROLES.includes(r));
@@ -115,15 +116,6 @@ export default function DashboardPage({
         // ignore
       }
     } else if (tab === 'users') {
-      if (!isAdmin) {
-        setActiveTabState('inventory');
-        try {
-          window.history.replaceState({}, '', '/');
-        } catch {
-          // ignore
-        }
-        return;
-      }
       setActiveTabState('users');
       try {
         window.history.pushState({}, '', '/users');
@@ -170,16 +162,9 @@ export default function DashboardPage({
     }
   };
 
-  // 4. [REACTIVE GUARD] Tự động bảo vệ khi phiên thay đổi
+  // 4. [REACTIVE GUARD] Tự động bảo vệ khi phiên thay đổi (chỉ redirect nếu tab không thuộc luồng cho phép)
   useEffect(() => {
-    if ((activeTab === 'users' || activeTab === 'audit-logs') && !isAdmin) {
-      setActiveTabState('inventory');
-      try {
-        window.history.replaceState({}, '', '/');
-      } catch {
-        // ignore
-      }
-    } else if (activeTab === 'categories' && !canManageCategories) {
+    if (activeTab === 'categories' && !canManageCategories) {
       setActiveTabState('inventory');
       try {
         window.history.replaceState({}, '', '/');
@@ -187,7 +172,7 @@ export default function DashboardPage({
         // ignore
       }
     }
-  }, [activeTab, isAdmin, canManageCategories, user.username]);
+  }, [activeTab, canManageCategories, user.username]);
 
   // 5. Đồng bộ sự kiện Lịch sử trình duyệt (Back/Forward - popstate)
   useEffect(() => {
@@ -276,6 +261,9 @@ export default function DashboardPage({
   // Move Category Modal State
   const [movingProduct, setMovingProduct] = useState<{ id: number; name: string; category_id?: number | null } | null>(null);
 
+  // Bulk Import Product Modal State
+  const [isProductBulkImportOpen, setIsProductBulkImportOpen] = useState(false);
+
   // Timer điều khiển mở/đóng menu khi hover
   const menuTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -331,32 +319,26 @@ export default function DashboardPage({
   const remainingSeconds = sessionInfo.remainingSeconds;
   const isWarningZone = remainingSeconds > 0 && remainingSeconds <= 120;
 
-  useEffect(() => {
+  const fetchProducts = () => {
     if (isPendingCustomer) {
       setIsLoading(false);
       return;
     }
-
-    let isMounted = true;
     setIsLoading(true);
     getProductsApi(token)
       .then((data) => {
-        if (isMounted) {
-          setProducts(data.items);
-          setIsCostVisible(data.is_cost_price_visible);
-          setIsLoading(false);
-        }
+        setProducts(data.items);
+        setIsCostVisible(data.is_cost_price_visible);
+        setIsLoading(false);
       })
       .catch((err) => {
-        if (isMounted) {
-          setError(err.message || 'Lỗi khi tải dữ liệu sản phẩm từ Backend.');
-          setIsLoading(false);
-        }
+        setError(err.message || 'Lỗi khi tải dữ liệu sản phẩm từ Backend.');
+        setIsLoading(false);
       });
+  };
 
-    return () => {
-      isMounted = false;
-    };
+  useEffect(() => {
+    fetchProducts();
   }, [token, isPendingCustomer]);
 
   // Tính toán số liệu thống kê
@@ -593,44 +575,6 @@ export default function DashboardPage({
                     })}
                   </div>
                 </div>
-              </div>
-
-              {/* Thông tin tài khoản */}
-              <div style={{
-                background: '#f8fafc',
-                border: '1px solid #e2e8f0',
-                borderRadius: '12px',
-                padding: '12px 14px',
-                marginBottom: '16px',
-                fontSize: '13px',
-                color: '#64748b',
-                lineHeight: '1.6',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '4px',
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span>Tài khoản:</span>
-                  <strong style={{ color: '#0f172a', fontFamily: 'monospace', fontSize: '13px' }}>{user.username}</strong>
-                </div>
-                {user.email && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
-                    <span>Email:</span>
-                    <strong style={{ color: '#334155', fontSize: '12px', maxWidth: '170px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={user.email}>{user.email}</strong>
-                  </div>
-                )}
-                {user.phone && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span>Điện thoại:</span>
-                    <strong style={{ color: '#334155' }}>{user.phone}</strong>
-                  </div>
-                )}
-                {user.branch && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span>Kho / Địa bàn:</span>
-                    <strong style={{ color: '#334155' }}>{user.branch}</strong>
-                  </div>
-                )}
               </div>
 
               {/* Danh sách nút tác vụ */}
@@ -1621,6 +1565,45 @@ export default function DashboardPage({
                 <span style={{ fontSize: '12.5px', color: '#64748b', marginRight: '4px' }}>
                   Hiển thị <strong style={{ color: '#0f172a' }}>{filteredProducts.length}</strong> / {products.length} SP
                 </span>
+                {/* Nút Nhập file Excel danh mục hàng loạt (Chỉ hiển thị cho admin và quản lý kinh doanh) */}
+                {(isAdmin || isSalesManager) && (
+                  <button
+                    type="button"
+                    onClick={() => setIsProductBulkImportOpen(true)}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      background: '#eff6ff',
+                      border: '1px solid #bfdbfe',
+                      padding: '7px 12px',
+                      borderRadius: '8px',
+                      fontSize: '12.5px',
+                      fontWeight: '600',
+                      color: '#2563eb',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = '#dbeafe';
+                      e.currentTarget.style.borderColor = '#93c5fd';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = '#eff6ff';
+                      e.currentTarget.style.borderColor = '#bfdbfe';
+                    }}
+                    title="Nhập danh mục sản phẩm hàng loạt từ file Excel"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                      <polyline points="17 8 12 3 7 8" />
+                      <line x1="12" y1="3" x2="12" y2="15" />
+                    </svg>
+                    <span>Nhập file</span>
+                  </button>
+                )}
+
+                {/* Nút Xuất file Excel danh mục */}
                 <button
                   type="button"
                   onClick={() => {
@@ -1708,7 +1691,7 @@ export default function DashboardPage({
                     e.currentTarget.style.background = '#ffffff';
                     e.currentTarget.style.borderColor = '#cbd5e1';
                   }}
-                  title="Xuất danh sách sản phẩm dạng CSV"
+                  title="Xuất danh sách sản phẩm dạng Excel"
                 >
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
@@ -1751,7 +1734,9 @@ export default function DashboardPage({
                         <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'right' }}>Biên Lợi Nhuận</th>
                       </>
                     )}
-                    <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'center', width: '120px' }}>Thao Tác</th>
+                    {isAdmin && (
+                      <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'center', width: '120px' }}>Thao Tác</th>
+                    )}
                   </tr>
                 </thead>
                 <tbody>
@@ -1864,34 +1849,36 @@ export default function DashboardPage({
                           </td>
                         </>
                       )}
-                      
-                      <td style={{ padding: '13px 18px', textAlign: 'center' }}>
-                        <button
-                          type="button"
-                          className="btn-inventory-history"
-                          onClick={() => setProductAuditDrawerState({
-                            isOpen: true,
-                            productCode: item.code,
-                            productName: item.name,
-                          })}
-                          title="Xem lịch sử thay đổi tồn kho & giá của sản phẩm này"
-                        >
-                          <svg
-                            width="14"
-                            height="14"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2.2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
+
+                      {isAdmin && (
+                        <td style={{ padding: '13px 18px', textAlign: 'center' }}>
+                          <button
+                            type="button"
+                            className="btn-inventory-history"
+                            onClick={() => setProductAuditDrawerState({
+                              isOpen: true,
+                              productCode: item.code,
+                              productName: item.name,
+                            })}
+                            title="Xem lịch sử thay đổi tồn kho & giá của sản phẩm này"
                           >
-                            <circle cx="12" cy="12" r="10" />
-                            <polyline points="12 6 12 12 16 14" />
-                          </svg>
-                          <span>Lịch sử</span>
-                        </button>
-                      </td>
+                            <svg
+                              width="14"
+                              height="14"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2.2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            >
+                              <circle cx="12" cy="12" r="10" />
+                              <polyline points="12 6 12 12 16 14" />
+                            </svg>
+                            <span>Lịch sử</span>
+                          </button>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -2090,6 +2077,17 @@ export default function DashboardPage({
         productName={productAuditDrawerState.productName}
         token={token}
       />
+
+      {isProductBulkImportOpen && (
+        <ProductBulkImportModal
+          token={token}
+          onClose={() => setIsProductBulkImportOpen(false)}
+          onSuccess={() => {
+            setIsProductBulkImportOpen(false);
+            fetchProducts();
+          }}
+        />
+      )}
 
       <StatusToastHost />
     </div>

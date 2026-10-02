@@ -74,6 +74,19 @@ export const FIELD_LABELS: Record<string, string> = {
   failed_attempts: 'Số lần đăng nhập sai',
   token_version: 'Phiên bản Token',
 
+  // Nhập xuất Excel & Hàng loạt (Bulk Import)
+  total_processed: 'Tổng số dòng xử lý',
+  created_count: 'Số sản phẩm tạo mới',
+  updated_count: 'Số sản phẩm cập nhật',
+  failed_count: 'Số sản phẩm lỗi / thất bại',
+  success_count: 'Số sản phẩm thành công',
+  imported_count: 'Số sản phẩm đã nhập',
+  valid_count: 'Số dòng hợp lệ',
+  invalid_count: 'Số dòng không hợp lệ',
+  bulk_items: 'Danh sách nhập hàng loạt',
+  total_records: 'Tổng số bản ghi',
+  skipped_count: 'Số dòng bỏ qua',
+
   // Thông tin chung
   note: 'Ghi chú',
   notes: 'Ghi chú',
@@ -149,6 +162,8 @@ export const ACTION_LABELS: Record<string, string> = {
   PRODUCT_CREATE: 'Thêm mới sản phẩm',
   PRODUCT_UPDATE: 'Cập nhật sản phẩm',
   PRODUCT_DELETE: 'Xóa sản phẩm',
+  PRODUCT_BULK_IMPORT: 'Nhập sản phẩm hàng loạt (Excel)',
+  USER_BULK_IMPORT: 'Nhập người dùng hàng loạt (Excel)',
   USER_CREATE: 'Tạo tài khoản',
   USER_UPDATE: 'Cập nhật tài khoản',
   USER_DELETE: 'Xóa tài khoản',
@@ -190,6 +205,15 @@ export const getEntityLabel = (entityType?: string): string => {
     ENTITY_LABELS[entityType.toUpperCase()] ||
     entityType
   );
+};
+
+export const formatEntityIdDisplay = (entityId?: string): string => {
+  if (!entityId) return '—';
+  const match = entityId.match(/^BULK_(\d+)_ITEMS$/i);
+  if (match) {
+    return `Hàng loạt (${match[1]} mặt hàng)`;
+  }
+  return entityId;
 };
 
 export const getFieldLabel = (key: string): string => {
@@ -435,7 +459,7 @@ export const AuditDetailModal: React.FC<AuditDetailModalProps> = ({ log, onClose
                 Chi tiết thay đổi #{log.id}
               </h3>
               <p style={{ margin: '2px 0 0', fontSize: '13px', color: '#64748b' }}>
-                Đối tượng: <strong style={{ color: '#0f172a' }}>{getEntityLabel(log.entity_type)} ({log.entity_id})</strong>
+                Đối tượng: <strong style={{ color: '#0f172a' }}>{getEntityLabel(log.entity_type)} ({formatEntityIdDisplay(log.entity_id)})</strong>
               </p>
             </div>
           </div>
