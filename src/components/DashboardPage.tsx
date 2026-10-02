@@ -6,7 +6,6 @@ import { UserManagementView } from './UserManagementView';
 import { CategoryManagementView } from './CategoryManagementView';
 import CreateCustomerModal from './CreateCustomerModal';
 import MoveCategoryModal from './MoveCategoryModal';
-import { CategoryTreeResponse, getCategoryTreeApi, moveProductCategoryApi } from '../services/api';
 import { StatusToastHost, emitStatusToast } from './StatusToast';
 import { AccessDeniedView } from './AccessDeniedView';
 import { AuditLogView } from './AuditLogView';
@@ -32,21 +31,19 @@ export default function DashboardPage({
   onUserUpdated,
 }: DashboardProps) {
   // 1. Xác định vai trò & Kiểm tra quyền Admin tối cao
-  const officialRoles = (user.roles && user.roles.length > 0 ? user.roles : [user.role]).filter(
-    (r) => r && r !== 'customer'
-  );
-  const isPendingCustomer = officialRoles.length === 0;
+  const rawRoles = user.roles && user.roles.length > 0 ? user.roles : [user.role];
+  const officialRoles = rawRoles.filter((r) => r && r !== 'customer');
+  
+  // Tài khoản bị khóa màn hình chờ chỉ khi chưa được phân công kho/địa bàn VÀ chưa có vai trò hợp lệ
+  const isPendingCustomer =
+    officialRoles.length === 0 &&
+    (!user.branch || user.branch === 'Chưa phân công');
   const isAdmin = user.role === 'admin' || Boolean(user.roles && user.roles.includes('admin'));
   const isSalesManager = user.role === 'sales_manager' || Boolean(user.roles && user.roles.includes('sales_manager'));
   const canManageCategories = isAdmin || isSalesManager;
 
-<<<<<<< HEAD
-  // 2. Khởi tạo State với Clean URL (/users, /audit-logs, /categories): Chỉ Admin mới được phép kích hoạt
-  const [activeTab, setActiveTabState] = useState<'inventory' | 'users' | 'categories' | 'audit-logs'>(() => {
-=======
-  // 2. Khởi tạo State với Clean URL (/users, /audit-logs, /profile)
-  const [activeTab, setActiveTabState] = useState<'inventory' | 'users' | 'audit-logs' | 'profile'>(() => {
->>>>>>> origin/test
+  // 2. Khởi tạo State với Clean URL (/users, /audit-logs, /categories, /profile)
+  const [activeTab, setActiveTabState] = useState<'inventory' | 'users' | 'categories' | 'audit-logs' | 'profile'>(() => {
     const pathname = window.location.pathname.toLowerCase();
     const isUsersPath = pathname === '/users' || pathname.startsWith('/users/') || pathname === '/admin' || pathname.startsWith('/admin/');
     const isCategoriesPath = pathname === '/categories';
@@ -99,10 +96,16 @@ export default function DashboardPage({
     return 'inventory';
   });
 
-<<<<<<< HEAD
-  // 3. Chuyển đổi Route Clean URL: /users cho trang Quản trị, /categories cho nhóm hàng, /audit-logs cho trang Nhật ký, / cho trang Kho hàng
-  const setActiveTab = (tab: 'inventory' | 'users' | 'categories' | 'audit-logs') => {
-    if (tab === 'users') {
+  // 3. Chuyển đổi Route Clean URL: /users, /categories, /audit-logs, /profile, /
+  const setActiveTab = (tab: 'inventory' | 'users' | 'categories' | 'audit-logs' | 'profile') => {
+    if (tab === 'profile') {
+      setActiveTabState('profile');
+      try {
+        window.history.pushState({}, '', '/profile');
+      } catch {
+        // ignore
+      }
+    } else if (tab === 'users') {
       if (!isAdmin) {
         setActiveTabState('inventory');
         try {
@@ -111,18 +114,7 @@ export default function DashboardPage({
           // ignore
         }
         return;
-=======
-  // 3. Chuyển đổi Route Clean URL: /users, /audit-logs, /profile, /
-  const setActiveTab = (tab: 'inventory' | 'users' | 'audit-logs' | 'profile') => {
-    if (tab === 'profile') {
-      setActiveTabState('profile');
-      try {
-        window.history.pushState({}, '', '/profile');
-      } catch {
-        // ignore
->>>>>>> origin/test
       }
-    } else if (tab === 'users') {
       setActiveTabState('users');
       try {
         window.history.pushState({}, '', '/users');
@@ -162,7 +154,6 @@ export default function DashboardPage({
     }
   };
 
-<<<<<<< HEAD
   // 4. [REACTIVE GUARD] Tự động bảo vệ khi phiên thay đổi (ví dụ: switch sang tài khoản không phải Admin)
   useEffect(() => {
     if ((activeTab === 'users' || activeTab === 'audit-logs') && !isAdmin) {
@@ -183,9 +174,6 @@ export default function DashboardPage({
   }, [activeTab, isAdmin, canManageCategories, user.username]);
 
   // 5. Đồng bộ sự kiện Lịch sử trình duyệt (Back/Forward - popstate) chuẩn Clean URL
-=======
-  // 4. Đồng bộ sự kiện Lịch sử trình duyệt (Back/Forward - popstate) chuẩn Clean URL
->>>>>>> origin/test
   useEffect(() => {
     const syncFromUrl = () => {
       const pathname = window.location.pathname.toLowerCase();
@@ -221,7 +209,7 @@ export default function DashboardPage({
             // ignore
           }
         }
-<<<<<<< HEAD
+        setActiveTabState('users');
       } else if (pathname === '/categories') {
         if (canManageCategories) {
           setActiveTabState('categories');
@@ -233,9 +221,6 @@ export default function DashboardPage({
             // ignore
           }
         }
-=======
-        setActiveTabState('users');
->>>>>>> origin/test
       } else {
         setActiveTabState('inventory');
       }
@@ -245,7 +230,7 @@ export default function DashboardPage({
     return () => {
       window.removeEventListener('popstate', syncFromUrl);
     };
-  }, []);
+  }, [canManageCategories]);
   const [products, setProducts] = useState<ProductItem[]>([]);
   const [productSearchTerm, setProductSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -380,7 +365,7 @@ export default function DashboardPage({
     warehouse_manager: 'Quản Lý Kho',
     accountant: 'Kế Toán',
     purchasing: 'Nhân Viên Mua Hàng',
-    customer: 'Chờ Cấp Quyền',
+    customer: (!user.branch || user.branch === 'Chưa phân công') ? 'Chưa Phân Quyền' : 'Đại Lý',
   };
 
   const roleBadgeColorMap: Record<string, string> = {
@@ -391,7 +376,7 @@ export default function DashboardPage({
     warehouse_manager: '#059669',
     accountant: '#f59e0b',
     purchasing: '#06b6d4',
-    customer: '#94a3b8',
+    customer: (!user.branch || user.branch === 'Chưa phân công') ? '#94a3b8' : '#0284c7',
   };
 
   const primaryRole = officialRoles[0] || user.role;
@@ -1237,7 +1222,7 @@ export default function DashboardPage({
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0' }}>
                 <span style={{ color: '#64748b' }}>Chi nhánh / Kho:</span>
-                <span style={{ color: '#94a3b8' }}>Chưa phân công</span>
+                <span style={{ color: '#94a3b8' }}>{user.branch || 'Chưa phân công'}</span>
               </div>
             </div>
 
@@ -1250,10 +1235,8 @@ export default function DashboardPage({
               <button
                 onClick={async () => {
                   try {
-                    const fresh = await sessionManager.syncCurrentProfile();
-                    if (!fresh || (fresh.role === 'customer' && (!fresh.roles || fresh.roles.every(r => r === 'customer')))) {
-                      window.location.reload();
-                    }
+                    await sessionManager.syncCurrentProfile();
+                    window.location.reload();
                   } catch {
                     window.location.reload();
                   }
