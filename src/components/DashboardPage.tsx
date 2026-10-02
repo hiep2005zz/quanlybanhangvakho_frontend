@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { getProductsApi, ProductItem, User } from '../services/api';
+import { getProductsApi, ProductItem, User, AUTH_STORAGE } from '../services/api';
 import { sessionManager, SessionState } from '../services/sessionManager';
 import SecurityModal from './SecurityModal';
 import { UserManagementView } from './UserManagementView';
@@ -244,11 +244,64 @@ export default function DashboardPage({
   const [isSecurityModalOpen, setIsSecurityModalOpen] = useState(false);
   const [isCreateAccountModalOpen, setIsCreateAccountModalOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
-  const [currentUserState, setCurrentUserState] = useState<User>(user);
+  const [currentUserState, setCurrentUserState] = useState<User>(() => {
+    // 1. Ưu tiên đọc từ cache sessionStorage / localStorage ngay từ lần mount đầu tiên
+    try {
+      const cached = sessionStorage.getItem(AUTH_STORAGE.USER) || localStorage.getItem(AUTH_STORAGE.USER);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        return {
+          ...user,
+          ...parsed,
+          avatar_url: parsed.avatar_url || user.avatar_url,
+          avatar_thumbnail_url: parsed.avatar_thumbnail_url || user.avatar_thumbnail_url,
+        };
+      }
+    } catch {
+      // ignore
+    }
+    return user;
+  });
 
   useEffect(() => {
-    setCurrentUserState(user);
+    setCurrentUserState((prev) => {
+      // Nếu user prop mới có avatar mới hơn hoặc thông tin mới hơn thì cập nhật
+      const nextAvatar = user.avatar_url || user.avatar_thumbnail_url;
+      const prevAvatar = prev.avatar_url || prev.avatar_thumbnail_url;
+      if (nextAvatar && nextAvatar !== prevAvatar) {
+        return { ...prev, ...user };
+      }
+      return { ...prev, ...user, avatar_url: prevAvatar || user.avatar_url, avatar_thumbnail_url: prev.avatar_thumbnail_url || user.avatar_thumbnail_url };
+    });
   }, [user]);
+
+  // Lắng nghe trực tiếp sự kiện USER_UPDATED hoặc storage để cập nhật tức thì không flickering
+  useEffect(() => {
+    const handleStorageChange = () => {
+      try {
+        const cached = sessionStorage.getItem(AUTH_STORAGE.USER) || localStorage.getItem(AUTH_STORAGE.USER);
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed && (parsed.avatar_url || parsed.avatar_thumbnail_url)) {
+            setCurrentUserState((prev) => ({
+              ...prev,
+              avatar_url: parsed.avatar_url ?? prev.avatar_url,
+              avatar_thumbnail_url: parsed.avatar_thumbnail_url ?? prev.avatar_thumbnail_url,
+            }));
+          }
+        }
+      } catch {
+        // ignore
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('USER_ROLE_UPDATED', handleStorageChange);
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('USER_ROLE_UPDATED', handleStorageChange);
+    };
+  }, []);
 
   // Move Category Modal State
   const [movingProduct, setMovingProduct] = useState<{ id: number; name: string; category_id?: number | null } | null>(null);
