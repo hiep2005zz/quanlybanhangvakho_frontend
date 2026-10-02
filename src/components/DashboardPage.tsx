@@ -11,6 +11,7 @@ import { StatusToastHost, emitStatusToast } from './StatusToast';
 import { AccessDeniedView } from './AccessDeniedView';
 import { AuditLogView } from './AuditLogView';
 import { ProductAuditDrawer } from './ProductAuditDrawer';
+import { ProfileView } from './ProfileView';
 import './dashboard.css';
 
 
@@ -20,6 +21,7 @@ interface DashboardProps {
   onLogout: () => void | Promise<void>;
   onTokenUpdated?: (newToken: string) => void;
   onSwitchUser?: (newUser: User, newToken: string) => void;
+  onUserUpdated?: (updatedUser: User) => void;
 }
 
 export default function DashboardPage({
@@ -27,6 +29,7 @@ export default function DashboardPage({
   token,
   onLogout,
   onTokenUpdated,
+  onUserUpdated,
 }: DashboardProps) {
   // 1. Xác định vai trò & Kiểm tra quyền Admin tối cao
   const officialRoles = (user.roles && user.roles.length > 0 ? user.roles : [user.role]).filter(
@@ -37,53 +40,51 @@ export default function DashboardPage({
   const isSalesManager = user.role === 'sales_manager' || Boolean(user.roles && user.roles.includes('sales_manager'));
   const canManageCategories = isAdmin || isSalesManager;
 
+<<<<<<< HEAD
   // 2. Khởi tạo State với Clean URL (/users, /audit-logs, /categories): Chỉ Admin mới được phép kích hoạt
   const [activeTab, setActiveTabState] = useState<'inventory' | 'users' | 'categories' | 'audit-logs'>(() => {
+=======
+  // 2. Khởi tạo State với Clean URL (/users, /audit-logs, /profile)
+  const [activeTab, setActiveTabState] = useState<'inventory' | 'users' | 'audit-logs' | 'profile'>(() => {
+>>>>>>> origin/test
     const pathname = window.location.pathname.toLowerCase();
     const isUsersPath = pathname === '/users' || pathname.startsWith('/users/') || pathname === '/admin' || pathname.startsWith('/admin/');
     const isCategoriesPath = pathname === '/categories';
     const isAuditPath = pathname === '/audit-logs' || pathname.startsWith('/audit-logs/');
+    const isProfilePath = pathname === '/profile' || pathname.startsWith('/profile/');
 
-    // Dọn sạch tàn dư query parameter cũ (?tab=users, ?tab=audit-logs) nếu người dùng truy cập link cũ
+    // Dọn sạch tàn dư query parameter cũ (?tab=users, ?tab=audit-logs, ?tab=profile)
     const params = new URLSearchParams(window.location.search);
     const hasOldTabParam = params.has('tab') || params.has('view');
     const oldTabVal = (params.get('tab') || params.get('view') || '').toLowerCase();
 
-    if (isAuditPath || oldTabVal === 'audit-logs' || oldTabVal === 'audit') {
-      if (isAdmin) {
-        if (hasOldTabParam || pathname !== '/audit-logs') {
-          try {
-            window.history.replaceState({}, '', '/audit-logs');
-          } catch {
-            // ignore
-          }
+    if (isProfilePath || oldTabVal === 'profile') {
+      if (hasOldTabParam || pathname !== '/profile') {
+        try {
+          window.history.replaceState({}, '', '/profile');
+        } catch {
+          // ignore
         }
-        return 'audit-logs';
       }
-      try {
-        window.history.replaceState({}, '', '/');
-      } catch {
-        // ignore
+      return 'profile';
+    } else if (isAuditPath || oldTabVal === 'audit-logs' || oldTabVal === 'audit') {
+      if (hasOldTabParam || pathname !== '/audit-logs') {
+        try {
+          window.history.replaceState({}, '', '/audit-logs');
+        } catch {
+          // ignore
+        }
       }
+      return 'audit-logs';
     } else if (isUsersPath || hasOldTabParam) {
-      if (isAdmin) {
-        // Chuẩn hóa Clean URL về /users nếu còn dính query param
-        if (hasOldTabParam || pathname !== '/users') {
-          try {
-            window.history.replaceState({}, '', '/users');
-          } catch {
-            // ignore
-          }
+      if (hasOldTabParam || pathname !== '/users') {
+        try {
+          window.history.replaceState({}, '', '/users');
+        } catch {
+          // ignore
         }
-        return 'users';
       }
-
-      // [ROUTE GUARD] Tài khoản không phải Admin cố tình vào /users -> Đẩy về '/' và dọn sạch URL
-      try {
-        window.history.replaceState({}, '', '/');
-      } catch {
-        // ignore
-      }
+      return 'users';
     }
     if (isCategoriesPath) {
       if (canManageCategories) {
@@ -98,6 +99,7 @@ export default function DashboardPage({
     return 'inventory';
   });
 
+<<<<<<< HEAD
   // 3. Chuyển đổi Route Clean URL: /users cho trang Quản trị, /categories cho nhóm hàng, /audit-logs cho trang Nhật ký, / cho trang Kho hàng
   const setActiveTab = (tab: 'inventory' | 'users' | 'categories' | 'audit-logs') => {
     if (tab === 'users') {
@@ -109,7 +111,18 @@ export default function DashboardPage({
           // ignore
         }
         return;
+=======
+  // 3. Chuyển đổi Route Clean URL: /users, /audit-logs, /profile, /
+  const setActiveTab = (tab: 'inventory' | 'users' | 'audit-logs' | 'profile') => {
+    if (tab === 'profile') {
+      setActiveTabState('profile');
+      try {
+        window.history.pushState({}, '', '/profile');
+      } catch {
+        // ignore
+>>>>>>> origin/test
       }
+    } else if (tab === 'users') {
       setActiveTabState('users');
       try {
         window.history.pushState({}, '', '/users');
@@ -133,15 +146,6 @@ export default function DashboardPage({
         // ignore
       }
     } else if (tab === 'audit-logs') {
-      if (!isAdmin) {
-        setActiveTabState('inventory');
-        try {
-          window.history.replaceState({}, '', '/');
-        } catch {
-          // ignore
-        }
-        return;
-      }
       setActiveTabState('audit-logs');
       try {
         window.history.pushState({}, '', '/audit-logs');
@@ -158,6 +162,7 @@ export default function DashboardPage({
     }
   };
 
+<<<<<<< HEAD
   // 4. [REACTIVE GUARD] Tự động bảo vệ khi phiên thay đổi (ví dụ: switch sang tài khoản không phải Admin)
   useEffect(() => {
     if ((activeTab === 'users' || activeTab === 'audit-logs') && !isAdmin) {
@@ -178,50 +183,45 @@ export default function DashboardPage({
   }, [activeTab, isAdmin, canManageCategories, user.username]);
 
   // 5. Đồng bộ sự kiện Lịch sử trình duyệt (Back/Forward - popstate) chuẩn Clean URL
+=======
+  // 4. Đồng bộ sự kiện Lịch sử trình duyệt (Back/Forward - popstate) chuẩn Clean URL
+>>>>>>> origin/test
   useEffect(() => {
     const syncFromUrl = () => {
       const pathname = window.location.pathname.toLowerCase();
       const isUsersPath = pathname === '/users' || pathname.startsWith('/users/') || pathname === '/admin' || pathname.startsWith('/admin/');
       const isAuditPath = pathname === '/audit-logs' || pathname.startsWith('/audit-logs/');
+      const isProfilePath = pathname === '/profile' || pathname.startsWith('/profile/');
       const params = new URLSearchParams(window.location.search);
       const tabParam = (params.get('tab') || params.get('view') || '').toLowerCase();
 
-      if (isAuditPath || tabParam === 'audit-logs' || tabParam === 'audit') {
-        if (isAdmin) {
-          if (pathname !== '/audit-logs' || tabParam) {
-            try {
-              window.history.replaceState({}, '', '/audit-logs');
-            } catch {
-              // ignore
-            }
-          }
-          setActiveTabState('audit-logs');
-        } else {
-          setActiveTabState('inventory');
+      if (isProfilePath || tabParam === 'profile') {
+        if (pathname !== '/profile' || tabParam) {
           try {
-            window.history.replaceState({}, '', '/');
+            window.history.replaceState({}, '', '/profile');
           } catch {
             // ignore
           }
         }
+        setActiveTabState('profile');
+      } else if (isAuditPath || tabParam === 'audit-logs' || tabParam === 'audit') {
+        if (pathname !== '/audit-logs' || tabParam) {
+          try {
+            window.history.replaceState({}, '', '/audit-logs');
+          } catch {
+            // ignore
+          }
+        }
+        setActiveTabState('audit-logs');
       } else if (isUsersPath || tabParam === 'users') {
-        if (isAdmin) {
-          if (pathname !== '/users' || tabParam) {
-            try {
-              window.history.replaceState({}, '', '/users');
-            } catch {
-              // ignore
-            }
-          }
-          setActiveTabState('users');
-        } else {
-          setActiveTabState('inventory');
+        if (pathname !== '/users' || tabParam) {
           try {
-            window.history.replaceState({}, '', '/');
+            window.history.replaceState({}, '', '/users');
           } catch {
             // ignore
           }
         }
+<<<<<<< HEAD
       } else if (pathname === '/categories') {
         if (canManageCategories) {
           setActiveTabState('categories');
@@ -233,6 +233,9 @@ export default function DashboardPage({
             // ignore
           }
         }
+=======
+        setActiveTabState('users');
+>>>>>>> origin/test
       } else {
         setActiveTabState('inventory');
       }
@@ -242,7 +245,7 @@ export default function DashboardPage({
     return () => {
       window.removeEventListener('popstate', syncFromUrl);
     };
-  }, [isAdmin]);
+  }, []);
   const [products, setProducts] = useState<ProductItem[]>([]);
   const [productSearchTerm, setProductSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -610,6 +613,18 @@ export default function DashboardPage({
                   <span>Tài khoản:</span>
                   <strong style={{ color: '#0f172a', fontFamily: 'monospace', fontSize: '13px' }}>{user.username}</strong>
                 </div>
+                {user.email && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+                    <span>Email:</span>
+                    <strong style={{ color: '#334155', fontSize: '12px', maxWidth: '170px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={user.email}>{user.email}</strong>
+                  </div>
+                )}
+                {user.phone && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>Điện thoại:</span>
+                    <strong style={{ color: '#334155' }}>{user.phone}</strong>
+                  </div>
+                )}
                 {user.branch && (
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span>Kho / Địa bàn:</span>
@@ -620,6 +635,58 @@ export default function DashboardPage({
 
               {/* Danh sách hành động (Interactive Buttons for Light Theme) */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {/* Nút Hồ sơ cá nhân - Dành cho tất cả 7 vai trò người dùng */}
+                <button
+                  onClick={() => {
+                    setIsUserMenuOpen(false);
+                    setActiveTab('profile');
+                  }}
+                  id="btn-popover-profile"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    width: '100%',
+                    padding: '10px 14px',
+                    borderRadius: '10px',
+                    background: activeTab === 'profile' ? '#eff6ff' : '#f8fafc',
+                    border: activeTab === 'profile' ? '1px solid #bfdbfe' : '1px solid #e2e8f0',
+                    color: activeTab === 'profile' ? '#1d4ed8' : '#1e293b',
+                    fontSize: '13.5px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    transition: 'all 0.18s ease',
+                    boxShadow: 'none',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = '#eff6ff';
+                    e.currentTarget.style.borderColor = '#93c5fd';
+                    e.currentTarget.style.color = '#1d4ed8';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = activeTab === 'profile' ? '#eff6ff' : '#f8fafc';
+                    e.currentTarget.style.borderColor = activeTab === 'profile' ? '#bfdbfe' : '#e2e8f0';
+                    e.currentTarget.style.color = activeTab === 'profile' ? '#1d4ed8' : '#1e293b';
+                  }}
+                  title="Xem và cập nhật hồ sơ cá nhân"
+                >
+                  <div style={{
+                    width: '28px',
+                    height: '28px',
+                    borderRadius: '8px',
+                    background: '#dbeafe',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#2563eb',
+                  }}>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                      <circle cx="12" cy="7" r="4" />
+                    </svg>
+                  </div>
+                  <span>Hồ sơ cá nhân</span>
+                </button>
                 {(user.role === 'admin' || (user.roles && user.roles.includes('admin'))) && (
                   <button
                     onClick={() => {
@@ -930,6 +997,24 @@ export default function DashboardPage({
             <span style={{ fontWeight: activeTab === 'inventory' ? '700' : '500', fontSize: '14.5px' }}>Quản lý kho hàng</span>
           </div>
 
+          {/* Hồ sơ cá nhân - Tất cả tài khoản */}
+          <div
+            className={`sidebar-menu-item ${activeTab === 'profile' ? 'active' : ''}`}
+            id="btn-sidebar-profile"
+            onClick={() => {
+              setActiveTab('profile');
+              handleCloseMenu();
+            }}
+          >
+            <div className="sidebar-icon-box">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                <circle cx="12" cy="7" r="4" />
+              </svg>
+            </div>
+            <span style={{ fontWeight: activeTab === 'profile' ? '700' : '500', fontSize: '14.5px' }}>Hồ sơ cá nhân</span>
+          </div>
+
           {/* Mục Phân quyền & Tạo tài khoản - CHỈ hiển thị nếu là Admin */}
           {(user.role === 'admin' || (user.roles && user.roles.includes('admin'))) && (
             <div
@@ -1058,6 +1143,13 @@ export default function DashboardPage({
             onLogout={onLogout}
           />
         )
+      ) : activeTab === 'profile' ? (
+        <ProfileView
+          currentUser={user}
+          token={token}
+          onBackToHome={() => setActiveTab('inventory')}
+          onUserUpdated={onUserUpdated}
+        />
       ) : isPendingCustomer ? (
 
         /* GIAO DIỆN THÔNG BÁO CHO TÀI KHOẢN CHƯA ĐƯỢC ADMIN CẤP QUYỀN */
