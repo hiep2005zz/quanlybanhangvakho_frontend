@@ -27,8 +27,6 @@ export interface User {
   avatar_thumbnail_url?: string | null;
   can_view_cost?: boolean;
   can_write_inventory?: boolean;
-  avatar_url?: string | null;
-  avatar_thumbnail_url?: string | null;
 }
 
 export interface UserProfile {
@@ -843,6 +841,13 @@ export async function clearAllAuditLogsApi(token: string): Promise<{ message: st
   return data;
 }
 
+export interface AvatarUploadCropCoords {
+  x?: number;
+  y?: number;
+  width?: number;
+  height?: number;
+}
+
 export interface AvatarUploadResult {
   status: string;
   message: string;
@@ -962,49 +967,6 @@ export async function updateMyProfileApi(
   return await response.json();
 }
 
-export interface AvatarUploadCropCoords {
-  x?: number;
-  y?: number;
-  width?: number;
-  height?: number;
-}
-
-export interface AvatarUploadResult {
-  status: string;
-  message: string;
-  avatar_url: string;
-  avatar_thumbnail_url: string;
-  user: User;
-}
-
-export async function uploadAvatarApi(
-  token: string,
-  file: File | Blob,
-  coords?: AvatarUploadCropCoords
-): Promise<AvatarUploadResult> {
-  const formData = new FormData();
-  formData.append('file', file, file instanceof File ? file.name : 'avatar.jpg');
-  if (coords) {
-    if (coords.x !== undefined) formData.append('crop_x', Math.round(coords.x).toString());
-    if (coords.y !== undefined) formData.append('crop_y', Math.round(coords.y).toString());
-    if (coords.width !== undefined) formData.append('crop_width', Math.round(coords.width).toString());
-    if (coords.height !== undefined) formData.append('crop_height', Math.round(coords.height).toString());
-  }
-
-  const response = await fetch(`${API_BASE_URL}/profile/avatar`, {
-    method: 'PATCH',
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-    body: formData,
-  });
-
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(data.detail || `Lỗi tải ảnh đại diện (Mã lỗi ${response.status})`);
-  }
-  return data;
-}
 
 // ============================================================================
 // DÁN TOÀN BỘ NỘI DUNG FILE NÀY VÀO CUỐI FILE: frontend/src/services/api.ts
