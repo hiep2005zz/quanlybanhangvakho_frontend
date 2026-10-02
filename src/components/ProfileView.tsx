@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { User, UserProfile, getMyProfileApi, updateMyProfileApi, uploadAvatarApi } from '../services/api';
 import { emitStatusToast } from './StatusToast';
 import { AvatarCropModal } from './AvatarCropModal';
+import { SmoothAvatar } from './SmoothAvatar';
+import { broadcastAvatarUpdate, preloadAvatarImage } from '../utils/avatarCache';
 
 interface ProfileViewProps {
   currentUser: User;
@@ -270,6 +272,10 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
 
       const res = await uploadAvatarApi(token, selectedFile, coords);
 
+      // Preload ngay lập tức URL ảnh mới vào bộ nhớ đệm
+      if (res.avatar_url) preloadAvatarImage(res.avatar_url);
+      if (res.avatar_thumbnail_url) preloadAvatarImage(res.avatar_thumbnail_url);
+
       // Cập nhật profile state
       setProfile((prev) =>
         prev
@@ -289,6 +295,13 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           avatar_thumbnail_url: res.avatar_thumbnail_url,
         });
       }
+
+      // Phát sự kiện đồng bộ real-time cho toàn bộ component hiển thị
+      broadcastAvatarUpdate({
+        avatar_url: res.avatar_url,
+        avatar_thumbnail_url: res.avatar_thumbnail_url,
+        username: currentUser.username,
+      });
 
       emitStatusToast({
         title: 'Thành công',
@@ -506,15 +519,9 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               width: '76px',
               height: '76px',
               borderRadius: '20px',
-              background: (profile?.avatar_url || currentUser.avatar_url)
-                ? '#f8fafc'
-                : `linear-gradient(135deg, ${roleColor} 0%, #4f46e5 100%)`,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: '#ffffff',
-              fontSize: '28px',
-              fontWeight: '800',
               boxShadow: `0 8px 20px ${roleColor}35`,
               flexShrink: 0,
               cursor: 'pointer',
@@ -534,20 +541,14 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               if (overlay) overlay.style.opacity = '0';
             }}
           >
-            {(profile?.avatar_url || currentUser.avatar_url) ? (
-              <img
-                src={profile?.avatar_url || currentUser.avatar_url || ''}
-                alt={fullNameInput || currentUser.username}
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'cover',
-                  display: 'block',
-                }}
-              />
-            ) : (
-              (fullNameInput || currentUser.username).charAt(0).toUpperCase()
-            )}
+            <SmoothAvatar
+              src={profile?.avatar_url || currentUser.avatar_url}
+              fallbackText={fullNameInput || currentUser.username}
+              size={76}
+              borderRadius="18px"
+              bgGradient={`linear-gradient(135deg, ${roleColor} 0%, #4f46e5 100%)`}
+              alt={fullNameInput || currentUser.username}
+            />
 
             {/* Hover Overlay hiệu ứng chuyên nghiệp */}
             <div
@@ -562,6 +563,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                 opacity: 0,
                 transition: 'opacity 0.2s ease',
                 color: '#ffffff',
+                pointerEvents: 'none',
               }}
             >
               {(profile?.avatar_url || currentUser.avatar_url) ? (

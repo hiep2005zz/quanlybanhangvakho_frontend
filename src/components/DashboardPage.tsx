@@ -11,6 +11,8 @@ import { StatusToastHost, emitStatusToast } from './StatusToast';
 import { AccessDeniedView } from './AccessDeniedView';
 import { AuditLogView } from './AuditLogView';
 import { ProfileView } from './ProfileView';
+import { SmoothAvatar } from './SmoothAvatar';
+import { preloadAvatarImage } from '../utils/avatarCache';
 import './dashboard.css';
 
 interface DashboardProps {
@@ -518,35 +520,19 @@ export default function DashboardPage({
             title={`${user.full_name || user.username} (${roleLabelMap[primaryRole] || primaryRole}) - Nhấp để mở menu`}
             aria-label="Tài khoản người dùng"
           >
-            {/* Avatar tròn với ảnh hoặc chữ cái đầu & Online status indicator */}
+            {/* Avatar tròn với SmoothAvatar (Preload + Loading Spinner + Graceful Fallback) & Online indicator */}
             <div style={{ position: 'relative', width: '36px', height: '36px', flexShrink: 0 }}>
-              <div style={{
-                width: '100%',
-                height: '100%',
-                borderRadius: '50%',
-                background: `linear-gradient(135deg, ${currentBadgeColor} 0%, #2563eb 100%)`,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#ffffff',
-                fontWeight: '700',
-                fontSize: '15px',
-                boxShadow: '0 2px 5px rgba(0, 0, 0, 0.15)',
-                overflow: 'hidden'
-              }}>
-                {currentUserState.avatar_thumbnail_url || currentUserState.avatar_url ? (
-                  <img
-                    src={(currentUserState.avatar_thumbnail_url || currentUserState.avatar_url) ?? ''}
-                    alt={currentUserState.full_name || currentUserState.username}
-                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                    onError={(e) => {
-                      (e.target as HTMLElement).style.display = 'none';
-                    }}
-                  />
-                ) : (
-                  (currentUserState.full_name || currentUserState.username).charAt(0).toUpperCase()
-                )}
-              </div>
+              <SmoothAvatar
+                src={currentUserState.avatar_thumbnail_url || currentUserState.avatar_url}
+                fallbackText={currentUserState.full_name || currentUserState.username}
+                size={36}
+                borderRadius="50%"
+                bgGradient={`linear-gradient(135deg, ${currentBadgeColor} 0%, #2563eb 100%)`}
+                alt={currentUserState.full_name || currentUserState.username}
+                style={{
+                  boxShadow: '0 2px 5px rgba(0, 0, 0, 0.15)',
+                }}
+              />
               <span
                 style={{
                   position: 'absolute',
@@ -591,22 +577,11 @@ export default function DashboardPage({
                   }}
                   title="Nhấp để xem hồ sơ và đổi ảnh đại diện"
                   style={{
-                    width: '54px',
-                    height: '54px',
-                    borderRadius: '16px',
-                    background: `linear-gradient(135deg, ${currentBadgeColor} 0%, #6366f1 100%)`,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: '#ffffff',
-                    fontWeight: '800',
-                    fontSize: '22px',
-                    flexShrink: 0,
-                    boxShadow: `0 8px 20px ${currentBadgeColor}55, inset 0 1px 0 rgba(255, 255, 255, 0.4)`,
-                    border: '1px solid rgba(255, 255, 255, 0.25)',
-                    overflow: 'hidden',
                     cursor: 'pointer',
+                    borderRadius: '16px',
                     transition: 'transform 0.18s ease, box-shadow 0.18s ease',
+                    boxShadow: `0 8px 20px ${currentBadgeColor}55`,
+                    flexShrink: 0,
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.transform = 'scale(1.06)';
@@ -615,18 +590,17 @@ export default function DashboardPage({
                     e.currentTarget.style.transform = 'scale(1)';
                   }}
                 >
-                  {currentUserState.avatar_url || currentUserState.avatar_thumbnail_url ? (
-                    <img
-                      src={(currentUserState.avatar_url || currentUserState.avatar_thumbnail_url) ?? ''}
-                      alt={currentUserState.full_name || currentUserState.username}
-                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                      onError={(e) => {
-                        (e.target as HTMLElement).style.display = 'none';
-                      }}
-                    />
-                  ) : (
-                    (currentUserState.full_name || currentUserState.username).charAt(0).toUpperCase()
-                  )}
+                  <SmoothAvatar
+                    src={currentUserState.avatar_url || currentUserState.avatar_thumbnail_url}
+                    fallbackText={currentUserState.full_name || currentUserState.username}
+                    size={54}
+                    borderRadius="16px"
+                    bgGradient={`linear-gradient(135deg, ${currentBadgeColor} 0%, #6366f1 100%)`}
+                    alt={currentUserState.full_name || currentUserState.username}
+                    style={{
+                      border: '1px solid rgba(255, 255, 255, 0.25)',
+                    }}
+                  />
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <h4 style={{

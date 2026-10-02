@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { User, uploadAvatarApi, updateProfileApi } from '../services/api';
 import ImageCropModal from './ImageCropModal';
 import { emitStatusToast } from './StatusToast';
+import { broadcastAvatarUpdate, preloadAvatarImage } from '../utils/avatarCache';
 
 interface UserProfileModalProps {
   isOpen: boolean;
@@ -109,8 +110,15 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
 
     try {
       const res = await uploadAvatarApi(token, croppedBlob, cropCoords);
+      if (res.avatar_url) preloadAvatarImage(res.avatar_url);
+      if (res.avatar_thumbnail_url) preloadAvatarImage(res.avatar_thumbnail_url);
       setCurrentAvatarUrl(res.avatar_url);
       onProfileUpdated(res.user);
+      broadcastAvatarUpdate({
+        avatar_url: res.avatar_url,
+        avatar_thumbnail_url: res.avatar_thumbnail_url,
+        username: currentUser.username,
+      });
       emitStatusToast({
         title: 'Tải ảnh thành công',
         message: 'Ảnh đại diện đã được cập nhật đồng bộ.',

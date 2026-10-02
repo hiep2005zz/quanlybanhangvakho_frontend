@@ -70,9 +70,26 @@ function App() {
 
   // Tự động đồng bộ vai trò và thông tin mới nhất từ máy chủ khi load trang (F5)
   useEffect(() => {
+    // 1. Preload ngay URL ảnh từ session hiện tại
+    if (currentUser?.avatar_thumbnail_url) {
+      const img = new Image();
+      img.src = currentUser.avatar_thumbnail_url;
+    } else if (currentUser?.avatar_url) {
+      const img = new Image();
+      img.src = currentUser.avatar_url;
+    }
+
     if (authToken) {
       getMeApi(authToken).then((freshUser) => {
         if (freshUser) {
+          // Preload ảnh mới nếu có
+          if (freshUser.avatar_thumbnail_url) {
+            const img = new Image();
+            img.src = freshUser.avatar_thumbnail_url;
+          } else if (freshUser.avatar_url) {
+            const img = new Image();
+            img.src = freshUser.avatar_url;
+          }
           setCurrentUser(freshUser);
           sessionStorage.setItem(AUTH_STORAGE.USER, JSON.stringify(freshUser));
         }
