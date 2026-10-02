@@ -146,15 +146,6 @@ function App() {
     setCurrentUser(user);
     setAuthToken(token);
     sessionManager.start(token, user.username);
-    // Nếu không phải admin thì làm sạch URL về trang chủ '/'
-    const isUserAdmin = user.role === 'admin' || Boolean(user.roles && user.roles.includes('admin'));
-    if (!isUserAdmin) {
-      try {
-        window.history.replaceState({}, '', '/');
-      } catch {
-        // ignore
-      }
-    }
   };
 
   const handleLogout = async () => {
@@ -259,6 +250,10 @@ function App() {
               saveClientSession(currentUser, newToken);
               sessionManager.start(newToken, currentUser.username);
             }
+          }}
+          onUserUpdated={(updatedUser) => {
+            setCurrentUser(updatedUser);
+            saveClientSession(updatedUser, authToken);
           }}
         />
       </>

@@ -3,15 +3,22 @@ import { getProductsApi, ProductItem, User } from '../services/api';
 import { sessionManager, SessionState } from '../services/sessionManager';
 import SecurityModal from './SecurityModal';
 import { UserManagementView } from './UserManagementView';
+import { CategoryManagementView } from './CategoryManagementView';
 import CreateCustomerModal from './CreateCustomerModal';
+import MoveCategoryModal from './MoveCategoryModal';
 import { StatusToastHost, emitStatusToast } from './StatusToast';
 import { AccessDeniedView } from './AccessDeniedView';
+import SupplierManagementView from './SupplierManagementView';
 import { AuditLogView } from './AuditLogView';
 import { ProductAuditDrawer } from './ProductAuditDrawer';
+<<<<<<< HEAD
 import OrdersView from './OrdersView';
+=======
+import { ProfileView } from './ProfileView';
+import { ProductBulkImportModal } from './ProductBulkImportModal';
+>>>>>>> test
 import './dashboard.css';
 import { hasPermission, Permissions } from '../hooks/usePermission';
-
 
 interface DashboardProps {
   user: User;
@@ -19,6 +26,7 @@ interface DashboardProps {
   onLogout: () => void | Promise<void>;
   onTokenUpdated?: (newToken: string) => void;
   onSwitchUser?: (newUser: User, newToken: string) => void;
+  onUserUpdated?: (updatedUser: User) => void;
 }
 
 export default function DashboardPage({
@@ -26,23 +34,42 @@ export default function DashboardPage({
   token,
   onLogout,
   onTokenUpdated,
+  onUserUpdated,
 }: DashboardProps) {
   // 1. Xác định vai trò & Kiểm tra quyền Admin tối cao
-  const officialRoles = (user.roles && user.roles.length > 0 ? user.roles : [user.role]).filter(
-    (r) => r && r !== 'customer'
-  );
-  const isPendingCustomer = officialRoles.length === 0;
+  const rawRoles = user.roles && user.roles.length > 0 ? user.roles : [user.role];
+  const officialRoles = rawRoles.filter((r) => r && r !== 'customer');
+
+  // Tài khoản bị khóa màn hình chờ chỉ khi chưa được phân công kho/địa bàn VÀ chưa có vai trò hợp lệ
+  const isPendingCustomer =
+    officialRoles.length === 0 &&
+    (!user.branch || user.branch === 'Chưa phân công');
   const isAdmin = user.role === 'admin' || Boolean(user.roles && user.roles.includes('admin'));
   const canReadOrders = hasPermission(user, Permissions.ORDER_READ);
   const canCreateOrders = hasPermission(user, Permissions.ORDER_WRITE);
   const canManageOrders = officialRoles.includes('admin') || officialRoles.includes('sales_manager');
 
+<<<<<<< HEAD
   const [activeTab, setActiveTabState] = useState<'inventory' | 'users' | 'audit-logs' | 'orders'>(() => {
+=======
+  // Quyền quản lý nhà cung cấp
+  const SUPPLIER_ROLES = ['admin', 'warehouse', 'warehouse_manager'];
+  const canManageSuppliers = officialRoles.some((r) => SUPPLIER_ROLES.includes(r));
+
+  // Quyền quản lý ngành hàng
+  const isSalesManager = user.role === 'sales_manager' || Boolean(user.roles && user.roles.includes('sales_manager'));
+  const canManageCategories = isAdmin || isSalesManager;
+
+  // 2. Khởi tạo State với Clean URL (/users, /audit-logs, /categories, /suppliers, /profile)
+  const [activeTab, setActiveTabState] = useState<'inventory' | 'users' | 'categories' | 'audit-logs' | 'profile' | 'suppliers'>(() => {
+>>>>>>> test
     const pathname = window.location.pathname.toLowerCase();
     const params = new URLSearchParams(window.location.search);
     const tab = (params.get('tab') || params.get('view') || '').toLowerCase();
     const isUsersPath = pathname === '/users' || pathname.startsWith('/users/') || pathname === '/admin' || pathname.startsWith('/admin/');
+    const isCategoriesPath = pathname === '/categories';
     const isAuditPath = pathname === '/audit-logs' || pathname.startsWith('/audit-logs/');
+<<<<<<< HEAD
     const isOrdersPath = pathname === '/orders' || pathname.startsWith('/orders/');
 
     if (isOrdersPath && canReadOrders) return 'orders';
@@ -56,10 +83,60 @@ export default function DashboardPage({
     }
     if (pathname !== '/' && (isUsersPath || isAuditPath || isOrdersPath || params.size)) {
       window.history.replaceState({}, '', '/');
+=======
+    const isProfilePath = pathname === '/profile' || pathname.startsWith('/profile/');
+
+    // Dọn sạch tàn dư query parameter cũ (?tab=users, ?tab=audit-logs, ?tab=profile)
+    const params = new URLSearchParams(window.location.search);
+    const hasOldTabParam = params.has('tab') || params.has('view');
+    const oldTabVal = (params.get('tab') || params.get('view') || '').toLowerCase();
+
+    if (pathname === '/suppliers' || pathname.startsWith('/suppliers/')) {
+      return 'suppliers';
+    }
+    if (isProfilePath || oldTabVal === 'profile') {
+      if (hasOldTabParam || pathname !== '/profile') {
+        try {
+          window.history.replaceState({}, '', '/profile');
+        } catch {
+          // ignore
+        }
+      }
+      return 'profile';
+    } else if (isAuditPath || oldTabVal === 'audit-logs' || oldTabVal === 'audit') {
+      if (hasOldTabParam || pathname !== '/audit-logs') {
+        try {
+          window.history.replaceState({}, '', '/audit-logs');
+        } catch {
+          // ignore
+        }
+      }
+      return 'audit-logs';
+    } else if (isUsersPath || hasOldTabParam) {
+      if (hasOldTabParam || pathname !== '/users') {
+        try {
+          window.history.replaceState({}, '', '/users');
+        } catch {
+          // ignore
+        }
+      }
+      return 'users';
+    }
+    if (isCategoriesPath) {
+      if (canManageCategories) {
+        return 'categories';
+      }
+      try {
+        window.history.replaceState({}, '', '/');
+      } catch {
+        // ignore
+      }
+>>>>>>> test
     }
     return 'inventory';
   });
 
+<<<<<<< HEAD
   const setActiveTab = (tab: 'inventory' | 'users' | 'audit-logs' | 'orders') => {
     if (tab === 'users' || tab === 'audit-logs') {
       if (!isAdmin) {
@@ -70,6 +147,61 @@ export default function DashboardPage({
       setActiveTabState(tab);
       window.history.pushState({}, '', tab === 'users' ? '/users' : '/audit-logs');
       return;
+=======
+  // 3. Chuyển đổi Route Clean URL
+  const setActiveTab = (tab: 'inventory' | 'users' | 'categories' | 'audit-logs' | 'profile' | 'suppliers') => {
+    if (tab === 'profile') {
+      setActiveTabState('profile');
+      try {
+        window.history.pushState({}, '', '/profile');
+      } catch {
+        // ignore
+      }
+    } else if (tab === 'users') {
+      setActiveTabState('users');
+      try {
+        window.history.pushState({}, '', '/users');
+      } catch {
+        // ignore
+      }
+    } else if (tab === 'categories') {
+      if (!canManageCategories) {
+        setActiveTabState('inventory');
+        try {
+          window.history.replaceState({}, '', '/');
+        } catch {
+          // ignore
+        }
+        return;
+      }
+      setActiveTabState('categories');
+      try {
+        window.history.pushState({}, '', '/categories');
+      } catch {
+        // ignore
+      }
+    } else if (tab === 'audit-logs') {
+      setActiveTabState('audit-logs');
+      try {
+        window.history.pushState({}, '', '/audit-logs');
+      } catch {
+        // ignore
+      }
+    } else if (tab === 'suppliers') {
+      setActiveTabState('suppliers');
+      try {
+        window.history.pushState({}, '', '/suppliers');
+      } catch {
+        // ignore
+      }
+    } else {
+      setActiveTabState('inventory');
+      try {
+        window.history.pushState({}, '', '/');
+      } catch {
+        // ignore
+      }
+>>>>>>> test
     }
     if (tab === 'orders' && !canReadOrders) {
       setActiveTabState('inventory');
@@ -80,16 +212,26 @@ export default function DashboardPage({
     window.history.pushState({}, '', tab === 'orders' ? '/orders' : '/');
   };
 
+<<<<<<< HEAD
+=======
+  // 4. [REACTIVE GUARD] Tự động bảo vệ khi phiên thay đổi (chỉ redirect nếu tab không thuộc luồng cho phép)
+>>>>>>> test
   useEffect(() => {
-    if ((activeTab === 'users' || activeTab === 'audit-logs') && !isAdmin) {
+    if (activeTab === 'categories' && !canManageCategories) {
       setActiveTabState('inventory');
       window.history.replaceState({}, '', '/');
     } else if (activeTab === 'orders' && !canReadOrders) {
       setActiveTabState('inventory');
       window.history.replaceState({}, '', '/');
     }
+<<<<<<< HEAD
   }, [activeTab, canReadOrders, isAdmin, user.username]);
 
+=======
+  }, [activeTab, canManageCategories, user.username]);
+
+  // 5. Đồng bộ sự kiện Lịch sử trình duyệt (Back/Forward - popstate)
+>>>>>>> test
   useEffect(() => {
     const syncFromUrl = () => {
       const pathname = window.location.pathname.toLowerCase();
@@ -97,6 +239,7 @@ export default function DashboardPage({
       const tab = (params.get('tab') || params.get('view') || '').toLowerCase();
       const isUsersPath = pathname === '/users' || pathname.startsWith('/users/') || pathname === '/admin' || pathname.startsWith('/admin/');
       const isAuditPath = pathname === '/audit-logs' || pathname.startsWith('/audit-logs/');
+<<<<<<< HEAD
       const isOrdersPath = pathname === '/orders' || pathname.startsWith('/orders/');
 
       if (isAuditPath || tab === 'audit-logs' || tab === 'audit') {
@@ -109,6 +252,48 @@ export default function DashboardPage({
         setActiveTabState('audit-logs');
       } else if (isUsersPath || tab === 'users') {
         if (!isAdmin) {
+=======
+      const isProfilePath = pathname === '/profile' || pathname.startsWith('/profile/');
+      const params = new URLSearchParams(window.location.search);
+      const tabParam = (params.get('tab') || params.get('view') || '').toLowerCase();
+
+      if (pathname === '/suppliers' || pathname.startsWith('/suppliers/')) {
+        setActiveTabState('suppliers');
+        return;
+      }
+
+      if (isProfilePath || tabParam === 'profile') {
+        if (pathname !== '/profile' || tabParam) {
+          try {
+            window.history.replaceState({}, '', '/profile');
+          } catch {
+            // ignore
+          }
+        }
+        setActiveTabState('profile');
+      } else if (isAuditPath || tabParam === 'audit-logs' || tabParam === 'audit') {
+        if (pathname !== '/audit-logs' || tabParam) {
+          try {
+            window.history.replaceState({}, '', '/audit-logs');
+          } catch {
+            // ignore
+          }
+        }
+        setActiveTabState('audit-logs');
+      } else if (isUsersPath || tabParam === 'users') {
+        if (pathname !== '/users' || tabParam) {
+          try {
+            window.history.replaceState({}, '', '/users');
+          } catch {
+            // ignore
+          }
+        }
+        setActiveTabState('users');
+      } else if (pathname === '/categories') {
+        if (canManageCategories) {
+          setActiveTabState('categories');
+        } else {
+>>>>>>> test
           setActiveTabState('inventory');
           window.history.replaceState({}, '', '/');
           return;
@@ -124,8 +309,16 @@ export default function DashboardPage({
     };
 
     window.addEventListener('popstate', syncFromUrl);
+<<<<<<< HEAD
     return () => window.removeEventListener('popstate', syncFromUrl);
   }, [canReadOrders, isAdmin]);
+=======
+    return () => {
+      window.removeEventListener('popstate', syncFromUrl);
+    };
+  }, [canManageCategories]);
+
+>>>>>>> test
   const [products, setProducts] = useState<ProductItem[]>([]);
   const [productSearchTerm, setProductSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -146,8 +339,13 @@ export default function DashboardPage({
     productName: string;
   }>({ isOpen: false, productCode: '', productName: '' });
 
+  // Move Category Modal State
+  const [movingProduct, setMovingProduct] = useState<{ id: number; name: string; category_id?: number | null } | null>(null);
 
-  // Timer điều khiển di chuột vào mở rộng, di chuột ra tự động đóng
+  // Bulk Import Product Modal State
+  const [isProductBulkImportOpen, setIsProductBulkImportOpen] = useState(false);
+
+  // Timer điều khiển mở/đóng menu khi hover
   const menuTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleMouseEnterMenu = () => {
@@ -175,7 +373,7 @@ export default function DashboardPage({
     setIsMenuOpen(false);
   };
 
-  // Tự động đóng menu khi người dùng bấm phím Esc
+  // Tự động đóng menu khi bấm phím Esc
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -202,44 +400,38 @@ export default function DashboardPage({
   const remainingSeconds = sessionInfo.remainingSeconds;
   const isWarningZone = remainingSeconds > 0 && remainingSeconds <= 120;
 
-  useEffect(() => {
+  const fetchProducts = () => {
     if (isPendingCustomer) {
       setIsLoading(false);
       return;
     }
-
-    let isMounted = true;
     setIsLoading(true);
     getProductsApi(token)
       .then((data) => {
-        if (isMounted) {
-          setProducts(data.items);
-          setIsCostVisible(data.is_cost_price_visible);
-          setIsLoading(false);
-        }
+        setProducts(data.items);
+        setIsCostVisible(data.is_cost_price_visible);
+        setIsLoading(false);
       })
       .catch((err) => {
-        if (isMounted) {
-          setError(err.message || 'Lỗi khi tải dữ liệu sản phẩm từ Backend.');
-          setIsLoading(false);
-        }
+        setError(err.message || 'Lỗi khi tải dữ liệu sản phẩm từ Backend.');
+        setIsLoading(false);
       });
+  };
 
-    return () => {
-      isMounted = false;
-    };
+  useEffect(() => {
+    fetchProducts();
   }, [token, isPendingCustomer]);
 
   // Tính toán số liệu thống kê
   const totalStock = products.reduce((acc, p) => acc + p.stock, 0);
   const totalSellValue = products.reduce((acc, p) => acc + p.sell_price * p.stock, 0);
 
-  // Tính giá vốn và lợi nhuận (chỉ khả dụng khi Backend trả về cho Quản lý kinh doanh / Admin)
+  // Tính giá vốn và lợi nhuận
   const isCostAvailable = isCostVisible && products.length > 0 && products.every((p) => p.cost_price !== null && p.cost_price !== undefined);
   const totalCostValue = isCostAvailable ? products.reduce((acc, p) => acc + (p.cost_price || 0) * p.stock, 0) : 0;
   const totalProfit = totalSellValue - totalCostValue;
 
-  // Lọc sản phẩm theo Toolbar (Search và Category)
+  // Lọc sản phẩm
   const filteredProducts = products.filter((p) => {
     const q = productSearchTerm.trim().toLowerCase();
     const matchQuery = !q || p.name.toLowerCase().includes(q) || p.code.toLowerCase().includes(q);
@@ -255,7 +447,7 @@ export default function DashboardPage({
     warehouse_manager: 'Quản Lý Kho',
     accountant: 'Kế Toán',
     purchasing: 'Nhân Viên Mua Hàng',
-    customer: 'Chờ Cấp Quyền',
+    customer: (!user.branch || user.branch === 'Chưa phân công') ? 'Chưa Phân Quyền' : 'Đại Lý',
   };
 
   const roleBadgeColorMap: Record<string, string> = {
@@ -266,7 +458,7 @@ export default function DashboardPage({
     warehouse_manager: '#059669',
     accountant: '#f59e0b',
     purchasing: '#06b6d4',
-    customer: '#94a3b8',
+    customer: (!user.branch || user.branch === 'Chưa phân công') ? '#94a3b8' : '#0284c7',
   };
 
   const primaryRole = officialRoles[0] || user.role;
@@ -276,7 +468,6 @@ export default function DashboardPage({
     <div className="dashboard-main-container">
       {/* Top Navbar */}
       <header className="dashboard-header-bar">
-        {/* Khối bên trái: Nút 3 gạch (chỉ ở trang chủ và không phải tài khoản chờ duyệt) + Logo + Tên hệ thống */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           {activeTab === 'inventory' && !isPendingCustomer && (
             <button
@@ -338,7 +529,7 @@ export default function DashboardPage({
           </div>
         </div>
 
-        {/* Khối bên phải: Header User pill (Avatar chữ cái đầu + Tên + Badge vai trò + Kho) */}
+        {/* Khối bên phải: Header User pill */}
         <div style={{ position: 'relative', zIndex: 501 }}>
           <button
             onClick={() => setIsUserMenuOpen((prev) => !prev)}
@@ -357,7 +548,6 @@ export default function DashboardPage({
             title={`${user.full_name || user.username} (${roleLabelMap[primaryRole] || primaryRole}) - Nhấp để mở menu`}
             aria-label="Tài khoản người dùng"
           >
-            {/* Avatar tròn với chữ cái đầu & Online status indicator */}
             <div style={{ position: 'relative', width: '36px', height: '36px', flexShrink: 0 }}>
               <div style={{
                 width: '100%',
@@ -390,7 +580,6 @@ export default function DashboardPage({
             </div>
           </button>
 
-          {/* Popover thông tin người dùng (Clean Light Theme) */}
           {isUserMenuOpen && (
             <div
               className="header-popover-menu"
@@ -409,7 +598,6 @@ export default function DashboardPage({
                 animation: 'fadeInCard 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
               }}
             >
-              {/* Phần trên: Avatar + Tên + Role Badge */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '18px' }}>
                 <div style={{
                   width: '54px',
@@ -470,34 +658,60 @@ export default function DashboardPage({
                 </div>
               </div>
 
-              {/* Thông tin tài khoản Light Card */}
-              <div style={{
-                background: '#f8fafc',
-                border: '1px solid #e2e8f0',
-                borderRadius: '12px',
-                padding: '12px 14px',
-                marginBottom: '16px',
-                fontSize: '13px',
-                color: '#64748b',
-                lineHeight: '1.6',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '4px',
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span>Tài khoản:</span>
-                  <strong style={{ color: '#0f172a', fontFamily: 'monospace', fontSize: '13px' }}>{user.username}</strong>
-                </div>
-                {user.branch && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span>Kho / Địa bàn:</span>
-                    <strong style={{ color: '#334155' }}>{user.branch}</strong>
-                  </div>
-                )}
-              </div>
-
-              {/* Danh sách hành động (Interactive Buttons for Light Theme) */}
+              {/* Danh sách nút tác vụ */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <button
+                  onClick={() => {
+                    setIsUserMenuOpen(false);
+                    setActiveTab('profile');
+                  }}
+                  id="btn-popover-profile"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    width: '100%',
+                    padding: '10px 14px',
+                    borderRadius: '10px',
+                    background: activeTab === 'profile' ? '#eff6ff' : '#f8fafc',
+                    border: activeTab === 'profile' ? '1px solid #bfdbfe' : '1px solid #e2e8f0',
+                    color: activeTab === 'profile' ? '#1d4ed8' : '#1e293b',
+                    fontSize: '13.5px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    transition: 'all 0.18s ease',
+                    boxShadow: 'none',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = '#eff6ff';
+                    e.currentTarget.style.borderColor = '#93c5fd';
+                    e.currentTarget.style.color = '#1d4ed8';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = activeTab === 'profile' ? '#eff6ff' : '#f8fafc';
+                    e.currentTarget.style.borderColor = activeTab === 'profile' ? '#bfdbfe' : '#e2e8f0';
+                    e.currentTarget.style.color = activeTab === 'profile' ? '#1d4ed8' : '#1e293b';
+                  }}
+                  title="Xem và cập nhật hồ sơ cá nhân"
+                >
+                  <div style={{
+                    width: '28px',
+                    height: '28px',
+                    borderRadius: '8px',
+                    background: '#dbeafe',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#2563eb',
+                  }}>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                      <circle cx="12" cy="7" r="4" />
+                    </svg>
+                  </div>
+                  <span>Hồ sơ cá nhân</span>
+                </button>
+
                 {(user.role === 'admin' || (user.roles && user.roles.includes('admin'))) && (
                   <button
                     onClick={() => {
@@ -608,7 +822,6 @@ export default function DashboardPage({
                   </button>
                 )}
 
-
                 <button
                   onClick={() => {
                     setIsUserMenuOpen(false);
@@ -718,7 +931,7 @@ export default function DashboardPage({
         </div>
       </header>
 
-      {/* Backdrop đóng popover user khi click ra ngoài (đặt ở root level ngoài header) */}
+      {/* Backdrop đóng popover user khi click ra ngoài */}
       {isUserMenuOpen && (
         <div
           onClick={() => setIsUserMenuOpen(false)}
@@ -737,13 +950,12 @@ export default function DashboardPage({
         onClick={handleCloseMenu}
       />
 
-      {/* Drawer menu mở rộng từ bên trái (13 mục nguyên bản, không thêm chức năng thừa) */}
+      {/* Drawer menu mở rộng từ bên trái */}
       <aside
         className={`sidebar-drawer ${isMenuOpen ? 'open' : ''}`}
         onMouseEnter={handleMouseEnterMenu}
         onMouseLeave={handleMouseLeaveMenu}
       >
-        {/* Header Drawer */}
         <div style={{
           display: 'flex',
           alignItems: 'center',
@@ -788,9 +1000,9 @@ export default function DashboardPage({
           </button>
         </div>
 
-        {/* Danh sách mục menu: Hiển thị đúng theo quyền của người dùng */}
+        {/* Danh sách mục menu */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '12px 0' }}>
-          {/* Quản lý kho hàng - Tất cả nhân viên đều truy cập trang kho */}
+          {/* Quản lý kho hàng */}
           <div
             className={`sidebar-menu-item ${activeTab === 'inventory' ? 'active' : ''}`}
             onClick={() => {
@@ -808,17 +1020,28 @@ export default function DashboardPage({
             <span style={{ fontWeight: activeTab === 'inventory' ? '700' : '500', fontSize: '14.5px' }}>Quản lý kho hàng</span>
           </div>
 
+<<<<<<< HEAD
           {canReadOrders && (
             <div
               className={`sidebar-menu-item ${activeTab === 'orders' ? 'active' : ''}`}
               id="btn-sidebar-orders"
               onClick={() => {
                 setActiveTab('orders');
+=======
+          {/* Nhà cung cấp - Thủ kho, Quản lý kho, Admin */}
+          {canManageSuppliers && (
+            <div
+              className={`sidebar-menu-item ${activeTab === 'suppliers' ? 'active' : ''}`}
+              id="btn-sidebar-suppliers"
+              onClick={() => {
+                setActiveTab('suppliers');
+>>>>>>> test
                 handleCloseMenu();
               }}
             >
               <div className="sidebar-icon-box">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+<<<<<<< HEAD
                   <path d="M6 2h9l5 5v15H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" />
                   <path d="M14 2v6h6M8 13h8M8 17h8" />
                 </svg>
@@ -828,6 +1051,37 @@ export default function DashboardPage({
           )}
 
           {/* Mục Phân quyền & Tạo tài khoản - CHỈ hiển thị nếu là Admin */}
+=======
+                  <rect x="1" y="3" width="15" height="13" />
+                  <polygon points="16 8 20 8 23 11 23 16 16 16 16 8" />
+                  <circle cx="5.5" cy="18.5" r="2.5" />
+                  <circle cx="18.5" cy="18.5" r="2.5" />
+                </svg>
+              </div>
+              <span style={{ fontWeight: activeTab === 'suppliers' ? '700' : '500', fontSize: '14.5px' }}>Nhà cung cấp</span>
+            </div>
+          )}
+
+          {/* Hồ sơ cá nhân */}
+          <div
+            className={`sidebar-menu-item ${activeTab === 'profile' ? 'active' : ''}`}
+            id="btn-sidebar-profile"
+            onClick={() => {
+              setActiveTab('profile');
+              handleCloseMenu();
+            }}
+          >
+            <div className="sidebar-icon-box">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                <circle cx="12" cy="7" r="4" />
+              </svg>
+            </div>
+            <span style={{ fontWeight: activeTab === 'profile' ? '700' : '500', fontSize: '14.5px' }}>Hồ sơ cá nhân</span>
+          </div>
+
+          {/* Phân quyền & Tạo tài khoản - Admin */}
+>>>>>>> test
           {(user.role === 'admin' || (user.roles && user.roles.includes('admin'))) && (
             <div
               className={`sidebar-menu-item ${activeTab === 'users' ? 'active' : ''}`}
@@ -848,7 +1102,28 @@ export default function DashboardPage({
             </div>
           )}
 
-          {/* Mục Nhật ký thao tác - CHỈ hiển thị nếu là Admin */}
+          {/* Quản lý Danh Mục - Admin hoặc Quản lý kinh doanh */}
+          {canManageCategories && (
+            <div
+              className={`sidebar-menu-item ${activeTab === 'categories' ? 'active' : ''}`}
+              onClick={() => {
+                setActiveTab('categories');
+                handleCloseMenu();
+              }}
+            >
+              <div className="sidebar-icon-box">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 3h7v7H3z" />
+                  <path d="M14 3h7v7h-7z" />
+                  <path d="M14 14h7v7h-7z" />
+                  <path d="M3 14h7v7H3z" />
+                </svg>
+              </div>
+              <span style={{ fontWeight: activeTab === 'categories' ? '700' : '500', fontSize: '14.5px' }}>Nhóm hàng & Doanh số</span>
+            </div>
+          )}
+
+          {/* Nhật ký thao tác - Admin */}
           {(user.role === 'admin' || (user.roles && user.roles.includes('admin'))) && (
             <div
               className={`sidebar-menu-item ${activeTab === 'audit-logs' ? 'active' : ''}`}
@@ -868,7 +1143,6 @@ export default function DashboardPage({
             </div>
           )}
         </div>
-
 
         {/* Nút Đăng xuất ở cuối sidebar */}
         <div style={{
@@ -897,6 +1171,7 @@ export default function DashboardPage({
         </div>
       </aside>
 
+<<<<<<< HEAD
       {/* Main Content: Switch between Orders, User Management, Audit Logs, Inventory and Pending Authorization */}
       {activeTab === 'orders' ? (
         canReadOrders ? (
@@ -917,6 +1192,10 @@ export default function DashboardPage({
           />
         )
       ) : activeTab === 'users' ? (
+=======
+      {/* Main Content */}
+      {activeTab === 'users' ? (
+>>>>>>> test
         isAdmin ? (
           <UserManagementView
             currentUser={user}
@@ -932,6 +1211,11 @@ export default function DashboardPage({
             onLogout={onLogout}
           />
         )
+      ) : activeTab === 'categories' ? (
+        <CategoryManagementView
+          token={token}
+          onBackToHome={() => setActiveTab('inventory')}
+        />
       ) : activeTab === 'audit-logs' ? (
         isAdmin ? (
           <AuditLogView
@@ -947,9 +1231,28 @@ export default function DashboardPage({
             onLogout={onLogout}
           />
         )
+      ) : activeTab === 'profile' ? (
+        <ProfileView
+          currentUser={user}
+          token={token}
+          onBackToHome={() => setActiveTab('inventory')}
+          onUserUpdated={onUserUpdated}
+        />
+      ) : activeTab === 'suppliers' ? (
+        canManageSuppliers ? (
+          <SupplierManagementView
+            token={token}
+            onBackToHome={() => setActiveTab('inventory')}
+          />
+        ) : (
+          <AccessDeniedView
+            currentUser={user}
+            requiredPermission="Quản lý nhà cung cấp (Thủ kho / Quản lý kho / Quản trị)"
+            onBackToWorkflow={() => setActiveTab('inventory')}
+            onLogout={onLogout}
+          />
+        )
       ) : isPendingCustomer ? (
-
-        /* GIAO DIỆN THÔNG BÁO CHO TÀI KHOẢN CHƯA ĐƯỢC ADMIN CẤP QUYỀN */
         <div style={{
           display: 'flex',
           justifyContent: 'center',
@@ -968,7 +1271,6 @@ export default function DashboardPage({
             boxShadow: '0 20px 50px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1)',
             backdropFilter: 'blur(16px)',
           }}>
-            {/* Icon Trạng Thái Chờ */}
             <div style={{
               width: '72px',
               height: '72px',
@@ -1005,7 +1307,6 @@ export default function DashboardPage({
               Hiện tại tài khoản chưa được Quản trị viên phân bổ vai trò nghiệp vụ (Bán hàng, Kho, Mua hàng...) và phân công chi nhánh.
             </p>
 
-            {/* Khung Thông Tin Tài Khoản */}
             <div style={{
               background: 'rgba(15, 23, 42, 0.6)',
               border: '1px solid rgba(255, 255, 255, 0.08)',
@@ -1034,11 +1335,10 @@ export default function DashboardPage({
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0' }}>
                 <span style={{ color: '#64748b' }}>Chi nhánh / Kho:</span>
-                <span style={{ color: '#94a3b8' }}>Chưa phân công</span>
+                <span style={{ color: '#94a3b8' }}>{user.branch || 'Chưa phân công'}</span>
               </div>
             </div>
 
-            {/* Gợi ý hành động */}
             <div style={{
               display: 'flex',
               flexDirection: 'column',
@@ -1047,10 +1347,8 @@ export default function DashboardPage({
               <button
                 onClick={async () => {
                   try {
-                    const fresh = await sessionManager.syncCurrentProfile();
-                    if (!fresh || (fresh.role === 'customer' && (!fresh.roles || fresh.roles.every(r => r === 'customer')))) {
-                      window.location.reload();
-                    }
+                    await sessionManager.syncCurrentProfile();
+                    window.location.reload();
                   } catch {
                     window.location.reload();
                   }
@@ -1101,8 +1399,6 @@ export default function DashboardPage({
         </div>
       ) : (
         <>
-          {/* Main Dashboard Content */}
-
           {error && (
             <div style={{
               background: 'rgba(239, 68, 68, 0.2)',
@@ -1116,14 +1412,13 @@ export default function DashboardPage({
             </div>
           )}
 
-          {/* 4 Thẻ KPI Dashboard (Metric Card chuẩn Stripe / Linear Enterprise Minimalist) */}
+          {/* 4 Thẻ KPI Dashboard */}
           <div style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
             gap: '16px',
             marginBottom: '24px'
           }}>
-            {/* Thẻ 1: Mặt hàng trong kho */}
             <div className="kpi-stat-card">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
                 <div>
@@ -1175,7 +1470,6 @@ export default function DashboardPage({
               </div>
             </div>
 
-            {/* Thẻ 2: Giá trị bán niêm yết */}
             <div className="kpi-stat-card">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
                 <div>
@@ -1227,7 +1521,6 @@ export default function DashboardPage({
               </div>
             </div>
 
-            {/* Thẻ 3: Tổng Giá Vốn (Chỉ Quản lý kinh doanh & Admin) */}
             {isCostVisible && isCostAvailable && (
               <div className="kpi-stat-card">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
@@ -1278,7 +1571,6 @@ export default function DashboardPage({
               </div>
             )}
 
-            {/* Thẻ 4: Lợi Nhuận Dự Kiến (Chỉ Quản lý kinh doanh & Admin) */}
             {isCostVisible && isCostAvailable && (
               <div className="kpi-stat-card">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
@@ -1335,7 +1627,6 @@ export default function DashboardPage({
 
           {/* Clean Enterprise Data Table Container */}
           <div className="premium-table-card roles-grid-scroll" style={{ overflowX: 'auto', padding: '0', borderRadius: '12px' }}>
-            {/* Toolbar trên bảng theo chuẩn Stripe / Linear Enterprise */}
             <div style={{
               display: 'flex',
               flexWrap: 'wrap',
@@ -1347,7 +1638,6 @@ export default function DashboardPage({
               background: '#ffffff'
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', flex: 1 }}>
-                {/* Search Input với icon kính lúp */}
                 <div style={{ position: 'relative', width: '280px', maxWidth: '100%' }}>
                   <span style={{ position: 'absolute', left: '10px', top: '9px', color: '#94a3b8', display: 'flex', alignItems: 'center' }}>
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -1373,7 +1663,6 @@ export default function DashboardPage({
                   />
                 </div>
 
-                {/* Dropdown Lọc danh mục */}
                 <select
                   value={selectedCategory}
                   onChange={(e) => setSelectedCategory(e.target.value)}
@@ -1388,7 +1677,7 @@ export default function DashboardPage({
                     cursor: 'pointer'
                   }}
                 >
-                  <option value="all">Tất cả danh mục ({products.length})</option>
+                  <option value="all">Tất cả ngành hàng ({products.length})</option>
                   {Array.from(new Set(products.map((p) => p.category).filter(Boolean))).map((cat) => (
                     <option key={cat} value={cat}>
                       {cat}
@@ -1397,19 +1686,52 @@ export default function DashboardPage({
                 </select>
               </div>
 
-              {/* Nút Xuất file & Làm mới chuyên nghiệp */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span style={{ fontSize: '12.5px', color: '#64748b', marginRight: '4px' }}>
                   Hiển thị <strong style={{ color: '#0f172a' }}>{filteredProducts.length}</strong> / {products.length} SP
                 </span>
+                {/* Nút Nhập file Excel danh mục hàng loạt (Chỉ hiển thị cho admin và quản lý kinh doanh) */}
+                {(isAdmin || isSalesManager) && (
+                  <button
+                    type="button"
+                    onClick={() => setIsProductBulkImportOpen(true)}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      background: '#eff6ff',
+                      border: '1px solid #bfdbfe',
+                      padding: '7px 12px',
+                      borderRadius: '8px',
+                      fontSize: '12.5px',
+                      fontWeight: '600',
+                      color: '#2563eb',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = '#dbeafe';
+                      e.currentTarget.style.borderColor = '#93c5fd';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = '#eff6ff';
+                      e.currentTarget.style.borderColor = '#bfdbfe';
+                    }}
+                    title="Nhập danh mục sản phẩm hàng loạt từ file Excel"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                      <polyline points="17 8 12 3 7 8" />
+                      <line x1="12" y1="3" x2="12" y2="15" />
+                    </svg>
+                    <span>Nhập file</span>
+                  </button>
+                )}
+
+                {/* Nút Xuất file Excel danh mục */}
                 <button
                   type="button"
                   onClick={() => {
-                    // Xuất file chuẩn định dạng Excel (.xls - HTML XML Spreadsheet)
-                    // Cách này đảm bảo:
-                    // 1. Phân chia đúng 100% từng cột ô trong Excel mà không phụ thuộc vào Regional Settings (dấu phẩy hay chấm phẩy).
-                    // 2. Không bao giờ bị lỗi phông chữ tiếng Việt có dấu.
-                    // 3. Có định dạng tiêu đề, canh lề số và viền bảng chỉn chu.
                     const excelTemplate = `
                       <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
                       <head>
@@ -1442,7 +1764,7 @@ export default function DashboardPage({
                             <tr>
                               <th style="width: 100px;">Mã SP</th>
                               <th style="width: 250px;">Tên sản phẩm</th>
-                              <th style="width: 140px;" class="text-center">Danh mục</th>
+                              <th style="width: 140px;" class="text-center">Ngành hàng</th>
                               <th style="width: 110px;" class="text-right">Số lượng tồn</th>
                               <th style="width: 150px;" class="text-right">Giá niêm yết (VNĐ)</th>
                             </tr>
@@ -1494,7 +1816,7 @@ export default function DashboardPage({
                     e.currentTarget.style.background = '#ffffff';
                     e.currentTarget.style.borderColor = '#cbd5e1';
                   }}
-                  title="Xuất danh sách sản phẩm dạng CSV"
+                  title="Xuất danh sách sản phẩm dạng Excel"
                 >
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
@@ -1528,17 +1850,18 @@ export default function DashboardPage({
                   }}>
                     <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'left' }}>Mã SP</th>
                     <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'left' }}>Tên Sản Phẩm</th>
-                    <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'left' }}>Danh Mục</th>
+                    <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'left' }}>Ngành Hàng</th>
                     <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'right' }}>Số Lượng Tồn</th>
                     <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'right' }}>Giá Niêm Yết (Bán)</th>
-                    {/* CỘT GIÁ VỐN & BIÊN LỢI NHUẬN - CHỈ HIỆN KHI SERVER CHO PHÉP (QUẢN LÝ KINH DOANH / ADMIN) */}
                     {isCostVisible && (
                       <>
                         <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'right' }}>Giá Vốn Nhập Kho</th>
                         <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'right' }}>Biên Lợi Nhuận</th>
                       </>
                     )}
-                    <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'center', width: '120px' }}>Thao Tác</th>
+                    {isAdmin && (
+                      <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'center', width: '120px' }}>Thao Tác</th>
+                    )}
                   </tr>
                 </thead>
                 <tbody>
@@ -1551,7 +1874,6 @@ export default function DashboardPage({
                         borderBottom: '1px solid #f1f5f9',
                       }}
                     >
-                      {/* Mã SP: font monospace thanh mảnh, Slate đậm, không bọc khung giả nút bấm */}
                       <td style={{
                         padding: '13px 18px',
                         textAlign: 'left',
@@ -1563,17 +1885,39 @@ export default function DashboardPage({
                         {item.code}
                       </td>
 
-                      {/* Tên Sản Phẩm */}
                       <td style={{ padding: '13px 18px', fontWeight: '500', color: '#0f172a', fontSize: '13.5px', textAlign: 'left' }}>
                         {item.name}
                       </td>
 
-                      {/* Danh Mục: Text gọn gàng */}
                       <td style={{ padding: '13px 18px', textAlign: 'left', color: '#64748b', fontSize: '12.5px' }}>
-                        {item.category}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span>{item.category}</span>
+                          {canManageCategories && (
+                            <button
+                              onClick={() => setMovingProduct({ id: item.id, name: item.name, category_id: item.category_id })}
+                              style={{
+                                background: 'transparent',
+                                border: 'none',
+                                cursor: 'pointer',
+                                padding: '2px',
+                                color: '#94a3b8',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
+                              }}
+                              title="Chuyển ngành hàng"
+                              onMouseEnter={e => e.currentTarget.style.color = '#3b82f6'}
+                              onMouseLeave={e => e.currentTarget.style.color = '#94a3b8'}
+                            >
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                              </svg>
+                            </button>
+                          )}
+                        </div>
                       </td>
 
-                      {/* Số Lượng Tồn: Số kèm đơn vị bình thường, màu chữ tối chuẩn đồng nhất */}
                       <td style={{ padding: '13px 18px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
                         <span style={{
                           fontWeight: '600',
@@ -1583,12 +1927,10 @@ export default function DashboardPage({
                         </span>
                       </td>
 
-                      {/* Giá Niêm Yết: Màu chữ tối chuẩn #0f172a, tabular-nums */}
                       <td style={{ padding: '13px 18px', color: '#0f172a', fontWeight: '600', fontSize: '13.5px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
                         {item.sell_price.toLocaleString('vi-VN')} đ
                       </td>
 
-                      {/* GIÁ VỐN & BIÊN LỢI NHUẬN TỪ SERVER: Chuyển từ đỏ tươi sang màu tối bình thường kèm tag bảo mật nhỏ */}
                       {isCostVisible && (
                         <>
                           <td style={{ padding: '13px 18px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
@@ -1632,35 +1974,36 @@ export default function DashboardPage({
                           </td>
                         </>
                       )}
-                      
-                      {/* Cột Thao tác: Nút Xem lịch sử thay đổi */}
-                      <td style={{ padding: '13px 18px', textAlign: 'center' }}>
-                        <button
-                          type="button"
-                          className="btn-inventory-history"
-                          onClick={() => setProductAuditDrawerState({
-                            isOpen: true,
-                            productCode: item.code,
-                            productName: item.name,
-                          })}
-                          title="Xem lịch sử thay đổi tồn kho & giá của sản phẩm này"
-                        >
-                          <svg
-                            width="14"
-                            height="14"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2.2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
+
+                      {isAdmin && (
+                        <td style={{ padding: '13px 18px', textAlign: 'center' }}>
+                          <button
+                            type="button"
+                            className="btn-inventory-history"
+                            onClick={() => setProductAuditDrawerState({
+                              isOpen: true,
+                              productCode: item.code,
+                              productName: item.name,
+                            })}
+                            title="Xem lịch sử thay đổi tồn kho & giá của sản phẩm này"
                           >
-                            <circle cx="12" cy="12" r="10" />
-                            <polyline points="12 6 12 12 16 14" />
-                          </svg>
-                          <span>Lịch sử</span>
-                        </button>
-                      </td>
+                            <svg
+                              width="14"
+                              height="14"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2.2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            >
+                              <circle cx="12" cy="12" r="10" />
+                              <polyline points="12 6 12 12 16 14" />
+                            </svg>
+                            <span>Lịch sử</span>
+                          </button>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -1670,7 +2013,7 @@ export default function DashboardPage({
         </>
       )}
 
-      {/* Cảnh báo phiên sắp hết hạn khi < 2p */}
+      {/* Cảnh báo phiên sắp hết hạn */}
       {isWarningZone && (
         <div style={{
           position: 'fixed',
@@ -1707,7 +2050,7 @@ export default function DashboardPage({
         </div>
       )}
 
-      {/* Modal Bảo Mật & Đổi Mật Khẩu */}
+      {/* Modals */}
       <SecurityModal
         isOpen={isSecurityModalOpen}
         onClose={() => setIsSecurityModalOpen(false)}
@@ -1716,20 +2059,31 @@ export default function DashboardPage({
         onTokenUpdated={onTokenUpdated}
       />
 
-      {/* Modal Tạo Tài Khoản (Kích hoạt từ Popover Avatar hoặc Sidebar Drawer) */}
       <CreateCustomerModal
         isOpen={isCreateAccountModalOpen}
         onClose={() => setIsCreateAccountModalOpen(false)}
         token={token}
         onSuccess={(msg) => {
-          // Bắn sự kiện cập nhật để trang phân quyền tải lại ngay tức thì
           window.dispatchEvent(new CustomEvent('USER_ACCOUNTS_CHANGED', { detail: { message: msg } }));
-          // Thông báo nổi góc phải màn hình: hiển thị ở MỌI tab (kể cả khi tạo từ Popover Avatar / Sidebar Drawer)
           emitStatusToast({ message: msg.replace(/^✅\s*/, ''), title: 'Tạo tài khoản thành công' });
         }}
       />
 
-      {/* Modal Popup Xác nhận đăng xuất ở giữa màn hình */}
+      <MoveCategoryModal
+        isOpen={movingProduct !== null}
+        onClose={() => setMovingProduct(null)}
+        token={token}
+        productId={movingProduct?.id || 0}
+        productName={movingProduct?.name || ''}
+        currentCategoryId={movingProduct?.category_id}
+        onSuccess={() => {
+          getProductsApi(token).then(data => {
+            setProducts(data.items);
+          }).catch(console.error);
+        }}
+      />
+
+      {/* Xác nhận đăng xuất */}
       {showLogoutConfirm && (
         <div
           style={{
@@ -1757,7 +2111,6 @@ export default function DashboardPage({
               border: '1px solid #e2e8f0'
             }}
           >
-            {/* Icon cảnh báo tròn */}
             <div
               style={{
                 width: '52px',
@@ -1842,8 +2195,6 @@ export default function DashboardPage({
         </div>
       )}
 
-
-      {/* Drawer xem lịch sử thay đổi của từng sản phẩm riêng biệt */}
       <ProductAuditDrawer
         isOpen={productAuditDrawerState.isOpen}
         onClose={() => setProductAuditDrawerState((prev) => ({ ...prev, isOpen: false }))}
@@ -1852,7 +2203,17 @@ export default function DashboardPage({
         token={token}
       />
 
-      {/* Ổ thông báo nổi góc phải màn hình (dùng chung cho mọi thao tác tài khoản) */}
+      {isProductBulkImportOpen && (
+        <ProductBulkImportModal
+          token={token}
+          onClose={() => setIsProductBulkImportOpen(false)}
+          onSuccess={() => {
+            setIsProductBulkImportOpen(false);
+            fetchProducts();
+          }}
+        />
+      )}
+
       <StatusToastHost />
     </div>
   );
