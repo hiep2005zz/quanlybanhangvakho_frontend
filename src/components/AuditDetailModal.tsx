@@ -7,28 +7,132 @@ interface AuditDetailModalProps {
   onClose: () => void;
 }
 
-// Từ điển ánh xạ tên trường sang tiếng Việt thân thiện
-const FIELD_LABELS: Record<string, string> = {
+// 1. Từ điển ánh xạ tên trường sang tiếng Việt thân thiện
+export const FIELD_LABELS: Record<string, string> = {
+  // Kho & Sản phẩm
   stock: 'Số lượng tồn kho',
   actual_stock: 'Số lượng thực tế',
   system_stock: 'Số lượng trên hệ thống',
-  adjustment: 'Mức chênh lệch',
+  previous_stock: 'Tồn kho trước điều chỉnh',
+  new_stock: 'Tồn kho sau điều chỉnh',
+  adjustment: 'Mức chênh lệch tồn kho',
   sell_price: 'Giá bán niêm yết',
   cost_price: 'Giá vốn nhập kho',
-  credit_limit: 'Hạn mức công nợ',
-  status: 'Trạng thái',
-  name: 'Tên sản phẩm',
+  price: 'Đơn giá',
+  product_id: 'Mã định danh sản phẩm',
+  product_code: 'Mã sản phẩm',
+  product_name: 'Tên sản phẩm',
+  name: 'Tên đối tượng',
   code: 'Mã đối tượng',
-  note: 'Ghi chú',
+  unit: 'Đơn vị tính',
+  category: 'Danh mục sản phẩm',
+  quantity: 'Số lượng',
   destination: 'Nơi nhận hàng',
   supplier: 'Nhà cung cấp',
-  total_amount: 'Tổng tiền',
-  discount: 'Chiết khấu',
-  unit: 'Đơn vị tính',
+  received: 'Số lượng nhập kho',
+  issued: 'Số lượng xuất kho',
+
+  // Công nợ & Đại lý / Khách hàng
+  credit_limit: 'Hạn mức công nợ',
+  dealer_id: 'Mã định danh đại lý',
+  dealer_code: 'Mã đại lý',
+  dealer_name: 'Tên đại lý',
+  customer_id: 'Mã định danh khách hàng',
+  customer_code: 'Mã khách hàng',
+  customer_name: 'Tên khách hàng',
+  balance: 'Số dư tài khoản',
+  debt: 'Công nợ hiện tại',
+  assigned_sale_id: 'Mã nhân viên phụ trách',
+  assigned_sale_name: 'Nhân viên kinh doanh phụ trách',
+
+  // Hóa đơn & Đơn hàng
+  order_id: 'Mã định danh đơn hàng',
+  order_code: 'Mã đơn hàng',
+  invoice_id: 'Mã định danh hóa đơn',
+  invoice_code: 'Mã hóa đơn',
+  total_amount: 'Tổng tiền thanh toán',
+  discount: 'Mức chiết khấu',
+  amount: 'Số tiền',
+  payment_method: 'Phương thức thanh toán',
+  shipping_address: 'Địa chỉ giao hàng',
+  items: 'Danh sách mặt hàng',
+
+  // Người dùng & Phân quyền
+  user_id: 'Mã người dùng',
+  user_name: 'Tên người thực hiện',
+  username: 'Tên tài khoản',
+  full_name: 'Họ và tên',
+  email: 'Địa chỉ Email',
+  phone: 'Số điện thoại',
+  address: 'Địa chỉ',
+  role: 'Vai trò / Quyền hạn',
+  roles: 'Danh sách quyền hạn',
+  branch: 'Chi nhánh làm việc',
+  status: 'Trạng thái',
+  is_active: 'Trạng thái kích hoạt',
+  lock_reason: 'Lý do khóa tài khoản',
+  failed_attempts: 'Số lần đăng nhập sai',
+  token_version: 'Phiên bản Token',
+
+  // Thông tin chung
+  note: 'Ghi chú',
+  notes: 'Ghi chú',
+  reason: 'Lý do điều chỉnh',
+  description: 'Mô tả',
+  type: 'Loại thao tác',
+  created_at: 'Thời gian tạo',
+  updated_at: 'Thời gian cập nhật',
+  created_by: 'Người tạo',
+  updated_by: 'Người cập nhật',
+  ip_address: 'Địa chỉ IP',
 };
 
-// Từ điển nhãn hành động tiếng Việt
-const ACTION_LABELS: Record<string, string> = {
+// 2. Từ điển dịch giá trị (Value translations)
+export const VALUE_TRANSLATIONS: Record<string, string> = {
+  // Trạng thái đơn hàng / hóa đơn
+  CANCELLED: 'Đã hủy',
+  CANCELED: 'Đã hủy',
+  PAID: 'Đã thanh toán',
+  UNPAID: 'Chưa thanh toán',
+  PENDING: 'Chờ xử lý',
+  PROCESSING: 'Đang xử lý',
+  COMPLETED: 'Hoàn thành',
+  SUCCESS: 'Thành công',
+  FAILED: 'Thất bại',
+  DRAFT: 'Bản nháp',
+  CONFIRMED: 'Đã xác nhận',
+  SHIPPED: 'Đã giao hàng',
+  DELIVERED: 'Đã nhận hàng',
+  RETURNED: 'Đã hoàn trả',
+  EDITED: 'Đã chỉnh sửa',
+
+  // Trạng thái người dùng
+  ACTIVE: 'Đang hoạt động',
+  INACTIVE: 'Ngừng hoạt động',
+  LOCKED: 'Đã bị khóa',
+  UNLOCKED: 'Đang mở khóa',
+
+  // Vai trò người dùng
+  ADMIN: 'Quản trị viên (Admin)',
+  SALES: 'Nhân viên kinh doanh',
+  SALE: 'Nhân viên kinh doanh',
+  WAREHOUSE: 'Thủ kho',
+  MANAGER: 'Quản lý',
+  USER: 'Người dùng',
+
+  // Loại giao dịch kho
+  ISSUE: 'Xuất kho',
+  RECEIPT: 'Nhập kho',
+  ADJUST: 'Điều chỉnh tồn kho',
+  STOCK_COUNT: 'Kiểm kê kho',
+
+  // Boolean dạng chuỗi
+  TRUE: 'Có',
+  FALSE: 'Không',
+};
+
+// 3. Từ điển nhãn hành động tiếng Việt
+export const ACTION_LABELS: Record<string, string> = {
   INVENTORY_ADJUST: 'Điều chỉnh tồn kho',
   PRICE_CHANGE: 'Thay đổi giá',
   DEBT_LIMIT_CHANGE: 'Đổi hạn mức công nợ',
@@ -36,10 +140,29 @@ const ACTION_LABELS: Record<string, string> = {
   INVOICE_CANCEL: 'Hủy hóa đơn',
   STOCK_RECEIPT: 'Nhập kho',
   STOCK_ISSUE: 'Xuất kho',
+  STOCK_COUNT: 'Kiểm kê kho',
+  STOCK_ADJUST: 'Điều chỉnh kho',
+  ORDER_CREATE: 'Tạo đơn hàng',
+  ORDER_EDIT: 'Sửa đơn hàng',
+  ORDER_CANCEL: 'Hủy đơn hàng',
+  ORDER_UPDATE: 'Cập nhật đơn hàng',
+  PRODUCT_CREATE: 'Thêm mới sản phẩm',
+  PRODUCT_UPDATE: 'Cập nhật sản phẩm',
+  PRODUCT_DELETE: 'Xóa sản phẩm',
+  USER_CREATE: 'Tạo tài khoản',
+  USER_UPDATE: 'Cập nhật tài khoản',
+  USER_DELETE: 'Xóa tài khoản',
+  USER_LOCK: 'Khóa tài khoản',
+  USER_UNLOCK: 'Mở khóa tài khoản',
+  LOGIN: 'Đăng nhập hệ thống',
+  LOGOUT: 'Đăng xuất',
+  CREATE: 'Thêm mới',
+  UPDATE: 'Cập nhật',
+  DELETE: 'Xóa',
 };
 
-// Từ điển loại đối tượng tiếng Việt
-const ENTITY_LABELS: Record<string, string> = {
+// 4. Từ điển loại đối tượng tiếng Việt
+export const ENTITY_LABELS: Record<string, string> = {
   Inventory: 'Tồn kho',
   ProductPrice: 'Giá sản phẩm',
   Product: 'Sản phẩm / Kho',
@@ -47,6 +170,45 @@ const ENTITY_LABELS: Record<string, string> = {
   Invoice: 'Hóa đơn',
   Order: 'Đơn hàng',
   Dealer: 'Đại lý / Khách hàng',
+  Customer: 'Khách hàng',
+  User: 'Tài khoản người dùng',
+  UserAccount: 'Tài khoản người dùng',
+  Account: 'Tài khoản',
+  InventoryTransaction: 'Giao dịch kho',
+};
+
+export const getActionLabel = (actionType?: string): string => {
+  if (!actionType) return '—';
+  return ACTION_LABELS[actionType] || ACTION_LABELS[actionType.toUpperCase()] || actionType;
+};
+
+export const getEntityLabel = (entityType?: string): string => {
+  if (!entityType) return 'Đối tượng';
+  return (
+    ENTITY_LABELS[entityType] ||
+    ENTITY_LABELS[entityType.toLowerCase()] ||
+    ENTITY_LABELS[entityType.toUpperCase()] ||
+    entityType
+  );
+};
+
+export const getFieldLabel = (key: string): string => {
+  if (FIELD_LABELS[key]) return FIELD_LABELS[key];
+  const lower = key.toLowerCase();
+  if (FIELD_LABELS[lower]) return FIELD_LABELS[lower];
+
+  if (lower.endsWith('_price') || lower.endsWith('price')) return `Giá (${key})`;
+  if (lower.endsWith('_date') || lower.endsWith('_at')) return `Thời gian (${key})`;
+  if (lower.endsWith('_id')) return `Mã định danh (${key})`;
+  if (lower.endsWith('_name')) return `Tên (${key})`;
+  if (lower.endsWith('_code')) return `Mã (${key})`;
+  if (lower.endsWith('_status')) return `Trạng thái (${key})`;
+  if (lower.endsWith('_amount')) return `Số tiền (${key})`;
+  if (lower.endsWith('_limit')) return `Hạn mức (${key})`;
+  if (lower.endsWith('_stock')) return `Tồn kho (${key})`;
+  if (lower.endsWith('_count')) return `Số lượng (${key})`;
+
+  return key;
 };
 
 export const AuditDetailModal: React.FC<AuditDetailModalProps> = ({ log, onClose }) => {
@@ -68,35 +230,89 @@ export const AuditDetailModal: React.FC<AuditDetailModalProps> = ({ log, onClose
 
   const formatFieldValue = (key: string, val: any): string => {
     if (val === null || val === undefined) return '—';
+    if (typeof val === 'boolean') {
+      return val ? 'Có (Kích hoạt)' : 'Không (Vô hiệu)';
+    }
     if (typeof val === 'number') {
-      if (key.includes('price') || key.includes('limit') || key.includes('amount')) {
+      const lowerKey = key.toLowerCase();
+      if (
+        lowerKey.includes('price') ||
+        lowerKey.includes('limit') ||
+        lowerKey.includes('amount') ||
+        lowerKey.includes('cost') ||
+        lowerKey.includes('debt') ||
+        lowerKey.includes('balance')
+      ) {
         return `${val.toLocaleString('vi-VN')} đ`;
       }
       return val.toLocaleString('vi-VN');
     }
-    if (key === 'status' && typeof val === 'string') {
-      const statusMap: Record<string, string> = {
-        'CANCELLED': 'Đã hủy',
-        'PAID': 'Đã thanh toán',
-        'PENDING': 'Chờ xử lý',
-        'COMPLETED': 'Hoàn thành',
-        'PROCESSING': 'Đang xử lý',
-        'DRAFT': 'Bản nháp',
-        'CONFIRMED': 'Đã xác nhận',
-        'SHIPPED': 'Đã giao hàng',
-        'DELIVERED': 'Đã nhận',
-        'RETURNED': 'Đã hoàn trả',
-      };
-      return statusMap[val.toUpperCase()] || val;
+    if (typeof val === 'string') {
+      const upper = val.toUpperCase().trim();
+      if (VALUE_TRANSLATIONS[upper]) {
+        return VALUE_TRANSLATIONS[upper];
+      }
+      return val;
+    }
+    if (Array.isArray(val)) {
+      return val.map((v) => formatFieldValue(key, v)).join(', ');
     }
     if (typeof val === 'object') {
-      return JSON.stringify(val);
+      try {
+        const entries = Object.entries(val).map(([k, v]) => `${getFieldLabel(k)}: ${formatFieldValue(k, v)}`);
+        return entries.join('; ');
+      } catch {
+        return JSON.stringify(val);
+      }
     }
     return String(val);
   };
 
+  const formatRawVietnameseJSON = (obj: any): string => {
+    if (!obj) return 'Không có dữ liệu';
+    if (typeof obj !== 'object') return String(obj);
+
+    const translateDeep = (item: any): any => {
+      if (item === null || item === undefined) return item;
+      if (Array.isArray(item)) return item.map(translateDeep);
+      if (typeof item === 'object') {
+        const res: Record<string, any> = {};
+        for (const [k, v] of Object.entries(item)) {
+          const viKey = getFieldLabel(k);
+          res[viKey] = translateDeep(v);
+        }
+        return res;
+      }
+      if (typeof item === 'string') {
+        const upper = item.toUpperCase().trim();
+        if (VALUE_TRANSLATIONS[upper]) {
+          return VALUE_TRANSLATIONS[upper];
+        }
+      }
+      return item;
+    };
+
+    try {
+      return JSON.stringify(translateDeep(obj), null, 2);
+    } catch {
+      return JSON.stringify(obj, null, 2);
+    }
+  };
+
   // Danh sách các trường metadata phụ không phải là thuộc tính đối tượng chính
-  const METADATA_KEYS = new Set(['name', 'adjustment', 'reason', 'note', 'supplier', 'destination', 'received', 'issued']);
+  const METADATA_KEYS = new Set([
+    'name',
+    'product_name',
+    'customer_name',
+    'dealer_name',
+    'adjustment',
+    'reason',
+    'note',
+    'supplier',
+    'destination',
+    'received',
+    'issued',
+  ]);
 
   // Trích xuất danh sách các trường thực sự thay đổi giá trị giữa Trước và Sau
   const getFieldDiffList = () => {
@@ -131,20 +347,26 @@ export const AuditDetailModal: React.FC<AuditDetailModalProps> = ({ log, onClose
         let deltaStr = '';
         if (typeof oldVal === 'number' && typeof newVal === 'number') {
           const delta = newVal - oldVal;
-          const isMoney = key.includes('price') || key.includes('limit') || key.includes('amount');
+          const lower = key.toLowerCase();
+          const isMoney =
+            lower.includes('price') ||
+            lower.includes('limit') ||
+            lower.includes('amount') ||
+            lower.includes('cost') ||
+            lower.includes('debt');
           if (delta > 0) {
-            deltaStr = `+${isMoney ? delta.toLocaleString('vi-VN') + ' đ' : delta}`;
+            deltaStr = `+${isMoney ? delta.toLocaleString('vi-VN') + ' đ' : delta.toLocaleString('vi-VN')}`;
           } else if (delta < 0) {
-            deltaStr = `${isMoney ? delta.toLocaleString('vi-VN') + ' đ' : delta}`;
+            deltaStr = `${isMoney ? delta.toLocaleString('vi-VN') + ' đ' : delta.toLocaleString('vi-VN')}`;
           }
         } else if (key === 'stock' && newParsed && typeof newParsed === 'object' && typeof newParsed.adjustment === 'number') {
           const adj = newParsed.adjustment;
-          deltaStr = adj > 0 ? `+${adj}` : `${adj}`;
+          deltaStr = adj > 0 ? `+${adj.toLocaleString('vi-VN')}` : `${adj.toLocaleString('vi-VN')}`;
         }
 
         return {
           key,
-          label: FIELD_LABELS[key] || key,
+          label: getFieldLabel(key),
           oldVal,
           newVal,
           isChanged: true,
@@ -213,7 +435,7 @@ export const AuditDetailModal: React.FC<AuditDetailModalProps> = ({ log, onClose
                 Chi tiết thay đổi #{log.id}
               </h3>
               <p style={{ margin: '2px 0 0', fontSize: '13px', color: '#64748b' }}>
-                Đối tượng: <strong style={{ color: '#0f172a' }}>{ENTITY_LABELS[log.entity_type] || log.entity_type} ({log.entity_id})</strong>
+                Đối tượng: <strong style={{ color: '#0f172a' }}>{getEntityLabel(log.entity_type)} ({log.entity_id})</strong>
               </p>
             </div>
           </div>
@@ -265,7 +487,7 @@ export const AuditDetailModal: React.FC<AuditDetailModalProps> = ({ log, onClose
               <span style={{ color: '#64748b', display: 'block', fontSize: '11px', textTransform: 'uppercase', fontWeight: '700', letterSpacing: '0.04em' }}>
                 Hành động
               </span>
-              <strong style={{ color: '#2563eb' }}>{ACTION_LABELS[log.action_type] || log.action_type}</strong>
+              <strong style={{ color: '#2563eb' }}>{getActionLabel(log.action_type)}</strong>
             </div>
             <div>
               <span style={{ color: '#64748b', display: 'block', fontSize: '11px', textTransform: 'uppercase', fontWeight: '700', letterSpacing: '0.04em' }}>
@@ -476,7 +698,7 @@ export const AuditDetailModal: React.FC<AuditDetailModalProps> = ({ log, onClose
                   maxHeight: '220px',
                   overflowY: 'auto',
                 }}>
-                  {oldParsed ? JSON.stringify(oldParsed, null, 2) : 'Không có dữ liệu'}
+                  {formatRawVietnameseJSON(oldParsed)}
                 </pre>
               </div>
 
@@ -513,7 +735,7 @@ export const AuditDetailModal: React.FC<AuditDetailModalProps> = ({ log, onClose
                   maxHeight: '220px',
                   overflowY: 'auto',
                 }}>
-                  {newParsed ? JSON.stringify(newParsed, null, 2) : 'Không có dữ liệu'}
+                  {formatRawVietnameseJSON(newParsed)}
                 </pre>
               </div>
             </div>
@@ -551,4 +773,3 @@ export const AuditDetailModal: React.FC<AuditDetailModalProps> = ({ log, onClose
     </div>
   );
 };
-
