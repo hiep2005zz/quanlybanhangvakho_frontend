@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { User, UserProfile, getMyProfileApi, updateMyProfileApi, uploadAvatarApi } from '../services/api';
+import { User, UserProfile, getMyProfileApi, updateMyProfileApi, uploadAvatarApi, AUTH_STORAGE } from '../services/api';
+import { sessionManager } from '../services/sessionManager';
 import { emitStatusToast } from './StatusToast';
 import { AvatarCropModal } from './AvatarCropModal';
 
@@ -137,24 +138,46 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
 
       const res = await uploadAvatarApi(token, selectedFile, coords);
 
+      // Thêm Cache Buster timestamp (?t=...) để ép trình duyệt render ảnh mới tức thì 100% không qua cache
+      const cacheBuster = `?t=${Date.now()}`;
+      const freshAvatarUrl = res.avatar_url ? `${res.avatar_url}${cacheBuster}` : res.avatar_url;
+      const freshThumbUrl = res.avatar_thumbnail_url ? `${res.avatar_thumbnail_url}${cacheBuster}` : res.avatar_thumbnail_url;
+
       // Cập nhật profile state
       setProfile((prev) =>
         prev
           ? {
               ...prev,
-              avatar_url: res.avatar_url,
-              avatar_thumbnail_url: res.avatar_thumbnail_url,
+              avatar_url: freshAvatarUrl,
+              avatar_thumbnail_url: freshThumbUrl,
             }
           : null
       );
 
-      // Đồng bộ currentUser cho toàn ứng dụng
+      // Tạo object updatedUser hợp nhất
+      const updatedUser: User = {
+        ...currentUser,
+        avatar_url: freshAvatarUrl,
+        avatar_thumbnail_url: freshThumbUrl,
+      };
+
+      // 1. Cập nhật ngay vào sessionStorage để heartbeat không bị lệch state
+      try {
+        sessionStorage.setItem(AUTH_STORAGE.USER, JSON.stringify(updatedUser));
+      } catch {
+        // ignore
+      }
+
+      // 2. Cập nhật qua sessionManager để đồng bộ toàn bộ app
+      try {
+        sessionManager.updateUserProfile(updatedUser);
+      } catch {
+        // ignore
+      }
+
+      // 3. Đồng bộ currentUser cho toàn ứng dụng
       if (onUserUpdated) {
-        onUserUpdated({
-          ...currentUser,
-          avatar_url: res.avatar_url,
-          avatar_thumbnail_url: res.avatar_thumbnail_url,
-        });
+        onUserUpdated(updatedUser);
       }
 
       emitStatusToast({
@@ -187,6 +210,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
         setLoading(false);
 
         // Tự động đồng bộ ngược lại cho currentUser của toàn ứng dụng nếu có thông tin mới
+        // Giữ lại data.avatar_url và data.avatar_thumbnail_url
         if (onUserUpdated && data) {
           onUserUpdated({
             ...currentUser,
@@ -201,6 +225,8 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
             branch: data.branch || currentUser.branch,
             warehouse_name: data.warehouse_name,
             territory_name: data.territory_name,
+            avatar_url: data.avatar_url !== undefined ? data.avatar_url : currentUser.avatar_url,
+            avatar_thumbnail_url: data.avatar_thumbnail_url !== undefined ? data.avatar_thumbnail_url : currentUser.avatar_thumbnail_url,
           });
         }
       })
@@ -240,6 +266,8 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               branch: data.branch || currentUser.branch,
               warehouse_name: data.warehouse_name,
               territory_name: data.territory_name,
+              avatar_url: data.avatar_url !== undefined ? data.avatar_url : currentUser.avatar_url,
+              avatar_thumbnail_url: data.avatar_thumbnail_url !== undefined ? data.avatar_thumbnail_url : currentUser.avatar_thumbnail_url,
             });
           }
         })
@@ -337,18 +365,29 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
       }, 4000);
 
       // Cập nhật State người dùng ngay lập tức cho ứng dụng để Avatar/Header đổi tên
+      const finalUser: User = {
+        ...currentUser,
+        id: updated.id,
+        full_name: updated.full_name,
+        phone: updated.phone_number || updated.phone || undefined,
+        phone_number: updated.phone_number || updated.phone || undefined,
+        email: updated.email,
+        branch: updated.branch || currentUser.branch,
+        warehouse_name: updated.warehouse_name,
+        territory_name: updated.territory_name,
+        avatar_url: updated.avatar_url !== undefined ? updated.avatar_url : currentUser.avatar_url,
+        avatar_thumbnail_url: updated.avatar_thumbnail_url !== undefined ? updated.avatar_thumbnail_url : currentUser.avatar_thumbnail_url,
+      };
+
+      try {
+        sessionStorage.setItem(AUTH_STORAGE.USER, JSON.stringify(finalUser));
+        sessionManager.updateUserProfile(finalUser);
+      } catch {
+        // ignore
+      }
+
       if (onUserUpdated) {
-        onUserUpdated({
-          ...currentUser,
-          id: updated.id,
-          full_name: updated.full_name,
-          phone: updated.phone_number || updated.phone || undefined,
-          phone_number: updated.phone_number || updated.phone || undefined,
-          email: updated.email,
-          branch: updated.branch || currentUser.branch,
-          warehouse_name: updated.warehouse_name,
-          territory_name: updated.territory_name,
-        });
+        onUserUpdated(finalUser);
       }
 
       // Tự động chuyển hướng về trang chủ làm việc
