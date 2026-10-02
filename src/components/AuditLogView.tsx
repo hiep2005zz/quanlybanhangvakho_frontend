@@ -321,7 +321,21 @@ export const AuditLogView: React.FC<AuditLogViewProps> = ({ currentUser: _curren
         return `Hạn mức: ${oldLimit} ➔ ${newLimit}`;
       }
       if (log.action_type === 'INVOICE_EDIT') {
-        return `Trạng thái: ${newObj?.status || 'Đã cập nhật'}`;
+        const rawStatus = newObj?.status;
+        const statusMap: Record<string, string> = {
+          'CANCELLED': 'Đã hủy',
+          'PAID': 'Đã thanh toán',
+          'PENDING': 'Chờ xử lý',
+          'COMPLETED': 'Hoàn thành',
+          'PROCESSING': 'Đang xử lý',
+          'DRAFT': 'Bản nháp',
+          'CONFIRMED': 'Đã xác nhận',
+          'SHIPPED': 'Đã giao hàng',
+          'DELIVERED': 'Đã nhận',
+          'RETURNED': 'Đã hoàn trả',
+        };
+        const statusVi = (rawStatus && statusMap[rawStatus.toUpperCase()]) ? statusMap[rawStatus.toUpperCase()] : (rawStatus || 'Đã cập nhật');
+        return `Trạng thái: ${statusVi}`;
       }
       if (log.action_type === 'INVOICE_CANCEL') {
         return 'Đã hủy hóa đơn';
