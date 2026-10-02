@@ -219,6 +219,7 @@ export const UserBulkImportModal: React.FC<UserBulkImportModalProps> = ({ token,
                           <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #e2e8f0' }}>Email</th>
                           <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #e2e8f0' }}>Số điện thoại</th>
                           <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #e2e8f0' }}>Vai trò</th>
+                          <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #e2e8f0' }}>Chi nhánh / Kho</th>
                           <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #e2e8f0' }}>Lý do lỗi</th>
                         </tr>
                       </thead>
@@ -226,10 +227,18 @@ export const UserBulkImportModal: React.FC<UserBulkImportModalProps> = ({ token,
                         {preview.rows.map((row) => (
                           <tr key={row.row_index} style={{ background: row.is_valid ? '#ffffff' : '#fef2f2', borderBottom: '1px solid #f1f5f9' }}>
                             <td style={{ padding: '10px' }}>{row.row_index}</td>
-                            <td style={{ padding: '10px' }}>{row.full_name}</td>
+                            <td style={{ padding: '10px', fontWeight: '500' }}>{row.full_name}</td>
                             <td style={{ padding: '10px' }}>{row.email}</td>
                             <td style={{ padding: '10px' }}>{row.phone}</td>
-                            <td style={{ padding: '10px' }}>{row.role}</td>
+                            <td style={{ padding: '10px' }}>
+                              <span style={{
+                                padding: '2px 8px', borderRadius: '6px', fontSize: '12px', fontWeight: '600',
+                                background: '#eff6ff', color: '#2563eb'
+                              }}>
+                                {row.role}
+                              </span>
+                            </td>
+                            <td style={{ padding: '10px' }}>{row.branch || 'Kho Tổng Hà Nội'}</td>
                             <td style={{ padding: '10px', color: '#b91c1c' }}>
                               {!row.is_valid && Object.values(row.errors).map((err, i) => (
                                 <div key={i}>• {err}</div>
