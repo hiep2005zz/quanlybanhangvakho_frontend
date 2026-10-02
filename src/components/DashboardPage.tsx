@@ -6,7 +6,10 @@ import { UserManagementView } from './UserManagementView';
 import CreateCustomerModal from './CreateCustomerModal';
 import { StatusToastHost, emitStatusToast } from './StatusToast';
 import { AccessDeniedView } from './AccessDeniedView';
+import { AuditLogView } from './AuditLogView';
+import { ProductAuditDrawer } from './ProductAuditDrawer';
 import './dashboard.css';
+
 
 interface DashboardProps {
   user: User;
@@ -22,55 +25,178 @@ export default function DashboardPage({
   onLogout,
   onTokenUpdated,
 }: DashboardProps) {
-  const [activeTab, setActiveTabState] = useState<'inventory' | 'users'>(() => {
+  // 1. Xác định vai trò & Kiểm tra quyền Admin tối cao
+  const officialRoles = (user.roles && user.roles.length > 0 ? user.roles : [user.role]).filter(
+    (r) => r && r !== 'customer'
+  );
+  const isPendingCustomer = officialRoles.length === 0;
+  const isAdmin = user.role === 'admin' || Boolean(user.roles && user.roles.includes('admin'));
+
+  // 2. Khởi tạo State với Clean URL (/users, /audit-logs): Chỉ Admin mới được phép kích hoạt
+  const [activeTab, setActiveTabState] = useState<'inventory' | 'users' | 'audit-logs'>(() => {
     const pathname = window.location.pathname.toLowerCase();
+    const isUsersPath = pathname === '/users' || pathname.startsWith('/users/') || pathname === '/admin' || pathname.startsWith('/admin/');
+    const isAuditPath = pathname === '/audit-logs' || pathname.startsWith('/audit-logs/');
+
+    // Dọn sạch tàn dư query parameter cũ (?tab=users, ?tab=audit-logs) nếu người dùng truy cập link cũ
     const params = new URLSearchParams(window.location.search);
-    const viewParam = (params.get('view') || params.get('tab') || '').toLowerCase();
-    const hash = window.location.hash.replace('#', '').toLowerCase();
-    const isAdminOrUsersPath = pathname === '/admin' || pathname.startsWith('/admin/') || pathname === '/users' || pathname.startsWith('/users/');
-    if (viewParam === 'users' || viewParam === 'admin' || hash === 'users' || hash === 'admin' || isAdminOrUsersPath) {
-      return 'users';
+    const hasOldTabParam = params.has('tab') || params.has('view');
+    const oldTabVal = (params.get('tab') || params.get('view') || '').toLowerCase();
+
+    if (isAuditPath || oldTabVal === 'audit-logs' || oldTabVal === 'audit') {
+      if (isAdmin) {
+        if (hasOldTabParam || pathname !== '/audit-logs') {
+          try {
+            window.history.replaceState({}, '', '/audit-logs');
+          } catch {
+            // ignore
+          }
+        }
+        return 'audit-logs';
+      }
+      try {
+        window.history.replaceState({}, '', '/');
+      } catch {
+        // ignore
+      }
+    } else if (isUsersPath || hasOldTabParam) {
+      if (isAdmin) {
+        // Chuẩn hóa Clean URL về /users nếu còn dính query param
+        if (hasOldTabParam || pathname !== '/users') {
+          try {
+            window.history.replaceState({}, '', '/users');
+          } catch {
+            // ignore
+          }
+        }
+        return 'users';
+      }
+
+      // [ROUTE GUARD] Tài khoản không phải Admin cố tình vào /users -> Đẩy về '/' và dọn sạch URL
+      try {
+        window.history.replaceState({}, '', '/');
+      } catch {
+        // ignore
+      }
     }
     return 'inventory';
   });
 
-  const setActiveTab = (tab: 'inventory' | 'users') => {
-    setActiveTabState(tab);
-    try {
-      if (tab === 'users') {
-        window.history.pushState({}, '', '/?tab=users');
-      } else {
-        // Đưa đường dẫn về sạch gốc trang chủ (/), xóa bỏ /admin hoặc param thừa trên URL
-        window.history.pushState({}, '', '/');
+  // 3. Chuyển đổi Route Clean URL: /users cho trang Quản trị, /audit-logs cho trang Nhật ký, / cho trang Kho hàng
+  const setActiveTab = (tab: 'inventory' | 'users' | 'audit-logs') => {
+    if (tab === 'users') {
+      if (!isAdmin) {
+        setActiveTabState('inventory');
+        try {
+          window.history.replaceState({}, '', '/');
+        } catch {
+          // ignore
+        }
+        return;
       }
-    } catch {
-      // ignore
+      setActiveTabState('users');
+      try {
+        window.history.pushState({}, '', '/users');
+      } catch {
+        // ignore
+      }
+    } else if (tab === 'audit-logs') {
+      if (!isAdmin) {
+        setActiveTabState('inventory');
+        try {
+          window.history.replaceState({}, '', '/');
+        } catch {
+          // ignore
+        }
+        return;
+      }
+      setActiveTabState('audit-logs');
+      try {
+        window.history.pushState({}, '', '/audit-logs');
+      } catch {
+        // ignore
+      }
+    } else {
+      setActiveTabState('inventory');
+      try {
+        window.history.pushState({}, '', '/');
+      } catch {
+        // ignore
+      }
     }
   };
 
+  // 4. [REACTIVE GUARD] Tự động bảo vệ khi phiên thay đổi (ví dụ: switch sang tài khoản không phải Admin)
+  useEffect(() => {
+    if ((activeTab === 'users' || activeTab === 'audit-logs') && !isAdmin) {
+      setActiveTabState('inventory');
+      try {
+        window.history.replaceState({}, '', '/');
+      } catch {
+        // ignore
+      }
+    }
+  }, [activeTab, isAdmin, user.username]);
+
+  // 5. Đồng bộ sự kiện Lịch sử trình duyệt (Back/Forward - popstate) chuẩn Clean URL
   useEffect(() => {
     const syncFromUrl = () => {
       const pathname = window.location.pathname.toLowerCase();
+      const isUsersPath = pathname === '/users' || pathname.startsWith('/users/') || pathname === '/admin' || pathname.startsWith('/admin/');
+      const isAuditPath = pathname === '/audit-logs' || pathname.startsWith('/audit-logs/');
       const params = new URLSearchParams(window.location.search);
-      const viewParam = (params.get('view') || params.get('tab') || '').toLowerCase();
-      const hash = window.location.hash.replace('#', '').toLowerCase();
-      const isAdminOrUsersPath = pathname === '/admin' || pathname.startsWith('/admin/') || pathname === '/users' || pathname.startsWith('/users/');
-      if (viewParam === 'users' || viewParam === 'admin' || hash === 'users' || hash === 'admin' || isAdminOrUsersPath) {
-        setActiveTabState('users');
+      const tabParam = (params.get('tab') || params.get('view') || '').toLowerCase();
+
+      if (isAuditPath || tabParam === 'audit-logs' || tabParam === 'audit') {
+        if (isAdmin) {
+          if (pathname !== '/audit-logs' || tabParam) {
+            try {
+              window.history.replaceState({}, '', '/audit-logs');
+            } catch {
+              // ignore
+            }
+          }
+          setActiveTabState('audit-logs');
+        } else {
+          setActiveTabState('inventory');
+          try {
+            window.history.replaceState({}, '', '/');
+          } catch {
+            // ignore
+          }
+        }
+      } else if (isUsersPath || tabParam === 'users') {
+        if (isAdmin) {
+          if (pathname !== '/users' || tabParam) {
+            try {
+              window.history.replaceState({}, '', '/users');
+            } catch {
+              // ignore
+            }
+          }
+          setActiveTabState('users');
+        } else {
+          setActiveTabState('inventory');
+          try {
+            window.history.replaceState({}, '', '/');
+          } catch {
+            // ignore
+          }
+        }
       } else {
         setActiveTabState('inventory');
       }
     };
+
     window.addEventListener('popstate', syncFromUrl);
-    window.addEventListener('hashchange', syncFromUrl);
     return () => {
       window.removeEventListener('popstate', syncFromUrl);
-      window.removeEventListener('hashchange', syncFromUrl);
     };
-  }, []);
+  }, [isAdmin]);
   const [products, setProducts] = useState<ProductItem[]>([]);
   const [productSearchTerm, setProductSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
+
   const [isCostVisible, setIsCostVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -81,6 +207,12 @@ export default function DashboardPage({
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isSecurityModalOpen, setIsSecurityModalOpen] = useState(false);
   const [isCreateAccountModalOpen, setIsCreateAccountModalOpen] = useState(false);
+  const [productAuditDrawerState, setProductAuditDrawerState] = useState<{
+    isOpen: boolean;
+    productCode: string;
+    productName: string;
+  }>({ isOpen: false, productCode: '', productName: '' });
+
 
   // Timer điều khiển di chuột vào mở rộng, di chuột ra tự động đóng
   const menuTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -136,14 +268,6 @@ export default function DashboardPage({
 
   const remainingSeconds = sessionInfo.remainingSeconds;
   const isWarningZone = remainingSeconds > 0 && remainingSeconds <= 120;
-
-  // Xác định các vai trò chính thức (lọc bỏ 'customer' nếu đã có vai trò chính thức)
-  const officialRoles = (user.roles && user.roles.length > 0 ? user.roles : [user.role]).filter(
-    (r) => r && r !== 'customer'
-  );
-  // Tài khoản chỉ bị xem là 'Chờ cấp quyền' khi CHƯA có bất kỳ vai trò nghiệp vụ chính thức nào
-  const isPendingCustomer = officialRoles.length === 0;
-  const isAdmin = user.role === 'admin' || (user.roles && user.roles.includes('admin'));
 
   useEffect(() => {
     if (isPendingCustomer) {
@@ -277,21 +401,6 @@ export default function DashboardPage({
               <h1 className="brand-title-shimmer" style={{ fontSize: '17px', fontWeight: '700', margin: 0, color: '#0f172a', letterSpacing: '-0.02em' }}>
                 Hệ Thống Quản Lý Kho & Bán Hàng
               </h1>
-              <span
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  fontSize: '11px',
-                  background: '#eff6ff',
-                  border: '1px solid #bfdbfe',
-                  padding: '1.5px 7px',
-                  borderRadius: '999px',
-                  color: '#1d4ed8',
-                  fontWeight: '700',
-                }}
-              >
-                PRO
-              </span>
             </div>
           </div>
         </div>
@@ -512,6 +621,61 @@ export default function DashboardPage({
                   </button>
                 )}
 
+                {(user.role === 'admin' || (user.roles && user.roles.includes('admin'))) && (
+                  <button
+                    onClick={() => {
+                      setIsUserMenuOpen(false);
+                      setActiveTab('audit-logs');
+                    }}
+                    id="btn-popover-audit-logs"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px',
+                      width: '100%',
+                      padding: '10px 14px',
+                      borderRadius: '10px',
+                      background: activeTab === 'audit-logs' ? '#eff6ff' : '#f8fafc',
+                      border: activeTab === 'audit-logs' ? '1px solid #bfdbfe' : '1px solid #e2e8f0',
+                      color: activeTab === 'audit-logs' ? '#1d4ed8' : '#1e293b',
+                      fontSize: '13.5px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      transition: 'all 0.18s ease',
+                      boxShadow: 'none',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = '#eff6ff';
+                      e.currentTarget.style.borderColor = '#93c5fd';
+                      e.currentTarget.style.color = '#1d4ed8';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = activeTab === 'audit-logs' ? '#eff6ff' : '#f8fafc';
+                      e.currentTarget.style.borderColor = activeTab === 'audit-logs' ? '#bfdbfe' : '#e2e8f0';
+                      e.currentTarget.style.color = activeTab === 'audit-logs' ? '#1d4ed8' : '#1e293b';
+                    }}
+                    title="Truy cập Nhật ký thao tác hệ thống"
+                  >
+                    <div style={{
+                      width: '28px',
+                      height: '28px',
+                      borderRadius: '8px',
+                      background: '#e0e7ff',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#4f46e5',
+                    }}>
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                        <path d="M12 20h9" />
+                        <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                      </svg>
+                    </div>
+                    <span>Nhật ký thao tác</span>
+                  </button>
+                )}
+
+
                 <button
                   onClick={() => {
                     setIsUserMenuOpen(false);
@@ -731,7 +895,28 @@ export default function DashboardPage({
               <span style={{ fontWeight: activeTab === 'users' ? '700' : '500', fontSize: '14.5px' }}>Phân quyền & Tạo tài khoản</span>
             </div>
           )}
+
+          {/* Mục Nhật ký thao tác - CHỈ hiển thị nếu là Admin */}
+          {(user.role === 'admin' || (user.roles && user.roles.includes('admin'))) && (
+            <div
+              className={`sidebar-menu-item ${activeTab === 'audit-logs' ? 'active' : ''}`}
+              id="btn-sidebar-audit-logs"
+              onClick={() => {
+                setActiveTab('audit-logs');
+                handleCloseMenu();
+              }}
+            >
+              <div className="sidebar-icon-box">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 20h9" />
+                  <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                </svg>
+              </div>
+              <span style={{ fontWeight: activeTab === 'audit-logs' ? '700' : '500', fontSize: '14.5px' }}>Nhật ký thao tác</span>
+            </div>
+          )}
         </div>
+
 
         {/* Nút Đăng xuất ở cuối sidebar */}
         <div style={{
@@ -760,7 +945,7 @@ export default function DashboardPage({
         </div>
       </aside>
 
-      {/* Main Content: Switch between User Management, Inventory and Pending Authorization */}
+      {/* Main Content: Switch between User Management, Audit Logs, Inventory and Pending Authorization */}
       {activeTab === 'users' ? (
         isAdmin ? (
           <UserManagementView
@@ -777,7 +962,23 @@ export default function DashboardPage({
             onLogout={onLogout}
           />
         )
+      ) : activeTab === 'audit-logs' ? (
+        isAdmin ? (
+          <AuditLogView
+            currentUser={user}
+            token={token}
+            onBackToHome={() => setActiveTab('inventory')}
+          />
+        ) : (
+          <AccessDeniedView
+            currentUser={user}
+            requiredPermission="Quản trị hệ thống (Admin)"
+            onBackToWorkflow={() => setActiveTab('inventory')}
+            onLogout={onLogout}
+          />
+        )
       ) : isPendingCustomer ? (
+
         /* GIAO DIỆN THÔNG BÁO CHO TÀI KHOẢN CHƯA ĐƯỢC ADMIN CẤP QUYỀN */
         <div style={{
           display: 'flex',
@@ -1367,9 +1568,7 @@ export default function DashboardPage({
                         <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'right' }}>Biên Lợi Nhuận</th>
                       </>
                     )}
-                    {!isCostVisible && (
-                      <th style={{ width: '16px' }} />
-                    )}
+                    <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'center', width: '120px' }}>Thao Tác</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1463,9 +1662,35 @@ export default function DashboardPage({
                           </td>
                         </>
                       )}
-                      {!isCostVisible && (
-                        <td />
-                      )}
+                      
+                      {/* Cột Thao tác: Nút Xem lịch sử thay đổi */}
+                      <td style={{ padding: '13px 18px', textAlign: 'center' }}>
+                        <button
+                          type="button"
+                          className="btn-inventory-history"
+                          onClick={() => setProductAuditDrawerState({
+                            isOpen: true,
+                            productCode: item.code,
+                            productName: item.name,
+                          })}
+                          title="Xem lịch sử thay đổi tồn kho & giá của sản phẩm này"
+                        >
+                          <svg
+                            width="14"
+                            height="14"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2.2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
+                            <circle cx="12" cy="12" r="10" />
+                            <polyline points="12 6 12 12 16 14" />
+                          </svg>
+                          <span>Lịch sử</span>
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -1647,6 +1872,15 @@ export default function DashboardPage({
         </div>
       )}
 
+
+      {/* Drawer xem lịch sử thay đổi của từng sản phẩm riêng biệt */}
+      <ProductAuditDrawer
+        isOpen={productAuditDrawerState.isOpen}
+        onClose={() => setProductAuditDrawerState((prev) => ({ ...prev, isOpen: false }))}
+        productCode={productAuditDrawerState.productCode}
+        productName={productAuditDrawerState.productName}
+        token={token}
+      />
 
       {/* Ổ thông báo nổi góc phải màn hình (dùng chung cho mọi thao tác tài khoản) */}
       <StatusToastHost />

@@ -42,8 +42,9 @@ class SessionManager {
     this.handleMouseMove = this.throttle(this.handleMouseMove.bind(this), 2000);
     this.handleUserInteraction = this.throttle(this.handleUserInteraction.bind(this), 1000);
     this.handleOnline = this.handleOnline.bind(this);
-    this.handleWindowFocus = this.handleWindowFocus.bind(this);
-    this.handleVisibilityChange = this.handleVisibilityChange.bind(this);
+    // Throttle 60s để tránh gọi liên tục /auth/me và validate mỗi khi tab được focus hoặc click ra vào
+    this.handleWindowFocus = this.throttle(this.handleWindowFocus.bind(this), 60000);
+    this.handleVisibilityChange = this.throttle(this.handleVisibilityChange.bind(this), 60000);
   }
 
   private throttle(fn: () => void, wait: number) {
@@ -111,9 +112,13 @@ class SessionManager {
     try {
       const updatedUser = await getMeApi(this.currentToken);
       if (updatedUser) {
-        // Lưu vào sessionStorage để đồng bộ
-        sessionStorage.setItem(AUTH_STORAGE.USER, JSON.stringify(updatedUser));
-        this.notifyUserProfile(updatedUser);
+        // So sánh với user hiện tại trong sessionStorage trước khi notify để tránh re-render lặp vô hạn
+        const currentUserStr = sessionStorage.getItem(AUTH_STORAGE.USER);
+        const newUserStr = JSON.stringify(updatedUser);
+        if (currentUserStr !== newUserStr) {
+          sessionStorage.setItem(AUTH_STORAGE.USER, newUserStr);
+          this.notifyUserProfile(updatedUser);
+        }
         return updatedUser;
       }
     } catch {
@@ -212,9 +217,9 @@ class SessionManager {
       this.checkAndRefreshSession(false);
       this.notifyStatus();
 
-      // Heartbeat mỗi 10 giây: Ping server kiểm tra hiệu lực token (Realtime Revocation)
+      // Heartbeat mỗi 60 giây: Ping server kiểm tra hiệu lực token (Realtime Revocation)
       this.heartbeatCounter++;
-      if (this.heartbeatCounter >= 10) {
+      if (this.heartbeatCounter >= 60) {
         this.heartbeatCounter = 0;
         if (this.currentToken && !this.isRefreshing) {
           validateSessionApi(this.currentToken);

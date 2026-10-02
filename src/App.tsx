@@ -123,11 +123,38 @@ function App() {
     }
   }, [authToken, currentUser?.username]);
 
+  // [CLEAN URL] Tự động làm sạch URL khi ở trạng thái Chưa đăng nhập (loại bỏ /users, ?tab=users)
+  useEffect(() => {
+    if (!currentUser || !authToken) {
+      const pathname = window.location.pathname.toLowerCase();
+      const search = window.location.search;
+      const isReset = pathname.includes('reset-password') || new URLSearchParams(search).has('token');
+
+      // Nếu không phải luồng đặt lại mật khẩu mà URL dính /users, /audit-logs hoặc params thừa -> đưa về sạch '/'
+      if (!isReset && (pathname === '/users' || pathname.startsWith('/users/') || pathname === '/audit-logs' || pathname.startsWith('/audit-logs/') || pathname === '/admin' || (search && !new URLSearchParams(search).has('expired')))) {
+        try {
+          window.history.replaceState({}, '', '/');
+        } catch {
+          // ignore
+        }
+      }
+    }
+  }, [currentUser, authToken]);
+
   const handleLoginSuccess = (user: User, token: string) => {
     setSessionExpiredMsg(null);
     setCurrentUser(user);
     setAuthToken(token);
     sessionManager.start(token, user.username);
+    // Nếu không phải admin thì làm sạch URL về trang chủ '/'
+    const isUserAdmin = user.role === 'admin' || Boolean(user.roles && user.roles.includes('admin'));
+    if (!isUserAdmin) {
+      try {
+        window.history.replaceState({}, '', '/');
+      } catch {
+        // ignore
+      }
+    }
   };
 
   const handleLogout = async () => {
@@ -139,6 +166,12 @@ function App() {
     setCurrentUser(null);
     setAuthToken(null);
     setSessionExpiredMsg(null);
+    // Dọn sạch URL triệt để về trang gốc '/' khi đăng xuất
+    try {
+      window.history.replaceState({}, '', '/');
+    } catch {
+      // ignore
+    }
   };
 
   // Xử lý yêu cầu gửi email đặt lại mật khẩu (chống spam với isSubmitting và countdown 60s)
@@ -154,7 +187,11 @@ function App() {
       setResetMessage(response.message);
       setCountdown(60); // Bắt đầu đếm ngược 60 giây
     } catch (requestError) {
-      setResetError(requestError instanceof Error ? requestError.message : 'Không thể gửi yêu cầu.');
+      let errorMessage = requestError instanceof Error ? requestError.message : 'Không thể gửi yêu cầu.';
+      if (errorMessage === 'Failed to fetch') {
+        errorMessage = 'Vui lòng xem lại thông tin tài khoản!';
+      }
+      setResetError(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
@@ -291,7 +328,7 @@ function App() {
               <form className="login-form" onSubmit={handleResetSubmit}>
                 <div className="form-group">
                   <label htmlFor="new-password">Mật khẩu mới</label>
-                  <div className="input-container">
+                  <div className="pwd-input-wrapper">
                     <input
                       id="new-password"
                       type={showResetNewPassword ? 'text' : 'password'}
@@ -304,7 +341,7 @@ function App() {
                     />
                     <button
                       type="button"
-                      className="toggle-pwd-btn"
+                      className="reset-toggle-pwd-btn"
                       onClick={() => setShowResetNewPassword(!showResetNewPassword)}
                     >
                       {showResetNewPassword ? 'Ẩn' : 'Hiện'}
@@ -314,7 +351,7 @@ function App() {
 
                 <div className="form-group">
                   <label htmlFor="confirm-password">Xác nhận mật khẩu mới</label>
-                  <div className="input-container">
+                  <div className="pwd-input-wrapper">
                     <input
                       id="confirm-password"
                       type={showResetConfirmPassword ? 'text' : 'password'}
@@ -327,7 +364,7 @@ function App() {
                     />
                     <button
                       type="button"
-                      className="toggle-pwd-btn"
+                      className="reset-toggle-pwd-btn"
                       onClick={() => setShowResetConfirmPassword(!showResetConfirmPassword)}
                     >
                       {showResetConfirmPassword ? 'Ẩn' : 'Hiện'}
