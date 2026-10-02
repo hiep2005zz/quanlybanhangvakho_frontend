@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { getProductsApi, ProductItem, User } from '../services/api';
 import { sessionManager, SessionState } from '../services/sessionManager';
 import SecurityModal from './SecurityModal';
@@ -8,10 +8,7 @@ import { StatusToastHost, emitStatusToast } from './StatusToast';
 import { AccessDeniedView } from './AccessDeniedView';
 import { AuditLogView } from './AuditLogView';
 import { ProductAuditDrawer } from './ProductAuditDrawer';
-<<<<<<< HEAD
-import { ProductDrawer } from './ProductDrawer';
-=======
->>>>>>> origin/test
+import { ProfileView } from './ProfileView';
 import './dashboard.css';
 
 
@@ -21,6 +18,7 @@ interface DashboardProps {
   onLogout: () => void | Promise<void>;
   onTokenUpdated?: (newToken: string) => void;
   onSwitchUser?: (newUser: User, newToken: string) => void;
+  onUserUpdated?: (updatedUser: User) => void;
 }
 
 export default function DashboardPage({
@@ -28,6 +26,7 @@ export default function DashboardPage({
   token,
   onLogout,
   onTokenUpdated,
+  onUserUpdated,
 }: DashboardProps) {
   // 1. Xác định vai trò & Kiểm tra quyền Admin tối cao
   const officialRoles = (user.roles && user.roles.length > 0 ? user.roles : [user.role]).filter(
@@ -36,68 +35,59 @@ export default function DashboardPage({
   const isPendingCustomer = officialRoles.length === 0;
   const isAdmin = user.role === 'admin' || Boolean(user.roles && user.roles.includes('admin'));
 
-  // 2. Khởi tạo State với Clean URL (/users, /audit-logs): Chỉ Admin mới được phép kích hoạt
-  const [activeTab, setActiveTabState] = useState<'inventory' | 'users' | 'audit-logs'>(() => {
+  // 2. Khởi tạo State với Clean URL (/users, /audit-logs, /profile)
+  const [activeTab, setActiveTabState] = useState<'inventory' | 'users' | 'audit-logs' | 'profile'>(() => {
     const pathname = window.location.pathname.toLowerCase();
     const isUsersPath = pathname === '/users' || pathname.startsWith('/users/') || pathname === '/admin' || pathname.startsWith('/admin/');
     const isAuditPath = pathname === '/audit-logs' || pathname.startsWith('/audit-logs/');
+    const isProfilePath = pathname === '/profile' || pathname.startsWith('/profile/');
 
-    // Dọn sạch tàn dư query parameter cũ (?tab=users, ?tab=audit-logs) nếu người dùng truy cập link cũ
+    // Dọn sạch tàn dư query parameter cũ (?tab=users, ?tab=audit-logs, ?tab=profile)
     const params = new URLSearchParams(window.location.search);
     const hasOldTabParam = params.has('tab') || params.has('view');
     const oldTabVal = (params.get('tab') || params.get('view') || '').toLowerCase();
 
-    if (isAuditPath || oldTabVal === 'audit-logs' || oldTabVal === 'audit') {
-      if (isAdmin) {
-        if (hasOldTabParam || pathname !== '/audit-logs') {
-          try {
-            window.history.replaceState({}, '', '/audit-logs');
-          } catch {
-            // ignore
-          }
+    if (isProfilePath || oldTabVal === 'profile') {
+      if (hasOldTabParam || pathname !== '/profile') {
+        try {
+          window.history.replaceState({}, '', '/profile');
+        } catch {
+          // ignore
         }
-        return 'audit-logs';
       }
-      try {
-        window.history.replaceState({}, '', '/');
-      } catch {
-        // ignore
+      return 'profile';
+    } else if (isAuditPath || oldTabVal === 'audit-logs' || oldTabVal === 'audit') {
+      if (hasOldTabParam || pathname !== '/audit-logs') {
+        try {
+          window.history.replaceState({}, '', '/audit-logs');
+        } catch {
+          // ignore
+        }
       }
+      return 'audit-logs';
     } else if (isUsersPath || hasOldTabParam) {
-      if (isAdmin) {
-        // Chuẩn hóa Clean URL về /users nếu còn dính query param
-        if (hasOldTabParam || pathname !== '/users') {
-          try {
-            window.history.replaceState({}, '', '/users');
-          } catch {
-            // ignore
-          }
+      if (hasOldTabParam || pathname !== '/users') {
+        try {
+          window.history.replaceState({}, '', '/users');
+        } catch {
+          // ignore
         }
-        return 'users';
       }
-
-      // [ROUTE GUARD] Tài khoản không phải Admin cố tình vào /users -> Đẩy về '/' và dọn sạch URL
-      try {
-        window.history.replaceState({}, '', '/');
-      } catch {
-        // ignore
-      }
+      return 'users';
     }
     return 'inventory';
   });
 
-  // 3. Chuyển đổi Route Clean URL: /users cho trang Quản trị, /audit-logs cho trang Nhật ký, / cho trang Kho hàng
-  const setActiveTab = (tab: 'inventory' | 'users' | 'audit-logs') => {
-    if (tab === 'users') {
-      if (!isAdmin) {
-        setActiveTabState('inventory');
-        try {
-          window.history.replaceState({}, '', '/');
-        } catch {
-          // ignore
-        }
-        return;
+  // 3. Chuyển đổi Route Clean URL: /users, /audit-logs, /profile, /
+  const setActiveTab = (tab: 'inventory' | 'users' | 'audit-logs' | 'profile') => {
+    if (tab === 'profile') {
+      setActiveTabState('profile');
+      try {
+        window.history.pushState({}, '', '/profile');
+      } catch {
+        // ignore
       }
+    } else if (tab === 'users') {
       setActiveTabState('users');
       try {
         window.history.pushState({}, '', '/users');
@@ -105,15 +95,6 @@ export default function DashboardPage({
         // ignore
       }
     } else if (tab === 'audit-logs') {
-      if (!isAdmin) {
-        setActiveTabState('inventory');
-        try {
-          window.history.replaceState({}, '', '/');
-        } catch {
-          // ignore
-        }
-        return;
-      }
       setActiveTabState('audit-logs');
       try {
         window.history.pushState({}, '', '/audit-logs');
@@ -130,63 +111,43 @@ export default function DashboardPage({
     }
   };
 
-  // 4. [REACTIVE GUARD] Tự động bảo vệ khi phiên thay đổi (ví dụ: switch sang tài khoản không phải Admin)
-  useEffect(() => {
-    if ((activeTab === 'users' || activeTab === 'audit-logs') && !isAdmin) {
-      setActiveTabState('inventory');
-      try {
-        window.history.replaceState({}, '', '/');
-      } catch {
-        // ignore
-      }
-    }
-  }, [activeTab, isAdmin, user.username]);
-
-  // 5. Đồng bộ sự kiện Lịch sử trình duyệt (Back/Forward - popstate) chuẩn Clean URL
+  // 4. Đồng bộ sự kiện Lịch sử trình duyệt (Back/Forward - popstate) chuẩn Clean URL
   useEffect(() => {
     const syncFromUrl = () => {
       const pathname = window.location.pathname.toLowerCase();
       const isUsersPath = pathname === '/users' || pathname.startsWith('/users/') || pathname === '/admin' || pathname.startsWith('/admin/');
       const isAuditPath = pathname === '/audit-logs' || pathname.startsWith('/audit-logs/');
+      const isProfilePath = pathname === '/profile' || pathname.startsWith('/profile/');
       const params = new URLSearchParams(window.location.search);
       const tabParam = (params.get('tab') || params.get('view') || '').toLowerCase();
 
-      if (isAuditPath || tabParam === 'audit-logs' || tabParam === 'audit') {
-        if (isAdmin) {
-          if (pathname !== '/audit-logs' || tabParam) {
-            try {
-              window.history.replaceState({}, '', '/audit-logs');
-            } catch {
-              // ignore
-            }
-          }
-          setActiveTabState('audit-logs');
-        } else {
-          setActiveTabState('inventory');
+      if (isProfilePath || tabParam === 'profile') {
+        if (pathname !== '/profile' || tabParam) {
           try {
-            window.history.replaceState({}, '', '/');
+            window.history.replaceState({}, '', '/profile');
           } catch {
             // ignore
           }
         }
+        setActiveTabState('profile');
+      } else if (isAuditPath || tabParam === 'audit-logs' || tabParam === 'audit') {
+        if (pathname !== '/audit-logs' || tabParam) {
+          try {
+            window.history.replaceState({}, '', '/audit-logs');
+          } catch {
+            // ignore
+          }
+        }
+        setActiveTabState('audit-logs');
       } else if (isUsersPath || tabParam === 'users') {
-        if (isAdmin) {
-          if (pathname !== '/users' || tabParam) {
-            try {
-              window.history.replaceState({}, '', '/users');
-            } catch {
-              // ignore
-            }
-          }
-          setActiveTabState('users');
-        } else {
-          setActiveTabState('inventory');
+        if (pathname !== '/users' || tabParam) {
           try {
-            window.history.replaceState({}, '', '/');
+            window.history.replaceState({}, '', '/users');
           } catch {
             // ignore
           }
         }
+        setActiveTabState('users');
       } else {
         setActiveTabState('inventory');
       }
@@ -196,22 +157,9 @@ export default function DashboardPage({
     return () => {
       window.removeEventListener('popstate', syncFromUrl);
     };
-  }, [isAdmin]);
+  }, []);
   const [products, setProducts] = useState<ProductItem[]>([]);
-  const [productSearchInput, setProductSearchInput] = useState('');
   const [productSearchTerm, setProductSearchTerm] = useState('');
-
-  // Áp dụng Debounce 400ms cho tìm kiếm sản phẩm
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setProductSearchTerm(productSearchInput);
-    }, 400);
-
-    return () => {
-      clearTimeout(timer);
-    };
-  }, [productSearchInput]);
-
   const [selectedCategory, setSelectedCategory] = useState('all');
 
   const [isCostVisible, setIsCostVisible] = useState(false);
@@ -230,15 +178,6 @@ export default function DashboardPage({
     productName: string;
   }>({ isOpen: false, productCode: '', productName: '' });
 
-<<<<<<< HEAD
-  // State điều khiển Product Detail Drawer (Form thêm mới & chỉnh sửa chi tiết)
-  const [productDrawerState, setProductDrawerState] = useState<{
-    isOpen: boolean;
-    product: ProductItem | null;
-  }>({ isOpen: false, product: null });
-
-=======
->>>>>>> origin/test
 
   // Timer điều khiển di chuột vào mở rộng, di chuột ra tự động đóng
   const menuTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -339,11 +278,6 @@ export default function DashboardPage({
     const matchCat = selectedCategory === 'all' || p.category === selectedCategory;
     return matchQuery && matchCat;
   });
-
-  // Danh sách danh mục sản phẩm (memoize tránh tạo mảng mới gây re-render)
-  const productCategories = useMemo(() => {
-    return Array.from(new Set(products.map((p) => p.category).filter(Boolean)));
-  }, [products]);
 
   const roleLabelMap: Record<string, string> = {
     admin: 'Quản Trị Hệ Thống',
@@ -586,6 +520,18 @@ export default function DashboardPage({
                   <span>Tài khoản:</span>
                   <strong style={{ color: '#0f172a', fontFamily: 'monospace', fontSize: '13px' }}>{user.username}</strong>
                 </div>
+                {user.email && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+                    <span>Email:</span>
+                    <strong style={{ color: '#334155', fontSize: '12px', maxWidth: '170px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={user.email}>{user.email}</strong>
+                  </div>
+                )}
+                {user.phone && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>Điện thoại:</span>
+                    <strong style={{ color: '#334155' }}>{user.phone}</strong>
+                  </div>
+                )}
                 {user.branch && (
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span>Kho / Địa bàn:</span>
@@ -596,6 +542,58 @@ export default function DashboardPage({
 
               {/* Danh sách hành động (Interactive Buttons for Light Theme) */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {/* Nút Hồ sơ cá nhân - Dành cho tất cả 7 vai trò người dùng */}
+                <button
+                  onClick={() => {
+                    setIsUserMenuOpen(false);
+                    setActiveTab('profile');
+                  }}
+                  id="btn-popover-profile"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    width: '100%',
+                    padding: '10px 14px',
+                    borderRadius: '10px',
+                    background: activeTab === 'profile' ? '#eff6ff' : '#f8fafc',
+                    border: activeTab === 'profile' ? '1px solid #bfdbfe' : '1px solid #e2e8f0',
+                    color: activeTab === 'profile' ? '#1d4ed8' : '#1e293b',
+                    fontSize: '13.5px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    transition: 'all 0.18s ease',
+                    boxShadow: 'none',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = '#eff6ff';
+                    e.currentTarget.style.borderColor = '#93c5fd';
+                    e.currentTarget.style.color = '#1d4ed8';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = activeTab === 'profile' ? '#eff6ff' : '#f8fafc';
+                    e.currentTarget.style.borderColor = activeTab === 'profile' ? '#bfdbfe' : '#e2e8f0';
+                    e.currentTarget.style.color = activeTab === 'profile' ? '#1d4ed8' : '#1e293b';
+                  }}
+                  title="Xem và cập nhật hồ sơ cá nhân"
+                >
+                  <div style={{
+                    width: '28px',
+                    height: '28px',
+                    borderRadius: '8px',
+                    background: '#dbeafe',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#2563eb',
+                  }}>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                      <circle cx="12" cy="7" r="4" />
+                    </svg>
+                  </div>
+                  <span>Hồ sơ cá nhân</span>
+                </button>
                 {(user.role === 'admin' || (user.roles && user.roles.includes('admin'))) && (
                   <button
                     onClick={() => {
@@ -906,6 +904,24 @@ export default function DashboardPage({
             <span style={{ fontWeight: activeTab === 'inventory' ? '700' : '500', fontSize: '14.5px' }}>Quản lý kho hàng</span>
           </div>
 
+          {/* Hồ sơ cá nhân - Tất cả tài khoản */}
+          <div
+            className={`sidebar-menu-item ${activeTab === 'profile' ? 'active' : ''}`}
+            id="btn-sidebar-profile"
+            onClick={() => {
+              setActiveTab('profile');
+              handleCloseMenu();
+            }}
+          >
+            <div className="sidebar-icon-box">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                <circle cx="12" cy="7" r="4" />
+              </svg>
+            </div>
+            <span style={{ fontWeight: activeTab === 'profile' ? '700' : '500', fontSize: '14.5px' }}>Hồ sơ cá nhân</span>
+          </div>
+
           {/* Mục Phân quyền & Tạo tài khoản - CHỈ hiển thị nếu là Admin */}
           {(user.role === 'admin' || (user.roles && user.roles.includes('admin'))) && (
             <div
@@ -1008,6 +1024,13 @@ export default function DashboardPage({
             onLogout={onLogout}
           />
         )
+      ) : activeTab === 'profile' ? (
+        <ProfileView
+          currentUser={user}
+          token={token}
+          onBackToHome={() => setActiveTab('inventory')}
+          onUserUpdated={onUserUpdated}
+        />
       ) : isPendingCustomer ? (
 
         /* GIAO DIỆN THÔNG BÁO CHO TÀI KHOẢN CHƯA ĐƯỢC ADMIN CẤP QUYỀN */
@@ -1419,8 +1442,8 @@ export default function DashboardPage({
                   <input
                     type="text"
                     placeholder="Tìm theo mã hoặc tên sản phẩm..."
-                    value={productSearchInput}
-                    onChange={(e) => setProductSearchInput(e.target.value)}
+                    value={productSearchTerm}
+                    onChange={(e) => setProductSearchTerm(e.target.value)}
                     style={{
                       width: '100%',
                       padding: '7px 12px 7px 32px',
@@ -1564,41 +1587,6 @@ export default function DashboardPage({
                   </svg>
                   <span>Xuất file</span>
                 </button>
-
-                {/* Nút Thêm mới Sản phẩm (Mở Product Detail Drawer) */}
-                <button
-                  type="button"
-                  id="btn-add-product"
-                  onClick={() => setProductDrawerState({ isOpen: true, product: null })}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    background: '#2563eb',
-                    border: 'none',
-                    padding: '7px 14px',
-                    borderRadius: '8px',
-                    fontSize: '12.5px',
-                    fontWeight: '700',
-                    color: '#ffffff',
-                    cursor: 'pointer',
-                    boxShadow: '0 2px 6px rgba(37, 99, 235, 0.28)',
-                    transition: 'all 0.15s ease'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = '#1d4ed8';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = '#2563eb';
-                  }}
-                  title="Khai báo sản phẩm mới vào hệ thống"
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <line x1="12" y1="5" x2="12" y2="19" />
-                    <line x1="5" y1="12" x2="19" y2="12" />
-                  </svg>
-                  <span>Thêm mới</span>
-                </button>
               </div>
             </div>
 
@@ -1634,12 +1622,7 @@ export default function DashboardPage({
                         <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'right' }}>Biên Lợi Nhuận</th>
                       </>
                     )}
-<<<<<<< HEAD
-                    <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'center', width: '130px' }}>Trạng Thái</th>
-                    <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'center', width: '170px' }}>Thao Tác</th>
-=======
                     <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'center', width: '120px' }}>Thao Tác</th>
->>>>>>> origin/test
                   </tr>
                 </thead>
                 <tbody>
@@ -1674,13 +1657,13 @@ export default function DashboardPage({
                         {item.category}
                       </td>
 
-                      {/* Số Lượng Tồn: Số kèm đơn vị cơ sở chuẩn đồng nhất */}
+                      {/* Số Lượng Tồn: Số kèm đơn vị bình thường, màu chữ tối chuẩn đồng nhất */}
                       <td style={{ padding: '13px 18px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
                         <span style={{
                           fontWeight: '600',
                           color: '#0f172a',
                         }}>
-                          {item.stock.toLocaleString()} {item.base_unit || 'cái'}
+                          {item.stock.toLocaleString()} cái
                         </span>
                       </td>
 
@@ -1733,116 +1716,6 @@ export default function DashboardPage({
                           </td>
                         </>
                       )}
-<<<<<<< HEAD
-
-                      {/* Trạng thái kinh doanh */}
-                      <td style={{ padding: '13px 18px', textAlign: 'center' }}>
-                        {item.status === 'inactive' ? (
-                          <span
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '4px',
-                              padding: '3px 8px',
-                              borderRadius: '999px',
-                              fontSize: '11px',
-                              fontWeight: '700',
-                              background: '#fef2f2',
-                              color: '#dc2626',
-                              border: '1px solid #fecaca',
-                            }}
-                          >
-                            <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#dc2626' }} />
-                            Ngừng KD
-                          </span>
-                        ) : (
-                          <span
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '4px',
-                              padding: '3px 8px',
-                              borderRadius: '999px',
-                              fontSize: '11px',
-                              fontWeight: '700',
-                              background: '#f0fdf4',
-                              color: '#16a34a',
-                              border: '1px solid #bbf7d0',
-                            }}
-                          >
-                            <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#16a34a' }} />
-                            Đang KD
-                          </span>
-                        )}
-                      </td>
-                      
-                      {/* Cột Thao tác: Nút Chỉnh sửa (mở Drawer) và Nút Lịch sử */}
-                      <td style={{ padding: '13px 18px', textAlign: 'center' }}>
-                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                          <button
-                            type="button"
-                            onClick={() => setProductDrawerState({ isOpen: true, product: item })}
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '4px',
-                              padding: '4px 8px',
-                              borderRadius: '6px',
-                              border: '1px solid #cbd5e1',
-                              background: '#ffffff',
-                              color: '#1e293b',
-                              fontSize: '12px',
-                              fontWeight: '600',
-                              cursor: 'pointer',
-                              transition: 'all 0.15s ease',
-                            }}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.background = '#eff6ff';
-                              e.currentTarget.style.borderColor = '#93c5fd';
-                              e.currentTarget.style.color = '#1d4ed8';
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.background = '#ffffff';
-                              e.currentTarget.style.borderColor = '#cbd5e1';
-                              e.currentTarget.style.color = '#1e293b';
-                            }}
-                            title="Chỉnh sửa thông tin chi tiết sản phẩm"
-                          >
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                              <path d="M12 20h9" />
-                              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
-                            </svg>
-                            <span>Sửa</span>
-                          </button>
-
-                          <button
-                            type="button"
-                            className="btn-inventory-history"
-                            onClick={() => setProductAuditDrawerState({
-                              isOpen: true,
-                              productCode: item.code,
-                              productName: item.name,
-                            })}
-                            style={{ padding: '4px 8px', fontSize: '12px' }}
-                            title="Xem lịch sử thay đổi tồn kho & giá của sản phẩm này"
-                          >
-                            <svg
-                              width="12"
-                              height="12"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2.2"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            >
-                              <circle cx="12" cy="12" r="10" />
-                              <polyline points="12 6 12 12 16 14" />
-                            </svg>
-                            <span>Lịch sử</span>
-                          </button>
-                        </div>
-=======
                       
                       {/* Cột Thao tác: Nút Xem lịch sử thay đổi */}
                       <td style={{ padding: '13px 18px', textAlign: 'center' }}>
@@ -1871,7 +1744,6 @@ export default function DashboardPage({
                           </svg>
                           <span>Lịch sử</span>
                         </button>
->>>>>>> origin/test
                       </td>
                     </tr>
                   ))}
@@ -2064,35 +1936,6 @@ export default function DashboardPage({
         token={token}
       />
 
-<<<<<<< HEAD
-      {/* Product Detail Drawer (Form khai báo / chỉnh sửa chi tiết 4 khối) */}
-      <ProductDrawer
-        isOpen={productDrawerState.isOpen}
-        onClose={() => setProductDrawerState({ isOpen: false, product: null })}
-        product={productDrawerState.product}
-        token={token}
-        isCostVisible={isCostVisible}
-        categories={productCategories}
-        onSuccess={(updatedOrNew, isDeleted) => {
-          if (isDeleted && updatedOrNew) {
-            setProducts((prev) => prev.filter((p) => p.id !== updatedOrNew.id));
-          } else if (updatedOrNew) {
-            setProducts((prev) => {
-              const existingIdx = prev.findIndex((p) => p.id === updatedOrNew.id);
-              if (existingIdx >= 0) {
-                const next = [...prev];
-                next[existingIdx] = { ...next[existingIdx], ...updatedOrNew };
-                return next;
-              } else {
-                return [updatedOrNew, ...prev];
-              }
-            });
-          }
-        }}
-      />
-
-=======
->>>>>>> origin/test
       {/* Ổ thông báo nổi góc phải màn hình (dùng chung cho mọi thao tác tài khoản) */}
       <StatusToastHost />
     </div>
