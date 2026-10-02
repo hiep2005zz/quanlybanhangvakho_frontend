@@ -6,7 +6,6 @@ import { UserManagementView } from './UserManagementView';
 import { CategoryManagementView } from './CategoryManagementView';
 import CreateCustomerModal from './CreateCustomerModal';
 import MoveCategoryModal from './MoveCategoryModal';
-import { CategoryTreeResponse, getCategoryTreeApi, moveProductCategoryApi } from '../services/api';
 import { StatusToastHost, emitStatusToast } from './StatusToast';
 import { AccessDeniedView } from './AccessDeniedView';
 import { AuditLogView } from './AuditLogView';
@@ -32,10 +31,13 @@ export default function DashboardPage({
   onUserUpdated,
 }: DashboardProps) {
   // 1. Xác định vai trò & Kiểm tra quyền Admin tối cao
-  const officialRoles = (user.roles && user.roles.length > 0 ? user.roles : [user.role]).filter(
-    (r) => r && r !== 'customer'
-  );
-  const isPendingCustomer = officialRoles.length === 0;
+  const rawRoles = user.roles && user.roles.length > 0 ? user.roles : [user.role];
+  const officialRoles = rawRoles.filter((r) => r && r !== 'customer');
+  
+  // Tài khoản bị khóa màn hình chờ chỉ khi chưa được phân công kho/địa bàn VÀ chưa có vai trò hợp lệ
+  const isPendingCustomer =
+    officialRoles.length === 0 &&
+    (!user.branch || user.branch === 'Chưa phân công');
   const isAdmin = user.role === 'admin' || Boolean(user.roles && user.roles.includes('admin'));
   const isSalesManager = user.role === 'sales_manager' || Boolean(user.roles && user.roles.includes('sales_manager'));
   const canManageCategories = isAdmin || isSalesManager;
@@ -94,7 +96,7 @@ export default function DashboardPage({
     return 'inventory';
   });
 
-  // 3. Chuyển đổi Route Clean URL
+  // 3. Chuyển đổi Route Clean URL: /users, /categories, /audit-logs, /profile, /
   const setActiveTab = (tab: 'inventory' | 'users' | 'categories' | 'audit-logs' | 'profile') => {
     if (tab === 'profile') {
       setActiveTabState('profile');
@@ -228,7 +230,7 @@ export default function DashboardPage({
     return () => {
       window.removeEventListener('popstate', syncFromUrl);
     };
-  }, []);
+  }, [canManageCategories]);
   const [products, setProducts] = useState<ProductItem[]>([]);
   const [productSearchTerm, setProductSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -363,7 +365,7 @@ export default function DashboardPage({
     warehouse_manager: 'Quản Lý Kho',
     accountant: 'Kế Toán',
     purchasing: 'Nhân Viên Mua Hàng',
-    customer: 'Chờ Cấp Quyền',
+    customer: (!user.branch || user.branch === 'Chưa phân công') ? 'Chưa Phân Quyền' : 'Đại Lý',
   };
 
   const roleBadgeColorMap: Record<string, string> = {
@@ -374,7 +376,7 @@ export default function DashboardPage({
     warehouse_manager: '#059669',
     accountant: '#f59e0b',
     purchasing: '#06b6d4',
-    customer: '#94a3b8',
+    customer: (!user.branch || user.branch === 'Chưa phân công') ? '#94a3b8' : '#0284c7',
   };
 
   const primaryRole = officialRoles[0] || user.role;
@@ -1220,7 +1222,7 @@ export default function DashboardPage({
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0' }}>
                 <span style={{ color: '#64748b' }}>Chi nhánh / Kho:</span>
-                <span style={{ color: '#94a3b8' }}>Chưa phân công</span>
+                <span style={{ color: '#94a3b8' }}>{user.branch || 'Chưa phân công'}</span>
               </div>
             </div>
 
@@ -1233,10 +1235,8 @@ export default function DashboardPage({
               <button
                 onClick={async () => {
                   try {
-                    const fresh = await sessionManager.syncCurrentProfile();
-                    if (!fresh || (fresh.role === 'customer' && (!fresh.roles || fresh.roles.every(r => r === 'customer')))) {
-                      window.location.reload();
-                    }
+                    await sessionManager.syncCurrentProfile();
+                    window.location.reload();
                   } catch {
                     window.location.reload();
                   }
