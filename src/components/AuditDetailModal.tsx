@@ -74,6 +74,24 @@ export const AuditDetailModal: React.FC<AuditDetailModalProps> = ({ log, onClose
       }
       return val.toLocaleString('vi-VN');
     }
+<<<<<<< HEAD
+=======
+    if (key === 'status' && typeof val === 'string') {
+      const statusMap: Record<string, string> = {
+        'CANCELLED': 'Đã hủy',
+        'PAID': 'Đã thanh toán',
+        'PENDING': 'Chờ xử lý',
+        'COMPLETED': 'Hoàn thành',
+        'PROCESSING': 'Đang xử lý',
+        'DRAFT': 'Bản nháp',
+        'CONFIRMED': 'Đã xác nhận',
+        'SHIPPED': 'Đã giao hàng',
+        'DELIVERED': 'Đã nhận',
+        'RETURNED': 'Đã hoàn trả',
+      };
+      return statusMap[val.toUpperCase()] || val;
+    }
+>>>>>>> origin/test
     if (typeof val === 'object') {
       return JSON.stringify(val);
     }

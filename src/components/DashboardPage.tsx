@@ -8,7 +8,10 @@ import { StatusToastHost, emitStatusToast } from './StatusToast';
 import { AccessDeniedView } from './AccessDeniedView';
 import { AuditLogView } from './AuditLogView';
 import { ProductAuditDrawer } from './ProductAuditDrawer';
+<<<<<<< HEAD
 import { ProductDrawer } from './ProductDrawer';
+=======
+>>>>>>> origin/test
 import './dashboard.css';
 
 
@@ -227,12 +230,15 @@ export default function DashboardPage({
     productName: string;
   }>({ isOpen: false, productCode: '', productName: '' });
 
+<<<<<<< HEAD
   // State điều khiển Product Detail Drawer (Form thêm mới & chỉnh sửa chi tiết)
   const [productDrawerState, setProductDrawerState] = useState<{
     isOpen: boolean;
     product: ProductItem | null;
   }>({ isOpen: false, product: null });
 
+=======
+>>>>>>> origin/test
 
   // Timer điều khiển di chuột vào mở rộng, di chuột ra tự động đóng
   const menuTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1628,8 +1634,12 @@ export default function DashboardPage({
                         <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'right' }}>Biên Lợi Nhuận</th>
                       </>
                     )}
+<<<<<<< HEAD
                     <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'center', width: '130px' }}>Trạng Thái</th>
                     <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'center', width: '170px' }}>Thao Tác</th>
+=======
+                    <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'center', width: '120px' }}>Thao Tác</th>
+>>>>>>> origin/test
                   </tr>
                 </thead>
                 <tbody>
@@ -1723,6 +1733,7 @@ export default function DashboardPage({
                           </td>
                         </>
                       )}
+<<<<<<< HEAD
 
                       {/* Trạng thái kinh doanh */}
                       <td style={{ padding: '13px 18px', textAlign: 'center' }}>
@@ -1831,6 +1842,36 @@ export default function DashboardPage({
                             <span>Lịch sử</span>
                           </button>
                         </div>
+=======
+                      
+                      {/* Cột Thao tác: Nút Xem lịch sử thay đổi */}
+                      <td style={{ padding: '13px 18px', textAlign: 'center' }}>
+                        <button
+                          type="button"
+                          className="btn-inventory-history"
+                          onClick={() => setProductAuditDrawerState({
+                            isOpen: true,
+                            productCode: item.code,
+                            productName: item.name,
+                          })}
+                          title="Xem lịch sử thay đổi tồn kho & giá của sản phẩm này"
+                        >
+                          <svg
+                            width="14"
+                            height="14"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2.2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
+                            <circle cx="12" cy="12" r="10" />
+                            <polyline points="12 6 12 12 16 14" />
+                          </svg>
+                          <span>Lịch sử</span>
+                        </button>
+>>>>>>> origin/test
                       </td>
                     </tr>
                   ))}
@@ -2023,6 +2064,7 @@ export default function DashboardPage({
         token={token}
       />
 
+<<<<<<< HEAD
       {/* Product Detail Drawer (Form khai báo / chỉnh sửa chi tiết 4 khối) */}
       <ProductDrawer
         isOpen={productDrawerState.isOpen}
@@ -2049,6 +2091,8 @@ export default function DashboardPage({
         }}
       />
 
+=======
+>>>>>>> origin/test
       {/* Ổ thông báo nổi góc phải màn hình (dùng chung cho mọi thao tác tài khoản) */}
       <StatusToastHost />
     </div>
