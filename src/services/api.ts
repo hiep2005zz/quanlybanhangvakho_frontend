@@ -9,16 +9,37 @@ export const AUTH_STORAGE = {
 };
 
 export interface User {
+  id?: number;
   username: string;
   full_name: string;
+  email?: string | null;
+  phone?: string | null;
+  phone_number?: string | null;
   role: string;
   roles?: string[];
   role_titles?: string[];
   permissions?: string[];
   role_title?: string;
+  warehouse_name?: string | null;
+  territory_name?: string | null;
   branch?: string;
   can_view_cost?: boolean;
   can_write_inventory?: boolean;
+}
+
+export interface UserProfile {
+  id: number;
+  username: string;
+  email?: string | null;
+  full_name: string;
+  phone_number?: string | null;
+  phone?: string | null;
+  role: string;
+  roles?: string[];
+  role_title?: string;
+  warehouse_name?: string | null;
+  territory_name?: string | null;
+  branch?: string | null;
 }
 
 export interface LoginResponse {
@@ -726,6 +747,44 @@ export async function clearAllAuditLogsApi(token: string): Promise<{ message: st
     throw new Error(data.detail || `Lỗi xóa toàn bộ nhật ký (Mã lỗi ${response.status})`);
   }
   return data;
+}
+
+/**
+ * User Story SCRUM-27: Xem và cập nhật hồ sơ cá nhân
+ */
+export async function getMyProfileApi(token: string): Promise<UserProfile> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/me`, {
+    method: 'GET',
+  }, token);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.detail || 'Không thể tải thông tin hồ sơ.');
+  }
+  return await response.json();
+}
+
+export async function updateMyProfileApi(
+  token: string,
+  data: { full_name: string; phone_number: string }
+): Promise<UserProfile> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/me`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(data),
+  }, token);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    let msg = 'Cập nhật hồ sơ thất bại.';
+    if (typeof err.detail === 'string') {
+      msg = err.detail;
+    } else if (Array.isArray(err.detail) && err.detail.length > 0) {
+      msg = err.detail.map((d: any) => d.msg || JSON.stringify(d)).join('; ');
+    }
+    throw new Error(msg);
+  }
+  return await response.json();
 }
 
 
