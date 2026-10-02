@@ -57,6 +57,40 @@ export interface ProductListResponse {
   summary?: ProductFinancialSummary;
 }
 
+export interface OrderDealer {
+  id: number;
+  code: string;
+  name: string;
+  phone?: string | null;
+  address?: string | null;
+}
+
+export interface OrderItemCreatePayload {
+  product_id: number;
+  quantity: number;
+  price: number;
+  unit: string;
+}
+
+export interface OrderCreatePayload {
+  dealer_id: number;
+  items: OrderItemCreatePayload[];
+  delivery_point: string;
+  desired_delivery_date: string;
+  discount_percent: number;
+  note?: string;
+}
+
+export interface OrderCreateResponse {
+  id: number;
+  order_code: string;
+  dealer_id: number;
+  dealer_name: string;
+  total_amount: number;
+  status: string;
+  created_at: string;
+}
+
 export interface RoleInfoItem {
   role: string;
   title: string;
@@ -313,6 +347,28 @@ export async function getProductsApi(token: string): Promise<ProductListResponse
   }
 
   return response.json();
+}
+
+export async function getOrderDealersApi(token: string): Promise<OrderDealer[]> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/orders/dealers`, { method: 'GET' }, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi tải danh sách đại lý (Mã lỗi ${response.status})`);
+  }
+  return data;
+}
+
+export async function createOrderApi(token: string, payload: OrderCreatePayload): Promise<OrderCreateResponse> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/orders/sales-entry`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  }, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi tạo đơn hàng (Mã lỗi ${response.status})`);
+  }
+  return data;
 }
 
 export interface ChangePasswordPayload {
@@ -727,5 +783,3 @@ export async function clearAllAuditLogsApi(token: string): Promise<{ message: st
   }
   return data;
 }
-
-

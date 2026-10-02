@@ -8,7 +8,9 @@ import { StatusToastHost, emitStatusToast } from './StatusToast';
 import { AccessDeniedView } from './AccessDeniedView';
 import { AuditLogView } from './AuditLogView';
 import { ProductAuditDrawer } from './ProductAuditDrawer';
+import SalesOrderEntry from './SalesOrderEntry';
 import './dashboard.css';
+import { hasPermission, Permissions } from '../hooks/usePermission';
 
 
 interface DashboardProps {
@@ -207,6 +209,7 @@ export default function DashboardPage({
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isSecurityModalOpen, setIsSecurityModalOpen] = useState(false);
   const [isCreateAccountModalOpen, setIsCreateAccountModalOpen] = useState(false);
+  const [isOrderEntryOpen, setIsOrderEntryOpen] = useState(false);
   const [productAuditDrawerState, setProductAuditDrawerState] = useState<{
     isOpen: boolean;
     productCode: string;
@@ -338,6 +341,7 @@ export default function DashboardPage({
 
   const primaryRole = officialRoles[0] || user.role;
   const currentBadgeColor = roleBadgeColorMap[primaryRole] || '#64748b';
+  const canCreateOrders = hasPermission(user, Permissions.ORDER_WRITE);
 
   return (
     <div className="dashboard-main-container">
@@ -349,7 +353,7 @@ export default function DashboardPage({
             <button
               onMouseEnter={handleMouseEnterMenu}
               onMouseLeave={handleMouseLeaveMenu}
-              onClick={() => setIsMenuOpen((prev) => !prev)}
+              onClick={handleMouseEnterMenu}
               aria-label="Mở rộng menu"
               title="Mở rộng menu"
               className="hamburger-left-btn"
@@ -875,6 +879,26 @@ export default function DashboardPage({
             <span style={{ fontWeight: activeTab === 'inventory' ? '700' : '500', fontSize: '14.5px' }}>Quản lý kho hàng</span>
           </div>
 
+          {canCreateOrders && (
+            <div
+              className={`sidebar-menu-item ${isOrderEntryOpen ? 'active' : ''}`}
+              onClick={() => {
+                setIsOrderEntryOpen(true);
+                handleCloseMenu();
+              }}
+            >
+              <div className="sidebar-icon-box">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 3h2l2.4 12.4a2 2 0 0 0 2 1.6h8.8a2 2 0 0 0 2-1.6L22 8H6" />
+                  <circle cx="10" cy="21" r="1" />
+                  <circle cx="18" cy="21" r="1" />
+                  <path d="M14 4v6M11 7h6" />
+                </svg>
+              </div>
+              <span style={{ fontWeight: isOrderEntryOpen ? '700' : '500', fontSize: '14.5px' }}>Lên đơn bán</span>
+            </div>
+          )}
+
           {/* Mục Phân quyền & Tạo tài khoản - CHỈ hiển thị nếu là Admin */}
           {(user.role === 'admin' || (user.roles && user.roles.includes('admin'))) && (
             <div
@@ -946,7 +970,14 @@ export default function DashboardPage({
       </aside>
 
       {/* Main Content: Switch between User Management, Audit Logs, Inventory and Pending Authorization */}
-      {activeTab === 'users' ? (
+      {isOrderEntryOpen && canCreateOrders ? (
+        <SalesOrderEntry
+          token={token}
+          username={user.username}
+          products={products}
+          onClose={() => setIsOrderEntryOpen(false)}
+        />
+      ) : activeTab === 'users' ? (
         isAdmin ? (
           <UserManagementView
             currentUser={user}
