@@ -138,10 +138,10 @@ export function CategoryManagementView({ token, onBackToHome }: CategoryManageme
 
   const handleDelete = async (id: number, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!window.confirm('CẢNH BÁO: Bạn có chắc chắn muốn xóa danh mục này? Việc xóa sẽ thất bại nếu danh mục này đang có nhóm con hoặc chứa sản phẩm.')) return;
+    if (!window.confirm('CẢNH BÁO: Bạn có chắc chắn muốn xóa nhóm hàng này? Việc xóa sẽ thất bại nếu đang có nhóm con hoặc chứa sản phẩm.')) return;
     try {
       await deleteCategoryApi(token, id);
-      emitStatusToast({ message: 'Xóa danh mục thành công', title: 'Thành công' });
+      emitStatusToast({ message: 'Xóa nhóm hàng thành công', title: 'Thành công' });
       loadData(false);
       if (selectedCategoryId === id) setSelectedCategoryId(null);
     } catch (err: any) {
@@ -159,10 +159,10 @@ export function CategoryManagementView({ token, onBackToHome }: CategoryManageme
 
       if (editingId) {
         await updateCategoryApi(token, editingId, payload);
-        emitStatusToast({ message: 'Cập nhật danh mục thành công', title: 'Thành công' });
+        emitStatusToast({ message: 'Cập nhật nhóm hàng thành công', title: 'Thành công' });
       } else {
         await createCategoryApi(token, payload);
-        emitStatusToast({ message: 'Tạo danh mục thành công', title: 'Thành công' });
+        emitStatusToast({ message: 'Tạo nhóm hàng thành công', title: 'Thành công' });
       }
       setIsModalOpen(false);
       loadData(false);
@@ -326,7 +326,7 @@ export function CategoryManagementView({ token, onBackToHome }: CategoryManageme
                 title="Thêm nhóm con"
                 className="action-btn-add"
               >
-                <PlusIcon /> Thêm
+                <PlusIcon /> Thêm Con
               </button>
               <button
                 onClick={() => {
@@ -389,7 +389,7 @@ export function CategoryManagementView({ token, onBackToHome }: CategoryManageme
       <div style={{ flex: '1', minWidth: '380px', maxWidth: '500px', background: '#ffffff', borderRadius: '20px', border: '1px solid #e2e8f0', boxShadow: '0 10px 40px -10px rgba(0,0,0,0.08)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         <div style={{ padding: '20px 24px', borderBottom: '1px solid #f1f5f9', background: '#f8fafc' }}>
           <h3 style={{ margin: '0 0 4px 0', fontSize: '18px', fontWeight: '800', color: '#0f172a' }}>
-            {selectedCategoryId ? 'Sản phẩm trong ngành hàng' : 'Tất cả sản phẩm'}
+            {selectedCategoryId ? 'Sản phẩm trong nhóm' : 'Tất cả sản phẩm'}
           </h3>
           <p style={{ margin: 0, fontSize: '13px', color: '#64748b' }}>
             <strong style={{ color: '#2563eb' }}>Kéo thả thẻ sản phẩm</strong> vào các thẻ ngành hàng bên trái để chuyển đổi nhanh chóng.
@@ -560,7 +560,7 @@ export function CategoryManagementView({ token, onBackToHome }: CategoryManageme
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '14.5px' }}>
             <thead>
               <tr style={{ background: '#f8fafc', color: '#475569', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                <th style={{ padding: '16px 20px', borderBottom: '1px solid #e2e8f0', fontWeight: '700' }}>Ngành Hàng / Danh Mục</th>
+                <th style={{ padding: '16px 20px', borderBottom: '1px solid #e2e8f0', fontWeight: '700' }}>Ngành Hàng / Nhóm Hàng</th>
                 <th style={{ padding: '16px 20px', borderBottom: '1px solid #e2e8f0', textAlign: 'right', fontWeight: '700' }}>Doanh số trực tiếp</th>
                 <th style={{ padding: '16px 20px', borderBottom: '1px solid #e2e8f0', textAlign: 'right', fontWeight: '700' }}>Tổng doanh số</th>
               </tr>
@@ -646,7 +646,7 @@ export function CategoryManagementView({ token, onBackToHome }: CategoryManageme
             <line x1="3" y1="12" x2="3.01" y2="12"></line>
             <line x1="3" y1="18" x2="3.01" y2="18"></line>
           </svg>
-          Sơ Đồ Danh Mục
+          Sơ Đồ Ngành Hàng
         </button>
         <button
           onClick={() => setActiveTab('report')}
@@ -681,7 +681,7 @@ export function CategoryManagementView({ token, onBackToHome }: CategoryManageme
                   <span style={{ position: 'absolute', left: '16px', top: '12px', color: '#94a3b8' }}><SearchIcon /></span>
                   <input 
                     type="text" 
-                    placeholder="Tìm nhanh ngành hàng..." 
+                    placeholder="Tìm nhanh ngành hàng, nhóm hàng..." 
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     style={{ width: '100%', padding: '12px 16px 12px 44px', borderRadius: '14px', border: '1px solid #cbd5e1', fontSize: '14px', outline: 'none', boxShadow: '0 2px 4px rgba(0,0,0,0.02)', transition: 'border 0.2s' }}
@@ -704,7 +704,7 @@ export function CategoryManagementView({ token, onBackToHome }: CategoryManageme
                   onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-1px)'}
                   onMouseLeave={e => e.currentTarget.style.transform = 'none'}
                 >
-                  <PlusIcon /> Thêm Gốc Mới
+                  <PlusIcon /> Thêm Ngành Hàng
                 </button>
               </div>
               
@@ -712,11 +712,11 @@ export function CategoryManagementView({ token, onBackToHome }: CategoryManageme
                 {isLoading ? (
                   <div style={{ padding: '60px', textAlign: 'center', color: '#64748b' }}>
                     <div style={{ fontSize: '32px', marginBottom: '12px' }}>⏳</div>
-                    <div style={{ fontSize: '14.5px', fontWeight: '500' }}>Đang nạp cấu trúc danh mục...</div>
+                    <div style={{ fontSize: '14.5px', fontWeight: '500' }}>Đang nạp cấu trúc ngành hàng...</div>
                   </div>
                 ) : filteredTreeData.length === 0 ? (
                   <div style={{ padding: '60px', textAlign: 'center', color: '#64748b', fontSize: '14.5px' }}>
-                    Không tìm thấy danh mục nào phù hợp.
+                    Không tìm thấy ngành hàng / nhóm hàng nào phù hợp.
                   </div>
                 ) : (
                   <div style={{ width: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -754,17 +754,17 @@ export function CategoryManagementView({ token, onBackToHome }: CategoryManageme
         }}>
           <div style={{ background: '#fff', padding: '40px', borderRadius: '24px', width: '480px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.3)' }}>
             <h3 style={{ marginTop: 0, marginBottom: '8px', fontSize: '24px', fontWeight: '800', color: '#0f172a', letterSpacing: '-0.02em' }}>
-              {editingId ? 'Cập nhật danh mục' : 'Thêm mới danh mục'}
+              {editingId ? 'Cập nhật thông tin' : 'Thêm mới Ngành Hàng / Nhóm Hàng'}
             </h3>
             <p style={{ fontSize: '15px', color: '#64748b', marginBottom: '32px' }}>Điền thông tin chi tiết để quản lý hệ sinh thái hàng hóa.</p>
             
             <form onSubmit={handleSubmit}>
               <div style={{ marginBottom: '24px' }}>
-                <label style={{ display: 'block', marginBottom: '10px', fontWeight: '700', fontSize: '14px', color: '#1e293b' }}>Tên danh mục <span style={{ color: '#ef4444' }}>*</span></label>
+                <label style={{ display: 'block', marginBottom: '10px', fontWeight: '700', fontSize: '14px', color: '#1e293b' }}>Tên ngành hàng / loại sản phẩm <span style={{ color: '#ef4444' }}>*</span></label>
                 <input
                   type="text"
                   required
-                  placeholder="Ví dụ: Đồ điện gia dụng"
+                  placeholder="Ví dụ: Đồ điện gia dụng, Áo Thun Nam..."
                   value={formData.name}
                   onChange={e => setFormData({ ...formData, name: e.target.value })}
                   style={{ width: '100%', padding: '14px 16px', borderRadius: '12px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '15px', transition: 'border 0.2s', boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.02)' }}
@@ -779,7 +779,7 @@ export function CategoryManagementView({ token, onBackToHome }: CategoryManageme
                   onChange={e => setFormData({ ...formData, parent_id: e.target.value })}
                   style={{ width: '100%', padding: '14px 16px', borderRadius: '12px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '15px', background: '#f8fafc' }}
                 >
-                  <option value="">-- Cấp cao nhất (Danh mục gốc) --</option>
+                  <option value="">-- Cấp cao nhất (Ngành Hàng Gốc) --</option>
                   {
                     (function flattenTree(nodes: CategoryTreeResponse[], level = 0): React.ReactNode[] {
                       let res: React.ReactNode[] = [];
