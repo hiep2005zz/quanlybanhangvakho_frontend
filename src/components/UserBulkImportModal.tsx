@@ -7,6 +7,7 @@ import {
   downloadBulkImportTemplateApi,
   downloadBulkImportErrorsApi
 } from '../services/importApi';
+import { emitStatusToast } from './StatusToast';
 
 interface UserBulkImportModalProps {
   token: string;
@@ -34,8 +35,11 @@ export const UserBulkImportModal: React.FC<UserBulkImportModalProps> = ({ token,
       a.click();
       a.remove();
       window.URL.revokeObjectURL(url);
+      emitStatusToast({ title: 'Thành công', message: 'Tải tệp mẫu thành công.' });
     } catch (err: any) {
-      alert(err.message || 'Lỗi khi tải template.');
+      const msg = err.message || 'Lỗi khi tải tệp mẫu.';
+      setError(msg);
+      emitStatusToast({ title: 'Lỗi tải tệp mẫu', message: msg });
     }
   };
 
@@ -48,16 +52,34 @@ export const UserBulkImportModal: React.FC<UserBulkImportModalProps> = ({ token,
     try {
       const data = await uploadBulkImportPreviewApi(token, selected);
       setPreview(data);
+      if (data.valid_count > 0) {
+        emitStatusToast({
+          title: 'Phân tích tệp thành công',
+          message: `Tìm thấy ${data.valid_count} dòng hợp lệ, ${data.invalid_count} dòng lỗi.`
+        });
+      } else {
+        const msg = `Không có dòng nào hợp lệ (${data.invalid_count} dòng lỗi). Vui lòng kiểm tra lại bảng xem trước.`;
+        setError(msg);
+        emitStatusToast({
+          title: 'Cảnh báo dữ liệu',
+          message: msg
+        });
+      }
     } catch (err: any) {
-      setError(err.message || 'Lỗi khi phân tích file Excel.');
+      const msg = err.message || 'Lỗi khi phân tích file Excel.';
+      setError(msg);
       setPreview(null);
+      emitStatusToast({ title: 'Lỗi tải tệp lên', message: msg });
     } finally {
       setLoading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     }
   };
 
   const handleExecuteImport = async () => {
-    if (!preview) return;
+    if (!preview || preview.valid_count === 0) return;
     setLoading(true);
     setError(null);
     try {
@@ -72,9 +94,15 @@ export const UserBulkImportModal: React.FC<UserBulkImportModalProps> = ({ token,
         failed_rows: res.failed_rows
       });
       setIsCompleted(true);
+      emitStatusToast({
+        title: 'Nhập dữ liệu hoàn tất',
+        message: `Đã import thành công ${res.success_count} người dùng (${res.failed_count} dòng lỗi bỏ qua).`
+      });
       onSuccess();
     } catch (err: any) {
-      setError(err.message || 'Lỗi khi import dữ liệu.');
+      const msg = err.message || 'Lỗi khi import dữ liệu.';
+      setError(msg);
+      emitStatusToast({ title: 'Lỗi thực thi import', message: msg });
     } finally {
       setLoading(false);
     }
@@ -92,8 +120,10 @@ export const UserBulkImportModal: React.FC<UserBulkImportModalProps> = ({ token,
       a.click();
       a.remove();
       window.URL.revokeObjectURL(url);
+      emitStatusToast({ title: 'Thành công', message: 'Tải tệp lỗi thành công.' });
     } catch (err: any) {
-      alert(err.message || 'Lỗi khi tải file lỗi.');
+      const msg = err.message || 'Lỗi khi tải file lỗi.';
+      emitStatusToast({ title: 'Lỗi tải tệp lỗi', message: msg });
     }
   };
 
@@ -282,3 +312,6 @@ export const UserBulkImportModal: React.FC<UserBulkImportModalProps> = ({ token,
     </div>
   );
 };
+
+export const BulkImportUsersModal = UserBulkImportModal;
+export default UserBulkImportModal;

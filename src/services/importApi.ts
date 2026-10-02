@@ -1,4 +1,4 @@
-import { API_BASE_URL, authenticatedFetch } from './api';
+import { API_BASE_URL, authenticatedFetch, AUTH_STORAGE } from './api';
 
 export interface BulkImportRowResult {
   row_index: number;
@@ -31,60 +31,104 @@ export interface BulkImportExecuteResponse {
   failed_rows: BulkImportRowResult[];
 }
 
+function getActiveToken(token?: string): string {
+  if (token && token.trim() && token !== 'undefined' && token !== 'null') {
+    return token.trim();
+  }
+  const stored = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem(AUTH_STORAGE.TOKEN) : null;
+  return stored || '';
+}
+
+async function extractErrorMessage(response: Response, defaultMessage: string): Promise<string> {
+  try {
+    const data = await response.json();
+    if (typeof data?.detail === 'string') {
+      return data.detail;
+    }
+    if (data?.detail && typeof data.detail.message === 'string') {
+      return data.detail.message;
+    }
+    if (Array.isArray(data?.detail) && data.detail.length > 0) {
+      return data.detail.map((d: any) => d.msg || JSON.stringify(d)).join('; ');
+    }
+    if (typeof data?.message === 'string') {
+      return data.message;
+    }
+  } catch {
+    // response is not JSON
+  }
+  if (response.status === 401) {
+    return 'Phiên làm việc đã hết hạn hoặc không hợp lệ. Vui lòng đăng nhập lại.';
+  }
+  if (response.status === 403) {
+    return 'Bạn không có quyền thực hiện chức năng này.';
+  }
+  return `${defaultMessage} (Mã lỗi ${response.status})`;
+}
+
 export async function uploadBulkImportPreviewApi(token: string, file: File): Promise<BulkImportPreviewResponse> {
+  const currentToken = getActiveToken(token);
   const formData = new FormData();
   formData.append('file', file);
   const response = await fetch(`${API_BASE_URL}/users/import/preview`, {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${token}`
+      ...(currentToken ? { 'Authorization': `Bearer ${currentToken}` } : {})
     },
     body: formData,
   });
-  const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(data.detail || `Lỗi tải tệp lên (Mã lỗi ${response.status})`);
+    const errorMsg = await extractErrorMessage(response, 'Lỗi tải tệp lên');
+    throw new Error(errorMsg);
   }
-  return data;
+  return response.json();
 }
 
 export async function executeBulkImportApi(token: string, request: BulkImportExecuteRequest): Promise<BulkImportExecuteResponse> {
-  const response = await authenticatedFetch(`${API_BASE_URL}/users/import/execute`, {
+  const currentToken = getActiveToken(token);
+  const response = await fetch(`${API_BASE_URL}/users/import/execute`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(currentToken ? { 'Authorization': `Bearer ${currentToken}` } : {})
+    },
     body: JSON.stringify(request),
-  }, token);
-  const data = await response.json().catch(() => ({}));
+  });
   if (!response.ok) {
-    throw new Error(data.detail || `Lỗi nhập dữ liệu (Mã lỗi ${response.status})`);
+    const errorMsg = await extractErrorMessage(response, 'Lỗi nhập dữ liệu');
+    throw new Error(errorMsg);
   }
-  return data;
+  return response.json();
 }
 
-export async function downloadBulkImportTemplateApi(token: string): Promise<Blob> {
+export async function downloadBulkImportTemplateApi(token?: string): Promise<Blob> {
+  const currentToken = getActiveToken(token);
   const response = await fetch(`${API_BASE_URL}/users/import/template`, {
     method: 'GET',
     headers: {
-      'Authorization': `Bearer ${token}`
+      ...(currentToken ? { 'Authorization': `Bearer ${currentToken}` } : {})
     }
   });
   if (!response.ok) {
-    throw new Error('Lỗi tải tệp mẫu');
+    const errorMsg = await extractErrorMessage(response, 'Lỗi tải tệp mẫu');
+    throw new Error(errorMsg);
   }
   return await response.blob();
 }
 
 export async function downloadBulkImportErrorsApi(token: string, request: BulkImportExecuteRequest): Promise<Blob> {
+  const currentToken = getActiveToken(token);
   const response = await fetch(`${API_BASE_URL}/users/import/export-errors`, {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
+      ...(currentToken ? { 'Authorization': `Bearer ${currentToken}` } : {})
     },
     body: JSON.stringify(request)
   });
   if (!response.ok) {
-    throw new Error('Lỗi xuất tệp lỗi');
+    const errorMsg = await extractErrorMessage(response, 'Lỗi xuất tệp lỗi');
+    throw new Error(errorMsg);
   }
   return await response.blob();
 }
