@@ -54,6 +54,7 @@ export interface ProductItem {
   code: string;
   name: string;
   category: string;
+  category_id?: number | null;
   stock: number;
   sell_price: number;
   cost_price?: number | null;
@@ -704,6 +705,84 @@ export async function getAdminContactApi(): Promise<{ admin_email: string; admin
   return { admin_email: 'daongochiep645@gmail.com', admin_name: 'Nguyễn Quản Trị' };
 }
 
+
+export interface Category {
+  id: number;
+  name: string;
+  parent_id?: number | null;
+  description?: string | null;
+}
+
+export interface CategoryTreeResponse extends Category {
+  sub_categories: CategoryTreeResponse[];
+}
+
+export interface CategorySalesReport {
+  id: number;
+  name: string;
+  parent_id?: number | null;
+  direct_sales: number;
+  total_sales: number;
+}
+
+export async function getCategoryTreeApi(token: string): Promise<CategoryTreeResponse[]> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/categories/tree`, {
+    method: 'GET',
+  }, token);
+  if (!response.ok) throw new Error('Lỗi tải danh sách danh mục');
+  return response.json();
+}
+
+export async function createCategoryApi(token: string, payload: { name: string; parent_id?: number | null; description?: string }): Promise<Category> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/categories`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  }, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.detail || 'Lỗi tạo danh mục');
+  return data;
+}
+
+export async function updateCategoryApi(token: string, categoryId: number, payload: { name: string; parent_id?: number | null; description?: string }): Promise<Category> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/categories/${categoryId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  }, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.detail || 'Lỗi cập nhật danh mục');
+  return data;
+}
+
+export async function deleteCategoryApi(token: string, categoryId: number): Promise<{ status: string; message: string }> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/categories/${categoryId}`, {
+    method: 'DELETE',
+  }, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.detail || 'Lỗi xóa danh mục');
+  return data;
+}
+
+export async function getCategorySalesReportApi(token: string): Promise<CategorySalesReport[]> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/categories/sales-report`, {
+    method: 'GET',
+  }, token);
+  if (!response.ok) throw new Error('Lỗi tải báo cáo doanh số');
+  return response.json();
+}
+
+export async function moveProductCategoryApi(token: string, productId: number, categoryId: number): Promise<any> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/products/${productId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ category_id: categoryId }),
+  }, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.detail || 'Lỗi cập nhật danh mục sản phẩm');
+  return data;
+}
+
 // ==========================================
 // SCRUM-29: AUDIT LOGS INTERFACES & CLIENT
 // ==========================================
@@ -845,4 +924,9 @@ export async function updateMyProfileApi(
   return await response.json();
 }
 
+<<<<<<< HEAD
+=======
+
+
+>>>>>>> 1541664110b191ca523e1eb06946cae39be4f8b7
 

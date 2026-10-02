@@ -245,6 +245,18 @@ class SessionManager {
     this.checkTimer = window.setInterval(() => {
       this.checkAndRefreshSession(false);
       this.notifyStatus();
+<<<<<<< HEAD
+=======
+
+      // Heartbeat mỗi 3 giây: Tự động kiểm tra và đồng bộ vai trò mới nhất nếu Admin vừa phân quyền
+      this.heartbeatCounter++;
+      if (this.heartbeatCounter >= 3) {
+        this.heartbeatCounter = 0;
+        if (this.currentToken && !this.isRefreshing) {
+          this.syncCurrentProfile();
+        }
+      }
+>>>>>>> 1541664110b191ca523e1eb06946cae39be4f8b7
     }, CHECK_INTERVAL_MS);
 
     this.notifyStatus();

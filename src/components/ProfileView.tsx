@@ -24,7 +24,11 @@ const ROLE_COLOR_MAP: Record<string, string> = {
   accountant: '#7c3aed',
   muahang: '#059669',
   purchasing: '#059669',
+<<<<<<< HEAD
   customer: '#94a3b8',
+=======
+  customer: '#0284c7',
+>>>>>>> 1541664110b191ca523e1eb06946cae39be4f8b7
 };
 
 const ROLE_TITLE_MAP: Record<string, string> = {
@@ -39,7 +43,11 @@ const ROLE_TITLE_MAP: Record<string, string> = {
   accountant: 'Kế toán viên',
   muahang: 'Nhân viên mua hàng',
   purchasing: 'Nhân viên mua hàng',
+<<<<<<< HEAD
   customer: 'Chờ cấp quyền',
+=======
+  customer: 'Đại lý',
+>>>>>>> 1541664110b191ca523e1eb06946cae39be4f8b7
 };
 
 export const ProfileView: React.FC<ProfileViewProps> = ({
@@ -261,8 +269,20 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   };
 
   const primaryRole = profile?.role || currentUser.role;
+<<<<<<< HEAD
   const roleColor = ROLE_COLOR_MAP[primaryRole] || '#64748b';
   const roleTitle = profile?.role_title || ROLE_TITLE_MAP[primaryRole] || currentUser.role_title || primaryRole;
+=======
+  const isBranchAssigned = Boolean((profile?.branch || currentUser.branch) && (profile?.branch || currentUser.branch) !== 'Chưa phân công');
+  const getRoleTitle = (r: string) => {
+    if (r === 'customer') {
+      return isBranchAssigned ? 'Đại lý' : 'Chưa phân quyền';
+    }
+    return ROLE_TITLE_MAP[r] || r;
+  };
+  const roleColor = primaryRole === 'customer' && !isBranchAssigned ? '#94a3b8' : (ROLE_COLOR_MAP[primaryRole] || '#64748b');
+  const roleTitle = getRoleTitle(primaryRole);
+>>>>>>> 1541664110b191ca523e1eb06946cae39be4f8b7
   const displayRoles = profile?.roles && profile.roles.length > 0 ? profile.roles : currentUser.roles || [primaryRole];
 
   return (
@@ -388,8 +408,13 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px', flexWrap: 'wrap' }}>
               {displayRoles.map((rCode) => {
+<<<<<<< HEAD
                 const c = ROLE_COLOR_MAP[rCode] || '#64748b';
                 const label = ROLE_TITLE_MAP[rCode] || rCode;
+=======
+                const c = rCode === 'customer' && !isBranchAssigned ? '#94a3b8' : (ROLE_COLOR_MAP[rCode] || '#64748b');
+                const label = getRoleTitle(rCode);
+>>>>>>> 1541664110b191ca523e1eb06946cae39be4f8b7
                 return (
                   <span
                     key={rCode}
