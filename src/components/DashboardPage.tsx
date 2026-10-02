@@ -8,13 +8,7 @@ import { StatusToastHost, emitStatusToast } from './StatusToast';
 import { AccessDeniedView } from './AccessDeniedView';
 import { AuditLogView } from './AuditLogView';
 import { ProductAuditDrawer } from './ProductAuditDrawer';
-<<<<<<< Updated upstream
-import SalesOrderEntry from './SalesOrderEntry';
-=======
-import { ProfileView } from './ProfileView';
 import OrdersView from './OrdersView';
-import { hasPermission, Permissions } from '../hooks/usePermission';
->>>>>>> Stashed changes
 import './dashboard.css';
 import { hasPermission, Permissions } from '../hooks/usePermission';
 
@@ -43,220 +37,95 @@ export default function DashboardPage({
   const canCreateOrders = hasPermission(user, Permissions.ORDER_WRITE);
   const canManageOrders = officialRoles.includes('admin') || officialRoles.includes('sales_manager');
 
-<<<<<<< Updated upstream
-  // 2. Khởi tạo State với Clean URL (/users, /audit-logs): Chỉ Admin mới được phép kích hoạt
-  const [activeTab, setActiveTabState] = useState<'inventory' | 'users' | 'audit-logs'>(() => {
+  const [activeTab, setActiveTabState] = useState<'inventory' | 'users' | 'audit-logs' | 'orders'>(() => {
     const pathname = window.location.pathname.toLowerCase();
-    const isUsersPath = pathname === '/users' || pathname.startsWith('/users/') || pathname === '/admin' || pathname.startsWith('/admin/');
-    const isAuditPath = pathname === '/audit-logs' || pathname.startsWith('/audit-logs/');
-=======
-  // 2. Khởi tạo State với Clean URL (/users, /audit-logs, /profile, /orders)
-  const [activeTab, setActiveTabState] = useState<'inventory' | 'users' | 'audit-logs' | 'profile' | 'orders'>(() => {
-    const pathname = window.location.pathname.toLowerCase();
-    const isUsersPath = pathname === '/users' || pathname.startsWith('/users/') || pathname === '/admin' || pathname.startsWith('/admin/');
-    const isAuditPath = pathname === '/audit-logs' || pathname.startsWith('/audit-logs/');
-    const isProfilePath = pathname === '/profile' || pathname.startsWith('/profile/');
-    const isOrdersPath = pathname === '/orders' || pathname.startsWith('/orders/');
->>>>>>> Stashed changes
-
-    // Dọn sạch tàn dư query parameter cũ (?tab=users, ?tab=audit-logs) nếu người dùng truy cập link cũ
     const params = new URLSearchParams(window.location.search);
-    const hasOldTabParam = params.has('tab') || params.has('view');
-    const oldTabVal = (params.get('tab') || params.get('view') || '').toLowerCase();
+    const tab = (params.get('tab') || params.get('view') || '').toLowerCase();
+    const isUsersPath = pathname === '/users' || pathname.startsWith('/users/') || pathname === '/admin' || pathname.startsWith('/admin/');
+    const isAuditPath = pathname === '/audit-logs' || pathname.startsWith('/audit-logs/');
+    const isOrdersPath = pathname === '/orders' || pathname.startsWith('/orders/');
 
-<<<<<<< Updated upstream
-    if (isAuditPath || oldTabVal === 'audit-logs' || oldTabVal === 'audit') {
-      if (isAdmin) {
-        if (hasOldTabParam || pathname !== '/audit-logs') {
-          try {
-            window.history.replaceState({}, '', '/audit-logs');
-          } catch {
-            // ignore
-          }
-=======
-    if (isOrdersPath) {
-      return 'orders';
-    } else if (isProfilePath || oldTabVal === 'profile') {
-      if (hasOldTabParam || pathname !== '/profile') {
-        try {
-          window.history.replaceState({}, '', '/profile');
-        } catch {
-          // ignore
->>>>>>> Stashed changes
-        }
-        return 'audit-logs';
-      }
-      try {
-        window.history.replaceState({}, '', '/');
-      } catch {
-        // ignore
-      }
-    } else if (isUsersPath || hasOldTabParam) {
-      if (isAdmin) {
-        // Chuẩn hóa Clean URL về /users nếu còn dính query param
-        if (hasOldTabParam || pathname !== '/users') {
-          try {
-            window.history.replaceState({}, '', '/users');
-          } catch {
-            // ignore
-          }
-        }
-        return 'users';
-      }
-
-      // [ROUTE GUARD] Tài khoản không phải Admin cố tình vào /users -> Đẩy về '/' và dọn sạch URL
-      try {
-        window.history.replaceState({}, '', '/');
-      } catch {
-        // ignore
-      }
+    if (isOrdersPath && canReadOrders) return 'orders';
+    if ((isAuditPath || tab === 'audit-logs' || tab === 'audit') && isAdmin) {
+      if (pathname !== '/audit-logs' || params.size) window.history.replaceState({}, '', '/audit-logs');
+      return 'audit-logs';
+    }
+    if ((isUsersPath || tab === 'users') && isAdmin) {
+      if (pathname !== '/users' || params.size) window.history.replaceState({}, '', '/users');
+      return 'users';
+    }
+    if (pathname !== '/' && (isUsersPath || isAuditPath || isOrdersPath || params.size)) {
+      window.history.replaceState({}, '', '/');
     }
     return 'inventory';
   });
 
-<<<<<<< Updated upstream
-  // 3. Chuyển đổi Route Clean URL: /users cho trang Quản trị, /audit-logs cho trang Nhật ký, / cho trang Kho hàng
-  const setActiveTab = (tab: 'inventory' | 'users' | 'audit-logs') => {
-    if (tab === 'users') {
+  const setActiveTab = (tab: 'inventory' | 'users' | 'audit-logs' | 'orders') => {
+    if (tab === 'users' || tab === 'audit-logs') {
       if (!isAdmin) {
         setActiveTabState('inventory');
-        try {
-          window.history.replaceState({}, '', '/');
-        } catch {
-          // ignore
-        }
+        window.history.replaceState({}, '', '/');
         return;
       }
-=======
-  // 3. Chuyển đổi Route Clean URL: /users, /audit-logs, /profile, /orders, /
-  const setActiveTab = (tab: 'inventory' | 'users' | 'audit-logs' | 'profile' | 'orders') => {
-    if (tab === 'profile') {
-      setActiveTabState('profile');
-      try {
-        window.history.pushState({}, '', '/profile');
-      } catch {
-        // ignore
-      }
-    } else if (tab === 'orders') {
-      setActiveTabState('orders');
-      try {
-        window.history.pushState({}, '', '/orders');
-      } catch {
-        // ignore
-      }
-    } else if (tab === 'users') {
->>>>>>> Stashed changes
-      setActiveTabState('users');
-      try {
-        window.history.pushState({}, '', '/users');
-      } catch {
-        // ignore
-      }
-    } else if (tab === 'audit-logs') {
-      if (!isAdmin) {
-        setActiveTabState('inventory');
-        try {
-          window.history.replaceState({}, '', '/');
-        } catch {
-          // ignore
-        }
-        return;
-      }
-      setActiveTabState('audit-logs');
-      try {
-        window.history.pushState({}, '', '/audit-logs');
-      } catch {
-        // ignore
-      }
-    } else {
-      setActiveTabState('inventory');
-      try {
-        window.history.pushState({}, '', '/');
-      } catch {
-        // ignore
-      }
+      setActiveTabState(tab);
+      window.history.pushState({}, '', tab === 'users' ? '/users' : '/audit-logs');
+      return;
     }
+    if (tab === 'orders' && !canReadOrders) {
+      setActiveTabState('inventory');
+      window.history.replaceState({}, '', '/');
+      return;
+    }
+    setActiveTabState(tab);
+    window.history.pushState({}, '', tab === 'orders' ? '/orders' : '/');
   };
 
-  // 4. [REACTIVE GUARD] Tự động bảo vệ khi phiên thay đổi (ví dụ: switch sang tài khoản không phải Admin)
   useEffect(() => {
     if ((activeTab === 'users' || activeTab === 'audit-logs') && !isAdmin) {
       setActiveTabState('inventory');
-      try {
-        window.history.replaceState({}, '', '/');
-      } catch {
-        // ignore
-      }
+      window.history.replaceState({}, '', '/');
+    } else if (activeTab === 'orders' && !canReadOrders) {
+      setActiveTabState('inventory');
+      window.history.replaceState({}, '', '/');
     }
-  }, [activeTab, isAdmin, user.username]);
+  }, [activeTab, canReadOrders, isAdmin, user.username]);
 
-  // 5. Đồng bộ sự kiện Lịch sử trình duyệt (Back/Forward - popstate) chuẩn Clean URL
   useEffect(() => {
     const syncFromUrl = () => {
       const pathname = window.location.pathname.toLowerCase();
+      const params = new URLSearchParams(window.location.search);
+      const tab = (params.get('tab') || params.get('view') || '').toLowerCase();
       const isUsersPath = pathname === '/users' || pathname.startsWith('/users/') || pathname === '/admin' || pathname.startsWith('/admin/');
       const isAuditPath = pathname === '/audit-logs' || pathname.startsWith('/audit-logs/');
-<<<<<<< Updated upstream
-      const params = new URLSearchParams(window.location.search);
-      const tabParam = (params.get('tab') || params.get('view') || '').toLowerCase();
-
-      if (isAuditPath || tabParam === 'audit-logs' || tabParam === 'audit') {
-        if (isAdmin) {
-          if (pathname !== '/audit-logs' || tabParam) {
-            try {
-              window.history.replaceState({}, '', '/audit-logs');
-            } catch {
-              // ignore
-            }
-          }
-          setActiveTabState('audit-logs');
-        } else {
-          setActiveTabState('inventory');
-=======
-      const isProfilePath = pathname === '/profile' || pathname.startsWith('/profile/');
       const isOrdersPath = pathname === '/orders' || pathname.startsWith('/orders/');
-      const params = new URLSearchParams(window.location.search);
-      const tabParam = (params.get('tab') || params.get('view') || '').toLowerCase();
 
-      if (isOrdersPath) {
-        setActiveTabState('orders');
-      } else if (isProfilePath || tabParam === 'profile') {
-        if (pathname !== '/profile' || tabParam) {
->>>>>>> Stashed changes
-          try {
-            window.history.replaceState({}, '', '/');
-          } catch {
-            // ignore
-          }
-        }
-      } else if (isUsersPath || tabParam === 'users') {
-        if (isAdmin) {
-          if (pathname !== '/users' || tabParam) {
-            try {
-              window.history.replaceState({}, '', '/users');
-            } catch {
-              // ignore
-            }
-          }
-          setActiveTabState('users');
-        } else {
+      if (isAuditPath || tab === 'audit-logs' || tab === 'audit') {
+        if (!isAdmin) {
           setActiveTabState('inventory');
-          try {
-            window.history.replaceState({}, '', '/');
-          } catch {
-            // ignore
-          }
+          window.history.replaceState({}, '', '/');
+          return;
         }
+        if (pathname !== '/audit-logs' || params.size) window.history.replaceState({}, '', '/audit-logs');
+        setActiveTabState('audit-logs');
+      } else if (isUsersPath || tab === 'users') {
+        if (!isAdmin) {
+          setActiveTabState('inventory');
+          window.history.replaceState({}, '', '/');
+          return;
+        }
+        if (pathname !== '/users' || params.size) window.history.replaceState({}, '', '/users');
+        setActiveTabState('users');
+      } else if (isOrdersPath && canReadOrders) {
+        setActiveTabState('orders');
       } else {
         setActiveTabState('inventory');
+        if (pathname !== '/' || params.size) window.history.replaceState({}, '', '/');
       }
     };
 
     window.addEventListener('popstate', syncFromUrl);
-    return () => {
-      window.removeEventListener('popstate', syncFromUrl);
-    };
-  }, [isAdmin]);
+    return () => window.removeEventListener('popstate', syncFromUrl);
+  }, [canReadOrders, isAdmin]);
   const [products, setProducts] = useState<ProductItem[]>([]);
   const [productSearchTerm, setProductSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -271,7 +140,6 @@ export default function DashboardPage({
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isSecurityModalOpen, setIsSecurityModalOpen] = useState(false);
   const [isCreateAccountModalOpen, setIsCreateAccountModalOpen] = useState(false);
-  const [isOrderEntryOpen, setIsOrderEntryOpen] = useState(false);
   const [productAuditDrawerState, setProductAuditDrawerState] = useState<{
     isOpen: boolean;
     productCode: string;
@@ -403,7 +271,6 @@ export default function DashboardPage({
 
   const primaryRole = officialRoles[0] || user.role;
   const currentBadgeColor = roleBadgeColorMap[primaryRole] || '#64748b';
-  const canCreateOrders = hasPermission(user, Permissions.ORDER_WRITE);
 
   return (
     <div className="dashboard-main-container">
@@ -941,57 +808,22 @@ export default function DashboardPage({
             <span style={{ fontWeight: activeTab === 'inventory' ? '700' : '500', fontSize: '14.5px' }}>Quản lý kho hàng</span>
           </div>
 
-<<<<<<< Updated upstream
-          {canCreateOrders && (
-            <div
-              className={`sidebar-menu-item ${isOrderEntryOpen ? 'active' : ''}`}
-              onClick={() => {
-                setIsOrderEntryOpen(true);
-=======
           {canReadOrders && (
             <div
               className={`sidebar-menu-item ${activeTab === 'orders' ? 'active' : ''}`}
               id="btn-sidebar-orders"
               onClick={() => {
                 setActiveTab('orders');
->>>>>>> Stashed changes
                 handleCloseMenu();
               }}
             >
               <div className="sidebar-icon-box">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-<<<<<<< Updated upstream
-                  <path d="M3 3h2l2.4 12.4a2 2 0 0 0 2 1.6h8.8a2 2 0 0 0 2-1.6L22 8H6" />
-                  <circle cx="10" cy="21" r="1" />
-                  <circle cx="18" cy="21" r="1" />
-                  <path d="M14 4v6M11 7h6" />
-                </svg>
-              </div>
-              <span style={{ fontWeight: isOrderEntryOpen ? '700' : '500', fontSize: '14.5px' }}>Lên đơn bán</span>
-=======
                   <path d="M6 2h9l5 5v15H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" />
                   <path d="M14 2v6h6M8 13h8M8 17h8" />
                 </svg>
               </div>
               <span style={{ fontWeight: activeTab === 'orders' ? '700' : '500', fontSize: '14.5px' }}>Đơn hàng</span>
-            </div>
-          )}
-
-          {/* Hồ sơ cá nhân - Tất cả tài khoản */}
-          <div
-            className={`sidebar-menu-item ${activeTab === 'profile' ? 'active' : ''}`}
-            id="btn-sidebar-profile"
-            onClick={() => {
-              setActiveTab('profile');
-              handleCloseMenu();
-            }}
-          >
-            <div className="sidebar-icon-box">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                <circle cx="12" cy="7" r="4" />
-              </svg>
->>>>>>> Stashed changes
             </div>
           )}
 
@@ -1065,16 +897,6 @@ export default function DashboardPage({
         </div>
       </aside>
 
-<<<<<<< Updated upstream
-      {/* Main Content: Switch between User Management, Audit Logs, Inventory and Pending Authorization */}
-      {isOrderEntryOpen && canCreateOrders ? (
-        <SalesOrderEntry
-          token={token}
-          username={user.username}
-          products={products}
-          onClose={() => setIsOrderEntryOpen(false)}
-        />
-=======
       {/* Main Content: Switch between Orders, User Management, Audit Logs, Inventory and Pending Authorization */}
       {activeTab === 'orders' ? (
         canReadOrders ? (
@@ -1094,7 +916,6 @@ export default function DashboardPage({
             onLogout={onLogout}
           />
         )
->>>>>>> Stashed changes
       ) : activeTab === 'users' ? (
         isAdmin ? (
           <UserManagementView

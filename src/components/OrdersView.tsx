@@ -277,7 +277,13 @@ export default function OrdersView({ token, username, products, canCreateOrders,
         delivery_point: deliveryPoint.trim(),
         desired_delivery_date: deliveryDate,
         discount_percent: discount,
-        items: lines.map(({ productId, quantity, unit }) => ({ product_id: productId, quantity, unit })),
+        items: lines.map(({ productId, quantity, unit }) => {
+          const product = products.find((item) => item.id === productId);
+          if (!product) {
+            throw new Error('Một sản phẩm trong đơn không còn tồn tại. Vui lòng tải lại trang và chọn lại sản phẩm.');
+          }
+          return { product_id: productId, quantity, unit, price: product.sell_price };
+        }),
         note: note.trim() || undefined,
       });
       let draftCleanupWarning: string | null = null;

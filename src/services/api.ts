@@ -66,19 +66,12 @@ export interface CreateOrderPayload {
   delivery_point: string;
   desired_delivery_date: string;
   discount_percent: number;
-  items: Array<{ product_id: number; quantity: number; unit: string }>;
+  items: Array<{ product_id: number; quantity: number; unit: string; price: number }>;
   note?: string;
 }
 
-export interface CreatedOrder {
-  id: number;
-  order_code: string;
-  dealer_id: number;
-  dealer_name: string;
-  total_amount: number;
-  status: string;
-  created_at: string;
-}
+export type OrderItemCreatePayload = CreateOrderPayload['items'][number];
+export type OrderCreatePayload = CreateOrderPayload;
 
 const isOrderItem = (value: unknown): value is OrderItem => {
   if (typeof value !== 'object' || value === null) return false;
@@ -110,30 +103,6 @@ export interface ProductListResponse {
   summary?: ProductFinancialSummary;
 }
 
-export interface OrderDealer {
-  id: number;
-  code: string;
-  name: string;
-  phone?: string | null;
-  address?: string | null;
-}
-
-export interface OrderItemCreatePayload {
-  product_id: number;
-  quantity: number;
-  price: number;
-  unit: string;
-}
-
-export interface OrderCreatePayload {
-  dealer_id: number;
-  items: OrderItemCreatePayload[];
-  delivery_point: string;
-  desired_delivery_date: string;
-  discount_percent: number;
-  note?: string;
-}
-
 export interface OrderCreateResponse {
   id: number;
   order_code: string;
@@ -143,6 +112,8 @@ export interface OrderCreateResponse {
   status: string;
   created_at: string;
 }
+
+export type CreatedOrder = OrderCreateResponse;
 
 export interface RoleInfoItem {
   role: string;
@@ -179,6 +150,27 @@ export interface InventoryResponse {
   product_id: number;
   current_stock: number;
   transaction?: InventoryTransaction;
+}
+
+function getApiErrorMessage(data: unknown, fallback: string): string {
+  if (typeof data !== 'object' || data === null || !('detail' in data)) return fallback;
+  const detail = data.detail;
+  if (typeof detail === 'string') return detail;
+  if (Array.isArray(detail)) {
+    const messages = detail.map((item: unknown) => {
+      if (typeof item !== 'object' || item === null || !('msg' in item)) return '';
+      const message = typeof item.msg === 'string' ? item.msg : '';
+      const location = 'loc' in item && Array.isArray(item.loc)
+        ? item.loc.filter((part: unknown): part is string | number => typeof part === 'string' || typeof part === 'number').join('.')
+        : '';
+      return message ? (location ? `${location}: ${message}` : message) : '';
+    }).filter(Boolean);
+    if (messages.length) return messages.join('; ');
+  }
+  if (typeof detail === 'object' && detail !== null && 'message' in detail && typeof detail.message === 'string') {
+    return detail.message;
+  }
+  return fallback;
 }
 
 // Interceptor callback list for session expiration
@@ -402,8 +394,6 @@ export async function getProductsApi(token: string): Promise<ProductListResponse
   return response.json();
 }
 
-<<<<<<< Updated upstream
-=======
 export async function getOrdersApi(token: string): Promise<OrderItem[]> {
   const response = await authenticatedFetch(`${API_BASE_URL}/orders`, {
     method: 'GET',
@@ -418,25 +408,17 @@ export async function getOrdersApi(token: string): Promise<OrderItem[]> {
   return data;
 }
 
->>>>>>> Stashed changes
 export async function getOrderDealersApi(token: string): Promise<OrderDealer[]> {
   const response = await authenticatedFetch(`${API_BASE_URL}/orders/dealers`, { method: 'GET' }, token);
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
     throw new Error(data.detail || `Lỗi tải danh sách đại lý (Mã lỗi ${response.status})`);
   }
-<<<<<<< Updated upstream
-  return data;
-}
-
-export async function createOrderApi(token: string, payload: OrderCreatePayload): Promise<OrderCreateResponse> {
-=======
   if (!Array.isArray(data)) throw new Error('Dữ liệu danh sách đại lý không hợp lệ.');
   return data;
 }
 
 export async function createOrderApi(token: string, payload: CreateOrderPayload): Promise<CreatedOrder> {
->>>>>>> Stashed changes
   const response = await authenticatedFetch(`${API_BASE_URL}/orders/sales-entry`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -444,10 +426,8 @@ export async function createOrderApi(token: string, payload: CreateOrderPayload)
   }, token);
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(data.detail || `Lỗi tạo đơn hàng (Mã lỗi ${response.status})`);
+    throw new Error(getApiErrorMessage(data, `Lỗi tạo đơn hàng (Mã lỗi ${response.status})`));
   }
-<<<<<<< Updated upstream
-=======
   return data as CreatedOrder;
 }
 
@@ -465,7 +445,6 @@ export async function cancelOrderApi(
   if (!response.ok) {
     throw new Error(data.detail || `Lỗi hủy đơn hàng (Mã lỗi ${response.status})`);
   }
->>>>>>> Stashed changes
   return data;
 }
 
@@ -881,44 +860,3 @@ export async function clearAllAuditLogsApi(token: string): Promise<{ message: st
   }
   return data;
 }
-<<<<<<< Updated upstream
-=======
-
-/**
- * User Story SCRUM-27: Xem và cập nhật hồ sơ cá nhân
- */
-export async function getMyProfileApi(token: string): Promise<UserProfile> {
-  const response = await authenticatedFetch(`${API_BASE_URL}/me`, {
-    method: 'GET',
-  }, token);
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err.detail || 'Không thể tải thông tin hồ sơ.');
-  }
-  return await response.json();
-}
-
-export async function updateMyProfileApi(
-  token: string,
-  data: { full_name: string; phone_number: string }
-): Promise<UserProfile> {
-  const response = await authenticatedFetch(`${API_BASE_URL}/me`, {
-    method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(data),
-  }, token);
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    let msg = 'Cập nhật hồ sơ thất bại.';
-    if (typeof err.detail === 'string') {
-      msg = err.detail;
-    } else if (Array.isArray(err.detail) && err.detail.length > 0) {
-      msg = err.detail.map((d: any) => d.msg || JSON.stringify(d)).join('; ');
-    }
-    throw new Error(msg);
-  }
-  return await response.json();
-}
->>>>>>> Stashed changes
