@@ -6,6 +6,7 @@ import { UserManagementView } from './UserManagementView';
 import CreateCustomerModal from './CreateCustomerModal';
 import { StatusToastHost, emitStatusToast } from './StatusToast';
 import { AccessDeniedView } from './AccessDeniedView';
+import SupplierManagementView from './SupplierManagementView';
 import { AuditLogView } from './AuditLogView';
 import { ProductAuditDrawer } from './ProductAuditDrawer';
 import { ProfileView } from './ProfileView';
@@ -34,9 +35,10 @@ export default function DashboardPage({
   );
   const isPendingCustomer = officialRoles.length === 0;
   const isAdmin = user.role === 'admin' || Boolean(user.roles && user.roles.includes('admin'));
-
+  const SUPPLIER_ROLES = ['admin', 'warehouse', 'warehouse_manager'];
+  const canManageSuppliers = officialRoles.some((r) => SUPPLIER_ROLES.includes(r));
   // 2. Khởi tạo State với Clean URL (/users, /audit-logs, /profile)
-  const [activeTab, setActiveTabState] = useState<'inventory' | 'users' | 'audit-logs' | 'profile'>(() => {
+  const [activeTab, setActiveTabState] = useState<'inventory' | 'users' | 'audit-logs' | 'profile' | 'suppliers'>(() => {
     const pathname = window.location.pathname.toLowerCase();
     const isUsersPath = pathname === '/users' || pathname.startsWith('/users/') || pathname === '/admin' || pathname.startsWith('/admin/');
     const isAuditPath = pathname === '/audit-logs' || pathname.startsWith('/audit-logs/');
@@ -46,7 +48,9 @@ export default function DashboardPage({
     const params = new URLSearchParams(window.location.search);
     const hasOldTabParam = params.has('tab') || params.has('view');
     const oldTabVal = (params.get('tab') || params.get('view') || '').toLowerCase();
-
+    if (pathname === '/suppliers' || pathname.startsWith('/suppliers/')) {
+      return 'suppliers';
+    }
     if (isProfilePath || oldTabVal === 'profile') {
       if (hasOldTabParam || pathname !== '/profile') {
         try {
@@ -79,7 +83,7 @@ export default function DashboardPage({
   });
 
   // 3. Chuyển đổi Route Clean URL: /users, /audit-logs, /profile, /
-  const setActiveTab = (tab: 'inventory' | 'users' | 'audit-logs' | 'profile') => {
+    const setActiveTab = (tab: 'inventory' | 'users' | 'audit-logs' | 'profile' | 'suppliers') => {
     if (tab === 'profile') {
       setActiveTabState('profile');
       try {
@@ -98,6 +102,13 @@ export default function DashboardPage({
       setActiveTabState('audit-logs');
       try {
         window.history.pushState({}, '', '/audit-logs');
+      } catch {
+        // ignore
+      }
+         } else if (tab === 'suppliers') {
+      setActiveTabState('suppliers');
+      try {
+        window.history.pushState({}, '', '/suppliers');
       } catch {
         // ignore
       }
@@ -120,6 +131,11 @@ export default function DashboardPage({
       const isProfilePath = pathname === '/profile' || pathname.startsWith('/profile/');
       const params = new URLSearchParams(window.location.search);
       const tabParam = (params.get('tab') || params.get('view') || '').toLowerCase();
+
+            if (pathname === '/suppliers' || pathname.startsWith('/suppliers/')) {
+        setActiveTabState('suppliers');
+        return;
+      }
 
       if (isProfilePath || tabParam === 'profile') {
         if (pathname !== '/profile' || tabParam) {
@@ -905,6 +921,27 @@ export default function DashboardPage({
           </div>
 
           {/* Hồ sơ cá nhân - Tất cả tài khoản */}
+                    {/* Nhà cung cấp - Thủ kho, Quản lý kho, Admin */}
+          {canManageSuppliers && (
+            <div
+              className={`sidebar-menu-item ${activeTab === 'suppliers' ? 'active' : ''}`}
+              id="btn-sidebar-suppliers"
+              onClick={() => {
+                setActiveTab('suppliers');
+                handleCloseMenu();
+              }}
+            >
+              <div className="sidebar-icon-box">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="1" y="3" width="15" height="13" />
+                  <polygon points="16 8 20 8 23 11 23 16 16 16 16 8" />
+                  <circle cx="5.5" cy="18.5" r="2.5" />
+                  <circle cx="18.5" cy="18.5" r="2.5" />
+                </svg>
+              </div>
+              <span style={{ fontWeight: activeTab === 'suppliers' ? '700' : '500', fontSize: '14.5px' }}>Nhà cung cấp</span>
+            </div>
+          )}
           <div
             className={`sidebar-menu-item ${activeTab === 'profile' ? 'active' : ''}`}
             id="btn-sidebar-profile"
@@ -1031,6 +1068,20 @@ export default function DashboardPage({
           onBackToHome={() => setActiveTab('inventory')}
           onUserUpdated={onUserUpdated}
         />
+            ) : activeTab === 'suppliers' ? (
+        canManageSuppliers ? (
+          <SupplierManagementView
+            token={token}
+            onBackToHome={() => setActiveTab('inventory')}
+          />
+        ) : (
+          <AccessDeniedView
+            currentUser={user}
+            requiredPermission="Quản lý nhà cung cấp (Thủ kho / Quản lý kho / Quản trị)"
+            onBackToWorkflow={() => setActiveTab('inventory')}
+            onLogout={onLogout}
+          />
+        )
       ) : isPendingCustomer ? (
 
         /* GIAO DIỆN THÔNG BÁO CHO TÀI KHOẢN CHƯA ĐƯỢC ADMIN CẤP QUYỀN */
