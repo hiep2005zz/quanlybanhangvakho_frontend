@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 
-interface AvatarCropModalProps {
+export interface AvatarCropModalProps {
   isOpen: boolean;
   imageSrc: string;
   onClose: () => void;

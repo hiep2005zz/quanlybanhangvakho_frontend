@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { User, UserProfile, getMyProfileApi, updateMyProfileApi, uploadAvatarApi } from '../services/api';
+import { User, UserProfile, getMyProfileApi, updateMyProfileApi, uploadAvatarApi, AUTH_STORAGE } from '../services/api';
+import { sessionManager } from '../services/sessionManager';
 import { emitStatusToast } from './StatusToast';
 import { AvatarCropModal } from './AvatarCropModal';
-import { SmoothAvatar } from './SmoothAvatar';
-import { broadcastAvatarUpdate, preloadAvatarImage } from '../utils/avatarCache';
 
 interface ProfileViewProps {
   currentUser: User;
@@ -72,6 +71,130 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   const [phoneError, setPhoneError] = useState<string | null>(null);
   const [nameError, setNameError] = useState<string | null>(null);
 
+  // Xử lý chọn file ảnh từ máy (AC-01 & AC-02)
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setAvatarError(null);
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    const file = files[0];
+
+    // 1. Kiểm tra định dạng đuôi tệp và mime type (JPG, PNG)
+    const validExtensions = ['.jpg', '.jpeg', '.png'];
+    const fileName = file.name.toLowerCase();
+    const hasValidExt = validExtensions.some((ext) => fileName.endsWith(ext));
+    const validMimes = ['image/jpeg', 'image/png', 'image/pjpeg'];
+    const hasValidMime = validMimes.includes(file.type.toLowerCase());
+
+    if (!hasValidExt || (!hasValidMime && file.type)) {
+      setAvatarError('Định dạng tệp không hợp lệ. Chỉ chấp nhận ảnh JPG/PNG.');
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+
+    // 2. Kiểm tra dung lượng (<= 2MB = 2,097,152 bytes)
+    const MAX_SIZE_BYTES = 2 * 1024 * 1024;
+    if (file.size > MAX_SIZE_BYTES) {
+      setAvatarError('Dung lượng ảnh vượt quá 2MB. Vui lòng chọn ảnh nhỏ hơn.');
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+
+    setSelectedFile(file);
+
+    // Mở khung cắt ảnh 1:1
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (reader.result) {
+        setSelectedImageSrc(reader.result as string);
+        setIsCropModalOpen(true);
+        setIsLightBoxOpen(false);
+      }
+    };
+    reader.readAsDataURL(file);
+
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  // Xác nhận cắt ảnh và upload lên Server
+  const handleConfirmCrop = async (cropData: {
+    crop_x: number;
+    crop_y: number;
+    crop_width: number;
+    crop_height: number;
+  }) => {
+    if (!selectedFile) return;
+
+    setIsUploadingAvatar(true);
+    setAvatarError(null);
+
+    try {
+      const coords = {
+        x: cropData.crop_x,
+        y: cropData.crop_y,
+        width: cropData.crop_width,
+        height: cropData.crop_height,
+      };
+
+      const res = await uploadAvatarApi(token, selectedFile, coords);
+
+      // Thêm Cache Buster timestamp (?t=...) để ép trình duyệt render ảnh mới tức thì 100% không qua cache
+      const cacheBuster = `?t=${Date.now()}`;
+      const freshAvatarUrl = res.avatar_url ? `${res.avatar_url}${cacheBuster}` : res.avatar_url;
+      const freshThumbUrl = res.avatar_thumbnail_url ? `${res.avatar_thumbnail_url}${cacheBuster}` : res.avatar_thumbnail_url;
+
+      // Cập nhật profile state
+      setProfile((prev) =>
+        prev
+          ? {
+              ...prev,
+              avatar_url: freshAvatarUrl,
+              avatar_thumbnail_url: freshThumbUrl,
+            }
+          : null
+      );
+
+      // Tạo object updatedUser hợp nhất
+      const updatedUser: User = {
+        ...currentUser,
+        avatar_url: freshAvatarUrl,
+        avatar_thumbnail_url: freshThumbUrl,
+      };
+
+      // 1. Cập nhật ngay vào sessionStorage để heartbeat không bị lệch state
+      try {
+        sessionStorage.setItem(AUTH_STORAGE.USER, JSON.stringify(updatedUser));
+      } catch {
+        // ignore
+      }
+
+      // 2. Cập nhật qua sessionManager để đồng bộ toàn bộ app
+      try {
+        sessionManager.updateUserProfile(updatedUser);
+      } catch {
+        // ignore
+      }
+
+      // 3. Đồng bộ currentUser cho toàn ứng dụng
+      if (onUserUpdated) {
+        onUserUpdated(updatedUser);
+      }
+
+      emitStatusToast({
+        title: 'Thành công',
+        message: 'Cập nhật ảnh đại diện thành công.',
+      });
+
+      setIsCropModalOpen(false);
+      setSelectedFile(null);
+      setSelectedImageSrc('');
+    } catch (err: any) {
+      setAvatarError(err.message || 'Lỗi khi tải lên ảnh đại diện.');
+    } finally {
+      setIsUploadingAvatar(false);
+    }
+  };
+
   // Tải dữ liệu hồ sơ mới nhất từ API /api/v1/me
   useEffect(() => {
     let isMounted = true;
@@ -87,6 +210,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
         setLoading(false);
 
         // Tự động đồng bộ ngược lại cho currentUser của toàn ứng dụng nếu có thông tin mới
+        // Giữ lại data.avatar_url và data.avatar_thumbnail_url
         if (onUserUpdated && data) {
           onUserUpdated({
             ...currentUser,
@@ -101,6 +225,8 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
             branch: data.branch || currentUser.branch,
             warehouse_name: data.warehouse_name,
             territory_name: data.territory_name,
+            avatar_url: data.avatar_url !== undefined ? data.avatar_url : currentUser.avatar_url,
+            avatar_thumbnail_url: data.avatar_thumbnail_url !== undefined ? data.avatar_thumbnail_url : currentUser.avatar_thumbnail_url,
           });
         }
       })
@@ -140,6 +266,8 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               branch: data.branch || currentUser.branch,
               warehouse_name: data.warehouse_name,
               territory_name: data.territory_name,
+              avatar_url: data.avatar_url !== undefined ? data.avatar_url : currentUser.avatar_url,
+              avatar_thumbnail_url: data.avatar_thumbnail_url !== undefined ? data.avatar_thumbnail_url : currentUser.avatar_thumbnail_url,
             });
           }
         })
@@ -205,119 +333,6 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
     }
   };
 
-  // Xử lý chọn file ảnh từ máy
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setAvatarError(null);
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-
-    const file = files[0];
-
-    // 1. Kiểm tra định dạng đuôi tệp và mime type (JPG, PNG)
-    const validExtensions = ['.jpg', '.jpeg', '.png'];
-    const fileName = file.name.toLowerCase();
-    const hasValidExt = validExtensions.some((ext) => fileName.endsWith(ext));
-    const validMimes = ['image/jpeg', 'image/png', 'image/pjpeg'];
-    const hasValidMime = validMimes.includes(file.type.toLowerCase());
-
-    if (!hasValidExt || (!hasValidMime && file.type)) {
-      setAvatarError('Định dạng tệp không hợp lệ. Chỉ chấp nhận ảnh JPG/PNG.');
-      if (fileInputRef.current) fileInputRef.current.value = '';
-      return;
-    }
-
-    // 2. Kiểm tra dung lượng (<= 2MB = 2,097,152 bytes)
-    const MAX_SIZE_BYTES = 2 * 1024 * 1024;
-    if (file.size > MAX_SIZE_BYTES) {
-      setAvatarError('Dung lượng ảnh vượt quá 2MB. Vui lòng chọn ảnh nhỏ hơn.');
-      if (fileInputRef.current) fileInputRef.current.value = '';
-      return;
-    }
-
-    setSelectedFile(file);
-
-    // Mở khung cắt ảnh 1:1
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (reader.result) {
-        setSelectedImageSrc(reader.result as string);
-        setIsCropModalOpen(true);
-        setIsLightBoxOpen(false); // Đóng lightbox nếu đang mở từ lightbox
-      }
-    };
-    reader.readAsDataURL(file);
-
-    if (fileInputRef.current) fileInputRef.current.value = '';
-  };
-
-  // Xác nhận cắt ảnh và upload lên Server
-  const handleConfirmCrop = async (cropData: {
-    crop_x: number;
-    crop_y: number;
-    crop_width: number;
-    crop_height: number;
-  }) => {
-    if (!selectedFile) return;
-
-    setIsUploadingAvatar(true);
-    setAvatarError(null);
-
-    try {
-      const coords = {
-        x: cropData.crop_x,
-        y: cropData.crop_y,
-        width: cropData.crop_width,
-        height: cropData.crop_height,
-      };
-
-      const res = await uploadAvatarApi(token, selectedFile, coords);
-
-      // Preload ngay lập tức URL ảnh mới vào bộ nhớ đệm
-      if (res.avatar_url) preloadAvatarImage(res.avatar_url);
-      if (res.avatar_thumbnail_url) preloadAvatarImage(res.avatar_thumbnail_url);
-
-      // Cập nhật profile state
-      setProfile((prev) =>
-        prev
-          ? {
-              ...prev,
-              avatar_url: res.avatar_url,
-              avatar_thumbnail_url: res.avatar_thumbnail_url,
-            }
-          : null
-      );
-
-      // Đồng bộ currentUser cho toàn ứng dụng
-      if (onUserUpdated) {
-        onUserUpdated({
-          ...currentUser,
-          avatar_url: res.avatar_url,
-          avatar_thumbnail_url: res.avatar_thumbnail_url,
-        });
-      }
-
-      // Phát sự kiện đồng bộ real-time cho toàn bộ component hiển thị
-      broadcastAvatarUpdate({
-        avatar_url: res.avatar_url,
-        avatar_thumbnail_url: res.avatar_thumbnail_url,
-        username: currentUser.username,
-      });
-
-      emitStatusToast({
-        title: 'Thành công',
-        message: 'Cập nhật ảnh đại diện thành công.',
-      });
-
-      setIsCropModalOpen(false);
-      setSelectedFile(null);
-      setSelectedImageSrc('');
-    } catch (err: any) {
-      setAvatarError(err.message || 'Lỗi khi tải lên ảnh đại diện.');
-    } finally {
-      setIsUploadingAvatar(false);
-    }
-  };
-
   // Xử lý gửi cập nhật hồ sơ
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -350,19 +365,33 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
       }, 4000);
 
       // Cập nhật State người dùng ngay lập tức cho ứng dụng để Avatar/Header đổi tên
-      if (onUserUpdated) {
-        onUserUpdated({
-          ...currentUser,
-          id: updated.id,
-          full_name: updated.full_name,
-          phone: updated.phone_number || updated.phone || undefined,
-          phone_number: updated.phone_number || updated.phone || undefined,
-          email: updated.email,
-          branch: updated.branch || currentUser.branch,
-          warehouse_name: updated.warehouse_name,
-          territory_name: updated.territory_name,
-        });
+      const finalUser: User = {
+        ...currentUser,
+        id: updated.id,
+        full_name: updated.full_name,
+        phone: updated.phone_number || updated.phone || undefined,
+        phone_number: updated.phone_number || updated.phone || undefined,
+        email: updated.email,
+        branch: updated.branch || currentUser.branch,
+        warehouse_name: updated.warehouse_name,
+        territory_name: updated.territory_name,
+        avatar_url: updated.avatar_url !== undefined ? updated.avatar_url : currentUser.avatar_url,
+        avatar_thumbnail_url: updated.avatar_thumbnail_url !== undefined ? updated.avatar_thumbnail_url : currentUser.avatar_thumbnail_url,
+      };
+
+      try {
+        sessionStorage.setItem(AUTH_STORAGE.USER, JSON.stringify(finalUser));
+        sessionManager.updateUserProfile(finalUser);
+      } catch {
+        // ignore
       }
+
+      if (onUserUpdated) {
+        onUserUpdated(finalUser);
+      }
+
+      // Tự động chuyển hướng về trang chủ làm việc
+      onBackToHome();
     } catch (err: any) {
       setErrorMsg(err.message || 'Lỗi khi cập nhật hồ sơ cá nhân.');
     } finally {
@@ -395,7 +424,6 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   };
   const roleColor = primaryRole === 'customer' && !isBranchAssigned ? '#94a3b8' : (ROLE_COLOR_MAP[primaryRole] || '#64748b');
   const roleTitle = getRoleTitle(primaryRole);
-  const displayRoles = profile?.roles && profile.roles.length > 0 ? profile.roles : currentUser.roles || [primaryRole];
 
   return (
     <main style={{ padding: '24px 32px', maxWidth: '1200px', margin: '0 auto', width: '100%' }}>
@@ -496,7 +524,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-          {/* Avatar Container: Click để mở LightBox (nếu có ảnh) hoặc Mở chọn file đổi ảnh (nếu chưa có ảnh) */}
+          {/* Input file ẩn */}
           <input
             ref={fileInputRef}
             type="file"
@@ -505,6 +533,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
             onChange={handleFileChange}
           />
 
+          {/* Avatar Preview Area: Khung tròn/vuông hiển thị ảnh hiện tại hoặc Placeholder icon + chữ cái đầu */}
           <div
             onClick={() => {
               const currentImg = profile?.avatar_url || currentUser.avatar_url;
@@ -514,14 +543,20 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                 fileInputRef.current?.click();
               }
             }}
-            title={profile?.avatar_url || currentUser.avatar_url ? 'Click để xem ảnh lớn hoặc thay đổi ảnh' : 'Click để tải lên ảnh đại diện'}
+            title={profile?.avatar_url || currentUser.avatar_url ? 'Xem ảnh lớn hoặc thay đổi ảnh đại diện' : 'Click để chọn ảnh đại diện'}
             style={{
               width: '76px',
               height: '76px',
               borderRadius: '20px',
+              background: (profile?.avatar_url || currentUser.avatar_url)
+                ? '#f8fafc'
+                : `linear-gradient(135deg, ${roleColor} 0%, #4f46e5 100%)`,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
+              color: '#ffffff',
+              fontSize: '28px',
+              fontWeight: '800',
               boxShadow: `0 8px 20px ${roleColor}35`,
               flexShrink: 0,
               cursor: 'pointer',
@@ -541,16 +576,22 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               if (overlay) overlay.style.opacity = '0';
             }}
           >
-            <SmoothAvatar
-              src={profile?.avatar_url || currentUser.avatar_url}
-              fallbackText={fullNameInput || currentUser.username}
-              size={76}
-              borderRadius="18px"
-              bgGradient={`linear-gradient(135deg, ${roleColor} 0%, #4f46e5 100%)`}
-              alt={fullNameInput || currentUser.username}
-            />
+            {(profile?.avatar_url || currentUser.avatar_url) ? (
+              <img
+                src={profile?.avatar_url || currentUser.avatar_url || ''}
+                alt={fullNameInput || currentUser.username}
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover',
+                  display: 'block',
+                }}
+              />
+            ) : (
+              (fullNameInput || currentUser.username).charAt(0).toUpperCase()
+            )}
 
-            {/* Hover Overlay hiệu ứng chuyên nghiệp */}
+            {/* Upload Button: Icon Máy ảnh đè lên vùng Preview khi hover */}
             <div
               className="avatar-hover-overlay"
               style={{
@@ -563,7 +604,6 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                 opacity: 0,
                 transition: 'opacity 0.2s ease',
                 color: '#ffffff',
-                pointerEvents: 'none',
               }}
             >
               {(profile?.avatar_url || currentUser.avatar_url) ? (
@@ -583,81 +623,9 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           </div>
 
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-              <h1 style={{ margin: 0, fontSize: '22px', fontWeight: '800', color: '#0f172a', letterSpacing: '-0.02em' }}>
-                {fullNameInput || currentUser.full_name}
-              </h1>
-              <span
-                style={{
-                  fontFamily: 'ui-monospace, monospace',
-                  background: '#f1f5f9',
-                  color: '#475569',
-                  fontSize: '12px',
-                  fontWeight: '600',
-                  padding: '3px 8px',
-                  borderRadius: '6px',
-                  border: '1px solid #e2e8f0',
-                }}
-              >
-                @{currentUser.username}
-              </span>
-              {(profile?.email || currentUser.email) && (
-                <span
-                  style={{
-                    color: '#475569',
-                    fontSize: '12.5px',
-                    fontWeight: '500',
-                    background: '#f8fafc',
-                    padding: '3px 10px',
-                    borderRadius: '6px',
-                    border: '1px solid #e2e8f0',
-                  }}
-                >
-                  {profile?.email || currentUser.email}
-                </span>
-              )}
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px', flexWrap: 'wrap' }}>
-              {displayRoles.map((rCode) => {
-                const c = rCode === 'customer' && !isBranchAssigned ? '#94a3b8' : (ROLE_COLOR_MAP[rCode] || '#64748b');
-                const label = getRoleTitle(rCode);
-                return (
-                  <span
-                    key={rCode}
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      padding: '3px 10px',
-                      borderRadius: '999px',
-                      background: `${c}15`,
-                      color: c,
-                      fontSize: '12px',
-                      fontWeight: '700',
-                      border: `1px solid ${c}30`,
-                    }}
-                  >
-                    {label}
-                  </span>
-                );
-              })}
-
-              <span
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  padding: '3px 10px',
-                  borderRadius: '999px',
-                  background: '#dcfce7',
-                  color: '#15803d',
-                  fontSize: '12px',
-                  fontWeight: '700',
-                  border: '1px solid #86efac',
-                }}
-              >
-                Đang hoạt động
-              </span>
-            </div>
+            <h1 style={{ margin: 0, fontSize: '24px', fontWeight: '800', color: '#0f172a', letterSpacing: '-0.02em' }}>
+              {fullNameInput || currentUser.full_name}
+            </h1>
           </div>
         </div>
 
@@ -756,9 +724,6 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '700', color: '#0f172a' }}>
                 Thông tin hệ thống
               </h3>
-              <span style={{ fontSize: '12px', color: '#94a3b8' }}>
-                Các trường do Quản trị viên phân quyền (Chỉ đọc)
-              </span>
             </div>
 
             {/* Tên đăng nhập (Read-only) */}
@@ -895,9 +860,6 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '700', color: '#0f172a' }}>
                 Chỉnh sửa thông tin
               </h3>
-              <span style={{ fontSize: '12px', color: '#64748b' }}>
-                Cập nhật họ tên và số điện thoại liên lạc của bạn
-              </span>
             </div>
 
             {/* Họ và tên */}
@@ -1211,7 +1173,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
         </div>
       )}
 
-      {/* Modal Cắt ảnh 1:1 chuẩn S2-03 */}
+      {/* Modal Cắt ảnh 1:1 chuẩn AC-03 */}
       <AvatarCropModal
         isOpen={isCropModalOpen}
         imageSrc={selectedImageSrc}

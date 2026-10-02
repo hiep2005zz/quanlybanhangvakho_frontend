@@ -23,6 +23,8 @@ export interface User {
   warehouse_name?: string | null;
   territory_name?: string | null;
   branch?: string;
+  avatar_url?: string | null;
+  avatar_thumbnail_url?: string | null;
   can_view_cost?: boolean;
   can_write_inventory?: boolean;
   avatar_url?: string | null;
@@ -960,6 +962,167 @@ export async function updateMyProfileApi(
   return await response.json();
 }
 
+export interface AvatarUploadCropCoords {
+  x?: number;
+  y?: number;
+  width?: number;
+  height?: number;
+}
 
+export interface AvatarUploadResult {
+  status: string;
+  message: string;
+  avatar_url: string;
+  avatar_thumbnail_url: string;
+  user: User;
+}
 
+export async function uploadAvatarApi(
+  token: string,
+  file: File | Blob,
+  coords?: AvatarUploadCropCoords
+): Promise<AvatarUploadResult> {
+  const formData = new FormData();
+  formData.append('file', file, file instanceof File ? file.name : 'avatar.jpg');
+  if (coords) {
+    if (coords.x !== undefined) formData.append('crop_x', Math.round(coords.x).toString());
+    if (coords.y !== undefined) formData.append('crop_y', Math.round(coords.y).toString());
+    if (coords.width !== undefined) formData.append('crop_width', Math.round(coords.width).toString());
+    if (coords.height !== undefined) formData.append('crop_height', Math.round(coords.height).toString());
+  }
 
+  const response = await fetch(`${API_BASE_URL}/profile/avatar`, {
+    method: 'PATCH',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    body: formData,
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi tải ảnh đại diện (Mã lỗi ${response.status})`);
+  }
+  return data;
+}
+
+// ============================================================================
+// DÁN TOÀN BỘ NỘI DUNG FILE NÀY VÀO CUỐI FILE: frontend/src/services/api.ts
+// (không cần import thêm gì, vì api.ts đã có sẵn API_BASE_URL và authenticatedFetch)
+// ============================================================================
+// ---------- NHÀ CUNG CẤP ----------
+export interface Supplier {
+  id: number;
+  code: string;
+  name: string;
+  tax_code?: string | null;
+  contact_person?: string | null;
+  payment_terms?: string | null;
+  is_active: boolean;
+  inactive_reason?: string | null;
+  deactivated_at?: string | null;
+  deactivated_by?: string | null;
+  created_by?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+}
+
+export interface SupplierListResponse {
+  items: Supplier[];
+  total: number;
+  active_count: number;
+  inactive_count: number;
+}
+
+export interface SupplierPayload {
+  name: string;
+  tax_code: string;
+  contact_person?: string | null;
+  payment_terms?: string | null;
+}
+
+export interface SupplierCreatePayload extends SupplierPayload {
+  code: string;
+}
+
+// Lấy thông báo lỗi từ phản hồi của backend (detail có thể là chuỗi hoặc danh sách lỗi)
+function extractSupplierError(data: any, fallback: string): string {
+  if (typeof data?.detail === 'string') return data.detail;
+  if (Array.isArray(data?.detail) && data.detail.length > 0) {
+    const msg = data.detail[0]?.msg;
+    if (typeof msg === 'string') return msg.replace(/^Value error, /, '');
+  }
+  if (typeof data?.detail?.message === 'string') return data.detail.message;
+  return fallback;
+}
+
+export async function getSuppliersApi(
+  token: string,
+  params: { search?: string; status?: 'all' | 'active' | 'inactive' } = {}
+): Promise<SupplierListResponse> {
+  const query = new URLSearchParams();
+  if (params.search && params.search.trim()) query.set('search', params.search.trim());
+  if (params.status && params.status !== 'all') query.set('status', params.status);
+  const qs = query.toString();
+
+  const response = await authenticatedFetch(`${API_BASE_URL}/suppliers${qs ? `?${qs}` : ''}`, {
+    method: 'GET',
+  }, token);
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(extractSupplierError(data, `Lỗi tải danh sách nhà cung cấp (Mã lỗi ${response.status})`));
+  }
+  return data;
+}
+
+export async function createSupplierApi(token: string, payload: SupplierCreatePayload): Promise<Supplier> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/suppliers`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  }, token);
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(extractSupplierError(data, `Lỗi thêm nhà cung cấp (Mã lỗi ${response.status})`));
+  }
+  return data;
+}
+
+export async function updateSupplierApi(token: string, code: string, payload: SupplierPayload): Promise<Supplier> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/suppliers/${encodeURIComponent(code)}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  }, token);
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(extractSupplierError(data, `Lỗi cập nhật nhà cung cấp (Mã lỗi ${response.status})`));
+  }
+  return data;
+}
+
+export async function deactivateSupplierApi(token: string, code: string, reason?: string): Promise<Supplier> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/suppliers/${encodeURIComponent(code)}/deactivate`, {
+    method: 'POST',
+    body: JSON.stringify({ reason: reason && reason.trim() ? reason.trim() : null }),
+  }, token);
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(extractSupplierError(data, `Lỗi ngừng giao dịch nhà cung cấp (Mã lỗi ${response.status})`));
+  }
+  return data;
+}
+
+export async function activateSupplierApi(token: string, code: string): Promise<Supplier> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/suppliers/${encodeURIComponent(code)}/activate`, {
+    method: 'POST',
+  }, token);
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(extractSupplierError(data, `Lỗi mở lại giao dịch nhà cung cấp (Mã lỗi ${response.status})`));
+  }
+  return data;
+}

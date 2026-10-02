@@ -315,6 +315,13 @@ class SessionManager {
     };
   }
 
+  public updateUserProfile(user: User) {
+    sessionStorage.setItem(AUTH_STORAGE.USER, JSON.stringify(user));
+    this.notifyUserProfile(user);
+    window.dispatchEvent(new CustomEvent('USER_ROLE_UPDATED', { detail: user }));
+    window.dispatchEvent(new CustomEvent('USER_ACCOUNTS_CHANGED', { detail: user }));
+  }
+
   private notifyUserProfile(user: User) {
     this.userProfileListeners.forEach((listener) => listener(user));
   }

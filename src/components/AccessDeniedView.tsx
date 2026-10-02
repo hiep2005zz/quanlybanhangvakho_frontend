@@ -19,6 +19,8 @@ export const AccessDeniedView: React.FC<AccessDeniedViewProps> = ({
     : [currentUser.role]
   ).filter((r) => r && r !== 'customer');
 
+  const isDealer = currentUser.branch && currentUser.branch !== 'Chưa phân công';
+
   const roleLabelMap: Record<string, string> = {
     admin: 'Quản Trị Hệ Thống',
     sales_manager: 'Quản Lý Kinh Doanh',
@@ -27,7 +29,7 @@ export const AccessDeniedView: React.FC<AccessDeniedViewProps> = ({
     warehouse_manager: 'Quản Lý Kho',
     accountant: 'Kế Toán',
     purchasing: 'Nhân Viên Mua Hàng',
-    customer: 'Chờ Cấp Quyền',
+    customer: isDealer ? 'Đại Lý' : 'Chờ Cấp Quyền',
   };
 
   const roleBadgeColorMap: Record<string, string> = {
@@ -38,7 +40,7 @@ export const AccessDeniedView: React.FC<AccessDeniedViewProps> = ({
     warehouse_manager: '#059669',
     accountant: '#f59e0b',
     purchasing: '#06b6d4',
-    customer: '#94a3b8',
+    customer: isDealer ? '#0284c7' : '#94a3b8',
   };
 
   const primaryRole = officialRoles[0] || currentUser.role || 'customer';
@@ -94,7 +96,6 @@ export const AccessDeniedView: React.FC<AccessDeniedViewProps> = ({
             fontWeight: '600',
             display: 'inline-flex',
             alignItems: 'center',
-            gap: '6px',
             boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
             transition: 'all 0.15s ease',
           }}
@@ -107,13 +108,8 @@ export const AccessDeniedView: React.FC<AccessDeniedViewProps> = ({
             e.currentTarget.style.background = '#ffffff';
           }}
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3">
-            <path d="M19 12H5M12 19l-7-7 7-7" />
-          </svg>
           <span>Quay lại trang làm việc</span>
         </button>
-        <span style={{ color: '#cbd5e1', fontSize: '14px' }}>/</span>
-        <span style={{ color: '#dc2626', fontWeight: '600', fontSize: '13.5px' }}>403 Không có quyền truy cập</span>
       </nav>
 
       {/* 2. Thẻ lỗi trung tâm Enterprise Card */}
@@ -127,45 +123,6 @@ export const AccessDeniedView: React.FC<AccessDeniedViewProps> = ({
         overflow: 'hidden',
         textAlign: 'center',
       }}>
-        {/* Khối Icon Khiên Bị Khóa */}
-        <div style={{
-          width: '84px',
-          height: '84px',
-          borderRadius: '24px',
-          background: '#fee2e2',
-          border: '1px solid #fca5a5',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          margin: '0 auto 22px auto',
-          boxShadow: '0 8px 20px rgba(239, 68, 68, 0.15)',
-          color: '#dc2626',
-        }}>
-          <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-          </svg>
-        </div>
-
-        {/* Mã lỗi & Tiêu đề */}
-        <div style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: '8px',
-          background: '#fee2e2',
-          border: '1px solid #fecaca',
-          padding: '4px 14px',
-          borderRadius: '999px',
-          color: '#b91c1c',
-          fontSize: '12.5px',
-          fontWeight: '700',
-          letterSpacing: '0.05em',
-          marginBottom: '16px',
-        }}>
-          <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#dc2626' }} />
-          MÃ LỖI 403: TRUY CẬP BỊ TỪ CHỐI (ZERO-TRUST)
-        </div>
-
         <h1 style={{
           fontSize: '28px',
           fontWeight: '800',
@@ -204,29 +161,26 @@ export const AccessDeniedView: React.FC<AccessDeniedViewProps> = ({
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ color: '#64748b' }}>Tài khoản đang đăng nhập:</span>
-            <strong style={{ color: '#0f172a', fontFamily: 'monospace' }}>@{currentUser.username} ({currentUser.full_name})</strong>
+            <strong style={{ color: '#0f172a', fontFamily: 'monospace' }}>{currentUser.username}</strong>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ color: '#64748b' }}>Vai trò hiện tại:</span>
             <span style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '3px 10px',
+              display: 'inline-block',
+              padding: '3px 12px',
               borderRadius: '999px',
               background: `${badgeColor}15`,
               color: badgeColor,
               fontWeight: '700',
               border: `1px solid ${badgeColor}35`,
             }}>
-              <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: badgeColor }} />
               {roleName}
             </span>
           </div>
           {currentUser.branch && (
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ color: '#64748b' }}>Khu vực / Chi nhánh:</span>
-              <span style={{ color: '#334155' }}>📍 {currentUser.branch}</span>
+              <span style={{ color: '#334155', fontWeight: '500' }}>{currentUser.branch}</span>
             </div>
           )}
         </div>
@@ -242,16 +196,13 @@ export const AccessDeniedView: React.FC<AccessDeniedViewProps> = ({
         }}>
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
             gap: '12px',
           }}>
             {/* Hành động 1: Quay lại màn hình làm việc chính */}
             <button
               onClick={onBackToWorkflow}
               style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px',
                 padding: '14px 18px',
                 borderRadius: '12px',
                 background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
@@ -260,7 +211,7 @@ export const AccessDeniedView: React.FC<AccessDeniedViewProps> = ({
                 fontSize: '14px',
                 fontWeight: '700',
                 cursor: 'pointer',
-                textAlign: 'left',
+                textAlign: 'center',
                 boxShadow: '0 4px 12px rgba(37, 99, 235, 0.25)',
                 transition: 'all 0.15s ease',
               }}
@@ -273,25 +224,8 @@ export const AccessDeniedView: React.FC<AccessDeniedViewProps> = ({
                 e.currentTarget.style.boxShadow = '0 4px 12px rgba(37, 99, 235, 0.25)';
               }}
             >
-              <div style={{
-                width: '36px',
-                height: '36px',
-                borderRadius: '10px',
-                background: 'rgba(255, 255, 255, 0.2)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0,
-              }}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                  <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-                  <polyline points="9 22 9 12 15 12 15 22" />
-                </svg>
-              </div>
-              <div>
-                <div style={{ color: '#ffffff' }}>Quản lý kho hàng & sản phẩm</div>
-                <div style={{ fontSize: '12px', color: '#bfdbfe', fontWeight: '500' }}>Trang nghiệp vụ chính của bạn</div>
-              </div>
+              <div style={{ color: '#ffffff', fontSize: '14.5px', marginBottom: '3px' }}>Quản lý kho hàng & sản phẩm</div>
+              <div style={{ fontSize: '12px', color: '#bfdbfe', fontWeight: '500' }}>Trang nghiệp vụ chính của bạn</div>
             </button>
 
             {/* Hành động 2: Đăng xuất / Đổi tài khoản có quyền */}
@@ -299,9 +233,6 @@ export const AccessDeniedView: React.FC<AccessDeniedViewProps> = ({
               <button
                 onClick={onLogout}
                 style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
                   padding: '14px 18px',
                   borderRadius: '12px',
                   background: '#ffffff',
@@ -310,7 +241,7 @@ export const AccessDeniedView: React.FC<AccessDeniedViewProps> = ({
                   fontSize: '14px',
                   fontWeight: '600',
                   cursor: 'pointer',
-                  textAlign: 'left',
+                  textAlign: 'center',
                   boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
                   transition: 'all 0.15s ease',
                 }}
@@ -325,44 +256,28 @@ export const AccessDeniedView: React.FC<AccessDeniedViewProps> = ({
                   e.currentTarget.style.borderColor = '#cbd5e1';
                 }}
               >
-                <div style={{
-                  width: '36px',
-                  height: '36px',
-                  borderRadius: '10px',
-                  background: '#fee2e2',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0,
-                  color: '#dc2626',
-                }}>
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
-                    <polyline points="10 17 15 12 10 7" />
-                    <line x1="15" y1="12" x2="3" y2="12" />
-                  </svg>
-                </div>
-                <div>
-                  <div style={{ color: '#0f172a' }}>Đổi tài khoản khác</div>
-                  <div style={{ fontSize: '12px', color: '#64748b' }}>Đăng nhập tài khoản Quản trị viên</div>
-                </div>
+                <div style={{ color: '#0f172a', fontSize: '14.5px', marginBottom: '3px' }}>Đổi tài khoản khác</div>
+                <div style={{ fontSize: '12px', color: '#64748b' }}>Đăng nhập tài khoản Quản trị viên</div>
               </button>
             )}
           </div>
 
-          {/* Dòng trợ giúp liên hệ quản trị */}
+          {/* Dòng trợ giúp liên hệ quản trị - Căn chỉnh chuẩn hàng ngang không bị gãy dòng */}
           <div style={{
-            marginTop: '16px',
-            paddingTop: '14px',
+            marginTop: '20px',
+            paddingTop: '16px',
             borderTop: '1px solid #e2e8f0',
-            fontSize: '12.5px',
+            fontSize: '13px',
             color: '#64748b',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: '6px',
+            flexWrap: 'wrap',
+            gap: '8px',
+            lineHeight: '1.5',
+            textAlign: 'center',
           }}>
-            <span>🔒 Cần quyền hạn này cho công việc? Vui lòng liên hệ Quản trị viên hệ thống:</span>
+            <span>Cần quyền hạn này cho công việc? Vui lòng liên hệ Quản trị viên hệ thống:</span>
             <a
               href={`mailto:${adminEmail}`}
               style={{
@@ -371,6 +286,7 @@ export const AccessDeniedView: React.FC<AccessDeniedViewProps> = ({
                 textDecoration: 'none',
                 borderBottom: '1px dashed #93c5fd',
                 transition: 'color 0.2s',
+                whiteSpace: 'nowrap',
               }}
               title={`Gửi email đến Quản trị viên: ${adminEmail}`}
             >

@@ -77,9 +77,62 @@ export default function MoveCategoryModal({ isOpen, onClose, token, productId, p
               {renderOptions(categories)}
             </select>
           </div>
-          <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
-            <button type="button" onClick={onClose} disabled={isLoading} style={{ padding: '10px 16px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#fff', cursor: 'pointer' }}>Hủy</button>
-            <button type="submit" disabled={isLoading || selectedCategoryId === '' || selectedCategoryId === currentCategoryId} style={{ padding: '10px 16px', borderRadius: '8px', border: 'none', background: '#2563eb', color: '#fff', cursor: isLoading ? 'not-allowed' : 'pointer' }}>
+          <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '24px' }}>
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={isLoading}
+              style={{
+                margin: 0,
+                padding: '9px 18px',
+                borderRadius: '8px',
+                border: '1px solid #cbd5e1',
+                backgroundColor: '#ffffff',
+                color: '#475569',
+                fontSize: '14px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                boxShadow: 'none',
+                transition: 'all 0.15s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#f8fafc';
+                e.currentTarget.style.borderColor = '#94a3b8';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = '#ffffff';
+                e.currentTarget.style.borderColor = '#cbd5e1';
+              }}
+            >
+              Hủy
+            </button>
+            <button
+              type="submit"
+              disabled={isLoading || selectedCategoryId === '' || selectedCategoryId === currentCategoryId}
+              style={{
+                margin: 0,
+                padding: '9px 18px',
+                borderRadius: '8px',
+                border: 'none',
+                backgroundColor: (isLoading || selectedCategoryId === '' || selectedCategoryId === currentCategoryId) ? '#94a3b8' : '#2563eb',
+                color: '#ffffff',
+                fontSize: '14px',
+                fontWeight: '600',
+                cursor: (isLoading || selectedCategoryId === '' || selectedCategoryId === currentCategoryId) ? 'not-allowed' : 'pointer',
+                boxShadow: (isLoading || selectedCategoryId === '' || selectedCategoryId === currentCategoryId) ? 'none' : '0 2px 8px rgba(37, 99, 235, 0.3)',
+                transition: 'all 0.15s ease'
+              }}
+              onMouseEnter={(e) => {
+                if (!(isLoading || selectedCategoryId === '' || selectedCategoryId === currentCategoryId)) {
+                  e.currentTarget.style.backgroundColor = '#1d4ed8';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!(isLoading || selectedCategoryId === '' || selectedCategoryId === currentCategoryId)) {
+                  e.currentTarget.style.backgroundColor = '#2563eb';
+                }
+              }}
+            >
               {isLoading ? 'Đang lưu...' : 'Lưu thay đổi'}
             </button>
           </div>
