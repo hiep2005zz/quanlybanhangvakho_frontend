@@ -9,16 +9,37 @@ export const AUTH_STORAGE = {
 };
 
 export interface User {
+  id?: number;
   username: string;
   full_name: string;
+  email?: string | null;
+  phone?: string | null;
+  phone_number?: string | null;
   role: string;
   roles?: string[];
   role_titles?: string[];
   permissions?: string[];
   role_title?: string;
+  warehouse_name?: string | null;
+  territory_name?: string | null;
   branch?: string;
   can_view_cost?: boolean;
   can_write_inventory?: boolean;
+}
+
+export interface UserProfile {
+  id: number;
+  username: string;
+  email?: string | null;
+  full_name: string;
+  phone_number?: string | null;
+  phone?: string | null;
+  role: string;
+  roles?: string[];
+  role_title?: string;
+  warehouse_name?: string | null;
+  territory_name?: string | null;
+  branch?: string | null;
 }
 
 export interface LoginResponse {
@@ -33,6 +54,7 @@ export interface ProductItem {
   code: string;
   name: string;
   category: string;
+  category_id?: number | null;
   stock: number;
   sell_price: number;
   cost_price?: number | null;
@@ -626,6 +648,82 @@ export async function getAdminContactApi(): Promise<{ admin_email: string; admin
 }
 
 
+export interface Category {
+  id: number;
+  name: string;
+  parent_id?: number | null;
+  description?: string | null;
+}
+
+export interface CategoryTreeResponse extends Category {
+  sub_categories: CategoryTreeResponse[];
+}
+
+export interface CategorySalesReport {
+  id: number;
+  name: string;
+  parent_id?: number | null;
+  direct_sales: number;
+  total_sales: number;
+}
+
+export async function getCategoryTreeApi(token: string): Promise<CategoryTreeResponse[]> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/categories/tree`, {
+    method: 'GET',
+  }, token);
+  if (!response.ok) throw new Error('Lỗi tải danh sách danh mục');
+  return response.json();
+}
+
+export async function createCategoryApi(token: string, payload: { name: string; parent_id?: number | null; description?: string }): Promise<Category> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/categories`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  }, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.detail || 'Lỗi tạo danh mục');
+  return data;
+}
+
+export async function updateCategoryApi(token: string, categoryId: number, payload: { name: string; parent_id?: number | null; description?: string }): Promise<Category> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/categories/${categoryId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  }, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.detail || 'Lỗi cập nhật danh mục');
+  return data;
+}
+
+export async function deleteCategoryApi(token: string, categoryId: number): Promise<{ status: string; message: string }> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/categories/${categoryId}`, {
+    method: 'DELETE',
+  }, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.detail || 'Lỗi xóa danh mục');
+  return data;
+}
+
+export async function getCategorySalesReportApi(token: string): Promise<CategorySalesReport[]> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/categories/sales-report`, {
+    method: 'GET',
+  }, token);
+  if (!response.ok) throw new Error('Lỗi tải báo cáo doanh số');
+  return response.json();
+}
+
+export async function moveProductCategoryApi(token: string, productId: number, categoryId: number): Promise<any> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/products/${productId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ category_id: categoryId }),
+  }, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.detail || 'Lỗi cập nhật danh mục sản phẩm');
+  return data;
+}
 
 // ==========================================
 // SCRUM-29: AUDIT LOGS INTERFACES & CLIENT
@@ -729,6 +827,45 @@ export async function clearAllAuditLogsApi(token: string): Promise<{ message: st
   }
   return data;
 }
+
+/**
+ * User Story SCRUM-27: Xem và cập nhật hồ sơ cá nhân
+ */
+export async function getMyProfileApi(token: string): Promise<UserProfile> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/me`, {
+    method: 'GET',
+  }, token);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.detail || 'Không thể tải thông tin hồ sơ.');
+  }
+  return await response.json();
+}
+
+export async function updateMyProfileApi(
+  token: string,
+  data: { full_name: string; phone_number: string }
+): Promise<UserProfile> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/me`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(data),
+  }, token);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    let msg = 'Cập nhật hồ sơ thất bại.';
+    if (typeof err.detail === 'string') {
+      msg = err.detail;
+    } else if (Array.isArray(err.detail) && err.detail.length > 0) {
+      msg = err.detail.map((d: any) => d.msg || JSON.stringify(d)).join('; ');
+    }
+    throw new Error(msg);
+  }
+  return await response.json();
+}
+
 
 
 
