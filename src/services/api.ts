@@ -960,9 +960,6 @@ export async function clearAllAuditLogsApi(token: string): Promise<{ message: st
   }
   return data;
 }
-<<<<<<< HEAD
-=======
-
 /**
  * User Story SCRUM-27: Xem và cập nhật hồ sơ cá nhân
  */
@@ -1121,4 +1118,3 @@ export async function activateSupplierApi(token: string, code: string): Promise<
   }
   return data;
 }
->>>>>>> test

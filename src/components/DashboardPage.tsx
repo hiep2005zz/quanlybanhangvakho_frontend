@@ -11,12 +11,9 @@ import { AccessDeniedView } from './AccessDeniedView';
 import SupplierManagementView from './SupplierManagementView';
 import { AuditLogView } from './AuditLogView';
 import { ProductAuditDrawer } from './ProductAuditDrawer';
-<<<<<<< HEAD
 import OrdersView from './OrdersView';
-=======
 import { ProfileView } from './ProfileView';
 import { ProductBulkImportModal } from './ProductBulkImportModal';
->>>>>>> test
 import './dashboard.css';
 import { hasPermission, Permissions } from '../hooks/usePermission';
 
@@ -49,9 +46,7 @@ export default function DashboardPage({
   const canCreateOrders = hasPermission(user, Permissions.ORDER_WRITE);
   const canManageOrders = officialRoles.includes('admin') || officialRoles.includes('sales_manager');
 
-<<<<<<< HEAD
-  const [activeTab, setActiveTabState] = useState<'inventory' | 'users' | 'audit-logs' | 'orders'>(() => {
-=======
+
   // Quyền quản lý nhà cung cấp
   const SUPPLIER_ROLES = ['admin', 'warehouse', 'warehouse_manager'];
   const canManageSuppliers = officialRoles.some((r) => SUPPLIER_ROLES.includes(r));
@@ -60,248 +55,117 @@ export default function DashboardPage({
   const isSalesManager = user.role === 'sales_manager' || Boolean(user.roles && user.roles.includes('sales_manager'));
   const canManageCategories = isAdmin || isSalesManager;
 
-  // 2. Khởi tạo State với Clean URL (/users, /audit-logs, /categories, /suppliers, /profile)
-  const [activeTab, setActiveTabState] = useState<'inventory' | 'users' | 'categories' | 'audit-logs' | 'profile' | 'suppliers'>(() => {
->>>>>>> test
+  type DashboardTab = 'inventory' | 'users' | 'categories' | 'audit-logs' | 'profile' | 'suppliers' | 'orders';
+  const [activeTab, setActiveTabState] = useState<DashboardTab>(() => {
     const pathname = window.location.pathname.toLowerCase();
     const params = new URLSearchParams(window.location.search);
-    const tab = (params.get('tab') || params.get('view') || '').toLowerCase();
+    const legacyTab = (params.get('tab') || params.get('view') || '').toLowerCase();
     const isUsersPath = pathname === '/users' || pathname.startsWith('/users/') || pathname === '/admin' || pathname.startsWith('/admin/');
     const isCategoriesPath = pathname === '/categories';
     const isAuditPath = pathname === '/audit-logs' || pathname.startsWith('/audit-logs/');
-<<<<<<< HEAD
     const isOrdersPath = pathname === '/orders' || pathname.startsWith('/orders/');
-
-    if (isOrdersPath && canReadOrders) return 'orders';
-    if ((isAuditPath || tab === 'audit-logs' || tab === 'audit') && isAdmin) {
-      if (pathname !== '/audit-logs' || params.size) window.history.replaceState({}, '', '/audit-logs');
-      return 'audit-logs';
-    }
-    if ((isUsersPath || tab === 'users') && isAdmin) {
-      if (pathname !== '/users' || params.size) window.history.replaceState({}, '', '/users');
-      return 'users';
-    }
-    if (pathname !== '/' && (isUsersPath || isAuditPath || isOrdersPath || params.size)) {
-      window.history.replaceState({}, '', '/');
-=======
     const isProfilePath = pathname === '/profile' || pathname.startsWith('/profile/');
+    const isSuppliersPath = pathname === '/suppliers' || pathname.startsWith('/suppliers/');
+    const destination: DashboardTab | null =
+      isOrdersPath ? 'orders'
+        : isProfilePath ? 'profile'
+          : isSuppliersPath ? 'suppliers'
+            : isCategoriesPath ? 'categories'
+              : isAuditPath ? 'audit-logs'
+                : isUsersPath ? 'users'
+                  : legacyTab === 'profile' ? 'profile'
+                    : legacyTab === 'orders' ? 'orders'
+                      : legacyTab === 'suppliers' ? 'suppliers'
+                        : legacyTab === 'categories' ? 'categories'
+                          : legacyTab === 'audit' || legacyTab === 'audit-logs' ? 'audit-logs'
+                            : legacyTab === 'users' ? 'users'
+                              : null;
 
-    // Dọn sạch tàn dư query parameter cũ (?tab=users, ?tab=audit-logs, ?tab=profile)
-    const params = new URLSearchParams(window.location.search);
-    const hasOldTabParam = params.has('tab') || params.has('view');
-    const oldTabVal = (params.get('tab') || params.get('view') || '').toLowerCase();
-
-    if (pathname === '/suppliers' || pathname.startsWith('/suppliers/')) {
-      return 'suppliers';
+    const allowed =
+      destination === 'users' || destination === 'audit-logs' ? isAdmin
+        : destination === 'orders' ? canReadOrders
+          : destination === 'categories' ? canManageCategories
+            : destination === 'suppliers' ? canManageSuppliers
+              : true;
+    if (destination && allowed) {
+      const route = `/${destination}`;
+      if (pathname !== route || params.size) window.history.replaceState({}, '', route);
+      return destination;
     }
-    if (isProfilePath || oldTabVal === 'profile') {
-      if (hasOldTabParam || pathname !== '/profile') {
-        try {
-          window.history.replaceState({}, '', '/profile');
-        } catch {
-          // ignore
-        }
-      }
-      return 'profile';
-    } else if (isAuditPath || oldTabVal === 'audit-logs' || oldTabVal === 'audit') {
-      if (hasOldTabParam || pathname !== '/audit-logs') {
-        try {
-          window.history.replaceState({}, '', '/audit-logs');
-        } catch {
-          // ignore
-        }
-      }
-      return 'audit-logs';
-    } else if (isUsersPath || hasOldTabParam) {
-      if (hasOldTabParam || pathname !== '/users') {
-        try {
-          window.history.replaceState({}, '', '/users');
-        } catch {
-          // ignore
-        }
-      }
-      return 'users';
-    }
-    if (isCategoriesPath) {
-      if (canManageCategories) {
-        return 'categories';
-      }
-      try {
-        window.history.replaceState({}, '', '/');
-      } catch {
-        // ignore
-      }
->>>>>>> test
-    }
+    if (destination && !allowed && (pathname !== '/' || params.size)) window.history.replaceState({}, '', '/');
     return 'inventory';
   });
 
-<<<<<<< HEAD
-  const setActiveTab = (tab: 'inventory' | 'users' | 'audit-logs' | 'orders') => {
-    if (tab === 'users' || tab === 'audit-logs') {
-      if (!isAdmin) {
-        setActiveTabState('inventory');
-        window.history.replaceState({}, '', '/');
-        return;
-      }
-      setActiveTabState(tab);
-      window.history.pushState({}, '', tab === 'users' ? '/users' : '/audit-logs');
-      return;
-=======
-  // 3. Chuyển đổi Route Clean URL
-  const setActiveTab = (tab: 'inventory' | 'users' | 'categories' | 'audit-logs' | 'profile' | 'suppliers') => {
-    if (tab === 'profile') {
-      setActiveTabState('profile');
-      try {
-        window.history.pushState({}, '', '/profile');
-      } catch {
-        // ignore
-      }
-    } else if (tab === 'users') {
-      setActiveTabState('users');
-      try {
-        window.history.pushState({}, '', '/users');
-      } catch {
-        // ignore
-      }
-    } else if (tab === 'categories') {
-      if (!canManageCategories) {
-        setActiveTabState('inventory');
-        try {
-          window.history.replaceState({}, '', '/');
-        } catch {
-          // ignore
-        }
-        return;
-      }
-      setActiveTabState('categories');
-      try {
-        window.history.pushState({}, '', '/categories');
-      } catch {
-        // ignore
-      }
-    } else if (tab === 'audit-logs') {
-      setActiveTabState('audit-logs');
-      try {
-        window.history.pushState({}, '', '/audit-logs');
-      } catch {
-        // ignore
-      }
-    } else if (tab === 'suppliers') {
-      setActiveTabState('suppliers');
-      try {
-        window.history.pushState({}, '', '/suppliers');
-      } catch {
-        // ignore
-      }
-    } else {
-      setActiveTabState('inventory');
-      try {
-        window.history.pushState({}, '', '/');
-      } catch {
-        // ignore
-      }
->>>>>>> test
-    }
-    if (tab === 'orders' && !canReadOrders) {
+  const setActiveTab = (tab: DashboardTab) => {
+    const allowed =
+      tab === 'users' || tab === 'audit-logs' ? isAdmin
+        : tab === 'orders' ? canReadOrders
+          : tab === 'categories' ? canManageCategories
+            : tab === 'suppliers' ? canManageSuppliers
+              : true;
+    if (!allowed) {
       setActiveTabState('inventory');
       window.history.replaceState({}, '', '/');
       return;
     }
     setActiveTabState(tab);
-    window.history.pushState({}, '', tab === 'orders' ? '/orders' : '/');
+    window.history.pushState({}, '', tab === 'inventory' ? '/' : `/${tab}`);
   };
 
-<<<<<<< HEAD
-=======
-  // 4. [REACTIVE GUARD] Tự động bảo vệ khi phiên thay đổi (chỉ redirect nếu tab không thuộc luồng cho phép)
->>>>>>> test
   useEffect(() => {
-    if (activeTab === 'categories' && !canManageCategories) {
-      setActiveTabState('inventory');
-      window.history.replaceState({}, '', '/');
-    } else if (activeTab === 'orders' && !canReadOrders) {
+    const tabRequiresAdmin = activeTab === 'users' || activeTab === 'audit-logs';
+    const isAllowed =
+      tabRequiresAdmin ? isAdmin
+        : activeTab === 'categories' ? canManageCategories
+          : activeTab === 'orders' ? canReadOrders
+            : activeTab === 'suppliers' ? canManageSuppliers
+              : true;
+    if (!isAllowed) {
       setActiveTabState('inventory');
       window.history.replaceState({}, '', '/');
     }
-<<<<<<< HEAD
-  }, [activeTab, canReadOrders, isAdmin, user.username]);
+  }, [activeTab, canManageCategories, canManageSuppliers, canReadOrders, isAdmin, user.username]);
 
-=======
-  }, [activeTab, canManageCategories, user.username]);
-
-  // 5. Đồng bộ sự kiện Lịch sử trình duyệt (Back/Forward - popstate)
->>>>>>> test
   useEffect(() => {
     const syncFromUrl = () => {
       const pathname = window.location.pathname.toLowerCase();
       const params = new URLSearchParams(window.location.search);
-      const tab = (params.get('tab') || params.get('view') || '').toLowerCase();
+      const legacyTab = (params.get('tab') || params.get('view') || '').toLowerCase();
       const isUsersPath = pathname === '/users' || pathname.startsWith('/users/') || pathname === '/admin' || pathname.startsWith('/admin/');
       const isAuditPath = pathname === '/audit-logs' || pathname.startsWith('/audit-logs/');
-<<<<<<< HEAD
       const isOrdersPath = pathname === '/orders' || pathname.startsWith('/orders/');
-
-      if (isAuditPath || tab === 'audit-logs' || tab === 'audit') {
-        if (!isAdmin) {
-          setActiveTabState('inventory');
-          window.history.replaceState({}, '', '/');
-          return;
-        }
-        if (pathname !== '/audit-logs' || params.size) window.history.replaceState({}, '', '/audit-logs');
-        setActiveTabState('audit-logs');
-      } else if (isUsersPath || tab === 'users') {
-        if (!isAdmin) {
-=======
       const isProfilePath = pathname === '/profile' || pathname.startsWith('/profile/');
-      const params = new URLSearchParams(window.location.search);
-      const tabParam = (params.get('tab') || params.get('view') || '').toLowerCase();
-
-      if (pathname === '/suppliers' || pathname.startsWith('/suppliers/')) {
-        setActiveTabState('suppliers');
-        return;
-      }
-
-      if (isProfilePath || tabParam === 'profile') {
-        if (pathname !== '/profile' || tabParam) {
-          try {
-            window.history.replaceState({}, '', '/profile');
-          } catch {
-            // ignore
-          }
-        }
-        setActiveTabState('profile');
-      } else if (isAuditPath || tabParam === 'audit-logs' || tabParam === 'audit') {
-        if (pathname !== '/audit-logs' || tabParam) {
-          try {
-            window.history.replaceState({}, '', '/audit-logs');
-          } catch {
-            // ignore
-          }
-        }
-        setActiveTabState('audit-logs');
-      } else if (isUsersPath || tabParam === 'users') {
-        if (pathname !== '/users' || tabParam) {
-          try {
-            window.history.replaceState({}, '', '/users');
-          } catch {
-            // ignore
-          }
-        }
-        setActiveTabState('users');
-      } else if (pathname === '/categories') {
-        if (canManageCategories) {
-          setActiveTabState('categories');
-        } else {
->>>>>>> test
+      const isCategoriesPath = pathname === '/categories';
+      const isSuppliersPath = pathname === '/suppliers' || pathname.startsWith('/suppliers/');
+      const destination: DashboardTab | null =
+        isOrdersPath ? 'orders'
+          : isProfilePath ? 'profile'
+            : isSuppliersPath ? 'suppliers'
+              : isCategoriesPath ? 'categories'
+                : isAuditPath ? 'audit-logs'
+                  : isUsersPath ? 'users'
+                    : legacyTab === 'profile' ? 'profile'
+                      : legacyTab === 'orders' ? 'orders'
+                        : legacyTab === 'suppliers' ? 'suppliers'
+                          : legacyTab === 'categories' ? 'categories'
+                            : legacyTab === 'audit' || legacyTab === 'audit-logs' ? 'audit-logs'
+                              : legacyTab === 'users' ? 'users'
+                                : null;
+      if (destination) {
+        const allowed =
+          destination === 'users' || destination === 'audit-logs' ? isAdmin
+            : destination === 'orders' ? canReadOrders
+              : destination === 'categories' ? canManageCategories
+                : destination === 'suppliers' ? canManageSuppliers
+                  : true;
+        if (!allowed) {
           setActiveTabState('inventory');
           window.history.replaceState({}, '', '/');
           return;
         }
-        if (pathname !== '/users' || params.size) window.history.replaceState({}, '', '/users');
-        setActiveTabState('users');
-      } else if (isOrdersPath && canReadOrders) {
-        setActiveTabState('orders');
+        const route = `/${destination}`;
+        if (pathname !== route || params.size) window.history.replaceState({}, '', route);
+        setActiveTabState(destination);
       } else {
         setActiveTabState('inventory');
         if (pathname !== '/' || params.size) window.history.replaceState({}, '', '/');
@@ -309,16 +173,8 @@ export default function DashboardPage({
     };
 
     window.addEventListener('popstate', syncFromUrl);
-<<<<<<< HEAD
     return () => window.removeEventListener('popstate', syncFromUrl);
-  }, [canReadOrders, isAdmin]);
-=======
-    return () => {
-      window.removeEventListener('popstate', syncFromUrl);
-    };
-  }, [canManageCategories]);
-
->>>>>>> test
+  }, [canManageCategories, canManageSuppliers, canReadOrders, isAdmin]);
   const [products, setProducts] = useState<ProductItem[]>([]);
   const [productSearchTerm, setProductSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -1020,28 +876,17 @@ export default function DashboardPage({
             <span style={{ fontWeight: activeTab === 'inventory' ? '700' : '500', fontSize: '14.5px' }}>Quản lý kho hàng</span>
           </div>
 
-<<<<<<< HEAD
           {canReadOrders && (
             <div
               className={`sidebar-menu-item ${activeTab === 'orders' ? 'active' : ''}`}
               id="btn-sidebar-orders"
               onClick={() => {
                 setActiveTab('orders');
-=======
-          {/* Nhà cung cấp - Thủ kho, Quản lý kho, Admin */}
-          {canManageSuppliers && (
-            <div
-              className={`sidebar-menu-item ${activeTab === 'suppliers' ? 'active' : ''}`}
-              id="btn-sidebar-suppliers"
-              onClick={() => {
-                setActiveTab('suppliers');
->>>>>>> test
                 handleCloseMenu();
               }}
             >
               <div className="sidebar-icon-box">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-<<<<<<< HEAD
                   <path d="M6 2h9l5 5v15H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" />
                   <path d="M14 2v6h6M8 13h8M8 17h8" />
                 </svg>
@@ -1050,8 +895,18 @@ export default function DashboardPage({
             </div>
           )}
 
-          {/* Mục Phân quyền & Tạo tài khoản - CHỈ hiển thị nếu là Admin */}
-=======
+          {/* Nhà cung cấp - Thủ kho, Quản lý kho, Admin */}
+          {canManageSuppliers && (
+            <div
+              className={`sidebar-menu-item ${activeTab === 'suppliers' ? 'active' : ''}`}
+              id="btn-sidebar-suppliers"
+              onClick={() => {
+                setActiveTab('suppliers');
+                handleCloseMenu();
+              }}
+            >
+              <div className="sidebar-icon-box">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                   <rect x="1" y="3" width="15" height="13" />
                   <polygon points="16 8 20 8 23 11 23 16 16 16 16 8" />
                   <circle cx="5.5" cy="18.5" r="2.5" />
@@ -1081,7 +936,6 @@ export default function DashboardPage({
           </div>
 
           {/* Phân quyền & Tạo tài khoản - Admin */}
->>>>>>> test
           {(user.role === 'admin' || (user.roles && user.roles.includes('admin'))) && (
             <div
               className={`sidebar-menu-item ${activeTab === 'users' ? 'active' : ''}`}
@@ -1171,7 +1025,6 @@ export default function DashboardPage({
         </div>
       </aside>
 
-<<<<<<< HEAD
       {/* Main Content: Switch between Orders, User Management, Audit Logs, Inventory and Pending Authorization */}
       {activeTab === 'orders' ? (
         canReadOrders ? (
@@ -1192,10 +1045,6 @@ export default function DashboardPage({
           />
         )
       ) : activeTab === 'users' ? (
-=======
-      {/* Main Content */}
-      {activeTab === 'users' ? (
->>>>>>> test
         isAdmin ? (
           <UserManagementView
             currentUser={user}
