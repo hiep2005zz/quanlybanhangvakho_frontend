@@ -351,11 +351,11 @@ export const SupplierManagementView: React.FC<SupplierManagementViewProps> = ({ 
                     </td>
                     <td style={{ ...tdStyle, fontWeight: '600', color: '#0f172a' }}>{s.name}</td>
                     <td style={{ ...tdStyle, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: '12.5px' }}>
-                      {s.tax_code || <span style={{ color: '#94a3b8' }}>—</span>}
+                      {s.tax_code || <span style={{ color: '#94a3b8', fontFamily: 'inherit' }}>Không có</span>}
                     </td>
-                    <td style={tdStyle}>{s.contact_person || <span style={{ color: '#94a3b8' }}>—</span>}</td>
+                    <td style={tdStyle}>{s.contact_person || <span style={{ color: '#94a3b8' }}>Không có</span>}</td>
                     <td style={{ ...tdStyle, maxWidth: '260px' }}>
-                      {s.payment_terms || <span style={{ color: '#94a3b8' }}>—</span>}
+                      {s.payment_terms || <span style={{ color: '#94a3b8' }}>Không có</span>}
                     </td>
                     <td style={{ ...tdStyle, textAlign: 'center' }}>
                       {s.is_active ? (

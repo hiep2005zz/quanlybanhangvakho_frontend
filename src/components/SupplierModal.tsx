@@ -93,6 +93,10 @@ export const SupplierModal: React.FC<SupplierModalProps> = ({
       setError('Tên nhà cung cấp phải có ít nhất 2 ký tự.');
       return;
     }
+      if (!taxCode) {
+    setError('Vui lòng nhập mã số thuế.');
+    return;
+  }
     if (taxCode && !TAX_REGEX.test(taxCode)) {
       setError('Mã số thuế không hợp lệ. Nhập 10 chữ số, hoặc 13 chữ số cho đơn vị phụ thuộc (ví dụ: 0123456789 hoặc 0123456789-001).');
       return;
@@ -100,7 +104,7 @@ export const SupplierModal: React.FC<SupplierModalProps> = ({
 
     const payload = {
       name,
-      tax_code: taxCode || null,
+      tax_code: taxCode,
       contact_person: form.contact_person.trim() || null,
       payment_terms: form.payment_terms.trim() || null,
     };
@@ -253,7 +257,9 @@ export const SupplierModal: React.FC<SupplierModalProps> = ({
 
             {/* Mã số thuế */}
             <div>
-              <label style={labelStyle}>Mã số thuế</label>
+              <label style={labelStyle}>
+                Mã số thuế <span style={{ color: '#ef4444' }}>*</span>
+              </label>
               <input
                 type="text"
                 value={form.tax_code}
@@ -263,7 +269,7 @@ export const SupplierModal: React.FC<SupplierModalProps> = ({
                 onChange={(e) => setForm({ ...form, tax_code: e.target.value })}
                 style={inputStyle}
               />
-              <span style={hintStyle}>Không bắt buộc. Nếu nhập thì không được trùng với nhà cung cấp khác.</span>
+              <span style={hintStyle}>Bắt buộc. Không được trùng với nhà cung cấp khác.</span>
             </div>
 
             {/* Người liên hệ */}

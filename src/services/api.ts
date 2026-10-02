@@ -896,7 +896,7 @@ export interface SupplierListResponse {
 
 export interface SupplierPayload {
   name: string;
-  tax_code?: string | null;
+  tax_code: string;
   contact_person?: string | null;
   payment_terms?: string | null;
 }
