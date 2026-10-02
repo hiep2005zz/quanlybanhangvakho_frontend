@@ -10,10 +10,7 @@ import { StatusToastHost, emitStatusToast } from './StatusToast';
 import { AccessDeniedView } from './AccessDeniedView';
 import { AuditLogView } from './AuditLogView';
 import { ProductAuditDrawer } from './ProductAuditDrawer';
-<<<<<<< HEAD
 import { ProductDrawer } from './ProductDrawer';
-=======
->>>>>>> 1541664110b191ca523e1eb06946cae39be4f8b7
 import { ProfileView } from './ProfileView';
 import './dashboard.css';
 
@@ -46,13 +43,10 @@ export default function DashboardPage({
   const isSalesManager = user.role === 'sales_manager' || Boolean(user.roles && user.roles.includes('sales_manager'));
   const canManageCategories = isAdmin || isSalesManager;
 
-<<<<<<< HEAD
   // 2. Khởi tạo State với Clean URL (/users, /audit-logs, /profile)
   const [activeTab, setActiveTabState] = useState<'inventory' | 'users' | 'audit-logs' | 'profile'>(() => {
-=======
   // 2. Khởi tạo State với Clean URL (/users, /audit-logs, /categories, /profile)
   const [activeTab, setActiveTabState] = useState<'inventory' | 'users' | 'categories' | 'audit-logs' | 'profile'>(() => {
->>>>>>> 1541664110b191ca523e1eb06946cae39be4f8b7
     const pathname = window.location.pathname.toLowerCase();
     const isUsersPath = pathname === '/users' || pathname.startsWith('/users/') || pathname === '/admin' || pathname.startsWith('/admin/');
     const isCategoriesPath = pathname === '/categories';
@@ -89,8 +83,6 @@ export default function DashboardPage({
         } catch {
           // ignore
         }
-<<<<<<< HEAD
-=======
       }
       return 'users';
     }
@@ -102,28 +94,22 @@ export default function DashboardPage({
         window.history.replaceState({}, '', '/');
       } catch {
         // ignore
->>>>>>> 1541664110b191ca523e1eb06946cae39be4f8b7
       }
       return 'users';
     }
     return 'inventory';
   });
 
-<<<<<<< HEAD
   // 3. Chuyển đổi Route Clean URL: /users, /audit-logs, /profile, /
   const setActiveTab = (tab: 'inventory' | 'users' | 'audit-logs' | 'profile') => {
-=======
   // 3. Chuyển đổi Route Clean URL: /users, /categories, /audit-logs, /profile, /
   const setActiveTab = (tab: 'inventory' | 'users' | 'categories' | 'audit-logs' | 'profile') => {
->>>>>>> 1541664110b191ca523e1eb06946cae39be4f8b7
     if (tab === 'profile') {
       setActiveTabState('profile');
       try {
         window.history.pushState({}, '', '/profile');
       } catch {
         // ignore
-<<<<<<< HEAD
-=======
       }
     } else if (tab === 'users') {
       if (!isAdmin) {
@@ -134,7 +120,6 @@ export default function DashboardPage({
           // ignore
         }
         return;
->>>>>>> 1541664110b191ca523e1eb06946cae39be4f8b7
       }
     } else if (tab === 'users') {
       setActiveTabState('users');
@@ -143,8 +128,6 @@ export default function DashboardPage({
       } catch {
         // ignore
       }
-<<<<<<< HEAD
-=======
     } else if (tab === 'categories') {
       if (!canManageCategories) {
         setActiveTabState('inventory');
@@ -161,7 +144,6 @@ export default function DashboardPage({
       } catch {
         // ignore
       }
->>>>>>> 1541664110b191ca523e1eb06946cae39be4f8b7
     } else if (tab === 'audit-logs') {
       setActiveTabState('audit-logs');
       try {
@@ -179,9 +161,7 @@ export default function DashboardPage({
     }
   };
 
-<<<<<<< HEAD
   // 4. Đồng bộ sự kiện Lịch sử trình duyệt (Back/Forward - popstate) chuẩn Clean URL
-=======
   // 4. [REACTIVE GUARD] Tự động bảo vệ khi phiên thay đổi (ví dụ: switch sang tài khoản không phải Admin)
   useEffect(() => {
     if ((activeTab === 'users' || activeTab === 'audit-logs') && !isAdmin) {
@@ -202,7 +182,6 @@ export default function DashboardPage({
   }, [activeTab, isAdmin, canManageCategories, user.username]);
 
   // 5. Đồng bộ sự kiện Lịch sử trình duyệt (Back/Forward - popstate) chuẩn Clean URL
->>>>>>> 1541664110b191ca523e1eb06946cae39be4f8b7
   useEffect(() => {
     const syncFromUrl = () => {
       const pathname = window.location.pathname.toLowerCase();
@@ -232,8 +211,6 @@ export default function DashboardPage({
         setActiveTabState('audit-logs');
       } else if (isUsersPath || tabParam === 'users') {
         if (pathname !== '/users' || tabParam) {
-<<<<<<< HEAD
-=======
           try {
             window.history.replaceState({}, '', '/users');
           } catch {
@@ -246,7 +223,6 @@ export default function DashboardPage({
           setActiveTabState('categories');
         } else {
           setActiveTabState('inventory');
->>>>>>> 1541664110b191ca523e1eb06946cae39be4f8b7
           try {
             window.history.replaceState({}, '', '/users');
           } catch {
@@ -263,11 +239,8 @@ export default function DashboardPage({
     return () => {
       window.removeEventListener('popstate', syncFromUrl);
     };
-<<<<<<< HEAD
   }, []);
-=======
   }, [canManageCategories]);
->>>>>>> 1541664110b191ca523e1eb06946cae39be4f8b7
   const [products, setProducts] = useState<ProductItem[]>([]);
   const [productSearchInput, setProductSearchInput] = useState('');
   const [productSearchTerm, setProductSearchTerm] = useState('');
