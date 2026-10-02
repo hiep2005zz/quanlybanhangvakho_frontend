@@ -529,24 +529,39 @@ export default function DashboardPage({
                 animation: 'fadeInCard 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
               }}
             >
-              {/* Phần trên: Avatar + Tên + Role Badge */}
+              {/* Phần trên: Avatar + Tên + Role Badge (Click Avatar để đến trang Hồ sơ & Đổi ảnh) */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '18px' }}>
-                <div style={{
-                  width: '54px',
-                  height: '54px',
-                  borderRadius: '16px',
-                  background: `linear-gradient(135deg, ${currentBadgeColor} 0%, #6366f1 100%)`,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: '#ffffff',
-                  fontWeight: '800',
-                  fontSize: '22px',
-                  flexShrink: 0,
-                  boxShadow: `0 8px 20px ${currentBadgeColor}55, inset 0 1px 0 rgba(255, 255, 255, 0.4)`,
-                  border: '1px solid rgba(255, 255, 255, 0.25)',
-                  overflow: 'hidden'
-                }}>
+                <div
+                  onClick={() => {
+                    setIsUserMenuOpen(false);
+                    setActiveTab('profile');
+                  }}
+                  title="Nhấp để xem hồ sơ và đổi ảnh đại diện"
+                  style={{
+                    width: '54px',
+                    height: '54px',
+                    borderRadius: '16px',
+                    background: `linear-gradient(135deg, ${currentBadgeColor} 0%, #6366f1 100%)`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#ffffff',
+                    fontWeight: '800',
+                    fontSize: '22px',
+                    flexShrink: 0,
+                    boxShadow: `0 8px 20px ${currentBadgeColor}55, inset 0 1px 0 rgba(255, 255, 255, 0.4)`,
+                    border: '1px solid rgba(255, 255, 255, 0.25)',
+                    overflow: 'hidden',
+                    cursor: 'pointer',
+                    transition: 'transform 0.18s ease, box-shadow 0.18s ease',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = 'scale(1.06)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'scale(1)';
+                  }}
+                >
                   {currentUserState.avatar_url || currentUserState.avatar_thumbnail_url ? (
                     <img
                       src={(currentUserState.avatar_url || currentUserState.avatar_thumbnail_url) ?? ''}
@@ -643,7 +658,7 @@ export default function DashboardPage({
 
               {/* Danh sách hành động (Interactive Buttons for Light Theme) */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {/* Nút Hồ sơ cá nhân - Dành cho tất cả 7 vai trò người dùng */}
+                {/* 1. Hồ sơ cá nhân - Dành cho tất cả vai trò */}
                 <button
                   onClick={() => {
                     setIsUserMenuOpen(false);
@@ -665,6 +680,7 @@ export default function DashboardPage({
                     cursor: 'pointer',
                     transition: 'all 0.18s ease',
                     boxShadow: 'none',
+                    boxSizing: 'border-box',
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.background = '#eff6ff';
@@ -676,7 +692,7 @@ export default function DashboardPage({
                     e.currentTarget.style.borderColor = activeTab === 'profile' ? '#bfdbfe' : '#e2e8f0';
                     e.currentTarget.style.color = activeTab === 'profile' ? '#1d4ed8' : '#1e293b';
                   }}
-                  title="Xem hồ sơ và đổi ảnh đại diện"
+                  title="Hồ sơ cá nhân & Đổi ảnh đại diện"
                 >
                   <div style={{
                     width: '28px',
@@ -687,14 +703,17 @@ export default function DashboardPage({
                     alignItems: 'center',
                     justifyContent: 'center',
                     color: '#2563eb',
+                    flexShrink: 0,
                   }}>
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
                       <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
                       <circle cx="12" cy="7" r="4" />
                     </svg>
                   </div>
-                  <span>Hồ sơ & Ảnh đại diện</span>
+                  <span>Hồ sơ cá nhân</span>
                 </button>
+
+                {/* 2. Phân quyền & Tạo tài khoản - CHỈ hiển thị nếu là Admin */}
                 {(user.role === 'admin' || (user.roles && user.roles.includes('admin'))) && (
                   <button
                     onClick={() => {
@@ -717,6 +736,7 @@ export default function DashboardPage({
                       cursor: 'pointer',
                       transition: 'all 0.18s ease',
                       boxShadow: 'none',
+                      boxSizing: 'border-box',
                     }}
                     onMouseEnter={(e) => {
                       e.currentTarget.style.background = '#eff6ff';
@@ -739,6 +759,7 @@ export default function DashboardPage({
                       alignItems: 'center',
                       justifyContent: 'center',
                       color: '#2563eb',
+                      flexShrink: 0,
                     }}>
                       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
                         <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
@@ -751,62 +772,70 @@ export default function DashboardPage({
                   </button>
                 )}
 
-                <button
-                  onClick={() => {
-                    setIsUserMenuOpen(false);
-                    setIsProfileModalOpen(true);
-                  }}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '12px',
-                    width: '100%',
-                    padding: '10px 14px',
-                    borderRadius: '10px',
-                    background: '#f8fafc',
-                    border: '1px solid #e2e8f0',
-                    color: '#1e293b',
-                    fontSize: '13.5px',
-                    fontWeight: '600',
-                    cursor: 'pointer',
-                    transition: 'all 0.18s ease',
-                    boxShadow: 'none',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = '#eff6ff';
-                    e.currentTarget.style.borderColor = '#bfdbfe';
-                    e.currentTarget.style.color = '#2563eb';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = '#f8fafc';
-                    e.currentTarget.style.borderColor = '#e2e8f0';
-                    e.currentTarget.style.color = '#1e293b';
-                  }}
-                >
-                  <div style={{
-                    width: '28px',
-                    height: '28px',
-                    borderRadius: '8px',
-                    background: '#dbeafe',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: '#2563eb',
-                  }}>
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                      <circle cx="12" cy="7" r="4" />
-                    </svg>
-                  </div>
-                  <span>Hồ sơ & Ảnh đại diện</span>
-                </button>
+                {/* 3. Nhật ký thao tác - CHỈ hiển thị nếu là Admin */}
+                {(user.role === 'admin' || (user.roles && user.roles.includes('admin'))) && (
+                  <button
+                    onClick={() => {
+                      setIsUserMenuOpen(false);
+                      setActiveTab('audit-logs');
+                    }}
+                    id="btn-popover-audit-logs"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px',
+                      width: '100%',
+                      padding: '10px 14px',
+                      borderRadius: '10px',
+                      background: activeTab === 'audit-logs' ? '#eff6ff' : '#f8fafc',
+                      border: activeTab === 'audit-logs' ? '1px solid #bfdbfe' : '1px solid #e2e8f0',
+                      color: activeTab === 'audit-logs' ? '#1d4ed8' : '#1e293b',
+                      fontSize: '13.5px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      transition: 'all 0.18s ease',
+                      boxShadow: 'none',
+                      boxSizing: 'border-box',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = '#eff6ff';
+                      e.currentTarget.style.borderColor = '#93c5fd';
+                      e.currentTarget.style.color = '#1d4ed8';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = activeTab === 'audit-logs' ? '#eff6ff' : '#f8fafc';
+                      e.currentTarget.style.borderColor = activeTab === 'audit-logs' ? '#bfdbfe' : '#e2e8f0';
+                      e.currentTarget.style.color = activeTab === 'audit-logs' ? '#1d4ed8' : '#1e293b';
+                    }}
+                    title="Truy cập Nhật ký thao tác hệ thống"
+                  >
+                    <div style={{
+                      width: '28px',
+                      height: '28px',
+                      borderRadius: '8px',
+                      background: '#dbeafe',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#2563eb',
+                      flexShrink: 0,
+                    }}>
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M12 20h9" />
+                        <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                      </svg>
+                    </div>
+                    <span>Nhật ký thao tác</span>
+                  </button>
+                )}
 
+                {/* 4. Đổi mật khẩu & Bảo mật */}
                 <button
                   onClick={() => {
                     setIsUserMenuOpen(false);
                     setIsSecurityModalOpen(true);
                   }}
-
+                  id="btn-popover-security"
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -822,6 +851,7 @@ export default function DashboardPage({
                     cursor: 'pointer',
                     transition: 'all 0.18s ease',
                     boxShadow: 'none',
+                    boxSizing: 'border-box',
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.background = '#f0f9ff';
@@ -843,6 +873,7 @@ export default function DashboardPage({
                     alignItems: 'center',
                     justifyContent: 'center',
                     color: '#0284c7',
+                    flexShrink: 0,
                   }}>
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
                       <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
@@ -852,6 +883,7 @@ export default function DashboardPage({
                   <span>Đổi mật khẩu & Bảo mật</span>
                 </button>
 
+                {/* 5. Đăng xuất */}
                 <button
                   onClick={() => {
                     if (isLoggingOut) return;
@@ -859,6 +891,7 @@ export default function DashboardPage({
                     setShowLogoutConfirm(true);
                   }}
                   disabled={isLoggingOut}
+                  id="btn-popover-logout"
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -875,6 +908,7 @@ export default function DashboardPage({
                     transition: 'all 0.18s ease',
                     boxShadow: 'none',
                     marginTop: '2px',
+                    boxSizing: 'border-box',
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.background = '#fee2e2';
@@ -896,6 +930,7 @@ export default function DashboardPage({
                     alignItems: 'center',
                     justifyContent: 'center',
                     color: '#dc2626',
+                    flexShrink: 0,
                   }}>
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
                       <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
@@ -1001,7 +1036,7 @@ export default function DashboardPage({
             <span style={{ fontWeight: activeTab === 'inventory' ? '700' : '500', fontSize: '14.5px' }}>Quản lý kho hàng</span>
           </div>
 
-          {/* Hồ sơ & Ảnh đại diện - Tất cả tài khoản */}
+          {/* Hồ sơ cá nhân - Tất cả tài khoản */}
           <div
             className={`sidebar-menu-item ${activeTab === 'profile' ? 'active' : ''}`}
             id="btn-sidebar-profile"
@@ -1016,7 +1051,7 @@ export default function DashboardPage({
                 <circle cx="12" cy="7" r="4" />
               </svg>
             </div>
-            <span style={{ fontWeight: activeTab === 'profile' ? '700' : '500', fontSize: '14.5px' }}>Hồ sơ & Ảnh đại diện</span>
+            <span style={{ fontWeight: activeTab === 'profile' ? '700' : '500', fontSize: '14.5px' }}>Hồ sơ cá nhân</span>
           </div>
 
           {/* Mục Phân quyền & Tạo tài khoản - CHỈ hiển thị nếu là Admin */}
