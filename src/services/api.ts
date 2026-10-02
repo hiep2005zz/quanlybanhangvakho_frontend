@@ -626,6 +626,7 @@ export async function getAdminContactApi(): Promise<{ admin_email: string; admin
   return { admin_email: 'daongochiep645@gmail.com', admin_name: 'Nguyễn Quản Trị' };
 }
 
+
 export interface Category {
   id: number;
   name: string;
@@ -702,4 +703,109 @@ export async function moveProductCategoryApi(token: string, productId: number, c
   if (!response.ok) throw new Error(data.detail || 'Lỗi cập nhật danh mục sản phẩm');
   return data;
 }
+
+// ==========================================
+// SCRUM-29: AUDIT LOGS INTERFACES & CLIENT
+// ==========================================
+
+export interface AuditLogItem {
+  id: number;
+  user_id?: number | null;
+  user_name?: string | null;
+  action_type: string;
+  entity_type: string;
+  entity_id: string;
+  old_values?: string | null;
+  new_values?: string | null;
+  reason?: string | null;
+  ip_address?: string | null;
+  created_at: string;
+}
+
+export interface AuditLogListResponse {
+  items: AuditLogItem[];
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+}
+
+export interface AuditLogFilterParams {
+  user_id?: number | null;
+  entity_type?: string;
+  entity_id?: string;
+  action_type?: string;
+  from_date?: string;
+  to_date?: string;
+  page?: number;
+  page_size?: number;
+}
+
+export async function getAuditLogsApi(token: string, params: AuditLogFilterParams = {}): Promise<AuditLogListResponse> {
+  const query = new URLSearchParams();
+  if (params.user_id !== undefined && params.user_id !== null) {
+    query.set('user_id', String(params.user_id));
+  }
+  if (params.entity_type && params.entity_type !== 'ALL') {
+    query.set('entity_type', params.entity_type);
+  }
+  if (params.entity_id && params.entity_id.trim()) {
+    query.set('entity_id', params.entity_id.trim());
+  }
+  if (params.action_type && params.action_type !== 'ALL') {
+    query.set('action_type', params.action_type);
+  }
+  if (params.from_date && params.from_date.trim()) {
+    query.set('from_date', params.from_date.trim());
+  }
+  if (params.to_date && params.to_date.trim()) {
+    query.set('to_date', params.to_date.trim());
+  }
+  if (params.page) {
+    query.set('page', String(params.page));
+  }
+  if (params.page_size) {
+    query.set('page_size', String(params.page_size));
+  }
+
+  const url = `${API_BASE_URL}/audit-logs${query.toString() ? `?${query.toString()}` : ''}`;
+  const response = await authenticatedFetch(url, { method: 'GET' }, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi tải nhật ký thao tác (Mã lỗi ${response.status})`);
+  }
+  return data;
+}
+
+export async function getEntityAuditLogsApi(token: string, entityType: string, entityId: string | number): Promise<AuditLogItem[]> {
+  const url = `${API_BASE_URL}/audit-logs/entity/${encodeURIComponent(entityType)}/${encodeURIComponent(String(entityId))}`;
+  const response = await authenticatedFetch(url, { method: 'GET' }, token);
+  const data = await response.json().catch(() => ([]));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi tải lịch sử thao tác đối tượng (Mã lỗi ${response.status})`);
+  }
+  return Array.isArray(data) ? data : [];
+}
+
+export async function deleteAuditLogApi(token: string, logId: number): Promise<{ message: string; deleted_id?: number }> {
+  const url = `${API_BASE_URL}/audit-logs/${logId}`;
+  const response = await authenticatedFetch(url, { method: 'DELETE' }, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi xóa bản ghi nhật ký (Mã lỗi ${response.status})`);
+  }
+  return data;
+}
+
+export async function clearAllAuditLogsApi(token: string): Promise<{ message: string }> {
+  const url = `${API_BASE_URL}/audit-logs`;
+  const response = await authenticatedFetch(url, { method: 'DELETE' }, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi xóa toàn bộ nhật ký (Mã lỗi ${response.status})`);
+  }
+  return data;
+}
+
+
 

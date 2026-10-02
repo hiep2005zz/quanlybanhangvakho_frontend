@@ -130,8 +130,8 @@ function App() {
       const search = window.location.search;
       const isReset = pathname.includes('reset-password') || new URLSearchParams(search).has('token');
 
-      // Nếu không phải luồng đặt lại mật khẩu mà URL dính /users hoặc params thừa -> đưa về sạch '/'
-      if (!isReset && (pathname === '/users' || pathname.startsWith('/users/') || pathname === '/admin' || (search && !new URLSearchParams(search).has('expired')))) {
+      // Nếu không phải luồng đặt lại mật khẩu mà URL dính /users, /audit-logs hoặc params thừa -> đưa về sạch '/'
+      if (!isReset && (pathname === '/users' || pathname.startsWith('/users/') || pathname === '/audit-logs' || pathname.startsWith('/audit-logs/') || pathname === '/admin' || (search && !new URLSearchParams(search).has('expired')))) {
         try {
           window.history.replaceState({}, '', '/');
         } catch {
