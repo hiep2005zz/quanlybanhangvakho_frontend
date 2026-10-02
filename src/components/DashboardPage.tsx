@@ -490,7 +490,9 @@ export default function DashboardPage({
                 width: '100%',
                 height: '100%',
                 borderRadius: '50%',
-                background: `linear-gradient(135deg, ${currentBadgeColor} 0%, #2563eb 100%)`,
+                background: (user.avatar_thumbnail_url || user.avatar_url)
+                  ? '#f8fafc'
+                  : `linear-gradient(135deg, ${currentBadgeColor} 0%, #2563eb 100%)`,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -498,8 +500,18 @@ export default function DashboardPage({
                 fontWeight: '700',
                 fontSize: '15px',
                 boxShadow: '0 2px 5px rgba(0, 0, 0, 0.15)',
+                overflow: 'hidden',
+                border: (user.avatar_thumbnail_url || user.avatar_url) ? '1.5px solid #e2e8f0' : 'none',
               }}>
-                {(user.full_name || user.username).charAt(0).toUpperCase()}
+                {(user.avatar_thumbnail_url || user.avatar_url) ? (
+                  <img
+                    src={user.avatar_thumbnail_url || user.avatar_url || ''}
+                    alt={user.full_name || user.username}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                  />
+                ) : (
+                  (user.full_name || user.username).charAt(0).toUpperCase()
+                )}
               </div>
               <span
                 style={{
@@ -540,7 +552,9 @@ export default function DashboardPage({
                   width: '54px',
                   height: '54px',
                   borderRadius: '16px',
-                  background: `linear-gradient(135deg, ${currentBadgeColor} 0%, #6366f1 100%)`,
+                  background: (user.avatar_url || user.avatar_thumbnail_url)
+                    ? '#f8fafc'
+                    : `linear-gradient(135deg, ${currentBadgeColor} 0%, #6366f1 100%)`,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -549,9 +563,18 @@ export default function DashboardPage({
                   fontSize: '22px',
                   flexShrink: 0,
                   boxShadow: `0 8px 20px ${currentBadgeColor}55, inset 0 1px 0 rgba(255, 255, 255, 0.4)`,
-                  border: '1px solid rgba(255, 255, 255, 0.25)',
+                  border: (user.avatar_url || user.avatar_thumbnail_url) ? '2px solid #e2e8f0' : '1px solid rgba(255, 255, 255, 0.25)',
+                  overflow: 'hidden',
                 }}>
-                  {user.username.charAt(0).toUpperCase()}
+                  {(user.avatar_url || user.avatar_thumbnail_url) ? (
+                    <img
+                      src={user.avatar_url || user.avatar_thumbnail_url || ''}
+                      alt={user.full_name || user.username}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                    />
+                  ) : (
+                    user.username.charAt(0).toUpperCase()
+                  )}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <h4 style={{
@@ -975,8 +998,113 @@ export default function DashboardPage({
           </button>
         </div>
 
+        {/* Khối Thông tin Hồ sơ & Tài khoản của người dùng */}
+        <div
+          onClick={() => {
+            setActiveTab('profile');
+            handleCloseMenu();
+          }}
+          title="Xem và chỉnh sửa hồ sơ & tài khoản cá nhân"
+          style={{
+            margin: '12px 14px 6px 14px',
+            padding: '12px 14px',
+            borderRadius: '14px',
+            background: activeTab === 'profile'
+              ? 'linear-gradient(135deg, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0.12) 100%)'
+              : 'rgba(255, 255, 255, 0.08)',
+            border: activeTab === 'profile'
+              ? '1px solid rgba(255, 255, 255, 0.35)'
+              : '1px solid rgba(255, 255, 255, 0.12)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            cursor: 'pointer',
+            transition: 'all 0.2s ease',
+            boxShadow: activeTab === 'profile' ? '0 4px 14px rgba(0, 0, 0, 0.2)' : 'none',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.16)';
+            e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.3)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = activeTab === 'profile'
+              ? 'linear-gradient(135deg, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0.12) 100%)'
+              : 'rgba(255, 255, 255, 0.08)';
+            e.currentTarget.style.borderColor = activeTab === 'profile'
+              ? 'rgba(255, 255, 255, 0.35)'
+              : '1px solid rgba(255, 255, 255, 0.12)';
+          }}
+        >
+          {/* Avatar thu nhỏ */}
+          <div
+            style={{
+              width: '42px',
+              height: '42px',
+              borderRadius: '12px',
+              background: (user.avatar_thumbnail_url || user.avatar_url)
+                ? '#f8fafc'
+                : `linear-gradient(135deg, ${currentBadgeColor} 0%, #2563eb 100%)`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#ffffff',
+              fontWeight: '800',
+              fontSize: '18px',
+              flexShrink: 0,
+              boxShadow: '0 2px 6px rgba(0, 0, 0, 0.2)',
+              overflow: 'hidden',
+              border: (user.avatar_thumbnail_url || user.avatar_url) ? '1.5px solid rgba(255, 255, 255, 0.5)' : 'none',
+            }}
+          >
+            {(user.avatar_thumbnail_url || user.avatar_url) ? (
+              <img
+                src={user.avatar_thumbnail_url || user.avatar_url || ''}
+                alt={user.full_name || user.username}
+                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+              />
+            ) : (
+              (user.full_name || user.username).charAt(0).toUpperCase()
+            )}
+          </div>
+
+          {/* Tên & vai trò */}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{
+              color: '#ffffff',
+              fontSize: '14px',
+              fontWeight: '700',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis'
+            }}>
+              {user.full_name || user.username}
+            </div>
+            <div style={{
+              color: '#93c5fd',
+              fontSize: '12px',
+              fontWeight: '500',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              marginTop: '2px',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis'
+            }}>
+              <span>@{user.username}</span>
+              <span style={{ opacity: 0.5 }}>•</span>
+              <span style={{ color: '#e2e8f0' }}>{user.role_title || user.role}</span>
+            </div>
+          </div>
+
+          {/* Mũi tên nhỏ gợi ý bấm xem */}
+          <div style={{ color: 'rgba(255, 255, 255, 0.5)', fontSize: '13px' }}>
+            →
+          </div>
+        </div>
+
         {/* Danh sách mục menu */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '12px 0' }}>
+        <div style={{ flex: 1, overflowY: 'auto', padding: '6px 0' }}>
           {/* Quản lý kho hàng */}
           <div
             className={`sidebar-menu-item ${activeTab === 'inventory' ? 'active' : ''}`}
@@ -1017,7 +1145,7 @@ export default function DashboardPage({
             </div>
           )}
 
-          {/* Hồ sơ cá nhân */}
+          {/* Hồ sơ & Tài khoản cá nhân */}
           <div
             className={`sidebar-menu-item ${activeTab === 'profile' ? 'active' : ''}`}
             id="btn-sidebar-profile"
@@ -1032,7 +1160,7 @@ export default function DashboardPage({
                 <circle cx="12" cy="7" r="4" />
               </svg>
             </div>
-            <span style={{ fontWeight: activeTab === 'profile' ? '700' : '500', fontSize: '14.5px' }}>Hồ sơ cá nhân</span>
+            <span style={{ fontWeight: activeTab === 'profile' ? '700' : '500', fontSize: '14.5px' }}>Hồ sơ & Tài khoản</span>
           </div>
 
           {/* Phân quyền & Tạo tài khoản - Admin */}
