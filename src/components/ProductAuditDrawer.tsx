@@ -28,11 +28,11 @@ export const ProductAuditDrawer: React.FC<ProductAuditDrawerProps> = ({
       setLoading(true);
       setError(null);
       getEntityAuditLogsApi(token, 'Product', productCode)
-        .then((data) => {
+        .then((data: AuditLogItem[]) => {
           setLogs(data);
           setLoading(false);
         })
-        .catch((err) => {
+        .catch((err: any) => {
           setError(err.message || 'Lỗi tải lịch sử thao tác sản phẩm.');
           setLoading(false);
         });

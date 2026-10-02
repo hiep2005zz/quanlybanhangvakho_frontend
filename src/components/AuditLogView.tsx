@@ -9,7 +9,7 @@ import {
   UserAccount,
   User,
 } from '../services/api';
-import { AuditDetailModal } from './AuditDetailModal';
+import { AuditDetailModal, getActionLabel, getEntityLabel } from './AuditDetailModal';
 import { formatLocalDateTime } from '../utils/dateUtils';
 
 interface AuditLogViewProps {
@@ -95,7 +95,7 @@ export const AuditLogView: React.FC<AuditLogViewProps> = ({ currentUser: _curren
           setTotalPages(res.total_pages);
           setLoading(false);
         })
-        .catch((err) => {
+        .catch((err: any) => {
           setError(err.message || 'Lỗi khi tải nhật ký thao tác.');
           setLoading(false);
         });
@@ -158,26 +158,6 @@ export const AuditLogView: React.FC<AuditLogViewProps> = ({ currentUser: _curren
     executeFetchLogs(1, newFilters);
   };
 
-  const handleResetFilter = () => {
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
-    }
-    setSelectedUserId('ALL');
-    setSelectedEntityType('ALL');
-    setEntityIdSearch('');
-    setFromDate('');
-    setToDate('');
-    const defaultFilters = {
-      user_id: 'ALL',
-      entity_type: 'ALL',
-      entity_id: '',
-      from_date: '',
-      to_date: '',
-    };
-    setAppliedFilters(defaultFilters);
-    setPage(1);
-    executeFetchLogs(1, defaultFilters);
-  };
 
   // Xóa 1 bản ghi nhật ký
   const handleConfirmDeleteLog = async () => {
@@ -215,28 +195,43 @@ export const AuditLogView: React.FC<AuditLogViewProps> = ({ currentUser: _curren
   const renderActionBadge = (actionType: string) => {
     let color = '#2563eb';
     let bg = '#eff6ff';
-    let text = actionType;
+    const text = getActionLabel(actionType);
 
     switch (actionType) {
       case 'INVENTORY_ADJUST':
         color = '#0284c7';
         bg = '#e0f2fe';
-        text = 'Điều chỉnh tồn kho';
         break;
       case 'PRICE_CHANGE':
         color = '#d97706';
         bg = '#fef3c7';
-        text = 'Thay đổi giá';
         break;
       case 'DEBT_LIMIT_CHANGE':
         color = '#7c3aed';
         bg = '#f5f3ff';
-        text = 'Hạn mức công nợ';
         break;
       case 'INVOICE_EDIT':
+      case 'INVOICE_CANCEL':
         color = '#dc2626';
         bg = '#fef2f2';
-        text = 'Sửa / Hủy hóa đơn';
+        break;
+      case 'STOCK_RECEIPT':
+        color = '#059669';
+        bg = '#ecfdf5';
+        break;
+      case 'STOCK_ISSUE':
+        color = '#ea580c';
+        bg = '#fff7ed';
+        break;
+      case 'USER_CREATE':
+      case 'USER_UNLOCK':
+        color = '#16a34a';
+        bg = '#f0fdf4';
+        break;
+      case 'USER_LOCK':
+      case 'USER_DELETE':
+        color = '#e11d48';
+        bg = '#fff1f2';
         break;
       default:
         break;
@@ -262,13 +257,7 @@ export const AuditLogView: React.FC<AuditLogViewProps> = ({ currentUser: _curren
   };
 
   const renderEntityBadge = (entityType: string, entityId: string) => {
-    let label = entityType;
-    if (entityType === 'Inventory') label = 'Tồn kho';
-    else if (entityType === 'ProductPrice') label = 'Giá sản phẩm';
-    else if (entityType === 'Product') label = 'Hàng hóa / Kho';
-    else if (entityType === 'CustomerDebt') label = 'Hạn mức công nợ';
-    else if (entityType === 'Invoice') label = 'Hóa đơn';
-    else if (entityType === 'Order') label = 'Đơn hàng';
+    const label = getEntityLabel(entityType);
 
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
@@ -638,11 +627,11 @@ export const AuditLogView: React.FC<AuditLogViewProps> = ({ currentUser: _curren
           </div>
 
           {/* Action buttons */}
-          <div style={{ display: 'flex', gap: '8px' }}>
+          <div>
             <button
               type="submit"
               style={{
-                flex: 1,
+                width: '100%',
                 padding: '10px 16px',
                 borderRadius: '8px',
                 background: '#2563eb',
@@ -655,6 +644,13 @@ export const AuditLogView: React.FC<AuditLogViewProps> = ({ currentUser: _curren
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: '6px',
+                transition: 'all 0.15s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = '#1d4ed8';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = '#2563eb';
               }}
             >
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
@@ -662,23 +658,6 @@ export const AuditLogView: React.FC<AuditLogViewProps> = ({ currentUser: _curren
                 <line x1="21" y1="21" x2="16.65" y2="16.65" />
               </svg>
               <span>Lọc</span>
-            </button>
-            <button
-              type="button"
-              onClick={handleResetFilter}
-              style={{
-                padding: '10px 14px',
-                borderRadius: '8px',
-                background: '#f1f5f9',
-                color: '#475569',
-                border: '1px solid #cbd5e1',
-                fontWeight: '600',
-                fontSize: '13.5px',
-                cursor: 'pointer',
-              }}
-              title="Đặt lại bộ lọc"
-            >
-              Xóa
             </button>
           </div>
         </form>
@@ -966,7 +945,7 @@ export const AuditLogView: React.FC<AuditLogViewProps> = ({ currentUser: _curren
               Xóa bản ghi nhật ký?
             </h3>
             <p style={{ margin: '0 0 20px', fontSize: '13.5px', color: '#475569', lineHeight: '1.5' }}>
-              Bạn có chắc chắn muốn xóa bản ghi nhật ký #{logToDelete.id} ({logToDelete.action_type} - {logToDelete.entity_id})? Thao tác này không thể hoàn tác.
+              Bạn có chắc chắn muốn xóa bản ghi nhật ký #{logToDelete.id} ({getActionLabel(logToDelete.action_type)} - {logToDelete.entity_id})? Thao tác này không thể hoàn tác.
             </p>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
               <button
