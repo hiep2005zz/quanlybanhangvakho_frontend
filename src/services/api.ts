@@ -715,7 +715,7 @@ export async function getCategorySalesReportApi(token: string): Promise<Category
 }
 
 export async function moveProductCategoryApi(token: string, productId: number, categoryId: number): Promise<any> {
-  const response = await authenticatedFetch(`${API_BASE_URL}/products/${productId}`, {
+  const response = await authenticatedFetch(`${API_BASE_URL}/products/${productId}/category`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ category_id: categoryId }),
