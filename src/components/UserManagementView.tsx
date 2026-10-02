@@ -595,6 +595,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
         </div>
 
         {/* Nút Tạo tài khoản đặt ở trên góc phải, thẳng phía trên chữ Làm mới */}
+        {onCreateAccount && (
           <div style={{ display: 'flex', gap: '10px' }}>
             {/* Import Button */}
             <button
