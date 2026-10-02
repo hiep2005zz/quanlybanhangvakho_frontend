@@ -185,12 +185,12 @@ export const UserBulkImportModal: React.FC<UserBulkImportModalProps> = ({ token,
                   onClick={() => fileInputRef.current?.click()}
                   disabled={loading}
                   style={{
-                    width: '100%', padding: '32px', border: '2px dashed #cbd5e1',
-                    borderRadius: '12px', background: '#ffffff', cursor: loading ? 'not-allowed' : 'pointer',
-                    color: '#64748b', fontWeight: '600', fontSize: '16px'
+                    width: '100%', padding: '28px', border: '2px dashed #cbd5e1',
+                    borderRadius: '12px', background: file ? '#f0f9ff' : '#ffffff', cursor: loading ? 'not-allowed' : 'pointer',
+                    color: file ? '#0284c7' : '#64748b', fontWeight: '600', fontSize: '15px'
                   }}
                 >
-                  {loading ? 'Đang xử lý...' : (file ? `Đã chọn: ${file.name} (Bấm để đổi file)` : 'Bấm vào đây để chọn file Excel')}
+                  {loading ? 'Đang xử lý...' : (file ? 'Đã chọn file (Bấm để đổi file khác)' : 'Bấm vào đây để chọn file Excel')}
                 </button>
               </div>
 
