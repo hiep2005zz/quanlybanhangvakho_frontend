@@ -4,6 +4,7 @@ import { sessionManager, SessionState } from '../services/sessionManager';
 import SecurityModal from './SecurityModal';
 import { UserManagementView } from './UserManagementView';
 import CreateCustomerModal from './CreateCustomerModal';
+import UserProfileModal from './UserProfileModal';
 import { StatusToastHost, emitStatusToast } from './StatusToast';
 import { AccessDeniedView } from './AccessDeniedView';
 import './dashboard.css';
@@ -150,6 +151,12 @@ export default function DashboardPage({
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isSecurityModalOpen, setIsSecurityModalOpen] = useState(false);
   const [isCreateAccountModalOpen, setIsCreateAccountModalOpen] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [currentUserState, setCurrentUserState] = useState<User>(user);
+
+  useEffect(() => {
+    setCurrentUserState(user);
+  }, [user]);
 
   // Timer điều khiển di chuột vào mở rộng, di chuột ra tự động đóng
   const menuTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -361,7 +368,7 @@ export default function DashboardPage({
             title={`${user.full_name || user.username} (${roleLabelMap[primaryRole] || primaryRole}) - Nhấp để mở menu`}
             aria-label="Tài khoản người dùng"
           >
-            {/* Avatar tròn với chữ cái đầu & Online status indicator */}
+            {/* Avatar tròn với ảnh hoặc chữ cái đầu & Online status indicator */}
             <div style={{ position: 'relative', width: '36px', height: '36px', flexShrink: 0 }}>
               <div style={{
                 width: '100%',
@@ -375,8 +382,20 @@ export default function DashboardPage({
                 fontWeight: '700',
                 fontSize: '15px',
                 boxShadow: '0 2px 5px rgba(0, 0, 0, 0.15)',
+                overflow: 'hidden'
               }}>
-                {(user.full_name || user.username).charAt(0).toUpperCase()}
+                {currentUserState.avatar_thumbnail_url || currentUserState.avatar_url ? (
+                  <img
+                    src={(currentUserState.avatar_thumbnail_url || currentUserState.avatar_url) ?? ''}
+                    alt={currentUserState.full_name || currentUserState.username}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    onError={(e) => {
+                      (e.target as HTMLElement).style.display = 'none';
+                    }}
+                  />
+                ) : (
+                  (currentUserState.full_name || currentUserState.username).charAt(0).toUpperCase()
+                )}
               </div>
               <span
                 style={{
@@ -429,8 +448,20 @@ export default function DashboardPage({
                   flexShrink: 0,
                   boxShadow: `0 8px 20px ${currentBadgeColor}55, inset 0 1px 0 rgba(255, 255, 255, 0.4)`,
                   border: '1px solid rgba(255, 255, 255, 0.25)',
+                  overflow: 'hidden'
                 }}>
-                  {user.username.charAt(0).toUpperCase()}
+                  {currentUserState.avatar_url || currentUserState.avatar_thumbnail_url ? (
+                    <img
+                      src={(currentUserState.avatar_url || currentUserState.avatar_thumbnail_url) ?? ''}
+                      alt={currentUserState.full_name || currentUserState.username}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      onError={(e) => {
+                        (e.target as HTMLElement).style.display = 'none';
+                      }}
+                    />
+                  ) : (
+                    (currentUserState.full_name || currentUserState.username).charAt(0).toUpperCase()
+                  )}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <h4 style={{
@@ -443,9 +474,10 @@ export default function DashboardPage({
                     overflow: 'hidden',
                     textOverflow: 'ellipsis'
                   }}>
-                    {user.full_name}
+                    {currentUserState.full_name || currentUserState.username}
                   </h4>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+
                     {(officialRoles.length > 0 ? officialRoles : ['customer']).map((rCode) => {
                       const color = roleBadgeColorMap[rCode] || '#64748b';
                       const label = roleLabelMap[rCode] || rCode;
@@ -561,8 +593,59 @@ export default function DashboardPage({
                 <button
                   onClick={() => {
                     setIsUserMenuOpen(false);
+                    setIsProfileModalOpen(true);
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    width: '100%',
+                    padding: '10px 14px',
+                    borderRadius: '10px',
+                    background: '#f8fafc',
+                    border: '1px solid #e2e8f0',
+                    color: '#1e293b',
+                    fontSize: '13.5px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    transition: 'all 0.18s ease',
+                    boxShadow: 'none',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = '#eff6ff';
+                    e.currentTarget.style.borderColor = '#bfdbfe';
+                    e.currentTarget.style.color = '#2563eb';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = '#f8fafc';
+                    e.currentTarget.style.borderColor = '#e2e8f0';
+                    e.currentTarget.style.color = '#1e293b';
+                  }}
+                >
+                  <div style={{
+                    width: '28px',
+                    height: '28px',
+                    borderRadius: '8px',
+                    background: '#dbeafe',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#2563eb',
+                  }}>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                      <circle cx="12" cy="7" r="4" />
+                    </svg>
+                  </div>
+                  <span>Hồ sơ & Ảnh đại diện</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setIsUserMenuOpen(false);
                     setIsSecurityModalOpen(true);
                   }}
+
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -777,7 +860,26 @@ export default function DashboardPage({
               <span style={{ fontWeight: activeTab === 'users' ? '700' : '500', fontSize: '14.5px' }}>Phân quyền & Tạo tài khoản</span>
             </div>
           )}
+
+          {/* Hồ sơ cá nhân & Ảnh đại diện */}
+          <div
+
+            className="sidebar-menu-item"
+            onClick={() => {
+              setIsProfileModalOpen(true);
+              handleCloseMenu();
+            }}
+          >
+            <div className="sidebar-icon-box">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                <circle cx="12" cy="7" r="4" />
+              </svg>
+            </div>
+            <span style={{ fontWeight: '500', fontSize: '14.5px' }}>Hồ sơ & Ảnh đại diện</span>
+          </div>
         </div>
+
 
         {/* Nút Đăng xuất ở cuối sidebar */}
         <div style={{
@@ -1567,8 +1669,21 @@ export default function DashboardPage({
         onTokenUpdated={onTokenUpdated}
       />
 
+      {/* Modal Hồ Sơ Cá Nhân & Tải Lên Ảnh Đại Diện */}
+      <UserProfileModal
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
+        currentUser={currentUserState}
+        token={token}
+        onProfileUpdated={(updatedUser) => {
+          setCurrentUserState(updatedUser);
+          sessionManager.broadcastUserUpdate(updatedUser.username);
+        }}
+      />
+
       {/* Modal Tạo Tài Khoản (Kích hoạt từ Popover Avatar hoặc Sidebar Drawer) */}
       <CreateCustomerModal
+
         isOpen={isCreateAccountModalOpen}
         onClose={() => setIsCreateAccountModalOpen(false)}
         token={token}

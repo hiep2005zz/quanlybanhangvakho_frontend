@@ -17,9 +17,13 @@ export interface User {
   permissions?: string[];
   role_title?: string;
   branch?: string;
+  phone?: string | null;
   can_view_cost?: boolean;
   can_write_inventory?: boolean;
+  avatar_url?: string | null;
+  avatar_thumbnail_url?: string | null;
 }
+
 
 export interface LoginResponse {
   access_token: string;
@@ -453,7 +457,10 @@ export interface UserAccount {
   can_view_cost: boolean;
   can_write_inventory: boolean;
   badge_color: string;
+  avatar_url?: string | null;
+  avatar_thumbnail_url?: string | null;
 }
+
 
 export interface CustomerCreatePayload {
   full_name: string;
@@ -624,4 +631,93 @@ export async function getAdminContactApi(): Promise<{ admin_email: string; admin
   }
   return { admin_email: 'daongochiep645@gmail.com', admin_name: 'Nguyễn Quản Trị' };
 }
+
+export interface AvatarUploadCropCoords {
+  x?: number;
+  y?: number;
+  width?: number;
+  height?: number;
+}
+
+export interface AvatarUploadResult {
+  status: string;
+  message: string;
+  avatar_url: string;
+  avatar_thumbnail_url: string;
+  user: User;
+}
+
+export async function uploadAvatarApi(
+  token: string,
+  file: File | Blob,
+  coords?: AvatarUploadCropCoords
+): Promise<AvatarUploadResult> {
+  const formData = new FormData();
+  formData.append('file', file, file instanceof File ? file.name : 'avatar.jpg');
+  if (coords) {
+    if (coords.x !== undefined) formData.append('crop_x', Math.round(coords.x).toString());
+    if (coords.y !== undefined) formData.append('crop_y', Math.round(coords.y).toString());
+    if (coords.width !== undefined) formData.append('crop_width', Math.round(coords.width).toString());
+    if (coords.height !== undefined) formData.append('crop_height', Math.round(coords.height).toString());
+  }
+
+  const response = await fetch(`${API_BASE_URL}/profile/avatar`, {
+    method: 'PATCH',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    body: formData,
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi tải lên ảnh đại diện (Mã lỗi ${response.status})`);
+  }
+
+  // Cập nhật session storage với thông tin user mới
+  if (data.user) {
+    const sessionUserStr = sessionStorage.getItem(AUTH_STORAGE.USER);
+    if (sessionUserStr) {
+      try {
+        const parsed = JSON.parse(sessionUserStr);
+        const merged = { ...parsed, ...data.user };
+        sessionStorage.setItem(AUTH_STORAGE.USER, JSON.stringify(merged));
+      } catch {
+        sessionStorage.setItem(AUTH_STORAGE.USER, JSON.stringify(data.user));
+      }
+    }
+  }
+
+  return data;
+}
+
+export async function updateProfileApi(
+  token: string,
+  payload: { full_name?: string; phone?: string }
+): Promise<User> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/profile`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  }, token);
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi cập nhật hồ sơ (Mã lỗi ${response.status})`);
+  }
+
+  const sessionUserStr = sessionStorage.getItem(AUTH_STORAGE.USER);
+  if (sessionUserStr) {
+    try {
+      const parsed = JSON.parse(sessionUserStr);
+      const merged = { ...parsed, ...data };
+      sessionStorage.setItem(AUTH_STORAGE.USER, JSON.stringify(merged));
+    } catch {
+      sessionStorage.setItem(AUTH_STORAGE.USER, JSON.stringify(data));
+    }
+  }
+
+  return data;
+}
+
 
