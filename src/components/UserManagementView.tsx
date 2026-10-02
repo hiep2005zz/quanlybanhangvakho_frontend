@@ -13,6 +13,7 @@ import {
 } from '../services/api';
 import { sessionManager } from '../services/sessionManager';
 import { emitStatusToast } from './StatusToast';
+import { UserBulkImportModal } from './UserBulkImportModal';
 
 interface UserManagementViewProps {
   currentUser: User;
@@ -135,11 +136,25 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
   const [error, setError] = useState<string | null>(null);
 
   // Filter, Search & Pagination (S1-08 / S1-10: 20 dòng/trang mặc định)
+  const [searchInput, setSearchInput] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [selectedRoleFilter, setSelectedRoleFilter] = useState<string>('all');
   const [selectedStatusFilter, setSelectedStatusFilter] = useState<string>('all');
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(20);
+  const [isImportModalOpen, setIsImportModalOpen] = useState<boolean>(false);
+
+  // Áp dụng Debounce 400ms: Chỉ khi người dùng ngừng gõ phím sau 400ms thì mới trigger cập nhật searchTerm/lọc
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearchTerm(searchInput);
+      setCurrentPage(1);
+    }, 400);
+
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [searchInput]);
 
 
   // Modal Edit State
@@ -257,10 +272,19 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
     } else {
       const rawRoles = targetUser.roles && targetUser.roles.length > 0 ? targetUser.roles : [targetUser.role];
       const validRoleCodes = ROLES_LIST.map((item) => item.role);
-      // Chỉ giữ lại các vai trò nghiệp vụ hợp lệ có trong danh sách phân quyền (loại bỏ admin, customer, và vai trò cũ như purchasing)
-      initialRoles = rawRoles.filter((r) => r && validRoleCodes.includes(r) && r !== 'customer' && r !== 'admin');
-      if (initialRoles.length === 0) {
-        initialRoles = ['sales'];
+      // Lọc các vai trò hợp lệ trong ROLES_LIST (ngoại trừ admin)
+      const validAssignedRoles = rawRoles.filter((r) => r && validRoleCodes.includes(r) && r !== 'admin');
+      
+      // Nếu là tài khoản mới tạo (chưa được phân công chi nhánh hoặc chỉ có role customer ban đầu chưa qua phân quyền)
+      const isUnassignedAccount =
+        (!targetUser.branch || targetUser.branch === 'Chưa phân công') &&
+        (validAssignedRoles.length === 0 || (validAssignedRoles.length === 1 && validAssignedRoles[0] === 'customer'));
+
+      if (isUnassignedAccount) {
+        // Tài khoản mới chưa phân quyền: Để trống vai trò, KHÔNG chọn sẵn bất kỳ vai trò nào (kể cả sales)
+        initialRoles = [];
+      } else {
+        initialRoles = validAssignedRoles;
       }
     }
 
@@ -268,7 +292,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
       full_name: targetUser.full_name,
       email: targetUser.email || '',
       phone: targetUser.phone || '',
-      role: initialRoles[0] || (isTargetAdmin ? 'admin' : 'sales'),
+      role: initialRoles[0] || '',
       roles: initialRoles,
       branch: targetUser.branch && targetUser.branch !== 'Chưa phân công' ? targetUser.branch : 'Kho Tổng Hà Nội',
       password: '',
@@ -464,8 +488,15 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
       (u.branch && u.branch.toLowerCase().includes(term));
 
     const userRoles = u.roles && u.roles.length > 0 ? u.roles : [u.role];
+    const isUnassigned =
+      (!u.branch || u.branch === 'Chưa phân công') &&
+      (userRoles.length === 0 || (userRoles.length === 1 && userRoles[0] === 'customer'));
+
     const matchesRole =
-      selectedRoleFilter === 'all' || userRoles.includes(selectedRoleFilter);
+      selectedRoleFilter === 'all' ||
+      (selectedRoleFilter === 'unassigned' && isUnassigned) ||
+      (selectedRoleFilter === 'customer' && !isUnassigned && userRoles.includes('customer')) ||
+      (selectedRoleFilter !== 'unassigned' && selectedRoleFilter !== 'customer' && userRoles.includes(selectedRoleFilter));
 
     const isActive = u.is_active && u.status !== 'LOCKED';
     const matchesStatus =
@@ -594,45 +625,93 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
 
         {/* Nút Tạo tài khoản đặt ở trên góc phải, thẳng phía trên chữ Làm mới */}
         {onCreateAccount && (
-          <button
-            type="button"
-            onClick={onCreateAccount}
-            id="btn-userview-create-account"
-            style={{
-              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-              border: 'none',
-              borderRadius: '9px',
-              color: '#ffffff',
-              padding: '9px 16px',
-              fontSize: '13.5px',
-              fontWeight: '600',
-              cursor: 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '7px',
-              boxShadow: '0 2px 8px rgba(16, 185, 129, 0.35)',
-              transition: 'all 0.18s ease',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = 'translateY(-1.5px)';
-              e.currentTarget.style.boxShadow = '0 4px 14px rgba(16, 185, 129, 0.45)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'translateY(0)';
-              e.currentTarget.style.boxShadow = '0 2px 8px rgba(16, 185, 129, 0.35)';
-            }}
-            title="Tạo tài khoản mới và gửi email kích hoạt"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-              <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-              <circle cx="8.5" cy="7" r="4" />
-              <line x1="20" y1="8" x2="20" y2="14" />
-              <line x1="23" y1="11" x2="17" y2="11" />
-            </svg>
-            <span>Tạo tài khoản</span>
-          </button>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            {/* Import Button */}
+            <button
+              type="button"
+              onClick={() => setIsImportModalOpen(true)}
+              style={{
+                background: '#ffffff',
+                border: '1px solid #cbd5e1',
+                borderRadius: '9px',
+                color: '#2563eb',
+                padding: '9px 16px',
+                fontSize: '13.5px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '7px',
+                boxShadow: '0 2px 4px rgba(0, 0, 0, 0.05)',
+                transition: 'all 0.18s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = '#2563eb';
+                e.currentTarget.style.background = '#eff6ff';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = '#cbd5e1';
+                e.currentTarget.style.background = '#ffffff';
+              }}
+              title="Nhập người dùng hàng loạt từ Excel"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="17 8 12 3 7 8"></polyline>
+                <line x1="12" y1="3" x2="12" y2="15"></line>
+              </svg>
+              <span>Nhập Excel</span>
+            </button>
+            <button
+              type="button"
+              onClick={onCreateAccount}
+              id="btn-userview-create-account"
+              style={{
+                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                border: 'none',
+                borderRadius: '9px',
+                color: '#ffffff',
+                padding: '9px 16px',
+                fontSize: '13.5px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '7px',
+                boxShadow: '0 2px 8px rgba(16, 185, 129, 0.35)',
+                transition: 'all 0.18s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-1.5px)';
+                e.currentTarget.style.boxShadow = '0 4px 14px rgba(16, 185, 129, 0.45)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 2px 8px rgba(16, 185, 129, 0.35)';
+              }}
+              title="Tạo tài khoản mới và gửi email kích hoạt"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                <circle cx="8.5" cy="7" r="4" />
+                <line x1="20" y1="8" x2="20" y2="14" />
+                <line x1="23" y1="11" x2="17" y2="11" />
+              </svg>
+              <span>Tạo tài khoản</span>
+            </button>
+          </div>
         )}
       </div>
+
+      {isImportModalOpen && (
+        <UserBulkImportModal
+          token={token}
+          onClose={() => setIsImportModalOpen(false)}
+          onSuccess={() => {
+            loadUsers();
+          }}
+        />
+      )}
 
       {/* Error Alert */}
       {error && (
@@ -672,11 +751,8 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
           <input
             type="text"
             placeholder="Tìm theo tên, email, số điện thoại, kho..."
-            value={searchTerm}
-            onChange={(e) => {
-              setSearchTerm(e.target.value);
-              setCurrentPage(1);
-            }}
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
             style={{
               width: '100%',
               padding: '9px 12px 9px 36px',
@@ -714,6 +790,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
               }}
             >
               <option value="all">Tất cả vai trò ({users.length})</option>
+              <option value="unassigned">⏳ Chưa phân quyền</option>
               {ROLES_LIST.map((r) => (
                 <option key={r.role} value={r.role}>
                   {r.title}
@@ -968,17 +1045,42 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                               }
                               const allRoles = (u.roles && u.roles.length > 0) ? u.roles : [u.role];
                               const validRoleCodes = ROLES_LIST.map((item) => item.role);
-                              // Nếu người dùng đã có các vai trò chính thức trong hệ thống, loại bỏ các nhãn cũ/lỗi thời (như purchasing hay customer)
-                              const recognizedRoles = allRoles.filter((r) => validRoleCodes.includes(r) && r !== 'customer');
-                              const displayRoles = recognizedRoles.length > 0 
-                                ? recognizedRoles 
-                                : allRoles.filter((r) => r !== 'customer').length > 0 
-                                  ? allRoles.filter((r) => r !== 'customer') 
-                                  : ['customer'];
+                              const recognizedRoles = allRoles.filter((r) => validRoleCodes.includes(r));
+                              
+                              // Kiểm tra tài khoản mới chưa phân quyền (branch là "Chưa phân công" hoặc chưa có vai trò nào)
+                              const isUnassigned =
+                                (!u.branch || u.branch === 'Chưa phân công') &&
+                                (recognizedRoles.length === 0 || (recognizedRoles.length === 1 && recognizedRoles[0] === 'customer'));
+
+                              if (isUnassigned) {
+                                return (
+                                  <span
+                                    key="unassigned"
+                                    style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '5px',
+                                      padding: '3px 9px',
+                                      borderRadius: '999px',
+                                      background: '#f1f5f9',
+                                      color: '#64748b',
+                                      fontWeight: '700',
+                                      fontSize: '11.5px',
+                                      border: '1px solid #cbd5e1',
+                                      whiteSpace: 'nowrap',
+                                    }}
+                                  >
+                                    <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#94a3b8' }} />
+                                    Chưa phân quyền
+                                  </span>
+                                );
+                              }
+
+                              const displayRoles = recognizedRoles.length > 0 ? recognizedRoles : allRoles;
                               return displayRoles.map((rCode) => {
                                 const rMeta = ROLES_LIST.find((item) => item.role === rCode);
                                 const color = rMeta?.badgeColor || u.badge_color || '#2563eb';
-                                const title = rMeta?.title || (rCode === 'customer' ? 'Chờ cấp quyền' : rCode);
+                                const title = rMeta?.title || rCode;
                                 return (
                                   <span
                                     key={rCode}
@@ -1763,7 +1865,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                                       const nextRoles = currentRoles.filter((code) => code !== r.role);
                                       setEditFormData({
                                         ...editFormData,
-                                        role: nextRoles[0] || 'sales',
+                                        role: nextRoles[0] || '',
                                         roles: nextRoles,
                                       });
                                     }}
@@ -1781,7 +1883,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                               ))
                             ) : (
                               <span style={{ color: '#94a3b8', fontSize: '13.5px' }}>
-                                Chọn vai trò hệ thống...
+                                Chưa phân quyền (Bấm để chọn vai trò)...
                               </span>
                             )}
                           </div>
@@ -1841,7 +1943,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                                     }
                                     setEditFormData({
                                       ...editFormData,
-                                      role: nextRoles[0] || 'sales',
+                                      role: nextRoles[0] || '',
                                       roles: nextRoles,
                                     });
                                   }}

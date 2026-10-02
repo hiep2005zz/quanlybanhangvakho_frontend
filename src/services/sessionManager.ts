@@ -42,8 +42,9 @@ class SessionManager {
     this.handleMouseMove = this.throttle(this.handleMouseMove.bind(this), 2000);
     this.handleUserInteraction = this.throttle(this.handleUserInteraction.bind(this), 1000);
     this.handleOnline = this.handleOnline.bind(this);
-    this.handleWindowFocus = this.handleWindowFocus.bind(this);
-    this.handleVisibilityChange = this.handleVisibilityChange.bind(this);
+    // Throttle 60s để tránh gọi liên tục /auth/me và validate mỗi khi tab được focus hoặc click ra vào
+    this.handleWindowFocus = this.throttle(this.handleWindowFocus.bind(this), 60000);
+    this.handleVisibilityChange = this.throttle(this.handleVisibilityChange.bind(this), 60000);
   }
 
   private throttle(fn: () => void, wait: number) {
@@ -111,9 +112,15 @@ class SessionManager {
     try {
       const updatedUser = await getMeApi(this.currentToken);
       if (updatedUser) {
-        // Lưu vào sessionStorage để đồng bộ
-        sessionStorage.setItem(AUTH_STORAGE.USER, JSON.stringify(updatedUser));
-        this.notifyUserProfile(updatedUser);
+        // So sánh với user hiện tại trong sessionStorage trước khi notify để tránh re-render lặp vô hạn
+        const currentUserStr = sessionStorage.getItem(AUTH_STORAGE.USER);
+        const newUserStr = JSON.stringify(updatedUser);
+        if (currentUserStr !== newUserStr) {
+          sessionStorage.setItem(AUTH_STORAGE.USER, newUserStr);
+          this.notifyUserProfile(updatedUser);
+          window.dispatchEvent(new CustomEvent('USER_ROLE_UPDATED', { detail: updatedUser }));
+          window.dispatchEvent(new CustomEvent('USER_ACCOUNTS_CHANGED', { detail: updatedUser }));
+        }
         return updatedUser;
       }
     } catch {
@@ -123,11 +130,12 @@ class SessionManager {
   }
 
   public broadcastUserUpdate(username: string) {
+    const uname = (username || '').toLowerCase();
     if (this.authChannel) {
       try {
         this.authChannel.postMessage({
           type: 'USER_ROLE_UPDATED',
-          username: username.toLowerCase(),
+          username: uname,
           tabId: CURRENT_TAB_ID,
           timestamp: Date.now(),
         });
@@ -135,6 +143,18 @@ class SessionManager {
         // ignore
       }
     }
+
+    try {
+      localStorage.setItem('auth_role_updated', JSON.stringify({
+        username: uname,
+        timestamp: Date.now(),
+      }));
+    } catch {
+      // ignore
+    }
+
+    window.dispatchEvent(new CustomEvent('USER_ROLE_UPDATED', { detail: { username: uname } }));
+    window.dispatchEvent(new CustomEvent('USER_ACCOUNTS_CHANGED', { detail: { username: uname } }));
   }
 
   public start(token: string, username?: string) {
@@ -180,7 +200,9 @@ class SessionManager {
 
           if (event.data?.type === 'USER_ROLE_UPDATED') {
             // Nếu tài khoản được cập nhật vai trò trùng với tài khoản tab này -> Lập tức đồng bộ lại profile
-            if (this.currentUsername && event.data?.username && event.data.username.toLowerCase() === this.currentUsername.toLowerCase()) {
+            const eventUser = (event.data?.username || '').toLowerCase().trim();
+            const thisUser = (this.currentUsername || '').toLowerCase().trim();
+            if (!eventUser || !thisUser || eventUser === thisUser || eventUser === 'all') {
               this.syncCurrentProfile();
             }
           }
@@ -200,6 +222,23 @@ class SessionManager {
       window.addEventListener('online', this.handleOnline);
       window.addEventListener('focus', this.handleWindowFocus);
       document.addEventListener('visibilitychange', this.handleVisibilityChange);
+      
+      // Lắng nghe sự kiện storage từ các tab khác
+      window.addEventListener('storage', (e) => {
+        if (e.key === 'auth_role_updated' && e.newValue) {
+          try {
+            const data = JSON.parse(e.newValue);
+            const target = (data?.username || '').toLowerCase().trim();
+            const current = (this.currentUsername || '').toLowerCase().trim();
+            if (!target || !current || target === current || target === 'all') {
+              this.syncCurrentProfile();
+            }
+          } catch {
+            // ignore
+          }
+        }
+      });
+
       this.isInitialized = true;
     }
 
@@ -212,12 +251,12 @@ class SessionManager {
       this.checkAndRefreshSession(false);
       this.notifyStatus();
 
-      // Heartbeat mỗi 10 giây: Ping server kiểm tra hiệu lực token (Realtime Revocation)
+      // Heartbeat mỗi 3 giây: Tự động kiểm tra và đồng bộ vai trò mới nhất nếu Admin vừa phân quyền
       this.heartbeatCounter++;
-      if (this.heartbeatCounter >= 10) {
+      if (this.heartbeatCounter >= 3) {
         this.heartbeatCounter = 0;
         if (this.currentToken && !this.isRefreshing) {
-          validateSessionApi(this.currentToken);
+          this.syncCurrentProfile();
         }
       }
     }, CHECK_INTERVAL_MS);
