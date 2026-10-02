@@ -676,7 +676,7 @@ export default function DashboardPage({
                     e.currentTarget.style.borderColor = activeTab === 'profile' ? '#bfdbfe' : '#e2e8f0';
                     e.currentTarget.style.color = activeTab === 'profile' ? '#1d4ed8' : '#1e293b';
                   }}
-                  title="Xem và cập nhật hồ sơ cá nhân"
+                  title="Xem hồ sơ và đổi ảnh đại diện"
                 >
                   <div style={{
                     width: '28px',
@@ -693,7 +693,7 @@ export default function DashboardPage({
                       <circle cx="12" cy="7" r="4" />
                     </svg>
                   </div>
-                  <span>Hồ sơ cá nhân</span>
+                  <span>Hồ sơ & Ảnh đại diện</span>
                 </button>
                 {(user.role === 'admin' || (user.roles && user.roles.includes('admin'))) && (
                   <button
@@ -1001,7 +1001,7 @@ export default function DashboardPage({
             <span style={{ fontWeight: activeTab === 'inventory' ? '700' : '500', fontSize: '14.5px' }}>Quản lý kho hàng</span>
           </div>
 
-          {/* Hồ sơ cá nhân - Tất cả tài khoản */}
+          {/* Hồ sơ & Ảnh đại diện - Tất cả tài khoản */}
           <div
             className={`sidebar-menu-item ${activeTab === 'profile' ? 'active' : ''}`}
             id="btn-sidebar-profile"
@@ -1016,7 +1016,7 @@ export default function DashboardPage({
                 <circle cx="12" cy="7" r="4" />
               </svg>
             </div>
-            <span style={{ fontWeight: activeTab === 'profile' ? '700' : '500', fontSize: '14.5px' }}>Hồ sơ cá nhân</span>
+            <span style={{ fontWeight: activeTab === 'profile' ? '700' : '500', fontSize: '14.5px' }}>Hồ sơ & Ảnh đại diện</span>
           </div>
 
           {/* Mục Phân quyền & Tạo tài khoản - CHỈ hiển thị nếu là Admin */}

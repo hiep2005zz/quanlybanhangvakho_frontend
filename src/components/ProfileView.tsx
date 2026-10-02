@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { User, UserProfile, getMyProfileApi, updateMyProfileApi } from '../services/api';
+import React, { useState, useEffect, useRef } from 'react';
+import { User, UserProfile, getMyProfileApi, updateMyProfileApi, uploadAvatarApi } from '../services/api';
 import { emitStatusToast } from './StatusToast';
+import { AvatarCropModal } from './AvatarCropModal';
 
 interface ProfileViewProps {
   currentUser: User;
@@ -53,6 +54,15 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+  // Avatar states
+  const [avatarError, setAvatarError] = useState<string | null>(null);
+  const [selectedImageSrc, setSelectedImageSrc] = useState<string>('');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isCropModalOpen, setIsCropModalOpen] = useState(false);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const [isLightBoxOpen, setIsLightBoxOpen] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Form states
   const [fullNameInput, setFullNameInput] = useState(currentUser.full_name || '');
@@ -193,6 +203,108 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
     }
   };
 
+  // Xử lý chọn file ảnh từ máy
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setAvatarError(null);
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    const file = files[0];
+
+    // 1. Kiểm tra định dạng đuôi tệp và mime type (JPG, PNG)
+    const validExtensions = ['.jpg', '.jpeg', '.png'];
+    const fileName = file.name.toLowerCase();
+    const hasValidExt = validExtensions.some((ext) => fileName.endsWith(ext));
+    const validMimes = ['image/jpeg', 'image/png', 'image/pjpeg'];
+    const hasValidMime = validMimes.includes(file.type.toLowerCase());
+
+    if (!hasValidExt || (!hasValidMime && file.type)) {
+      setAvatarError('Định dạng tệp không hợp lệ. Chỉ chấp nhận ảnh JPG/PNG.');
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+
+    // 2. Kiểm tra dung lượng (<= 2MB = 2,097,152 bytes)
+    const MAX_SIZE_BYTES = 2 * 1024 * 1024;
+    if (file.size > MAX_SIZE_BYTES) {
+      setAvatarError('Dung lượng ảnh vượt quá 2MB. Vui lòng chọn ảnh nhỏ hơn.');
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+
+    setSelectedFile(file);
+
+    // Mở khung cắt ảnh 1:1
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (reader.result) {
+        setSelectedImageSrc(reader.result as string);
+        setIsCropModalOpen(true);
+        setIsLightBoxOpen(false); // Đóng lightbox nếu đang mở từ lightbox
+      }
+    };
+    reader.readAsDataURL(file);
+
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  // Xác nhận cắt ảnh và upload lên Server
+  const handleConfirmCrop = async (cropData: {
+    crop_x: number;
+    crop_y: number;
+    crop_width: number;
+    crop_height: number;
+  }) => {
+    if (!selectedFile) return;
+
+    setIsUploadingAvatar(true);
+    setAvatarError(null);
+
+    try {
+      const coords = {
+        x: cropData.crop_x,
+        y: cropData.crop_y,
+        width: cropData.crop_width,
+        height: cropData.crop_height,
+      };
+
+      const res = await uploadAvatarApi(token, selectedFile, coords);
+
+      // Cập nhật profile state
+      setProfile((prev) =>
+        prev
+          ? {
+              ...prev,
+              avatar_url: res.avatar_url,
+              avatar_thumbnail_url: res.avatar_thumbnail_url,
+            }
+          : null
+      );
+
+      // Đồng bộ currentUser cho toàn ứng dụng
+      if (onUserUpdated) {
+        onUserUpdated({
+          ...currentUser,
+          avatar_url: res.avatar_url,
+          avatar_thumbnail_url: res.avatar_thumbnail_url,
+        });
+      }
+
+      emitStatusToast({
+        title: 'Thành công',
+        message: 'Cập nhật ảnh đại diện thành công.',
+      });
+
+      setIsCropModalOpen(false);
+      setSelectedFile(null);
+      setSelectedImageSrc('');
+    } catch (err: any) {
+      setAvatarError(err.message || 'Lỗi khi tải lên ảnh đại diện.');
+    } finally {
+      setIsUploadingAvatar(false);
+    }
+  };
+
   // Xử lý gửi cập nhật hồ sơ
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -320,6 +432,40 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
         <span style={{ color: '#0f172a', fontWeight: '600', fontSize: '13.5px' }}>Hồ sơ cá nhân</span>
       </nav>
 
+      {/* Banner thông báo lỗi nếu có khi tải ảnh */}
+      {avatarError && (
+        <div
+          style={{
+            backgroundColor: '#fef2f2',
+            border: '1px solid #fecaca',
+            color: '#b91c1c',
+            padding: '12px 16px',
+            borderRadius: '12px',
+            marginBottom: '20px',
+            fontSize: '13.5px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <span>{avatarError}</span>
+          <button
+            type="button"
+            onClick={() => setAvatarError(null)}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: '#b91c1c',
+              cursor: 'pointer',
+              fontWeight: '700',
+              fontSize: '14px',
+            }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       {/* Hero Banner Header */}
       <div
         style={{
@@ -337,24 +483,101 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-          {/* Avatar Gradient Box */}
+          {/* Avatar Container: Click để mở LightBox (nếu có ảnh) hoặc Mở chọn file đổi ảnh (nếu chưa có ảnh) */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".jpg,.jpeg,.png,image/jpeg,image/png"
+            style={{ display: 'none' }}
+            onChange={handleFileChange}
+          />
+
           <div
+            onClick={() => {
+              const currentImg = profile?.avatar_url || currentUser.avatar_url;
+              if (currentImg) {
+                setIsLightBoxOpen(true);
+              } else {
+                fileInputRef.current?.click();
+              }
+            }}
+            title={profile?.avatar_url || currentUser.avatar_url ? 'Click để xem ảnh lớn hoặc thay đổi ảnh' : 'Click để tải lên ảnh đại diện'}
             style={{
-              width: '72px',
-              height: '72px',
+              width: '76px',
+              height: '76px',
               borderRadius: '20px',
-              background: `linear-gradient(135deg, ${roleColor} 0%, #4f46e5 100%)`,
+              background: (profile?.avatar_url || currentUser.avatar_url)
+                ? '#f8fafc'
+                : `linear-gradient(135deg, ${roleColor} 0%, #4f46e5 100%)`,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               color: '#ffffff',
               fontSize: '28px',
               fontWeight: '800',
-              boxShadow: `0 10px 20px ${roleColor}40`,
+              boxShadow: `0 8px 20px ${roleColor}35`,
               flexShrink: 0,
+              cursor: 'pointer',
+              position: 'relative',
+              overflow: 'hidden',
+              border: (profile?.avatar_url || currentUser.avatar_url) ? '2px solid #e2e8f0' : 'none',
+              transition: 'transform 0.15s ease, box-shadow 0.15s ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'scale(1.04)';
+              const overlay = e.currentTarget.querySelector('.avatar-hover-overlay') as HTMLElement;
+              if (overlay) overlay.style.opacity = '1';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'scale(1)';
+              const overlay = e.currentTarget.querySelector('.avatar-hover-overlay') as HTMLElement;
+              if (overlay) overlay.style.opacity = '0';
             }}
           >
-            {(fullNameInput || currentUser.username).charAt(0).toUpperCase()}
+            {(profile?.avatar_url || currentUser.avatar_url) ? (
+              <img
+                src={profile?.avatar_url || currentUser.avatar_url || ''}
+                alt={fullNameInput || currentUser.username}
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover',
+                  display: 'block',
+                }}
+              />
+            ) : (
+              (fullNameInput || currentUser.username).charAt(0).toUpperCase()
+            )}
+
+            {/* Hover Overlay hiệu ứng chuyên nghiệp */}
+            <div
+              className="avatar-hover-overlay"
+              style={{
+                position: 'absolute',
+                inset: 0,
+                backgroundColor: 'rgba(15, 23, 42, 0.45)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                opacity: 0,
+                transition: 'opacity 0.2s ease',
+                color: '#ffffff',
+              }}
+            >
+              {(profile?.avatar_url || currentUser.avatar_url) ? (
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <circle cx="11" cy="11" r="8" />
+                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                  <line x1="11" y1="8" x2="11" y2="14" />
+                  <line x1="8" y1="11" x2="14" y2="11" />
+                </svg>
+              ) : (
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                  <circle cx="12" cy="13" r="4" />
+                </svg>
+              )}
+            </div>
           </div>
 
           <div>
@@ -838,6 +1061,166 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           </button>
         </div>
       </form>
+
+      {/* LightBox Modal xem ảnh đại diện kích thước lớn */}
+      {isLightBoxOpen && (
+        <div
+          onClick={() => setIsLightBoxOpen(false)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(15, 23, 42, 0.8)',
+            backdropFilter: 'blur(6px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: '20px',
+            animation: 'fadeIn 0.2s ease',
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: '#ffffff',
+              borderRadius: '20px',
+              overflow: 'hidden',
+              maxWidth: '380px',
+              width: '100%',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.35)',
+              border: '1px solid #e2e8f0',
+              textAlign: 'center',
+            }}
+          >
+            {/* Header Modal */}
+            <div
+              style={{
+                padding: '16px 20px',
+                borderBottom: '1px solid #f1f5f9',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}
+            >
+              <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '700', color: '#0f172a' }}>
+                Ảnh đại diện
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsLightBoxOpen(false)}
+                style={{
+                  background: '#f1f5f9',
+                  border: 'none',
+                  borderRadius: '8px',
+                  width: '30px',
+                  height: '30px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#64748b',
+                  cursor: 'pointer',
+                  fontSize: '16px',
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Vùng hiển thị ảnh phóng to */}
+            <div
+              style={{
+                padding: '24px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: '#090d16',
+              }}
+            >
+              <img
+                src={profile?.avatar_url || currentUser.avatar_url || ''}
+                alt="Avatar phóng to"
+                style={{
+                  width: '280px',
+                  height: '280px',
+                  objectFit: 'cover',
+                  borderRadius: '16px',
+                  boxShadow: '0 8px 30px rgba(0, 0, 0, 0.5)',
+                }}
+              />
+            </div>
+
+            {/* Footer hành động: Nút Thay đổi ảnh và Đóng */}
+            <div
+              style={{
+                padding: '16px 20px',
+                borderTop: '1px solid #f1f5f9',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                background: '#f8fafc',
+                gap: '12px',
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => {
+                  fileInputRef.current?.click();
+                }}
+                style={{
+                  padding: '9px 18px',
+                  borderRadius: '10px',
+                  border: 'none',
+                  backgroundColor: '#2563eb',
+                  color: '#ffffff',
+                  fontSize: '13.5px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  boxShadow: '0 2px 6px rgba(37, 99, 235, 0.25)',
+                }}
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                  <circle cx="12" cy="13" r="4" />
+                </svg>
+                Đổi ảnh mới
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setIsLightBoxOpen(false)}
+                style={{
+                  padding: '9px 18px',
+                  borderRadius: '10px',
+                  border: '1px solid #cbd5e1',
+                  backgroundColor: '#ffffff',
+                  color: '#475569',
+                  fontSize: '13.5px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                }}
+              >
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Cắt ảnh 1:1 chuẩn S2-03 */}
+      <AvatarCropModal
+        isOpen={isCropModalOpen}
+        imageSrc={selectedImageSrc}
+        onClose={() => {
+          setIsCropModalOpen(false);
+          setSelectedFile(null);
+          setSelectedImageSrc('');
+        }}
+        onConfirmCrop={handleConfirmCrop}
+        isUploading={isUploadingAvatar}
+      />
     </main>
   );
 };
