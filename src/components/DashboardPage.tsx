@@ -8,6 +8,7 @@ import { StatusToastHost, emitStatusToast } from './StatusToast';
 import { AccessDeniedView } from './AccessDeniedView';
 import { AuditLogView } from './AuditLogView';
 import { ProductAuditDrawer } from './ProductAuditDrawer';
+import { ProductDrawer } from './ProductDrawer';
 import { ProfileView } from './ProfileView';
 import './dashboard.css';
 
@@ -187,6 +188,12 @@ export default function DashboardPage({
     productName: string;
   }>({ isOpen: false, productCode: '', productName: '' });
 
+  // State quản lý Product Detail Drawer (Khai báo & Chỉnh sửa sản phẩm)
+  const [productDrawerState, setProductDrawerState] = useState<{
+    isOpen: boolean;
+    product: ProductItem | null;
+  }>({ isOpen: false, product: null });
+
 
   // Timer điều khiển di chuột vào mở rộng, di chuột ra tự động đóng
   const menuTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -243,32 +250,26 @@ export default function DashboardPage({
   const remainingSeconds = sessionInfo.remainingSeconds;
   const isWarningZone = remainingSeconds > 0 && remainingSeconds <= 120;
 
-  useEffect(() => {
+  const fetchProducts = () => {
     if (isPendingCustomer) {
       setIsLoading(false);
       return;
     }
-
-    let isMounted = true;
     setIsLoading(true);
     getProductsApi(token)
       .then((data) => {
-        if (isMounted) {
-          setProducts(data.items);
-          setIsCostVisible(data.is_cost_price_visible);
-          setIsLoading(false);
-        }
+        setProducts(data.items);
+        setIsCostVisible(data.is_cost_price_visible);
+        setIsLoading(false);
       })
       .catch((err) => {
-        if (isMounted) {
-          setError(err.message || 'Lỗi khi tải dữ liệu sản phẩm từ Backend.');
-          setIsLoading(false);
-        }
+        setError(err.message || 'Lỗi khi tải dữ liệu sản phẩm từ Backend.');
+        setIsLoading(false);
       });
+  };
 
-    return () => {
-      isMounted = false;
-    };
+  useEffect(() => {
+    fetchProducts();
   }, [token, isPendingCustomer]);
 
   // Tính toán số liệu thống kê
@@ -1596,6 +1597,43 @@ export default function DashboardPage({
                   </svg>
                   <span>Xuất file</span>
                 </button>
+
+                {/* Nút Thêm mới Sản phẩm mở Product Detail Drawer */}
+                <button
+                  type="button"
+                  id="btn-add-product"
+                  onClick={() => setProductDrawerState({ isOpen: true, product: null })}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+                    border: 'none',
+                    padding: '7px 14px',
+                    borderRadius: '8px',
+                    fontSize: '12.5px',
+                    fontWeight: '600',
+                    color: '#ffffff',
+                    cursor: 'pointer',
+                    boxShadow: '0 2px 6px rgba(37, 99, 235, 0.28)',
+                    transition: 'all 0.15s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-1px)';
+                    e.currentTarget.style.boxShadow = '0 4px 10px rgba(37, 99, 235, 0.35)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '0 2px 6px rgba(37, 99, 235, 0.28)';
+                  }}
+                  title="Khai báo sản phẩm mới (Mã SKU tự động, 4 khối chức năng)"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19" />
+                    <line x1="5" y1="12" x2="19" y2="12" />
+                  </svg>
+                  <span>Thêm mới</span>
+                </button>
               </div>
             </div>
 
@@ -1726,33 +1764,65 @@ export default function DashboardPage({
                         </>
                       )}
                       
-                      {/* Cột Thao tác: Nút Xem lịch sử thay đổi */}
+                      {/* Cột Thao tác: Nút Sửa & Xem lịch sử thay đổi */}
                       <td style={{ padding: '13px 18px', textAlign: 'center' }}>
-                        <button
-                          type="button"
-                          className="btn-inventory-history"
-                          onClick={() => setProductAuditDrawerState({
-                            isOpen: true,
-                            productCode: item.code,
-                            productName: item.name,
-                          })}
-                          title="Xem lịch sử thay đổi tồn kho & giá của sản phẩm này"
-                        >
-                          <svg
-                            width="14"
-                            height="14"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2.2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                          <button
+                            type="button"
+                            className="btn-inventory-history"
+                            onClick={() => setProductDrawerState({
+                              isOpen: true,
+                              product: item,
+                            })}
+                            style={{
+                              background: '#eff6ff',
+                              borderColor: '#bfdbfe',
+                              color: '#1d4ed8',
+                            }}
+                            title="Chỉnh sửa thông tin chi tiết sản phẩm"
                           >
-                            <circle cx="12" cy="12" r="10" />
-                            <polyline points="12 6 12 12 16 14" />
-                          </svg>
-                          <span>Lịch sử</span>
-                        </button>
+                            <svg
+                              width="13"
+                              height="13"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2.2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            >
+                              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                            </svg>
+                            <span>Sửa</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            className="btn-inventory-history"
+                            onClick={() => setProductAuditDrawerState({
+                              isOpen: true,
+                              productCode: item.code,
+                              productName: item.name,
+                            })}
+                            title="Xem lịch sử thay đổi tồn kho & giá của sản phẩm này"
+                          >
+                            <svg
+                              width="13"
+                              height="13"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2.2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            >
+                              <circle cx="12" cy="12" r="10" />
+                              <polyline points="12 6 12 12 16 14" />
+                            </svg>
+                            <span>Lịch sử</span>
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -1943,6 +2013,19 @@ export default function DashboardPage({
         productCode={productAuditDrawerState.productCode}
         productName={productAuditDrawerState.productName}
         token={token}
+      />
+
+      {/* Product Detail Drawer (Khai báo & Chỉnh sửa sản phẩm 4 khối chức năng) */}
+      <ProductDrawer
+        isOpen={productDrawerState.isOpen}
+        onClose={() => setProductDrawerState((prev) => ({ ...prev, isOpen: false }))}
+        product={productDrawerState.product}
+        token={token}
+        isCostVisible={isCostVisible}
+        categories={Array.from(new Set(products.map((p) => p.category).filter(Boolean)))}
+        onSuccess={() => {
+          fetchProducts();
+        }}
       />
 
       {/* Ổ thông báo nổi góc phải màn hình (dùng chung cho mọi thao tác tài khoản) */}

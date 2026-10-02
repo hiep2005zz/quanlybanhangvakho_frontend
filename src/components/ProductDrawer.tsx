@@ -114,9 +114,9 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
         setCostPrice(product.cost_price || 0);
         setStatus(product.status === 'inactive' ? 'inactive' : 'active');
       } else {
-        // Thêm mới: Sinh mã ngẫu nhiên duy nhất 1 lần lúc mở form và giữ cố định trong State
-        const randomCode = `SP${Math.floor(1000 + Math.random() * 9000)}`;
-        setSkuCode(randomCode);
+        // Thêm mới: Sinh mã SKU tự động đúng 1 lần duy nhất lúc mở Form và lưu cố định trong State
+        const generatedSku = `SP${Math.floor(1000 + Math.random() * 9000)}`;
+        setSkuCode(generatedSku);
         setProductName('');
         setCategory(categories[0] || 'Thời trang');
         setImages([]);
