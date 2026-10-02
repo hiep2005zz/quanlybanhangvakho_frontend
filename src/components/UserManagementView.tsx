@@ -1600,16 +1600,17 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
               </button>
             </div>
 
-            {/* Form Edit (Ẩn thanh cuộn trực quan nhưng vẫn cuộn/di chuột mượt mà) */}
+            {/* Form Edit */}
             <form
               onSubmit={handleUpdateUser}
-              className="no-scrollbar-form"
+              className="no-scrollbar-form pb-6"
               style={{
-                padding: '20px',
+                padding: '20px 20px 24px 20px',
                 overflowY: 'auto',
                 flex: 1,
                 scrollbarWidth: 'none',
-                msOverflowStyle: 'none'
+                msOverflowStyle: 'none',
+                position: 'relative'
               }}
             >
               {editModalError && (
@@ -1911,6 +1912,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                         {/* Danh sách Dropdown Menu thả xuống */}
                         {isRoleDropdownOpen && (
                           <div
+                            className="max-h-52 overflow-y-auto"
                             style={{
                               position: 'absolute',
                               top: 'calc(100% + 4px)',
@@ -1921,9 +1923,9 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                               borderRadius: '10px',
                               boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.12), 0 8px 10px -6px rgba(0, 0, 0, 0.06)',
                               zIndex: 1000,
-                              maxHeight: '230px',
+                              maxHeight: '13rem', /* max-h-52 (208px) */
                               overflowY: 'auto',
-                              padding: '6px',
+                              padding: '8px 6px',
                               display: 'flex',
                               flexDirection: 'column',
                               gap: '4px',
@@ -1965,11 +1967,11 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                                     if (!isChecked) e.currentTarget.style.background = '#ffffff';
                                   }}
                                 >
-                                  <div>
-                                    <div style={{ fontSize: '13px', fontWeight: isChecked ? '700' : '600', color: isChecked ? r.badgeColor : '#1e293b' }}>
+                                  <div style={{ paddingTop: '1px', paddingBottom: '1px' }}>
+                                    <div style={{ fontSize: '13px', fontWeight: isChecked ? '700' : '600', color: isChecked ? r.badgeColor : '#1e293b', lineHeight: '1.4' }}>
                                       {r.title}
                                     </div>
-                                    <div style={{ fontSize: '11px', color: '#64748b', marginTop: '1px' }}>
+                                    <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px', lineHeight: '1.35' }}>
                                       {r.description}
                                     </div>
                                   </div>
@@ -2122,14 +2124,22 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
               </div>
 
               {/* Actions Footer */}
-              <div style={{
-                marginTop: '24px',
-                display: 'flex',
-                justifyContent: 'flex-end',
-                gap: '12px',
-                borderTop: '1px solid #e2e8f0',
-                paddingTop: '18px'
-              }}>
+              <div
+                className="sticky bottom-0 bg-white border-t pt-4 z-30"
+                style={{
+                  position: 'sticky',
+                  bottom: 0,
+                  background: '#ffffff',
+                  borderTop: '1px solid #e2e8f0',
+                  paddingTop: '16px',
+                  paddingBottom: '4px',
+                  marginTop: '24px',
+                  display: 'flex',
+                  justifyContent: 'flex-end',
+                  gap: '12px',
+                  zIndex: 30,
+                }}
+              >
                 <button
                   type="button"
                   onClick={() => setUserToEdit(null)}

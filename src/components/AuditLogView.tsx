@@ -411,7 +411,6 @@ export const AuditLogView: React.FC<AuditLogViewProps> = ({ currentUser: _curren
           }}>
             Tổng bản ghi: <strong style={{ color: '#2563eb' }}>{total.toLocaleString()}</strong>
           </div>
-
         </div>
       </div>
 
