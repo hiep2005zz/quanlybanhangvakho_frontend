@@ -8,7 +8,13 @@ import { StatusToastHost, emitStatusToast } from './StatusToast';
 import { AccessDeniedView } from './AccessDeniedView';
 import { AuditLogView } from './AuditLogView';
 import { ProductAuditDrawer } from './ProductAuditDrawer';
+<<<<<<< Updated upstream
 import SalesOrderEntry from './SalesOrderEntry';
+=======
+import { ProfileView } from './ProfileView';
+import OrdersView from './OrdersView';
+import { hasPermission, Permissions } from '../hooks/usePermission';
+>>>>>>> Stashed changes
 import './dashboard.css';
 import { hasPermission, Permissions } from '../hooks/usePermission';
 
@@ -33,18 +39,32 @@ export default function DashboardPage({
   );
   const isPendingCustomer = officialRoles.length === 0;
   const isAdmin = user.role === 'admin' || Boolean(user.roles && user.roles.includes('admin'));
+  const canReadOrders = hasPermission(user, Permissions.ORDER_READ);
+  const canCreateOrders = hasPermission(user, Permissions.ORDER_WRITE);
+  const canManageOrders = officialRoles.includes('admin') || officialRoles.includes('sales_manager');
 
+<<<<<<< Updated upstream
   // 2. Khởi tạo State với Clean URL (/users, /audit-logs): Chỉ Admin mới được phép kích hoạt
   const [activeTab, setActiveTabState] = useState<'inventory' | 'users' | 'audit-logs'>(() => {
     const pathname = window.location.pathname.toLowerCase();
     const isUsersPath = pathname === '/users' || pathname.startsWith('/users/') || pathname === '/admin' || pathname.startsWith('/admin/');
     const isAuditPath = pathname === '/audit-logs' || pathname.startsWith('/audit-logs/');
+=======
+  // 2. Khởi tạo State với Clean URL (/users, /audit-logs, /profile, /orders)
+  const [activeTab, setActiveTabState] = useState<'inventory' | 'users' | 'audit-logs' | 'profile' | 'orders'>(() => {
+    const pathname = window.location.pathname.toLowerCase();
+    const isUsersPath = pathname === '/users' || pathname.startsWith('/users/') || pathname === '/admin' || pathname.startsWith('/admin/');
+    const isAuditPath = pathname === '/audit-logs' || pathname.startsWith('/audit-logs/');
+    const isProfilePath = pathname === '/profile' || pathname.startsWith('/profile/');
+    const isOrdersPath = pathname === '/orders' || pathname.startsWith('/orders/');
+>>>>>>> Stashed changes
 
     // Dọn sạch tàn dư query parameter cũ (?tab=users, ?tab=audit-logs) nếu người dùng truy cập link cũ
     const params = new URLSearchParams(window.location.search);
     const hasOldTabParam = params.has('tab') || params.has('view');
     const oldTabVal = (params.get('tab') || params.get('view') || '').toLowerCase();
 
+<<<<<<< Updated upstream
     if (isAuditPath || oldTabVal === 'audit-logs' || oldTabVal === 'audit') {
       if (isAdmin) {
         if (hasOldTabParam || pathname !== '/audit-logs') {
@@ -53,6 +73,16 @@ export default function DashboardPage({
           } catch {
             // ignore
           }
+=======
+    if (isOrdersPath) {
+      return 'orders';
+    } else if (isProfilePath || oldTabVal === 'profile') {
+      if (hasOldTabParam || pathname !== '/profile') {
+        try {
+          window.history.replaceState({}, '', '/profile');
+        } catch {
+          // ignore
+>>>>>>> Stashed changes
         }
         return 'audit-logs';
       }
@@ -84,6 +114,7 @@ export default function DashboardPage({
     return 'inventory';
   });
 
+<<<<<<< Updated upstream
   // 3. Chuyển đổi Route Clean URL: /users cho trang Quản trị, /audit-logs cho trang Nhật ký, / cho trang Kho hàng
   const setActiveTab = (tab: 'inventory' | 'users' | 'audit-logs') => {
     if (tab === 'users') {
@@ -96,6 +127,25 @@ export default function DashboardPage({
         }
         return;
       }
+=======
+  // 3. Chuyển đổi Route Clean URL: /users, /audit-logs, /profile, /orders, /
+  const setActiveTab = (tab: 'inventory' | 'users' | 'audit-logs' | 'profile' | 'orders') => {
+    if (tab === 'profile') {
+      setActiveTabState('profile');
+      try {
+        window.history.pushState({}, '', '/profile');
+      } catch {
+        // ignore
+      }
+    } else if (tab === 'orders') {
+      setActiveTabState('orders');
+      try {
+        window.history.pushState({}, '', '/orders');
+      } catch {
+        // ignore
+      }
+    } else if (tab === 'users') {
+>>>>>>> Stashed changes
       setActiveTabState('users');
       try {
         window.history.pushState({}, '', '/users');
@@ -146,6 +196,7 @@ export default function DashboardPage({
       const pathname = window.location.pathname.toLowerCase();
       const isUsersPath = pathname === '/users' || pathname.startsWith('/users/') || pathname === '/admin' || pathname.startsWith('/admin/');
       const isAuditPath = pathname === '/audit-logs' || pathname.startsWith('/audit-logs/');
+<<<<<<< Updated upstream
       const params = new URLSearchParams(window.location.search);
       const tabParam = (params.get('tab') || params.get('view') || '').toLowerCase();
 
@@ -161,6 +212,17 @@ export default function DashboardPage({
           setActiveTabState('audit-logs');
         } else {
           setActiveTabState('inventory');
+=======
+      const isProfilePath = pathname === '/profile' || pathname.startsWith('/profile/');
+      const isOrdersPath = pathname === '/orders' || pathname.startsWith('/orders/');
+      const params = new URLSearchParams(window.location.search);
+      const tabParam = (params.get('tab') || params.get('view') || '').toLowerCase();
+
+      if (isOrdersPath) {
+        setActiveTabState('orders');
+      } else if (isProfilePath || tabParam === 'profile') {
+        if (pathname !== '/profile' || tabParam) {
+>>>>>>> Stashed changes
           try {
             window.history.replaceState({}, '', '/');
           } catch {
@@ -879,16 +941,26 @@ export default function DashboardPage({
             <span style={{ fontWeight: activeTab === 'inventory' ? '700' : '500', fontSize: '14.5px' }}>Quản lý kho hàng</span>
           </div>
 
+<<<<<<< Updated upstream
           {canCreateOrders && (
             <div
               className={`sidebar-menu-item ${isOrderEntryOpen ? 'active' : ''}`}
               onClick={() => {
                 setIsOrderEntryOpen(true);
+=======
+          {canReadOrders && (
+            <div
+              className={`sidebar-menu-item ${activeTab === 'orders' ? 'active' : ''}`}
+              id="btn-sidebar-orders"
+              onClick={() => {
+                setActiveTab('orders');
+>>>>>>> Stashed changes
                 handleCloseMenu();
               }}
             >
               <div className="sidebar-icon-box">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+<<<<<<< Updated upstream
                   <path d="M3 3h2l2.4 12.4a2 2 0 0 0 2 1.6h8.8a2 2 0 0 0 2-1.6L22 8H6" />
                   <circle cx="10" cy="21" r="1" />
                   <circle cx="18" cy="21" r="1" />
@@ -896,6 +968,30 @@ export default function DashboardPage({
                 </svg>
               </div>
               <span style={{ fontWeight: isOrderEntryOpen ? '700' : '500', fontSize: '14.5px' }}>Lên đơn bán</span>
+=======
+                  <path d="M6 2h9l5 5v15H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" />
+                  <path d="M14 2v6h6M8 13h8M8 17h8" />
+                </svg>
+              </div>
+              <span style={{ fontWeight: activeTab === 'orders' ? '700' : '500', fontSize: '14.5px' }}>Đơn hàng</span>
+            </div>
+          )}
+
+          {/* Hồ sơ cá nhân - Tất cả tài khoản */}
+          <div
+            className={`sidebar-menu-item ${activeTab === 'profile' ? 'active' : ''}`}
+            id="btn-sidebar-profile"
+            onClick={() => {
+              setActiveTab('profile');
+              handleCloseMenu();
+            }}
+          >
+            <div className="sidebar-icon-box">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                <circle cx="12" cy="7" r="4" />
+              </svg>
+>>>>>>> Stashed changes
             </div>
           )}
 
@@ -969,6 +1065,7 @@ export default function DashboardPage({
         </div>
       </aside>
 
+<<<<<<< Updated upstream
       {/* Main Content: Switch between User Management, Audit Logs, Inventory and Pending Authorization */}
       {isOrderEntryOpen && canCreateOrders ? (
         <SalesOrderEntry
@@ -977,6 +1074,27 @@ export default function DashboardPage({
           products={products}
           onClose={() => setIsOrderEntryOpen(false)}
         />
+=======
+      {/* Main Content: Switch between Orders, User Management, Audit Logs, Inventory and Pending Authorization */}
+      {activeTab === 'orders' ? (
+        canReadOrders ? (
+          <OrdersView
+            token={token}
+            username={user.username}
+            products={products}
+            canCreateOrders={canCreateOrders}
+            canManageOrders={canManageOrders}
+            onBackToHome={() => setActiveTab('inventory')}
+          />
+        ) : (
+          <AccessDeniedView
+            currentUser={user}
+            requiredPermission="Quyền xem đơn hàng (order:read)"
+            onBackToWorkflow={() => setActiveTab('inventory')}
+            onLogout={onLogout}
+          />
+        )
+>>>>>>> Stashed changes
       ) : activeTab === 'users' ? (
         isAdmin ? (
           <UserManagementView

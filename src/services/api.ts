@@ -40,6 +40,59 @@ export interface ProductItem {
   profit_per_unit?: number | null;
 }
 
+export interface OrderItem {
+  id: number;
+  order_code: string;
+  dealer_id: number;
+  dealer_name: string;
+  created_by: string;
+  assigned_sale_id?: number | null;
+  assigned_sale_name?: string | null;
+  total_amount: number;
+  status: string;
+  created_at: string;
+}
+
+export interface OrderDealer {
+  id: number;
+  code: string;
+  name: string;
+  phone?: string | null;
+  address?: string | null;
+}
+
+export interface CreateOrderPayload {
+  dealer_id: number;
+  delivery_point: string;
+  desired_delivery_date: string;
+  discount_percent: number;
+  items: Array<{ product_id: number; quantity: number; unit: string }>;
+  note?: string;
+}
+
+export interface CreatedOrder {
+  id: number;
+  order_code: string;
+  dealer_id: number;
+  dealer_name: string;
+  total_amount: number;
+  status: string;
+  created_at: string;
+}
+
+const isOrderItem = (value: unknown): value is OrderItem => {
+  if (typeof value !== 'object' || value === null) return false;
+  const order = value as Record<string, unknown>;
+  return typeof order.id === 'number' &&
+    typeof order.order_code === 'string' &&
+    typeof order.dealer_id === 'number' &&
+    typeof order.dealer_name === 'string' &&
+    typeof order.created_by === 'string' &&
+    typeof order.total_amount === 'number' &&
+    typeof order.status === 'string' &&
+    typeof order.created_at === 'string';
+};
+
 export interface ProductFinancialSummary {
   total_products: number;
   total_stock: number;
@@ -349,16 +402,41 @@ export async function getProductsApi(token: string): Promise<ProductListResponse
   return response.json();
 }
 
+<<<<<<< Updated upstream
+=======
+export async function getOrdersApi(token: string): Promise<OrderItem[]> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/orders`, {
+    method: 'GET',
+  }, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi tải danh sách đơn hàng (Mã lỗi ${response.status})`);
+  }
+  if (!Array.isArray(data) || !data.every(isOrderItem)) {
+    throw new Error('Dữ liệu danh sách đơn hàng không hợp lệ.');
+  }
+  return data;
+}
+
+>>>>>>> Stashed changes
 export async function getOrderDealersApi(token: string): Promise<OrderDealer[]> {
   const response = await authenticatedFetch(`${API_BASE_URL}/orders/dealers`, { method: 'GET' }, token);
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
     throw new Error(data.detail || `Lỗi tải danh sách đại lý (Mã lỗi ${response.status})`);
   }
+<<<<<<< Updated upstream
   return data;
 }
 
 export async function createOrderApi(token: string, payload: OrderCreatePayload): Promise<OrderCreateResponse> {
+=======
+  if (!Array.isArray(data)) throw new Error('Dữ liệu danh sách đại lý không hợp lệ.');
+  return data;
+}
+
+export async function createOrderApi(token: string, payload: CreateOrderPayload): Promise<CreatedOrder> {
+>>>>>>> Stashed changes
   const response = await authenticatedFetch(`${API_BASE_URL}/orders/sales-entry`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -368,6 +446,26 @@ export async function createOrderApi(token: string, payload: OrderCreatePayload)
   if (!response.ok) {
     throw new Error(data.detail || `Lỗi tạo đơn hàng (Mã lỗi ${response.status})`);
   }
+<<<<<<< Updated upstream
+=======
+  return data as CreatedOrder;
+}
+
+export async function cancelOrderApi(
+  token: string,
+  orderCode: string,
+  reason: string
+): Promise<{ status: string; message: string; order: OrderItem }> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/orders/${encodeURIComponent(orderCode)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status: 'CANCELLED', reason }),
+  }, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi hủy đơn hàng (Mã lỗi ${response.status})`);
+  }
+>>>>>>> Stashed changes
   return data;
 }
 
@@ -783,3 +881,44 @@ export async function clearAllAuditLogsApi(token: string): Promise<{ message: st
   }
   return data;
 }
+<<<<<<< Updated upstream
+=======
+
+/**
+ * User Story SCRUM-27: Xem và cập nhật hồ sơ cá nhân
+ */
+export async function getMyProfileApi(token: string): Promise<UserProfile> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/me`, {
+    method: 'GET',
+  }, token);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.detail || 'Không thể tải thông tin hồ sơ.');
+  }
+  return await response.json();
+}
+
+export async function updateMyProfileApi(
+  token: string,
+  data: { full_name: string; phone_number: string }
+): Promise<UserProfile> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/me`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(data),
+  }, token);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    let msg = 'Cập nhật hồ sơ thất bại.';
+    if (typeof err.detail === 'string') {
+      msg = err.detail;
+    } else if (Array.isArray(err.detail) && err.detail.length > 0) {
+      msg = err.detail.map((d: any) => d.msg || JSON.stringify(d)).join('; ');
+    }
+    throw new Error(msg);
+  }
+  return await response.json();
+}
+>>>>>>> Stashed changes
