@@ -924,9 +924,6 @@ export async function updateMyProfileApi(
   return await response.json();
 }
 
-<<<<<<< HEAD
-=======
 
 
->>>>>>> 1541664110b191ca523e1eb06946cae39be4f8b7
 
