@@ -983,12 +983,13 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                               fontWeight: '800',
                               fontSize: '15px',
                               flexShrink: 0,
-<<<<<<< HEAD
-                              overflow: 'hidden'
+                              boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                              border: '1px solid rgba(255, 255, 255, 0.4)',
+                              overflow: 'hidden',
                             }}>
                               {u.avatar_thumbnail_url || u.avatar_url ? (
                                 <img
-                                  src={(u.avatar_thumbnail_url || u.avatar_url) ?? ''}
+                                  src={getAvatarUrl(u.avatar_thumbnail_url || u.avatar_url || '')}
                                   alt={u.full_name || u.username}
                                   style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                                   onError={(e) => {
@@ -996,21 +997,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                                   }}
                                 />
                               ) : (
-                                u.full_name ? u.full_name.charAt(0).toUpperCase() : u.username.charAt(0).toUpperCase()
-=======
-                              boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                              border: '1px solid rgba(255, 255, 255, 0.4)',
-                              overflow: 'hidden',
-                            }}>
-                              {u.avatar_url ? (
-                                <img
-                                  src={getAvatarUrl(u.avatar_url)}
-                                  alt={u.full_name || u.username}
-                                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                                />
-                              ) : (
                                 (u.full_name ? u.full_name.charAt(0).toUpperCase() : u.username.charAt(0).toUpperCase())
->>>>>>> origin/test
                               )}
                             </div>
 

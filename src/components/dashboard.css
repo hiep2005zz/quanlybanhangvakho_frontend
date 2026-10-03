@@ -20,15 +20,11 @@
 .pulse-indicator-warning {
   animation: indicatorPing 1.2s cubic-bezier(0, 0, 0.2, 1) infinite;
 }
-<<<<<<< HEAD
+
 @keyframes avatarSpin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
 }
-.pulse-indicator-active { animation: indicatorPing 2s cubic-bezier(0,0,0.2,1) infinite; }
-.pulse-indicator-warning { animation: indicatorPing 1.2s cubic-bezier(0,0,0.2,1) infinite; }
-=======
->>>>>>> origin/test
 
 /* Sidebar Drawer */
 .sidebar-drawer-overlay {

@@ -38,7 +38,6 @@ export interface User {
   avatar_thumbnail_url?: string | null;
   can_view_cost?: boolean;
   can_write_inventory?: boolean;
-  avatar_url?: string | null;
 }
 
 export interface UserProfile {
@@ -55,10 +54,7 @@ export interface UserProfile {
   territory_name?: string | null;
   branch?: string | null;
   avatar_url?: string | null;
-<<<<<<< HEAD
   avatar_thumbnail_url?: string | null;
-=======
->>>>>>> origin/test
 }
 
 export interface LoginResponse {
@@ -565,10 +561,7 @@ export interface UserAccount {
   can_write_inventory: boolean;
   badge_color: string;
   avatar_url?: string | null;
-<<<<<<< HEAD
   avatar_thumbnail_url?: string | null;
-=======
->>>>>>> origin/test
 }
 
 
@@ -1055,8 +1048,6 @@ export async function updateMyProfileApi(
   return await response.json();
 }
 
-<<<<<<< HEAD
-=======
 export interface ProfileAvatarUploadResponse {
   status: string;
   message: string;
@@ -1089,7 +1080,6 @@ export async function uploadProfileAvatarApi(
   }
   return data;
 }
->>>>>>> origin/test
 
 // ============================================================================
 // DÁN TOÀN BỘ NỘI DUNG FILE NÀY VÀO CUỐI FILE: frontend/src/services/api.ts

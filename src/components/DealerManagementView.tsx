@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { getClientSession, authenticatedFetch, API_BASE_URL } from '../services/api';
 import { emitStatusToast } from './StatusToast';
 
@@ -50,7 +50,7 @@ export default function DealerManagementView() {
 
   const handleLock = async () => {
     if (!lockReason.trim()) {
-      emitStatusToast({ message: 'Vui lòng nhập lý do khóa', type: 'error', title: 'Lỗi khóa đại lý' });
+      emitStatusToast({ message: 'Vui lòng nhập lý do khóa', title: 'Lỗi khóa đại lý' });
       return;
     }
     try {
@@ -73,7 +73,7 @@ export default function DealerManagementView() {
       setSelectedDealer(null);
       fetchDealers();
     } catch (err: any) {
-      emitStatusToast({ message: err.message || 'Lỗi khi khóa đại lý', type: 'error', title: 'Lỗi thao tác' });
+      emitStatusToast({ message: err.message || 'Lỗi khi khóa đại lý', title: 'Lỗi thao tác' });
     } finally {
       setIsSubmitting(false);
     }
@@ -97,7 +97,7 @@ export default function DealerManagementView() {
       setSelectedDealer(null);
       fetchDealers();
     } catch (err: any) {
-      emitStatusToast({ message: err.message || 'Lỗi khi mở khóa', type: 'error', title: 'Lỗi thao tác' });
+      emitStatusToast({ message: err.message || 'Lỗi khi mở khóa', title: 'Lỗi thao tác' });
     } finally {
       setIsSubmitting(false);
     }

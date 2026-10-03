@@ -4,6 +4,7 @@ import {
   User,
   createOrderApi,
   getAvatarUrl,
+  API_BASE_URL,
 } from '../services/api';
 import { emitStatusToast } from './StatusToast';
 
@@ -26,8 +27,27 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
 }) => {
   if (!isOpen) return null;
 
-  // Đại lý mẫu (id 1)
-  const [dealerId] = useState(1);
+  // Danh sách đại lý
+  const [dealers, setDealers] = useState<any[]>([]);
+  const [dealerId, setDealerId] = useState<number>(1);
+
+  useEffect(() => {
+    // Tải danh sách đại lý để người dùng chọn
+    fetch(`${API_BASE_URL}/orders/dealers`, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.dealers && data.dealers.length > 0) {
+          setDealers(data.dealers);
+          setDealerId(data.dealers[0].id);
+        }
+      })
+      .catch(() => {});
+  }, [token]);
+
+  const selectedDealer = dealers.find(d => d.id === dealerId) || (dealers.length > 0 ? dealers[0] : null);
+
   const [selectedProductId, setSelectedProductId] = useState<number>(
     products.length > 0 ? products[0].id : 0
   );
@@ -139,7 +159,7 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
             </h3>
             <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginTop: '6px', flexWrap: 'wrap' }}>
               <p style={{ fontSize: '13px', color: '#64748b', margin: 0 }}>
-                Khách hàng: <strong style={{ color: '#2563eb' }}>Đại Lý Phân Phối Miền Bắc - Sao Mai</strong>
+                Khách hàng: <strong style={{ color: selectedDealer?.status === 'LOCKED' ? '#dc2626' : '#2563eb' }}>{selectedDealer ? `${selectedDealer.name} (${selectedDealer.code})` : 'Đang tải...'}</strong>
               </p>
               {currentUser && (
                 <div style={{
@@ -210,6 +230,39 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
         )}
 
         <form onSubmit={handleSubmit}>
+          {/* Chọn Đại lý / Khách hàng */}
+          <div style={{ marginBottom: '14px' }}>
+            <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '6px' }}>
+              Đại lý / Khách hàng <span style={{ color: '#dc2626' }}>*</span>
+            </label>
+            <select
+              value={dealerId}
+              onChange={(e) => setDealerId(parseInt(e.target.value, 10))}
+              style={{
+                width: '100%',
+                padding: '9px 12px',
+                borderRadius: '8px',
+                border: selectedDealer?.status === 'LOCKED' ? '1.5px solid #ef4444' : '1px solid #cbd5e1',
+                fontSize: '13.5px',
+                background: selectedDealer?.status === 'LOCKED' ? '#fef2f2' : '#ffffff',
+                outline: 'none',
+                cursor: 'pointer',
+                boxSizing: 'border-box',
+              }}
+            >
+              {dealers.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.code} - {d.name} {d.status === 'LOCKED' ? ' [🔒 ĐANG BỊ KHÓA GIAO DỊCH]' : ''}
+                </option>
+              ))}
+            </select>
+            {selectedDealer?.status === 'LOCKED' && (
+              <div style={{ marginTop: '6px', fontSize: '12.5px', color: '#dc2626', background: '#fef2f2', border: '1px solid #fecaca', padding: '6px 10px', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span>🔒</span>
+                <span><strong>Đại lý đang bị KHÓA:</strong> {selectedDealer.lock_reason || 'Không rõ lý do'}. Hệ thống sẽ chặn tạo đơn mới.</span>
+              </div>
+            )}
+          </div>
           {/* Chọn sản phẩm */}
           <div style={{ marginBottom: '14px' }}>
             <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '6px' }}>

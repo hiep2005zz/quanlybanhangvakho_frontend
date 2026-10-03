@@ -521,41 +521,24 @@ export default function DashboardPage({
                 width: '100%',
                 height: '100%',
                 borderRadius: '50%',
-<<<<<<< HEAD
                 background: (user.avatar_thumbnail_url || user.avatar_url)
-                  ? '#f8fafc'
+                  ? '#f1f5f9'
                   : `linear-gradient(135deg, ${currentBadgeColor} 0%, #2563eb 100%)`,
-=======
-                background: user.avatar_url ? '#f1f5f9' : `linear-gradient(135deg, ${currentBadgeColor} 0%, #2563eb 100%)`,
->>>>>>> origin/test
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 color: '#ffffff',
                 fontWeight: '700',
-<<<<<<< HEAD
-                fontSize: '15px',
-                boxShadow: '0 2px 5px rgba(0, 0, 0, 0.15)',
-                overflow: 'hidden',
-                border: (user.avatar_thumbnail_url || user.avatar_url) ? '1.5px solid #e2e8f0' : 'none',
-              }}>
-                {(user.avatar_thumbnail_url || user.avatar_url) ? (
-                  <img
-                    src={user.avatar_thumbnail_url || user.avatar_url || ''}
-                    alt={user.full_name || user.username}
-                    style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-=======
                 fontSize: '28px',
                 boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)',
                 overflow: 'hidden',
                 border: '2.5px solid rgba(255, 255, 255, 0.9)',
               }}>
-                {user.avatar_url ? (
+                {(user.avatar_thumbnail_url || user.avatar_url) ? (
                   <img
-                    src={getAvatarUrl(user.avatar_url)}
+                    src={getAvatarUrl(user.avatar_thumbnail_url || user.avatar_url || '')}
                     alt={user.full_name || user.username}
                     style={{ width: '100%', height: '100%', objectFit: 'cover' }}
->>>>>>> origin/test
                   />
                 ) : (
                   (user.full_name || user.username).charAt(0).toUpperCase()
@@ -600,13 +583,9 @@ export default function DashboardPage({
                   width: '54px',
                   height: '54px',
                   borderRadius: '16px',
-<<<<<<< HEAD
                   background: (user.avatar_url || user.avatar_thumbnail_url)
-                    ? '#f8fafc'
+                    ? '#f1f5f9'
                     : `linear-gradient(135deg, ${currentBadgeColor} 0%, #6366f1 100%)`,
-=======
-                  background: user.avatar_url ? '#f1f5f9' : `linear-gradient(135deg, ${currentBadgeColor} 0%, #6366f1 100%)`,
->>>>>>> origin/test
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -615,25 +594,14 @@ export default function DashboardPage({
                   fontSize: '22px',
                   flexShrink: 0,
                   boxShadow: `0 8px 20px ${currentBadgeColor}55, inset 0 1px 0 rgba(255, 255, 255, 0.4)`,
-<<<<<<< HEAD
-                  border: (user.avatar_url || user.avatar_thumbnail_url) ? '2px solid #e2e8f0' : '1px solid rgba(255, 255, 255, 0.25)',
+                  border: '1px solid rgba(255, 255, 255, 0.25)',
                   overflow: 'hidden',
                 }}>
                   {(user.avatar_url || user.avatar_thumbnail_url) ? (
                     <img
-                      src={user.avatar_url || user.avatar_thumbnail_url || ''}
-                      alt={user.full_name || user.username}
-                      style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-=======
-                  border: '1px solid rgba(255, 255, 255, 0.25)',
-                  overflow: 'hidden',
-                }}>
-                  {user.avatar_url ? (
-                    <img
-                      src={getAvatarUrl(user.avatar_url)}
+                      src={getAvatarUrl(user.avatar_url || user.avatar_thumbnail_url || '')}
                       alt={user.full_name || user.username}
                       style={{ width: '100%', height: '100%', objectFit: 'cover' }}
->>>>>>> origin/test
                     />
                   ) : (
                     user.username.charAt(0).toUpperCase()
@@ -1189,7 +1157,7 @@ export default function DashboardPage({
           </div>
 
           {/* Tab Đại Lý */}
-          {(user.role === 'admin' || (user.roles && user.roles.includes('admin')) || user.role === 'ketoan' || (user.roles && user.roles.includes('ketoan'))) && (
+          {(user.role === 'admin' || (user.roles && user.roles.includes('admin')) || user.role === 'ketoan' || user.role === 'accountant' || (user.roles && (user.roles.includes('ketoan') || user.roles.includes('accountant')))) && (
             <div
               className={`sidebar-menu-item ${activeTab === 'dealers' ? 'active' : ''}`}
               onClick={() => {
@@ -1805,6 +1773,41 @@ export default function DashboardPage({
                 <span style={{ fontSize: '12.5px', color: '#64748b', marginRight: '4px' }}>
                   Hiển thị <strong style={{ color: '#0f172a' }}>{filteredProducts.length}</strong> / {products.length} SP
                 </span>
+
+                {/* Nút Tạo đơn hàng */}
+                <button
+                  type="button"
+                  onClick={() => setIsOrderModalOpen(true)}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    background: '#10b981',
+                    border: '1px solid #059669',
+                    padding: '7px 12px',
+                    borderRadius: '8px',
+                    fontSize: '12.5px',
+                    fontWeight: '600',
+                    color: '#ffffff',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = '#059669';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = '#10b981';
+                  }}
+                  title="Tạo đơn hàng mới"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="9" cy="21" r="1"></circle>
+                    <circle cx="20" cy="21" r="1"></circle>
+                    <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+                  </svg>
+                  <span>Tạo đơn hàng</span>
+                </button>
+
                 {/* Nút Nhập file Excel danh mục hàng loạt (Chỉ hiển thị cho admin và quản lý kinh doanh) */}
                 {(isAdmin || isSalesManager) && (
                   <button
