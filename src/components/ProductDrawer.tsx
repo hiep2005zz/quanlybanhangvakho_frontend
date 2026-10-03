@@ -234,6 +234,9 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
       };
       reader.readAsDataURL(file);
     });
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
 
   // Xóa ảnh
@@ -771,39 +774,43 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
                 Hình ảnh sản phẩm
               </label>
 
-              <div
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  handleImageUpload(e.dataTransfer.files);
-                }}
-                onClick={() => fileInputRef.current?.click()}
-                style={{
-                  border: '2px dashed #cbd5e1',
-                  borderRadius: '10px',
-                  padding: '16px',
-                  textAlign: 'center',
-                  background: '#f8fafc',
-                  cursor: 'pointer',
-                  transition: 'border-color 0.2s',
-                }}
-              >
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  multiple
-                  accept="image/png, image/jpeg, image/webp"
-                  style={{ display: 'none' }}
-                  onChange={(e) => handleImageUpload(e.target.files)}
-                />
-                <div style={{ fontSize: '24px', marginBottom: '4px' }}>🖼️</div>
-                <div style={{ fontSize: '13px', fontWeight: '600', color: '#334155' }}>
-                  Kéo thả ảnh vào đây hoặc <span style={{ color: '#2563eb' }}>bấm để chọn ảnh</span>
+              {/* Hidden file input */}
+              <input
+                type="file"
+                ref={fileInputRef}
+                multiple
+                accept="image/png, image/jpeg, image/webp"
+                style={{ display: 'none' }}
+                onChange={(e) => handleImageUpload(e.target.files)}
+              />
+
+              {images.length === 0 && (
+                <div
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    handleImageUpload(e.dataTransfer.files);
+                  }}
+                  onClick={() => fileInputRef.current?.click()}
+                  style={{
+                    border: '2px dashed #cbd5e1',
+                    borderRadius: '10px',
+                    padding: '16px',
+                    textAlign: 'center',
+                    background: '#f8fafc',
+                    cursor: 'pointer',
+                    transition: 'border-color 0.2s',
+                  }}
+                >
+                  <div style={{ fontSize: '24px', marginBottom: '4px' }}>🖼️</div>
+                  <div style={{ fontSize: '13px', fontWeight: '600', color: '#334155' }}>
+                    Kéo thả ảnh vào đây hoặc <span style={{ color: '#2563eb' }}>bấm để chọn ảnh</span>
+                  </div>
                 </div>
-              </div>
+              )}
 
               {images.length > 0 && (
-                <div style={{ display: 'flex', gap: '10px', marginTop: '12px', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', gap: '10px', marginTop: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
                   {images.map((img, idx) => {
                     const isMain = idx === mainImageIdx;
                     return (
@@ -875,6 +882,32 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
                       </div>
                     );
                   })}
+                  {images.length < 5 && (
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      style={{
+                        width: '84px',
+                        height: '84px',
+                        borderRadius: '8px',
+                        border: '2px dashed #cbd5e1',
+                        background: '#f8fafc',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer',
+                        color: '#64748b',
+                        fontSize: '11px',
+                        gap: '4px',
+                        transition: 'all 0.2s',
+                      }}
+                      title="Thêm ảnh khác"
+                    >
+                      <span style={{ fontSize: '18px', lineHeight: 1 }}>+</span>
+                      <span>Thêm ảnh</span>
+                    </button>
+                  )}
                 </div>
               )}
             </div>

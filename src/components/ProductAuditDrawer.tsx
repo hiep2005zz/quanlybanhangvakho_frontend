@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { AuditLogItem, getEntityAuditLogsApi, getUsersApi, UserAccount } from '../services/api';
+import { AuditLogItem, getEntityAuditLogsApi, getUsersApi, UserAccount, getAvatarUrl } from '../services/api';
 import { AuditDetailModal } from './AuditDetailModal';
 import { formatLocalDateTime } from '../utils/dateUtils';
 
@@ -454,7 +454,38 @@ export const ProductAuditDrawer: React.FC<ProductAuditDrawerProps> = ({
                     )}
 
                     {/* Người sửa */}
-                    <div style={{ margin: '0 0 8px' }}>
+                    <div style={{ margin: '0 0 8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      {(() => {
+                        const matchedUser = usersList.find((u) => u.id === log.user_id || u.username.toLowerCase() === (log.user_name || '').toLowerCase() || u.full_name === log.user_name);
+                        const userAvatar = matchedUser?.avatar_url;
+                        return (
+                          <div style={{
+                            width: '24px',
+                            height: '24px',
+                            borderRadius: '6px',
+                            background: userAvatar ? '#f1f5f9' : '#eff6ff',
+                            color: '#2563eb',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontWeight: '700',
+                            fontSize: '11px',
+                            overflow: 'hidden',
+                            border: userAvatar ? '1px solid #e2e8f0' : 'none',
+                            flexShrink: 0,
+                          }}>
+                            {userAvatar ? (
+                              <img
+                                src={getAvatarUrl(userAvatar)}
+                                alt={log.user_name || 'U'}
+                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                              />
+                            ) : (
+                              (log.user_name || 'U').charAt(0).toUpperCase()
+                            )}
+                          </div>
+                        );
+                      })()}
                       <p style={{ margin: 0, fontSize: '12.5px', color: '#334155' }}>
                         Người sửa: <strong style={{ color: '#0f172a' }}>{log.user_name || 'Hệ thống'}</strong>
                       </p>

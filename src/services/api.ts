@@ -1,4 +1,4 @@
-export const API_BASE_URL = 'http://localhost:8000/api/v1';
+export const API_BASE_URL = typeof window !== 'undefined' && window.location.origin ? '/api/v1' : 'http://127.0.0.1:8000/api/v1';
 
 /**
  * Trả về URL tuyệt đối để tải ảnh đại diện từ backend nếu là đường dẫn tĩnh /uploads/...
@@ -8,8 +8,7 @@ export function getAvatarUrl(url?: string | null): string {
   if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:') || url.startsWith('blob:')) {
     return url;
   }
-  const backendOrigin = API_BASE_URL.replace(/\/api\/v1\/?$/, '');
-  return `${backendOrigin}${url.startsWith('/') ? '' : '/'}${url}`;
+  return url.startsWith('/') ? url : `/${url}`;
 }
 
 export const AUTH_STORAGE = {

@@ -258,6 +258,17 @@ export default function DashboardPage({
       }
     };
 
+    // 5. Làm sạch query param ?expired=true nếu vẫn còn lưu trên thanh địa chỉ
+    try {
+      const url = new URL(window.location.href);
+      if (url.searchParams.has('expired')) {
+        url.searchParams.delete('expired');
+        window.history.replaceState({}, '', url.pathname + (url.search ? url.search : ''));
+      }
+    } catch {
+      // ignore
+    }
+
     window.addEventListener('popstate', syncFromUrl);
     return () => {
       window.removeEventListener('popstate', syncFromUrl);
@@ -383,11 +394,13 @@ export default function DashboardPage({
       return;
     }
     setIsLoading(true);
+    setError(null);
     getProductsApi(token)
       .then((data) => {
         setProducts(data.items);
         setIsCostVisible(data.is_cost_price_visible);
         setIsLoading(false);
+        setError(null);
       })
       .catch((err) => {
         setError(err.message || 'Lỗi khi tải dữ liệu sản phẩm từ Backend.');
@@ -1360,14 +1373,40 @@ export default function DashboardPage({
         <>
           {error && (
             <div style={{
-              background: 'rgba(239, 68, 68, 0.2)',
+              background: 'rgba(239, 68, 68, 0.12)',
               border: '1px solid #ef4444',
-              color: '#fca5a5',
+              color: '#b91c1c',
               padding: '12px 16px',
               borderRadius: '10px',
-              marginBottom: '20px'
+              marginBottom: '20px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '12px'
             }}>
-              ⚠️ {error}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: '500' }}>
+                <span>⚠️</span>
+                <span>{error}</span>
+              </div>
+              <button
+                type="button"
+                onClick={fetchProducts}
+                style={{
+                  background: '#ef4444',
+                  color: '#ffffff',
+                  border: 'none',
+                  padding: '6px 14px',
+                  borderRadius: '6px',
+                  fontSize: '13px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+              >
+                Tải lại dữ liệu
+              </button>
             </div>
           )}
 
