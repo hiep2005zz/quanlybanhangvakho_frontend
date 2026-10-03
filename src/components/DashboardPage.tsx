@@ -64,6 +64,9 @@ export default function DashboardPage({
     const hasOldTabParam = params.has('tab') || params.has('view');
     const oldTabVal = (params.get('tab') || params.get('view') || '').toLowerCase();
 
+    if (pathname === '/suppliers' || pathname.startsWith('/suppliers/')) {
+      return 'suppliers';
+    }
     if (isDealersPath || oldTabVal === 'dealers') {
       if (hasOldTabParam || pathname !== '/dealers') {
         try {
@@ -73,9 +76,6 @@ export default function DashboardPage({
         }
       }
       return 'dealers';
-    }
-    if (pathname === '/suppliers' || pathname.startsWith('/suppliers/')) {
-      return 'suppliers';
     }
     if (isProfilePath || oldTabVal === 'profile') {
       if (hasOldTabParam || pathname !== '/profile') {
@@ -120,17 +120,17 @@ export default function DashboardPage({
 
   // 3. Chuyển đổi Route Clean URL
   const setActiveTab = (tab: 'inventory' | 'users' | 'categories' | 'audit-logs' | 'profile' | 'suppliers' | 'dealers') => {
-    if (tab === 'dealers') {
-      setActiveTabState('dealers');
-      try {
-        window.history.pushState({}, '', '/dealers');
-      } catch {
-        // ignore
-      }
-    } else if (tab === 'profile') {
+    if (tab === 'profile') {
       setActiveTabState('profile');
       try {
         window.history.pushState({}, '', '/profile');
+      } catch {
+        // ignore
+      }
+    } else if (tab === 'dealers') {
+      setActiveTabState('dealers');
+      try {
+        window.history.pushState({}, '', '/dealers');
       } catch {
         // ignore
       }
@@ -200,10 +200,15 @@ export default function DashboardPage({
       const isUsersPath = pathname === '/users' || pathname.startsWith('/users/') || pathname === '/admin' || pathname.startsWith('/admin/');
       const isAuditPath = pathname === '/audit-logs' || pathname.startsWith('/audit-logs/');
       const isProfilePath = pathname === '/profile' || pathname.startsWith('/profile/');
-      const isDealersPath = pathname === '/dealers' || pathname.startsWith('/dealers/');
       const params = new URLSearchParams(window.location.search);
       const tabParam = (params.get('tab') || params.get('view') || '').toLowerCase();
 
+      if (pathname === '/suppliers' || pathname.startsWith('/suppliers/')) {
+        setActiveTabState('suppliers');
+        return;
+      }
+
+      const isDealersPath = pathname === '/dealers' || pathname.startsWith('/dealers/');
       if (isDealersPath || tabParam === 'dealers') {
         if (pathname !== '/dealers' || tabParam) {
           try {
@@ -213,11 +218,6 @@ export default function DashboardPage({
           }
         }
         setActiveTabState('dealers');
-        return;
-      }
-
-      if (pathname === '/suppliers' || pathname.startsWith('/suppliers/')) {
-        setActiveTabState('suppliers');
         return;
       }
 
@@ -1024,6 +1024,26 @@ export default function DashboardPage({
             <span style={{ fontWeight: activeTab === 'inventory' ? '700' : '500', fontSize: '14.5px' }}>Quản lý kho hàng</span>
           </div>
 
+          {/* Tra cứu đại lý - Cho nhân viên kinh doanh, quản lý và nhân viên toàn hệ thống */}
+          <div
+            className={`sidebar-menu-item ${activeTab === 'dealers' ? 'active' : ''}`}
+            id="btn-sidebar-dealers"
+            onClick={() => {
+              setActiveTab('dealers');
+              handleCloseMenu();
+            }}
+          >
+            <div className="sidebar-icon-box">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                <circle cx="9" cy="7" r="4" />
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+              </svg>
+            </div>
+            <span style={{ fontWeight: activeTab === 'dealers' ? '700' : '500', fontSize: '14.5px' }}>Tra cứu đại lý</span>
+          </div>
+
           {/* Nhà cung cấp - Thủ kho, Quản lý kho, Admin */}
           {canManageSuppliers && (
             <div
@@ -1045,24 +1065,6 @@ export default function DashboardPage({
               <span style={{ fontWeight: activeTab === 'suppliers' ? '700' : '500', fontSize: '14.5px' }}>Nhà cung cấp</span>
             </div>
           )}
-
-          {/* Tra cứu & Tìm đại lý trong tuyến */}
-          <div
-            className={`sidebar-menu-item ${activeTab === 'dealers' ? 'active' : ''}`}
-            id="btn-sidebar-dealers"
-            onClick={() => {
-              setActiveTab('dealers');
-              handleCloseMenu();
-            }}
-          >
-            <div className="sidebar-icon-box">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
-                <circle cx="12" cy="10" r="3" />
-              </svg>
-            </div>
-            <span style={{ fontWeight: activeTab === 'dealers' ? '700' : '500', fontSize: '14.5px' }}>Tra cứu & Tìm đại lý</span>
-          </div>
 
           {/* Hồ sơ cá nhân */}
           <div
@@ -1216,12 +1218,6 @@ export default function DashboardPage({
           onBackToHome={() => setActiveTab('inventory')}
           onUserUpdated={onUserUpdated}
         />
-      ) : activeTab === 'dealers' ? (
-        <DealerSearchView
-          currentUser={user}
-          token={token}
-          onBackToHome={() => setActiveTab('inventory')}
-        />
       ) : activeTab === 'suppliers' ? (
         canManageSuppliers ? (
           <SupplierManagementView
@@ -1236,6 +1232,12 @@ export default function DashboardPage({
             onLogout={onLogout}
           />
         )
+      ) : activeTab === 'dealers' ? (
+        <DealerSearchView
+          currentUser={user}
+          token={token}
+          onBackToHome={() => setActiveTab('inventory')}
+        />
       ) : isPendingCustomer ? (
         <div style={{
           display: 'flex',
