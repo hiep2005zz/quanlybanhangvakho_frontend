@@ -29,23 +29,33 @@ interface DiscountPolicyViewProps {
 
 export default function DiscountPolicyView({ token, user, onBackToHome }: DiscountPolicyViewProps) {
   console.log(token, user);
-  const [policies, setPolicies] = useState<DiscountPolicy[]>([
-    {
-      id: '1',
-      title: 'Chính sách chiết khấu Quý 4 - Đại lý Cấp 1',
-      code: 'CK-Q4-CAP1',
-      target_group: 'agent_tier_1',
-      start_date: '2026-10-01',
-      end_date: '2026-12-31',
-      status: 'active',
-      note: 'Áp dụng cho đơn hàng đạt mốc sản lượng trong quý',
-      tiers: [
-        { id: 't1', min_quantity: 100, max_quantity: 499, discount_percent: 5 },
-        { id: 't2', min_quantity: 500, max_quantity: 999, discount_percent: 8 },
-        { id: 't3', min_quantity: 1000, max_quantity: null, discount_percent: 12 },
-      ],
-    },
-  ]);
+  const [policies, setPolicies] = useState<DiscountPolicy[]>(() => {
+    const saved = localStorage.getItem('discountPolicies');
+    if (saved) {
+      return JSON.parse(saved);
+    }
+    return [
+      {
+        id: '1',
+        title: 'Chính sách chiết khấu - Đại lý Cấp 1',
+        code: 'CK-CAP1',
+        target_group: 'agent_tier_1',
+        start_date: '2026-10-01',
+        end_date: '2026-12-31',
+        status: 'active',
+        note: 'Áp dụng cho đơn hàng đạt mốc sản lượng',
+        tiers: [
+          { id: 't1', min_quantity: 100, max_quantity: 499, discount_percent: 5 },
+          { id: 't2', min_quantity: 500, max_quantity: 999, discount_percent: 8 },
+          { id: 't3', min_quantity: 1000, max_quantity: null, discount_percent: 12 },
+        ],
+      },
+    ];
+  });
+
+  React.useEffect(() => {
+    localStorage.setItem('discountPolicies', JSON.stringify(policies));
+  }, [policies]);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState<DiscountPolicy>({
@@ -116,6 +126,12 @@ export default function DiscountPolicyView({ token, user, onBackToHome }: Discou
     setPolicies([newPolicy, ...policies]);
     setIsModalOpen(false);
     emitStatusToast({ title: 'Thành công', message: 'Khai báo chính sách chiết khấu sản lượng thành công!' });
+  };
+
+  const handleDeletePolicy = (id: string | undefined) => {
+    if (!id) return;
+    setPolicies(policies.filter(p => p.id !== id));
+    emitStatusToast({ title: 'Thành công', message: 'Xóa chính sách thành công!' });
   };
 
   // Quay lại trang chủ (Kho hàng) an toàn
@@ -261,18 +277,44 @@ export default function DiscountPolicyView({ token, user, onBackToHome }: Discou
                   Áp dụng: {policy.target_group === 'all' ? 'Tất cả đại lý' : policy.target_group === 'agent_tier_1' ? 'Đại lý Cấp 1' : 'Đại lý Cấp 2'} | Hiệu lực: {policy.start_date} đến {policy.end_date || 'Không thời hạn'}
                 </p>
               </div>
-              <span
-                style={{
-                  padding: '4px 10px',
-                  borderRadius: '999px',
-                  fontSize: '12px',
-                  fontWeight: '600',
-                  background: policy.status === 'active' ? '#dcfce7' : '#f1f5f9',
-                  color: policy.status === 'active' ? '#15803d' : '#64748b',
-                }}
-              >
-                {policy.status === 'active' ? 'Đang áp dụng' : 'Dự thảo'}
-              </span>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <span
+                  style={{
+                    padding: '4px 10px',
+                    borderRadius: '999px',
+                    fontSize: '12px',
+                    fontWeight: '600',
+                    background: policy.status === 'active' ? '#dcfce7' : '#f1f5f9',
+                    color: policy.status === 'active' ? '#15803d' : '#64748b',
+                  }}
+                >
+                  {policy.status === 'active' ? 'Đang áp dụng' : 'Dự thảo'}
+                </span>
+                <button
+                  onClick={() => handleDeletePolicy(policy.id)}
+                  style={{
+                    background: 'none',
+                    border: '1px solid #fee2e2',
+                    borderRadius: '6px',
+                    color: '#ef4444',
+                    padding: '4px 8px',
+                    fontSize: '12px',
+                    cursor: 'pointer',
+                    fontWeight: '600',
+                    transition: 'all 0.2s',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = '#fef2f2';
+                    e.currentTarget.style.borderColor = '#fca5a5';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'none';
+                    e.currentTarget.style.borderColor = '#fee2e2';
+                  }}
+                >
+                  Xóa
+                </button>
+              </div>
             </div>
 
             {/* Bảng bậc chiết khấu */}
@@ -349,7 +391,7 @@ export default function DiscountPolicyView({ token, user, onBackToHome }: Discou
                   <input
                     type="text"
                     required
-                    placeholder="VD: Chiết khấu sản lượng Quý 4"
+                    placeholder="VD: Chiết khấu sản lượng"
                     value={formData.title}
                     onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                     style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1' }}
