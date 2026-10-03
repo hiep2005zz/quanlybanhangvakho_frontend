@@ -589,13 +589,9 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
                     </span>
                   )}
                 </div>
-                {hasTransactions ? (
+                {hasTransactions && (
                   <div style={{ fontSize: '11.5px', color: '#94a3b8', marginTop: '4px' }}>
                     🔒 Đã phát sinh giao dịch &rarr; Khóa chỉnh sửa mã SKU.
-                  </div>
-                ) : (
-                  <div style={{ fontSize: '11.5px', color: '#64748b', marginTop: '4px' }}>
-                    Tự động viết hoa & xóa khoảng trắng. Duy nhất toàn hệ thống.
                   </div>
                 )}
                 {skuError && <div style={{ fontSize: '12px', color: '#ef4444', marginTop: '3px' }}>{skuError}</div>}
@@ -762,8 +758,7 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
                   boxSizing: 'border-box',
                 }}
               />
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px' }}>
-                <span style={{ fontSize: '11.5px', color: '#64748b' }}>Độ dài quy định từ 5 đến 255 ký tự.</span>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '4px' }}>
                 <span style={{ fontSize: '11.5px', color: productName.length < 5 || productName.length > 255 ? '#ef4444' : '#64748b' }}>
                   {productName.length}/255
                 </span>
@@ -773,7 +768,7 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
 
             <div style={{ marginTop: '16px' }}>
               <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '6px' }}>
-                Hình ảnh sản phẩm (Tối đa 5 ảnh, dung lượng mỗi ảnh không quá 5MB)
+                Hình ảnh sản phẩm
               </label>
 
               <div
@@ -804,9 +799,6 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
                 <div style={{ fontSize: '24px', marginBottom: '4px' }}>🖼️</div>
                 <div style={{ fontSize: '13px', fontWeight: '600', color: '#334155' }}>
                   Kéo thả ảnh vào đây hoặc <span style={{ color: '#2563eb' }}>bấm để chọn ảnh</span>
-                </div>
-                <div style={{ fontSize: '11.5px', color: '#94a3b8', marginTop: '2px' }}>
-                  Hỗ trợ định dạng ảnh. Ảnh đầu tiên hoặc được đánh dấu sao sẽ làm ảnh đại diện chính.
                 </div>
               </div>
 
@@ -1026,13 +1018,9 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
                     </button>
                   </div>
                 )}
-                {unitError ? (
+                {unitError && (
                   <div style={{ fontSize: '12px', color: '#ef4444', marginTop: '4px', fontWeight: '500' }}>
                     ⚠️ {unitError}
-                  </div>
-                ) : (
-                  <div style={{ fontSize: '11.5px', color: '#64748b', marginTop: '4px' }}>
-                    Đơn vị nhỏ nhất để kiểm kê và giao dịch.
                   </div>
                 )}
               </div>
@@ -1057,9 +1045,6 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
                     boxSizing: 'border-box',
                   }}
                 />
-                <div style={{ fontSize: '11.5px', color: '#64748b', marginTop: '4px' }}>
-                  Mô tả chuẩn cách đóng gói để toàn công ty áp dụng đồng nhất.
-                </div>
               </div>
             </div>
           </div>
@@ -1086,19 +1071,6 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
               <span style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b' }}>
                 Khối 3: Giá & Phân quyền dữ liệu
               </span>
-              <span
-                style={{
-                  fontSize: '11.5px',
-                  fontWeight: '600',
-                  color: isCostVisible ? '#15803d' : '#d97706',
-                  background: isCostVisible ? '#f0fdf4' : '#fffbeb',
-                  padding: '2px 8px',
-                  borderRadius: '6px',
-                  border: isCostVisible ? '1px solid #bbf7d0' : '1px solid #fde68a',
-                }}
-              >
-                {isCostVisible ? '🛡️ Được phép quản lý Giá vốn' : '🔒 Giá vốn được bảo mật (Ẩn)'}
-              </span>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
@@ -1123,9 +1095,6 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
                     boxSizing: 'border-box',
                   }}
                 />
-                <div style={{ fontSize: '11.5px', color: '#64748b', marginTop: '4px' }}>
-                  Tự động phân cách hàng nghìn.
-                </div>
               </div>
 
               <div>
@@ -1133,51 +1102,41 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
                   Giá vốn nhập kho
                 </label>
                 {isCostVisible ? (
-                  <>
-                    <input
-                      type="text"
-                      value={formatCurrency(costPrice)}
-                      onChange={(e) => handleCurrencyChange(e.target.value, setCostPrice)}
-                      style={{
-                        width: '100%',
-                        padding: '8px 12px',
-                        borderRadius: '8px',
-                        border: '1px solid #cbd5e1',
-                        fontSize: '14px',
-                        fontWeight: '700',
-                        color: '#0f172a',
-                        fontVariantNumeric: 'tabular-nums',
-                        outline: 'none',
-                        boxSizing: 'border-box',
-                      }}
-                    />
-                    <div style={{ fontSize: '11.5px', color: '#15803d', marginTop: '4px' }}>
-                      Quản lý kinh doanh: Cho phép Xem và Chỉnh sửa.
-                    </div>
-                  </>
+                  <input
+                    type="text"
+                    value={formatCurrency(costPrice)}
+                    onChange={(e) => handleCurrencyChange(e.target.value, setCostPrice)}
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      borderRadius: '8px',
+                      border: '1px solid #cbd5e1',
+                      fontSize: '14px',
+                      fontWeight: '700',
+                      color: '#0f172a',
+                      fontVariantNumeric: 'tabular-nums',
+                      outline: 'none',
+                      boxSizing: 'border-box',
+                    }}
+                  />
                 ) : (
-                  <>
-                    <input
-                      type="text"
-                      value="***,*** VNĐ"
-                      disabled
-                      style={{
-                        width: '100%',
-                        padding: '8px 12px',
-                        borderRadius: '8px',
-                        border: '1px solid #e2e8f0',
-                        fontSize: '13.5px',
-                        color: '#94a3b8',
-                        background: '#f8fafc',
-                        fontFamily: 'monospace',
-                        outline: 'none',
-                        boxSizing: 'border-box',
-                      }}
-                    />
-                    <div style={{ fontSize: '11.5px', color: '#d97706', marginTop: '4px' }}>
-                      Các vai trò khác: Ẩn hoàn toàn trường này (***).
-                    </div>
-                  </>
+                  <input
+                    type="text"
+                    value="***,*** VNĐ"
+                    disabled
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      borderRadius: '8px',
+                      border: '1px solid #e2e8f0',
+                      fontSize: '13.5px',
+                      color: '#94a3b8',
+                      background: '#f8fafc',
+                      fontFamily: 'monospace',
+                      outline: 'none',
+                      boxSizing: 'border-box',
+                    }}
+                  />
                 )}
               </div>
             </div>
@@ -1261,30 +1220,23 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
                 </label>
               </div>
 
-              {/* Ràng buộc logic xóa / ngừng kinh doanh */}
-              <div
-                style={{
-                  marginTop: '14px',
-                  padding: '10px 14px',
-                  borderRadius: '8px',
-                  background: '#f8fafc',
-                  border: '1px solid #e2e8f0',
-                  fontSize: '12px',
-                  color: '#475569',
-                  lineHeight: '1.5',
-                }}
-              >
-                {hasTransactions ? (
-                  <div>
-                    ⚠️ <strong>Đã phát sinh giao dịch ({product?.transaction_count} đơn hàng/phiếu kho):</strong>{' '}
-                    Hệ thống ẩn nút Xóa. Bắt buộc chỉ cho phép chuyển trạng thái sang <em>Ngừng kinh doanh</em> để bảo toàn lịch sử sổ sách.
-                  </div>
-                ) : (
-                  <div>
-                    ℹ️ <strong>Sản phẩm mới tạo (chưa có giao dịch):</strong> Bạn có toàn quyền sửa mã SKU hoặc dùng nút Xóa vĩnh viễn khỏi danh mục.
-                  </div>
-                )}
-              </div>
+              {hasTransactions && (
+                <div
+                  style={{
+                    marginTop: '14px',
+                    padding: '10px 14px',
+                    borderRadius: '8px',
+                    background: '#f8fafc',
+                    border: '1px solid #e2e8f0',
+                    fontSize: '12px',
+                    color: '#475569',
+                    lineHeight: '1.5',
+                  }}
+                >
+                  ⚠️ <strong>Đã phát sinh giao dịch ({product?.transaction_count} đơn hàng/phiếu kho):</strong>{' '}
+                  Hệ thống ẩn nút Xóa. Bắt buộc chỉ cho phép chuyển trạng thái sang <em>Ngừng kinh doanh</em> để bảo toàn lịch sử sổ sách.
+                </div>
+              )}
             </div>
           </div>
         </form>
