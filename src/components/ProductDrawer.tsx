@@ -5,9 +5,9 @@ import { emitStatusToast } from './StatusToast';
 interface ProductDrawerProps {
   isOpen: boolean;
   onClose: () => void;
-  product: ProductItem | null; // null => Thêm mới, khác null => Chỉnh sửa
+  product: ProductItem | null;
   token: string;
-  isCostVisible: boolean; // RBAC: Sales Manager / Admin được xem & sửa cost_price
+  isCostVisible: boolean;
   categories: string[];
   onSuccess: (updatedProduct?: ProductItem, isDeleted?: boolean) => void;
 }
@@ -26,8 +26,6 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
   const isEditing = Boolean(product);
   const hasTransactions = Boolean(product && (product.transaction_count || 0) > 0);
 
-  // Form states
-  // Khối 1: Thông tin cơ bản
   const [skuCode, setSkuCode] = useState('');
   const [skuError, setSkuError] = useState<string | null>(null);
   const [skuChecking, setSkuChecking] = useState(false);
@@ -45,7 +43,6 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
   const [images, setImages] = useState<string[]>([]);
   const [mainImageIdx, setMainImageIdx] = useState<number>(0);
 
-  // Khối 2: Quy cách & Đơn vị tính
   const [baseUnit, setBaseUnit] = useState('Cái');
   const [customUnits, setCustomUnits] = useState<string[]>([]);
   const [isAddingUnit, setIsAddingUnit] = useState(false);
@@ -53,11 +50,9 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
   const [unitError, setUnitError] = useState<string | null>(null);
   const [packagingSpec, setPackagingSpec] = useState('');
 
-  // Khối 3: Giá & Phân quyền dữ liệu
   const [sellPrice, setSellPrice] = useState<number>(0);
   const [costPrice, setCostPrice] = useState<number>(0);
 
-  // Khối 4: Trạng thái & Vòng đời sản phẩm
   const [status, setStatus] = useState<'active' | 'inactive'>('active');
 
   // Submit / Delete states
@@ -557,12 +552,11 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
               }}
             >
               <span style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b' }}>
-                Khối 1: Thông tin cơ bản (Basic Information)
+                Khối 1: Thông tin cơ bản
               </span>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-              {/* Mã SKU (sku_code) */}
               <div>
                 <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '6px' }}>
                   Mã SKU <span style={{ color: '#ef4444' }}>*</span>
@@ -607,7 +601,6 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
                 {skuError && <div style={{ fontSize: '12px', color: '#ef4444', marginTop: '3px' }}>{skuError}</div>}
               </div>
 
-              {/* Nhóm hàng (category_id) */}
               <div>
                 <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '6px' }}>
                   Nhóm hàng <span style={{ color: '#ef4444' }}>*</span>
@@ -748,7 +741,6 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
               </div>
             </div>
 
-            {/* Tên sản phẩm (product_name) */}
             <div style={{ marginTop: '16px' }}>
               <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '6px' }}>
                 Tên sản phẩm <span style={{ color: '#ef4444' }}>*</span>
@@ -779,13 +771,11 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
               {nameError && <div style={{ fontSize: '12px', color: '#ef4444', marginTop: '2px' }}>{nameError}</div>}
             </div>
 
-            {/* Hình ảnh sản phẩm (images) */}
             <div style={{ marginTop: '16px' }}>
               <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '6px' }}>
-                Hình ảnh sản phẩm (Tối đa 5 ảnh, &le; 5MB, PNG/JPG/WEBP)
+                Hình ảnh sản phẩm (Tối đa 5 ảnh, dung lượng mỗi ảnh không quá 5MB)
               </label>
 
-              {/* Vùng Drag & Drop */}
               <div
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={(e) => {
@@ -813,14 +803,13 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
                 />
                 <div style={{ fontSize: '24px', marginBottom: '4px' }}>🖼️</div>
                 <div style={{ fontSize: '13px', fontWeight: '600', color: '#334155' }}>
-                  Kéo thả ảnh vào đây hoặc <span style={{ color: '#2563eb' }}>bấm để chọn file</span>
+                  Kéo thả ảnh vào đây hoặc <span style={{ color: '#2563eb' }}>bấm để chọn ảnh</span>
                 </div>
                 <div style={{ fontSize: '11.5px', color: '#94a3b8', marginTop: '2px' }}>
-                  Hỗ trợ PNG, JPG, WEBP. Ảnh đầu tiên hoặc được đánh dấu sao sẽ làm ảnh đại diện chính.
+                  Hỗ trợ định dạng ảnh. Ảnh đầu tiên hoặc được đánh dấu sao sẽ làm ảnh đại diện chính.
                 </div>
               </div>
 
-              {/* Danh sách ảnh Preview */}
               {images.length > 0 && (
                 <div style={{ display: 'flex', gap: '10px', marginTop: '12px', flexWrap: 'wrap' }}>
                   {images.map((img, idx) => {
@@ -838,7 +827,7 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
                           background: '#f1f5f9',
                         }}
                       >
-                        <img src={img} alt="Product" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        <img src={img} alt="Hình ảnh sản phẩm" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         {isMain && (
                           <span
                             style={{
@@ -899,7 +888,6 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
             </div>
           </div>
 
-          {/* ================= KHỐI 2: QUY CÁCH & ĐƠN VỊ TÍNH ================= */}
           <div
             style={{
               background: '#ffffff',
@@ -920,12 +908,11 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
               }}
             >
               <span style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b' }}>
-                Khối 2: Quy cách & Đơn vị tính (Packaging & Unit)
+                Khối 2: Quy cách & Đơn vị tính
               </span>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-              {/* Đơn vị tính cơ sở (base_unit) */}
               <div>
                 <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '6px' }}>
                   Đơn vị tính cơ sở <span style={{ color: '#ef4444' }}>*</span>
@@ -1050,7 +1037,6 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
                 )}
               </div>
 
-              {/* Quy cách đóng gói (packaging_specification) */}
               <div>
                 <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '6px' }}>
                   Quy cách đóng gói
@@ -1078,7 +1064,6 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
             </div>
           </div>
 
-          {/* ================= KHỐI 3: GIÁ & PHÂN QUYỀN DỮ LIỆU ================= */}
           <div
             style={{
               background: '#ffffff',
@@ -1099,7 +1084,7 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
               }}
             >
               <span style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b' }}>
-                Khối 3: Giá & Phân quyền dữ liệu (Pricing & Security)
+                Khối 3: Giá & Phân quyền dữ liệu
               </span>
               <span
                 style={{
@@ -1112,12 +1097,11 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
                   border: isCostVisible ? '1px solid #bbf7d0' : '1px solid #fde68a',
                 }}
               >
-                {isCostVisible ? '🛡️ RBAC: Được phép quản lý Giá vốn' : '🔒 RBAC: Giá vốn được bảo mật (Masked)'}
+                {isCostVisible ? '🛡️ Được phép quản lý Giá vốn' : '🔒 Giá vốn được bảo mật (Ẩn)'}
               </span>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-              {/* Giá niêm yết bán lẻ */}
               <div>
                 <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '6px' }}>
                   Giá niêm yết bán lẻ (VNĐ) <span style={{ color: '#ef4444' }}>*</span>
@@ -1140,14 +1124,13 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
                   }}
                 />
                 <div style={{ fontSize: '11.5px', color: '#64748b', marginTop: '4px' }}>
-                  Tự động format phân cách hàng nghìn.
+                  Tự động phân cách hàng nghìn.
                 </div>
               </div>
 
-              {/* Giá vốn (cost_price) - RBAC */}
               <div>
                 <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '6px' }}>
-                  Giá vốn nhập kho (cost_price)
+                  Giá vốn nhập kho
                 </label>
                 {isCostVisible ? (
                   <>
@@ -1169,7 +1152,7 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
                       }}
                     />
                     <div style={{ fontSize: '11.5px', color: '#15803d', marginTop: '4px' }}>
-                      Quản lý kinh doanh (Sales Manager): Cho phép Xem và Chỉnh sửa.
+                      Quản lý kinh doanh: Cho phép Xem và Chỉnh sửa.
                     </div>
                   </>
                 ) : (
@@ -1192,7 +1175,7 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
                       }}
                     />
                     <div style={{ fontSize: '11.5px', color: '#d97706', marginTop: '4px' }}>
-                      Các Role khác (NVKD, Kho, Mua hàng...): Ẩn hoàn toàn trường này (***).
+                      Các vai trò khác: Ẩn hoàn toàn trường này (***).
                     </div>
                   </>
                 )}
@@ -1200,7 +1183,6 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
             </div>
           </div>
 
-          {/* ================= KHỐI 4: TRẠNG THÁI & VÒNG ĐỜI SẢN PHẨM ================= */}
           <div
             style={{
               background: '#ffffff',
@@ -1221,7 +1203,7 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
               }}
             >
               <span style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b' }}>
-                Khối 4: Trạng thái & Vòng đời sản phẩm (Lifecycle & Status)
+                Khối 4: Trạng thái & Vòng đời sản phẩm
               </span>
             </div>
 
@@ -1250,7 +1232,7 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
                     onChange={() => setStatus('active')}
                   />
                   <span style={{ fontWeight: '600', color: '#15803d', fontSize: '13.5px' }}>
-                    Đang kinh doanh (Active)
+                    Đang kinh doanh
                   </span>
                 </label>
 
@@ -1274,7 +1256,7 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
                     onChange={() => setStatus('inactive')}
                   />
                   <span style={{ fontWeight: '600', color: '#b91c1c', fontSize: '13.5px' }}>
-                    Ngừng kinh doanh (Inactive)
+                    Ngừng kinh doanh
                   </span>
                 </label>
               </div>
