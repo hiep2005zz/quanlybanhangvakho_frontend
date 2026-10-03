@@ -10,6 +10,7 @@ import {
   handoverDealersApi,
   DealerItem,
   UserUpdatePayload,
+  getAvatarUrl,
 } from '../services/api';
 import { sessionManager } from '../services/sessionManager';
 import { emitStatusToast } from './StatusToast';
@@ -68,6 +69,14 @@ const ROLES_LIST = [
     title: 'Kế toán công nợ',
     badgeColor: '#f59e0b',
     description: '(Phát hành hoá đơn, ghi nhận thanh toán, đối chiếu công nợ với đại lý)',
+    costPerm: false,
+    invPerm: false,
+  },
+  {
+    role: 'purchasing',
+    title: 'Nhân viên mua hàng',
+    badgeColor: '#06b6d4',
+    description: '(Lập phiếu mua hàng, theo dõi đơn nhập từ nhà cung cấp)',
     costPerm: false,
     invPerm: false,
   },
@@ -966,7 +975,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                               width: '38px',
                               height: '38px',
                               borderRadius: '10px',
-                              background: u.badge_color ? `linear-gradient(135deg, ${u.badge_color} 0%, #2563eb 100%)` : '#2563eb',
+                              background: u.avatar_url ? '#f1f5f9' : (u.badge_color ? `linear-gradient(135deg, ${u.badge_color} 0%, #2563eb 100%)` : '#2563eb'),
                               color: '#ffffff',
                               display: 'flex',
                               alignItems: 'center',
@@ -976,8 +985,17 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                               flexShrink: 0,
                               boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
                               border: '1px solid rgba(255, 255, 255, 0.4)',
+                              overflow: 'hidden',
                             }}>
-                              {u.full_name ? u.full_name.charAt(0).toUpperCase() : u.username.charAt(0).toUpperCase()}
+                              {u.avatar_url ? (
+                                <img
+                                  src={getAvatarUrl(u.avatar_url)}
+                                  alt={u.full_name || u.username}
+                                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                />
+                              ) : (
+                                (u.full_name ? u.full_name.charAt(0).toUpperCase() : u.username.charAt(0).toUpperCase())
+                              )}
                             </div>
                             <div>
                               <div style={{ fontWeight: '700', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -1077,10 +1095,21 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                               }
 
                               const displayRoles = recognizedRoles.length > 0 ? recognizedRoles : allRoles;
+                              const fallbackRoleMap: Record<string, string> = {
+                                admin: 'Quản trị hệ thống',
+                                sales_manager: 'Quản lý kinh doanh',
+                                sales: 'Nhân viên kinh doanh',
+                                sale: 'Nhân viên kinh doanh',
+                                warehouse: 'Thủ kho',
+                                warehouse_manager: 'Quản lý kho',
+                                accountant: 'Kế toán công nợ',
+                                purchasing: 'Nhân viên mua hàng',
+                                customer: 'Đại lý',
+                              };
                               return displayRoles.map((rCode) => {
                                 const rMeta = ROLES_LIST.find((item) => item.role === rCode);
                                 const color = rMeta?.badgeColor || u.badge_color || '#2563eb';
-                                const title = rMeta?.title || rCode;
+                                const title = rMeta?.title || fallbackRoleMap[rCode?.toLowerCase()?.trim()] || rCode;
                                 return (
                                   <span
                                     key={rCode}
@@ -2255,7 +2284,9 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
               textAlign: 'left',
               lineHeight: '1.6'
             }}>
-              <div>• Vai trò: <strong style={{ color: userToDelete.badge_color }}>{userToDelete.role_title}</strong></div>
+              <div>• Vai trò: <strong style={{ color: userToDelete.badge_color }}>
+                {ROLES_LIST.find((r) => r.role === userToDelete.role)?.title || (userToDelete.role_title && userToDelete.role_title !== 'sales' && userToDelete.role_title !== 'warehouse' && userToDelete.role_title !== 'admin' && userToDelete.role_title !== 'purchasing' && userToDelete.role_title !== 'customer' && userToDelete.role_title !== 'accountant' ? userToDelete.role_title : undefined) || 'Nhân viên'}
+              </strong></div>
               <div>• Địa bàn: <strong style={{ color: '#0f172a' }}>{userToDelete.branch}</strong></div>
               <div style={{ color: '#dc2626', marginTop: '4px', fontWeight: '500' }}>
                 ⚠️ Dữ liệu tài khoản này sẽ bị xóa khỏi cơ sở dữ liệu và không thể hoàn tác.

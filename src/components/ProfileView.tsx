@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { User, UserProfile, getMyProfileApi, updateMyProfileApi } from '../services/api';
+import React, { useState, useEffect, useRef } from 'react';
+import { User, UserProfile, getMyProfileApi, updateMyProfileApi, uploadProfileAvatarApi, getAvatarUrl } from '../services/api';
 import { emitStatusToast } from './StatusToast';
 
 interface ProfileViewProps {
@@ -52,13 +52,186 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   // Form states
   const [fullNameInput, setFullNameInput] = useState(currentUser.full_name || '');
   const [phoneInput, setPhoneInput] = useState(currentUser.phone || currentUser.phone_number || '');
   const [phoneError, setPhoneError] = useState<string | null>(null);
   const [nameError, setNameError] = useState<string | null>(null);
+
+  // Avatar upload & resize states
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [avatarError, setAvatarError] = useState<string | null>(null);
+  const [pendingAvatarFile, setPendingAvatarFile] = useState<File | null>(null);
+  const [pendingAvatarPreview, setPendingAvatarPreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Modal chỉnh kích thước & vùng cắt ảnh đại diện (Interactive Square Cropper)
+  const [cropModalOpen, setCropModalOpen] = useState(false);
+  const [rawImageSrc, setRawImageSrc] = useState<string | null>(null);
+  const [rawImageFileName, setRawImageFileName] = useState('avatar.png');
+  const [rawImageMime, setRawImageMime] = useState('image/png');
+  const [naturalWidth, setNaturalWidth] = useState(0);
+  const [naturalHeight, setNaturalHeight] = useState(0);
+
+  // Vùng cắt vuông (Crop Box) trên không gian ảnh hiển thị (DISPLAY CONTAINER: max 380x380)
+  const [cropBox, setCropBox] = useState({ x: 0, y: 0, size: 200 });
+  const [displayedImgSize, setDisplayedImgSize] = useState({ width: 300, height: 300 });
+
+  // Tương tác kéo khung (move) hoặc kéo góc đổi kích thước (resize)
+  const [dragAction, setDragAction] = useState<'move' | 'nw' | 'ne' | 'sw' | 'se' | null>(null);
+  const dragInfoRef = useRef({ startX: 0, startY: 0, initialBox: { x: 0, y: 0, size: 200 } });
+
+  const handleAvatarFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Reset input để có thể chọn lại cùng 1 file nếu muốn
+    e.target.value = '';
+
+    setAvatarError(null);
+    setErrorMsg(null);
+
+    // 1. Kiểm tra định dạng (JPG, PNG)
+    const validExtensions = ['.jpg', '.jpeg', '.png'];
+    const lowerName = file.name.toLowerCase();
+    const isExtensionValid = validExtensions.some((ext) => lowerName.endsWith(ext));
+    const isMimeValid = file.type === 'image/jpeg' || file.type === 'image/png';
+
+    if (!isExtensionValid || !isMimeValid) {
+      const err = 'Định dạng ảnh không hợp lệ. Chỉ chấp nhận tệp JPG hoặc PNG.';
+      setAvatarError(err);
+      emitStatusToast({ message: err, title: 'Ảnh đại diện' });
+      return;
+    }
+
+    // 2. Kiểm tra dung lượng tối đa 10MB cho ảnh gốc trước khi crop
+    const MAX_RAW_SIZE = 10 * 1024 * 1024;
+    if (file.size > MAX_RAW_SIZE) {
+      const err = `Dung lượng tệp (${(file.size / (1024 * 1024)).toFixed(1)}MB) vượt quá mức cho phép tối đa 10MB.`;
+      setAvatarError(err);
+      emitStatusToast({ message: err, title: 'Ảnh đại diện' });
+      return;
+    }
+
+    if (file.size === 0) {
+      const err = 'Tệp hình ảnh rỗng hoặc bị lỗi.';
+      setAvatarError(err);
+      emitStatusToast({ message: err, title: 'Ảnh đại diện' });
+      return;
+    }
+
+    // Đọc ảnh và khởi tạo kích thước khung cắt vuông
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const result = event.target?.result as string;
+      const testImg = new Image();
+      testImg.onload = () => {
+        const natW = testImg.naturalWidth || testImg.width || 400;
+        const natH = testImg.naturalHeight || testImg.height || 400;
+        setNaturalWidth(natW);
+        setNaturalHeight(natH);
+
+        // Khung container hiển thị tối đa là 380px x 380px
+        const MAX_BOX = 380;
+        let dispW = MAX_BOX;
+        let dispH = MAX_BOX;
+        if (natW > natH) {
+          dispH = (natH / natW) * MAX_BOX;
+        } else {
+          dispW = (natW / natH) * MAX_BOX;
+        }
+        setDisplayedImgSize({ width: dispW, height: dispH });
+
+        // Khởi tạo khung vuông crop nằm chính giữa bức ảnh
+        const initialCropSize = Math.min(dispW, dispH) * 0.85;
+        setCropBox({
+          x: (dispW - initialCropSize) / 2,
+          y: (dispH - initialCropSize) / 2,
+          size: initialCropSize,
+        });
+
+        setRawImageSrc(result);
+        setRawImageFileName(file.name);
+        setRawImageMime(file.type || 'image/png');
+        setCropModalOpen(true);
+      };
+      testImg.src = result;
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Xác nhận cắt ảnh và lưu vào trạng thái chờ lưu (chỉ gửi lên server khi bấm 'Lưu thay đổi')
+  const handleConfirmCropAndUpload = async () => {
+    if (!rawImageSrc) return;
+    setUploadingAvatar(true);
+
+    try {
+      // Dùng HTML Canvas để trích xuất chính xác vùng vuông được người dùng chọn
+      const canvas = document.createElement('canvas');
+      const TARGET_OUTPUT = 500; // Kích thước chuẩn sắc nét
+      canvas.width = TARGET_OUTPUT;
+      canvas.height = TARGET_OUTPUT;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) throw new Error('Không thể khởi tạo bộ xử lý hình ảnh.');
+
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.src = rawImageSrc;
+      await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = () => reject(new Error('Không thể tải hình ảnh.'));
+      });
+
+      // Quy đổi tọa độ từ khung hiển thị sang kích thước ảnh gốc thực tế
+      const scaleX = naturalWidth / displayedImgSize.width;
+      const scaleY = naturalHeight / displayedImgSize.height;
+
+      const sourceX = cropBox.x * scaleX;
+      const sourceY = cropBox.y * scaleY;
+      const sourceSize = cropBox.size * scaleX;
+
+      // Tô nền trắng đề phòng ảnh trong suốt PNG/JPG
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, TARGET_OUTPUT, TARGET_OUTPUT);
+
+      // Cắt đúng vùng vuông người dùng định vị
+      ctx.drawImage(
+        img,
+        sourceX,
+        sourceY,
+        sourceSize,
+        sourceSize,
+        0,
+        0,
+        TARGET_OUTPUT,
+        TARGET_OUTPUT
+      );
+
+      // Chuyển đổi thành blob file
+      const blob = await new Promise<Blob | null>((resolve) => {
+        canvas.toBlob((b) => resolve(b), rawImageMime === 'image/jpeg' ? 'image/jpeg' : 'image/png', 0.95);
+      });
+
+      if (!blob) throw new Error('Lỗi xuất dữ liệu hình ảnh.');
+
+      const finalFile = new File([blob], rawImageFileName, { type: blob.type });
+
+      // Lưu file và tạo URL xem trước tạm thời, CHƯA gọi API lưu lên máy chủ
+      const previewUrl = URL.createObjectURL(blob);
+      setPendingAvatarFile(finalFile);
+      setPendingAvatarPreview(previewUrl);
+
+      setCropModalOpen(false);
+      setRawImageSrc(null);
+    } catch (err: any) {
+      const msg = err.message || 'Lỗi khi xử lý hình ảnh.';
+      setAvatarError(msg);
+      emitStatusToast({ message: msg, title: 'Ảnh đại diện' });
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
 
   // Tải dữ liệu hồ sơ mới nhất từ API /api/v1/me
   useEffect(() => {
@@ -89,6 +262,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
             branch: data.branch || currentUser.branch,
             warehouse_name: data.warehouse_name,
             territory_name: data.territory_name,
+            avatar_url: data.avatar_url,
           });
         }
       })
@@ -128,6 +302,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               branch: data.branch || currentUser.branch,
               warehouse_name: data.warehouse_name,
               territory_name: data.territory_name,
+              avatar_url: data.avatar_url,
             });
           }
         })
@@ -197,7 +372,6 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
-    setSuccessMsg(null);
 
     const isNameValid = validateName(fullNameInput);
     const isPhoneValid = validatePhone(phoneInput);
@@ -208,21 +382,33 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
 
     setSaving(true);
     try {
+      let finalAvatarUrl: string | undefined = undefined;
+
+      // 1. Nếu có ảnh đại diện mới được chọn, upload lên server tại thời điểm này
+      if (pendingAvatarFile) {
+        const avatarRes = await uploadProfileAvatarApi(token, pendingAvatarFile);
+        finalAvatarUrl = avatarRes.avatar_url;
+      }
+
+      // 2. Cập nhật thông tin họ tên & số điện thoại
       const updated = await updateMyProfileApi(token, {
         full_name: fullNameInput.trim(),
         phone_number: phoneInput.trim(),
       });
 
-      setProfile(updated);
+      const effectiveAvatarUrl = finalAvatarUrl ?? updated.avatar_url ?? profile?.avatar_url ?? currentUser.avatar_url;
+      const combinedUser = {
+        ...updated,
+        avatar_url: effectiveAvatarUrl,
+      };
+
+      setProfile(combinedUser);
       setFullNameInput(updated.full_name);
       setPhoneInput(updated.phone_number || updated.phone || '');
-      setSuccessMsg('Cập nhật hồ sơ thành công');
-      emitStatusToast({ message: 'Cập nhật hồ sơ thành công', title: 'Hồ sơ cá nhân' });
+      setPendingAvatarFile(null);
+      setPendingAvatarPreview(null);
 
-      // Tự động ẩn thông báo sau 4 giây
-      setTimeout(() => {
-        setSuccessMsg(null);
-      }, 4000);
+      emitStatusToast({ message: 'Cập nhật hồ sơ thành công', title: 'Hồ sơ cá nhân' });
 
       // Cập nhật State người dùng ngay lập tức cho ứng dụng để Avatar/Header đổi tên
       if (onUserUpdated) {
@@ -236,8 +422,13 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           branch: updated.branch || currentUser.branch,
           warehouse_name: updated.warehouse_name,
           territory_name: updated.territory_name,
+          avatar_url: effectiveAvatarUrl,
         });
       }
+
+      // Phát sự kiện đồng bộ toàn hệ thống
+      window.dispatchEvent(new CustomEvent('USER_ROLE_UPDATED', { detail: combinedUser }));
+      window.dispatchEvent(new CustomEvent('USER_ACCOUNTS_CHANGED', { detail: combinedUser }));
 
       // Tự động chuyển hướng về trang chủ làm việc
       onBackToHome();
@@ -248,8 +439,14 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
     }
   };
 
-  // Nút Hủy: khôi phục về giá trị đã lưu
+  // Nút Hủy: khôi phục về giá trị đã lưu và hủy bỏ ảnh chờ lưu
   const handleReset = () => {
+    if (pendingAvatarPreview) {
+      URL.revokeObjectURL(pendingAvatarPreview);
+    }
+    setPendingAvatarFile(null);
+    setPendingAvatarPreview(null);
+
     if (profile) {
       setFullNameInput(profile.full_name || '');
       setPhoneInput(profile.phone_number || profile.phone || '');
@@ -339,24 +536,140 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-          {/* Avatar Gradient Box */}
-          <div
-            style={{
-              width: '72px',
-              height: '72px',
-              borderRadius: '20px',
-              background: `linear-gradient(135deg, ${roleColor} 0%, #4f46e5 100%)`,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#ffffff',
-              fontSize: '28px',
-              fontWeight: '800',
-              boxShadow: `0 10px 20px ${roleColor}40`,
-              flexShrink: 0,
-            }}
-          >
-            {(fullNameInput || currentUser.username).charAt(0).toUpperCase()}
+          {/* Avatar Box & Upload Trigger */}
+          <div style={{ position: 'relative', display: 'inline-block' }}>
+            <div
+              onClick={() => {
+                if (!uploadingAvatar) fileInputRef.current?.click();
+              }}
+              style={{
+                width: '84px',
+                height: '84px',
+                borderRadius: '20px',
+                background: (pendingAvatarPreview || profile?.avatar_url || currentUser.avatar_url)
+                  ? '#f1f5f9'
+                  : `linear-gradient(135deg, ${roleColor} 0%, #4f46e5 100%)`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#ffffff',
+                fontSize: '32px',
+                fontWeight: '800',
+                boxShadow: `0 8px 20px ${roleColor}30`,
+                flexShrink: 0,
+                overflow: 'hidden',
+                border: pendingAvatarPreview ? '3px solid #3b82f6' : '3px solid #ffffff',
+                position: 'relative',
+                cursor: uploadingAvatar ? 'wait' : 'pointer',
+                transition: 'transform 0.15s ease, box-shadow 0.15s ease',
+              }}
+              title="Nhấn để đổi ảnh đại diện (JPG/PNG tối đa 10MB)"
+            >
+              {pendingAvatarPreview ? (
+                <img
+                  src={pendingAvatarPreview}
+                  alt={fullNameInput || currentUser.full_name}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                    display: 'block',
+                  }}
+                />
+              ) : (profile?.avatar_url || currentUser.avatar_url) ? (
+                <img
+                  src={getAvatarUrl(profile?.avatar_url || currentUser.avatar_url)}
+                  alt={fullNameInput || currentUser.full_name}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                    display: 'block',
+                  }}
+                />
+              ) : (
+                <span>{(fullNameInput || currentUser.username).charAt(0).toUpperCase()}</span>
+              )}
+
+              {/* Loading spinner overlay */}
+              {uploadingAvatar && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    background: 'rgba(15, 23, 42, 0.7)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#ffffff',
+                    fontSize: '11px',
+                    fontWeight: '600',
+                    zIndex: 4,
+                  }}
+                >
+                  <span style={{ fontSize: '18px' }}>⏳</span>
+                </div>
+              )}
+            </div>
+
+            {/* Nút camera nhỏ ở góc dưới avatar */}
+            <button
+              type="button"
+              disabled={uploadingAvatar}
+              onClick={() => fileInputRef.current?.click()}
+              style={{
+                position: 'absolute',
+                bottom: '-2px',
+                right: '-2px',
+                width: '28px',
+                height: '28px',
+                minWidth: '28px',
+                minHeight: '28px',
+                maxWidth: '28px',
+                maxHeight: '28px',
+                padding: 0,
+                borderRadius: '50%',
+                background: '#2563eb',
+                border: '2px solid #ffffff',
+                color: '#ffffff',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: uploadingAvatar ? 'not-allowed' : 'pointer',
+                boxShadow: '0 2px 5px rgba(0,0,0,0.2)',
+                transition: 'background-color 0.15s ease',
+                zIndex: 5,
+              }}
+              title="Tải lên ảnh đại diện mới"
+              aria-label="Tải lên ảnh đại diện"
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#1d4ed8')}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#2563eb')}
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                style={{ display: 'block', flexShrink: 0 }}
+              >
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                <circle cx="12" cy="13" r="4" />
+              </svg>
+            </button>
+
+            {/* Input file ẩn */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".jpg,.jpeg,.png,image/jpeg,image/png"
+              style={{ display: 'none' }}
+              onChange={handleAvatarFileSelect}
+            />
           </div>
 
           <div>
@@ -391,28 +704,6 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
         </div>
       </div>
 
-      {/* Thông báo thành công */}
-      {successMsg && (
-        <div
-          style={{
-            background: '#dcfce7',
-            border: '1px solid #86efac',
-            color: '#15803d',
-            padding: '14px 20px',
-            borderRadius: '12px',
-            marginBottom: '20px',
-            fontSize: '14px',
-            fontWeight: '600',
-            display: 'flex',
-            alignItems: 'center',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
-            animation: 'fadeInCard 0.25s ease',
-          }}
-        >
-          <span>{successMsg}</span>
-        </div>
-      )}
-
       {/* Thông báo lỗi */}
       {errorMsg && (
         <div
@@ -431,6 +722,28 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           }}
         >
           <span>{errorMsg}</span>
+        </div>
+      )}
+
+      {/* Thông báo lỗi tải ảnh đại diện */}
+      {avatarError && (
+        <div
+          style={{
+            background: '#fef2f2',
+            border: '1px solid #fca5a5',
+            color: '#b91c1c',
+            padding: '14px 20px',
+            borderRadius: '12px',
+            marginBottom: '20px',
+            fontSize: '14px',
+            fontWeight: '600',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+          }}
+        >
+          <span>⚠️ {avatarError}</span>
         </div>
       )}
 
@@ -762,6 +1075,396 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           </button>
         </div>
       </form>
+
+      {/* Modal Cắt ảnh vuông tự chọn (Interactive Square Cropper) */}
+      {cropModalOpen && rawImageSrc && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(15, 23, 42, 0.75)',
+            backdropFilter: 'blur(5px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: '16px',
+          }}
+          onMouseMove={(e) => {
+            if (!dragAction) return;
+            const dx = e.clientX - dragInfoRef.current.startX;
+            const dy = e.clientY - dragInfoRef.current.startY;
+            const { initialBox } = dragInfoRef.current;
+            const maxW = displayedImgSize.width;
+            const maxH = displayedImgSize.height;
+
+            if (dragAction === 'move') {
+              const newX = Math.max(0, Math.min(maxW - initialBox.size, initialBox.x + dx));
+              const newY = Math.max(0, Math.min(maxH - initialBox.size, initialBox.y + dy));
+              setCropBox((prev) => ({ ...prev, x: newX, y: newY }));
+            } else if (dragAction === 'se') {
+              // Kéo góc dưới phải để đổi kích thước vuông
+              const delta = Math.max(dx, dy);
+              const maxSize = Math.min(maxW - initialBox.x, maxH - initialBox.y);
+              const newSize = Math.max(60, Math.min(maxSize, initialBox.size + delta));
+              setCropBox((prev) => ({ ...prev, size: newSize }));
+            } else if (dragAction === 'nw') {
+              // Kéo góc trên trái
+              const delta = Math.min(dx, dy);
+              const proposedSize = initialBox.size - delta;
+              const newSize = Math.max(60, Math.min(initialBox.x + initialBox.size, initialBox.y + initialBox.size, proposedSize));
+              const newX = initialBox.x + (initialBox.size - newSize);
+              const newY = initialBox.y + (initialBox.size - newSize);
+              setCropBox({ x: newX, y: newY, size: newSize });
+            }
+          }}
+          onMouseUp={() => setDragAction(null)}
+          onMouseLeave={() => setDragAction(null)}
+        >
+          <div
+            style={{
+              background: '#ffffff',
+              borderRadius: '20px',
+              padding: '24px',
+              maxWidth: '460px',
+              width: '100%',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '16px',
+            }}
+          >
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '800', color: '#0f172a' }}>
+                  Cắt ảnh vuông đại diện
+                </h3>
+                <p style={{ margin: '4px 0 0', fontSize: '12.5px', color: '#64748b' }}>
+                  Kéo khung vuông hoặc thanh kích thước để chọn vùng ảnh bạn muốn
+                </p>
+              </div>
+              <button
+                type="button"
+                disabled={uploadingAvatar}
+                onClick={() => {
+                  setCropModalOpen(false);
+                  setRawImageSrc(null);
+                }}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  fontSize: '22px',
+                  cursor: uploadingAvatar ? 'not-allowed' : 'pointer',
+                  color: '#94a3b8',
+                  padding: '4px',
+                  lineHeight: 1,
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Khung hiển thị ảnh và vùng chọn vuông */}
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                background: '#0f172a',
+                borderRadius: '14px',
+                padding: '12px',
+                userSelect: 'none',
+                overflow: 'hidden',
+              }}
+            >
+              <div
+                style={{
+                  position: 'relative',
+                  width: `${displayedImgSize.width}px`,
+                  height: `${displayedImgSize.height}px`,
+                }}
+              >
+                {/* Ảnh nền */}
+                <img
+                  src={rawImageSrc}
+                  alt="Ảnh gốc"
+                  draggable={false}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    display: 'block',
+                    pointerEvents: 'none',
+                    opacity: 0.5,
+                  }}
+                />
+
+                {/* Khung cắt vuông sáng rõ */}
+                <div
+                  style={{
+                    position: 'absolute',
+                    left: `${cropBox.x}px`,
+                    top: `${cropBox.y}px`,
+                    width: `${cropBox.size}px`,
+                    height: `${cropBox.size}px`,
+                    border: '2px solid #38bdf8',
+                    boxShadow: '0 0 0 9999px rgba(0, 0, 0, 0.45)',
+                    cursor: dragAction === 'move' ? 'grabbing' : 'grab',
+                    overflow: 'hidden',
+                  }}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    setDragAction('move');
+                    dragInfoRef.current = {
+                      startX: e.clientX,
+                      startY: e.clientY,
+                      initialBox: { ...cropBox },
+                    };
+                  }}
+                >
+                  {/* Bản hiển thị 100% độ sáng bên trong khung vuông */}
+                  <img
+                    src={rawImageSrc}
+                    alt="Vùng cắt"
+                    draggable={false}
+                    style={{
+                      position: 'absolute',
+                      left: `-${cropBox.x}px`,
+                      top: `-${cropBox.y}px`,
+                      width: `${displayedImgSize.width}px`,
+                      height: `${displayedImgSize.height}px`,
+                      display: 'block',
+                      pointerEvents: 'none',
+                      maxWidth: 'none',
+                    }}
+                  />
+
+                  {/* Vòng tròn mờ mô phỏng hình đại diện khi hiển thị */}
+                  <div
+                    style={{
+                      position: 'absolute',
+                      inset: 0,
+                      borderRadius: '50%',
+                      border: '1px dashed rgba(255, 255, 255, 0.85)',
+                      pointerEvents: 'none',
+                      boxShadow: 'inset 0 0 10px rgba(0,0,0,0.2)',
+                    }}
+                  />
+
+                  {/* Tay cầm co giãn góc dưới phải (SE corner) */}
+                  <div
+                    onMouseDown={(e) => {
+                      e.stopPropagation();
+                      e.preventDefault();
+                      setDragAction('se');
+                      dragInfoRef.current = {
+                        startX: e.clientX,
+                        startY: e.clientY,
+                        initialBox: { ...cropBox },
+                      };
+                    }}
+                    style={{
+                      position: 'absolute',
+                      right: '-1px',
+                      bottom: '-1px',
+                      width: '18px',
+                      height: '18px',
+                      background: '#38bdf8',
+                      border: '2px solid #ffffff',
+                      borderRadius: '2px',
+                      cursor: 'se-resize',
+                      zIndex: 10,
+                    }}
+                    title="Kéo để thay đổi kích thước khung cắt"
+                  />
+
+                  {/* Tay cầm co giãn góc trên trái (NW corner) */}
+                  <div
+                    onMouseDown={(e) => {
+                      e.stopPropagation();
+                      e.preventDefault();
+                      setDragAction('nw');
+                      dragInfoRef.current = {
+                        startX: e.clientX,
+                        startY: e.clientY,
+                        initialBox: { ...cropBox },
+                      };
+                    }}
+                    style={{
+                      position: 'absolute',
+                      left: '-1px',
+                      top: '-1px',
+                      width: '18px',
+                      height: '18px',
+                      background: '#38bdf8',
+                      border: '2px solid #ffffff',
+                      borderRadius: '2px',
+                      cursor: 'nw-resize',
+                      zIndex: 10,
+                    }}
+                    title="Kéo để thay đổi kích thước khung cắt"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Điều khiển kích thước vùng vuông (Crop Size Slider) */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12.5px', fontWeight: '600', color: '#334155' }}>
+                <span>Kích thước vùng cắt</span>
+                <span>{Math.round(cropBox.size)} px</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const newSize = Math.max(60, cropBox.size - 20);
+                    setCropBox((prev) => ({
+                      ...prev,
+                      size: newSize,
+                    }));
+                  }}
+                  style={{
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: '8px',
+                    border: '1px solid #cbd5e1',
+                    background: '#f8fafc',
+                    cursor: 'pointer',
+                    fontSize: '16px',
+                    fontWeight: '700',
+                    color: '#334155',
+                  }}
+                  title="Thu nhỏ vùng vuông"
+                >
+                  -
+                </button>
+                <input
+                  type="range"
+                  min="60"
+                  max={Math.min(displayedImgSize.width, displayedImgSize.height)}
+                  step="2"
+                  value={cropBox.size}
+                  onChange={(e) => {
+                    const val = parseFloat(e.target.value);
+                    const maxX = displayedImgSize.width - val;
+                    const maxY = displayedImgSize.height - val;
+                    setCropBox((prev) => ({
+                      size: val,
+                      x: Math.min(prev.x, maxX),
+                      y: Math.min(prev.y, maxY),
+                    }));
+                  }}
+                  style={{
+                    flex: 1,
+                    cursor: 'pointer',
+                    accentColor: '#0284c7',
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const maxSize = Math.min(
+                      displayedImgSize.width - cropBox.x,
+                      displayedImgSize.height - cropBox.y,
+                      Math.min(displayedImgSize.width, displayedImgSize.height)
+                    );
+                    const newSize = Math.min(maxSize, cropBox.size + 20);
+                    setCropBox((prev) => ({
+                      ...prev,
+                      size: newSize,
+                    }));
+                  }}
+                  style={{
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: '8px',
+                    border: '1px solid #cbd5e1',
+                    background: '#f8fafc',
+                    cursor: 'pointer',
+                    fontSize: '16px',
+                    fontWeight: '700',
+                    color: '#334155',
+                  }}
+                  title="Phóng to vùng vuông"
+                >
+                  +
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const initialCropSize = Math.min(displayedImgSize.width, displayedImgSize.height) * 0.85;
+                    setCropBox({
+                      x: (displayedImgSize.width - initialCropSize) / 2,
+                      y: (displayedImgSize.height - initialCropSize) / 2,
+                      size: initialCropSize,
+                    });
+                  }}
+                  style={{
+                    padding: '6px 12px',
+                    borderRadius: '8px',
+                    border: '1px solid #cbd5e1',
+                    background: '#f8fafc',
+                    cursor: 'pointer',
+                    fontSize: '12px',
+                    fontWeight: '600',
+                    color: '#475569',
+                    whiteSpace: 'nowrap',
+                  }}
+                  title="Căn giữa vùng vuông"
+                >
+                  Căn giữa
+                </button>
+              </div>
+            </div>
+
+            {/* Các nút hành động */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '4px' }}>
+              <button
+                type="button"
+                disabled={uploadingAvatar}
+                onClick={() => {
+                  setCropModalOpen(false);
+                  setRawImageSrc(null);
+                }}
+                style={{
+                  padding: '9px 18px',
+                  borderRadius: '10px',
+                  border: '1px solid #cbd5e1',
+                  background: '#ffffff',
+                  color: '#475569',
+                  fontSize: '13.5px',
+                  fontWeight: '600',
+                  cursor: uploadingAvatar ? 'not-allowed' : 'pointer',
+                }}
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                disabled={uploadingAvatar}
+                onClick={handleConfirmCropAndUpload}
+                style={{
+                  padding: '9px 24px',
+                  borderRadius: '10px',
+                  border: 'none',
+                  background: uploadingAvatar ? '#93c5fd' : '#2563eb',
+                  color: '#ffffff',
+                  fontSize: '13.5px',
+                  fontWeight: '700',
+                  cursor: uploadingAvatar ? 'not-allowed' : 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  boxShadow: '0 4px 12px rgba(37, 99, 235, 0.25)',
+                }}
+              >
+                {uploadingAvatar ? 'Đang xử lý...' : 'Chọn ảnh này'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 };
