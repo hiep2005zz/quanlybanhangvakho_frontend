@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import {
   ProductItem,
+  User,
   createOrderApi,
+  getAvatarUrl,
 } from '../services/api';
 import { emitStatusToast } from './StatusToast';
 
@@ -10,6 +12,7 @@ interface OrderCreateModalProps {
   onClose: () => void;
   token: string;
   products: ProductItem[];
+  currentUser?: User;
   onSuccess: () => void;
 }
 
@@ -18,6 +21,7 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
   onClose,
   token,
   products,
+  currentUser,
   onSuccess,
 }) => {
   if (!isOpen) return null;
@@ -133,9 +137,45 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
             <h3 style={{ fontSize: '18px', fontWeight: '700', color: '#0f172a', margin: 0 }}>
               Tạo Đơn Hàng Mới (Bán Hàng / Xuất Đơn)
             </h3>
-            <p style={{ fontSize: '13px', color: '#64748b', margin: '4px 0 0 0' }}>
-              Khách hàng: <strong style={{ color: '#2563eb' }}>Đại Lý Phân Phối Miền Bắc - Sao Mai</strong>
-            </p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginTop: '6px', flexWrap: 'wrap' }}>
+              <p style={{ fontSize: '13px', color: '#64748b', margin: 0 }}>
+                Khách hàng: <strong style={{ color: '#2563eb' }}>Đại Lý Phân Phối Miền Bắc - Sao Mai</strong>
+              </p>
+              {currentUser && (
+                <div style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  background: '#f8fafc',
+                  border: '1px solid #e2e8f0',
+                  padding: '2px 8px',
+                  borderRadius: '999px',
+                  fontSize: '12px',
+                  color: '#334155',
+                }}>
+                  <div style={{
+                    width: '18px',
+                    height: '18px',
+                    borderRadius: '50%',
+                    background: currentUser.avatar_url ? '#f1f5f9' : '#2563eb',
+                    color: '#ffffff',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '10px',
+                    fontWeight: '700',
+                    overflow: 'hidden',
+                  }}>
+                    {currentUser.avatar_url ? (
+                      <img src={getAvatarUrl(currentUser.avatar_url)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ) : (
+                      (currentUser.full_name || currentUser.username).charAt(0).toUpperCase()
+                    )}
+                  </div>
+                  <span>Người tạo: <strong>{currentUser.full_name || currentUser.username}</strong></span>
+                </div>
+              )}
+            </div>
           </div>
           <button
             type="button"
