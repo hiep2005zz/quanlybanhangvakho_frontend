@@ -1,5 +1,6 @@
-import React, { useState,  } from 'react';
+import React, { useState } from 'react';
 import { User } from '../services/api';
+import { emitStatusToast } from './StatusToast';
 
 interface DiscountTier {
   id: string;
@@ -77,7 +78,7 @@ export default function DiscountPolicyView({ token, user, onBackToHome }: Discou
   // Xử lý xóa mốc sản lượng
   const handleRemoveTier = (id: string) => {
     if (formData.tiers.length === 1) {
-      alert('Chính sách phải có ít nhất 1 mốc chiết khấu!');
+      emitStatusToast({ title: 'Lỗi', message: 'Chính sách phải có ít nhất 1 mốc chiết khấu!' });
       return;
     }
     setFormData({
@@ -103,7 +104,7 @@ export default function DiscountPolicyView({ token, user, onBackToHome }: Discou
   const handleSavePolicy = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.title || !formData.code) {
-      alert('Vui lòng nhập đầy đủ Tên chính sách và Mã áp dụng!');
+      emitStatusToast({ title: 'Lỗi', message: 'Vui lòng nhập đầy đủ Tên chính sách và Mã áp dụng!' });
       return;
     }
 
@@ -114,7 +115,7 @@ export default function DiscountPolicyView({ token, user, onBackToHome }: Discou
 
     setPolicies([newPolicy, ...policies]);
     setIsModalOpen(false);
-    alert('Khai báo chính sách chiết khấu sản lượng thành công!');
+    emitStatusToast({ title: 'Thành công', message: 'Khai báo chính sách chiết khấu sản lượng thành công!' });
   };
 
   // Quay lại trang chủ (Kho hàng) an toàn

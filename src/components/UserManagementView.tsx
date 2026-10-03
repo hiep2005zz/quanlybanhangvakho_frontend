@@ -442,7 +442,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
   // Open Delete Confirm Popup
   const openDeleteConfirm = (targetUser: UserAccount) => {
     if (targetUser.username.toLowerCase() === currentUser.username.toLowerCase()) {
-      alert('Bảo vệ hệ thống: Bạn không được tự xóa tài khoản Quản trị viên của chính mình!');
+      emitStatusToast({ title: 'Cảnh báo', message: 'Bạn không được tự xóa tài khoản của chính mình!' });
       return;
     }
     setDeleteModalError(null);
