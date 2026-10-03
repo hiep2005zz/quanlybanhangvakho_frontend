@@ -112,8 +112,27 @@ export default function DashboardPage({
           try {
             window.history.replaceState({}, '', '/audit-logs');
           } catch {
-            // ignore
-          }    if (pathname === '/suppliers' || pathname.startsWith('/suppliers/')) {
+          }
+        }
+        return 'audit-logs';
+      }
+      try {
+        window.history.replaceState({}, '', '/');
+      } catch {
+        // ignore
+      }
+    } else if (isUsersPath || hasOldTabParam) {
+      if (hasOldTabParam || pathname !== '/users') {
+        try {
+          window.history.replaceState({}, '', '/users');
+        } catch {
+          // ignore
+        }
+      }
+      return 'users';
+    }
+    
+    if (pathname === '/suppliers' || pathname.startsWith('/suppliers/')) {
       return 'suppliers';
     }
     if (isDealersPath || oldTabVal === 'dealers') {
@@ -235,7 +254,11 @@ export default function DashboardPage({
       }
       setActiveTabState('discounts');
       try {
-        window.history.pushState({}, '', '/discounts');    } else if (tab === 'suppliers') {
+        window.history.pushState({}, '', '/discounts');
+      } catch {
+        // ignore
+      }
+    } else if (tab === 'suppliers') {
       setActiveTabState('suppliers');
       try {
         window.history.pushState({}, '', '/suppliers');
@@ -1464,7 +1487,17 @@ export default function DashboardPage({
         canAccessDiscounts ? (
           <DiscountPolicyView
             token={token}
-            user={user}      ) : activeTab === 'profile' ? (
+            user={user}
+          />
+        ) : (
+          <AccessDeniedView
+            currentUser={user}
+            requiredPermission="Chính sách chiết khấu (sales_manager / sales / accountant)"
+            onBackToWorkflow={() => setActiveTab('inventory')}
+            onLogout={onLogout}
+          />
+        )
+      ) : activeTab === 'profile' ? (
         <ProfileView
           currentUser={user}
           token={token}
@@ -1480,7 +1513,7 @@ export default function DashboardPage({
         ) : (
           <AccessDeniedView
             currentUser={user}
-            requiredPermission={activeTab === 'discounts' ? "Chính sách chiết khấu (sales_manager / sales / accountant)" : "Quản lý nhà cung cấp (Thủ kho / Quản lý kho / Quản trị)"}
+            requiredPermission="Quản lý nhà cung cấp (Thủ kho / Quản lý kho / Quản trị)"
             onBackToWorkflow={() => setActiveTab('inventory')}
             onLogout={onLogout}
           />

@@ -633,8 +633,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
           </div>
         </div>
 
-          </div>
-        )}
+
       </div>
 
       {isImportModalOpen && (

@@ -1,9 +1,5 @@
 import React, { useState, useEffect } from 'react';
-<<<<<<< HEAD
 import { AuditLogItem, getEntityAuditLogsApi, getUsersApi, UserAccount, getAvatarUrl } from '../services/api';
-=======
-import { AuditLogItem, getEntityAuditLogsApi } from '../services/api';
->>>>>>> 21c17fc7cd5bccd60ff25558213bed4b31a57d57
 import { AuditDetailModal } from './AuditDetailModal';
 import { formatLocalDateTime } from '../utils/dateUtils';
 
