@@ -99,8 +99,21 @@ export interface CreateOrderPayload {
   note?: string;
 }
 
+export interface OrderItemPayload {
+  product_id: number;
+  quantity: number;
+  price: number;
+  unit_name?: string;
+  conversion_rate?: number;
+}
+
+export interface OrderCreatePayload {
+  dealer_id: number;
+  items: OrderItemPayload[];
+  note?: string;
+}
+
 export type OrderItemCreatePayload = CreateOrderPayload['items'][number];
-export type OrderCreatePayload = CreateOrderPayload;
 
 const isOrderItem = (value: unknown): value is OrderItem => {
   if (typeof value !== 'object' || value === null) return false;
@@ -450,8 +463,14 @@ export async function getOrderDealersApi(token: string): Promise<OrderDealer[]> 
   return data;
 }
 
-export async function createOrderApi(token: string, payload: CreateOrderPayload): Promise<CreatedOrder> {
-  const response = await authenticatedFetch(`${API_BASE_URL}/orders/sales-entry`, {
+export function createOrderApi(token: string, payload: CreateOrderPayload): Promise<CreatedOrder>;
+export function createOrderApi(token: string, payload: OrderCreatePayload): Promise<CreatedOrder>;
+export async function createOrderApi(
+  token: string,
+  payload: CreateOrderPayload | OrderCreatePayload
+): Promise<CreatedOrder> {
+  const endpoint = 'delivery_point' in payload ? '/orders/sales-entry' : '/orders';
+  const response = await authenticatedFetch(`${API_BASE_URL}${endpoint}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -613,46 +632,6 @@ export async function updateProductUnitsApi(
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
     throw new Error(data.detail || `Lỗi cập nhật đơn vị tính (Mã lỗi ${response.status})`);
-  }
-  return data;
-}
-
-export interface OrderItemPayload {
-  product_id: number;
-  quantity: number;
-  price: number;
-  unit_name?: string;
-  conversion_rate?: number;
-}
-
-export interface OrderCreatePayload {
-  dealer_id: number;
-  items: OrderItemPayload[];
-  note?: string;
-}
-
-export async function createOrderApi(token: string, payload: OrderCreatePayload): Promise<any> {
-  const response = await authenticatedFetch(`${API_BASE_URL}/orders`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  }, token);
-
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(data.detail || `Lỗi tạo đơn hàng (Mã lỗi ${response.status})`);
-  }
-  return data;
-}
-
-export async function getOrdersApi(token: string): Promise<any[]> {
-  const response = await authenticatedFetch(`${API_BASE_URL}/orders`, {
-    method: 'GET',
-  }, token);
-
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(data.detail || `Lỗi tải danh sách đơn hàng (Mã lỗi ${response.status})`);
   }
   return data;
 }

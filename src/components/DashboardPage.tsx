@@ -65,8 +65,10 @@ export default function DashboardPage({
   // Quyền Cấu hình ĐVT quy đổi (Chỉ Quản trị hệ thống và Quản lý kho)
   const canConfigUnit = isAdmin || officialRoles.some((r) => ['admin', 'warehouse_manager'].includes(r));
 
-  // 2. Khởi tạo State với Clean URL (/users, /audit-logs, /categories, /suppliers, /profile)
-  const [activeTab, setActiveTabState] = useState<'inventory' | 'users' | 'categories' | 'audit-logs' | 'profile' | 'suppliers'>(() => {
+  type DashboardTab = 'inventory' | 'users' | 'categories' | 'audit-logs' | 'profile' | 'suppliers' | 'orders';
+
+  // 2. Khởi tạo State với Clean URL (/users, /audit-logs, /categories, /suppliers, /profile, /orders)
+  const [activeTab, setActiveTabState] = useState<DashboardTab>(() => {
 
     const pathname = window.location.pathname.toLowerCase();
     const params = new URLSearchParams(window.location.search);
