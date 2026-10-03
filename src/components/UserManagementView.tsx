@@ -13,6 +13,7 @@ import {
 } from '../services/api';
 import { sessionManager } from '../services/sessionManager';
 import { emitStatusToast } from './StatusToast';
+import { UserBulkImportModal } from './UserBulkImportModal';
 
 interface UserManagementViewProps {
   currentUser: User;
@@ -141,6 +142,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
   const [selectedStatusFilter, setSelectedStatusFilter] = useState<string>('all');
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(20);
+  const [isImportModalOpen, setIsImportModalOpen] = useState<boolean>(false);
 
   // Áp dụng Debounce 400ms: Chỉ khi người dùng ngừng gõ phím sau 400ms thì mới trigger cập nhật searchTerm/lọc
   useEffect(() => {
@@ -623,45 +625,93 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
 
         {/* Nút Tạo tài khoản đặt ở trên góc phải, thẳng phía trên chữ Làm mới */}
         {onCreateAccount && (
-          <button
-            type="button"
-            onClick={onCreateAccount}
-            id="btn-userview-create-account"
-            style={{
-              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-              border: 'none',
-              borderRadius: '9px',
-              color: '#ffffff',
-              padding: '9px 16px',
-              fontSize: '13.5px',
-              fontWeight: '600',
-              cursor: 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '7px',
-              boxShadow: '0 2px 8px rgba(16, 185, 129, 0.35)',
-              transition: 'all 0.18s ease',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = 'translateY(-1.5px)';
-              e.currentTarget.style.boxShadow = '0 4px 14px rgba(16, 185, 129, 0.45)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'translateY(0)';
-              e.currentTarget.style.boxShadow = '0 2px 8px rgba(16, 185, 129, 0.35)';
-            }}
-            title="Tạo tài khoản mới và gửi email kích hoạt"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-              <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-              <circle cx="8.5" cy="7" r="4" />
-              <line x1="20" y1="8" x2="20" y2="14" />
-              <line x1="23" y1="11" x2="17" y2="11" />
-            </svg>
-            <span>Tạo tài khoản</span>
-          </button>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            {/* Import Button */}
+            <button
+              type="button"
+              onClick={() => setIsImportModalOpen(true)}
+              style={{
+                background: '#ffffff',
+                border: '1px solid #cbd5e1',
+                borderRadius: '9px',
+                color: '#2563eb',
+                padding: '9px 16px',
+                fontSize: '13.5px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '7px',
+                boxShadow: '0 2px 4px rgba(0, 0, 0, 0.05)',
+                transition: 'all 0.18s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = '#2563eb';
+                e.currentTarget.style.background = '#eff6ff';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = '#cbd5e1';
+                e.currentTarget.style.background = '#ffffff';
+              }}
+              title="Nhập người dùng hàng loạt từ Excel"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="17 8 12 3 7 8"></polyline>
+                <line x1="12" y1="3" x2="12" y2="15"></line>
+              </svg>
+              <span>Nhập Excel</span>
+            </button>
+            <button
+              type="button"
+              onClick={onCreateAccount}
+              id="btn-userview-create-account"
+              style={{
+                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                border: 'none',
+                borderRadius: '9px',
+                color: '#ffffff',
+                padding: '9px 16px',
+                fontSize: '13.5px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '7px',
+                boxShadow: '0 2px 8px rgba(16, 185, 129, 0.35)',
+                transition: 'all 0.18s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-1.5px)';
+                e.currentTarget.style.boxShadow = '0 4px 14px rgba(16, 185, 129, 0.45)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 2px 8px rgba(16, 185, 129, 0.35)';
+              }}
+              title="Tạo tài khoản mới và gửi email kích hoạt"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                <circle cx="8.5" cy="7" r="4" />
+                <line x1="20" y1="8" x2="20" y2="14" />
+                <line x1="23" y1="11" x2="17" y2="11" />
+              </svg>
+              <span>Tạo tài khoản</span>
+            </button>
+          </div>
         )}
       </div>
+
+      {isImportModalOpen && (
+        <UserBulkImportModal
+          token={token}
+          onClose={() => setIsImportModalOpen(false)}
+          onSuccess={() => {
+            loadUsers();
+          }}
+        />
+      )}
 
       {/* Error Alert */}
       {error && (
@@ -1550,16 +1600,17 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
               </button>
             </div>
 
-            {/* Form Edit (Ẩn thanh cuộn trực quan nhưng vẫn cuộn/di chuột mượt mà) */}
+            {/* Form Edit */}
             <form
               onSubmit={handleUpdateUser}
-              className="no-scrollbar-form"
+              className="no-scrollbar-form pb-6"
               style={{
-                padding: '20px',
+                padding: '20px 20px 24px 20px',
                 overflowY: 'auto',
                 flex: 1,
                 scrollbarWidth: 'none',
-                msOverflowStyle: 'none'
+                msOverflowStyle: 'none',
+                position: 'relative'
               }}
             >
               {editModalError && (
@@ -1861,6 +1912,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                         {/* Danh sách Dropdown Menu thả xuống */}
                         {isRoleDropdownOpen && (
                           <div
+                            className="max-h-52 overflow-y-auto"
                             style={{
                               position: 'absolute',
                               top: 'calc(100% + 4px)',
@@ -1871,9 +1923,9 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                               borderRadius: '10px',
                               boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.12), 0 8px 10px -6px rgba(0, 0, 0, 0.06)',
                               zIndex: 1000,
-                              maxHeight: '230px',
+                              maxHeight: '13rem', /* max-h-52 (208px) */
                               overflowY: 'auto',
-                              padding: '6px',
+                              padding: '8px 6px',
                               display: 'flex',
                               flexDirection: 'column',
                               gap: '4px',
@@ -1915,11 +1967,11 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                                     if (!isChecked) e.currentTarget.style.background = '#ffffff';
                                   }}
                                 >
-                                  <div>
-                                    <div style={{ fontSize: '13px', fontWeight: isChecked ? '700' : '600', color: isChecked ? r.badgeColor : '#1e293b' }}>
+                                  <div style={{ paddingTop: '1px', paddingBottom: '1px' }}>
+                                    <div style={{ fontSize: '13px', fontWeight: isChecked ? '700' : '600', color: isChecked ? r.badgeColor : '#1e293b', lineHeight: '1.4' }}>
                                       {r.title}
                                     </div>
-                                    <div style={{ fontSize: '11px', color: '#64748b', marginTop: '1px' }}>
+                                    <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px', lineHeight: '1.35' }}>
                                       {r.description}
                                     </div>
                                   </div>
@@ -2072,14 +2124,22 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
               </div>
 
               {/* Actions Footer */}
-              <div style={{
-                marginTop: '24px',
-                display: 'flex',
-                justifyContent: 'flex-end',
-                gap: '12px',
-                borderTop: '1px solid #e2e8f0',
-                paddingTop: '18px'
-              }}>
+              <div
+                className="sticky bottom-0 bg-white border-t pt-4 z-30"
+                style={{
+                  position: 'sticky',
+                  bottom: 0,
+                  background: '#ffffff',
+                  borderTop: '1px solid #e2e8f0',
+                  paddingTop: '16px',
+                  paddingBottom: '4px',
+                  marginTop: '24px',
+                  display: 'flex',
+                  justifyContent: 'flex-end',
+                  gap: '12px',
+                  zIndex: 30,
+                }}
+              >
                 <button
                   type="button"
                   onClick={() => setUserToEdit(null)}
