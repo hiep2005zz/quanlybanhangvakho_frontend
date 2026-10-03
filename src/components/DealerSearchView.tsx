@@ -3,6 +3,8 @@ import {
     DealerSearchItem,
     searchDealers,
     getDealerFilters,
+    createDealer,
+    CreateDealerPayload,
 } from '../services/dealerSearchApi';
 import { User } from '../services/api';
 import './dealer-search.css';
@@ -47,6 +49,200 @@ export default function DealerSearchView({
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [onlyMyDealers, setOnlyMyDealers] = useState(false);
+
+    // Trạng thái cho tính năng Thêm đại lý & khách hàng
+    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [addFormData, setAddFormData] = useState({
+        code: '',
+        name: '',
+        phone: '',
+        email: '',
+        address: '',
+        region: '',
+        assigned_sale_id: '',
+        customer_group: 'Đại lý cấp 1',
+        status: 'Đang hoạt động',
+    });
+    const [addError, setAddError] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [successBanner, setSuccessBanner] = useState('');
+
+    // Ràng buộc phân quyền: Chỉ Admin, Quản lý kinh doanh (sales_manager) và Nhân viên kinh doanh (sales) mới có quyền thêm đại lý/khách hàng
+    const rawRoles = currentUser?.roles && currentUser.roles.length > 0
+        ? currentUser.roles
+        : (currentUser?.role ? [currentUser.role] : []);
+    const canAddDealer = rawRoles.some((r) => ['admin', 'sales_manager', 'sales'].includes(r))
+        || Boolean(currentUser?.permissions && (currentUser.permissions.includes('user:manage') || currentUser.permissions.includes('*')))
+        || !currentUser;
+
+    const handleOpenAddModal = () => {
+        if (!canAddDealer) {
+            alert('Bạn không có quyền thêm đại lý & khách hàng. Chức năng này yêu cầu quyền Quản trị viên hoặc Bộ phận Kinh doanh.');
+            return;
+        }
+
+        let defaultSaleId = '';
+        if (currentUser) {
+            const myName = (currentUser.full_name || currentUser.username || '').toLowerCase();
+            const matched = sales.find((s) => s.name.toLowerCase().includes(myName));
+            if (matched) {
+                defaultSaleId = String(matched.id);
+            }
+        }
+
+        setAddFormData({
+            code: `DL-${Math.floor(1000 + Math.random() * 9000)}`,
+            name: '',
+            phone: '',
+            email: '',
+            address: '',
+            region: regions[0] || 'Hà Nội',
+            assigned_sale_id: defaultSaleId,
+            customer_group: customerGroups[0] || 'Đại lý cấp 1',
+            status: 'Đang hoạt động',
+        });
+        setAddError('');
+        setIsAddModalOpen(true);
+    };
+
+    const handleAddSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setAddError('');
+
+        // 1. Ràng buộc phân quyền
+        if (!canAddDealer) {
+            setAddError('Bạn không có quyền thêm đại lý & khách hàng. Chức năng này yêu cầu quyền Quản trị viên hoặc Bộ phận Kinh doanh.');
+            return;
+        }
+
+        // 2. Ràng buộc Tên đại lý / Khách hàng
+        const trimmedName = addFormData.name.trim();
+        if (!trimmedName) {
+            setAddError('Vui lòng nhập tên đại lý hoặc khách hàng.');
+            return;
+        }
+        if (trimmedName.length < 2) {
+            setAddError('Tên đại lý / khách hàng quá ngắn (tối thiểu 2 ký tự).');
+            return;
+        }
+        if (/^\d+$/.test(trimmedName)) {
+            setAddError('Tên không hợp lệ! Tên đại lý / khách hàng không được chỉ bao gồm chữ số.');
+            return;
+        }
+
+        // 3. Ràng buộc Mã đại lý / Khách hàng (In hoa, không trùng lặp)
+        const cleanCode = (addFormData.code.trim() || `DL-${Math.floor(1000 + Math.random() * 9000)}`).toUpperCase();
+        if (cleanCode.length < 3) {
+            setAddError('Mã đại lý / khách hàng quá ngắn (tối thiểu 3 ký tự, ví dụ DL-01).');
+            return;
+        }
+        const isDuplicateCode = dealers.some(
+            (d) => d.code && d.code.trim().toUpperCase() === cleanCode
+        );
+        if (isDuplicateCode) {
+            setAddError(`Mã đại lý/khách hàng "${cleanCode}" đã tồn tại trên hệ thống! Vui lòng nhập mã khác.`);
+            return;
+        }
+
+        // 4. Ràng buộc Số điện thoại (Định dạng VN và không trùng lặp)
+        const trimmedPhone = addFormData.phone.trim();
+        if (!trimmedPhone) {
+            setAddError('Vui lòng nhập số điện thoại liên hệ.');
+            return;
+        }
+
+        let cleanPhone = trimmedPhone.replace(/[\s\.\-\(\)]/g, '');
+        if (cleanPhone.startsWith('+84')) {
+            cleanPhone = '0' + cleanPhone.slice(3);
+        } else if (cleanPhone.startsWith('84') && cleanPhone.length === 11) {
+            cleanPhone = '0' + cleanPhone.slice(2);
+        }
+
+        const vnPhoneRegex = /^(0[3|5|7|8|9][0-9]{8}|02[0-9]{9})$/;
+        if (!vnPhoneRegex.test(cleanPhone)) {
+            setAddError('Số điện thoại không hợp lệ! Vui lòng nhập đúng 10 chữ số (bắt đầu bằng 03, 05, 07, 08, 09, ví dụ 0987654321).');
+            return;
+        }
+
+        const isDuplicatePhone = dealers.some((d) => {
+            if (!d.phone) return false;
+            let p = d.phone.replace(/[\s\.\-\(\)]/g, '');
+            if (p.startsWith('+84')) p = '0' + p.slice(3);
+            else if (p.startsWith('84') && p.length === 11) p = '0' + p.slice(2);
+            return p === cleanPhone;
+        });
+        if (isDuplicatePhone) {
+            setAddError(`Số điện thoại "${cleanPhone}" đã được sử dụng cho một đại lý/khách hàng khác!`);
+            return;
+        }
+
+        // 5. Ràng buộc Email (Định dạng chuẩn và không trùng lặp nếu có nhập)
+        const trimmedEmail = addFormData.email.trim();
+        if (trimmedEmail) {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(trimmedEmail)) {
+                setAddError('Định dạng Email không hợp lệ (Ví dụ: daily@gmail.com).');
+                return;
+            }
+
+            const isDuplicateEmail = dealers.some(
+                (d) => d.email && d.email.trim().toLowerCase() === trimmedEmail.toLowerCase()
+            );
+            if (isDuplicateEmail) {
+                setAddError(`Email "${trimmedEmail}" đã tồn tại trên hệ thống!`);
+                return;
+            }
+        }
+
+        // 6. Ràng buộc Khu vực
+        const trimmedRegion = addFormData.region.trim();
+        if (!trimmedRegion) {
+            setAddError('Vui lòng chọn hoặc nhập khu vực cho đại lý.');
+            return;
+        }
+
+        // 7. Ràng buộc Địa chỉ (Bắt buộc để hỗ trợ chỉ đường Google Maps)
+        const trimmedAddress = addFormData.address.trim();
+        if (!trimmedAddress) {
+            setAddError('Vui lòng nhập địa chỉ cụ thể để phục vụ việc định vị và chỉ đường.');
+            return;
+        }
+        if (trimmedAddress.length < 5) {
+            setAddError('Địa chỉ quá ngắn (tối thiểu 5 ký tự). Vui lòng nhập rõ số nhà/đường, phường, quận/huyện.');
+            return;
+        }
+
+        const selectedSale = sales.find((s) => String(s.id) === String(addFormData.assigned_sale_id));
+        const saleName = selectedSale ? selectedSale.name : (currentUser?.full_name || currentUser?.username || null);
+
+        setIsSubmitting(true);
+        try {
+            const payload: CreateDealerPayload = {
+                code: cleanCode,
+                name: trimmedName,
+                phone: cleanPhone,
+                email: trimmedEmail || undefined,
+                address: trimmedAddress,
+                region: trimmedRegion,
+                assigned_sale_id: addFormData.assigned_sale_id ? Number(addFormData.assigned_sale_id) : undefined,
+                assigned_sale_name: saleName,
+                customer_group: addFormData.customer_group || 'Đại lý cấp 1',
+                status: addFormData.status || 'Đang hoạt động',
+            };
+
+            const created = await createDealer(payload, token);
+            setDealers((prev) => [created, ...prev]);
+
+            setSuccessBanner(`Đã thêm thành công: "${created.name}" (${created.code})`);
+            setTimeout(() => setSuccessBanner(''), 4500);
+
+            setIsAddModalOpen(false);
+        } catch (err) {
+            setAddError(err instanceof Error ? err.message : 'Có lỗi xảy ra khi thêm đại lý');
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
 
     async function loadFilters() {
         try {
@@ -199,19 +395,52 @@ export default function DealerSearchView({
                         </div>
                     </div>
 
-                    {currentUser && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                        {currentUser && (
+                            <button
+                                type="button"
+                                onClick={toggleOnlyMyDealers}
+                                className={`dealer-my-route-toggle ${onlyMyDealers ? 'active' : ''}`}
+                                title="Lọc nhanh danh sách đại lý thuộc tuyến do bạn phụ trách"
+                            >
+                                <span style={{ fontSize: '15px' }}>📍</span>
+                                <span>{onlyMyDealers ? 'Đang lọc: Tuyến của tôi' : 'Xem tuyến của tôi'}</span>
+                            </button>
+                        )}
                         <button
                             type="button"
-                            onClick={toggleOnlyMyDealers}
-                            className={`dealer-my-route-toggle ${onlyMyDealers ? 'active' : ''}`}
-                            title="Lọc nhanh danh sách đại lý thuộc tuyến do bạn phụ trách"
+                            onClick={handleOpenAddModal}
+                            className={`dealer-btn-add ${!canAddDealer ? 'disabled' : ''}`}
+                            disabled={!canAddDealer}
+                            title={
+                                canAddDealer
+                                    ? 'Thêm mới đại lý hoặc khách hàng vào tuyến'
+                                    : 'Bạn không có quyền thực hiện chức năng này (Yêu cầu quyền Quản trị viên hoặc Bộ phận Kinh doanh)'
+                            }
                         >
-                            <span style={{ fontSize: '15px' }}>📍</span>
-                            <span>{onlyMyDealers ? 'Đang lọc: Tuyến của tôi' : 'Xem tuyến của tôi'}</span>
+                            <span>{canAddDealer ? '➕' : '🔒'}</span>
+                            <span>Thêm đại lý & khách hàng</span>
                         </button>
-                    )}
+                    </div>
                 </div>
             </div>
+
+            {successBanner && (
+                <div className="dealer-success-banner">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span>✅</span>
+                        <span>{successBanner}</span>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => setSuccessBanner('')}
+                        className="dealer-alert-close"
+                        title="Đóng thông báo"
+                    >
+                        ✕
+                    </button>
+                </div>
+            )}
 
             <div className="dealer-search-filter">
                 <div className="dealer-field search-keyword-field">
@@ -532,6 +761,183 @@ export default function DealerSearchView({
                     )}
                 </div>
             </div>
+
+            {isAddModalOpen && (
+                <div className="dealer-modal-overlay" onClick={() => setIsAddModalOpen(false)}>
+                    <div className="dealer-modal-box" onClick={(e) => e.stopPropagation()}>
+                        <div className="dealer-modal-header">
+                            <div className="dealer-modal-title-wrap">
+                                <div className="dealer-modal-icon">🏢</div>
+                                <div>
+                                    <h3>Thêm đại lý & khách hàng mới</h3>
+                                    <p>Nhập thông tin đại lý hoặc khách hàng để đưa vào tuyến quản lý</p>
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                className="dealer-modal-close-btn"
+                                onClick={() => setIsAddModalOpen(false)}
+                                title="Đóng"
+                            >
+                                ✕
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleAddSubmit}>
+                            <div className="dealer-modal-body">
+                                {addError && (
+                                    <div className="dealer-modal-error">
+                                        ⚠️ {addError}
+                                    </div>
+                                )}
+
+                                <div className="dealer-modal-form-grid">
+                                    <div className="dealer-modal-field">
+                                        <label>
+                                            Nhóm khách hàng <span className="required">*</span>
+                                        </label>
+                                        <select
+                                            value={addFormData.customer_group}
+                                            onChange={(e) => setAddFormData({ ...addFormData, customer_group: e.target.value })}
+                                        >
+                                            {customerGroups.map((group) => (
+                                                <option key={group} value={group}>
+                                                    {group}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+
+                                    <div className="dealer-modal-field">
+                                        <label>Mã đại lý / khách hàng</label>
+                                        <input
+                                            type="text"
+                                            value={addFormData.code}
+                                            onChange={(e) => setAddFormData({ ...addFormData, code: e.target.value })}
+                                            placeholder="Ví dụ: DL-1024 hoặc KH-01"
+                                        />
+                                    </div>
+
+                                    <div className="dealer-modal-field dealer-form-full">
+                                        <label>
+                                            Tên đại lý / Khách hàng <span className="required">*</span>
+                                        </label>
+                                        <input
+                                            type="text"
+                                            required
+                                            value={addFormData.name}
+                                            onChange={(e) => setAddFormData({ ...addFormData, name: e.target.value })}
+                                            placeholder="Ví dụ: Đại lý Toàn Thắng hoặc Cửa hàng Minh Tuấn"
+                                        />
+                                    </div>
+
+                                    <div className="dealer-modal-field">
+                                        <label>
+                                            Số điện thoại liên hệ <span className="required">*</span>
+                                        </label>
+                                        <input
+                                            type="tel"
+                                            required
+                                            value={addFormData.phone}
+                                            onChange={(e) => setAddFormData({ ...addFormData, phone: e.target.value })}
+                                            placeholder="Ví dụ: 0987654321"
+                                        />
+                                    </div>
+
+                                    <div className="dealer-modal-field">
+                                        <label>Email liên hệ</label>
+                                        <input
+                                            type="email"
+                                            value={addFormData.email}
+                                            onChange={(e) => setAddFormData({ ...addFormData, email: e.target.value })}
+                                            placeholder="daily@example.com"
+                                        />
+                                    </div>
+
+                                    <div className="dealer-modal-field">
+                                        <label>
+                                            Khu vực <span className="required">*</span>
+                                        </label>
+                                        <select
+                                            value={addFormData.region}
+                                            onChange={(e) => setAddFormData({ ...addFormData, region: e.target.value })}
+                                        >
+                                            {regions.map((reg) => (
+                                                <option key={reg} value={reg}>
+                                                    {reg}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+
+                                    <div className="dealer-modal-field">
+                                        <label>Nhân viên phụ trách</label>
+                                        <select
+                                            value={addFormData.assigned_sale_id}
+                                            onChange={(e) => setAddFormData({ ...addFormData, assigned_sale_id: e.target.value })}
+                                        >
+                                            <option value="">-- Chưa chỉ định --</option>
+                                            {sales.map((sale) => (
+                                                <option key={sale.id} value={sale.id}>
+                                                    {sale.name}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+
+                                    <div className="dealer-modal-field dealer-form-full">
+                                        <label>
+                                            Địa chỉ <span className="required">*</span>
+                                        </label>
+                                        <input
+                                            type="text"
+                                            required
+                                            value={addFormData.address}
+                                            onChange={(e) => setAddFormData({ ...addFormData, address: e.target.value })}
+                                            placeholder="Số nhà, tên đường, phường/xã, quận/huyện..."
+                                        />
+                                        <span className="dealer-modal-field-hint">
+                                            Địa chỉ chi tiết (tối thiểu 5 ký tự) phục vụ định vị và chỉ đường trên Google Maps
+                                        </span>
+                                    </div>
+
+                                    <div className="dealer-modal-field">
+                                        <label>Trạng thái</label>
+                                        <select
+                                            value={addFormData.status}
+                                            onChange={(e) => setAddFormData({ ...addFormData, status: e.target.value })}
+                                        >
+                                            {statuses.map((st) => (
+                                                <option key={st} value={st}>
+                                                    {st}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="dealer-modal-footer">
+                                <button
+                                    type="button"
+                                    className="dealer-btn-cancel"
+                                    onClick={() => setIsAddModalOpen(false)}
+                                    disabled={isSubmitting}
+                                >
+                                    Hủy bỏ
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="dealer-btn-save"
+                                    disabled={isSubmitting}
+                                >
+                                    {isSubmitting ? 'Đang lưu...' : 'Lưu đại lý & khách hàng'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

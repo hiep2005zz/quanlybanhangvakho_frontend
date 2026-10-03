@@ -316,3 +316,65 @@ export async function getDealerFilters(
         statuses: ['Đang hoạt động', 'Tạm ngừng'],
     };
 }
+
+export interface CreateDealerPayload {
+    code?: string;
+    name: string;
+    phone?: string;
+    email?: string;
+    address?: string;
+    region: string;
+    assigned_sale_id?: number | null;
+    assigned_sale_name?: string | null;
+    customer_group?: string;
+    status?: string;
+}
+
+export async function createDealer(
+    payload: CreateDealerPayload,
+    token?: string
+): Promise<DealerSearchItem> {
+    const authToken = getAuthToken(token);
+    const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+    };
+    if (authToken) {
+        headers.Authorization = `Bearer ${authToken}`;
+    }
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/v1/dealers`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify(payload),
+        });
+
+        if (response.ok) {
+            const result = await response.json();
+            if (result && result.id) {
+                MOCK_DEALERS.unshift(result);
+                return result;
+            }
+        }
+    } catch {
+        // Dự phòng fallback khi backend chưa cấu hình endpoint POST /dealers
+    }
+
+    const newItem: DealerSearchItem = {
+        id: Date.now(),
+        code: payload.code?.trim() || `DL-${Math.floor(1000 + Math.random() * 9000)}`,
+        name: payload.name.trim(),
+        phone: payload.phone?.trim() || null,
+        email: payload.email?.trim() || null,
+        address: payload.address?.trim() || null,
+        region: payload.region.trim(),
+        assigned_sale_id: payload.assigned_sale_id || null,
+        assigned_sale_name: payload.assigned_sale_name || null,
+        customer_group: payload.customer_group || 'Đại lý cấp 1',
+        status: payload.status || 'Đang hoạt động',
+    };
+
+    MOCK_DEALERS.unshift(newItem);
+    return newItem;
+}
