@@ -1,5 +1,5 @@
 // frontend/src/services/sessionManager.ts
-import { refreshTokenApi, notifySessionExpired, AUTH_STORAGE, getMeApi, User } from './api';
+import { refreshTokenApi, notifySessionExpired, AUTH_STORAGE, validateSessionApi, getMeApi, User } from './api';
 
 // Định danh duy nhất cho từng Tab/Cửa sổ để phân biệt tab thao tác với các tab khác
 export const CURRENT_TAB_ID = 'tab_' + Math.random().toString(36).substring(2) + Date.now().toString(36);
@@ -35,8 +35,8 @@ class SessionManager {
   private statusListeners: Set<StatusListener> = new Set();
   private userProfileListeners: Set<UserProfileListener> = new Set();
   private isInitialized: boolean = false;
-  private authChannel: BroadcastChannel | null = null;
   private heartbeatCounter: number = 0;
+  private authChannel: BroadcastChannel | null = null;
 
   constructor() {
     this.handleMouseMove = this.throttle(this.handleMouseMove.bind(this), 2000);
@@ -91,15 +91,18 @@ class SessionManager {
     }
   }
 
-  // Lắng nghe sự kiện chuyển tab / focus lại cửa sổ (đã được throttle 60s)
+  // Lắng nghe sự kiện chuyển tab / focus lại cửa sổ:
+  // Lập tức kiểm tra tính hợp lệ của Token với server và đồng bộ vai trò mới nhất
   private handleWindowFocus() {
     if (this.currentToken && !this.isRefreshing) {
+      validateSessionApi(this.currentToken);
       this.syncCurrentProfile();
     }
   }
 
   private handleVisibilityChange() {
     if (document.visibilityState === 'visible' && this.currentToken && !this.isRefreshing) {
+      validateSessionApi(this.currentToken);
       this.syncCurrentProfile();
     }
   }
@@ -161,6 +164,7 @@ class SessionManager {
     }
     this.lastActivityTime = Date.now();
     this.lastRefreshedTime = Date.now();
+    this.heartbeatCounter = 0;
 
     // Thiết lập BroadcastChannel để đồng bộ thu hồi tức thì giữa các tab CÙNG TÀI KHOẢN
     if (typeof BroadcastChannel !== 'undefined') {
@@ -242,7 +246,7 @@ class SessionManager {
       window.clearInterval(this.checkTimer);
     }
 
-    // Interval chạy mỗi 1000ms tính thời gian còn lại của phiên làm việc
+    // Interval chạy mỗi 1000ms tính thời gian còn lại & Heartbeat kiểm tra token định kỳ
     this.checkTimer = window.setInterval(() => {
       this.checkAndRefreshSession(false);
       this.notifyStatus();

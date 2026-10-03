@@ -80,11 +80,6 @@ export interface ProductItem {
   cost_price?: number | null;
   profit_margin?: number | null;
   profit_per_unit?: number | null;
-  // Chi tiết form quản lý sản phẩm
-  packaging_specification?: string;
-  images?: string[];
-  status?: 'active' | 'inactive';
-  transaction_count?: number; // Số giao dịch đã phát sinh (đơn hàng, nhập/xuất kho)
 }
 
 export interface ProductFinancialSummary {
@@ -365,58 +360,6 @@ export async function getProductsApi(token: string): Promise<ProductListResponse
   }
 
   return response.json();
-}
-
-export interface ProductPayload {
-  code: string;
-  name: string;
-  category: string;
-  base_unit: string;
-  packaging_specification?: string;
-  sell_price: number;
-  cost_price?: number | null;
-  images?: string[];
-  status?: 'active' | 'inactive';
-}
-
-export async function createProductApi(token: string, payload: ProductPayload): Promise<ProductItem> {
-  const response = await authenticatedFetch(`${API_BASE_URL}/products`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  }, token);
-
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(data.detail || `Lỗi tạo mới sản phẩm (Mã lỗi ${response.status})`);
-  }
-  return data;
-}
-
-export async function updateProductApi(token: string, id: number, payload: Partial<ProductPayload>): Promise<ProductItem> {
-  const response = await authenticatedFetch(`${API_BASE_URL}/products/${id}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  }, token);
-
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(data.detail || `Lỗi cập nhật sản phẩm (Mã lỗi ${response.status})`);
-  }
-  return data;
-}
-
-export async function deleteProductApi(token: string, id: number): Promise<{ status: string; message: string }> {
-  const response = await authenticatedFetch(`${API_BASE_URL}/products/${id}`, {
-    method: 'DELETE',
-  }, token);
-
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(data.detail || `Lỗi xóa sản phẩm (Mã lỗi ${response.status})`);
-  }
-  return data;
 }
 
 export interface ChangePasswordPayload {
