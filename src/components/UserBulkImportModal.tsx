@@ -29,7 +29,7 @@ export const UserBulkImportModal: React.FC<UserBulkImportModalProps> = ({ token,
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'Import_Users_Template.xlsx';
+      a.download = 'Mau_Nhap_Nguoi_Dung.xlsx';
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -231,12 +231,41 @@ export const UserBulkImportModal: React.FC<UserBulkImportModalProps> = ({ token,
                             <td style={{ padding: '10px' }}>{row.email}</td>
                             <td style={{ padding: '10px' }}>{row.phone}</td>
                             <td style={{ padding: '10px' }}>
-                              <span style={{
-                                padding: '2px 8px', borderRadius: '6px', fontSize: '12px', fontWeight: '600',
-                                background: '#eff6ff', color: '#2563eb'
-                              }}>
-                                {row.role}
-                              </span>
+                              {(() => {
+                                const roleTitleMap: Record<string, string> = {
+                                  admin: 'Quản trị hệ thống',
+                                  sales_manager: 'Quản lý kinh doanh',
+                                  sales: 'Nhân viên kinh doanh',
+                                  sale: 'Nhân viên kinh doanh',
+                                  warehouse: 'Thủ kho',
+                                  warehouse_manager: 'Quản lý kho',
+                                  accountant: 'Kế toán',
+                                  purchasing: 'Nhân viên mua hàng',
+                                  customer: 'Đại lý',
+                                };
+                                const roleColorMap: Record<string, { bg: string; text: string }> = {
+                                  admin: { bg: '#fee2e2', text: '#dc2626' },
+                                  sales_manager: { bg: '#ede9fe', text: '#7c3aed' },
+                                  sales: { bg: '#eff6ff', text: '#2563eb' },
+                                  sale: { bg: '#eff6ff', text: '#2563eb' },
+                                  warehouse: { bg: '#dcfce7', text: '#15803d' },
+                                  warehouse_manager: { bg: '#d1fae5', text: '#059669' },
+                                  accountant: { bg: '#fef3c7', text: '#d97706' },
+                                  purchasing: { bg: '#cffafe', text: '#0891b2' },
+                                  customer: { bg: '#e0f2fe', text: '#0284c7' },
+                                };
+                                const rKey = (row.role || '').toLowerCase().trim();
+                                const title = roleTitleMap[rKey] || row.role || 'Chưa chọn';
+                                const colors = roleColorMap[rKey] || { bg: '#f1f5f9', text: '#475569' };
+                                return (
+                                  <span style={{
+                                    padding: '3px 8px', borderRadius: '6px', fontSize: '12px', fontWeight: '600',
+                                    background: colors.bg, color: colors.text
+                                  }}>
+                                    {title}
+                                  </span>
+                                );
+                              })()}
                             </td>
                             <td style={{ padding: '10px' }}>{row.branch || 'Kho Tổng Hà Nội'}</td>
                             <td style={{ padding: '10px', color: '#b91c1c' }}>
