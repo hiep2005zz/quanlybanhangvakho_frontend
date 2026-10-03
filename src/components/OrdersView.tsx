@@ -11,6 +11,7 @@ interface OrdersViewProps {
   products: ProductItem[];
   canCreateOrders: boolean;
   canManageOrders: boolean;
+  onCreateOrderEntry: () => void;
   onBackToHome: () => void;
 }
 
@@ -64,7 +65,7 @@ const getStatusLabel = (status: string) => {
   }
 };
 
-export default function OrdersView({ token, username, products, canCreateOrders, canManageOrders, onBackToHome }: OrdersViewProps) {
+export default function OrdersView({ token, username, products, canCreateOrders, canManageOrders, onCreateOrderEntry, onBackToHome }: OrdersViewProps) {
   const [orders, setOrders] = useState<OrderItem[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(true);
@@ -493,7 +494,7 @@ export default function OrdersView({ token, username, products, canCreateOrders,
           <p className="orders-page-subtitle">Theo dõi các đơn hàng đã được tạo trên hệ thống.</p>
         </div>
         <div className="orders-page-actions">
-          {canCreateOrders && <button type="button" className="orders-create-submit" onClick={() => { resetOrderForm(); setIsCreating(true); }}>＋ Tạo đơn mới</button>}
+          {canCreateOrders && <button type="button" className="orders-create-submit" onClick={onCreateOrderEntry}>＋ Tạo đơn mới</button>}
           <button type="button" className="orders-back-button" onClick={onBackToHome}>Về kho hàng</button>
         </div>
       </header>
@@ -576,7 +577,7 @@ export default function OrdersView({ token, username, products, canCreateOrders,
                             onClick={() => setOrderToCancel(order)}
                             disabled={cancellingOrderCode === order.order_code}
                           >
-                            {cancellingOrderCode === order.order_code ? 'Đang hủy...' : 'Xóa đơn'}
+                            {cancellingOrderCode === order.order_code ? 'Đang hủy...' : 'Hủy đơn'}
                           </button>
                         )}
                     </td>

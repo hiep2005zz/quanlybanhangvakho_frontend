@@ -133,7 +133,13 @@ export interface CreateOrderPayload {
   delivery_point: string;
   desired_delivery_date: string;
   discount_percent: number;
-  items: Array<{ product_id: number; quantity: number; unit: string; price: number }>;
+  items: Array<{
+    product_id: number;
+    quantity: number;
+    unit: string;
+    price: number;
+    conversion_rate?: number;
+  }>;
   note?: string;
 }
 

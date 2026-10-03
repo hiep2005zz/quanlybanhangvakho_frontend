@@ -40,7 +40,7 @@ export default function OrderCancelConfirmModal({
         <div className="orders-confirm-icon" aria-hidden="true">!</div>
         <h2 id="order-cancel-title">Xác nhận hủy đơn hàng</h2>
         <p id="order-cancel-description">
-          Bạn có chắc chắn muốn xóa đơn <strong>{order.order_code}</strong> khỏi các đơn đang hoạt động?
+          Bạn có chắc chắn muốn hủy đơn <strong>{order.order_code}</strong> không?
         </p>
         <div className="orders-confirm-note">
           Đơn hàng sẽ chuyển sang trạng thái “Đã hủy” và vẫn được lưu trong lịch sử hệ thống.

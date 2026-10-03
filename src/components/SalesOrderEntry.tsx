@@ -13,6 +13,7 @@ interface SalesOrderEntryProps {
   username: string;
   products: ProductItem[];
   onClose: () => void;
+  onCreated: () => void;
 }
 
 interface OrderLine {
@@ -21,6 +22,7 @@ interface OrderLine {
   name: string;
   price: number;
   unit: string;
+  conversionRate: number;
   quantity: number;
 }
 
@@ -42,8 +44,16 @@ const isOrderLine = (value: unknown): value is OrderLine => {
     typeof line.code === 'string' &&
     typeof line.name === 'string' &&
     typeof line.price === 'number' &&
+    Number.isFinite(line.price) &&
+    line.price >= 0 &&
     typeof line.unit === 'string' &&
-    typeof line.quantity === 'number';
+    line.unit.length > 0 &&
+    typeof line.conversionRate === 'number' &&
+    Number.isFinite(line.conversionRate) &&
+    line.conversionRate > 0 &&
+    typeof line.quantity === 'number' &&
+    Number.isInteger(line.quantity) &&
+    line.quantity > 0;
 };
 
 const isOrderDraft = (value: unknown): value is OrderDraft => {
@@ -56,11 +66,24 @@ const isOrderDraft = (value: unknown): value is OrderDraft => {
     typeof draft.discountPercent === 'string' &&
     typeof draft.note === 'string' &&
     typeof draft.updatedAt === 'string' &&
+    Number.isFinite(Date.parse(draft.updatedAt)) &&
     Array.isArray(draft.lines) &&
     draft.lines.every(isOrderLine);
 };
 
 const ORDER_UNITS = ['Cái', 'Hộp', 'Thùng', 'Bộ', 'Đôi'];
+const getAvailableUnits = (product?: ProductItem, fallbackUnit = 'Cái') => {
+  const units = new Map<string, number>([[product?.base_unit || fallbackUnit, 1]]);
+  ORDER_UNITS.forEach((unit) => {
+    if (!units.has(unit)) units.set(unit, 1);
+  });
+  product?.units?.forEach((unit) => {
+    if (unit.unit_name && Number.isFinite(unit.conversion_rate) && unit.conversion_rate > 0) {
+      units.set(unit.unit_name, unit.conversion_rate);
+    }
+  });
+  return Array.from(units, ([unit_name, conversion_rate]) => ({ unit_name, conversion_rate }));
+};
 const getToday = () => {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
@@ -69,7 +92,7 @@ const formatCurrency = (amount: number) =>
   new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(amount);
 const draftStorageKey = (username: string) => `sales-order-drafts:${encodeURIComponent(username.toLowerCase())}`;
 
-export default function SalesOrderEntry({ token, username, products, onClose }: SalesOrderEntryProps) {
+export default function SalesOrderEntry({ token, username, products, onClose, onCreated }: SalesOrderEntryProps) {
   const [dealers, setDealers] = useState<OrderDealer[]>([]);
   const [isLoadingDealers, setIsLoadingDealers] = useState(true);
   const [dealerLoadError, setDealerLoadError] = useState<string | null>(null);
@@ -113,10 +136,24 @@ export default function SalesOrderEntry({ token, username, products, onClose }: 
       const storedDrafts = localStorage.getItem(draftStorageKey(username));
       if (!storedDrafts) return;
       const parsed: unknown = JSON.parse(storedDrafts);
-      if (!Array.isArray(parsed) || !parsed.every(isOrderDraft)) {
+      const compatibleDrafts = Array.isArray(parsed) ? parsed.map((draft) => {
+        if (typeof draft !== 'object' || draft === null || !Array.isArray((draft as Record<string, unknown>).lines)) {
+          return draft;
+        }
+        const draftRecord = draft as Record<string, unknown>;
+        return {
+          ...draftRecord,
+          lines: (draftRecord.lines as unknown[]).map((line) =>
+            typeof line === 'object' && line !== null && !('conversionRate' in line)
+              ? { ...line, conversionRate: 1 }
+              : line
+          ),
+        };
+      }) : parsed;
+      if (!Array.isArray(compatibleDrafts) || !compatibleDrafts.every(isOrderDraft)) {
         throw new Error('Dữ liệu bản nháp không hợp lệ.');
       }
-      setDrafts(parsed);
+      setDrafts(compatibleDrafts);
     } catch (loadError) {
       setError(loadError instanceof Error ? `Không thể đọc bản nháp: ${loadError.message}` : 'Không thể đọc bản nháp đã lưu.');
     }
@@ -215,8 +252,9 @@ export default function SalesOrderEntry({ token, username, products, onClose }: 
   };
 
   const addProduct = (product: ProductItem) => {
+    const baseUnit = product.base_unit || 'Cái';
     setLines((current) => {
-      const existingIndex = current.findIndex((line) => line.productId === product.id && line.unit === ORDER_UNITS[0]);
+      const existingIndex = current.findIndex((line) => line.productId === product.id && line.unit === baseUnit);
       if (existingIndex >= 0) {
         return current.map((line, index) =>
           index === existingIndex ? { ...line, quantity: line.quantity + 1 } : line
@@ -227,7 +265,8 @@ export default function SalesOrderEntry({ token, username, products, onClose }: 
         code: product.code,
         name: product.name,
         price: product.sell_price,
-        unit: ORDER_UNITS[0],
+        unit: baseUnit,
+        conversionRate: 1,
         quantity: 1,
       }];
     });
@@ -253,11 +292,15 @@ export default function SalesOrderEntry({ token, username, products, onClose }: 
       setError('Vui lòng chọn ngày giao mong muốn.');
       return;
     }
+    if (desiredDeliveryDate < getToday()) {
+      setError('Ngày giao mong muốn không được ở quá khứ.');
+      return;
+    }
     if (!lines.length) {
       setError('Vui lòng thêm ít nhất một dòng hàng.');
       return;
     }
-    if (!Number.isFinite(parsedDiscount) || parsedDiscount < 0 || parsedDiscount > 100) {
+    if (!discountPercent.trim() || !Number.isFinite(parsedDiscount) || parsedDiscount < 0 || parsedDiscount > 100) {
       setError('Chiết khấu phải từ 0% đến 100%.');
       return;
     }
@@ -275,6 +318,7 @@ export default function SalesOrderEntry({ token, username, products, onClose }: 
           quantity: line.quantity,
           price: line.price,
           unit: line.unit,
+          conversion_rate: line.conversionRate,
         })),
         note: note.trim() || undefined,
       });
@@ -292,9 +336,9 @@ export default function SalesOrderEntry({ token, username, products, onClose }: 
       resetForm();
       emitStatusToast({
         title: 'Tạo đơn hàng thành công',
-        message: `Đã tạo đơn ${created.order_code} thành công. Tổng phải thu: ${formatCurrency(created.total_amount)}.`,
+        message: `Đã tạo đơn ${created.order_code} thành công. Tổng phải thu: ${formatCurrency(created.total_amount)}.${draftCleanupWarning || ''}`,
       });
-      if (draftCleanupWarning) setError(draftCleanupWarning);
+      onCreated();
     } catch (createError) {
       setError(createError instanceof Error ? createError.message : 'Không thể tạo đơn hàng.');
     } finally {
@@ -310,7 +354,7 @@ export default function SalesOrderEntry({ token, username, products, onClose }: 
           <h1>Tạo đơn hàng</h1>
           <p className="sales-order-subtitle">Nhập đơn trực tiếp tại cửa hàng của đại lý.</p>
         </div>
-        <button type="button" className="sales-order-secondary-button" onClick={onClose}>Quay lại kho hàng</button>
+        <button type="button" className="sales-order-secondary-button" onClick={onClose}>Quay lại đơn hàng</button>
       </div>
 
       {error && <div className="sales-order-alert error" role="alert">{error}</div>}
@@ -458,8 +502,26 @@ export default function SalesOrderEntry({ token, username, products, onClose }: 
                     <div className="sales-order-line-controls">
                       <label className="sales-order-field">
                         <span>Đơn vị tính</span>
-                        <select value={line.unit} onChange={(event) => updateLine(index, { unit: event.target.value })}>
-                          {ORDER_UNITS.map((unit) => <option key={unit} value={unit}>{unit}</option>)}
+                        <select
+                          value={line.unit}
+                          onChange={(event) => {
+                            const product = products.find((item) => item.id === line.productId);
+                            const selectedUnit = getAvailableUnits(product, line.unit)
+                              .find((unit) => unit.unit_name === event.target.value);
+                            if (selectedUnit) {
+                              updateLine(index, {
+                                unit: selectedUnit.unit_name,
+                                conversionRate: selectedUnit.conversion_rate,
+                              });
+                            }
+                          }}
+                        >
+                          {getAvailableUnits(
+                            products.find((item) => item.id === line.productId),
+                            line.unit,
+                          ).map((unit) => (
+                            <option key={unit.unit_name} value={unit.unit_name}>{unit.unit_name}</option>
+                          ))}
                         </select>
                       </label>
                       <label className="sales-order-field">

@@ -18,6 +18,7 @@ import DealerSearchView from './DealerSearchView';
 import { ProductUnitModal } from './ProductUnitModal';
 import { StockActionModal } from './StockActionModal';
 import { OrderCreateModal } from './OrderCreateModal';
+import SalesOrderEntry from './SalesOrderEntry';
 import { ProductDrawer } from './ProductDrawer';
 import OrdersView from './OrdersView';
 import './dashboard.css';
@@ -159,7 +160,14 @@ export default function DashboardPage({
       window.history.replaceState({}, '', '/');
       return;
     }
-    if (tab === 'profile') {
+    if (tab === 'orders') {
+      setActiveTabState('orders');
+      try {
+        window.history.pushState({}, '', '/orders');
+      } catch {
+        // ignore
+      }
+    } else if (tab === 'profile') {
       setActiveTabState('profile');
       try {
         window.history.pushState({}, '', '/profile');
@@ -397,6 +405,7 @@ export default function DashboardPage({
     product: ProductItem | null;
   }>({ isOpen: false, actionType: 'receipt', product: null });
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
+  const [isSalesOrderEntryOpen, setIsSalesOrderEntryOpen] = useState(false);
 
   // Timer điều khiển mở/đóng menu khi hover
   const menuTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1154,6 +1163,26 @@ export default function DashboardPage({
             <span style={{ fontWeight: activeTab === 'inventory' ? '700' : '500', fontSize: '14.5px' }}>Quản lý kho hàng</span>
           </div>
 
+          {canReadOrders && (
+            <div
+              className={`sidebar-menu-item ${activeTab === 'orders' ? 'active' : ''}`}
+              id="btn-sidebar-orders"
+              onClick={() => {
+                setIsSalesOrderEntryOpen(false);
+                setActiveTab('orders');
+                handleCloseMenu();
+              }}
+            >
+              <div className="sidebar-icon-box">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 3h18v18H3z" />
+                  <path d="M8 8h8M8 12h8M8 16h4" />
+                </svg>
+              </div>
+              <span style={{ fontWeight: activeTab === 'orders' ? '700' : '500', fontSize: '14.5px' }}>Đơn hàng</span>
+            </div>
+          )}
+
           {/* Tra cứu đại lý - Cho nhân viên kinh doanh, quản lý và admin */}
           {canViewDealers && (
             <div
@@ -1306,7 +1335,15 @@ export default function DashboardPage({
       </aside>
 
       {/* Main Content: Switch between Orders, User Management, Audit Logs, Inventory and Pending Authorization */}
-      {activeTab === 'orders' ? (
+      {isSalesOrderEntryOpen && canCreateOrders ? (
+        <SalesOrderEntry
+          token={token}
+          username={user.username}
+          products={products}
+          onClose={() => setIsSalesOrderEntryOpen(false)}
+          onCreated={() => setIsSalesOrderEntryOpen(false)}
+        />
+      ) : activeTab === 'orders' ? (
         canReadOrders ? (
           <OrdersView
             token={token}
@@ -1314,6 +1351,7 @@ export default function DashboardPage({
             products={products}
             canCreateOrders={canCreateOrders}
             canManageOrders={canManageOrders}
+            onCreateOrderEntry={() => setIsSalesOrderEntryOpen(true)}
             onBackToHome={() => setActiveTab('inventory')}
           />
         ) : (
