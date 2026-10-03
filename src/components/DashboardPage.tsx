@@ -11,7 +11,7 @@ import { AccessDeniedView } from './AccessDeniedView';
 import SupplierManagementView from './SupplierManagementView';
 import { AuditLogView } from './AuditLogView';
 import { ProductAuditDrawer } from './ProductAuditDrawer';
-import DiscountPolicyView from \'./DiscountPolicyView\';
+import DiscountPolicyView from './DiscountPolicyView';
 import { ProductDrawer } from './ProductDrawer';
 import { PriceUpdateModal } from './PriceUpdateModal';
 import { ProfileView } from './ProfileView';
@@ -86,7 +86,7 @@ export default function DashboardPage({
     const isUsersPath = pathname === '/users' || pathname.startsWith('/users/') || pathname === '/admin' || pathname.startsWith('/admin/');
     const isCategoriesPath = pathname === '/categories';
     const isAuditPath = pathname === '/audit-logs' || pathname.startsWith('/audit-logs/');
-    const isDiscountsPath = pathname === \'/discounts\' || pathname.startsWith(\'/discounts/\');
+    const isDiscountsPath = pathname === '/discounts' || pathname.startsWith('/discounts/');
     const isProfilePath = pathname === '/profile' || pathname.startsWith('/profile/');
     const isDealersPath = pathname === '/dealers' || pathname.startsWith('/dealers/');
 
@@ -174,7 +174,7 @@ export default function DashboardPage({
   });
 
   // 3. Chuyển đổi Route Clean URL
-  const setActiveTab = (tab: \'inventory\' | \'users\' | \'categories\' | \'audit-logs\' | \'profile\' | \'suppliers\' | \'dealers\' | \'discounts\') => {
+  const setActiveTab = (tab: 'inventory' | 'users' | 'categories' | 'audit-logs' | 'profile' | 'suppliers' | 'dealers' | 'discounts') => {
     if (tab === 'profile') {
       setActiveTabState('profile');
       try {
@@ -189,7 +189,7 @@ export default function DashboardPage({
       } catch {
         // ignore
       }
-    } else if (tab === \'users\') {
+    } else if (tab === 'users') {
       if (!isAdmin) {
         setActiveTabState('inventory');
         try {
@@ -228,7 +228,7 @@ export default function DashboardPage({
       } catch {
         // ignore
       }
-    } else if (tab === \'discounts\') {
+    } else if (tab === 'discounts') {
       if (!canAccessDiscounts) {
         setActiveTabState('inventory');
         try {
@@ -240,7 +240,7 @@ export default function DashboardPage({
       }
       setActiveTabState('discounts');
       try {
-        window.history.pushState({}, '', '/discounts');    } else if (tab === \'suppliers\') {
+        window.history.pushState({}, '', '/discounts');    } else if (tab === 'suppliers') {
       setActiveTabState('suppliers');
       try {
         window.history.pushState({}, '', '/suppliers');
@@ -1465,11 +1465,11 @@ export default function DashboardPage({
             onLogout={onLogout}
           />
         )
-      ) : activeTab === \'discounts\' ? (
+      ) : activeTab === 'discounts' ? (
         canAccessDiscounts ? (
           <DiscountPolicyView
             token={token}
-            user={user}      ) : activeTab === \'profile\' ? (
+            user={user}      ) : activeTab === 'profile' ? (
         <ProfileView
           currentUser={user}
           token={token}
@@ -1485,7 +1485,7 @@ export default function DashboardPage({
         ) : (
           <AccessDeniedView
             currentUser={user}
-            requiredPermission={activeTab === \'discounts\' ? "Chính sách chiết khấu (sales_manager / sales / accountant)" : "Quản lý nhà cung cấp (Thủ kho / Quản lý kho / Quản trị)"}
+            requiredPermission={activeTab === 'discounts' ? "Chính sách chiết khấu (sales_manager / sales / accountant)" : "Quản lý nhà cung cấp (Thủ kho / Quản lý kho / Quản trị)"}
             onBackToWorkflow={() => setActiveTab('inventory')}
             onLogout={onLogout}
           />
