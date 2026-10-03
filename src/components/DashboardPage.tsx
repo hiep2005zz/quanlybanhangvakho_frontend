@@ -1894,7 +1894,45 @@ export default function DashboardPage({
                         </td>
 
                         <td style={{ padding: '13px 18px', fontWeight: '500', color: '#0f172a', fontSize: '13.5px', textAlign: 'left' }}>
-                          {item.name}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            {item.images && item.images.length > 0 ? (
+                              <img
+                                src={item.images[0]}
+                                alt={item.name}
+                                style={{
+                                  width: '38px',
+                                  height: '38px',
+                                  borderRadius: '8px',
+                                  objectFit: 'cover',
+                                  border: '1px solid #e2e8f0',
+                                  flexShrink: 0,
+                                  backgroundColor: '#f8fafc',
+                                }}
+                              />
+                            ) : (
+                              <div
+                                style={{
+                                  width: '38px',
+                                  height: '38px',
+                                  borderRadius: '8px',
+                                  backgroundColor: '#f1f5f9',
+                                  border: '1px solid #e2e8f0',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  color: '#94a3b8',
+                                  flexShrink: 0,
+                                }}
+                              >
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                                  <circle cx="8.5" cy="8.5" r="1.5" />
+                                  <polyline points="21 15 16 10 5 21" />
+                                </svg>
+                              </div>
+                            )}
+                            <span style={{ wordBreak: 'break-word', lineHeight: '1.4' }}>{item.name}</span>
+                          </div>
                         </td>
 
                         <td style={{ padding: '13px 18px', textAlign: 'left', color: '#64748b', fontSize: '12.5px' }}>
