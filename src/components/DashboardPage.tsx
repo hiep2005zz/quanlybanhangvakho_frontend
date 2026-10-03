@@ -62,7 +62,6 @@ export default function DashboardPage({
   const canManageSuppliers = officialRoles.some((r) => SUPPLIER_ROLES.includes(r));
 
   // Quyền quản lý ngành hàng
-  const isSalesManager = user.role === 'sales_manager' || Boolean(user.roles && user.roles.includes('sales_manager'));
   const canManageCategories = isAdmin || isSalesManager;
 
   // Quyền Quản lý sản phẩm (Khai báo, thêm mới, sửa sản phẩm: Chỉ Admin và Quản lý)
@@ -301,6 +300,7 @@ export default function DashboardPage({
       const isUsersPath = pathname === '/users' || pathname.startsWith('/users/') || pathname === '/admin' || pathname.startsWith('/admin/');
       const isAuditPath = pathname === '/audit-logs' || pathname.startsWith('/audit-logs/');
       const isDiscountsPath = pathname === '/discounts' || pathname.startsWith('/discounts/');
+      const isProfilePath = pathname === '/profile' || pathname.startsWith('/profile/');
       const params = new URLSearchParams(window.location.search);
       const tabParam = (params.get('tab') || params.get('view') || '').toLowerCase();
 

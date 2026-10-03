@@ -138,12 +138,12 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
   currentUser,
   token,
   onBackToHome,
-  onCreateAccount,
+
 }) => {
   const [users, setUsers] = useState<UserAccount[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [isBulkImportModalOpen, setIsBulkImportModalOpen] = useState<boolean>(false);
+
 
   // Filter, Search & Pagination (S1-08 / S1-10: 20 dòng/trang mặc định)
   const [searchInput, setSearchInput] = useState<string>('');
@@ -2556,16 +2556,6 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
         </div>
       )}
 
-      {isBulkImportModalOpen && (
-        <BulkImportUsersModal
-          token={token}
-          onClose={() => setIsBulkImportModalOpen(false)}
-          onSuccess={() => {
-            setIsBulkImportModalOpen(false);
-            loadUsers();
-          }}
-        />
-      )}
     </div>
   );
 };
