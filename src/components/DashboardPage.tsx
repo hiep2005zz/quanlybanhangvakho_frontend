@@ -53,9 +53,12 @@ export default function DashboardPage({
   const isSalesManager = user.role === 'sales_manager' || Boolean(user.roles && user.roles.includes('sales_manager'));
   const canManageCategories = isAdmin || isSalesManager;
 
+<<<<<<< Updated upstream
 <<<<<<< HEAD
   // 2. Khởi tạo State với Clean URL (/users, /audit-logs, /profile)
   const [activeTab, setActiveTabState] = useState<'inventory' | 'users' | 'audit-logs' | 'profile'>(() => {
+=======
+>>>>>>> Stashed changes
   // 2. Khởi tạo State với Clean URL (/users, /audit-logs, /categories, /profile)
   const [activeTab, setActiveTabState] = useState<'inventory' | 'users' | 'categories' | 'audit-logs' | 'profile'>(() => {
 =======
@@ -124,9 +127,12 @@ export default function DashboardPage({
     return 'inventory';
   });
 
+<<<<<<< Updated upstream
 <<<<<<< HEAD
   // 3. Chuyển đổi Route Clean URL: /users, /audit-logs, /profile, /
   const setActiveTab = (tab: 'inventory' | 'users' | 'audit-logs' | 'profile') => {
+=======
+>>>>>>> Stashed changes
   // 3. Chuyển đổi Route Clean URL: /users, /categories, /audit-logs, /profile, /
   const setActiveTab = (tab: 'inventory' | 'users' | 'categories' | 'audit-logs' | 'profile') => {
 =======
@@ -151,9 +157,12 @@ export default function DashboardPage({
         }
         return;
       }
+<<<<<<< Updated upstream
     } else if (tab === 'users') {
 =======
 >>>>>>> 0954e7f7435b235497ee8cde5325e3931623e518
+=======
+>>>>>>> Stashed changes
       setActiveTabState('users');
       try {
         window.history.pushState({}, '', '/users');
@@ -200,8 +209,11 @@ export default function DashboardPage({
     }
   };
 
+<<<<<<< Updated upstream
 <<<<<<< HEAD
   // 4. Đồng bộ sự kiện Lịch sử trình duyệt (Back/Forward - popstate) chuẩn Clean URL
+=======
+>>>>>>> Stashed changes
   // 4. [REACTIVE GUARD] Tự động bảo vệ khi phiên thay đổi (ví dụ: switch sang tài khoản không phải Admin)
 =======
   // 4. [REACTIVE GUARD] Tự động bảo vệ khi phiên thay đổi (chỉ redirect nếu tab không thuộc luồng cho phép)
@@ -280,7 +292,6 @@ export default function DashboardPage({
     return () => {
       window.removeEventListener('popstate', syncFromUrl);
     };
-  }, []);
   }, [canManageCategories]);
 
   const [products, setProducts] = useState<ProductItem[]>([]);

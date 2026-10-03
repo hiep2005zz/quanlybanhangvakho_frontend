@@ -266,8 +266,6 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   };
 
   const primaryRole = profile?.role || currentUser.role;
-  const roleColor = ROLE_COLOR_MAP[primaryRole] || '#64748b';
-  const roleTitle = profile?.role_title || ROLE_TITLE_MAP[primaryRole] || currentUser.role_title || primaryRole;
   const isBranchAssigned = Boolean((profile?.branch || currentUser.branch) && (profile?.branch || currentUser.branch) !== 'Chưa phân công');
   const getRoleTitle = (r: string) => {
     if (r === 'customer') {
@@ -402,8 +400,6 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px', flexWrap: 'wrap' }}>
               {displayRoles.map((rCode) => {
-                const c = ROLE_COLOR_MAP[rCode] || '#64748b';
-                const label = ROLE_TITLE_MAP[rCode] || rCode;
                 const c = rCode === 'customer' && !isBranchAssigned ? '#94a3b8' : (ROLE_COLOR_MAP[rCode] || '#64748b');
                 const label = getRoleTitle(rCode);
                 return (

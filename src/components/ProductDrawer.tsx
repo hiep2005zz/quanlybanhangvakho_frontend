@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ProductItem, ProductPayload, createProductApi, updateProductApi, deleteProductApi } from '../services/api';
+import { ProductItem, ProductPayload, createProductApi, updateProductApi, deleteProductApi, API_BASE_URL } from '../services/api';
 import { emitStatusToast } from './StatusToast';
 
 interface ProductDrawerProps {
@@ -154,7 +154,7 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
       setSkuChecking(true);
       // Gọi trực tiếp fetch check-sku
       const excludeParam = isEditing && product ? `&exclude_id=${product.id}` : '';
-      const res = await fetch(`/api/v1/products/check-sku?sku=${encodeURIComponent(skuCode.trim())}${excludeParam}`, {
+      const res = await fetch(`${API_BASE_URL}/products/check-sku?sku=${encodeURIComponent(skuCode.trim())}${excludeParam}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.ok) {
