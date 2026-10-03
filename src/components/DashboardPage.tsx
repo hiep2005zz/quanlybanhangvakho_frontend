@@ -456,8 +456,9 @@ export default function DashboardPage({
               title="Mở rộng menu"
               className="hamburger-left-btn"
               style={{
-                width: '40px',
-                height: '40px',
+                width: '56px',
+                height: '56px',
+                borderRadius: '12px',
                 padding: 0,
                 margin: 0,
                 display: 'flex',
@@ -467,10 +468,10 @@ export default function DashboardPage({
                 transform: 'none',
               }}
             >
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
-                <span style={{ width: '18px', height: '2px', background: '#334155', borderRadius: '2px' }}></span>
-                <span style={{ width: '18px', height: '2px', background: '#334155', borderRadius: '2px' }}></span>
-                <span style={{ width: '18px', height: '2px', background: '#334155', borderRadius: '2px' }}></span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', alignItems: 'center' }}>
+                <span style={{ width: '22px', height: '2.5px', background: '#334155', borderRadius: '2px' }}></span>
+                <span style={{ width: '22px', height: '2.5px', background: '#334155', borderRadius: '2px' }}></span>
+                <span style={{ width: '22px', height: '2.5px', background: '#334155', borderRadius: '2px' }}></span>
               </div>
             </button>
           )}
@@ -478,21 +479,21 @@ export default function DashboardPage({
           <div
             className="brand-logo-animated"
             style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: '10px',
+              width: '56px',
+              height: '56px',
+              borderRadius: '14px',
               background: 'linear-gradient(135deg, #2563eb 0%, #4f46e5 100%)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               color: '#fff',
-              boxShadow: '0 2px 8px rgba(37, 99, 235, 0.25)',
+              boxShadow: '0 4px 12px rgba(37, 99, 235, 0.25)',
               cursor: 'default',
               userSelect: 'none',
               flexShrink: 0
             }}
           >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
               <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
               <line x1="12" y1="22.08" x2="12" y2="12" />
@@ -500,7 +501,7 @@ export default function DashboardPage({
           </div>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <h1 className="brand-title-shimmer" style={{ fontSize: '17px', fontWeight: '700', margin: 0, color: '#0f172a', letterSpacing: '-0.02em' }}>
+              <h1 className="brand-title-shimmer" style={{ fontSize: '20px', fontWeight: '700', margin: 0, color: '#0f172a', letterSpacing: '-0.02em' }}>
                 Hệ Thống Quản Lý Kho & Bán Hàng
               </h1>
             </div>
@@ -526,7 +527,7 @@ export default function DashboardPage({
             title={`${user.full_name || user.username} (${roleLabelMap[primaryRole] || primaryRole}) - Nhấp để mở menu`}
             aria-label="Tài khoản người dùng"
           >
-            <div style={{ position: 'relative', width: '36px', height: '36px', flexShrink: 0 }}>
+            <div style={{ position: 'relative', width: '68px', height: '68px', flexShrink: 0 }}>
               <div style={{
                 width: '100%',
                 height: '100%',
@@ -537,10 +538,10 @@ export default function DashboardPage({
                 justifyContent: 'center',
                 color: '#ffffff',
                 fontWeight: '700',
-                fontSize: '15px',
-                boxShadow: '0 2px 5px rgba(0, 0, 0, 0.15)',
+                fontSize: '28px',
+                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)',
                 overflow: 'hidden',
-                border: '1px solid rgba(255, 255, 255, 0.4)',
+                border: '2.5px solid rgba(255, 255, 255, 0.9)',
               }}>
                 {user.avatar_url ? (
                   <img
@@ -555,13 +556,13 @@ export default function DashboardPage({
               <span
                 style={{
                   position: 'absolute',
-                  bottom: '-1px',
-                  right: '-1px',
-                  width: '10px',
-                  height: '10px',
+                  bottom: '2px',
+                  right: '2px',
+                  width: '16px',
+                  height: '16px',
                   borderRadius: '50%',
                   background: '#16a34a',
-                  border: '2px solid #ffffff',
+                  border: '2.5px solid #ffffff',
                 }}
                 title="Đang hoạt động"
               />
