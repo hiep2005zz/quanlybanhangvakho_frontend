@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { AuditLogItem } from '../services/api';
+import { AuditLogItem, getAvatarUrl } from '../services/api';
 import { formatLocalDateTime } from '../utils/dateUtils';
 
 interface AuditDetailModalProps {
@@ -173,6 +173,10 @@ export const ACTION_LABELS: Record<string, string> = {
   USER_DELETE: 'Xóa tài khoản',
   USER_LOCK: 'Khóa tài khoản',
   USER_UNLOCK: 'Mở khóa tài khoản',
+  DEALER_STATUS_CHANGE: 'Đổi trạng thái đại lý',
+  DEALER_CREATE: 'Thêm đại lý mới',
+  DEALER_UPDATE: 'Cập nhật đại lý',
+  DEALER_DELETE: 'Xóa đại lý',
   LOGIN: 'Đăng nhập hệ thống',
   LOGOUT: 'Đăng xuất',
   CREATE: 'Thêm mới',
@@ -519,10 +523,37 @@ export const AuditDetailModal: React.FC<AuditDetailModalProps> = ({ log, onClose
               <strong style={{ color: '#0f172a' }}>{formatLocalDateTime(log.created_at)}</strong>
             </div>
             <div>
-              <span style={{ color: '#64748b', display: 'block', fontSize: '11px', textTransform: 'uppercase', fontWeight: '700', letterSpacing: '0.04em' }}>
+              <span style={{ color: '#64748b', display: 'block', fontSize: '11px', textTransform: 'uppercase', fontWeight: '700', letterSpacing: '0.04em', marginBottom: '4px' }}>
                 Người thực hiện
               </span>
-              <strong style={{ color: '#0f172a' }}>{log.user_name || 'Hệ thống'}</strong>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{
+                  width: '24px',
+                  height: '24px',
+                  borderRadius: '50%',
+                  background: log.user_avatar ? '#f1f5f9' : 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
+                  color: '#ffffff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontWeight: '700',
+                  fontSize: '11px',
+                  overflow: 'hidden',
+                  border: '1px solid #cbd5e1',
+                  flexShrink: 0,
+                }}>
+                  {log.user_avatar ? (
+                    <img
+                      src={getAvatarUrl(log.user_avatar)}
+                      alt={log.user_name || 'U'}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    />
+                  ) : (
+                    (log.user_name || 'U').charAt(0).toUpperCase()
+                  )}
+                </div>
+                <strong style={{ color: '#0f172a' }}>{log.user_name || 'Hệ thống'}</strong>
+              </div>
             </div>
             <div>
               <span style={{ color: '#64748b', display: 'block', fontSize: '11px', textTransform: 'uppercase', fontWeight: '700', letterSpacing: '0.04em' }}>
