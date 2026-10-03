@@ -11,6 +11,7 @@ import { AccessDeniedView } from './AccessDeniedView';
 import SupplierManagementView from './SupplierManagementView';
 import { AuditLogView } from './AuditLogView';
 import { ProductAuditDrawer } from './ProductAuditDrawer';
+import { PriceUpdateModal } from './PriceUpdateModal';
 import { ProfileView } from './ProfileView';
 import { ProductBulkImportModal } from './ProductBulkImportModal';
 import { ProductUnitModal } from './ProductUnitModal';
@@ -269,7 +270,11 @@ export default function DashboardPage({
     isOpen: boolean;
     productCode: string;
     productName: string;
-  }>({ isOpen: false, productCode: '', productName: '' });
+    initialFilter?: 'ALL' | 'PRICE_CHANGE' | 'INVENTORY_ADJUST';
+  }>({ isOpen: false, productCode: '', productName: '', initialFilter: 'ALL' });
+
+  // Price Update Modal State
+  const [priceUpdateModalProduct, setPriceUpdateModalProduct] = useState<ProductItem | null>(null);
 
   // Move Category Modal State
   const [movingProduct, setMovingProduct] = useState<{ id: number; name: string; category_id?: number | null } | null>(null);
@@ -2054,7 +2059,7 @@ export default function DashboardPage({
                               </>
                             )}
 
-                            {isAdmin && (
+                            {(isAdmin || isSalesManager) && (
                               <button
                                 type="button"
                                 className="btn-inventory-history"
@@ -2062,23 +2067,11 @@ export default function DashboardPage({
                                   isOpen: true,
                                   productCode: item.code,
                                   productName: item.name,
+                                  initialFilter: 'ALL',
                                 })}
                                 title="Xem lịch sử thay đổi tồn kho & giá của sản phẩm này"
-                                style={{ padding: '5px 8px', fontSize: '11.5px' }}
+                                style={{ padding: '5px 10px', fontSize: '11.5px', fontWeight: '600' }}
                               >
-                                <svg
-                                  width="12"
-                                  height="12"
-                                  viewBox="0 0 24 24"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  strokeWidth="2.2"
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                >
-                                  <circle cx="12" cy="12" r="10" />
-                                  <polyline points="12 6 12 12 16 14" />
-                                </svg>
                                 <span>Lịch sử</span>
                               </button>
                             )}
@@ -2449,6 +2442,23 @@ export default function DashboardPage({
         productCode={productAuditDrawerState.productCode}
         productName={productAuditDrawerState.productName}
         token={token}
+        initialFilter={productAuditDrawerState.initialFilter || 'ALL'}
+        isCostVisible={isCostVisible}
+      />
+
+      <PriceUpdateModal
+        isOpen={Boolean(priceUpdateModalProduct)}
+        product={priceUpdateModalProduct}
+        onClose={() => setPriceUpdateModalProduct(null)}
+        token={token}
+        isCostVisible={isCostVisible}
+        onSuccess={() => {
+          emitStatusToast({
+            title: 'Cập nhật giá thành công',
+            message: 'Đã lưu giá mới thành công.',
+          });
+          fetchProducts();
+        }}
       />
 
       {isProductBulkImportOpen && (
