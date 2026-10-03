@@ -10,6 +10,7 @@ import { StatusToastHost, emitStatusToast } from './StatusToast';
 import { AccessDeniedView } from './AccessDeniedView';
 import SupplierManagementView from './SupplierManagementView';
 import { AuditLogView } from './AuditLogView';
+import DealerManagementView from './DealerManagementView';
 import { ProductAuditDrawer } from './ProductAuditDrawer';
 import { ProfileView } from './ProfileView';
 import { ProductBulkImportModal } from './ProductBulkImportModal';
@@ -50,12 +51,13 @@ export default function DashboardPage({
   const canManageCategories = isAdmin || isSalesManager;
 
   // 2. Khởi tạo State với Clean URL (/users, /audit-logs, /categories, /suppliers, /profile)
-  const [activeTab, setActiveTabState] = useState<'inventory' | 'users' | 'categories' | 'audit-logs' | 'profile' | 'suppliers'>(() => {
+  const [activeTab, setActiveTabState] = useState<'inventory' | 'users' | 'categories' | 'audit-logs' | 'profile' | 'suppliers' | 'dealers'>(() => {
     const pathname = window.location.pathname.toLowerCase();
     const isUsersPath = pathname === '/users' || pathname.startsWith('/users/') || pathname === '/admin' || pathname.startsWith('/admin/');
     const isCategoriesPath = pathname === '/categories';
     const isAuditPath = pathname === '/audit-logs' || pathname.startsWith('/audit-logs/');
     const isProfilePath = pathname === '/profile' || pathname.startsWith('/profile/');
+    const isDealersPath = pathname === '/dealers' || pathname.startsWith('/dealers/');
 
     // Dọn sạch tàn dư query parameter cũ (?tab=users, ?tab=audit-logs, ?tab=profile)
     const params = new URLSearchParams(window.location.search);
@@ -64,6 +66,12 @@ export default function DashboardPage({
 
     if (pathname === '/suppliers' || pathname.startsWith('/suppliers/')) {
       return 'suppliers';
+    }
+    if (isDealersPath || oldTabVal === 'dealers') {
+      if (hasOldTabParam || pathname !== '/dealers') {
+        try { window.history.replaceState({}, '', '/dealers'); } catch { /* ignore */ }
+      }
+      return 'dealers';
     }
     if (isProfilePath || oldTabVal === 'profile') {
       if (hasOldTabParam || pathname !== '/profile') {
@@ -107,7 +115,7 @@ export default function DashboardPage({
   });
 
   // 3. Chuyển đổi Route Clean URL
-  const setActiveTab = (tab: 'inventory' | 'users' | 'categories' | 'audit-logs' | 'profile' | 'suppliers') => {
+  const setActiveTab = (tab: 'inventory' | 'users' | 'categories' | 'audit-logs' | 'profile' | 'suppliers' | 'dealers') => {
     if (tab === 'profile') {
       setActiveTabState('profile');
       try {
@@ -152,6 +160,13 @@ export default function DashboardPage({
       } catch {
         // ignore
       }
+    } else if (tab === 'dealers') {
+      setActiveTabState('dealers');
+      try {
+        window.history.pushState({}, '', '/dealers');
+      } catch {
+        // ignore
+      }
     } else {
       setActiveTabState('inventory');
       try {
@@ -181,11 +196,16 @@ export default function DashboardPage({
       const isUsersPath = pathname === '/users' || pathname.startsWith('/users/') || pathname === '/admin' || pathname.startsWith('/admin/');
       const isAuditPath = pathname === '/audit-logs' || pathname.startsWith('/audit-logs/');
       const isProfilePath = pathname === '/profile' || pathname.startsWith('/profile/');
+      const isDealersPath = pathname === '/dealers' || pathname.startsWith('/dealers/');
       const params = new URLSearchParams(window.location.search);
       const tabParam = (params.get('tab') || params.get('view') || '').toLowerCase();
 
       if (pathname === '/suppliers' || pathname.startsWith('/suppliers/')) {
         setActiveTabState('suppliers');
+        return;
+      }
+      if (isDealersPath || tabParam === 'dealers') {
+        setActiveTabState('dealers');
         return;
       }
 
@@ -1107,6 +1127,27 @@ export default function DashboardPage({
             <span style={{ fontWeight: activeTab === 'profile' ? '700' : '500', fontSize: '14.5px' }}>Hồ sơ & Tài khoản</span>
           </div>
 
+          {/* Tab Đại Lý */}
+          {(user.role === 'admin' || (user.roles && user.roles.includes('admin')) || user.role === 'ketoan' || (user.roles && user.roles.includes('ketoan'))) && (
+            <div
+              className={`sidebar-menu-item ${activeTab === 'dealers' ? 'active' : ''}`}
+              onClick={() => {
+                setActiveTab('dealers');
+                handleCloseMenu();
+              }}
+            >
+              <div className="sidebar-icon-box">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                  <circle cx="9" cy="7" r="4"></circle>
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                </svg>
+              </div>
+              <span style={{ fontWeight: activeTab === 'dealers' ? '700' : '500', fontSize: '14.5px' }}>Đại Lý / Khách hàng</span>
+            </div>
+          )}
+
           {/* Phân quyền & Tạo tài khoản - Admin */}
           {(user.role === 'admin' || (user.roles && user.roles.includes('admin'))) && (
             <div
@@ -1234,6 +1275,8 @@ export default function DashboardPage({
             onLogout={onLogout}
           />
         )
+      ) : activeTab === 'dealers' ? (
+        <DealerManagementView />
       ) : activeTab === 'profile' ? (
         <ProfileView
           currentUser={user}
