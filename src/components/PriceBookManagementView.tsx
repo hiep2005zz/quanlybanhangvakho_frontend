@@ -546,7 +546,7 @@ export function PriceBookManagementView({ token }: PriceBookManagementViewProps)
                     </tr>
                   </thead>
                   <tbody>
-                    {selectedBook.items?.map(item => (
+                    {selectedBook.items?.map((item: PriceBookItem) => (
                       <tr key={item.id} style={{ borderBottom: '1px solid #e2e8f0' }}>
                         <td style={{ padding: '12px', fontWeight: '500' }}>{item.product_code || `#${item.product_id}`}</td>
                         <td style={{ padding: '12px' }}>{item.product_name || '-'}</td>

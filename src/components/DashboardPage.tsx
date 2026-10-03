@@ -62,7 +62,7 @@ export default function DashboardPage({
   const canConfigUnit = isAdmin || officialRoles.some((r) => ['admin', 'warehouse_manager'].includes(r));
 
   // 2. Khởi tạo State với Clean URL (/users, /audit-logs, /categories, /suppliers, /profile, /dealers)
-  const [activeTab, setActiveTabState] = useState<'inventory' | 'users' | 'categories' | 'audit-logs' | 'profile' | 'suppliers' | 'dealers'>(() => {
+  const [activeTab, setActiveTabState] = useState<'inventory' | 'users' | 'categories' | 'audit-logs' | 'profile' | 'suppliers' | 'dealers' | 'price-books'>(() => {
     const pathname = window.location.pathname.toLowerCase();
     const isPriceBooksPath = pathname === '/price-books';
     const isUsersPath = pathname === '/users' || pathname.startsWith('/users/') || pathname === '/admin' || pathname.startsWith('/admin/');
@@ -76,6 +76,9 @@ export default function DashboardPage({
     const hasOldTabParam = params.has('tab') || params.has('view');
     const oldTabVal = (params.get('tab') || params.get('view') || '').toLowerCase();
 
+    if (isPriceBooksPath) {
+      return 'price-books';
+    }
     if (pathname === '/suppliers' || pathname.startsWith('/suppliers/')) {
       return 'suppliers';
     }
@@ -131,7 +134,7 @@ export default function DashboardPage({
   });
 
   // 3. Chuyển đổi Route Clean URL
-  const setActiveTab = (tab: 'inventory' | 'users' | 'categories' | 'audit-logs' | 'profile' | 'suppliers' | 'dealers') => {
+  const setActiveTab = (tab: 'inventory' | 'users' | 'categories' | 'audit-logs' | 'profile' | 'suppliers' | 'dealers' | 'price-books') => {
     if (tab === 'profile') {
       setActiveTabState('profile');
       try {
@@ -1319,6 +1322,8 @@ export default function DashboardPage({
           token={token}
           onBackToHome={() => setActiveTab('inventory')}
         />
+      ) : activeTab === 'price-books' ? (
+        <PriceBookManagementView token={token} />
       ) : isPendingCustomer ? (
         <div style={{
           display: 'flex',

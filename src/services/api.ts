@@ -1103,3 +1103,104 @@ export async function activateSupplierApi(token: string, code: string): Promise<
   }
   return data;
 }
+
+// ---------------------------------------------------------------------------
+// PRICE BOOK API
+// ---------------------------------------------------------------------------
+
+export interface PriceBookItem {
+  id?: number;
+  product_id: number;
+  product_code?: string;
+  product_name?: string;
+  price: number;
+  min_price: number;
+  sale_price?: number | null;
+  floor_price?: number | null;
+}
+
+export interface PriceBook {
+  id: number;
+  code: string;
+  name: string;
+  customer_group: string;
+  valid_from: string;
+  valid_to: string;
+  status: string;
+  note?: string | null;
+  created_by: string;
+  created_at: string;
+  items?: PriceBookItem[];
+}
+
+export interface PriceBookCreate {
+  code: string;
+  name: string;
+  customer_group: string;
+  valid_from: string;
+  valid_to: string;
+  note?: string | null;
+  status?: string;
+  items: Omit<PriceBookItem, 'id' | 'product_code' | 'product_name'>[];
+}
+
+export interface PriceBookUpdate {
+  name?: string;
+  valid_from?: string;
+  valid_to?: string;
+  status?: string;
+  note?: string | null;
+  items?: Omit<PriceBookItem, 'id' | 'product_code' | 'product_name'>[];
+}
+
+export async function fetchPriceBooksApi(
+  token: string,
+  filters?: { customer_group?: string; status_filter?: string; is_active_now?: boolean }
+): Promise<PriceBook[]> {
+  let url = `${API_BASE_URL}/price-books?`;
+  if (filters?.customer_group) url += `customer_group=${filters.customer_group}&`;
+  if (filters?.status_filter) url += `status_filter=${filters.status_filter}&`;
+  if (filters?.is_active_now !== undefined) url += `is_active_now=${filters.is_active_now}&`;
+
+  const response = await authenticatedFetch(url, { method: 'GET' }, token);
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Lỗi khi tải danh sách bảng giá');
+  }
+  return response.json();
+}
+
+export async function fetchPriceBookDetailApi(token: string, id: number): Promise<PriceBook> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/price-books/${id}`, { method: 'GET' }, token);
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Lỗi khi tải chi tiết bảng giá');
+  }
+  return response.json();
+}
+
+export async function createPriceBookApi(token: string, data: PriceBookCreate): Promise<PriceBook> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/price-books`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  }, token);
+  
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Lỗi tạo bảng giá');
+  }
+  return response.json();
+}
+
+export async function updatePriceBookApi(token: string, id: number, data: PriceBookUpdate): Promise<PriceBook> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/price-books/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  }, token);
+  
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Lỗi cập nhật bảng giá (Có thể đã khóa)');
+  }
+  return response.json();
+}
