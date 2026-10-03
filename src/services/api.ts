@@ -817,6 +817,7 @@ export interface AuditLogItem {
   id: number;
   user_id?: number | null;
   user_name?: string | null;
+  user_avatar?: string | null;
   action_type: string;
   entity_type: string;
   entity_id: string;

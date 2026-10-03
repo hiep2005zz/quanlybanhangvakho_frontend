@@ -11,6 +11,7 @@ const STATUS_TOAST_EVENT = 'APP_STATUS_TOAST';
 export interface StatusToastPayload {
   message: string;
   title?: string;
+  type?: 'success' | 'warning' | 'error' | 'info';
 }
 
 /**
@@ -29,6 +30,7 @@ export const emitStatusToast = (payload: StatusToastPayload) => {
 export const StatusToastHost: React.FC = () => {
   const [message, setMessage] = useState<string | null>(null);
   const [title, setTitle] = useState<string>('Thông báo hệ thống');
+  const [toastType, setToastType] = useState<'success' | 'warning' | 'error' | 'info'>('success');
   const [isExiting, setIsExiting] = useState<boolean>(false);
   // Số thứ tự thông báo: dùng làm "key" để buộc toast mount lại -> hiệu ứng trượt vào luôn phát lại
   const [seq, setSeq] = useState<number>(0);
@@ -39,6 +41,7 @@ export const StatusToastHost: React.FC = () => {
       if (!d || !d.message) return;
       setMessage(d.message);
       setTitle(d.title ?? 'Thông báo hệ thống');
+      setToastType(d.type ?? 'success');
       setIsExiting(false);
       setSeq((s) => s + 1);
     };
@@ -65,6 +68,23 @@ export const StatusToastHost: React.FC = () => {
 
   if (!message) return null;
 
+  const isWarning = toastType === 'warning';
+  const isError = toastType === 'error';
+  const isInfo = toastType === 'info';
+
+  const borderColor = isWarning ? '#fed7aa' : isError ? '#fecaca' : isInfo ? '#bfdbfe' : '#bbf7d0';
+  const borderLeftColor = isWarning ? '#f59e0b' : isError ? '#ef4444' : isInfo ? '#3b82f6' : '#16a34a';
+  const textColor = isWarning ? '#9a3412' : isError ? '#991b1b' : isInfo ? '#1e40af' : '#166534';
+  const titleColor = isWarning ? '#7c2d12' : isError ? '#7f1d1d' : isInfo ? '#1e3a8a' : '#15803d';
+  const closeColor = isWarning ? '#c2410c' : isError ? '#b91c1c' : isInfo ? '#2563eb' : '#15803d';
+  const progressBg = isWarning
+    ? 'linear-gradient(90deg, #fcd34d, #f59e0b)'
+    : isError
+    ? 'linear-gradient(90deg, #f87171, #ef4444)'
+    : isInfo
+    ? 'linear-gradient(90deg, #60a5fa, #3b82f6)'
+    : 'linear-gradient(90deg, #34d399, #16a34a)';
+
   return (
     <div
       key={seq}
@@ -82,12 +102,12 @@ export const StatusToastHost: React.FC = () => {
         alignItems: 'flex-start',
         gap: '10px',
         padding: '10px 12px',
-        border: '1px solid #bbf7d0',
-        borderLeft: '3px solid #16a34a',
+        border: `1px solid ${borderColor}`,
+        borderLeft: `3px solid ${borderLeftColor}`,
         borderRadius: '10px',
         overflow: 'hidden',
         background: '#ffffff',
-        color: '#166534',
+        color: textColor,
         boxShadow: '0 10px 24px rgba(15, 23, 42, 0.16)',
         willChange: 'transform, opacity',
         animation: isExiting
@@ -96,7 +116,7 @@ export const StatusToastHost: React.FC = () => {
       }}
     >
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: '13px', fontWeight: 700, marginBottom: '2px' }}>
+        <div style={{ fontSize: '13px', fontWeight: 700, marginBottom: '2px', color: titleColor }}>
           {title}
         </div>
         <div style={{ fontSize: '12px', lineHeight: 1.45, overflowWrap: 'anywhere' }}>
@@ -112,7 +132,7 @@ export const StatusToastHost: React.FC = () => {
           padding: '0 4px',
           border: 'none',
           background: 'transparent',
-          color: '#15803d',
+          color: closeColor,
           cursor: 'pointer',
           fontSize: '16px',
           lineHeight: 1,
@@ -130,7 +150,7 @@ export const StatusToastHost: React.FC = () => {
           bottom: 0,
           height: '3px',
           width: '100%',
-          background: 'linear-gradient(90deg, #34d399, #16a34a)',
+          background: progressBg,
           transformOrigin: 'left center',
           visibility: isExiting ? 'hidden' : 'visible',
           animation: `accountStatusToastProgress ${STATUS_TOAST_VISIBLE_MS}ms linear forwards`,
