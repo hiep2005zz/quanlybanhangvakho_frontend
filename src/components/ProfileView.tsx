@@ -24,7 +24,6 @@ const ROLE_COLOR_MAP: Record<string, string> = {
   accountant: '#7c3aed',
   muahang: '#059669',
   purchasing: '#059669',
-  customer: '#94a3b8',
   customer: '#0284c7',
 };
 
@@ -40,7 +39,6 @@ const ROLE_TITLE_MAP: Record<string, string> = {
   accountant: 'Kế toán viên',
   muahang: 'Nhân viên mua hàng',
   purchasing: 'Nhân viên mua hàng',
-  customer: 'Chờ cấp quyền',
   customer: 'Đại lý',
 };
 
@@ -362,7 +360,6 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           </div>
 
           <div>
-<<<<<<< HEAD
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
               <h1 style={{ margin: 0, fontSize: '22px', fontWeight: '800', color: '#0f172a', letterSpacing: '-0.02em' }}>
                 {fullNameInput || currentUser.full_name}
@@ -438,11 +435,6 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                 Đang hoạt động
               </span>
             </div>
-=======
-            <h1 style={{ margin: 0, fontSize: '24px', fontWeight: '800', color: '#0f172a', letterSpacing: '-0.02em' }}>
-              {fullNameInput || currentUser.full_name}
-            </h1>
->>>>>>> 0954e7f7435b235497ee8cde5325e3931623e518
           </div>
         </div>
 

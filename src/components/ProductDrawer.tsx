@@ -141,12 +141,22 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
 
   // Blur validate SKU
   const handleSkuBlur = async () => {
-    if (!skuCode.trim()) {
+    const trimmedSku = skuCode.trim().toUpperCase();
+    if (!trimmedSku) {
       setSkuError('Mã SKU là bắt buộc.');
       return;
     }
+
+    // Ràng buộc kỹ thuật: Ký tự chữ, số, dấu gạch ngang (-, _). Không chứa dấu tiếng Việt/khoảng trắng
+    const skuRegex = /^[A-Z0-9_-]+$/;
+    if (!skuRegex.test(trimmedSku)) {
+      setSkuError('Mã SKU chỉ được chứa chữ cái không dấu, chữ số và dấu gạch (- hoặc _).');
+      return;
+    }
+
     // Nếu đang sửa và không đổi mã thì bỏ qua
-    if (isEditing && product && product.code.toUpperCase() === skuCode.trim()) {
+    if (isEditing && product && product.code.toUpperCase() === trimmedSku) {
+      setSkuError(null);
       return;
     }
 
@@ -1265,28 +1275,55 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
           }}
         >
           <div>
-            {isEditing && !hasTransactions && (
-              <button
-                type="button"
-                onClick={() => setShowDeleteConfirm(true)}
-                disabled={isDeleting || isSubmitting}
-                style={{
-                  background: '#fef2f2',
-                  border: '1px solid #fecaca',
-                  color: '#dc2626',
-                  borderRadius: '8px',
-                  padding: '9px 16px',
-                  fontSize: '13px',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                }}
-              >
-                <span>🗑️</span>
-                <span>{isDeleting ? 'Đang xóa...' : 'Xóa sản phẩm'}</span>
-              </button>
+            {isEditing && (
+              hasTransactions ? (
+                <div style={{ position: 'relative', display: 'inline-block' }}>
+                  <button
+                    type="button"
+                    disabled
+                    style={{
+                      background: '#f1f5f9',
+                      border: '1px solid #e2e8f0',
+                      color: '#94a3b8',
+                      borderRadius: '8px',
+                      padding: '9px 16px',
+                      fontSize: '13px',
+                      fontWeight: '600',
+                      cursor: 'not-allowed',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                    }}
+                    title="Sản phẩm đã có giao dịch phát sinh, chỉ có thể chọn Ngừng kinh doanh"
+                  >
+                    <span>🔒</span>
+                    <span>Xóa sản phẩm</span>
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteConfirm(true)}
+                  disabled={isDeleting || isSubmitting}
+                  style={{
+                    background: '#fef2f2',
+                    border: '1px solid #fecaca',
+                    color: '#dc2626',
+                    borderRadius: '8px',
+                    padding: '9px 16px',
+                    fontSize: '13px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                  }}
+                  title="Xóa vĩnh viễn sản phẩm khỏi danh mục"
+                >
+                  <span>🗑️</span>
+                  <span>{isDeleting ? 'Đang xóa...' : 'Xóa sản phẩm'}</span>
+                </button>
+              )
             )}
           </div>
 

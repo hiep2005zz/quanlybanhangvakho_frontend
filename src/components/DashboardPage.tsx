@@ -53,15 +53,6 @@ export default function DashboardPage({
   const isSalesManager = user.role === 'sales_manager' || Boolean(user.roles && user.roles.includes('sales_manager'));
   const canManageCategories = isAdmin || isSalesManager;
 
-<<<<<<< Updated upstream
-<<<<<<< HEAD
-  // 2. Khởi tạo State với Clean URL (/users, /audit-logs, /profile)
-  const [activeTab, setActiveTabState] = useState<'inventory' | 'users' | 'audit-logs' | 'profile'>(() => {
-=======
->>>>>>> Stashed changes
-  // 2. Khởi tạo State với Clean URL (/users, /audit-logs, /categories, /profile)
-  const [activeTab, setActiveTabState] = useState<'inventory' | 'users' | 'categories' | 'audit-logs' | 'profile'>(() => {
-=======
   // Quyền thao tác kho (Nhập/xuất/sửa kho: Admin, Quản lý kho, Thủ kho)
   const canWriteInventory = user.can_write_inventory ?? (isAdmin || officialRoles.some((r) => ['admin', 'warehouse', 'warehouse_manager'].includes(r)));
 
@@ -70,7 +61,6 @@ export default function DashboardPage({
 
   // 2. Khởi tạo State với Clean URL (/users, /audit-logs, /categories, /suppliers, /profile)
   const [activeTab, setActiveTabState] = useState<'inventory' | 'users' | 'categories' | 'audit-logs' | 'profile' | 'suppliers'>(() => {
->>>>>>> 0954e7f7435b235497ee8cde5325e3931623e518
     const pathname = window.location.pathname.toLowerCase();
     const isUsersPath = pathname === '/users' || pathname.startsWith('/users/') || pathname === '/admin' || pathname.startsWith('/admin/');
     const isCategoriesPath = pathname === '/categories';
@@ -127,18 +117,8 @@ export default function DashboardPage({
     return 'inventory';
   });
 
-<<<<<<< Updated upstream
-<<<<<<< HEAD
-  // 3. Chuyển đổi Route Clean URL: /users, /audit-logs, /profile, /
-  const setActiveTab = (tab: 'inventory' | 'users' | 'audit-logs' | 'profile') => {
-=======
->>>>>>> Stashed changes
-  // 3. Chuyển đổi Route Clean URL: /users, /categories, /audit-logs, /profile, /
-  const setActiveTab = (tab: 'inventory' | 'users' | 'categories' | 'audit-logs' | 'profile') => {
-=======
   // 3. Chuyển đổi Route Clean URL
   const setActiveTab = (tab: 'inventory' | 'users' | 'categories' | 'audit-logs' | 'profile' | 'suppliers') => {
->>>>>>> 0954e7f7435b235497ee8cde5325e3931623e518
     if (tab === 'profile') {
       setActiveTabState('profile');
       try {
@@ -147,7 +127,6 @@ export default function DashboardPage({
         // ignore
       }
     } else if (tab === 'users') {
-<<<<<<< HEAD
       if (!isAdmin) {
         setActiveTabState('inventory');
         try {
@@ -157,12 +136,6 @@ export default function DashboardPage({
         }
         return;
       }
-<<<<<<< Updated upstream
-    } else if (tab === 'users') {
-=======
->>>>>>> 0954e7f7435b235497ee8cde5325e3931623e518
-=======
->>>>>>> Stashed changes
       setActiveTabState('users');
       try {
         window.history.pushState({}, '', '/users');
@@ -209,15 +182,7 @@ export default function DashboardPage({
     }
   };
 
-<<<<<<< Updated upstream
-<<<<<<< HEAD
-  // 4. Đồng bộ sự kiện Lịch sử trình duyệt (Back/Forward - popstate) chuẩn Clean URL
-=======
->>>>>>> Stashed changes
-  // 4. [REACTIVE GUARD] Tự động bảo vệ khi phiên thay đổi (ví dụ: switch sang tài khoản không phải Admin)
-=======
   // 4. [REACTIVE GUARD] Tự động bảo vệ khi phiên thay đổi (chỉ redirect nếu tab không thuộc luồng cho phép)
->>>>>>> 0954e7f7435b235497ee8cde5325e3931623e518
   useEffect(() => {
     if (activeTab === 'categories' && !canManageCategories) {
       setActiveTabState('inventory');
@@ -299,19 +264,18 @@ export default function DashboardPage({
   const [productSearchTerm, setProductSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
 
-<<<<<<< HEAD
   // Debounce tìm kiếm sản phẩm: Chỉ lọc khi người dùng ngừng nhập 350ms
   useEffect(() => {
     const timer = setTimeout(() => {
       setProductSearchTerm(productSearchInput);
+      setCurrentPage(1);
     }, 350);
     return () => clearTimeout(timer);
   }, [productSearchInput]);
-=======
+
   // Phân trang danh sách sản phẩm (mặc định 20 cái/trang)
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
->>>>>>> 0954e7f7435b235497ee8cde5325e3931623e518
 
   const [isCostVisible, setIsCostVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -329,16 +293,11 @@ export default function DashboardPage({
     productName: string;
   }>({ isOpen: false, productCode: '', productName: '' });
 
-<<<<<<< HEAD
   // State quản lý Product Detail Drawer (Khai báo & Chỉnh sửa sản phẩm)
   const [productDrawerState, setProductDrawerState] = useState<{
     isOpen: boolean;
     product: ProductItem | null;
   }>({ isOpen: false, product: null });
-
-
-=======
->>>>>>> 0954e7f7435b235497ee8cde5325e3931623e518
   // Move Category Modal State
   const [movingProduct, setMovingProduct] = useState<{ id: number; name: string; category_id?: number | null } | null>(null);
 
@@ -1621,16 +1580,8 @@ export default function DashboardPage({
                   <input
                     type="text"
                     placeholder="Tìm theo mã hoặc tên sản phẩm..."
-<<<<<<< HEAD
                     value={productSearchInput}
                     onChange={(e) => setProductSearchInput(e.target.value)}
-=======
-                    value={productSearchTerm}
-                    onChange={(e) => {
-                      setProductSearchTerm(e.target.value);
-                      setCurrentPage(1);
-                    }}
->>>>>>> 0954e7f7435b235497ee8cde5325e3931623e518
                     style={{
                       width: '100%',
                       padding: '7px 12px 7px 32px',
@@ -1926,71 +1877,8 @@ export default function DashboardPage({
                           <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'right', background: '#f8fafc' }}>Biên Lợi Nhuận</th>
                         </>
                       )}
-<<<<<<< HEAD
-                      
-                      {/* Cột Thao tác: Nút Sửa & Xem lịch sử thay đổi */}
-                      <td style={{ padding: '13px 18px', textAlign: 'center' }}>
-                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                          <button
-                            type="button"
-                            className="btn-inventory-history"
-                            onClick={() => setProductDrawerState({
-                              isOpen: true,
-                              product: item,
-                            })}
-                            style={{
-                              background: '#eff6ff',
-                              borderColor: '#bfdbfe',
-                              color: '#1d4ed8',
-                            }}
-                            title="Chỉnh sửa thông tin chi tiết sản phẩm"
-                          >
-                            <svg
-                              width="13"
-                              height="13"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2.2"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            >
-                              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                            </svg>
-                            <span>Sửa</span>
-                          </button>
-
-                          <button
-                            type="button"
-                            className="btn-inventory-history"
-                            onClick={() => setProductAuditDrawerState({
-                              isOpen: true,
-                              productCode: item.code,
-                              productName: item.name,
-                            })}
-                            title="Xem lịch sử thay đổi tồn kho & giá của sản phẩm này"
-                          >
-                            <svg
-                              width="13"
-                              height="13"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2.2"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            >
-                              <circle cx="12" cy="12" r="10" />
-                              <polyline points="12 6 12 12 16 14" />
-                            </svg>
-                            <span>Lịch sử</span>
-                          </button>
-                        </div>
-                      </td>
-=======
+                      <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'center', background: '#f8fafc' }}>Trạng Thái</th>
                       <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'center', width: '220px', background: '#f8fafc' }}>Thao Tác</th>
->>>>>>> 0954e7f7435b235497ee8cde5325e3931623e518
                     </tr>
                   </thead>
                   <tbody>
@@ -2135,6 +2023,47 @@ export default function DashboardPage({
                           </>
                         )}
 
+                        {/* Cột Trạng thái kinh doanh */}
+                        <td style={{ padding: '13px 18px', textAlign: 'center' }}>
+                          {item.status === 'inactive' ? (
+                            <span
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                padding: '3px 8px',
+                                borderRadius: '999px',
+                                background: '#fef2f2',
+                                color: '#b91c1c',
+                                border: '1px solid #fecaca',
+                                fontSize: '11.5px',
+                                fontWeight: '600',
+                              }}
+                            >
+                              <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#ef4444' }} />
+                              Ngừng KD
+                            </span>
+                          ) : (
+                            <span
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                padding: '3px 8px',
+                                borderRadius: '999px',
+                                background: '#f0fdf4',
+                                color: '#15803d',
+                                border: '1px solid #bbf7d0',
+                                fontSize: '11.5px',
+                                fontWeight: '600',
+                              }}
+                            >
+                              <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#22c55e' }} />
+                              Đang KD
+                            </span>
+                          )}
+                        </td>
+
                         <td style={{ padding: '13px 18px', textAlign: 'center' }}>
                           <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
                             {/* Nút Cấu hình Đơn vị tính: Chỉ mở cho Quản trị hệ thống và Quản lý kho */}
@@ -2243,32 +2172,66 @@ export default function DashboardPage({
                             )}
 
                             {isAdmin && (
-                              <button
-                                type="button"
-                                className="btn-inventory-history"
-                                onClick={() => setProductAuditDrawerState({
-                                  isOpen: true,
-                                  productCode: item.code,
-                                  productName: item.name,
-                                })}
-                                title="Xem lịch sử thay đổi tồn kho & giá của sản phẩm này"
-                                style={{ padding: '5px 8px', fontSize: '11.5px' }}
-                              >
-                                <svg
-                                  width="12"
-                                  height="12"
-                                  viewBox="0 0 24 24"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  strokeWidth="2.2"
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
+                              <>
+                                <button
+                                  type="button"
+                                  className="btn-inventory-history"
+                                  onClick={() => setProductDrawerState({
+                                    isOpen: true,
+                                    product: item,
+                                  })}
+                                  title="Chỉnh sửa thông tin chi tiết sản phẩm"
+                                  style={{
+                                    padding: '5px 8px',
+                                    fontSize: '11.5px',
+                                    background: '#eff6ff',
+                                    borderColor: '#bfdbfe',
+                                    color: '#1d4ed8',
+                                  }}
                                 >
-                                  <circle cx="12" cy="12" r="10" />
-                                  <polyline points="12 6 12 12 16 14" />
-                                </svg>
-                                <span>Lịch sử</span>
-                              </button>
+                                  <svg
+                                    width="12"
+                                    height="12"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="2.2"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                  >
+                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                                  </svg>
+                                  <span>Sửa</span>
+                                </button>
+
+                                <button
+                                  type="button"
+                                  className="btn-inventory-history"
+                                  onClick={() => setProductAuditDrawerState({
+                                    isOpen: true,
+                                    productCode: item.code,
+                                    productName: item.name,
+                                  })}
+                                  title="Xem lịch sử thay đổi tồn kho & giá của sản phẩm này"
+                                  style={{ padding: '5px 8px', fontSize: '11.5px' }}
+                                >
+                                  <svg
+                                    width="12"
+                                    height="12"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="2.2"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                  >
+                                    <circle cx="12" cy="12" r="10" />
+                                    <polyline points="12 6 12 12 16 14" />
+                                  </svg>
+                                  <span>Lịch sử</span>
+                                </button>
+                              </>
                             )}
 
                             {!canConfigUnit && !canWriteInventory && !isAdmin && (
@@ -2639,7 +2602,6 @@ export default function DashboardPage({
         token={token}
       />
 
-<<<<<<< HEAD
       {/* Product Detail Drawer (Khai báo & Chỉnh sửa sản phẩm 4 khối chức năng) */}
       <ProductDrawer
         isOpen={productDrawerState.isOpen}
@@ -2653,8 +2615,6 @@ export default function DashboardPage({
         }}
       />
 
-      {/* Ổ thông báo nổi góc phải màn hình (dùng chung cho mọi thao tác tài khoản) */}
-=======
       {isProductBulkImportOpen && (
         <ProductBulkImportModal
           token={token}
@@ -2721,8 +2681,6 @@ export default function DashboardPage({
           }}
         />
       )}
-
->>>>>>> 0954e7f7435b235497ee8cde5325e3931623e518
       <StatusToastHost />
     </div>
   );
