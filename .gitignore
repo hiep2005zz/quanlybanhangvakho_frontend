@@ -1,8 +1,6 @@
 node_modules/
-<<<<<<< HEAD
-=======
 dist/
 .env
 .env.local
 *.log
->>>>>>> 0954e7f7435b235497ee8cde5325e3931623e518
+*.db
