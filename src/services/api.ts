@@ -49,6 +49,11 @@ export interface LoginResponse {
   user: User;
 }
 
+export interface UnitConversionItem {
+  unit_name: string;
+  conversion_rate: number;
+}
+
 export interface ProductItem {
   id: number;
   code: string;
@@ -57,6 +62,8 @@ export interface ProductItem {
   category_id?: number | null;
   stock: number;
   sell_price: number;
+  base_unit?: string;
+  units?: UnitConversionItem[];
   cost_price?: number | null;
   profit_margin?: number | null;
   profit_per_unit?: number | null;
@@ -160,6 +167,9 @@ export interface InventoryTransaction {
   quantity: number;
   previous_stock: number;
   new_stock: number;
+  unit_name?: string | null;
+  conversion_rate?: number;
+  base_quantity?: number | null;
   performed_by: string;
   user_role: string;
   reason: string;
@@ -540,7 +550,7 @@ export async function getInventoryTransactionsApi(token: string): Promise<Invent
 
 export async function adjustStockApi(
   token: string,
-  payload: { product_id: number; adjustment: number; reason: string }
+  payload: { product_id: number; adjustment: number; reason: string; unit_name?: string; conversion_rate?: number }
 ): Promise<InventoryResponse> {
   const response = await authenticatedFetch(`${API_BASE_URL}/inventory/adjust`, {
     method: 'POST',
@@ -557,7 +567,7 @@ export async function adjustStockApi(
 
 export async function createStockReceiptApi(
   token: string,
-  payload: { product_id: number; quantity: number; supplier: string; note?: string }
+  payload: { product_id: number; quantity: number; supplier: string; note?: string; unit_name?: string; conversion_rate?: number }
 ): Promise<InventoryResponse> {
   const response = await authenticatedFetch(`${API_BASE_URL}/inventory/receipt`, {
     method: 'POST',
@@ -574,7 +584,7 @@ export async function createStockReceiptApi(
 
 export async function createStockIssueApi(
   token: string,
-  payload: { product_id: number; quantity: number; destination: string; note?: string }
+  payload: { product_id: number; quantity: number; destination: string; note?: string; unit_name?: string; conversion_rate?: number }
 ): Promise<InventoryResponse> {
   const response = await authenticatedFetch(`${API_BASE_URL}/inventory/issue`, {
     method: 'POST',
@@ -585,6 +595,64 @@ export async function createStockIssueApi(
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
     throw new Error(data.detail || `Lỗi xuất kho (Mã lỗi ${response.status})`);
+  }
+  return data;
+}
+
+export async function updateProductUnitsApi(
+  token: string,
+  productId: number,
+  payload: { base_unit?: string; units?: UnitConversionItem[] }
+): Promise<any> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/products/${productId}/units`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  }, token);
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi cập nhật đơn vị tính (Mã lỗi ${response.status})`);
+  }
+  return data;
+}
+
+export interface OrderItemPayload {
+  product_id: number;
+  quantity: number;
+  price: number;
+  unit_name?: string;
+  conversion_rate?: number;
+}
+
+export interface OrderCreatePayload {
+  dealer_id: number;
+  items: OrderItemPayload[];
+  note?: string;
+}
+
+export async function createOrderApi(token: string, payload: OrderCreatePayload): Promise<any> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/orders`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  }, token);
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi tạo đơn hàng (Mã lỗi ${response.status})`);
+  }
+  return data;
+}
+
+export async function getOrdersApi(token: string): Promise<any[]> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/orders`, {
+    method: 'GET',
+  }, token);
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi tải danh sách đơn hàng (Mã lỗi ${response.status})`);
   }
   return data;
 }
@@ -848,7 +916,7 @@ export async function getCategorySalesReportApi(token: string): Promise<Category
 }
 
 export async function moveProductCategoryApi(token: string, productId: number, categoryId: number): Promise<any> {
-  const response = await authenticatedFetch(`${API_BASE_URL}/products/${productId}`, {
+  const response = await authenticatedFetch(`${API_BASE_URL}/products/${productId}/category`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ category_id: categoryId }),
