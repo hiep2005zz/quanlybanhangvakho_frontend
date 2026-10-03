@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { getProductsApi, ProductItem, User } from '../services/api';
+import { getProductsApi, ProductItem, User, getAvatarUrl } from '../services/api';
 import { sessionManager, SessionState } from '../services/sessionManager';
 import SecurityModal from './SecurityModal';
 import { UserManagementView } from './UserManagementView';
@@ -527,7 +527,7 @@ export default function DashboardPage({
                 width: '100%',
                 height: '100%',
                 borderRadius: '50%',
-                background: `linear-gradient(135deg, ${currentBadgeColor} 0%, #2563eb 100%)`,
+                background: user.avatar_url ? '#f1f5f9' : `linear-gradient(135deg, ${currentBadgeColor} 0%, #2563eb 100%)`,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -535,8 +535,18 @@ export default function DashboardPage({
                 fontWeight: '700',
                 fontSize: '15px',
                 boxShadow: '0 2px 5px rgba(0, 0, 0, 0.15)',
+                overflow: 'hidden',
+                border: '1px solid rgba(255, 255, 255, 0.4)',
               }}>
-                {(user.full_name || user.username).charAt(0).toUpperCase()}
+                {user.avatar_url ? (
+                  <img
+                    src={getAvatarUrl(user.avatar_url)}
+                    alt={user.full_name || user.username}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  />
+                ) : (
+                  (user.full_name || user.username).charAt(0).toUpperCase()
+                )}
               </div>
               <span
                 style={{
@@ -577,7 +587,7 @@ export default function DashboardPage({
                   width: '54px',
                   height: '54px',
                   borderRadius: '16px',
-                  background: `linear-gradient(135deg, ${currentBadgeColor} 0%, #6366f1 100%)`,
+                  background: user.avatar_url ? '#f1f5f9' : `linear-gradient(135deg, ${currentBadgeColor} 0%, #6366f1 100%)`,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -587,8 +597,17 @@ export default function DashboardPage({
                   flexShrink: 0,
                   boxShadow: `0 8px 20px ${currentBadgeColor}55, inset 0 1px 0 rgba(255, 255, 255, 0.4)`,
                   border: '1px solid rgba(255, 255, 255, 0.25)',
+                  overflow: 'hidden',
                 }}>
-                  {user.username.charAt(0).toUpperCase()}
+                  {user.avatar_url ? (
+                    <img
+                      src={getAvatarUrl(user.avatar_url)}
+                      alt={user.full_name || user.username}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    />
+                  ) : (
+                    user.username.charAt(0).toUpperCase()
+                  )}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <h4 style={{
@@ -1663,40 +1682,6 @@ export default function DashboardPage({
                   </button>
                 )}
 
-                {/* Nút Lên đơn hàng mới */}
-                <button
-                  type="button"
-                  onClick={() => setIsOrderModalOpen(true)}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    background: '#2563eb',
-                    border: 'none',
-                    padding: '7px 14px',
-                    borderRadius: '8px',
-                    fontSize: '12.5px',
-                    fontWeight: '600',
-                    color: '#ffffff',
-                    cursor: 'pointer',
-                    boxShadow: '0 2px 6px rgba(37, 99, 235, 0.25)',
-                    transition: 'all 0.15s ease'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = '#1d4ed8';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = '#2563eb';
-                  }}
-                  title="Tạo đơn hàng xuất bán cho đại lý (hỗ trợ chọn đơn vị quy đổi)"
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="9" cy="21" r="1" />
-                    <circle cx="20" cy="21" r="1" />
-                    <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
-                  </svg>
-                  <span>+ Lên đơn hàng</span>
-                </button>
 
                 {/* Nút Xuất file Excel danh mục */}
                 <button
@@ -2658,6 +2643,7 @@ export default function DashboardPage({
         <OrderCreateModal
           isOpen={isOrderModalOpen}
           token={token}
+          currentUser={user}
           products={products}
           onClose={() => setIsOrderModalOpen(false)}
           onSuccess={() => {

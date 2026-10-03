@@ -10,6 +10,7 @@ import {
   handoverDealersApi,
   DealerItem,
   UserUpdatePayload,
+  getAvatarUrl,
 } from '../services/api';
 import { sessionManager } from '../services/sessionManager';
 import { emitStatusToast } from './StatusToast';
@@ -966,7 +967,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                               width: '38px',
                               height: '38px',
                               borderRadius: '10px',
-                              background: u.badge_color ? `linear-gradient(135deg, ${u.badge_color} 0%, #2563eb 100%)` : '#2563eb',
+                              background: u.avatar_url ? '#f1f5f9' : (u.badge_color ? `linear-gradient(135deg, ${u.badge_color} 0%, #2563eb 100%)` : '#2563eb'),
                               color: '#ffffff',
                               display: 'flex',
                               alignItems: 'center',
@@ -976,8 +977,17 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                               flexShrink: 0,
                               boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
                               border: '1px solid rgba(255, 255, 255, 0.4)',
+                              overflow: 'hidden',
                             }}>
-                              {u.full_name ? u.full_name.charAt(0).toUpperCase() : u.username.charAt(0).toUpperCase()}
+                              {u.avatar_url ? (
+                                <img
+                                  src={getAvatarUrl(u.avatar_url)}
+                                  alt={u.full_name || u.username}
+                                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                />
+                              ) : (
+                                (u.full_name ? u.full_name.charAt(0).toUpperCase() : u.username.charAt(0).toUpperCase())
+                              )}
                             </div>
                             <div>
                               <div style={{ fontWeight: '700', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>

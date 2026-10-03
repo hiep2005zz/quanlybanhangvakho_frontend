@@ -36,6 +36,7 @@ class SessionManager {
   private userProfileListeners: Set<UserProfileListener> = new Set();
   private isInitialized: boolean = false;
   private authChannel: BroadcastChannel | null = null;
+  private heartbeatCounter: number = 0;
 
   constructor() {
     this.handleMouseMove = this.throttle(this.handleMouseMove.bind(this), 2000);
