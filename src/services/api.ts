@@ -1,5 +1,16 @@
-// frontend/src/services/api.ts
 export const API_BASE_URL = 'http://localhost:8000/api/v1';
+
+/**
+ * Trả về URL tuyệt đối để tải ảnh đại diện từ backend nếu là đường dẫn tĩnh /uploads/...
+ */
+export function getAvatarUrl(url?: string | null): string {
+  if (!url) return '';
+  if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:') || url.startsWith('blob:')) {
+    return url;
+  }
+  const backendOrigin = API_BASE_URL.replace(/\/api\/v1\/?$/, '');
+  return `${backendOrigin}${url.startsWith('/') ? '' : '/'}${url}`;
+}
 
 export const AUTH_STORAGE = {
   TOKEN: 'auth_token',
@@ -25,6 +36,7 @@ export interface User {
   branch?: string;
   can_view_cost?: boolean;
   can_write_inventory?: boolean;
+  avatar_url?: string | null;
 }
 
 export interface UserProfile {
@@ -40,6 +52,7 @@ export interface UserProfile {
   warehouse_name?: string | null;
   territory_name?: string | null;
   branch?: string | null;
+  avatar_url?: string | null;
 }
 
 export interface LoginResponse {
@@ -67,6 +80,11 @@ export interface ProductItem {
   cost_price?: number | null;
   profit_margin?: number | null;
   profit_per_unit?: number | null;
+  // Chi tiết form quản lý sản phẩm
+  packaging_specification?: string;
+  images?: string[];
+  status?: 'active' | 'inactive';
+  transaction_count?: number; // Số giao dịch đã phát sinh (đơn hàng, nhập/xuất kho)
 }
 
 export interface OrderItem {
@@ -284,7 +302,9 @@ export async function authenticatedFetch(input: string, init: RequestInit = {}, 
   if (currentToken && !headers.has('Authorization')) {
     headers.set('Authorization', `Bearer ${currentToken}`);
   }
-  if (init.body && !headers.has('Content-Type')) {
+  // Chỉ tự động thêm Content-Type: application/json nếu body không phải FormData và chưa có Content-Type
+  const isFormData = typeof FormData !== 'undefined' && init.body instanceof FormData;
+  if (init.body && !headers.has('Content-Type') && !isFormData) {
     headers.set('Content-Type', 'application/json');
   }
 
@@ -439,6 +459,7 @@ export async function getProductsApi(token: string): Promise<ProductListResponse
   return response.json();
 }
 
+<<<<<<< HEAD
 export async function getOrdersApi(token: string): Promise<OrderItem[]> {
   const response = await authenticatedFetch(`${API_BASE_URL}/orders`, {
     method: 'GET',
@@ -471,10 +492,27 @@ export async function createOrderApi(
 ): Promise<CreatedOrder> {
   const endpoint = 'delivery_point' in payload ? '/orders/sales-entry' : '/orders';
   const response = await authenticatedFetch(`${API_BASE_URL}${endpoint}`, {
+=======
+export interface ProductPayload {
+  code: string;
+  name: string;
+  category: string;
+  base_unit: string;
+  packaging_specification?: string;
+  sell_price: number;
+  cost_price?: number | null;
+  images?: string[];
+  status?: 'active' | 'inactive';
+}
+
+export async function createProductApi(token: string, payload: ProductPayload): Promise<ProductItem> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/products`, {
+>>>>>>> test
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   }, token);
+<<<<<<< HEAD
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
     throw new Error(getApiErrorMessage(data, `Lỗi tạo đơn hàng (Mã lỗi ${response.status})`));
@@ -495,6 +533,38 @@ export async function cancelOrderApi(
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
     throw new Error(data.detail || `Lỗi hủy đơn hàng (Mã lỗi ${response.status})`);
+=======
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi tạo mới sản phẩm (Mã lỗi ${response.status})`);
+  }
+  return data;
+}
+
+export async function updateProductApi(token: string, id: number, payload: Partial<ProductPayload>): Promise<ProductItem> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/products/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  }, token);
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi cập nhật sản phẩm (Mã lỗi ${response.status})`);
+  }
+  return data;
+}
+
+export async function deleteProductApi(token: string, id: number): Promise<{ status: string; message: string }> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/products/${id}`, {
+    method: 'DELETE',
+  }, token);
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi xóa sản phẩm (Mã lỗi ${response.status})`);
+>>>>>>> test
   }
   return data;
 }
@@ -655,6 +725,7 @@ export interface UserAccount {
   can_view_cost: boolean;
   can_write_inventory: boolean;
   badge_color: string;
+  avatar_url?: string | null;
 }
 
 export interface CustomerCreatePayload {
@@ -1043,6 +1114,39 @@ export async function updateMyProfileApi(
     throw new Error(msg);
   }
   return await response.json();
+}
+
+export interface ProfileAvatarUploadResponse {
+  status: string;
+  message: string;
+  avatar_url: string;
+  thumbnail_url: string;
+  user: UserProfile;
+}
+
+export async function uploadProfileAvatarApi(
+  token: string,
+  file: File
+): Promise<ProfileAvatarUploadResponse> {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const response = await authenticatedFetch(`${API_BASE_URL}/me/avatar`, {
+    method: 'POST',
+    body: formData,
+  }, token);
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    let msg = 'Tải lên ảnh đại diện thất bại.';
+    if (typeof data.detail === 'string') {
+      msg = data.detail;
+    } else if (Array.isArray(data.detail) && data.detail.length > 0) {
+      msg = data.detail.map((d: any) => d.msg || JSON.stringify(d)).join('; ');
+    }
+    throw new Error(msg);
+  }
+  return data;
 }
 
 // ============================================================================
