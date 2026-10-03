@@ -451,6 +451,8 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
     }
     return ROLE_TITLE_MAP[r] || r;
   };
+  const rawRoles = profile?.roles && profile.roles.length > 0 ? profile.roles : (currentUser.roles && currentUser.roles.length > 0 ? currentUser.roles : [primaryRole]);
+  const displayRoles: string[] = Array.from(new Set(rawRoles.filter(Boolean)));
   const roleColor = primaryRole === 'customer' && !isBranchAssigned ? '#94a3b8' : (ROLE_COLOR_MAP[primaryRole] || '#64748b');
   const roleTitle = getRoleTitle(primaryRole);
 
@@ -645,9 +647,81 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           </div>
 
           <div>
-            <h1 style={{ margin: 0, fontSize: '24px', fontWeight: '800', color: '#0f172a', letterSpacing: '-0.02em' }}>
-              {fullNameInput || currentUser.full_name}
-            </h1>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+              <h1 style={{ margin: 0, fontSize: '22px', fontWeight: '800', color: '#0f172a', letterSpacing: '-0.02em' }}>
+                {fullNameInput || currentUser.full_name}
+              </h1>
+              <span
+                style={{
+                  fontFamily: 'ui-monospace, monospace',
+                  background: '#f1f5f9',
+                  color: '#475569',
+                  fontSize: '12px',
+                  fontWeight: '600',
+                  padding: '3px 8px',
+                  borderRadius: '6px',
+                  border: '1px solid #e2e8f0',
+                }}
+              >
+                @{currentUser.username}
+              </span>
+              {(profile?.email || currentUser.email) && (
+                <span
+                  style={{
+                    color: '#475569',
+                    fontSize: '12.5px',
+                    fontWeight: '500',
+                    background: '#f8fafc',
+                    padding: '3px 10px',
+                    borderRadius: '6px',
+                    border: '1px solid #e2e8f0',
+                  }}
+                >
+                  {profile?.email || currentUser.email}
+                </span>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px', flexWrap: 'wrap' }}>
+              {displayRoles.map((rCode) => {
+                const c = rCode === 'customer' && !isBranchAssigned ? '#94a3b8' : (ROLE_COLOR_MAP[rCode] || '#64748b');
+                const label = getRoleTitle(rCode);
+                return (
+                  <span
+                    key={rCode}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      padding: '3px 10px',
+                      borderRadius: '999px',
+                      background: `${c}15`,
+                      color: c,
+                      fontSize: '12px',
+                      fontWeight: '700',
+                      border: `1px solid ${c}30`,
+                    }}
+                  >
+                    {label}
+                  </span>
+                );
+              })}
+
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  padding: '3px 10px',
+                  borderRadius: '999px',
+                  background: '#dcfce7',
+                  color: '#15803d',
+                  fontSize: '12px',
+                  fontWeight: '700',
+                  border: '1px solid #86efac',
+                }}
+              >
+                Đang hoạt động
+              </span>
+            </div>
           </div>
         </div>
 
