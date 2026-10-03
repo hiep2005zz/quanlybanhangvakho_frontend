@@ -19,6 +19,7 @@ import { ProductBulkImportModal } from './ProductBulkImportModal';
 import { ProductUnitModal } from './ProductUnitModal';
 import { StockActionModal } from './StockActionModal';
 import { OrderCreateModal } from './OrderCreateModal';
+import OrdersView from './OrdersView';
 import './dashboard.css';
 import { hasPermission, Permissions } from '../hooks/usePermission';
 
@@ -101,7 +102,6 @@ export default function DashboardPage({
                             : legacyTab === 'users' ? 'users'
                               : null;
 
-<<<<<<< HEAD
     const allowed =
       destination === 'users' || destination === 'audit-logs' ? isAdmin
         : destination === 'orders' ? canReadOrders
@@ -112,60 +112,11 @@ export default function DashboardPage({
       const route = `/${destination}`;
       if (pathname !== route || params.size) window.history.replaceState({}, '', route);
       return destination;
-=======
-    // Dọn sạch tàn dư query parameter cũ (?tab=users, ?tab=audit-logs, ?tab=profile)
-    const params = new URLSearchParams(window.location.search);
-    const hasOldTabParam = params.has('tab') || params.has('view');
-    const oldTabVal = (params.get('tab') || params.get('view') || '').toLowerCase();
-
-    if (pathname === '/suppliers' || pathname.startsWith('/suppliers/')) {
-      return 'suppliers';
-    }
-    if (isProfilePath || oldTabVal === 'profile') {
-      if (hasOldTabParam || pathname !== '/profile') {
-        try {
-          window.history.replaceState({}, '', '/profile');
-        } catch {
-          // ignore
-        }
-      }
-      return 'profile';
-    } else if (isAuditPath || oldTabVal === 'audit-logs' || oldTabVal === 'audit') {
-      if (hasOldTabParam || pathname !== '/audit-logs') {
-        try {
-          window.history.replaceState({}, '', '/audit-logs');
-        } catch {
-          // ignore
-        }
-      }
-      return 'audit-logs';
-    } else if (isUsersPath || hasOldTabParam) {
-      if (hasOldTabParam || pathname !== '/users') {
-        try {
-          window.history.replaceState({}, '', '/users');
-        } catch {
-          // ignore
-        }
-      }
-      return 'users';
-    }
-    if (isCategoriesPath) {
-      if (canManageCategories) {
-        return 'categories';
-      }
-      try {
-        window.history.replaceState({}, '', '/');
-      } catch {
-        // ignore
-      }
-      return 'users';
->>>>>>> test
     }
     if (destination && !allowed && (pathname !== '/' || params.size)) window.history.replaceState({}, '', '/');
     return 'inventory';
   });
 
-<<<<<<< HEAD
   const setActiveTab = (tab: DashboardTab) => {
     const allowed =
       tab === 'users' || tab === 'audit-logs' ? isAdmin
@@ -174,64 +125,6 @@ export default function DashboardPage({
             : tab === 'suppliers' ? canManageSuppliers
               : true;
     if (!allowed) {
-=======
-  // 3. Chuyển đổi Route Clean URL
-  const setActiveTab = (tab: 'inventory' | 'users' | 'categories' | 'audit-logs' | 'profile' | 'suppliers') => {
-    if (tab === 'profile') {
-      setActiveTabState('profile');
-      try {
-        window.history.pushState({}, '', '/profile');
-      } catch {
-        // ignore
-      }
-    } else if (tab === 'users') {
-      if (!isAdmin) {
-        setActiveTabState('inventory');
-        try {
-          window.history.replaceState({}, '', '/');
-        } catch {
-          // ignore
-        }
-        return;
-      }
-      setActiveTabState('users');
-      try {
-        window.history.pushState({}, '', '/users');
-      } catch {
-        // ignore
-      }
-    } else if (tab === 'categories') {
-      if (!canManageCategories) {
-        setActiveTabState('inventory');
-        try {
-          window.history.replaceState({}, '', '/');
-        } catch {
-          // ignore
-        }
-        return;
-      }
-      setActiveTabState('categories');
-      try {
-        window.history.pushState({}, '', '/categories');
-      } catch {
-        // ignore
-      }
-    } else if (tab === 'audit-logs') {
-      setActiveTabState('audit-logs');
-      try {
-        window.history.pushState({}, '', '/audit-logs');
-      } catch {
-        // ignore
-      }
-    } else if (tab === 'suppliers') {
-      setActiveTabState('suppliers');
-      try {
-        window.history.pushState({}, '', '/suppliers');
-      } catch {
-        // ignore
-      }
-    } else {
->>>>>>> test
       setActiveTabState('inventory');
       window.history.replaceState({}, '', '/');
       return;
@@ -288,22 +181,12 @@ export default function DashboardPage({
                   : true;
         if (!allowed) {
           setActiveTabState('inventory');
-<<<<<<< HEAD
           window.history.replaceState({}, '', '/');
           return;
         }
         const route = `/${destination}`;
         if (pathname !== route || params.size) window.history.replaceState({}, '', route);
         setActiveTabState(destination);
-=======
-          try {
-            window.history.replaceState({}, '', '/users');
-          } catch {
-            // ignore
-          }
-        }
-        setActiveTabState('users');
->>>>>>> test
       } else {
         setActiveTabState('inventory');
         if (pathname !== '/' || params.size) window.history.replaceState({}, '', '/');

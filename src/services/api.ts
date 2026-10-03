@@ -100,6 +100,26 @@ export interface OrderItem {
   created_at: string;
 }
 
+export interface OrderDetail extends OrderItem {
+  subtotal_amount: number;
+  discount_percent: number;
+  discount_amount: number;
+  delivery_point?: string | null;
+  desired_delivery_date?: string | null;
+  note?: string | null;
+  items: Array<{
+    product_id: number;
+    product_name: string;
+    product_code?: string;
+    quantity: number;
+    price: number;
+    unit?: string;
+    unit_name?: string;
+    conversion_rate?: number;
+    base_quantity?: number;
+  }>;
+}
+
 export interface OrderDealer {
   id: number;
   code: string;
@@ -459,40 +479,6 @@ export async function getProductsApi(token: string): Promise<ProductListResponse
   return response.json();
 }
 
-<<<<<<< HEAD
-export async function getOrdersApi(token: string): Promise<OrderItem[]> {
-  const response = await authenticatedFetch(`${API_BASE_URL}/orders`, {
-    method: 'GET',
-  }, token);
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(data.detail || `Lỗi tải danh sách đơn hàng (Mã lỗi ${response.status})`);
-  }
-  if (!Array.isArray(data) || !data.every(isOrderItem)) {
-    throw new Error('Dữ liệu danh sách đơn hàng không hợp lệ.');
-  }
-  return data;
-}
-
-export async function getOrderDealersApi(token: string): Promise<OrderDealer[]> {
-  const response = await authenticatedFetch(`${API_BASE_URL}/orders/dealers`, { method: 'GET' }, token);
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(data.detail || `Lỗi tải danh sách đại lý (Mã lỗi ${response.status})`);
-  }
-  if (!Array.isArray(data)) throw new Error('Dữ liệu danh sách đại lý không hợp lệ.');
-  return data;
-}
-
-export function createOrderApi(token: string, payload: CreateOrderPayload): Promise<CreatedOrder>;
-export function createOrderApi(token: string, payload: OrderCreatePayload): Promise<CreatedOrder>;
-export async function createOrderApi(
-  token: string,
-  payload: CreateOrderPayload | OrderCreatePayload
-): Promise<CreatedOrder> {
-  const endpoint = 'delivery_point' in payload ? '/orders/sales-entry' : '/orders';
-  const response = await authenticatedFetch(`${API_BASE_URL}${endpoint}`, {
-=======
 export interface ProductPayload {
   code: string;
   name: string;
@@ -507,34 +493,10 @@ export interface ProductPayload {
 
 export async function createProductApi(token: string, payload: ProductPayload): Promise<ProductItem> {
   const response = await authenticatedFetch(`${API_BASE_URL}/products`, {
->>>>>>> test
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   }, token);
-<<<<<<< HEAD
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(getApiErrorMessage(data, `Lỗi tạo đơn hàng (Mã lỗi ${response.status})`));
-  }
-  return data as CreatedOrder;
-}
-
-export async function cancelOrderApi(
-  token: string,
-  orderCode: string,
-  reason: string
-): Promise<{ status: string; message: string; order: OrderItem }> {
-  const response = await authenticatedFetch(`${API_BASE_URL}/orders/${encodeURIComponent(orderCode)}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ status: 'CANCELLED', reason }),
-  }, token);
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(data.detail || `Lỗi hủy đơn hàng (Mã lỗi ${response.status})`);
-=======
-
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
     throw new Error(data.detail || `Lỗi tạo mới sản phẩm (Mã lỗi ${response.status})`);
@@ -564,7 +526,79 @@ export async function deleteProductApi(token: string, id: number): Promise<{ sta
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
     throw new Error(data.detail || `Lỗi xóa sản phẩm (Mã lỗi ${response.status})`);
->>>>>>> test
+  }
+  return data;
+}
+
+export async function getOrdersApi(token: string): Promise<OrderItem[]> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/orders`, {
+    method: 'GET',
+  }, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi tải danh sách đơn hàng (Mã lỗi ${response.status})`);
+  }
+  if (!Array.isArray(data) || !data.every(isOrderItem)) {
+    throw new Error('Dữ liệu danh sách đơn hàng không hợp lệ.');
+  }
+  return data;
+}
+
+export async function getOrderDetailApi(token: string, orderCode: string): Promise<OrderDetail> {
+  const response = await authenticatedFetch(
+    `${API_BASE_URL}/orders/${encodeURIComponent(orderCode)}`,
+    { method: 'GET' },
+    token
+  );
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi tải chi tiết đơn hàng (Mã lỗi ${response.status})`);
+  }
+  return data as OrderDetail;
+}
+
+export async function getOrderDealersApi(token: string): Promise<OrderDealer[]> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/orders/dealers`, { method: 'GET' }, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi tải danh sách đại lý (Mã lỗi ${response.status})`);
+  }
+  if (!Array.isArray(data)) throw new Error('Dữ liệu danh sách đại lý không hợp lệ.');
+  return data;
+}
+
+export function createOrderApi(token: string, payload: CreateOrderPayload): Promise<CreatedOrder>;
+export function createOrderApi(token: string, payload: OrderCreatePayload): Promise<CreatedOrder>;
+export async function createOrderApi(
+  token: string,
+  payload: CreateOrderPayload | OrderCreatePayload
+): Promise<CreatedOrder> {
+  const endpoint = 'delivery_point' in payload ? '/orders/sales-entry' : '/orders';
+  const response = await authenticatedFetch(`${API_BASE_URL}${endpoint}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  }, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(getApiErrorMessage(data, `Lỗi tạo đơn hàng (Mã lỗi ${response.status})`));
+  }
+  return data as CreatedOrder;
+}
+
+export async function cancelOrderApi(
+  token: string,
+  orderCode: string,
+  reason: string
+): Promise<{ status: string; message: string; order: OrderItem }> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/orders/${encodeURIComponent(orderCode)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status: 'CANCELLED', reason }),
+  }, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi hủy đơn hàng (Mã lỗi ${response.status})`);
   }
   return data;
 }

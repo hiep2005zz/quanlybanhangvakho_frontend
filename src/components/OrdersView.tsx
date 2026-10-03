@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { cancelOrderApi, createOrderApi, getOrderDealersApi, getOrdersApi, OrderDealer, OrderItem, ProductItem } from '../services/api';
 import { emitStatusToast } from './StatusToast';
+import OrderDetailsModal from './OrderDetailsModal';
 import './orders-view.css';
 
 interface OrdersViewProps {
@@ -85,6 +86,7 @@ export default function OrdersView({ token, username, products, canCreateOrders,
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingDealers, setIsLoadingDealers] = useState(false);
   const [cancellingOrderCode, setCancellingOrderCode] = useState<string | null>(null);
+  const [selectedOrderCode, setSelectedOrderCode] = useState<string | null>(null);
 
   useEffect(() => {
     try {
@@ -558,6 +560,13 @@ export default function OrdersView({ token, username, products, canCreateOrders,
                     </td>
                     <td data-label="Tổng tiền" className="orders-amount">{formatCurrency(order.total_amount)}</td>
                     <td data-label="Thao tác" className="orders-row-actions">
+                      <button
+                        type="button"
+                        className="orders-detail-button"
+                        onClick={() => setSelectedOrderCode(order.order_code)}
+                      >
+                        Chi tiết
+                      </button>
                       {order.status.toUpperCase() !== 'CANCELLED' &&
                         canCreateOrders &&
                         (canManageOrders || order.created_by.toLowerCase() === username.toLowerCase()) && (
@@ -619,6 +628,13 @@ export default function OrdersView({ token, username, products, canCreateOrders,
           </nav>
         )}
       </section>
+      {selectedOrderCode && (
+        <OrderDetailsModal
+          token={token}
+          orderCode={selectedOrderCode}
+          onClose={() => setSelectedOrderCode(null)}
+        />
+      )}
     </main>
   );
 }
