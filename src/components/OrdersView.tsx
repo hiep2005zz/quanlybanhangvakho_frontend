@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { cancelOrderApi, createOrderApi, getOrderDealersApi, getOrdersApi, OrderDealer, OrderItem, ProductItem } from '../services/api';
 import { emitStatusToast } from './StatusToast';
 import OrderDetailsModal from './OrderDetailsModal';
+import OrderCancelConfirmModal from './OrderCancelConfirmModal';
 import './orders-view.css';
 
 interface OrdersViewProps {
@@ -86,6 +87,7 @@ export default function OrdersView({ token, username, products, canCreateOrders,
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingDealers, setIsLoadingDealers] = useState(false);
   const [cancellingOrderCode, setCancellingOrderCode] = useState<string | null>(null);
+  const [orderToCancel, setOrderToCancel] = useState<OrderItem | null>(null);
   const [selectedOrderCode, setSelectedOrderCode] = useState<string | null>(null);
 
   useEffect(() => {
@@ -315,15 +317,13 @@ export default function OrdersView({ token, username, products, canCreateOrders,
     }
   };
 
-  const handleCancelOrder = async (order: OrderItem) => {
-    const confirmed = window.confirm(
-      `Bạn có chắc muốn xóa đơn ${order.order_code} khỏi các đơn đang hoạt động?\n\nĐơn sẽ chuyển sang trạng thái “Đã hủy” và vẫn được giữ trong lịch sử hệ thống.`
-    );
-    if (!confirmed) return;
-
+  const handleCancelOrder = async () => {
+    if (!orderToCancel) return;
+    const order = orderToCancel;
     setCancellingOrderCode(order.order_code);
     try {
       const result = await cancelOrderApi(token, order.order_code, 'Người dùng yêu cầu hủy đơn hàng.');
+      setOrderToCancel(null);
       emitStatusToast({ title: 'Đã hủy đơn hàng', message: result.message });
       setReloadVersion((value) => value + 1);
     } catch (cancelError) {
@@ -573,7 +573,7 @@ export default function OrdersView({ token, username, products, canCreateOrders,
                           <button
                             type="button"
                             className="orders-delete-button"
-                            onClick={() => void handleCancelOrder(order)}
+                            onClick={() => setOrderToCancel(order)}
                             disabled={cancellingOrderCode === order.order_code}
                           >
                             {cancellingOrderCode === order.order_code ? 'Đang hủy...' : 'Xóa đơn'}
@@ -633,6 +633,16 @@ export default function OrdersView({ token, username, products, canCreateOrders,
           token={token}
           orderCode={selectedOrderCode}
           onClose={() => setSelectedOrderCode(null)}
+        />
+      )}
+      {orderToCancel && (
+        <OrderCancelConfirmModal
+          order={orderToCancel}
+          isSubmitting={cancellingOrderCode === orderToCancel.order_code}
+          onCancel={() => {
+            if (!cancellingOrderCode) setOrderToCancel(null);
+          }}
+          onConfirm={() => void handleCancelOrder()}
         />
       )}
     </main>
