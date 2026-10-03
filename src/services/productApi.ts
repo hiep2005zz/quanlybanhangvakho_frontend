@@ -106,3 +106,37 @@ export async function executeProductBulkConfirmApi(
 
   return data;
 }
+
+export interface PriceUpdateRequest {
+  sell_price?: number;
+  cost_price?: number;
+  reason?: string;
+}
+
+/**
+ * Cập nhật giá bán hoặc giá vốn sản phẩm (tự động ghi log PRICE_CHANGE)
+ */
+export async function updateProductPriceApi(
+  token: string,
+  productId: number,
+  data: PriceUpdateRequest
+): Promise<{ status: string; message: string; product: any }> {
+  const response = await authenticatedFetch(
+    `${API_BASE_URL}/products/${productId}/price`,
+    {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    },
+    token
+  );
+
+  const resData = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(resData.detail || `Lỗi cập nhật giá sản phẩm (Mã lỗi ${response.status})`);
+  }
+
+  return resData;
+}
