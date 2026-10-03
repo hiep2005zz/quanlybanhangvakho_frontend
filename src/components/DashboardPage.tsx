@@ -12,6 +12,7 @@ import SupplierManagementView from './SupplierManagementView';
 import { AuditLogView } from './AuditLogView';
 import { ProductAuditDrawer } from './ProductAuditDrawer';
 import { ProductDrawer } from './ProductDrawer';
+import { PriceUpdateModal } from './PriceUpdateModal';
 import { ProfileView } from './ProfileView';
 import { ProductBulkImportModal } from './ProductBulkImportModal';
 import { ProductUnitModal } from './ProductUnitModal';
@@ -295,7 +296,11 @@ export default function DashboardPage({
     isOpen: boolean;
     productCode: string;
     productName: string;
-  }>({ isOpen: false, productCode: '', productName: '' });
+    initialFilter?: 'ALL' | 'PRICE_CHANGE' | 'INVENTORY_ADJUST';
+  }>({ isOpen: false, productCode: '', productName: '', initialFilter: 'ALL' });
+
+  // Price Update Modal State
+  const [priceUpdateModalProduct, setPriceUpdateModalProduct] = useState<ProductItem | null>(null);
 
   // State quản lý Product Detail Drawer (Khai báo & Chỉnh sửa sản phẩm)
   const [productDrawerState, setProductDrawerState] = useState<{
@@ -2202,66 +2207,54 @@ export default function DashboardPage({
                             )}
 
                             {canManageProducts && (
-                              <>
-                                <button
-                                  type="button"
-                                  className="btn-inventory-history"
-                                  onClick={() => setProductDrawerState({
-                                    isOpen: true,
-                                    product: item,
-                                  })}
-                                  title="Chỉnh sửa thông tin chi tiết sản phẩm"
-                                  style={{
-                                    padding: '5px 8px',
-                                    fontSize: '11.5px',
-                                    background: '#eff6ff',
-                                    borderColor: '#bfdbfe',
-                                    color: '#1d4ed8',
-                                  }}
+                              <button
+                                type="button"
+                                className="btn-inventory-history"
+                                onClick={() => setProductDrawerState({
+                                  isOpen: true,
+                                  product: item,
+                                })}
+                                title="Chỉnh sửa thông tin chi tiết sản phẩm"
+                                style={{
+                                  padding: '5px 8px',
+                                  fontSize: '11.5px',
+                                  background: '#eff6ff',
+                                  borderColor: '#bfdbfe',
+                                  color: '#1d4ed8',
+                                }}
+                              >
+                                <svg
+                                  width="12"
+                                  height="12"
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="2.2"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
                                 >
-                                  <svg
-                                    width="12"
-                                    height="12"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    strokeWidth="2.2"
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                  >
-                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                                  </svg>
-                                  <span>Sửa</span>
-                                </button>
+                                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                                </svg>
+                                <span>Sửa</span>
+                              </button>
+                            )}
 
-                                <button
-                                  type="button"
-                                  className="btn-inventory-history"
-                                  onClick={() => setProductAuditDrawerState({
-                                    isOpen: true,
-                                    productCode: item.code,
-                                    productName: item.name,
-                                  })}
-                                  title="Xem lịch sử thay đổi tồn kho & giá của sản phẩm này"
-                                  style={{ padding: '5px 8px', fontSize: '11.5px' }}
-                                >
-                                  <svg
-                                    width="12"
-                                    height="12"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    strokeWidth="2.2"
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                  >
-                                    <circle cx="12" cy="12" r="10" />
-                                    <polyline points="12 6 12 12 16 14" />
-                                  </svg>
-                                  <span>Lịch sử</span>
-                                </button>
-                              </>
+                            {(isAdmin || isSalesManager) && (
+                              <button
+                                type="button"
+                                className="btn-inventory-history"
+                                onClick={() => setProductAuditDrawerState({
+                                  isOpen: true,
+                                  productCode: item.code,
+                                  productName: item.name,
+                                  initialFilter: 'ALL',
+                                })}
+                                title="Xem lịch sử thay đổi tồn kho & giá của sản phẩm này"
+                                style={{ padding: '5px 10px', fontSize: '11.5px', fontWeight: '600' }}
+                              >
+                                <span>Lịch sử</span>
+                              </button>
                             )}
 
                             {!canConfigUnit && !canWriteInventory && !isAdmin && (
@@ -2630,6 +2623,23 @@ export default function DashboardPage({
         productCode={productAuditDrawerState.productCode}
         productName={productAuditDrawerState.productName}
         token={token}
+        initialFilter={productAuditDrawerState.initialFilter || 'ALL'}
+        isCostVisible={isCostVisible}
+      />
+
+      <PriceUpdateModal
+        isOpen={Boolean(priceUpdateModalProduct)}
+        product={priceUpdateModalProduct}
+        onClose={() => setPriceUpdateModalProduct(null)}
+        token={token}
+        isCostVisible={isCostVisible}
+        onSuccess={() => {
+          emitStatusToast({
+            title: 'Cập nhật giá thành công',
+            message: 'Đã lưu giá mới thành công.',
+          });
+          fetchProducts();
+        }}
       />
 
       {/* Product Detail Drawer (Khai báo & Chỉnh sửa sản phẩm 4 khối chức năng) */}
