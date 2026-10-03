@@ -6,6 +6,7 @@ import {
   getUsersApi,
   UserAccount,
   User,
+  getAvatarUrl,
 } from '../services/api';
 import { AuditDetailModal, getActionLabel, getEntityLabel, formatEntityIdDisplay } from './AuditDetailModal';
 import { formatLocalDateTime } from '../utils/dateUtils';
@@ -411,7 +412,6 @@ export const AuditLogView: React.FC<AuditLogViewProps> = ({ currentUser: _curren
           }}>
             Tổng bản ghi: <strong style={{ color: '#2563eb' }}>{total.toLocaleString()}</strong>
           </div>
-
         </div>
       </div>
 
@@ -642,25 +642,42 @@ export const AuditLogView: React.FC<AuditLogViewProps> = ({ currentUser: _curren
 
                     {/* Người thực hiện */}
                     <td style={{ padding: '14px 18px', whiteSpace: 'nowrap' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <div style={{
-                          width: '28px',
-                          height: '28px',
-                          borderRadius: '8px',
-                          background: '#eff6ff',
-                          color: '#2563eb',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontWeight: '700',
-                          fontSize: '12px',
-                        }}>
-                          {(log.user_name || 'U').charAt(0).toUpperCase()}
-                        </div>
-                        <strong style={{ color: '#0f172a', fontWeight: '600' }}>
-                          {log.user_name || 'Hệ thống'}
-                        </strong>
-                      </div>
+                      {(() => {
+                        const matchedUser = usersList.find((u) => u.id === log.user_id || u.username.toLowerCase() === (log.user_name || '').toLowerCase() || u.full_name === log.user_name);
+                        const userAvatar = matchedUser?.avatar_url;
+                        return (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <div style={{
+                              width: '28px',
+                              height: '28px',
+                              borderRadius: '8px',
+                              background: userAvatar ? '#f1f5f9' : '#eff6ff',
+                              color: '#2563eb',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontWeight: '700',
+                              fontSize: '12px',
+                              overflow: 'hidden',
+                              border: userAvatar ? '1px solid #e2e8f0' : 'none',
+                              flexShrink: 0,
+                            }}>
+                              {userAvatar ? (
+                                <img
+                                  src={getAvatarUrl(userAvatar)}
+                                  alt={log.user_name || 'U'}
+                                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                />
+                              ) : (
+                                (log.user_name || 'U').charAt(0).toUpperCase()
+                              )}
+                            </div>
+                            <strong style={{ color: '#0f172a', fontWeight: '600' }}>
+                              {log.user_name || 'Hệ thống'}
+                            </strong>
+                          </div>
+                        );
+                      })()}
                     </td>
 
                     {/* Thao tác */}
