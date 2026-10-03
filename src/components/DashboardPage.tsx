@@ -53,6 +53,10 @@ export default function DashboardPage({
   const isSalesManager = user.role === 'sales_manager' || Boolean(user.roles && user.roles.includes('sales_manager'));
   const canManageCategories = isAdmin || isSalesManager;
 
+  // Quyền Quản lý sản phẩm (Khai báo, thêm mới, sửa sản phẩm: Chỉ Admin và Quản lý)
+  const isManager = officialRoles.some((r) => ['admin', 'sales_manager', 'warehouse_manager'].includes(r));
+  const canManageProducts = isAdmin || isSalesManager || isManager;
+
   // Quyền thao tác kho (Nhập/xuất/sửa kho: Admin, Quản lý kho, Thủ kho)
   const canWriteInventory = user.can_write_inventory ?? (isAdmin || officialRoles.some((r) => ['admin', 'warehouse', 'warehouse_manager'].includes(r)));
 
@@ -1781,42 +1785,44 @@ export default function DashboardPage({
                   <span>Xuất file</span>
                 </button>
 
-                {/* Nút Thêm mới Sản phẩm mở Product Detail Drawer */}
-                <button
-                  type="button"
-                  id="btn-add-product"
-                  onClick={() => setProductDrawerState({ isOpen: true, product: null })}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
-                    border: 'none',
-                    padding: '7px 14px',
-                    borderRadius: '8px',
-                    fontSize: '12.5px',
-                    fontWeight: '600',
-                    color: '#ffffff',
-                    cursor: 'pointer',
-                    boxShadow: '0 2px 6px rgba(37, 99, 235, 0.28)',
-                    transition: 'all 0.15s ease'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.transform = 'translateY(-1px)';
-                    e.currentTarget.style.boxShadow = '0 4px 10px rgba(37, 99, 235, 0.35)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.boxShadow = '0 2px 6px rgba(37, 99, 235, 0.28)';
-                  }}
-                  title="Khai báo sản phẩm mới (Mã SKU tự động, 4 khối chức năng)"
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <line x1="12" y1="5" x2="12" y2="19" />
-                    <line x1="5" y1="12" x2="19" y2="12" />
-                  </svg>
-                  <span>Quản lý sản phẩm</span>
-                </button>
+                {/* Nút Quản lý sản phẩm mở Product Detail Drawer: Chỉ Admin và Quản lý */}
+                {canManageProducts && (
+                  <button
+                    type="button"
+                    id="btn-add-product"
+                    onClick={() => setProductDrawerState({ isOpen: true, product: null })}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+                      border: 'none',
+                      padding: '7px 14px',
+                      borderRadius: '8px',
+                      fontSize: '12.5px',
+                      fontWeight: '600',
+                      color: '#ffffff',
+                      cursor: 'pointer',
+                      boxShadow: '0 2px 6px rgba(37, 99, 235, 0.28)',
+                      transition: 'all 0.15s ease'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = 'translateY(-1px)';
+                      e.currentTarget.style.boxShadow = '0 4px 10px rgba(37, 99, 235, 0.35)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = '0 2px 6px rgba(37, 99, 235, 0.28)';
+                    }}
+                    title="Khai báo sản phẩm mới (Mã SKU tự động, 4 khối chức năng)"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="12" y1="5" x2="12" y2="19" />
+                      <line x1="5" y1="12" x2="19" y2="12" />
+                    </svg>
+                    <span>Quản lý sản phẩm</span>
+                  </button>
+                )}
               </div>
             </div>
 
@@ -2156,7 +2162,7 @@ export default function DashboardPage({
                               </>
                             )}
 
-                            {isAdmin && (
+                            {canManageProducts && (
                               <>
                                 <button
                                   type="button"
