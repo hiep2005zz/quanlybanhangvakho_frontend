@@ -25,6 +25,10 @@ export const FIELD_LABELS: Record<string, string> = {
   name: 'Tên đối tượng',
   code: 'Mã đối tượng',
   unit: 'Đơn vị tính',
+  base_unit: 'Đơn vị tính cơ sở',
+  unit_name: 'Đơn vị tính quy đổi',
+  conversion_rate: 'Hệ số quy đổi',
+  base_quantity: 'Số lượng theo đơn vị cơ sở',
   category: 'Danh mục sản phẩm',
   quantity: 'Số lượng',
   destination: 'Nơi nhận hàng',
@@ -388,10 +392,23 @@ export const AuditDetailModal: React.FC<AuditDetailModalProps> = ({ log, onClose
           deltaStr = adj > 0 ? `+${adj.toLocaleString('vi-VN')}` : `${adj.toLocaleString('vi-VN')}`;
         }
 
+        let displayOldVal = oldVal;
+
+        // Nếu oldVal chưa có nhưng newVal có liên quan đến ĐVT quy đổi, hiển thị giá trị cơ sở ban đầu
+        if (displayOldVal === undefined || displayOldVal === null) {
+          if (key === 'unit_name') {
+            displayOldVal = (oldParsed && oldParsed.base_unit) || (newParsed && newParsed.base_unit) || 'Đơn vị cơ sở';
+          } else if (key === 'conversion_rate') {
+            displayOldVal = 1;
+          } else if (key === 'base_quantity') {
+            displayOldVal = 0;
+          }
+        }
+
         return {
           key,
           label: getFieldLabel(key),
-          oldVal,
+          oldVal: displayOldVal,
           newVal,
           isChanged: true,
           deltaStr,

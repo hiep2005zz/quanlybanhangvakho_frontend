@@ -1,5 +1,16 @@
-// frontend/src/services/api.ts
 export const API_BASE_URL = 'http://localhost:8000/api/v1';
+
+/**
+ * Trả về URL tuyệt đối để tải ảnh đại diện từ backend nếu là đường dẫn tĩnh /uploads/...
+ */
+export function getAvatarUrl(url?: string | null): string {
+  if (!url) return '';
+  if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:') || url.startsWith('blob:')) {
+    return url;
+  }
+  const backendOrigin = API_BASE_URL.replace(/\/api\/v1\/?$/, '');
+  return `${backendOrigin}${url.startsWith('/') ? '' : '/'}${url}`;
+}
 
 export const AUTH_STORAGE = {
   TOKEN: 'auth_token',
@@ -27,6 +38,7 @@ export interface User {
   avatar_thumbnail_url?: string | null;
   can_view_cost?: boolean;
   can_write_inventory?: boolean;
+  avatar_url?: string | null;
 }
 
 export interface UserProfile {
@@ -43,7 +55,10 @@ export interface UserProfile {
   territory_name?: string | null;
   branch?: string | null;
   avatar_url?: string | null;
+<<<<<<< HEAD
   avatar_thumbnail_url?: string | null;
+=======
+>>>>>>> origin/test
 }
 
 export interface LoginResponse {
@@ -51,6 +66,11 @@ export interface LoginResponse {
   token_type: string;
   expires_in: number;
   user: User;
+}
+
+export interface UnitConversionItem {
+  unit_name: string;
+  conversion_rate: number;
 }
 
 export interface ProductItem {
@@ -61,6 +81,8 @@ export interface ProductItem {
   category_id?: number | null;
   stock: number;
   sell_price: number;
+  base_unit?: string;
+  units?: UnitConversionItem[];
   cost_price?: number | null;
   profit_margin?: number | null;
   profit_per_unit?: number | null;
@@ -106,6 +128,9 @@ export interface InventoryTransaction {
   quantity: number;
   previous_stock: number;
   new_stock: number;
+  unit_name?: string | null;
+  conversion_rate?: number;
+  base_quantity?: number | null;
   performed_by: string;
   user_role: string;
   reason: string;
@@ -186,7 +211,9 @@ export async function authenticatedFetch(input: string, init: RequestInit = {}, 
   if (currentToken && !headers.has('Authorization')) {
     headers.set('Authorization', `Bearer ${currentToken}`);
   }
-  if (init.body && !headers.has('Content-Type')) {
+  // Chỉ tự động thêm Content-Type: application/json nếu body không phải FormData và chưa có Content-Type
+  const isFormData = typeof FormData !== 'undefined' && init.body instanceof FormData;
+  if (init.body && !headers.has('Content-Type') && !isFormData) {
     headers.set('Content-Type', 'application/json');
   }
 
@@ -411,7 +438,7 @@ export async function getInventoryTransactionsApi(token: string): Promise<Invent
 
 export async function adjustStockApi(
   token: string,
-  payload: { product_id: number; adjustment: number; reason: string }
+  payload: { product_id: number; adjustment: number; reason: string; unit_name?: string; conversion_rate?: number }
 ): Promise<InventoryResponse> {
   const response = await authenticatedFetch(`${API_BASE_URL}/inventory/adjust`, {
     method: 'POST',
@@ -428,7 +455,7 @@ export async function adjustStockApi(
 
 export async function createStockReceiptApi(
   token: string,
-  payload: { product_id: number; quantity: number; supplier: string; note?: string }
+  payload: { product_id: number; quantity: number; supplier: string; note?: string; unit_name?: string; conversion_rate?: number }
 ): Promise<InventoryResponse> {
   const response = await authenticatedFetch(`${API_BASE_URL}/inventory/receipt`, {
     method: 'POST',
@@ -445,7 +472,7 @@ export async function createStockReceiptApi(
 
 export async function createStockIssueApi(
   token: string,
-  payload: { product_id: number; quantity: number; destination: string; note?: string }
+  payload: { product_id: number; quantity: number; destination: string; note?: string; unit_name?: string; conversion_rate?: number }
 ): Promise<InventoryResponse> {
   const response = await authenticatedFetch(`${API_BASE_URL}/inventory/issue`, {
     method: 'POST',
@@ -456,6 +483,64 @@ export async function createStockIssueApi(
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
     throw new Error(data.detail || `Lỗi xuất kho (Mã lỗi ${response.status})`);
+  }
+  return data;
+}
+
+export async function updateProductUnitsApi(
+  token: string,
+  productId: number,
+  payload: { base_unit?: string; units?: UnitConversionItem[] }
+): Promise<any> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/products/${productId}/units`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  }, token);
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi cập nhật đơn vị tính (Mã lỗi ${response.status})`);
+  }
+  return data;
+}
+
+export interface OrderItemPayload {
+  product_id: number;
+  quantity: number;
+  price: number;
+  unit_name?: string;
+  conversion_rate?: number;
+}
+
+export interface OrderCreatePayload {
+  dealer_id: number;
+  items: OrderItemPayload[];
+  note?: string;
+}
+
+export async function createOrderApi(token: string, payload: OrderCreatePayload): Promise<any> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/orders`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  }, token);
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi tạo đơn hàng (Mã lỗi ${response.status})`);
+  }
+  return data;
+}
+
+export async function getOrdersApi(token: string): Promise<any[]> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/orders`, {
+    method: 'GET',
+  }, token);
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi tải danh sách đơn hàng (Mã lỗi ${response.status})`);
   }
   return data;
 }
@@ -480,7 +565,10 @@ export interface UserAccount {
   can_write_inventory: boolean;
   badge_color: string;
   avatar_url?: string | null;
+<<<<<<< HEAD
   avatar_thumbnail_url?: string | null;
+=======
+>>>>>>> origin/test
 }
 
 
@@ -728,7 +816,7 @@ export async function getCategorySalesReportApi(token: string): Promise<Category
 }
 
 export async function moveProductCategoryApi(token: string, productId: number, categoryId: number): Promise<any> {
-  const response = await authenticatedFetch(`${API_BASE_URL}/products/${productId}`, {
+  const response = await authenticatedFetch(`${API_BASE_URL}/products/${productId}/category`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ category_id: categoryId }),
@@ -967,6 +1055,41 @@ export async function updateMyProfileApi(
   return await response.json();
 }
 
+<<<<<<< HEAD
+=======
+export interface ProfileAvatarUploadResponse {
+  status: string;
+  message: string;
+  avatar_url: string;
+  thumbnail_url: string;
+  user: UserProfile;
+}
+
+export async function uploadProfileAvatarApi(
+  token: string,
+  file: File
+): Promise<ProfileAvatarUploadResponse> {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const response = await authenticatedFetch(`${API_BASE_URL}/me/avatar`, {
+    method: 'POST',
+    body: formData,
+  }, token);
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    let msg = 'Tải lên ảnh đại diện thất bại.';
+    if (typeof data.detail === 'string') {
+      msg = data.detail;
+    } else if (Array.isArray(data.detail) && data.detail.length > 0) {
+      msg = data.detail.map((d: any) => d.msg || JSON.stringify(d)).join('; ');
+    }
+    throw new Error(msg);
+  }
+  return data;
+}
+>>>>>>> origin/test
 
 // ============================================================================
 // DÁN TOÀN BỘ NỘI DUNG FILE NÀY VÀO CUỐI FILE: frontend/src/services/api.ts

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { getProductsApi, ProductItem, User } from '../services/api';
+import { getProductsApi, ProductItem, User, getAvatarUrl } from '../services/api';
 import { sessionManager, SessionState } from '../services/sessionManager';
 import SecurityModal from './SecurityModal';
 import { UserManagementView } from './UserManagementView';
@@ -14,6 +14,9 @@ import DealerManagementView from './DealerManagementView';
 import { ProductAuditDrawer } from './ProductAuditDrawer';
 import { ProfileView } from './ProfileView';
 import { ProductBulkImportModal } from './ProductBulkImportModal';
+import { ProductUnitModal } from './ProductUnitModal';
+import { StockActionModal } from './StockActionModal';
+import { OrderCreateModal } from './OrderCreateModal';
 import './dashboard.css';
 
 interface DashboardProps {
@@ -49,6 +52,12 @@ export default function DashboardPage({
   // Quyền quản lý ngành hàng
   const isSalesManager = user.role === 'sales_manager' || Boolean(user.roles && user.roles.includes('sales_manager'));
   const canManageCategories = isAdmin || isSalesManager;
+
+  // Quyền thao tác kho (Nhập/xuất/sửa kho: Admin, Quản lý kho, Thủ kho)
+  const canWriteInventory = user.can_write_inventory ?? (isAdmin || officialRoles.some((r) => ['admin', 'warehouse', 'warehouse_manager'].includes(r)));
+
+  // Quyền Cấu hình ĐVT quy đổi (Chỉ Quản trị hệ thống và Quản lý kho)
+  const canConfigUnit = isAdmin || officialRoles.some((r) => ['admin', 'warehouse_manager'].includes(r));
 
   // 2. Khởi tạo State với Clean URL (/users, /audit-logs, /categories, /suppliers, /profile)
   const [activeTab, setActiveTabState] = useState<'inventory' | 'users' | 'categories' | 'audit-logs' | 'profile' | 'suppliers' | 'dealers'>(() => {
@@ -262,6 +271,10 @@ export default function DashboardPage({
   const [productSearchTerm, setProductSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
 
+  // Phân trang danh sách sản phẩm (mặc định 20 cái/trang)
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+
   const [isCostVisible, setIsCostVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -283,6 +296,15 @@ export default function DashboardPage({
 
   // Bulk Import Product Modal State
   const [isProductBulkImportOpen, setIsProductBulkImportOpen] = useState(false);
+
+  // SCRUM Unit Conversion Modals State
+  const [unitConfigProduct, setUnitConfigProduct] = useState<ProductItem | null>(null);
+  const [stockActionState, setStockActionState] = useState<{
+    isOpen: boolean;
+    actionType: 'receipt' | 'issue' | 'adjust';
+    product: ProductItem | null;
+  }>({ isOpen: false, actionType: 'receipt', product: null });
+  const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
 
   // Timer điều khiển mở/đóng menu khi hover
   const menuTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -378,6 +400,12 @@ export default function DashboardPage({
     return matchQuery && matchCat;
   });
 
+  // Phân trang sản phẩm (mặc định 20 cái)
+  const totalPages = Math.max(1, Math.ceil(filteredProducts.length / pageSize));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const startIndex = (safeCurrentPage - 1) * pageSize;
+  const paginatedProducts = filteredProducts.slice(startIndex, startIndex + pageSize);
+
   const roleLabelMap: Record<string, string> = {
     admin: 'Quản Trị Hệ Thống',
     sales_manager: 'Quản Lý Kinh Doanh',
@@ -417,8 +445,9 @@ export default function DashboardPage({
               title="Mở rộng menu"
               className="hamburger-left-btn"
               style={{
-                width: '40px',
-                height: '40px',
+                width: '56px',
+                height: '56px',
+                borderRadius: '12px',
                 padding: 0,
                 margin: 0,
                 display: 'flex',
@@ -428,10 +457,10 @@ export default function DashboardPage({
                 transform: 'none',
               }}
             >
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
-                <span style={{ width: '18px', height: '2px', background: '#334155', borderRadius: '2px' }}></span>
-                <span style={{ width: '18px', height: '2px', background: '#334155', borderRadius: '2px' }}></span>
-                <span style={{ width: '18px', height: '2px', background: '#334155', borderRadius: '2px' }}></span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', alignItems: 'center' }}>
+                <span style={{ width: '22px', height: '2.5px', background: '#334155', borderRadius: '2px' }}></span>
+                <span style={{ width: '22px', height: '2.5px', background: '#334155', borderRadius: '2px' }}></span>
+                <span style={{ width: '22px', height: '2.5px', background: '#334155', borderRadius: '2px' }}></span>
               </div>
             </button>
           )}
@@ -439,21 +468,21 @@ export default function DashboardPage({
           <div
             className="brand-logo-animated"
             style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: '10px',
+              width: '56px',
+              height: '56px',
+              borderRadius: '14px',
               background: 'linear-gradient(135deg, #2563eb 0%, #4f46e5 100%)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               color: '#fff',
-              boxShadow: '0 2px 8px rgba(37, 99, 235, 0.25)',
+              boxShadow: '0 4px 12px rgba(37, 99, 235, 0.25)',
               cursor: 'default',
               userSelect: 'none',
               flexShrink: 0
             }}
           >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
               <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
               <line x1="12" y1="22.08" x2="12" y2="12" />
@@ -461,7 +490,7 @@ export default function DashboardPage({
           </div>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <h1 className="brand-title-shimmer" style={{ fontSize: '17px', fontWeight: '700', margin: 0, color: '#0f172a', letterSpacing: '-0.02em' }}>
+              <h1 className="brand-title-shimmer" style={{ fontSize: '20px', fontWeight: '700', margin: 0, color: '#0f172a', letterSpacing: '-0.02em' }}>
                 Hệ Thống Quản Lý Kho & Bán Hàng
               </h1>
             </div>
@@ -487,19 +516,24 @@ export default function DashboardPage({
             title={`${user.full_name || user.username} (${roleLabelMap[primaryRole] || primaryRole}) - Nhấp để mở menu`}
             aria-label="Tài khoản người dùng"
           >
-            <div style={{ position: 'relative', width: '36px', height: '36px', flexShrink: 0 }}>
+            <div style={{ position: 'relative', width: '68px', height: '68px', flexShrink: 0 }}>
               <div style={{
                 width: '100%',
                 height: '100%',
                 borderRadius: '50%',
+<<<<<<< HEAD
                 background: (user.avatar_thumbnail_url || user.avatar_url)
                   ? '#f8fafc'
                   : `linear-gradient(135deg, ${currentBadgeColor} 0%, #2563eb 100%)`,
+=======
+                background: user.avatar_url ? '#f1f5f9' : `linear-gradient(135deg, ${currentBadgeColor} 0%, #2563eb 100%)`,
+>>>>>>> origin/test
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 color: '#ffffff',
                 fontWeight: '700',
+<<<<<<< HEAD
                 fontSize: '15px',
                 boxShadow: '0 2px 5px rgba(0, 0, 0, 0.15)',
                 overflow: 'hidden',
@@ -510,6 +544,18 @@ export default function DashboardPage({
                     src={user.avatar_thumbnail_url || user.avatar_url || ''}
                     alt={user.full_name || user.username}
                     style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+=======
+                fontSize: '28px',
+                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)',
+                overflow: 'hidden',
+                border: '2.5px solid rgba(255, 255, 255, 0.9)',
+              }}>
+                {user.avatar_url ? (
+                  <img
+                    src={getAvatarUrl(user.avatar_url)}
+                    alt={user.full_name || user.username}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+>>>>>>> origin/test
                   />
                 ) : (
                   (user.full_name || user.username).charAt(0).toUpperCase()
@@ -518,13 +564,13 @@ export default function DashboardPage({
               <span
                 style={{
                   position: 'absolute',
-                  bottom: '-1px',
-                  right: '-1px',
-                  width: '10px',
-                  height: '10px',
+                  bottom: '2px',
+                  right: '2px',
+                  width: '16px',
+                  height: '16px',
                   borderRadius: '50%',
                   background: '#16a34a',
-                  border: '2px solid #ffffff',
+                  border: '2.5px solid #ffffff',
                 }}
                 title="Đang hoạt động"
               />
@@ -554,9 +600,13 @@ export default function DashboardPage({
                   width: '54px',
                   height: '54px',
                   borderRadius: '16px',
+<<<<<<< HEAD
                   background: (user.avatar_url || user.avatar_thumbnail_url)
                     ? '#f8fafc'
                     : `linear-gradient(135deg, ${currentBadgeColor} 0%, #6366f1 100%)`,
+=======
+                  background: user.avatar_url ? '#f1f5f9' : `linear-gradient(135deg, ${currentBadgeColor} 0%, #6366f1 100%)`,
+>>>>>>> origin/test
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -565,6 +615,7 @@ export default function DashboardPage({
                   fontSize: '22px',
                   flexShrink: 0,
                   boxShadow: `0 8px 20px ${currentBadgeColor}55, inset 0 1px 0 rgba(255, 255, 255, 0.4)`,
+<<<<<<< HEAD
                   border: (user.avatar_url || user.avatar_thumbnail_url) ? '2px solid #e2e8f0' : '1px solid rgba(255, 255, 255, 0.25)',
                   overflow: 'hidden',
                 }}>
@@ -573,6 +624,16 @@ export default function DashboardPage({
                       src={user.avatar_url || user.avatar_thumbnail_url || ''}
                       alt={user.full_name || user.username}
                       style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+=======
+                  border: '1px solid rgba(255, 255, 255, 0.25)',
+                  overflow: 'hidden',
+                }}>
+                  {user.avatar_url ? (
+                    <img
+                      src={getAvatarUrl(user.avatar_url)}
+                      alt={user.full_name || user.username}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+>>>>>>> origin/test
                     />
                   ) : (
                     user.username.charAt(0).toUpperCase()
@@ -1672,7 +1733,8 @@ export default function DashboardPage({
           </div>
 
           {/* Clean Enterprise Data Table Container */}
-          <div className="premium-table-card roles-grid-scroll" style={{ overflowX: 'auto', padding: '0', borderRadius: '12px' }}>
+          <div className="premium-table-card" style={{ padding: '0', borderRadius: '12px', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+            {/* Thanh công cụ tìm kiếm và tác vụ (Cố định ở trên) */}
             <div style={{
               display: 'flex',
               flexWrap: 'wrap',
@@ -1681,7 +1743,8 @@ export default function DashboardPage({
               padding: '16px 20px',
               borderBottom: '1px solid #e2e8f0',
               gap: '12px',
-              background: '#ffffff'
+              background: '#ffffff',
+              flexShrink: 0
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', flex: 1 }}>
                 <div style={{ position: 'relative', width: '280px', maxWidth: '100%' }}>
@@ -1695,7 +1758,10 @@ export default function DashboardPage({
                     type="text"
                     placeholder="Tìm theo mã hoặc tên sản phẩm..."
                     value={productSearchTerm}
-                    onChange={(e) => setProductSearchTerm(e.target.value)}
+                    onChange={(e) => {
+                      setProductSearchTerm(e.target.value);
+                      setCurrentPage(1);
+                    }}
                     style={{
                       width: '100%',
                       padding: '7px 12px 7px 32px',
@@ -1711,7 +1777,10 @@ export default function DashboardPage({
 
                 <select
                   value={selectedCategory}
-                  onChange={(e) => setSelectedCategory(e.target.value)}
+                  onChange={(e) => {
+                    setSelectedCategory(e.target.value);
+                    setCurrentPage(1);
+                  }}
                   style={{
                     padding: '7px 12px',
                     borderRadius: '8px',
@@ -1773,6 +1842,7 @@ export default function DashboardPage({
                     <span>Nhập file</span>
                   </button>
                 )}
+
 
                 {/* Nút Xuất file Excel danh mục */}
                 <button
@@ -1874,186 +1944,502 @@ export default function DashboardPage({
               </div>
             </div>
 
-            {isLoading ? (
-              <div style={{ padding: '60px', textAlign: 'center', color: '#64748b' }}>
-                <div style={{ fontSize: '32px', marginBottom: '12px' }}>⏳</div>
-                <div style={{ fontSize: '14px', fontWeight: '500' }}>Đang tải dữ liệu từ máy chủ Backend...</div>
-              </div>
-            ) : filteredProducts.length === 0 ? (
-              <div style={{ padding: '48px', textAlign: 'center', color: '#64748b', fontSize: '13.5px' }}>
-                Không tìm thấy sản phẩm nào phù hợp với điều kiện tìm kiếm.
-              </div>
-            ) : (
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13.5px' }}>
-                <thead>
-                  <tr style={{
-                    color: '#64748b',
-                    background: '#f8fafc',
-                    fontSize: '11px',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.06em',
-                    borderBottom: '1px solid #e2e8f0',
-                  }}>
-                    <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'left' }}>Mã SP</th>
-                    <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'left' }}>Tên Sản Phẩm</th>
-                    <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'left' }}>Ngành Hàng</th>
-                    <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'right' }}>Số Lượng Tồn</th>
-                    <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'right' }}>Giá Niêm Yết (Bán)</th>
-                    {isCostVisible && (
-                      <>
-                        <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'right' }}>Giá Vốn Nhập Kho</th>
-                        <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'right' }}>Biên Lợi Nhuận</th>
-                      </>
-                    )}
-                    {isAdmin && (
-                      <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'center', width: '120px' }}>Thao Tác</th>
-                    )}
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredProducts.map((item, idx) => (
-                    <tr
-                      key={item.id}
-                      className="inventory-row"
-                      style={{
-                        background: idx % 2 === 0 ? '#ffffff' : '#fcfdfd',
-                        borderBottom: '1px solid #f1f5f9',
-                      }}
-                    >
-                      <td style={{
-                        padding: '13px 18px',
-                        textAlign: 'left',
-                        fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-                        fontSize: '12px',
-                        fontWeight: '600',
-                        color: '#334155',
-                      }}>
-                        {item.code}
-                      </td>
-
-                      <td style={{ padding: '13px 18px', fontWeight: '500', color: '#0f172a', fontSize: '13.5px', textAlign: 'left' }}>
-                        {item.name}
-                      </td>
-
-                      <td style={{ padding: '13px 18px', textAlign: 'left', color: '#64748b', fontSize: '12.5px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span>{item.category}</span>
-                          {canManageCategories && (
-                            <button
-                              onClick={() => setMovingProduct({ id: item.id, name: item.name, category_id: item.category_id })}
-                              style={{
-                                background: 'transparent',
-                                border: 'none',
-                                cursor: 'pointer',
-                                padding: '2px',
-                                color: '#94a3b8',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center'
-                              }}
-                              title="Chuyển ngành hàng"
-                              onMouseEnter={e => e.currentTarget.style.color = '#3b82f6'}
-                              onMouseLeave={e => e.currentTarget.style.color = '#94a3b8'}
-                            >
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                              </svg>
-                            </button>
-                          )}
-                        </div>
-                      </td>
-
-                      <td style={{ padding: '13px 18px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-                        <span style={{
-                          fontWeight: '600',
-                          color: '#0f172a',
-                        }}>
-                          {item.stock.toLocaleString()} cái
-                        </span>
-                      </td>
-
-                      <td style={{ padding: '13px 18px', color: '#0f172a', fontWeight: '600', fontSize: '13.5px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-                        {item.sell_price.toLocaleString('vi-VN')} đ
-                      </td>
-
+            {/* Vùng cuộn riêng cho bảng hàng hóa (Ẩn thanh cuộn, cố định thead) */}
+            <div
+              className="table-hidden-scrollbar"
+              style={{
+                overflowX: 'auto',
+                overflowY: 'auto',
+                maxHeight: 'calc(100vh - 350px)',
+                scrollBehavior: 'smooth'
+              }}
+            >
+              {isLoading ? (
+                <div style={{ padding: '60px', textAlign: 'center', color: '#64748b' }}>
+                  <div style={{ fontSize: '32px', marginBottom: '12px' }}>⏳</div>
+                  <div style={{ fontSize: '14px', fontWeight: '500' }}>Đang tải dữ liệu từ máy chủ Backend...</div>
+                </div>
+              ) : filteredProducts.length === 0 ? (
+                <div style={{ padding: '48px', textAlign: 'center', color: '#64748b', fontSize: '13.5px' }}>
+                  Không tìm thấy sản phẩm nào phù hợp với điều kiện tìm kiếm.
+                </div>
+              ) : (
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13.5px' }}>
+                  <thead style={{ position: 'sticky', top: 0, zIndex: 10, background: '#f8fafc', boxShadow: '0 1px 0 #e2e8f0' }}>
+                    <tr style={{
+                      color: '#64748b',
+                      background: '#f8fafc',
+                      fontSize: '11px',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.06em',
+                      borderBottom: '1px solid #e2e8f0',
+                    }}>
+                      <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'left', background: '#f8fafc' }}>Mã SP</th>
+                      <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'left', background: '#f8fafc' }}>Tên Sản Phẩm</th>
+                      <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'left', background: '#f8fafc' }}>Ngành Hàng</th>
+                      <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'left', background: '#f8fafc' }}>Đơn Vị Tính</th>
+                      <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'right', background: '#f8fafc' }}>Số Lượng Tồn</th>
+                      <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'right', background: '#f8fafc' }}>Giá Niêm Yết (Bán)</th>
                       {isCostVisible && (
                         <>
-                          <td style={{ padding: '13px 18px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '2px' }}>
-                              <span style={{ color: '#0f172a', fontWeight: '600', fontSize: '13.5px' }}>
-                                {item.cost_price ? `${item.cost_price.toLocaleString('vi-VN')} đ` : '—'}
-                              </span>
-                              <span style={{ fontSize: '10.5px', color: '#94a3b8', letterSpacing: '-0.01em' }}>
-                                Chỉ Quản lý
-                              </span>
-                            </div>
-                          </td>
-                          <td style={{ padding: '13px 18px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-                            {item.profit_margin !== undefined && item.profit_margin !== null ? (
-                              <span style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '3px',
-                                color: item.profit_margin >= 0 ? '#15803d' : '#dc2626',
-                                fontWeight: '600',
-                                fontSize: '13px',
-                              }}>
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                  {item.profit_margin >= 0 ? (
-                                    <>
-                                      <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
-                                      <polyline points="17 6 23 6 23 12" />
-                                    </>
-                                  ) : (
-                                    <>
-                                      <polyline points="23 18 13.5 8.5 8.5 13.5 1 6" />
-                                      <polyline points="17 18 23 18 23 12" />
-                                    </>
-                                  )}
-                                </svg>
-                                <span>{item.profit_margin >= 0 ? '+' : ''}{item.profit_margin}%</span>
-                              </span>
-                            ) : (
-                              <span style={{ color: '#94a3b8' }}>—</span>
-                            )}
-                          </td>
+                          <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'right', background: '#f8fafc' }}>Giá Vốn Nhập Kho</th>
+                          <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'right', background: '#f8fafc' }}>Biên Lợi Nhuận</th>
                         </>
                       )}
-
-                      {isAdmin && (
-                        <td style={{ padding: '13px 18px', textAlign: 'center' }}>
-                          <button
-                            type="button"
-                            className="btn-inventory-history"
-                            onClick={() => setProductAuditDrawerState({
-                              isOpen: true,
-                              productCode: item.code,
-                              productName: item.name,
-                            })}
-                            title="Xem lịch sử thay đổi tồn kho & giá của sản phẩm này"
-                          >
-                            <svg
-                              width="14"
-                              height="14"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2.2"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            >
-                              <circle cx="12" cy="12" r="10" />
-                              <polyline points="12 6 12 12 16 14" />
-                            </svg>
-                            <span>Lịch sử</span>
-                          </button>
-                        </td>
-                      )}
+                      <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'center', width: '220px', background: '#f8fafc' }}>Thao Tác</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {paginatedProducts.map((item, idx) => (
+                      <tr
+                        key={item.id}
+                        className="inventory-row"
+                        style={{
+                          background: idx % 2 === 0 ? '#ffffff' : '#fcfdfd',
+                          borderBottom: '1px solid #f1f5f9',
+                        }}
+                      >
+                        <td style={{
+                          padding: '13px 18px',
+                          textAlign: 'left',
+                          fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+                          fontSize: '12px',
+                          fontWeight: '600',
+                          color: '#334155',
+                        }}>
+                          {item.code}
+                        </td>
+
+                        <td style={{ padding: '13px 18px', fontWeight: '500', color: '#0f172a', fontSize: '13.5px', textAlign: 'left' }}>
+                          {item.name}
+                        </td>
+
+                        <td style={{ padding: '13px 18px', textAlign: 'left', color: '#64748b', fontSize: '12.5px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span>{item.category}</span>
+                            {canManageCategories && (
+                              <button
+                                onClick={() => setMovingProduct({ id: item.id, name: item.name, category_id: item.category_id })}
+                                style={{
+                                  background: 'transparent',
+                                  border: 'none',
+                                  cursor: 'pointer',
+                                  padding: '2px',
+                                  color: '#94a3b8',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center'
+                                }}
+                                title="Chuyển ngành hàng"
+                                onMouseEnter={e => e.currentTarget.style.color = '#3b82f6'}
+                                onMouseLeave={e => e.currentTarget.style.color = '#94a3b8'}
+                              >
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                                </svg>
+                              </button>
+                            )}
+                          </div>
+                        </td>
+
+                        {/* Cột Đơn vị tính cơ sở & quy đổi */}
+                        <td style={{ padding: '13px 18px', textAlign: 'left', fontSize: '12.5px' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                            <span style={{ fontWeight: '600', color: '#0f172a' }}>
+                              {item.base_unit || 'Cái'} <span style={{ fontSize: '10.5px', color: '#64748b', fontWeight: '400' }}>(cơ sở)</span>
+                            </span>
+                            {item.units && item.units.length > 0 ? (
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                                {item.units.map((u, uIdx) => (
+                                  <span
+                                    key={uIdx}
+                                    style={{
+                                      fontSize: '11px',
+                                      background: '#eff6ff',
+                                      color: '#1d4ed8',
+                                      padding: '1px 6px',
+                                      borderRadius: '4px',
+                                      border: '1px solid #bfdbfe',
+                                    }}
+                                    title={`1 ${u.unit_name} = ${u.conversion_rate} ${item.base_unit || 'Cái'}`}
+                                  >
+                                    {u.unit_name} (×{u.conversion_rate})
+                                  </span>
+                                ))}
+                              </div>
+                            ) : (
+                              <span style={{ fontSize: '11px', color: '#94a3b8' }}>Chưa có ĐVT quy đổi</span>
+                            )}
+                          </div>
+                        </td>
+
+                        <td style={{ padding: '13px 18px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                          <span style={{
+                            fontWeight: '600',
+                            color: '#0f172a',
+                          }}>
+                            {item.stock.toLocaleString()} {item.base_unit || 'cái'}
+                          </span>
+                        </td>
+
+                        <td style={{ padding: '13px 18px', color: '#0f172a', fontWeight: '600', fontSize: '13.5px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                          {item.sell_price.toLocaleString('vi-VN')} đ
+                        </td>
+
+                        {isCostVisible && (
+                          <>
+                            <td style={{ padding: '13px 18px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '2px' }}>
+                                <span style={{ color: '#0f172a', fontWeight: '600', fontSize: '13.5px' }}>
+                                  {item.cost_price ? `${item.cost_price.toLocaleString('vi-VN')} đ` : '—'}
+                                </span>
+                                <span style={{ fontSize: '10.5px', color: '#94a3b8', letterSpacing: '-0.01em' }}>
+                                  Chỉ Quản lý
+                                </span>
+                              </div>
+                            </td>
+                            <td style={{ padding: '13px 18px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                              {item.profit_margin !== undefined && item.profit_margin !== null ? (
+                                <span style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '3px',
+                                  color: item.profit_margin >= 0 ? '#15803d' : '#dc2626',
+                                  fontWeight: '600',
+                                  fontSize: '13px',
+                                }}>
+                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                    {item.profit_margin >= 0 ? (
+                                      <>
+                                        <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
+                                        <polyline points="17 6 23 6 23 12" />
+                                      </>
+                                    ) : (
+                                      <>
+                                        <polyline points="23 18 13.5 8.5 8.5 13.5 1 6" />
+                                        <polyline points="17 18 23 18 23 12" />
+                                      </>
+                                    )}
+                                  </svg>
+                                  <span>{item.profit_margin >= 0 ? '+' : ''}{item.profit_margin}%</span>
+                                </span>
+                              ) : (
+                                <span style={{ color: '#94a3b8' }}>—</span>
+                              )}
+                            </td>
+                          </>
+                        )}
+
+                        <td style={{ padding: '13px 18px', textAlign: 'center' }}>
+                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                            {/* Nút Cấu hình Đơn vị tính: Chỉ mở cho Quản trị hệ thống và Quản lý kho */}
+                            {canConfigUnit && (
+                              <button
+                                type="button"
+                                onClick={() => setUnitConfigProduct(item)}
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                  padding: '5px 8px',
+                                  background: '#f8fafc',
+                                  border: '1px solid #cbd5e1',
+                                  borderRadius: '6px',
+                                  fontSize: '11.5px',
+                                  fontWeight: '600',
+                                  color: '#334155',
+                                  cursor: 'pointer',
+                                  transition: 'all 0.15s ease'
+                                }}
+                                title="Cấu hình ĐVT cơ sở & danh sách ĐVT quy đổi (Lốc, Thùng...)"
+                                onMouseEnter={e => {
+                                  e.currentTarget.style.background = '#e2e8f0';
+                                  e.currentTarget.style.borderColor = '#94a3b8';
+                                }}
+                                onMouseLeave={e => {
+                                  e.currentTarget.style.background = '#f8fafc';
+                                  e.currentTarget.style.borderColor = '#cbd5e1';
+                                }}
+                              >
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                  <circle cx="12" cy="12" r="3" />
+                                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                                </svg>
+                                <span>ĐVT</span>
+                              </button>
+                            )}
+
+                            {/* Nút Nhập kho & Xuất kho: Mở cho các tài khoản có quyền Nhập/xuất/sửa kho */}
+                            {canWriteInventory && (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => setStockActionState({ isOpen: true, actionType: 'receipt', product: item })}
+                                  style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '3px',
+                                    padding: '5px 8px',
+                                    background: '#ecfdf5',
+                                    border: '1px solid #a7f3d0',
+                                    borderRadius: '6px',
+                                    fontSize: '11.5px',
+                                    fontWeight: '600',
+                                    color: '#065f46',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.15s ease'
+                                  }}
+                                  title="Tạo phiếu nhập kho (cho phép chọn ĐVT quy đổi)"
+                                  onMouseEnter={e => {
+                                    e.currentTarget.style.background = '#d1fae5';
+                                  }}
+                                  onMouseLeave={e => {
+                                    e.currentTarget.style.background = '#ecfdf5';
+                                  }}
+                                >
+                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                    <line x1="12" y1="5" x2="12" y2="19" />
+                                    <line x1="5" y1="12" x2="19" y2="12" />
+                                  </svg>
+                                  <span>Nhập</span>
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => setStockActionState({ isOpen: true, actionType: 'issue', product: item })}
+                                  style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '3px',
+                                    padding: '5px 8px',
+                                    background: '#fff7ed',
+                                    border: '1px solid #fed7aa',
+                                    borderRadius: '6px',
+                                    fontSize: '11.5px',
+                                    fontWeight: '600',
+                                    color: '#9a3412',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.15s ease'
+                                  }}
+                                  title="Tạo phiếu xuất kho (cho phép chọn ĐVT quy đổi)"
+                                  onMouseEnter={e => {
+                                    e.currentTarget.style.background = '#ffedd5';
+                                  }}
+                                  onMouseLeave={e => {
+                                    e.currentTarget.style.background = '#fff7ed';
+                                  }}
+                                >
+                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                    <line x1="5" y1="12" x2="19" y2="12" />
+                                  </svg>
+                                  <span>Xuất</span>
+                                </button>
+                              </>
+                            )}
+
+                            {isAdmin && (
+                              <button
+                                type="button"
+                                className="btn-inventory-history"
+                                onClick={() => setProductAuditDrawerState({
+                                  isOpen: true,
+                                  productCode: item.code,
+                                  productName: item.name,
+                                })}
+                                title="Xem lịch sử thay đổi tồn kho & giá của sản phẩm này"
+                                style={{ padding: '5px 8px', fontSize: '11.5px' }}
+                              >
+                                <svg
+                                  width="12"
+                                  height="12"
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="2.2"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                >
+                                  <circle cx="12" cy="12" r="10" />
+                                  <polyline points="12 6 12 12 16 14" />
+                                </svg>
+                                <span>Lịch sử</span>
+                              </button>
+                            )}
+
+                            {!canConfigUnit && !canWriteInventory && !isAdmin && (
+                              <span style={{ color: '#94a3b8', fontSize: '12px' }}>—</span>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+
+            {/* Thanh điều khiển Phân Trang Cố Định Ở Đáy Bảng */}
+            {filteredProducts.length > 0 && (
+              <div style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '12px 20px',
+                borderTop: '1px solid #e2e8f0',
+                background: '#ffffff',
+                gap: '12px',
+                fontSize: '13px',
+                color: '#64748b',
+                flexShrink: 0
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span>Hiển thị</span>
+                  <select
+                    value={pageSize}
+                    onChange={(e) => {
+                      setPageSize(Number(e.target.value));
+                      setCurrentPage(1);
+                    }}
+                    style={{
+                      padding: '4px 8px',
+                      borderRadius: '6px',
+                      border: '1px solid #cbd5e1',
+                      fontSize: '12.5px',
+                      color: '#0f172a',
+                      background: '#ffffff',
+                      outline: 'none',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <option value={10}>10 / trang</option>
+                    <option value={20}>20 / trang (mặc định)</option>
+                    <option value={50}>50 / trang</option>
+                    <option value={100}>100 / trang</option>
+                  </select>
+                  <span>
+                    (Từ <strong>{Math.min(filteredProducts.length, startIndex + 1)}</strong> đến <strong>{Math.min(filteredProducts.length, startIndex + pageSize)}</strong> trong tổng số <strong>{filteredProducts.length}</strong> sản phẩm)
+                  </span>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  {/* Nút về trang đầu */}
+                  <button
+                    type="button"
+                    disabled={safeCurrentPage <= 1}
+                    onClick={() => setCurrentPage(1)}
+                    style={{
+                      padding: '5px 9px',
+                      borderRadius: '6px',
+                      border: '1px solid #cbd5e1',
+                      background: safeCurrentPage <= 1 ? '#f8fafc' : '#ffffff',
+                      color: safeCurrentPage <= 1 ? '#94a3b8' : '#334155',
+                      cursor: safeCurrentPage <= 1 ? 'not-allowed' : 'pointer',
+                      fontSize: '12px',
+                      fontWeight: '600'
+                    }}
+                    title="Về trang đầu"
+                  >
+                    «
+                  </button>
+
+                  {/* Nút trang trước */}
+                  <button
+                    type="button"
+                    disabled={safeCurrentPage <= 1}
+                    onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                    style={{
+                      padding: '5px 11px',
+                      borderRadius: '6px',
+                      border: '1px solid #cbd5e1',
+                      background: safeCurrentPage <= 1 ? '#f8fafc' : '#ffffff',
+                      color: safeCurrentPage <= 1 ? '#94a3b8' : '#334155',
+                      cursor: safeCurrentPage <= 1 ? 'not-allowed' : 'pointer',
+                      fontSize: '12px',
+                      fontWeight: '600'
+                    }}
+                  >
+                    ‹ Trước
+                  </button>
+
+                  {/* Danh sách các số trang */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    {Array.from({ length: totalPages }, (_, i) => i + 1)
+                      .filter((p) => p === 1 || p === totalPages || Math.abs(p - safeCurrentPage) <= 1)
+                      .reduce<(number | string)[]>((acc, p, idx, arr) => {
+                        if (idx > 0 && typeof arr[idx - 1] === 'number' && (p as number) - (arr[idx - 1] as number) > 1) {
+                          acc.push('...');
+                        }
+                        acc.push(p);
+                        return acc;
+                      }, [])
+                      .map((p, idx) => (
+                        typeof p === 'string' ? (
+                          <span key={`ellipsis-${idx}`} style={{ padding: '0 4px', color: '#94a3b8' }}>...</span>
+                        ) : (
+                          <button
+                            key={p}
+                            type="button"
+                            onClick={() => setCurrentPage(p)}
+                            style={{
+                              padding: '5px 10px',
+                              borderRadius: '6px',
+                              border: p === safeCurrentPage ? '1px solid #2563eb' : '1px solid #cbd5e1',
+                              background: p === safeCurrentPage ? '#2563eb' : '#ffffff',
+                              color: p === safeCurrentPage ? '#ffffff' : '#334155',
+                              cursor: 'pointer',
+                              fontSize: '12px',
+                              fontWeight: p === safeCurrentPage ? '700' : '500',
+                              minWidth: '28px'
+                            }}
+                          >
+                            {p}
+                          </button>
+                        )
+                      ))}
+                  </div>
+
+                  {/* Nút trang sau */}
+                  <button
+                    type="button"
+                    disabled={safeCurrentPage >= totalPages}
+                    onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                    style={{
+                      padding: '5px 11px',
+                      borderRadius: '6px',
+                      border: '1px solid #cbd5e1',
+                      background: safeCurrentPage >= totalPages ? '#f8fafc' : '#ffffff',
+                      color: safeCurrentPage >= totalPages ? '#94a3b8' : '#334155',
+                      cursor: safeCurrentPage >= totalPages ? 'not-allowed' : 'pointer',
+                      fontSize: '12px',
+                      fontWeight: '600'
+                    }}
+                  >
+                    Sau ›
+                  </button>
+
+                  {/* Nút về trang cuối */}
+                  <button
+                    type="button"
+                    disabled={safeCurrentPage >= totalPages}
+                    onClick={() => setCurrentPage(totalPages)}
+                    style={{
+                      padding: '5px 9px',
+                      borderRadius: '6px',
+                      border: '1px solid #cbd5e1',
+                      background: safeCurrentPage >= totalPages ? '#f8fafc' : '#ffffff',
+                      color: safeCurrentPage >= totalPages ? '#94a3b8' : '#334155',
+                      cursor: safeCurrentPage >= totalPages ? 'not-allowed' : 'pointer',
+                      fontSize: '12px',
+                      fontWeight: '600'
+                    }}
+                    title="Đến trang cuối"
+                  >
+                    »
+                  </button>
+                </div>
+              </div>
             )}
           </div>
         </>
@@ -2255,6 +2641,63 @@ export default function DashboardPage({
           onClose={() => setIsProductBulkImportOpen(false)}
           onSuccess={() => {
             setIsProductBulkImportOpen(false);
+            fetchProducts();
+          }}
+        />
+      )}
+
+      {/* SCRUM Unit Conversion Modals */}
+      {unitConfigProduct && (
+        <ProductUnitModal
+          isOpen={Boolean(unitConfigProduct)}
+          token={token}
+          product={unitConfigProduct}
+          onClose={() => setUnitConfigProduct(null)}
+          onSuccess={() => {
+            setUnitConfigProduct(null);
+            fetchProducts();
+          }}
+        />
+      )}
+
+      {stockActionState.isOpen && (
+        <StockActionModal
+          isOpen={stockActionState.isOpen}
+          token={token}
+          actionType={stockActionState.actionType}
+          product={stockActionState.product}
+          onClose={() => setStockActionState({ isOpen: false, actionType: 'receipt', product: null })}
+          onSuccess={() => {
+            setStockActionState({ isOpen: false, actionType: 'receipt', product: null });
+            fetchProducts();
+          }}
+        />
+      )}
+
+      {isOrderModalOpen && (
+        <OrderCreateModal
+          isOpen={isOrderModalOpen}
+          token={token}
+          currentUser={user}
+          products={products}
+          onClose={() => setIsOrderModalOpen(false)}
+          onSuccess={() => {
+            setIsOrderModalOpen(false);
+            fetchProducts();
+          }}
+        />
+      )}
+
+      {movingProduct && (
+        <MoveCategoryModal
+          isOpen={Boolean(movingProduct)}
+          token={token}
+          productId={movingProduct.id}
+          productName={movingProduct.name}
+          currentCategoryId={movingProduct.category_id}
+          onClose={() => setMovingProduct(null)}
+          onSuccess={() => {
+            setMovingProduct(null);
             fetchProducts();
           }}
         />

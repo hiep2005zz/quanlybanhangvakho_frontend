@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { AuditLogItem, getEntityAuditLogsApi } from '../services/api';
+import { AuditLogItem, getEntityAuditLogsApi, getUsersApi, UserAccount, getAvatarUrl } from '../services/api';
 import { AuditDetailModal } from './AuditDetailModal';
 import { formatLocalDateTime } from '../utils/dateUtils';
 
@@ -19,9 +19,22 @@ export const ProductAuditDrawer: React.FC<ProductAuditDrawerProps> = ({
   token,
 }) => {
   const [logs, setLogs] = useState<AuditLogItem[]>([]);
+  const [usersList, setUsersList] = useState<UserAccount[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedDetailLog, setSelectedDetailLog] = useState<AuditLogItem | null>(null);
+
+  useEffect(() => {
+    if (isOpen && token) {
+      getUsersApi(token)
+        .then((res) => {
+          setUsersList(res.users || []);
+        })
+        .catch(() => {
+          // ignore error loading users
+        });
+    }
+  }, [isOpen, token]);
 
   useEffect(() => {
     if (isOpen && productCode) {
@@ -176,9 +189,51 @@ export const ProductAuditDrawer: React.FC<ProductAuditDrawerProps> = ({
                     </span>
                   </div>
 
-                  <p style={{ margin: '0 0 6px', fontSize: '13px', color: '#334155' }}>
-                    Người thực hiện: <strong style={{ color: '#0f172a' }}>{log.user_name || 'Hệ thống'}</strong>
-                  </p>
+                  {(() => {
+                    const matchedUser = usersList.find(
+                      (u) =>
+                        u.id === log.user_id ||
+                        u.username.toLowerCase() === (log.user_name || '').toLowerCase() ||
+                        u.full_name === log.user_name
+                    );
+                    const userAvatar = matchedUser?.avatar_url;
+
+                    return (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: '0 0 8px' }}>
+                        <div
+                          style={{
+                            width: '28px',
+                            height: '28px',
+                            borderRadius: '50%',
+                            background: userAvatar ? '#f1f5f9' : 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
+                            color: '#ffffff',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontWeight: '700',
+                            fontSize: '12px',
+                            overflow: 'hidden',
+                            border: '1.5px solid #e2e8f0',
+                            flexShrink: 0,
+                            boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                          }}
+                        >
+                          {userAvatar ? (
+                            <img
+                              src={getAvatarUrl(userAvatar)}
+                              alt={log.user_name || 'U'}
+                              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                            />
+                          ) : (
+                            (log.user_name || 'H').charAt(0).toUpperCase()
+                          )}
+                        </div>
+                        <p style={{ margin: 0, fontSize: '13px', color: '#334155' }}>
+                          Người thực hiện: <strong style={{ color: '#0f172a' }}>{log.user_name || 'Hệ thống'}</strong>
+                        </p>
+                      </div>
+                    );
+                  })()}
 
                   {log.reason && (
                     <div style={{
@@ -216,30 +271,6 @@ export const ProductAuditDrawer: React.FC<ProductAuditDrawerProps> = ({
               ))}
             </div>
           )}
-        </div>
-
-        {/* Footer */}
-        <div style={{
-          padding: '14px 20px',
-          borderTop: '1px solid #e2e8f0',
-          display: 'flex',
-          justifyContent: 'flex-end',
-          background: '#f8fafc',
-        }}>
-          <button
-            onClick={onClose}
-            style={{
-              padding: '8px 16px',
-              borderRadius: '8px',
-              background: '#ffffff',
-              border: '1px solid #cbd5e1',
-              fontSize: '13px',
-              fontWeight: '600',
-              cursor: 'pointer',
-            }}
-          >
-            Đóng
-          </button>
         </div>
       </div>
 

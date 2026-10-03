@@ -10,6 +10,7 @@ import {
   handoverDealersApi,
   DealerItem,
   UserUpdatePayload,
+  getAvatarUrl,
 } from '../services/api';
 import { sessionManager } from '../services/sessionManager';
 import { emitStatusToast } from './StatusToast';
@@ -68,6 +69,14 @@ const ROLES_LIST = [
     title: 'Kế toán công nợ',
     badgeColor: '#f59e0b',
     description: '(Phát hành hoá đơn, ghi nhận thanh toán, đối chiếu công nợ với đại lý)',
+    costPerm: false,
+    invPerm: false,
+  },
+  {
+    role: 'purchasing',
+    title: 'Nhân viên mua hàng',
+    badgeColor: '#06b6d4',
+    description: '(Lập phiếu mua hàng, theo dõi đơn nhập từ nhà cung cấp)',
     costPerm: false,
     invPerm: false,
   },
@@ -966,7 +975,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                               width: '38px',
                               height: '38px',
                               borderRadius: '10px',
-                              background: u.badge_color ? `linear-gradient(135deg, ${u.badge_color} 0%, #2563eb 100%)` : '#2563eb',
+                              background: u.avatar_url ? '#f1f5f9' : (u.badge_color ? `linear-gradient(135deg, ${u.badge_color} 0%, #2563eb 100%)` : '#2563eb'),
                               color: '#ffffff',
                               display: 'flex',
                               alignItems: 'center',
@@ -974,6 +983,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                               fontWeight: '800',
                               fontSize: '15px',
                               flexShrink: 0,
+<<<<<<< HEAD
                               overflow: 'hidden'
                             }}>
                               {u.avatar_thumbnail_url || u.avatar_url ? (
@@ -987,6 +997,20 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                                 />
                               ) : (
                                 u.full_name ? u.full_name.charAt(0).toUpperCase() : u.username.charAt(0).toUpperCase()
+=======
+                              boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                              border: '1px solid rgba(255, 255, 255, 0.4)',
+                              overflow: 'hidden',
+                            }}>
+                              {u.avatar_url ? (
+                                <img
+                                  src={getAvatarUrl(u.avatar_url)}
+                                  alt={u.full_name || u.username}
+                                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                />
+                              ) : (
+                                (u.full_name ? u.full_name.charAt(0).toUpperCase() : u.username.charAt(0).toUpperCase())
+>>>>>>> origin/test
                               )}
                             </div>
 
@@ -1088,10 +1112,21 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                               }
 
                               const displayRoles = recognizedRoles.length > 0 ? recognizedRoles : allRoles;
+                              const fallbackRoleMap: Record<string, string> = {
+                                admin: 'Quản trị hệ thống',
+                                sales_manager: 'Quản lý kinh doanh',
+                                sales: 'Nhân viên kinh doanh',
+                                sale: 'Nhân viên kinh doanh',
+                                warehouse: 'Thủ kho',
+                                warehouse_manager: 'Quản lý kho',
+                                accountant: 'Kế toán công nợ',
+                                purchasing: 'Nhân viên mua hàng',
+                                customer: 'Đại lý',
+                              };
                               return displayRoles.map((rCode) => {
                                 const rMeta = ROLES_LIST.find((item) => item.role === rCode);
                                 const color = rMeta?.badgeColor || u.badge_color || '#2563eb';
-                                const title = rMeta?.title || rCode;
+                                const title = rMeta?.title || fallbackRoleMap[rCode?.toLowerCase()?.trim()] || rCode;
                                 return (
                                   <span
                                     key={rCode}
@@ -1611,16 +1646,17 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
               </button>
             </div>
 
-            {/* Form Edit (Ẩn thanh cuộn trực quan nhưng vẫn cuộn/di chuột mượt mà) */}
+            {/* Form Edit */}
             <form
               onSubmit={handleUpdateUser}
-              className="no-scrollbar-form"
+              className="no-scrollbar-form pb-6"
               style={{
-                padding: '20px',
+                padding: '20px 20px 24px 20px',
                 overflowY: 'auto',
                 flex: 1,
                 scrollbarWidth: 'none',
-                msOverflowStyle: 'none'
+                msOverflowStyle: 'none',
+                position: 'relative'
               }}
             >
               {editModalError && (
@@ -1922,6 +1958,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                         {/* Danh sách Dropdown Menu thả xuống */}
                         {isRoleDropdownOpen && (
                           <div
+                            className="max-h-52 overflow-y-auto"
                             style={{
                               position: 'absolute',
                               top: 'calc(100% + 4px)',
@@ -1932,9 +1969,9 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                               borderRadius: '10px',
                               boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.12), 0 8px 10px -6px rgba(0, 0, 0, 0.06)',
                               zIndex: 1000,
-                              maxHeight: '230px',
+                              maxHeight: '13rem', /* max-h-52 (208px) */
                               overflowY: 'auto',
-                              padding: '6px',
+                              padding: '8px 6px',
                               display: 'flex',
                               flexDirection: 'column',
                               gap: '4px',
@@ -1976,11 +2013,11 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                                     if (!isChecked) e.currentTarget.style.background = '#ffffff';
                                   }}
                                 >
-                                  <div>
-                                    <div style={{ fontSize: '13px', fontWeight: isChecked ? '700' : '600', color: isChecked ? r.badgeColor : '#1e293b' }}>
+                                  <div style={{ paddingTop: '1px', paddingBottom: '1px' }}>
+                                    <div style={{ fontSize: '13px', fontWeight: isChecked ? '700' : '600', color: isChecked ? r.badgeColor : '#1e293b', lineHeight: '1.4' }}>
                                       {r.title}
                                     </div>
-                                    <div style={{ fontSize: '11px', color: '#64748b', marginTop: '1px' }}>
+                                    <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px', lineHeight: '1.35' }}>
                                       {r.description}
                                     </div>
                                   </div>
@@ -2133,14 +2170,22 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
               </div>
 
               {/* Actions Footer */}
-              <div style={{
-                marginTop: '24px',
-                display: 'flex',
-                justifyContent: 'flex-end',
-                gap: '12px',
-                borderTop: '1px solid #e2e8f0',
-                paddingTop: '18px'
-              }}>
+              <div
+                className="sticky bottom-0 bg-white border-t pt-4 z-30"
+                style={{
+                  position: 'sticky',
+                  bottom: 0,
+                  background: '#ffffff',
+                  borderTop: '1px solid #e2e8f0',
+                  paddingTop: '16px',
+                  paddingBottom: '4px',
+                  marginTop: '24px',
+                  display: 'flex',
+                  justifyContent: 'flex-end',
+                  gap: '12px',
+                  zIndex: 30,
+                }}
+              >
                 <button
                   type="button"
                   onClick={() => setUserToEdit(null)}
@@ -2256,7 +2301,9 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
               textAlign: 'left',
               lineHeight: '1.6'
             }}>
-              <div>• Vai trò: <strong style={{ color: userToDelete.badge_color }}>{userToDelete.role_title}</strong></div>
+              <div>• Vai trò: <strong style={{ color: userToDelete.badge_color }}>
+                {ROLES_LIST.find((r) => r.role === userToDelete.role)?.title || (userToDelete.role_title && userToDelete.role_title !== 'sales' && userToDelete.role_title !== 'warehouse' && userToDelete.role_title !== 'admin' && userToDelete.role_title !== 'purchasing' && userToDelete.role_title !== 'customer' && userToDelete.role_title !== 'accountant' ? userToDelete.role_title : undefined) || 'Nhân viên'}
+              </strong></div>
               <div>• Địa bàn: <strong style={{ color: '#0f172a' }}>{userToDelete.branch}</strong></div>
               <div style={{ color: '#dc2626', marginTop: '4px', fontWeight: '500' }}>
                 ⚠️ Dữ liệu tài khoản này sẽ bị xóa khỏi cơ sở dữ liệu và không thể hoàn tác.
