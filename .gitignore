@@ -5,4 +5,8 @@ dist/
 .env
 .env.local
 *.log
+<<<<<<< HEAD
 >>>>>>> 0954e7f7435b235497ee8cde5325e3931623e518
+=======
+*.db
+>>>>>>> 21c17fc7cd5bccd60ff25558213bed4b31a57d57
