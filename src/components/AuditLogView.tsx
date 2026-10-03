@@ -4,12 +4,11 @@ import {
   AuditLogListResponse,
   getAuditLogsApi,
   getUsersApi,
-  deleteAuditLogApi,
-  clearAllAuditLogsApi,
   UserAccount,
   User,
+  getAvatarUrl,
 } from '../services/api';
-import { AuditDetailModal } from './AuditDetailModal';
+import { AuditDetailModal, getActionLabel, getEntityLabel, formatEntityIdDisplay } from './AuditDetailModal';
 import { formatLocalDateTime } from '../utils/dateUtils';
 
 interface AuditLogViewProps {
@@ -66,12 +65,6 @@ export const AuditLogView: React.FC<AuditLogViewProps> = ({ currentUser: _curren
 
   // Ref để lưu debounce timer
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Modal xác nhận xóa
-  const [logToDelete, setLogToDelete] = useState<AuditLogItem | null>(null);
-  const [showClearAllConfirm, setShowClearAllConfirm] = useState(false);
-  const [actionSuccessMsg, setActionSuccessMsg] = useState<string | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
 
   // Fetch audit logs theo appliedFilters
   const executeFetchLogs = useCallback(
@@ -158,85 +151,49 @@ export const AuditLogView: React.FC<AuditLogViewProps> = ({ currentUser: _curren
     executeFetchLogs(1, newFilters);
   };
 
-  const handleResetFilter = () => {
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
-    }
-    setSelectedUserId('ALL');
-    setSelectedEntityType('ALL');
-    setEntityIdSearch('');
-    setFromDate('');
-    setToDate('');
-    const defaultFilters = {
-      user_id: 'ALL',
-      entity_type: 'ALL',
-      entity_id: '',
-      from_date: '',
-      to_date: '',
-    };
-    setAppliedFilters(defaultFilters);
-    setPage(1);
-    executeFetchLogs(1, defaultFilters);
-  };
-
-  // Xóa 1 bản ghi nhật ký
-  const handleConfirmDeleteLog = async () => {
-    if (!logToDelete) return;
-    setIsDeleting(true);
-    try {
-      await deleteAuditLogApi(token, logToDelete.id);
-      setLogToDelete(null);
-      setActionSuccessMsg(`Đã xóa thành công bản ghi nhật ký #${logToDelete.id}`);
-      setTimeout(() => setActionSuccessMsg(null), 3000);
-      executeFetchLogs(page, appliedFilters);
-    } catch (err: any) {
-      setError(err.message || 'Lỗi khi xóa bản ghi nhật ký.');
-    } finally {
-      setIsDeleting(false);
-    }
-  };
-
-  // Xóa sạch toàn bộ nhật ký
-  const handleConfirmClearAll = async () => {
-    setIsDeleting(true);
-    try {
-      await clearAllAuditLogsApi(token);
-      setShowClearAllConfirm(false);
-      setActionSuccessMsg('Đã xóa sạch toàn bộ bản ghi nhật ký kiểm toán.');
-      setTimeout(() => setActionSuccessMsg(null), 3000);
-      executeFetchLogs(1, appliedFilters);
-    } catch (err: any) {
-      setError(err.message || 'Lỗi khi dọn sạch nhật ký.');
-    } finally {
-      setIsDeleting(false);
-    }
-  };
 
   const renderActionBadge = (actionType: string) => {
     let color = '#2563eb';
     let bg = '#eff6ff';
-    let text = actionType;
+    const text = getActionLabel(actionType);
 
     switch (actionType) {
       case 'INVENTORY_ADJUST':
         color = '#0284c7';
         bg = '#e0f2fe';
-        text = 'Điều chỉnh tồn kho';
         break;
       case 'PRICE_CHANGE':
         color = '#d97706';
         bg = '#fef3c7';
-        text = 'Thay đổi giá';
         break;
       case 'DEBT_LIMIT_CHANGE':
         color = '#7c3aed';
         bg = '#f5f3ff';
-        text = 'Hạn mức công nợ';
         break;
       case 'INVOICE_EDIT':
+      case 'INVOICE_CANCEL':
         color = '#dc2626';
         bg = '#fef2f2';
-        text = 'Sửa / Hủy hóa đơn';
+        break;
+      case 'STOCK_RECEIPT':
+      case 'PRODUCT_BULK_IMPORT':
+      case 'USER_BULK_IMPORT':
+        color = '#059669';
+        bg = '#ecfdf5';
+        break;
+      case 'STOCK_ISSUE':
+        color = '#ea580c';
+        bg = '#fff7ed';
+        break;
+      case 'USER_CREATE':
+      case 'USER_UNLOCK':
+        color = '#16a34a';
+        bg = '#f0fdf4';
+        break;
+      case 'USER_LOCK':
+      case 'USER_DELETE':
+        color = '#e11d48';
+        bg = '#fff1f2';
         break;
       default:
         break;
@@ -262,13 +219,8 @@ export const AuditLogView: React.FC<AuditLogViewProps> = ({ currentUser: _curren
   };
 
   const renderEntityBadge = (entityType: string, entityId: string) => {
-    let label = entityType;
-    if (entityType === 'Inventory') label = 'Tồn kho';
-    else if (entityType === 'ProductPrice') label = 'Giá sản phẩm';
-    else if (entityType === 'Product') label = 'Hàng hóa / Kho';
-    else if (entityType === 'CustomerDebt') label = 'Hạn mức công nợ';
-    else if (entityType === 'Invoice') label = 'Hóa đơn';
-    else if (entityType === 'Order') label = 'Đơn hàng';
+    const label = getEntityLabel(entityType);
+    const displayId = formatEntityIdDisplay(entityId);
 
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
@@ -280,7 +232,7 @@ export const AuditLogView: React.FC<AuditLogViewProps> = ({ currentUser: _curren
           color: '#0f172a',
           fontSize: '12.5px',
         }}>
-          {entityId}
+          {displayId}
         </strong>
       </div>
     );
@@ -290,6 +242,16 @@ export const AuditLogView: React.FC<AuditLogViewProps> = ({ currentUser: _curren
     try {
       const oldObj = log.old_values ? JSON.parse(log.old_values) : null;
       const newObj = log.new_values ? JSON.parse(log.new_values) : null;
+
+      if (log.action_type === 'PRODUCT_BULK_IMPORT' || log.action_type === 'USER_BULK_IMPORT') {
+        const parts: string[] = [];
+        if (newObj?.created_count !== undefined) parts.push(`Tạo mới: ${newObj.created_count}`);
+        if (newObj?.updated_count !== undefined) parts.push(`Cập nhật: ${newObj.updated_count}`);
+        if (newObj?.failed_count !== undefined && newObj.failed_count > 0) parts.push(`Lỗi: ${newObj.failed_count}`);
+        if (parts.length > 0) {
+          return parts.join(' | ');
+        }
+      }
 
       if (log.action_type === 'INVENTORY_ADJUST') {
         const oldStock = oldObj?.stock;
@@ -450,62 +412,8 @@ export const AuditLogView: React.FC<AuditLogViewProps> = ({ currentUser: _curren
           }}>
             Tổng bản ghi: <strong style={{ color: '#2563eb' }}>{total.toLocaleString()}</strong>
           </div>
-
-          {total > 0 && (
-            <button
-              onClick={() => setShowClearAllConfirm(true)}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '7px 14px',
-                borderRadius: '8px',
-                background: '#fef2f2',
-                border: '1px solid #fecaca',
-                color: '#dc2626',
-                fontSize: '13px',
-                fontWeight: '600',
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = '#fee2e2';
-                e.currentTarget.style.borderColor = '#fca5a5';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = '#fef2f2';
-                e.currentTarget.style.borderColor = '#fecaca';
-              }}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                <polyline points="3 6 5 6 21 6" />
-                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-              </svg>
-              <span>Xóa tất cả nhật ký</span>
-            </button>
-          )}
         </div>
       </div>
-
-      {/* Thông báo thao tác thành công */}
-      {actionSuccessMsg && (
-        <div style={{
-          background: '#dcfce7',
-          border: '1px solid #86efac',
-          color: '#15803d',
-          padding: '12px 18px',
-          borderRadius: '10px',
-          marginBottom: '16px',
-          fontSize: '13.5px',
-          fontWeight: '600',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-        }}>
-          <span>✓</span>
-          <span>{actionSuccessMsg}</span>
-        </div>
-      )}
 
       {/* Filter Toolbar */}
       <div style={{
@@ -638,11 +546,11 @@ export const AuditLogView: React.FC<AuditLogViewProps> = ({ currentUser: _curren
           </div>
 
           {/* Action buttons */}
-          <div style={{ display: 'flex', gap: '8px' }}>
+          <div>
             <button
               type="submit"
               style={{
-                flex: 1,
+                width: '100%',
                 padding: '10px 16px',
                 borderRadius: '8px',
                 background: '#2563eb',
@@ -655,6 +563,13 @@ export const AuditLogView: React.FC<AuditLogViewProps> = ({ currentUser: _curren
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: '6px',
+                transition: 'all 0.15s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = '#1d4ed8';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = '#2563eb';
               }}
             >
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
@@ -662,23 +577,6 @@ export const AuditLogView: React.FC<AuditLogViewProps> = ({ currentUser: _curren
                 <line x1="21" y1="21" x2="16.65" y2="16.65" />
               </svg>
               <span>Lọc</span>
-            </button>
-            <button
-              type="button"
-              onClick={handleResetFilter}
-              style={{
-                padding: '10px 14px',
-                borderRadius: '8px',
-                background: '#f1f5f9',
-                color: '#475569',
-                border: '1px solid #cbd5e1',
-                fontWeight: '600',
-                fontSize: '13.5px',
-                cursor: 'pointer',
-              }}
-              title="Đặt lại bộ lọc"
-            >
-              Xóa
             </button>
           </div>
         </form>
@@ -744,25 +642,42 @@ export const AuditLogView: React.FC<AuditLogViewProps> = ({ currentUser: _curren
 
                     {/* Người thực hiện */}
                     <td style={{ padding: '14px 18px', whiteSpace: 'nowrap' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <div style={{
-                          width: '28px',
-                          height: '28px',
-                          borderRadius: '8px',
-                          background: '#eff6ff',
-                          color: '#2563eb',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontWeight: '700',
-                          fontSize: '12px',
-                        }}>
-                          {(log.user_name || 'U').charAt(0).toUpperCase()}
-                        </div>
-                        <strong style={{ color: '#0f172a', fontWeight: '600' }}>
-                          {log.user_name || 'Hệ thống'}
-                        </strong>
-                      </div>
+                      {(() => {
+                        const matchedUser = usersList.find((u) => u.id === log.user_id || u.username.toLowerCase() === (log.user_name || '').toLowerCase() || u.full_name === log.user_name);
+                        const userAvatar = matchedUser?.avatar_url;
+                        return (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <div style={{
+                              width: '28px',
+                              height: '28px',
+                              borderRadius: '8px',
+                              background: userAvatar ? '#f1f5f9' : '#eff6ff',
+                              color: '#2563eb',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontWeight: '700',
+                              fontSize: '12px',
+                              overflow: 'hidden',
+                              border: userAvatar ? '1px solid #e2e8f0' : 'none',
+                              flexShrink: 0,
+                            }}>
+                              {userAvatar ? (
+                                <img
+                                  src={getAvatarUrl(userAvatar)}
+                                  alt={log.user_name || 'U'}
+                                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                />
+                              ) : (
+                                (log.user_name || 'U').charAt(0).toUpperCase()
+                              )}
+                            </div>
+                            <strong style={{ color: '#0f172a', fontWeight: '600' }}>
+                              {log.user_name || 'Hệ thống'}
+                            </strong>
+                          </div>
+                        );
+                      })()}
                     </td>
 
                     {/* Thao tác */}
@@ -796,70 +711,35 @@ export const AuditLogView: React.FC<AuditLogViewProps> = ({ currentUser: _curren
                       )}
                     </td>
 
-                    {/* Nút Xem chi tiết diff & Xóa */}
+                    {/* Nút Xem chi tiết diff */}
                     <td style={{ padding: '14px 18px', textAlign: 'center', whiteSpace: 'nowrap' }}>
-                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                        <button
-                          onClick={() => setSelectedDetailLog(log)}
-                          style={{
-                            background: '#eff6ff',
-                            border: '1px solid #bfdbfe',
-                            color: '#1d4ed8',
-                            padding: '6px 12px',
-                            borderRadius: '8px',
-                            fontSize: '12px',
-                            fontWeight: '600',
-                            cursor: 'pointer',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            transition: 'all 0.15s ease',
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.background = '#dbeafe';
-                            e.currentTarget.style.borderColor = '#93c5fd';
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.background = '#eff6ff';
-                            e.currentTarget.style.borderColor = '#bfdbfe';
-                          }}
-                        >
-                          Chi tiết
-                        </button>
-                        <button
-                          onClick={() => setLogToDelete(log)}
-                          title="Xóa bản ghi nhật ký này"
-                          style={{
-                            background: '#fff1f2',
-                            border: '1px solid #fecdd3',
-                            color: '#e11d48',
-                            padding: '6px 10px',
-                            borderRadius: '8px',
-                            fontSize: '12px',
-                            fontWeight: '600',
-                            cursor: 'pointer',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '4px',
-                            transition: 'all 0.15s ease',
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.background = '#ffe4e6';
-                            e.currentTarget.style.borderColor = '#fda4af';
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.background = '#fff1f2';
-                            e.currentTarget.style.borderColor = '#fecdd3';
-                          }}
-                        >
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                            <polyline points="3 6 5 6 21 6" />
-                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                          </svg>
-                          <span>Xóa</span>
-                        </button>
-                      </div>
+                      <button
+                        onClick={() => setSelectedDetailLog(log)}
+                        style={{
+                          background: '#eff6ff',
+                          border: '1px solid #bfdbfe',
+                          color: '#1d4ed8',
+                          padding: '6px 14px',
+                          borderRadius: '8px',
+                          fontSize: '12px',
+                          fontWeight: '600',
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          transition: 'all 0.15s ease',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = '#dbeafe';
+                          e.currentTarget.style.borderColor = '#93c5fd';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = '#eff6ff';
+                          e.currentTarget.style.borderColor = '#bfdbfe';
+                        }}
+                      >
+                        Chi tiết
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -921,179 +801,6 @@ export const AuditLogView: React.FC<AuditLogViewProps> = ({ currentUser: _curren
 
       {/* Modal chi tiết Diff Before/After */}
       <AuditDetailModal log={selectedDetailLog} onClose={() => setSelectedDetailLog(null)} />
-
-      {/* Modal xác nhận xóa 1 bản ghi */}
-      {logToDelete && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'rgba(15, 23, 42, 0.6)',
-          backdropFilter: 'blur(4px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 9999,
-          padding: '20px',
-        }}>
-          <div style={{
-            background: '#ffffff',
-            borderRadius: '16px',
-            maxWidth: '440px',
-            width: '100%',
-            padding: '24px',
-            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
-          }}>
-            <div style={{
-              width: '44px',
-              height: '44px',
-              borderRadius: '12px',
-              background: '#fee2e2',
-              color: '#dc2626',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              marginBottom: '16px',
-            }}>
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                <polyline points="3 6 5 6 21 6" />
-                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-              </svg>
-            </div>
-            <h3 style={{ margin: '0 0 8px', fontSize: '18px', fontWeight: '700', color: '#0f172a' }}>
-              Xóa bản ghi nhật ký?
-            </h3>
-            <p style={{ margin: '0 0 20px', fontSize: '13.5px', color: '#475569', lineHeight: '1.5' }}>
-              Bạn có chắc chắn muốn xóa bản ghi nhật ký #{logToDelete.id} ({logToDelete.action_type} - {logToDelete.entity_id})? Thao tác này không thể hoàn tác.
-            </p>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-              <button
-                type="button"
-                onClick={() => setLogToDelete(null)}
-                disabled={isDeleting}
-                style={{
-                  padding: '9px 16px',
-                  borderRadius: '8px',
-                  border: '1px solid #cbd5e1',
-                  background: '#ffffff',
-                  color: '#475569',
-                  fontSize: '13px',
-                  fontWeight: '600',
-                  cursor: isDeleting ? 'not-allowed' : 'pointer',
-                }}
-              >
-                Hủy bỏ
-              </button>
-              <button
-                type="button"
-                onClick={handleConfirmDeleteLog}
-                disabled={isDeleting}
-                style={{
-                  padding: '9px 16px',
-                  borderRadius: '8px',
-                  border: 'none',
-                  background: '#dc2626',
-                  color: '#ffffff',
-                  fontSize: '13px',
-                  fontWeight: '600',
-                  cursor: isDeleting ? 'not-allowed' : 'pointer',
-                }}
-              >
-                {isDeleting ? 'Đang xóa...' : 'Xác nhận xóa'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal xác nhận xóa toàn bộ nhật ký */}
-      {showClearAllConfirm && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'rgba(15, 23, 42, 0.6)',
-          backdropFilter: 'blur(4px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 9999,
-          padding: '20px',
-        }}>
-          <div style={{
-            background: '#ffffff',
-            borderRadius: '16px',
-            maxWidth: '460px',
-            width: '100%',
-            padding: '24px',
-            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
-          }}>
-            <div style={{
-              width: '44px',
-              height: '44px',
-              borderRadius: '12px',
-              background: '#fef2f2',
-              color: '#dc2626',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              marginBottom: '16px',
-            }}>
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-                <line x1="12" y1="9" x2="12" y2="13" />
-                <line x1="12" y1="17" x2="12.01" y2="17" />
-              </svg>
-            </div>
-            <h3 style={{ margin: '0 0 8px', fontSize: '18px', fontWeight: '700', color: '#0f172a' }}>
-              Xóa tất cả nhật ký kiểm toán?
-            </h3>
-            <p style={{ margin: '0 0 20px', fontSize: '13.5px', color: '#475569', lineHeight: '1.5' }}>
-              Hành động này sẽ <strong>xóa vĩnh viễn tất cả {total} bản ghi nhật ký thao tác</strong> hiện có trong cơ sở dữ liệu. Bạn có chắc chắn muốn thực hiện?
-            </p>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-              <button
-                type="button"
-                onClick={() => setShowClearAllConfirm(false)}
-                disabled={isDeleting}
-                style={{
-                  padding: '9px 16px',
-                  borderRadius: '8px',
-                  border: '1px solid #cbd5e1',
-                  background: '#ffffff',
-                  color: '#475569',
-                  fontSize: '13px',
-                  fontWeight: '600',
-                  cursor: isDeleting ? 'not-allowed' : 'pointer',
-                }}
-              >
-                Hủy bỏ
-              </button>
-              <button
-                type="button"
-                onClick={handleConfirmClearAll}
-                disabled={isDeleting}
-                style={{
-                  padding: '9px 16px',
-                  borderRadius: '8px',
-                  border: 'none',
-                  background: '#dc2626',
-                  color: '#ffffff',
-                  fontSize: '13px',
-                  fontWeight: '600',
-                  cursor: isDeleting ? 'not-allowed' : 'pointer',
-                }}
-              >
-                {isDeleting ? 'Đang xóa sạch...' : 'Xóa toàn bộ'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </main>
   );
 };
