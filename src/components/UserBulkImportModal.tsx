@@ -130,8 +130,8 @@ export const UserBulkImportModal: React.FC<UserBulkImportModalProps> = ({ token,
               </div>
               <h3 style={{ fontSize: '20px', fontWeight: '700', color: '#0f172a', marginBottom: '8px' }}>Nhập dữ liệu hoàn tất!</h3>
               <p style={{ color: '#475569', marginBottom: '24px' }}>
-                Tổng số dòng xử lý: <strong>{summary?.total}</strong><br/>
-                Thành công: <strong style={{ color: '#16a34a' }}>{summary?.success}</strong><br/>
+                Tổng số dòng xử lý: <strong>{summary?.total}</strong><br />
+                Thành công: <strong style={{ color: '#16a34a' }}>{summary?.success}</strong><br />
                 Thất bại: <strong style={{ color: '#dc2626' }}>{summary?.failed}</strong>
               </p>
               {summary && summary.failed > 0 && (
@@ -155,8 +155,8 @@ export const UserBulkImportModal: React.FC<UserBulkImportModalProps> = ({ token,
                   <div>
                     <h4 style={{ margin: '0 0 8px 0', color: '#334155' }}>Hướng dẫn nhập dữ liệu</h4>
                     <p style={{ margin: 0, color: '#64748b', fontSize: '14px' }}>
-                      1. Tải file mẫu về máy và điền dữ liệu.<br/>
-                      2. Tải file đã điền lên để xem trước.<br/>
+                      1. Tải file mẫu về máy và điền dữ liệu.<br />
+                      2. Tải file đã điền lên để xem trước.<br />
                       3. Các dòng hợp lệ sẽ được thêm, các dòng lỗi bị bỏ qua.
                     </p>
                   </div>
