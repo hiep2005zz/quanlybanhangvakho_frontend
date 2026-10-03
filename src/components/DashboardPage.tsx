@@ -9,6 +9,7 @@ import MoveCategoryModal from './MoveCategoryModal';
 import { StatusToastHost, emitStatusToast } from './StatusToast';
 import { AccessDeniedView } from './AccessDeniedView';
 import SupplierManagementView from './SupplierManagementView';
+import { PriceBookManagementView } from './PriceBookManagementView';
 import { AuditLogView } from './AuditLogView';
 import { ProductAuditDrawer } from './ProductAuditDrawer';
 import { ProfileView } from './ProfileView';
@@ -59,8 +60,9 @@ export default function DashboardPage({
   const canConfigUnit = isAdmin || officialRoles.some((r) => ['admin', 'warehouse_manager'].includes(r));
 
   // 2. Khởi tạo State với Clean URL (/users, /audit-logs, /categories, /suppliers, /profile)
-  const [activeTab, setActiveTabState] = useState<'inventory' | 'users' | 'categories' | 'audit-logs' | 'profile' | 'suppliers'>(() => {
+  const [activeTab, setActiveTabState] = useState<'inventory' | 'users' | 'categories' | 'audit-logs' | 'profile' | 'suppliers' | 'price-books'>(() => {
     const pathname = window.location.pathname.toLowerCase();
+    const isPriceBooksPath = pathname === '/price-books';
     const isUsersPath = pathname === '/users' || pathname.startsWith('/users/') || pathname === '/admin' || pathname.startsWith('/admin/');
     const isCategoriesPath = pathname === '/categories';
     const isAuditPath = pathname === '/audit-logs' || pathname.startsWith('/audit-logs/');
@@ -74,6 +76,7 @@ export default function DashboardPage({
     if (pathname === '/suppliers' || pathname.startsWith('/suppliers/')) {
       return 'suppliers';
     }
+    if (isPriceBooksPath) return 'price-books';
     if (isProfilePath || oldTabVal === 'profile') {
       if (hasOldTabParam || pathname !== '/profile') {
         try {
@@ -116,7 +119,7 @@ export default function DashboardPage({
   });
 
   // 3. Chuyển đổi Route Clean URL
-  const setActiveTab = (tab: 'inventory' | 'users' | 'categories' | 'audit-logs' | 'profile' | 'suppliers') => {
+  const setActiveTab = (tab: 'inventory' | 'users' | 'categories' | 'audit-logs' | 'profile' | 'suppliers' | 'price-books') => {
     if (tab === 'profile') {
       setActiveTabState('profile');
       try {
@@ -154,6 +157,11 @@ export default function DashboardPage({
       } catch {
         // ignore
       }
+    } else if (tab === 'price-books') {
+      setActiveTabState('price-books');
+      try {
+        window.history.pushState({}, '', '/price-books');
+      } catch {}
     } else if (tab === 'suppliers') {
       setActiveTabState('suppliers');
       try {
@@ -187,6 +195,7 @@ export default function DashboardPage({
   useEffect(() => {
     const syncFromUrl = () => {
       const pathname = window.location.pathname.toLowerCase();
+    const isPriceBooksPath = pathname === '/price-books';
       const isUsersPath = pathname === '/users' || pathname.startsWith('/users/') || pathname === '/admin' || pathname.startsWith('/admin/');
       const isAuditPath = pathname === '/audit-logs' || pathname.startsWith('/audit-logs/');
       const isProfilePath = pathname === '/profile' || pathname.startsWith('/profile/');
@@ -197,6 +206,7 @@ export default function DashboardPage({
         setActiveTabState('suppliers');
         return;
       }
+      if (isPriceBooksPath) { setActiveTabState('price-books'); return; }
 
       if (isProfilePath || tabParam === 'profile') {
         if (pathname !== '/profile' || tabParam) {
@@ -989,6 +999,25 @@ export default function DashboardPage({
             </div>
           )}
 
+
+          {/* Bảng giá */}
+          {canManageCategories && (
+            <div
+              className={`sidebar-menu-item ${activeTab === 'price-books' ? 'active' : ''}`}
+              id="btn-sidebar-price-books"
+              onClick={() => {
+                setActiveTab('price-books');
+              }}
+            >
+              <div className="sidebar-menu-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/>
+                </svg>
+              </div>
+              <span style={{ fontWeight: activeTab === 'price-books' ? '700' : '500', fontSize: '14.5px' }}>Bảng giá</span>
+            </div>
+          )}
+
           {/* Hồ sơ cá nhân */}
           <div
             className={`sidebar-menu-item ${activeTab === 'profile' ? 'active' : ''}`}
@@ -1151,6 +1180,18 @@ export default function DashboardPage({
           <AccessDeniedView
             currentUser={user}
             requiredPermission="Quản lý nhà cung cấp (Thủ kho / Quản lý kho / Quản trị)"
+            onBackToWorkflow={() => setActiveTab('inventory')}
+            onLogout={onLogout}
+          />
+        )
+
+      ) : activeTab === 'price-books' ? (
+        canManageCategories ? (
+          <PriceBookManagementView token={token} />
+        ) : (
+          <AccessDeniedView
+            currentUser={user}
+            requiredPermission="Quản lý bảng giá"
             onBackToWorkflow={() => setActiveTab('inventory')}
             onLogout={onLogout}
           />
