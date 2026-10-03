@@ -57,10 +57,6 @@ export default function DashboardPage({
     user.role === 'accountant' ||
     Boolean(user.permissions && (user.permissions.includes('discount:read') || user.permissions.includes('discount:manage')));
 
-<<<<<<< HEAD
-  // 2. Khởi tạo State với Clean URL (/users, /audit-logs, /discounts)
-  const [activeTab, setActiveTabState] = useState<'inventory' | 'users' | 'audit-logs' | 'discounts'>(() => {
-=======
   // Quyền quản lý nhà cung cấp
   const SUPPLIER_ROLES = ['admin', 'warehouse', 'warehouse_manager'];
   const canManageSuppliers = officialRoles.some((r) => SUPPLIER_ROLES.includes(r));
@@ -79,9 +75,8 @@ export default function DashboardPage({
   // Quyền Cấu hình ĐVT quy đổi (Chỉ Quản trị hệ thống và Quản lý kho)
   const canConfigUnit = isAdmin || officialRoles.some((r) => ['admin', 'warehouse_manager'].includes(r));
 
-  // 2. Khởi tạo State với Clean URL (/users, /audit-logs, /categories, /suppliers, /profile, /dealers)
-  const [activeTab, setActiveTabState] = useState<'inventory' | 'users' | 'categories' | 'audit-logs' | 'profile' | 'suppliers' | 'dealers'>(() => {
->>>>>>> origin/test
+  // 2. Khởi tạo State với Clean URL
+  const [activeTab, setActiveTabState] = useState<'inventory' | 'users' | 'categories' | 'audit-logs' | 'profile' | 'suppliers' | 'dealers' | 'discounts'>(() => {
     const pathname = window.location.pathname.toLowerCase();
     const isUsersPath = pathname === '/users' || pathname.startsWith('/users/') || pathname === '/admin' || pathname.startsWith('/admin/');
     const isCategoriesPath = pathname === '/categories';
