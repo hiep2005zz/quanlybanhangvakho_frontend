@@ -18,6 +18,7 @@ import DealerSearchView from './DealerSearchView';
 import { ProductUnitModal } from './ProductUnitModal';
 import { StockActionModal } from './StockActionModal';
 import { OrderCreateModal } from './OrderCreateModal';
+import { ProductDrawer } from './ProductDrawer';
 import OrdersView from './OrdersView';
 import './dashboard.css';
 import { hasPermission, Permissions } from '../hooks/usePermission';
@@ -74,11 +75,9 @@ export default function DashboardPage({
 
 
   // 2. Khởi tạo State với Clean URL (/users, /audit-logs, /categories, /suppliers, /profile, /dealers)
-  const [activeTab, setActiveTabState] = useState<'inventory' | 'users' | 'categories' | 'audit-logs' | 'profile' | 'suppliers' | 'dealers'>(() => {
+  const [activeTab, setActiveTabState] = useState<'inventory' | 'orders' | 'users' | 'categories' | 'audit-logs' | 'profile' | 'suppliers' | 'dealers'>(() => {
 
     const pathname = window.location.pathname.toLowerCase();
-    const params = new URLSearchParams(window.location.search);
-    const legacyTab = (params.get('tab') || params.get('view') || '').toLowerCase();
     const isUsersPath = pathname === '/users' || pathname.startsWith('/users/') || pathname === '/admin' || pathname.startsWith('/admin/');
     const isCategoriesPath = pathname === '/categories';
     const isAuditPath = pathname === '/audit-logs' || pathname.startsWith('/audit-logs/');
@@ -92,6 +91,11 @@ export default function DashboardPage({
 
     if (pathname === '/suppliers' || pathname.startsWith('/suppliers/')) {
       return 'suppliers';
+    }
+    if (isOrdersPath || oldTabVal === 'orders') {
+      if (canReadOrders) return 'orders';
+      window.history.replaceState({}, '', '/');
+      return 'inventory';
     }
     if (isDealersPath || oldTabVal === 'dealers') {
       if (hasOldTabParam || pathname !== '/dealers') {
@@ -142,11 +146,15 @@ export default function DashboardPage({
       }
       return 'users';
     }
-    if (destination && !allowed && (pathname !== '/' || params.size)) window.history.replaceState({}, '', '/');
     return 'inventory';
   });
   // 3. Chuyển đổi Route Clean URL
-  const setActiveTab = (tab: 'inventory' | 'users' | 'categories' | 'audit-logs' | 'profile' | 'suppliers' | 'dealers') => {
+  const setActiveTab = (tab: 'inventory' | 'orders' | 'users' | 'categories' | 'audit-logs' | 'profile' | 'suppliers' | 'dealers') => {
+    if (tab === 'orders' && !canReadOrders) {
+      setActiveTabState('inventory');
+      window.history.replaceState({}, '', '/');
+      return;
+    }
     if (tab === 'profile') {
       setActiveTabState('profile');
       try {
@@ -212,8 +220,6 @@ export default function DashboardPage({
       window.history.replaceState({}, '', '/');
       return;
     }
-    setActiveTabState(tab);
-    window.history.pushState({}, '', tab === 'inventory' ? '/' : `/${tab}`);
   };
 
   useEffect(() => {
@@ -234,16 +240,25 @@ export default function DashboardPage({
     const syncFromUrl = () => {
       const pathname = window.location.pathname.toLowerCase();
       const params = new URLSearchParams(window.location.search);
-      const legacyTab = (params.get('tab') || params.get('view') || '').toLowerCase();
       const isUsersPath = pathname === '/users' || pathname.startsWith('/users/') || pathname === '/admin' || pathname.startsWith('/admin/');
       const isAuditPath = pathname === '/audit-logs' || pathname.startsWith('/audit-logs/');
       const isOrdersPath = pathname === '/orders' || pathname.startsWith('/orders/');
       const isProfilePath = pathname === '/profile' || pathname.startsWith('/profile/');
-      const params = new URLSearchParams(window.location.search);
       const tabParam = (params.get('tab') || params.get('view') || '').toLowerCase();
 
       if (pathname === '/suppliers' || pathname.startsWith('/suppliers/')) {
         setActiveTabState('suppliers');
+        return;
+      }
+
+      if (isOrdersPath || tabParam === 'orders') {
+        if (canReadOrders) {
+          if (pathname !== '/orders' || tabParam) window.history.replaceState({}, '', '/orders');
+          setActiveTabState('orders');
+        } else {
+          setActiveTabState('inventory');
+          window.history.replaceState({}, '', '/');
+        }
         return;
       }
 
@@ -295,9 +310,6 @@ export default function DashboardPage({
           window.history.replaceState({}, '', '/');
           return;
         }
-        const route = `/${destination}`;
-        if (pathname !== route || params.size) window.history.replaceState({}, '', route);
-        setActiveTabState(destination);
       } else {
         setActiveTabState('inventory');
         if (pathname !== '/' || params.size) window.history.replaceState({}, '', '/');
