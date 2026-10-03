@@ -380,10 +380,6 @@ export default function DealerSearchView({
                                 className="dealer-back-btn"
                                 title="Quay lại Kho hàng"
                             >
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                                    <line x1="19" y1="12" x2="5" y2="12" />
-                                    <polyline points="12 19 5 12 12 5" />
-                                </svg>
                                 <span>Về kho hàng</span>
                             </button>
                         )}
@@ -403,7 +399,6 @@ export default function DealerSearchView({
                                 className={`dealer-my-route-toggle ${onlyMyDealers ? 'active' : ''}`}
                                 title="Lọc nhanh danh sách đại lý thuộc tuyến do bạn phụ trách"
                             >
-                                <span style={{ fontSize: '15px' }}>📍</span>
                                 <span>{onlyMyDealers ? 'Đang lọc: Tuyến của tôi' : 'Xem tuyến của tôi'}</span>
                             </button>
                         )}
@@ -418,7 +413,6 @@ export default function DealerSearchView({
                                     : 'Bạn không có quyền thực hiện chức năng này (Yêu cầu quyền Quản trị viên hoặc Bộ phận Kinh doanh)'
                             }
                         >
-                            <span>{canAddDealer ? '➕' : '🔒'}</span>
                             <span>Thêm đại lý & khách hàng</span>
                         </button>
                     </div>
@@ -428,7 +422,6 @@ export default function DealerSearchView({
             {successBanner && (
                 <div className="dealer-success-banner">
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span>✅</span>
                         <span>{successBanner}</span>
                     </div>
                     <button
@@ -553,7 +546,7 @@ export default function DealerSearchView({
                         onClick={() => handleSearch()}
                         disabled={loading}
                     >
-                        {loading ? 'Đang tìm...' : '🔍 Tìm kiếm'}
+                        {loading ? 'Đang tìm...' : 'Tìm kiếm'}
                     </button>
 
                     <button
@@ -581,7 +574,7 @@ export default function DealerSearchView({
                     </div>
                     {dealers.length > 0 && (
                         <span className="dealer-hint-text">
-                            💡 Bấm số điện thoại hoặc nút Gọi để liên hệ trực tiếp
+                            Bấm số điện thoại hoặc nút Gọi để liên hệ trực tiếp
                         </span>
                     )}
                 </div>
@@ -631,7 +624,7 @@ export default function DealerSearchView({
                                                     className="dealer-phone-link"
                                                     title="Bấm để gọi ngay"
                                                 >
-                                                    📞 {dealer.phone}
+                                                    {dealer.phone}
                                                 </a>
                                             ) : (
                                                 <span className="text-muted">-</span>
@@ -648,7 +641,7 @@ export default function DealerSearchView({
                                                         className="dealer-map-link"
                                                         title="Xem trên Google Maps"
                                                     >
-                                                        📍 Chỉ đường
+                                                        Chỉ đường
                                                     </a>
                                                 )}
                                             </div>
@@ -657,7 +650,7 @@ export default function DealerSearchView({
                                         <td>
                                             {dealer.assigned_sale_name ? (
                                                 <span className="dealer-sale-badge">
-                                                    👤 {dealer.assigned_sale_name}
+                                                    {dealer.assigned_sale_name}
                                                 </span>
                                             ) : (
                                                 '-'
@@ -724,7 +717,7 @@ export default function DealerSearchView({
                                     {dealer.assigned_sale_name && (
                                         <div className="dealer-card-meta">
                                             <span className="meta-label">Phụ trách:</span>
-                                            <span>👤 {dealer.assigned_sale_name}</span>
+                                            <span>{dealer.assigned_sale_name}</span>
                                         </div>
                                     )}
 
@@ -742,7 +735,7 @@ export default function DealerSearchView({
                                             href={`tel:${dealer.phone}`}
                                             className="dealer-btn-call"
                                         >
-                                            📞 Gọi {dealer.phone}
+                                            Gọi {dealer.phone}
                                         </a>
                                     )}
                                     {dealer.address && (
@@ -752,7 +745,7 @@ export default function DealerSearchView({
                                             rel="noreferrer"
                                             className="dealer-btn-map"
                                         >
-                                            📍 Chỉ đường
+                                            Chỉ đường
                                         </a>
                                     )}
                                 </div>
@@ -767,7 +760,6 @@ export default function DealerSearchView({
                     <div className="dealer-modal-box" onClick={(e) => e.stopPropagation()}>
                         <div className="dealer-modal-header">
                             <div className="dealer-modal-title-wrap">
-                                <div className="dealer-modal-icon">🏢</div>
                                 <div>
                                     <h3>Thêm đại lý & khách hàng mới</h3>
                                     <p>Nhập thông tin đại lý hoặc khách hàng để đưa vào tuyến quản lý</p>
@@ -787,7 +779,7 @@ export default function DealerSearchView({
                             <div className="dealer-modal-body">
                                 {addError && (
                                     <div className="dealer-modal-error">
-                                        ⚠️ {addError}
+                                        {addError}
                                     </div>
                                 )}
 
