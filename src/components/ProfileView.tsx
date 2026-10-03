@@ -240,6 +240,9 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           territory_name: updated.territory_name,
         });
       }
+
+      // Tự động chuyển hướng về trang chủ làm việc
+      onBackToHome();
     } catch (err: any) {
       setErrorMsg(err.message || 'Lỗi khi cập nhật hồ sơ cá nhân.');
     } finally {
@@ -274,7 +277,6 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   };
   const roleColor = primaryRole === 'customer' && !isBranchAssigned ? '#94a3b8' : (ROLE_COLOR_MAP[primaryRole] || '#64748b');
   const roleTitle = getRoleTitle(primaryRole);
-  const displayRoles = profile?.roles && profile.roles.length > 0 ? profile.roles : currentUser.roles || [primaryRole];
 
   return (
     <main style={{ padding: '24px 32px', maxWidth: '1200px', margin: '0 auto', width: '100%' }}>
@@ -362,6 +364,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           </div>
 
           <div>
+<<<<<<< HEAD
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
               <h1 style={{ margin: 0, fontSize: '22px', fontWeight: '800', color: '#0f172a', letterSpacing: '-0.02em' }}>
                 {fullNameInput || currentUser.full_name}
@@ -439,6 +442,11 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                 Đang hoạt động
               </span>
             </div>
+=======
+            <h1 style={{ margin: 0, fontSize: '24px', fontWeight: '800', color: '#0f172a', letterSpacing: '-0.02em' }}>
+              {fullNameInput || currentUser.full_name}
+            </h1>
+>>>>>>> 0954e7f7435b235497ee8cde5325e3931623e518
           </div>
         </div>
 
@@ -537,9 +545,6 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '700', color: '#0f172a' }}>
                 Thông tin hệ thống
               </h3>
-              <span style={{ fontSize: '12px', color: '#94a3b8' }}>
-                Các trường do Quản trị viên phân quyền (Chỉ đọc)
-              </span>
             </div>
 
             {/* Tên đăng nhập (Read-only) */}
@@ -676,9 +681,6 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '700', color: '#0f172a' }}>
                 Chỉnh sửa thông tin
               </h3>
-              <span style={{ fontSize: '12px', color: '#64748b' }}>
-                Cập nhật họ tên và số điện thoại liên lạc của bạn
-              </span>
             </div>
 
             {/* Họ và tên */}
