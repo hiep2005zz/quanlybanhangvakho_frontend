@@ -50,6 +50,7 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
   const [customUnits, setCustomUnits] = useState<string[]>([]);
   const [isAddingUnit, setIsAddingUnit] = useState(false);
   const [newUnitInput, setNewUnitInput] = useState('');
+  const [unitError, setUnitError] = useState<string | null>(null);
   const [packagingSpec, setPackagingSpec] = useState('');
 
   // Khối 3: Giá & Phân quyền dữ liệu
@@ -90,6 +91,8 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
       setShowDeleteConfirm(false);
       setIsAddingNewCategory(false);
       setIsAddingUnit(false);
+      setUnitError(null);
+      setNewUnitInput('');
       return;
     }
 
@@ -101,6 +104,8 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
       setShowDeleteConfirm(false);
       setIsAddingNewCategory(false);
       setIsAddingUnit(false);
+      setUnitError(null);
+      setNewUnitInput('');
 
       if (product) {
         setSkuCode(product.code || '');
@@ -266,15 +271,29 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
     emitStatusToast({ message: `Đã thêm nhóm hàng "${trimmed}"`, title: 'Thêm nhóm hàng thành công' });
   };
 
-  // Tạo nhanh Đơn vị tính
+  // Tạo nhanh Đơn vị tính (Kiểm tra trùng lặp không phân biệt hoa thường)
   const handleAddNewUnit = () => {
     const trimmed = newUnitInput.trim();
-    if (!trimmed) return;
-    if (!DEFAULT_UNITS.includes(trimmed) && !customUnits.includes(trimmed)) {
-      setCustomUnits((prev) => [...prev, trimmed]);
+    if (!trimmed) {
+      setUnitError('Vui lòng nhập tên đơn vị tính.');
+      return;
     }
+
+    const isDuplicate = allUnits.some(
+      (u) => u.trim().toLowerCase() === trimmed.toLowerCase()
+    );
+
+    if (isDuplicate) {
+      const errMsg = `Đơn vị tính "${trimmed}" đã tồn tại. Không thể tạo trùng lặp!`;
+      setUnitError(errMsg);
+      emitStatusToast({ message: errMsg, title: 'Không thể tạo đơn vị tính' });
+      return;
+    }
+
+    setCustomUnits((prev) => [...prev, trimmed]);
     setBaseUnit(trimmed);
     setNewUnitInput('');
+    setUnitError(null);
     setIsAddingUnit(false);
     emitStatusToast({ message: `Đã thêm đơn vị tính "${trimmed}"`, title: 'Thêm đơn vị tính thành công' });
   };
@@ -917,12 +936,24 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
                       type="text"
                       placeholder="VD: Thùng, Set, Lọ..."
                       value={newUnitInput}
-                      onChange={(e) => setNewUnitInput(e.target.value)}
+                      onChange={(e) => {
+                        setNewUnitInput(e.target.value);
+                        if (unitError) setUnitError(null);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleAddNewUnit();
+                        } else if (e.key === 'Escape') {
+                          setIsAddingUnit(false);
+                          setUnitError(null);
+                        }
+                      }}
                       style={{
                         flex: 1,
                         padding: '7px 10px',
                         borderRadius: '8px',
-                        border: '1px solid #cbd5e1',
+                        border: unitError ? '1px solid #ef4444' : '1px solid #cbd5e1',
                         fontSize: '13px',
                       }}
                     />
@@ -944,7 +975,11 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
                     </button>
                     <button
                       type="button"
-                      onClick={() => setIsAddingUnit(false)}
+                      onClick={() => {
+                        setIsAddingUnit(false);
+                        setUnitError(null);
+                        setNewUnitInput('');
+                      }}
                       style={{
                         background: '#f1f5f9',
                         color: '#475569',
@@ -983,7 +1018,11 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
                     </select>
                     <button
                       type="button"
-                      onClick={() => setIsAddingUnit(true)}
+                      onClick={() => {
+                        setIsAddingUnit(true);
+                        setUnitError(null);
+                        setNewUnitInput('');
+                      }}
                       title="Thêm đơn vị mới"
                       style={{
                         padding: '0 10px',
@@ -1000,9 +1039,15 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
                     </button>
                   </div>
                 )}
-                <div style={{ fontSize: '11.5px', color: '#64748b', marginTop: '4px' }}>
-                  Đơn vị nhỏ nhất để kiểm kê và giao dịch.
-                </div>
+                {unitError ? (
+                  <div style={{ fontSize: '12px', color: '#ef4444', marginTop: '4px', fontWeight: '500' }}>
+                    ⚠️ {unitError}
+                  </div>
+                ) : (
+                  <div style={{ fontSize: '11.5px', color: '#64748b', marginTop: '4px' }}>
+                    Đơn vị nhỏ nhất để kiểm kê và giao dịch.
+                  </div>
+                )}
               </div>
 
               {/* Quy cách đóng gói (packaging_specification) */}
