@@ -11,11 +11,10 @@ import { AccessDeniedView } from './AccessDeniedView';
 import SupplierManagementView from './SupplierManagementView';
 import { AuditLogView } from './AuditLogView';
 import { ProductAuditDrawer } from './ProductAuditDrawer';
-
-import { ProductDrawer } from './ProductDrawer';
-
+import { PriceUpdateModal } from './PriceUpdateModal';
 import { ProfileView } from './ProfileView';
 import { ProductBulkImportModal } from './ProductBulkImportModal';
+import DealerSearchView from './DealerSearchView';
 import { ProductUnitModal } from './ProductUnitModal';
 import { StockActionModal } from './StockActionModal';
 import { OrderCreateModal } from './OrderCreateModal';
@@ -73,10 +72,9 @@ export default function DashboardPage({
   // Quyền Cấu hình ĐVT quy đổi (Chỉ Quản trị hệ thống và Quản lý kho)
   const canConfigUnit = isAdmin || officialRoles.some((r) => ['admin', 'warehouse_manager'].includes(r));
 
-  type DashboardTab = 'inventory' | 'users' | 'categories' | 'audit-logs' | 'profile' | 'suppliers' | 'orders';
 
-  // 2. Khởi tạo State với Clean URL (/users, /audit-logs, /categories, /suppliers, /profile, /orders)
-  const [activeTab, setActiveTabState] = useState<DashboardTab>(() => {
+  // 2. Khởi tạo State với Clean URL (/users, /audit-logs, /categories, /suppliers, /profile, /dealers)
+  const [activeTab, setActiveTabState] = useState<'inventory' | 'users' | 'categories' | 'audit-logs' | 'profile' | 'suppliers' | 'dealers'>(() => {
 
     const pathname = window.location.pathname.toLowerCase();
     const params = new URLSearchParams(window.location.search);
@@ -86,45 +84,130 @@ export default function DashboardPage({
     const isAuditPath = pathname === '/audit-logs' || pathname.startsWith('/audit-logs/');
     const isOrdersPath = pathname === '/orders' || pathname.startsWith('/orders/');
     const isProfilePath = pathname === '/profile' || pathname.startsWith('/profile/');
-    const isSuppliersPath = pathname === '/suppliers' || pathname.startsWith('/suppliers/');
-    const destination: DashboardTab | null =
-      isOrdersPath ? 'orders'
-        : isProfilePath ? 'profile'
-          : isSuppliersPath ? 'suppliers'
-            : isCategoriesPath ? 'categories'
-              : isAuditPath ? 'audit-logs'
-                : isUsersPath ? 'users'
-                  : legacyTab === 'profile' ? 'profile'
-                    : legacyTab === 'orders' ? 'orders'
-                      : legacyTab === 'suppliers' ? 'suppliers'
-                        : legacyTab === 'categories' ? 'categories'
-                          : legacyTab === 'audit' || legacyTab === 'audit-logs' ? 'audit-logs'
-                            : legacyTab === 'users' ? 'users'
-                              : null;
+    const isDealersPath = pathname === '/dealers' || pathname.startsWith('/dealers/');
+    // Dọn sạch tàn dư query parameter cũ (?tab=users, ?tab=audit-logs, ?tab=profile, ?tab=dealers)
+    const params = new URLSearchParams(window.location.search);
+    const hasOldTabParam = params.has('tab') || params.has('view');
+    const oldTabVal = (params.get('tab') || params.get('view') || '').toLowerCase();
 
-    const allowed =
-      destination === 'users' || destination === 'audit-logs' ? isAdmin
-        : destination === 'orders' ? canReadOrders
-          : destination === 'categories' ? canManageCategories
-            : destination === 'suppliers' ? canManageSuppliers
-              : true;
-    if (destination && allowed) {
-      const route = `/${destination}`;
-      if (pathname !== route || params.size) window.history.replaceState({}, '', route);
-      return destination;
+    if (pathname === '/suppliers' || pathname.startsWith('/suppliers/')) {
+      return 'suppliers';
+    }
+    if (isDealersPath || oldTabVal === 'dealers') {
+      if (hasOldTabParam || pathname !== '/dealers') {
+        try {
+          window.history.replaceState({}, '', '/dealers');
+        } catch {
+          // ignore
+        }
+      }
+      return 'dealers';
+    }
+    if (isProfilePath || oldTabVal === 'profile') {
+      if (hasOldTabParam || pathname !== '/profile') {
+        try {
+          window.history.replaceState({}, '', '/profile');
+        } catch {
+          // ignore
+        }
+      }
+      return 'profile';
+    } else if (isAuditPath || oldTabVal === 'audit-logs' || oldTabVal === 'audit') {
+      if (hasOldTabParam || pathname !== '/audit-logs') {
+        try {
+          window.history.replaceState({}, '', '/audit-logs');
+        } catch {
+          // ignore
+        }
+      }
+      return 'audit-logs';
+    } else if (isUsersPath || hasOldTabParam) {
+      if (hasOldTabParam || pathname !== '/users') {
+        try {
+          window.history.replaceState({}, '', '/users');
+        } catch {
+          // ignore
+        }
+      }
+      return 'users';
+    }
+    if (isCategoriesPath) {
+      if (canManageCategories) {
+        return 'categories';
+      }
+      try {
+        window.history.replaceState({}, '', '/');
+      } catch {
+        // ignore
+      }
+      return 'users';
     }
     if (destination && !allowed && (pathname !== '/' || params.size)) window.history.replaceState({}, '', '/');
     return 'inventory';
   });
-
-  const setActiveTab = (tab: DashboardTab) => {
-    const allowed =
-      tab === 'users' || tab === 'audit-logs' ? isAdmin
-        : tab === 'orders' ? canReadOrders
-          : tab === 'categories' ? canManageCategories
-            : tab === 'suppliers' ? canManageSuppliers
-              : true;
-    if (!allowed) {
+  // 3. Chuyển đổi Route Clean URL
+  const setActiveTab = (tab: 'inventory' | 'users' | 'categories' | 'audit-logs' | 'profile' | 'suppliers' | 'dealers') => {
+    if (tab === 'profile') {
+      setActiveTabState('profile');
+      try {
+        window.history.pushState({}, '', '/profile');
+      } catch {
+        // ignore
+      }
+    } else if (tab === 'dealers') {
+      setActiveTabState('dealers');
+      try {
+        window.history.pushState({}, '', '/dealers');
+      } catch {
+        // ignore
+      }
+    } else if (tab === 'users') {
+      if (!isAdmin) {
+        setActiveTabState('inventory');
+        try {
+          window.history.replaceState({}, '', '/');
+        } catch {
+          // ignore
+        }
+        return;
+      }
+      setActiveTabState('users');
+      try {
+        window.history.pushState({}, '', '/users');
+      } catch {
+        // ignore
+      }
+    } else if (tab === 'categories') {
+      if (!canManageCategories) {
+        setActiveTabState('inventory');
+        try {
+          window.history.replaceState({}, '', '/');
+        } catch {
+          // ignore
+        }
+        return;
+      }
+      setActiveTabState('categories');
+      try {
+        window.history.pushState({}, '', '/categories');
+      } catch {
+        // ignore
+      }
+    } else if (tab === 'audit-logs') {
+      setActiveTabState('audit-logs');
+      try {
+        window.history.pushState({}, '', '/audit-logs');
+      } catch {
+        // ignore
+      }
+    } else if (tab === 'suppliers') {
+      setActiveTabState('suppliers');
+      try {
+        window.history.pushState({}, '', '/suppliers');
+      } catch {
+        // ignore
+      }
+    } else {
       setActiveTabState('inventory');
       window.history.replaceState({}, '', '/');
       return;
@@ -156,30 +239,58 @@ export default function DashboardPage({
       const isAuditPath = pathname === '/audit-logs' || pathname.startsWith('/audit-logs/');
       const isOrdersPath = pathname === '/orders' || pathname.startsWith('/orders/');
       const isProfilePath = pathname === '/profile' || pathname.startsWith('/profile/');
-      const isCategoriesPath = pathname === '/categories';
-      const isSuppliersPath = pathname === '/suppliers' || pathname.startsWith('/suppliers/');
-      const destination: DashboardTab | null =
-        isOrdersPath ? 'orders'
-          : isProfilePath ? 'profile'
-            : isSuppliersPath ? 'suppliers'
-              : isCategoriesPath ? 'categories'
-                : isAuditPath ? 'audit-logs'
-                  : isUsersPath ? 'users'
-                    : legacyTab === 'profile' ? 'profile'
-                      : legacyTab === 'orders' ? 'orders'
-                        : legacyTab === 'suppliers' ? 'suppliers'
-                          : legacyTab === 'categories' ? 'categories'
-                            : legacyTab === 'audit' || legacyTab === 'audit-logs' ? 'audit-logs'
-                              : legacyTab === 'users' ? 'users'
-                                : null;
-      if (destination) {
-        const allowed =
-          destination === 'users' || destination === 'audit-logs' ? isAdmin
-            : destination === 'orders' ? canReadOrders
-              : destination === 'categories' ? canManageCategories
-                : destination === 'suppliers' ? canManageSuppliers
-                  : true;
-        if (!allowed) {
+      const params = new URLSearchParams(window.location.search);
+      const tabParam = (params.get('tab') || params.get('view') || '').toLowerCase();
+
+      if (pathname === '/suppliers' || pathname.startsWith('/suppliers/')) {
+        setActiveTabState('suppliers');
+        return;
+      }
+
+      const isDealersPath = pathname === '/dealers' || pathname.startsWith('/dealers/');
+      if (isDealersPath || tabParam === 'dealers') {
+        if (pathname !== '/dealers' || tabParam) {
+          try {
+            window.history.replaceState({}, '', '/dealers');
+          } catch {
+            // ignore
+          }
+        }
+        setActiveTabState('dealers');
+        return;
+      }
+
+      if (isProfilePath || tabParam === 'profile') {
+        if (pathname !== '/profile' || tabParam) {
+          try {
+            window.history.replaceState({}, '', '/profile');
+          } catch {
+            // ignore
+          }
+        }
+        setActiveTabState('profile');
+      } else if (isAuditPath || tabParam === 'audit-logs' || tabParam === 'audit') {
+        if (pathname !== '/audit-logs' || tabParam) {
+          try {
+            window.history.replaceState({}, '', '/audit-logs');
+          } catch {
+            // ignore
+          }
+        }
+        setActiveTabState('audit-logs');
+      } else if (isUsersPath || tabParam === 'users') {
+        if (pathname !== '/users' || tabParam) {
+          try {
+            window.history.replaceState({}, '', '/users');
+          } catch {
+            // ignore
+          }
+        }
+        setActiveTabState('users');
+      } else if (pathname === '/categories') {
+        if (canManageCategories) {
+          setActiveTabState('categories');
+        } else {
           setActiveTabState('inventory');
           window.history.replaceState({}, '', '/');
           return;
@@ -228,7 +339,11 @@ export default function DashboardPage({
     isOpen: boolean;
     productCode: string;
     productName: string;
-  }>({ isOpen: false, productCode: '', productName: '' });
+    initialFilter?: 'ALL' | 'PRICE_CHANGE' | 'INVENTORY_ADJUST';
+  }>({ isOpen: false, productCode: '', productName: '', initialFilter: 'ALL' });
+
+  // Price Update Modal State
+  const [priceUpdateModalProduct, setPriceUpdateModalProduct] = useState<ProductItem | null>(null);
 
   // State quản lý Product Detail Drawer (Khai báo & Chỉnh sửa sản phẩm)
   const [productDrawerState, setProductDrawerState] = useState<{
@@ -389,8 +504,9 @@ export default function DashboardPage({
               title="Mở rộng menu"
               className="hamburger-left-btn"
               style={{
-                width: '40px',
-                height: '40px',
+                width: '56px',
+                height: '56px',
+                borderRadius: '12px',
                 padding: 0,
                 margin: 0,
                 display: 'flex',
@@ -400,10 +516,10 @@ export default function DashboardPage({
                 transform: 'none',
               }}
             >
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
-                <span style={{ width: '18px', height: '2px', background: '#334155', borderRadius: '2px' }}></span>
-                <span style={{ width: '18px', height: '2px', background: '#334155', borderRadius: '2px' }}></span>
-                <span style={{ width: '18px', height: '2px', background: '#334155', borderRadius: '2px' }}></span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', alignItems: 'center' }}>
+                <span style={{ width: '22px', height: '2.5px', background: '#334155', borderRadius: '2px' }}></span>
+                <span style={{ width: '22px', height: '2.5px', background: '#334155', borderRadius: '2px' }}></span>
+                <span style={{ width: '22px', height: '2.5px', background: '#334155', borderRadius: '2px' }}></span>
               </div>
             </button>
           )}
@@ -411,21 +527,21 @@ export default function DashboardPage({
           <div
             className="brand-logo-animated"
             style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: '10px',
+              width: '56px',
+              height: '56px',
+              borderRadius: '14px',
               background: 'linear-gradient(135deg, #2563eb 0%, #4f46e5 100%)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               color: '#fff',
-              boxShadow: '0 2px 8px rgba(37, 99, 235, 0.25)',
+              boxShadow: '0 4px 12px rgba(37, 99, 235, 0.25)',
               cursor: 'default',
               userSelect: 'none',
               flexShrink: 0
             }}
           >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
               <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
               <line x1="12" y1="22.08" x2="12" y2="12" />
@@ -433,7 +549,7 @@ export default function DashboardPage({
           </div>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <h1 className="brand-title-shimmer" style={{ fontSize: '17px', fontWeight: '700', margin: 0, color: '#0f172a', letterSpacing: '-0.02em' }}>
+              <h1 className="brand-title-shimmer" style={{ fontSize: '20px', fontWeight: '700', margin: 0, color: '#0f172a', letterSpacing: '-0.02em' }}>
                 Hệ Thống Quản Lý Kho & Bán Hàng
               </h1>
             </div>
@@ -459,7 +575,7 @@ export default function DashboardPage({
             title={`${user.full_name || user.username} (${roleLabelMap[primaryRole] || primaryRole}) - Nhấp để mở menu`}
             aria-label="Tài khoản người dùng"
           >
-            <div style={{ position: 'relative', width: '36px', height: '36px', flexShrink: 0 }}>
+            <div style={{ position: 'relative', width: '68px', height: '68px', flexShrink: 0 }}>
               <div style={{
                 width: '100%',
                 height: '100%',
@@ -470,10 +586,10 @@ export default function DashboardPage({
                 justifyContent: 'center',
                 color: '#ffffff',
                 fontWeight: '700',
-                fontSize: '15px',
-                boxShadow: '0 2px 5px rgba(0, 0, 0, 0.15)',
+                fontSize: '28px',
+                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)',
                 overflow: 'hidden',
-                border: '1px solid rgba(255, 255, 255, 0.4)',
+                border: '2.5px solid rgba(255, 255, 255, 0.9)',
               }}>
                 {user.avatar_url ? (
                   <img
@@ -488,13 +604,13 @@ export default function DashboardPage({
               <span
                 style={{
                   position: 'absolute',
-                  bottom: '-1px',
-                  right: '-1px',
-                  width: '10px',
-                  height: '10px',
+                  bottom: '2px',
+                  right: '2px',
+                  width: '16px',
+                  height: '16px',
                   borderRadius: '50%',
                   background: '#16a34a',
-                  border: '2px solid #ffffff',
+                  border: '2.5px solid #ffffff',
                 }}
                 title="Đang hoạt động"
               />
@@ -640,6 +756,59 @@ export default function DashboardPage({
                     </svg>
                   </div>
                   <span>Hồ sơ cá nhân</span>
+                </button>
+
+                {/* Tra cứu đại lý */}
+                <button
+                  onClick={() => {
+                    setIsUserMenuOpen(false);
+                    setActiveTab('dealers');
+                  }}
+                  id="btn-popover-dealers"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    width: '100%',
+                    padding: '10px 14px',
+                    borderRadius: '10px',
+                    background: activeTab === 'dealers' ? '#eff6ff' : '#f8fafc',
+                    border: activeTab === 'dealers' ? '1px solid #bfdbfe' : '1px solid #e2e8f0',
+                    color: activeTab === 'dealers' ? '#1d4ed8' : '#1e293b',
+                    fontSize: '13.5px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    transition: 'all 0.18s ease',
+                    boxShadow: 'none',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = '#eff6ff';
+                    e.currentTarget.style.borderColor = '#93c5fd';
+                    e.currentTarget.style.color = '#1d4ed8';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = activeTab === 'dealers' ? '#eff6ff' : '#f8fafc';
+                    e.currentTarget.style.borderColor = activeTab === 'dealers' ? '#bfdbfe' : '#e2e8f0';
+                    e.currentTarget.style.color = activeTab === 'dealers' ? '#1d4ed8' : '#1e293b';
+                  }}
+                  title="Tìm kiếm và tra cứu đại lý trong tuyến"
+                >
+                  <div style={{
+                    width: '28px',
+                    height: '28px',
+                    borderRadius: '8px',
+                    background: '#fef3c7',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#d97706',
+                  }}>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+                      <circle cx="12" cy="10" r="3" />
+                    </svg>
+                  </div>
+                  <span>Tra cứu đại lý</span>
                 </button>
 
                 {(user.role === 'admin' || (user.roles && user.roles.includes('admin'))) && (
@@ -949,26 +1118,25 @@ export default function DashboardPage({
             </div>
             <span style={{ fontWeight: activeTab === 'inventory' ? '700' : '500', fontSize: '14.5px' }}>Quản lý kho hàng</span>
           </div>
-
-          {canReadOrders && (
-            <div
-              className={`sidebar-menu-item ${activeTab === 'orders' ? 'active' : ''}`}
-              id="btn-sidebar-orders"
-              onClick={() => {
-                setActiveTab('orders');
-                handleCloseMenu();
-              }}
-            >
-              <div className="sidebar-icon-box">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M6 2h9l5 5v15H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" />
-                  <path d="M14 2v6h6M8 13h8M8 17h8" />
-                </svg>
-              </div>
-              <span style={{ fontWeight: activeTab === 'orders' ? '700' : '500', fontSize: '14.5px' }}>Đơn hàng</span>
+          {/* Tra cứu đại lý - Cho nhân viên kinh doanh, quản lý và nhân viên toàn hệ thống */}
+          <div
+            className={`sidebar-menu-item ${activeTab === 'dealers' ? 'active' : ''}`}
+            id="btn-sidebar-dealers"
+            onClick={() => {
+              setActiveTab('dealers');
+              handleCloseMenu();
+            }}
+          >
+            <div className="sidebar-icon-box">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                <circle cx="9" cy="7" r="4" />
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+              </svg>
             </div>
-          )}
-
+            <span style={{ fontWeight: activeTab === 'dealers' ? '700' : '500', fontSize: '14.5px' }}>Tra cứu đại lý</span>
+          </div>
           {/* Nhà cung cấp - Thủ kho, Quản lý kho, Admin */}
           {canManageSuppliers && (
             <div
@@ -1175,6 +1343,12 @@ export default function DashboardPage({
             onLogout={onLogout}
           />
         )
+      ) : activeTab === 'dealers' ? (
+        <DealerSearchView
+          currentUser={user}
+          token={token}
+          onBackToHome={() => setActiveTab('inventory')}
+        />
       ) : isPendingCustomer ? (
         <div style={{
           display: 'flex',
@@ -2132,67 +2306,23 @@ export default function DashboardPage({
                               </>
                             )}
 
-                            {canManageProducts && (
-                              <>
-                                <button
-                                  type="button"
-                                  className="btn-inventory-history"
-                                  onClick={() => setProductDrawerState({
-                                    isOpen: true,
-                                    product: item,
-                                  })}
-                                  title="Chỉnh sửa thông tin chi tiết sản phẩm"
-                                  style={{
-                                    padding: '5px 8px',
-                                    fontSize: '11.5px',
-                                    background: '#eff6ff',
-                                    borderColor: '#bfdbfe',
-                                    color: '#1d4ed8',
-                                  }}
-                                >
-                                  <svg
-                                    width="12"
-                                    height="12"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    strokeWidth="2.2"
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                  >
-                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                                  </svg>
-                                  <span>Sửa</span>
-                                </button>
 
-                                <button
-                                  type="button"
-                                  className="btn-inventory-history"
-                                  onClick={() => setProductAuditDrawerState({
-                                    isOpen: true,
-                                    productCode: item.code,
-                                    productName: item.name,
-                                  })}
-                                  title="Xem lịch sử thay đổi tồn kho & giá của sản phẩm này"
-                                  style={{ padding: '5px 8px', fontSize: '11.5px' }}
-                                >
-                                  <svg
-                                    width="12"
-                                    height="12"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    strokeWidth="2.2"
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                  >
-                                    <circle cx="12" cy="12" r="10" />
-                                    <polyline points="12 6 12 12 16 14" />
-                                  </svg>
-                                  <span>Lịch sử</span>
-                                </button>
-                              </>
+                            {(isAdmin || isSalesManager) && (
+                              <button
+                                type="button"
+                                className="btn-inventory-history"
+                                onClick={() => setProductAuditDrawerState({
+                                  isOpen: true,
+                                  productCode: item.code,
+                                  productName: item.name,
+                                  initialFilter: 'ALL',
+                                })}
+                                title="Xem lịch sử thay đổi tồn kho & giá của sản phẩm này"
+                                style={{ padding: '5px 10px', fontSize: '11.5px', fontWeight: '600' }}
+                              >
+                                <span>Lịch sử</span>
+                              </button>
+
                             )}
 
                             {!canConfigUnit && !canWriteInventory && !isAdmin && (
@@ -2561,6 +2691,23 @@ export default function DashboardPage({
         productCode={productAuditDrawerState.productCode}
         productName={productAuditDrawerState.productName}
         token={token}
+        initialFilter={productAuditDrawerState.initialFilter || 'ALL'}
+        isCostVisible={isCostVisible}
+      />
+
+      <PriceUpdateModal
+        isOpen={Boolean(priceUpdateModalProduct)}
+        product={priceUpdateModalProduct}
+        onClose={() => setPriceUpdateModalProduct(null)}
+        token={token}
+        isCostVisible={isCostVisible}
+        onSuccess={() => {
+          emitStatusToast({
+            title: 'Cập nhật giá thành công',
+            message: 'Đã lưu giá mới thành công.',
+          });
+          fetchProducts();
+        }}
       />
 
       {/* Product Detail Drawer (Khai báo & Chỉnh sửa sản phẩm 4 khối chức năng) */}

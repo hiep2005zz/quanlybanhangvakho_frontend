@@ -62,6 +62,8 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   // Avatar upload & resize states
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [avatarError, setAvatarError] = useState<string | null>(null);
+  const [pendingAvatarFile, setPendingAvatarFile] = useState<File | null>(null);
+  const [pendingAvatarPreview, setPendingAvatarPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Modal chỉnh kích thước & vùng cắt ảnh đại diện (Interactive Square Cropper)
@@ -159,7 +161,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
     reader.readAsDataURL(file);
   };
 
-  // Xác nhận cắt và upload ảnh vuông tự chọn
+  // Xác nhận cắt ảnh và lưu vào trạng thái chờ lưu (chỉ gửi lên server khi bấm 'Lưu thay đổi')
   const handleConfirmCropAndUpload = async () => {
     if (!rawImageSrc) return;
     setUploadingAvatar(true);
@@ -215,28 +217,15 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
 
       const finalFile = new File([blob], rawImageFileName, { type: blob.type });
 
-      // Gọi API tải ảnh lên server
-      const res = await uploadProfileAvatarApi(token, finalFile);
-      setProfile(res.user);
-      emitStatusToast({ message: 'Cắt và cập nhật ảnh đại diện thành công!', title: 'Hồ sơ cá nhân' });
-
-      // Cập nhật State người dùng toàn cục
-      if (onUserUpdated) {
-        onUserUpdated({
-          ...currentUser,
-          avatar_url: res.avatar_url,
-          full_name: res.user.full_name || currentUser.full_name,
-        });
-      }
-
-      // Phát sự kiện đồng bộ toàn hệ thống
-      window.dispatchEvent(new CustomEvent('USER_ROLE_UPDATED', { detail: res.user }));
-      window.dispatchEvent(new CustomEvent('USER_ACCOUNTS_CHANGED', { detail: res.user }));
+      // Lưu file và tạo URL xem trước tạm thời, CHƯA gọi API lưu lên máy chủ
+      const previewUrl = URL.createObjectURL(blob);
+      setPendingAvatarFile(finalFile);
+      setPendingAvatarPreview(previewUrl);
 
       setCropModalOpen(false);
       setRawImageSrc(null);
     } catch (err: any) {
-      const msg = err.message || 'Lỗi khi tải ảnh đại diện lên máy chủ.';
+      const msg = err.message || 'Lỗi khi xử lý hình ảnh.';
       setAvatarError(msg);
       emitStatusToast({ message: msg, title: 'Ảnh đại diện' });
     } finally {
@@ -393,14 +382,32 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
 
     setSaving(true);
     try {
+      let finalAvatarUrl: string | undefined = undefined;
+
+      // 1. Nếu có ảnh đại diện mới được chọn, upload lên server tại thời điểm này
+      if (pendingAvatarFile) {
+        const avatarRes = await uploadProfileAvatarApi(token, pendingAvatarFile);
+        finalAvatarUrl = avatarRes.avatar_url;
+      }
+
+      // 2. Cập nhật thông tin họ tên & số điện thoại
       const updated = await updateMyProfileApi(token, {
         full_name: fullNameInput.trim(),
         phone_number: phoneInput.trim(),
       });
 
-      setProfile(updated);
+      const effectiveAvatarUrl = finalAvatarUrl ?? updated.avatar_url ?? profile?.avatar_url ?? currentUser.avatar_url;
+      const combinedUser = {
+        ...updated,
+        avatar_url: effectiveAvatarUrl,
+      };
+
+      setProfile(combinedUser);
       setFullNameInput(updated.full_name);
       setPhoneInput(updated.phone_number || updated.phone || '');
+      setPendingAvatarFile(null);
+      setPendingAvatarPreview(null);
+
       emitStatusToast({ message: 'Cập nhật hồ sơ thành công', title: 'Hồ sơ cá nhân' });
 
       // Cập nhật State người dùng ngay lập tức cho ứng dụng để Avatar/Header đổi tên
@@ -415,9 +422,13 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           branch: updated.branch || currentUser.branch,
           warehouse_name: updated.warehouse_name,
           territory_name: updated.territory_name,
-          avatar_url: updated.avatar_url ?? currentUser.avatar_url,
+          avatar_url: effectiveAvatarUrl,
         });
       }
+
+      // Phát sự kiện đồng bộ toàn hệ thống
+      window.dispatchEvent(new CustomEvent('USER_ROLE_UPDATED', { detail: combinedUser }));
+      window.dispatchEvent(new CustomEvent('USER_ACCOUNTS_CHANGED', { detail: combinedUser }));
 
       // Tự động chuyển hướng về trang chủ làm việc
       onBackToHome();
@@ -428,8 +439,14 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
     }
   };
 
-  // Nút Hủy: khôi phục về giá trị đã lưu
+  // Nút Hủy: khôi phục về giá trị đã lưu và hủy bỏ ảnh chờ lưu
   const handleReset = () => {
+    if (pendingAvatarPreview) {
+      URL.revokeObjectURL(pendingAvatarPreview);
+    }
+    setPendingAvatarFile(null);
+    setPendingAvatarPreview(null);
+
     if (profile) {
       setFullNameInput(profile.full_name || '');
       setPhoneInput(profile.phone_number || profile.phone || '');
@@ -531,7 +548,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                 width: '84px',
                 height: '84px',
                 borderRadius: '20px',
-                background: (profile?.avatar_url || currentUser.avatar_url)
+                background: (pendingAvatarPreview || profile?.avatar_url || currentUser.avatar_url)
                   ? '#f1f5f9'
                   : `linear-gradient(135deg, ${roleColor} 0%, #4f46e5 100%)`,
                 display: 'flex',
@@ -543,14 +560,25 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                 boxShadow: `0 8px 20px ${roleColor}30`,
                 flexShrink: 0,
                 overflow: 'hidden',
-                border: '3px solid #ffffff',
+                border: pendingAvatarPreview ? '3px solid #3b82f6' : '3px solid #ffffff',
                 position: 'relative',
                 cursor: uploadingAvatar ? 'wait' : 'pointer',
                 transition: 'transform 0.15s ease, box-shadow 0.15s ease',
               }}
-              title="Nhấn để đổi ảnh đại diện (JPG/PNG tối đa 2MB)"
+              title="Nhấn để đổi ảnh đại diện (JPG/PNG tối đa 10MB)"
             >
-              {(profile?.avatar_url || currentUser.avatar_url) ? (
+              {pendingAvatarPreview ? (
+                <img
+                  src={pendingAvatarPreview}
+                  alt={fullNameInput || currentUser.full_name}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                    display: 'block',
+                  }}
+                />
+              ) : (profile?.avatar_url || currentUser.avatar_url) ? (
                 <img
                   src={getAvatarUrl(profile?.avatar_url || currentUser.avatar_url)}
                   alt={fullNameInput || currentUser.full_name}
@@ -1505,7 +1533,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                   boxShadow: '0 4px 12px rgba(37, 99, 235, 0.25)',
                 }}
               >
-                {uploadingAvatar ? 'Đang cắt ảnh...' : 'Cắt ảnh & Áp dụng'}
+                {uploadingAvatar ? 'Đang xử lý...' : 'Chọn ảnh này'}
               </button>
             </div>
           </div>
