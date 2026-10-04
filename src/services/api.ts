@@ -1206,6 +1206,7 @@ export interface Supplier {
   contact_person?: string | null;
   payment_terms?: string | null;
   is_active: boolean;
+  has_receipts?: boolean;
   inactive_reason?: string | null;
   deactivated_at?: string | null;
   deactivated_by?: string | null;
@@ -1310,6 +1311,18 @@ export async function activateSupplierApi(token: string, code: string): Promise<
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
     throw new Error(extractSupplierError(data, `Lỗi mở lại giao dịch nhà cung cấp (Mã lỗi ${response.status})`));
+  }
+  return data;
+}
+
+export async function deleteSupplierApi(token: string, code: string): Promise<{ status: string; message: string }> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/suppliers/${encodeURIComponent(code)}`, {
+    method: 'DELETE',
+  }, token);
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(extractSupplierError(data, `Lỗi xóa nhà cung cấp (Mã lỗi ${response.status})`));
   }
   return data;
 }
