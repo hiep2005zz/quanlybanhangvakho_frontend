@@ -949,3 +949,111 @@
     background: #f1f5f9;
     color: #0f172a;
 }
+
+.dealer-dropdown-item.danger:hover {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+.dealer-standard-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    background: #ecfdf5;
+    color: #059669;
+    border: 1px solid #a7f3d0;
+}
+
+.dealer-btn-export {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 16px;
+    background: #ffffff;
+    color: #047857;
+    border: 1.5px solid #10b981;
+    border-radius: 9px;
+    font-size: 13.5px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+
+.dealer-btn-export:hover {
+    background: #ecfdf5;
+    border-color: #059669;
+    color: #065f46;
+}
+
+.dealer-tax-badge {
+    display: inline-block;
+    font-size: 11px;
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: #f1f5f9;
+    color: #475569;
+    border: 1px solid #e2e8f0;
+    font-weight: 500;
+}
+
+.dealer-detail-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+@media (max-width: 640px) {
+    .dealer-detail-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.dealer-detail-section {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 16px;
+}
+
+.dealer-detail-section h4 {
+    margin: 0 0 12px 0;
+    font-size: 14px;
+    font-weight: 700;
+    color: #1e293b;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-bottom: 1px solid #e2e8f0;
+    padding-bottom: 8px;
+}
+
+.dealer-detail-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 6px 0;
+    font-size: 13px;
+    border-bottom: 1px dashed #e2e8f0;
+}
+
+.dealer-detail-row:last-child {
+    border-bottom: none;
+}
+
+.dealer-detail-row .label {
+    color: #64748b;
+    font-weight: 500;
+    flex-shrink: 0;
+    width: 140px;
+}
+
+.dealer-detail-row .value {
+    color: #0f172a;
+    font-weight: 600;
+    text-align: right;
+    word-break: break-word;
+}

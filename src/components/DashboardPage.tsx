@@ -60,7 +60,7 @@ export default function DashboardPage({
   // Quyền quản lý ngành hàng
   const isSalesManager = user.role === 'sales_manager' || Boolean(user.roles && user.roles.includes('sales_manager'));
   const canManageCategories = isAdmin || isSalesManager;
-  // Quyền tra cứu đại lý: Nhân viên kinh doanh (sales), Quản lý kinh doanh (sales_manager), Quản trị viên (admin), Kế toán (accountant)
+  // Quyền quản lý hồ sơ đại lý: Kế toán công nợ (accountant), Quản lý kinh doanh (sales_manager), Quản trị viên (admin), Nhân viên kinh doanh (sales)
   const DEALER_ROLES = ['admin', 'sales_manager', 'sales', 'accountant'];
   const canViewDealers = officialRoles.some((r) => DEALER_ROLES.includes(r));
 
@@ -792,7 +792,7 @@ export default function DashboardPage({
                   <span>Hồ sơ cá nhân</span>
                 </button>
 
-                {/* Tra cứu đại lý - Không hiển thị ở popover cho Admin (đã có ở menu mở rộng) */}
+                {/* Quản lý hồ sơ đại lý - Không hiển thị ở popover cho Admin (đã có ở menu mở rộng) */}
                 {canViewDealers && !isAdmin && (
                   <button
                     onClick={() => {
@@ -826,7 +826,7 @@ export default function DashboardPage({
                       e.currentTarget.style.borderColor = activeTab === 'dealers' ? '#bfdbfe' : '#e2e8f0';
                       e.currentTarget.style.color = activeTab === 'dealers' ? '#1d4ed8' : '#1e293b';
                     }}
-                    title="Tìm kiếm và tra cứu đại lý trong tuyến"
+                    title="Quản lý hồ sơ đại lý và khách hàng chuẩn hóa"
                   >
                     <div style={{
                       width: '28px',
@@ -843,7 +843,7 @@ export default function DashboardPage({
                         <circle cx="12" cy="10" r="3" />
                       </svg>
                     </div>
-                    <span>Tra cứu đại lý</span>
+                    <span>Quản lý hồ sơ đại lý</span>
                   </button>
                 )}
 
@@ -1175,7 +1175,7 @@ export default function DashboardPage({
             </div>
           )}
 
-          {/* Tra cứu đại lý - Cho nhân viên kinh doanh, quản lý và admin */}
+          {/* Quản lý hồ sơ đại lý - Kế toán công nợ, Quản lý kinh doanh, Nhân viên kinh doanh và Quản trị viên */}
           {canViewDealers && (
             <div
               className={`sidebar-menu-item ${activeTab === 'dealers' ? 'active' : ''}`}
@@ -1193,7 +1193,7 @@ export default function DashboardPage({
                   <path d="M16 3.13a4 4 0 0 1 0 7.75" />
                 </svg>
               </div>
-              <span style={{ fontWeight: activeTab === 'dealers' ? '700' : '500', fontSize: '14.5px' }}>Tra cứu đại lý</span>
+              <span style={{ fontWeight: activeTab === 'dealers' ? '700' : '500', fontSize: '14.5px' }}>Quản lý hồ sơ đại lý</span>
             </div>
           )}
           {/* Nhà cung cấp - Thủ kho, Quản lý kho, Admin */}
@@ -1421,7 +1421,7 @@ export default function DashboardPage({
         ) : (
           <AccessDeniedView
             currentUser={user}
-            requiredPermission="Tra cứu đại lý & khách hàng (Nhân viên kinh doanh / Quản lý kinh doanh / Quản trị viên)"
+            requiredPermission="Quản lý hồ sơ đại lý (Kế toán công nợ / Quản lý kinh doanh / Nhân viên kinh doanh / Quản trị viên)"
             onBackToWorkflow={() => setActiveTab('inventory')}
             onLogout={onLogout}
           />

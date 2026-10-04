@@ -5,7 +5,11 @@ import {
     getDealerFilters,
     createDealer,
     CreateDealerPayload,
+    updateDealer,
+    UpdateDealerPayload,
     updateDealerStatus,
+    checkDealerTransactions,
+    deleteDealer,
     assignDealer,
     bulkAssignDealers,
     getDealerHistory,
@@ -24,8 +28,41 @@ const DEFAULT_CUSTOMER_GROUPS = [
 
 const DEFAULT_STATUSES = [
     'Đang hoạt động',
-    'Tạm ngừng',
+    'Tạm dừng',
 ];
+
+const formatSaleName = (name?: string | null): string => {
+    if (!name) return 'Chưa gán';
+    const trimmed = name.trim();
+    if (trimmed.includes('Trưởng Phòng') || trimmed.toLowerCase().includes('sales_manager')) {
+        return 'Trưởng phòng kinh doanh';
+    }
+    if (trimmed.includes('Bán Hàng') || trimmed.toLowerCase().includes('sales')) {
+        return 'Nhân viên bán hàng';
+    }
+    return trimmed;
+};
+
+const formatDealerStatus = (status?: string | null): string => {
+    if (!status) return 'Đang hoạt động';
+    const lower = status.trim().toLowerCase();
+    if (lower.includes('dừng') || lower.includes('ngừng') || lower === 'inactive') {
+        return 'Tạm dừng';
+    }
+    if (lower.includes('hoạt động') || lower === 'active') {
+        return 'Đang hoạt động';
+    }
+    return status.trim();
+};
+
+const getPriceListByCustomerGroup = (group?: string | null): string => {
+    const g = (group || '').trim().toLowerCase();
+    if (g.includes('cấp 1') || g.includes('cap 1')) return 'Bảng giá đại lý cấp 1';
+    if (g.includes('cấp 2') || g.includes('cap 2')) return 'Bảng giá đại lý cấp 2';
+    if (g.includes('sỉ') || g.includes('si')) return 'Bảng giá khách sỉ';
+    if (g.includes('lẻ') || g.includes('le')) return 'Bảng giá khách lẻ';
+    return group ? `Bảng giá ${group}` : 'Bảng giá đại lý cấp 1';
+};
 
 export interface DealerSearchViewProps {
     currentUser?: User;
@@ -62,6 +99,8 @@ export default function DealerSearchView({
         code: '',
         name: '',
         phone: '',
+        email: '',
+        tax_id: '',
         address: '',
         region: '',
         assigned_sale_id: '',
@@ -72,6 +111,27 @@ export default function DealerSearchView({
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [togglingId, setTogglingId] = useState<number | null>(null);
     const [openDropdownId, setOpenDropdownId] = useState<number | null>(null);
+
+    // Trạng thái cho tính năng Chỉnh sửa hồ sơ đại lý
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [editTargetDealer, setEditTargetDealer] = useState<DealerSearchItem | null>(null);
+    const [editFormData, setEditFormData] = useState({
+        code: '',
+        name: '',
+        phone: '',
+        email: '',
+        tax_id: '',
+        address: '',
+        region: '',
+        assigned_sale_id: '',
+        customer_group: 'Đại lý cấp 1',
+        status: 'Đang hoạt động',
+    });
+    const [editError, setEditError] = useState('');
+
+    // Trạng thái cho tính năng Xem chi tiết hồ sơ đại lý
+    const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+    const [detailTargetDealer, setDetailTargetDealer] = useState<DealerSearchItem | null>(null);
 
     useEffect(() => {
         const handleClickOutside = (e: MouseEvent) => {
@@ -84,14 +144,20 @@ export default function DealerSearchView({
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    // Ràng buộc phân quyền: Chỉ Admin, Quản lý kinh doanh (sales_manager) và Nhân viên kinh doanh (sales) mới có quyền thêm đại lý/khách hàng & đổi trạng thái
+    // Ràng buộc phân quyền: Kế toán công nợ (accountant), Quản lý kinh doanh (sales_manager), Admin và Sales
     const rawRoles = currentUser?.roles && currentUser.roles.length > 0
         ? currentUser.roles
         : (currentUser?.role ? [currentUser.role] : []);
-    const canAddDealer = rawRoles.some((r) => ['admin', 'sales_manager', 'sales'].includes(r))
+    
+    // Kế toán công nợ, Quản lý KD, Admin, Sales đều có quyền quản lý hồ sơ đại lý
+    const canManageDealers = rawRoles.some((r) => ['admin', 'sales_manager', 'sales', 'accountant'].includes(r))
         || Boolean(currentUser?.permissions && (currentUser.permissions.includes('user:manage') || currentUser.permissions.includes('*')))
         || !currentUser;
-    const canManageStatus = canAddDealer;
+    const canAddDealer = canManageDealers;
+    const canEditDealer = canManageDealers;
+    const canManageStatus = rawRoles.some((r) => ['admin', 'sales_manager', 'accountant'].includes(r)) || rawRoles.includes('sales');
+
+    // Ràng buộc push từ nhánh test trên git về (bảo toàn không đổi):
     const canAssignDealer = rawRoles.includes('admin') || rawRoles.includes('sales_manager');
     const canUpdateCreditLimit = rawRoles.includes('admin') || rawRoles.includes('sales_manager') || rawRoles.includes('accountant');
 
@@ -229,7 +295,8 @@ export default function DealerSearchView({
         if (togglingId === dealer.id) return;
 
         // Phân quyền: Nhân viên kinh doanh (sales) chỉ được đổi trạng thái đại lý do mình trực tiếp phụ trách
-        const isSalesOnly = rawRoles.includes('sales') && !rawRoles.includes('admin') && !rawRoles.includes('sales_manager');
+        // Kế toán công nợ, Quản lý KD, Admin có quyền với tất cả đại lý
+        const isSalesOnly = rawRoles.includes('sales') && !rawRoles.includes('admin') && !rawRoles.includes('sales_manager') && !rawRoles.includes('accountant');
         const isMyDealer = Boolean(
             currentUser?.id &&
             (dealer.assigned_sale_id === currentUser.id ||
@@ -245,9 +312,10 @@ export default function DealerSearchView({
             return;
         }
 
-        const isCurrentInactive = (dealer.status || '').toLowerCase().includes('ngừng')
+        const isCurrentInactive = (dealer.status || '').toLowerCase().includes('dừng')
+            || (dealer.status || '').toLowerCase().includes('ngừng')
             || (dealer.status || '').toLowerCase().includes('inactive');
-        const nextStatus = isCurrentInactive ? 'Đang hoạt động' : 'Tạm ngừng';
+        const nextStatus = isCurrentInactive ? 'Đang hoạt động' : 'Tạm dừng';
 
         setTogglingId(dealer.id);
 
@@ -268,9 +336,11 @@ export default function DealerSearchView({
             setDealers((prev) =>
                 prev.map((d) => (d.id === dealer.id ? { ...d, status: dealer.status } : d))
             );
+            const errMsg = err instanceof Error ? err.message : 'Có lỗi khi cập nhật trạng thái đại lý';
+            const isConnErr = errMsg.toLowerCase().includes('fetch') || errMsg.toLowerCase().includes('network');
             emitStatusToast({
-                title: 'Thông báo quyền hạn',
-                message: err instanceof Error ? err.message : 'Có lỗi khi cập nhật trạng thái đại lý',
+                title: isConnErr ? 'Lỗi kết nối máy chủ' : 'Thông báo trạng thái',
+                message: isConnErr ? 'Không thể kết nối đến máy chủ backend (port 8000). Vui lòng thử lại.' : errMsg,
                 type: 'warning',
             });
         } finally {
@@ -282,7 +352,7 @@ export default function DealerSearchView({
         if (!canAddDealer) {
             emitStatusToast({
                 title: 'Thông báo quyền hạn',
-                message: 'Bạn không có quyền thêm đại lý & khách hàng. Chức năng này yêu cầu quyền Quản trị viên hoặc Bộ phận Kinh doanh.',
+                message: 'Bạn không có quyền thêm hồ sơ đại lý.',
                 type: 'warning',
             });
             return;
@@ -292,8 +362,8 @@ export default function DealerSearchView({
         const userRoles = currentUser?.roles && currentUser.roles.length > 0
             ? currentUser.roles
             : (currentUser?.role ? [currentUser.role] : []);
-        // Chỉ tự động chọn nếu người dùng hiện tại có vai trò Nhân viên kinh doanh (sales), Quản lý/Admin không tự gán
-        if (currentUser && userRoles.includes('sales')) {
+        // Chỉ tự động chọn nếu người dùng hiện tại có vai trò Nhân viên kinh doanh (sales), Quản lý/Admin/Kế toán không tự gán
+        if (currentUser && userRoles.includes('sales') && !userRoles.includes('accountant') && !userRoles.includes('sales_manager') && !userRoles.includes('admin')) {
             const matched = sales.find((s) => s.id === currentUser.id || s.name.toLowerCase() === (currentUser.full_name || '').toLowerCase());
             if (matched) {
                 defaultSaleId = String(matched.id);
@@ -304,8 +374,10 @@ export default function DealerSearchView({
             code: `DL-${Math.floor(1000 + Math.random() * 9000)}`,
             name: '',
             phone: '',
+            email: '',
+            tax_id: '',
             address: '',
-            region: regions[0] || 'Hà Nội',
+            region: regions.includes('Hà Nội') ? 'Hà Nội' : (regions[0] || 'Hà Nội'),
             assigned_sale_id: defaultSaleId,
             customer_group: customerGroups[0] || 'Đại lý cấp 1',
             status: 'Đang hoạt động',
@@ -320,7 +392,7 @@ export default function DealerSearchView({
 
         // 1. Ràng buộc phân quyền
         if (!canAddDealer) {
-            setAddError('Bạn không có quyền thêm đại lý & khách hàng. Chức năng này yêu cầu quyền Quản trị viên hoặc Bộ phận Kinh doanh.');
+            setAddError('Bạn không có quyền thêm hồ sơ đại lý.');
             return;
         }
 
@@ -405,7 +477,7 @@ export default function DealerSearchView({
 
         // 7. Ràng buộc bắt buộc phải chọn Nhân viên phụ trách
         if (!addFormData.assigned_sale_id) {
-            setAddError('Vui lòng chọn Nhân viên kinh doanh (Sales) phụ trách đại lý / khách hàng.');
+            setAddError('Vui lòng chọn Nhân viên kinh doanh phụ trách đại lý / khách hàng.');
             return;
         }
 
@@ -418,11 +490,14 @@ export default function DealerSearchView({
                 code: cleanCode,
                 name: trimmedName,
                 phone: cleanPhone,
+                email: addFormData.email.trim() || undefined,
+                tax_id: addFormData.tax_id.trim() || undefined,
                 address: trimmedAddress,
                 region: trimmedRegion,
                 assigned_sale_id: addFormData.assigned_sale_id ? Number(addFormData.assigned_sale_id) : undefined,
                 assigned_sale_name: saleName,
                 customer_group: addFormData.customer_group || 'Đại lý cấp 1',
+                price_list: getPriceListByCustomerGroup(addFormData.customer_group),
                 status: addFormData.status || 'Đang hoạt động',
             };
 
@@ -430,8 +505,8 @@ export default function DealerSearchView({
             setDealers((prev) => [created, ...prev]);
 
             emitStatusToast({
-                title: 'Đại lý & khách hàng',
-                message: `Đã thêm thành công đại lý "${created.name}" (${created.code}).`,
+                title: 'Hồ sơ đại lý',
+                message: `Đã thêm thành công hồ sơ đại lý "${created.name}" (${created.code}).`,
                 type: 'success',
             });
 
@@ -443,21 +518,323 @@ export default function DealerSearchView({
         }
     };
 
+    // Chức năng Chỉnh sửa hồ sơ đại lý
+    const handleOpenEditModal = (dealer: DealerSearchItem) => {
+        if (!canEditDealer) {
+            emitStatusToast({
+                title: 'Thông báo quyền hạn',
+                message: 'Bạn không có quyền chỉnh sửa hồ sơ đại lý.',
+                type: 'warning',
+            });
+            return;
+        }
+
+        setEditTargetDealer(dealer);
+        setEditFormData({
+            code: dealer.code || '',
+            name: dealer.name || '',
+            phone: dealer.phone || '',
+            email: dealer.email || '',
+            tax_id: dealer.tax_id || '',
+            address: dealer.address || '',
+            region: (dealer.region && dealer.region.trim().toLowerCase() !== 'ha noi') ? dealer.region : (regions.includes('Hà Nội') ? 'Hà Nội' : (regions[0] || 'Hà Nội')),
+            assigned_sale_id: dealer.assigned_sale_id ? String(dealer.assigned_sale_id) : '',
+            customer_group: (dealer.customer_group && (dealer.customer_group.toLowerCase() === 'dai ly cap 1' || dealer.customer_group.toLowerCase() === 'dai ly 1')) ? 'Đại lý cấp 1' : (dealer.customer_group || customerGroups[0] || 'Đại lý cấp 1'),
+            status: formatDealerStatus(dealer.status),
+        });
+        setEditError('');
+        setIsEditModalOpen(true);
+    };
+
+    const handleEditSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!editTargetDealer) return;
+        setEditError('');
+
+        if (!canEditDealer) {
+            setEditError('Bạn không có quyền chỉnh sửa hồ sơ đại lý.');
+            return;
+        }
+
+        const trimmedName = editFormData.name.trim();
+        if (!trimmedName || trimmedName.length < 2) {
+            setEditError('Tên đại lý quá ngắn (tối thiểu 2 ký tự).');
+            return;
+        }
+        if (/^\d+$/.test(trimmedName)) {
+            setEditError('Tên không hợp lệ! Tên đại lý không được chỉ bao gồm chữ số.');
+            return;
+        }
+
+        const trimmedPhone = editFormData.phone.trim();
+        if (!trimmedPhone) {
+            setEditError('Vui lòng nhập số điện thoại liên hệ.');
+            return;
+        }
+
+        let cleanPhone = trimmedPhone.replace(/[\s\.\-\(\)]/g, '');
+        if (cleanPhone.startsWith('+84')) {
+            cleanPhone = '0' + cleanPhone.slice(3);
+        } else if (cleanPhone.startsWith('84') && cleanPhone.length === 11) {
+            cleanPhone = '0' + cleanPhone.slice(2);
+        }
+
+        const vnPhoneRegex = /^(0[3|5|7|8|9][0-9]{8}|02[0-9]{9})$/;
+        if (!vnPhoneRegex.test(cleanPhone)) {
+            setEditError('Số điện thoại không hợp lệ! Vui lòng nhập đúng 10 chữ số (bắt đầu bằng 03, 05, 07, 08, 09).');
+            return;
+        }
+
+        const isDuplicatePhone = dealers.some((d) => {
+            if (d.id === editTargetDealer.id || !d.phone) return false;
+            let p = d.phone.replace(/[\s\.\-\(\)]/g, '');
+            if (p.startsWith('+84')) p = '0' + p.slice(3);
+            else if (p.startsWith('84') && p.length === 11) p = '0' + p.slice(2);
+            return p === cleanPhone;
+        });
+        if (isDuplicatePhone) {
+            setEditError(`Số điện thoại "${cleanPhone}" đã được sử dụng cho một đại lý khác!`);
+            return;
+        }
+
+        const trimmedRegion = editFormData.region.trim();
+        if (!trimmedRegion) {
+            setEditError('Vui lòng chọn hoặc nhập khu vực cho đại lý.');
+            return;
+        }
+
+        const trimmedAddress = editFormData.address.trim();
+        if (!trimmedAddress || trimmedAddress.length < 5) {
+            setEditError('Địa chỉ quá ngắn (tối thiểu 5 ký tự).');
+            return;
+        }
+
+        const selectedSale = sales.find((s) => String(s.id) === String(editFormData.assigned_sale_id));
+        const saleName = selectedSale ? selectedSale.name : (editTargetDealer.assigned_sale_name || null);
+
+        setIsSubmitting(true);
+        try {
+            const payload: UpdateDealerPayload = {
+                name: trimmedName,
+                phone: cleanPhone,
+                email: editFormData.email.trim() || undefined,
+                tax_id: editFormData.tax_id.trim() || undefined,
+                address: trimmedAddress,
+                region: trimmedRegion,
+                assigned_sale_id: editFormData.assigned_sale_id ? Number(editFormData.assigned_sale_id) : undefined,
+                assigned_sale_name: saleName || undefined,
+                customer_group: editFormData.customer_group,
+                price_list: getPriceListByCustomerGroup(editFormData.customer_group),
+                status: editFormData.status,
+            };
+
+            const updated = await updateDealer(editTargetDealer.id, payload, token);
+            setDealers((prev) => prev.map((d) => (d.id === editTargetDealer.id ? { ...d, ...updated } : d)));
+
+            emitStatusToast({
+                title: 'Hồ sơ đại lý',
+                message: `Đã cập nhật thành công hồ sơ đại lý "${updated.name}".`,
+                type: 'success',
+            });
+            setIsEditModalOpen(false);
+        } catch (err) {
+            setEditError(err instanceof Error ? err.message : 'Có lỗi xảy ra khi cập nhật hồ sơ');
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    // Chức năng Xem chi tiết hồ sơ đại lý
+    const handleOpenDetailModal = (dealer: DealerSearchItem) => {
+        setDetailTargetDealer(dealer);
+        setIsDetailModalOpen(true);
+    };
+
+    // Chức năng Xóa hồ sơ đại lý (Kiểm tra nếu đã phát sinh giao dịch thì chặn)
+    const handleDeleteDealer = async (dealer: DealerSearchItem) => {
+        if (!canAddDealer) {
+            emitStatusToast({
+                title: 'Thông báo quyền hạn',
+                message: 'Bạn không có quyền xóa hồ sơ đại lý.',
+                type: 'warning',
+            });
+            return;
+        }
+
+        try {
+            const check = await checkDealerTransactions(dealer.id, token);
+            if (check.has_transactions || !check.can_delete) {
+                emitStatusToast({
+                    title: 'Không được phép xóa',
+                    message: `Đại lý "${dealer.name}" đã phát sinh giao dịch/đơn hàng, theo quy định không được phép xóa! Vui lòng ngừng giao dịch bằng cách chuyển sang "Tạm dừng".`,
+                    type: 'warning',
+                });
+
+                const confirmStop = window.confirm(
+                    `Đại lý "${dealer.name}" (${dealer.code}) đã phát sinh giao dịch trong hệ thống nên KHÔNG ĐƯỢC PHÉP XÓA theo quy định kế toán.\n\nBạn có muốn NGỪNG GIAO DỊCH đại lý này (chuyển trạng thái sang "Tạm dừng") ngay bây giờ không?`
+                );
+                if (confirmStop) {
+                    const isAlreadySuspended = (dealer.status || '').toLowerCase().includes('dừng') || (dealer.status || '').toLowerCase().includes('ngừng');
+                    if (isAlreadySuspended) {
+                        emitStatusToast({
+                            title: 'Trạng thái đại lý',
+                            message: `Đại lý "${dealer.name}" hiện đã ở trạng thái Tạm dừng (đang ngừng giao dịch).`,
+                            type: 'info',
+                        });
+                    } else {
+                        await handleToggleStatus(dealer);
+                    }
+                }
+                return;
+            }
+
+            const confirmed = window.confirm(`Bạn có chắc chắn muốn xóa hồ sơ đại lý "${dealer.name}" (${dealer.code}) khỏi hệ thống chuẩn? Hành động này không thể hoàn tác.`);
+            if (!confirmed) return;
+
+            setTogglingId(dealer.id);
+            await deleteDealer(dealer.id, token);
+            setDealers((prev) => prev.filter((d) => d.id !== dealer.id));
+            emitStatusToast({
+                title: 'Thành công',
+                message: `Đã xóa thành công hồ sơ đại lý "${dealer.name}".`,
+                type: 'success',
+            });
+        } catch (err) {
+            emitStatusToast({
+                title: 'Lỗi',
+                message: err instanceof Error ? err.message : 'Có lỗi khi xóa đại lý',
+                type: 'error',
+            });
+        } finally {
+            setTogglingId(null);
+        }
+    };
+
+    // Chức năng Xuất danh sách khách hàng chuẩn hóa (CSV/Excel)
+    const handleExportStandardList = () => {
+        if (!dealers || dealers.length === 0) {
+            emitStatusToast({
+                title: 'Thông báo',
+                message: 'Không có dữ liệu đại lý để xuất danh sách.',
+                type: 'warning',
+            });
+            return;
+        }
+
+        const headers = [
+            'Mã đại lý',
+            'Tên đại lý',
+            'Mã số thuế',
+            'Nhóm khách hàng',
+            'Bảng giá áp dụng',
+            'Số điện thoại',
+            'Email',
+            'Địa chỉ',
+            'Khu vực',
+            'Người phụ trách',
+            'Hạn mức công nợ (VNĐ)',
+            'Số ngày nợ tối đa (ngày)',
+            'Dư nợ hiện tại (VNĐ)',
+            'Trạng thái công nợ',
+            'Trạng thái hoạt động',
+        ];
+
+        const rows = dealers.map((d) => [
+            `"${(d.code || '').replace(/"/g, '""')}"`,
+            `"${(d.name || '').replace(/"/g, '""')}"`,
+            `"${(d.tax_id || '').replace(/"/g, '""')}"`,
+            `"${(d.customer_group || '').replace(/"/g, '""')}"`,
+            `"${(d.price_list || getPriceListByCustomerGroup(d.customer_group)).replace(/"/g, '""')}"`,
+            `"${(d.phone || '').replace(/"/g, '""')}"`,
+            `"${(d.email || '').replace(/"/g, '""')}"`,
+            `"${(d.address || '').replace(/"/g, '""')}"`,
+            `"${((d.region && d.region.trim().toLowerCase() === 'ha noi') ? 'Hà Nội' : (d.region || '')).replace(/"/g, '""')}"`,
+            `"${(formatSaleName(d.assigned_sale_name) || '').replace(/"/g, '""')}"`,
+            d.credit_limit != null ? d.credit_limit : 50000000,
+            d.max_debt_days != null ? d.max_debt_days : 30,
+            d.current_debt != null ? d.current_debt : 0,
+            `"${(d.debt_status || 'Bình thường').replace(/"/g, '""')}"`,
+            `"${formatDealerStatus(d.status).replace(/"/g, '""')}"`,
+        ]);
+
+        const csvContent = '\uFEFF' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\r\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.setAttribute('href', url);
+        link.setAttribute('download', `Danh_sach_ho_so_dai_ly_chuan_${new Date().toISOString().slice(0, 10)}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+
+        emitStatusToast({
+            title: 'Xuất danh sách chuẩn',
+            message: `Đã xuất ${dealers.length} hồ sơ đại lý chuẩn hóa thành công!`,
+            type: 'success',
+        });
+    };
+
     async function loadFilters() {
         try {
             const data = await getDealerFilters(token);
 
             if (data.regions && data.regions.length > 0) {
-                setRegions(data.regions);
+                const cleanedRegions = Array.from(
+                    new Set(
+                        data.regions
+                            .map((r) => {
+                                const trim = (r || '').trim();
+                                if (trim.toLowerCase() === 'ha noi') return 'Hà Nội';
+                                return trim;
+                            })
+                            .filter(Boolean)
+                    )
+                );
+                setRegions(cleanedRegions.length > 0 ? cleanedRegions : ['Hà Nội', 'TP. HCM', 'Hải Phòng', 'Đà Nẵng']);
+            } else {
+                setRegions(['Hà Nội', 'TP. HCM', 'Hải Phòng', 'Đà Nẵng']);
             }
+
             if (data.sales && data.sales.length > 0) {
-                setSales(data.sales);
+                const cleanedSales = data.sales.map((s) => ({
+                    id: s.id,
+                    name: formatSaleName(s.name),
+                }));
+                setSales(cleanedSales);
             }
+
             if (data.customer_groups && data.customer_groups.length > 0) {
-                setCustomerGroups(data.customer_groups);
+                const cleanedGroups = Array.from(
+                    new Set(
+                        data.customer_groups
+                            .map((g) => {
+                                const trim = (g || '').trim();
+                                if (trim.toLowerCase() === 'dai ly cap 1' || trim.toLowerCase() === 'dai ly 1') return 'Đại lý cấp 1';
+                                if (trim.toLowerCase() === 'dai ly cap 2' || trim.toLowerCase() === 'dai ly 2') return 'Đại lý cấp 2';
+                                return trim;
+                            })
+                            .filter(Boolean)
+                    )
+                );
+                DEFAULT_CUSTOMER_GROUPS.forEach((dg) => {
+                    if (!cleanedGroups.includes(dg)) cleanedGroups.push(dg);
+                });
+                setCustomerGroups(cleanedGroups);
             }
+
             if (data.statuses && data.statuses.length > 0) {
-                setStatuses(data.statuses);
+                const cleanedStatuses = Array.from(
+                    new Set(
+                        data.statuses
+                            .map((st) => formatDealerStatus(st))
+                            .filter(Boolean)
+                    )
+                );
+                DEFAULT_STATUSES.forEach((ds) => {
+                    if (!cleanedStatuses.includes(ds)) cleanedStatuses.push(ds);
+                });
+                setStatuses(cleanedStatuses);
             }
         } catch (err) {
             console.error(err);
@@ -512,13 +889,19 @@ export default function DealerSearchView({
 
             // Lọc client-side bổ trợ nếu backend chưa filter một số trường
             if (searchGroup) {
+                const normSearchGroup = (searchGroup.toLowerCase() === 'dai ly cap 1' || searchGroup.toLowerCase() === 'dai ly 1') ? 'đại lý cấp 1' : searchGroup.toLowerCase();
                 items = items.filter(
-                    (d) => Boolean(d.customer_group && d.customer_group.toLowerCase() === searchGroup.toLowerCase())
+                    (d) => {
+                        const dg = (d.customer_group || '').toLowerCase();
+                        const normDg = (dg === 'dai ly cap 1' || dg === 'dai ly 1') ? 'đại lý cấp 1' : dg;
+                        return normDg === normSearchGroup;
+                    }
                 );
             }
             if (searchStatus) {
+                const normSearchStatus = formatDealerStatus(searchStatus).toLowerCase();
                 items = items.filter(
-                    (d) => Boolean(d.status && d.status.toLowerCase() === searchStatus.toLowerCase())
+                    (d) => formatDealerStatus(d.status).toLowerCase() === normSearchStatus
                 );
             }
             if (isOnlyMine && currentUser) {
@@ -598,14 +981,25 @@ export default function DealerSearchView({
                             </button>
                         )}
                         <div>
-                            <h2>Tra cứu đại lý & khách hàng</h2>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                                <h2>Quản lý hồ sơ đại lý</h2>
+                                <span className="dealer-standard-badge">Danh sách khách hàng chuẩn hóa</span>
+                            </div>
                             <p>
-                                Tìm nhanh đại lý trong tuyến, liên hệ & chỉ đường trực tiếp khi đang di chuyển ngoài đường
+                                Quản lý hồ sơ đại lý & khách hàng tập trung toàn hệ thống phục vụ theo dõi công nợ, phân công chăm sóc và bán hàng thống nhất thay vì mỗi nhân viên giữ một file riêng
                             </p>
                         </div>
                     </div>
 
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                        <button
+                            type="button"
+                            onClick={handleExportStandardList}
+                            className="dealer-btn-export"
+                            title="Xuất file danh sách khách hàng chuẩn hóa (CSV/Excel) để toàn công ty dùng chung một nguồn dữ liệu"
+                        >
+                            <span>Xuất danh sách chuẩn (CSV/Excel)</span>
+                        </button>
                         {currentUser && (
                             <button
                                 type="button"
@@ -623,11 +1017,11 @@ export default function DealerSearchView({
                             disabled={!canAddDealer}
                             title={
                                 canAddDealer
-                                    ? 'Thêm mới đại lý hoặc khách hàng vào tuyến'
-                                    : 'Bạn không có quyền thực hiện chức năng này (Yêu cầu quyền Quản trị viên hoặc Bộ phận Kinh doanh)'
+                                    ? 'Thêm mới hồ sơ đại lý vào hệ thống chuẩn'
+                                    : 'Bạn không có quyền thực hiện chức năng này'
                             }
                         >
-                            <span>Thêm đại lý & khách hàng</span>
+                            <span>Thêm hồ sơ đại lý</span>
                         </button>
                     </div>
                 </div>
@@ -713,7 +1107,7 @@ export default function DealerSearchView({
                         <option value="">Tất cả nhân viên</option>
                         {sales.map((sale) => (
                             <option key={sale.id} value={sale.id}>
-                                {sale.name}
+                                {formatSaleName(sale.name)}
                             </option>
                         ))}
                     </select>
@@ -732,7 +1126,7 @@ export default function DealerSearchView({
                         <option value="">Tất cả trạng thái</option>
                         {statuses.map((st) => (
                             <option key={st} value={st}>
-                                {st}
+                                {formatDealerStatus(st)}
                             </option>
                         ))}
                     </select>
@@ -843,11 +1237,21 @@ export default function DealerSearchView({
                                         <td>
                                             <div className="dealer-name-cell">
                                                 <strong>{dealer.name}</strong>
-                                                {dealer.customer_group && (
-                                                    <span className="dealer-group-tag">
-                                                        {dealer.customer_group}
+                                                <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginTop: '3px', flexWrap: 'wrap' }}>
+                                                    {dealer.customer_group && (
+                                                        <span className="dealer-group-tag">
+                                                            {dealer.customer_group}
+                                                        </span>
+                                                    )}
+                                                    <span className="dealer-group-tag" style={{ background: '#f0f9ff', color: '#0369a1', borderColor: '#bae6fd' }} title="Bảng giá áp dụng (quyết định theo nhóm khách hàng)">
+                                                        📋 {dealer.price_list || getPriceListByCustomerGroup(dealer.customer_group)}
                                                     </span>
-                                                )}
+                                                    {dealer.tax_id && (
+                                                        <span className="dealer-tax-badge" title="Mã số thuế doanh nghiệp">
+                                                            MST: {dealer.tax_id}
+                                                        </span>
+                                                    )}
+                                                </div>
                                             </div>
                                         </td>
                                         <td>
@@ -896,24 +1300,26 @@ export default function DealerSearchView({
                                             </div>
                                         </td>
                                         <td>
-                                            {dealer.debt_status ? (
-                                                <span className={`dealer-group-tag ${
-                                                    dealer.debt_status.includes('Vượt') || dealer.debt_status.includes('Quá hạn') ? 'danger' : 'success'
-                                                }`} style={{ 
-                                                    background: dealer.debt_status.includes('Vượt') || dealer.debt_status.includes('Quá hạn') ? '#fee2e2' : '#dcfce7',
-                                                    color: dealer.debt_status.includes('Vượt') || dealer.debt_status.includes('Quá hạn') ? '#dc2626' : '#16a34a',
-                                                    borderColor: dealer.debt_status.includes('Vượt') || dealer.debt_status.includes('Quá hạn') ? '#fca5a5' : '#86efac'
-                                                 }}>
-                                                    {dealer.debt_status}
-                                                </span>
-                                            ) : (
-                                                <span className="dealer-group-tag">Chưa xác định</span>
-                                            )}
+                                            {(() => {
+                                                const currentDebt = dealer.current_debt ?? 0;
+                                                const limit = dealer.credit_limit ?? 50000000;
+                                                const debtSt = dealer.debt_status || (currentDebt > limit ? 'Vượt hạn mức' : 'Bình thường');
+                                                const isDanger = debtSt.includes('Vượt') || debtSt.includes('Quá hạn');
+                                                return (
+                                                    <span className={`dealer-group-tag ${isDanger ? 'danger' : 'success'}`} style={{ 
+                                                        background: isDanger ? '#fee2e2' : '#dcfce7',
+                                                        color: isDanger ? '#dc2626' : '#16a34a',
+                                                        borderColor: isDanger ? '#fca5a5' : '#86efac'
+                                                    }}>
+                                                        {debtSt}
+                                                    </span>
+                                                );
+                                            })()}
                                         </td>
                                         <td>
                                             {dealer.assigned_sale_name ? (
                                                 <span className="dealer-sale-badge">
-                                                    {dealer.assigned_sale_name}
+                                                    {formatSaleName(dealer.assigned_sale_name)}
                                                 </span>
                                             ) : (
                                                 '-'
@@ -921,42 +1327,32 @@ export default function DealerSearchView({
                                         </td>
                                         <td>
                                             <div className="dealer-status-cell">
-                                                {canManageStatus ? (
-                                                    <button
-                                                        type="button"
-                                                        className={`dealer-status-toggle-btn ${(dealer.status || '').toLowerCase().includes('ngừng') ||
-                                                                (dealer.status || '').toLowerCase().includes('inactive')
-                                                                ? 'status-inactive'
-                                                                : 'status-active'
-                                                            }`}
-                                                        onClick={() => handleToggleStatus(dealer)}
-                                                        disabled={togglingId === dealer.id}
-                                                        title={
-                                                            (dealer.status || '').toLowerCase().includes('ngừng') ||
-                                                            (dealer.status || '').toLowerCase().includes('inactive')
-                                                                ? 'Bấm để chuyển sang Đang hoạt động'
-                                                                : 'Bấm để chuyển sang Tạm ngừng'
-                                                        }
-                                                    >
-                                                        <span className="status-dot" />
-                                                        <span>
-                                                            {togglingId === dealer.id
-                                                                ? 'Đang cập nhật...'
-                                                                : dealer.status || 'Đang hoạt động'}
+                                                {(() => {
+                                                    const isInactive = (dealer.status || '').toLowerCase().includes('dừng')
+                                                        || (dealer.status || '').toLowerCase().includes('ngừng')
+                                                        || (dealer.status || '').toLowerCase().includes('inactive');
+                                                    return canManageStatus ? (
+                                                        <button
+                                                            type="button"
+                                                            className={`dealer-status-toggle-btn ${isInactive ? 'status-inactive' : 'status-active'}`}
+                                                            onClick={() => handleToggleStatus(dealer)}
+                                                            disabled={togglingId === dealer.id}
+                                                            title={isInactive ? 'Bấm để chuyển sang Đang hoạt động' : 'Bấm để chuyển sang Tạm dừng'}
+                                                        >
+                                                            <span className="status-dot" />
+                                                            <span>
+                                                                {togglingId === dealer.id
+                                                                    ? 'Đang cập nhật...'
+                                                                    : formatDealerStatus(dealer.status)}
+                                                            </span>
+                                                        </button>
+                                                    ) : (
+                                                        <span className={`dealer-status-toggle-btn read-only ${isInactive ? 'status-inactive' : 'status-active'}`}>
+                                                            <span className="status-dot" />
+                                                            <span>{formatDealerStatus(dealer.status)}</span>
                                                         </span>
-                                                    </button>
-                                                ) : (
-                                                    <span
-                                                        className={`dealer-status-toggle-btn read-only ${(dealer.status || '').toLowerCase().includes('ngừng') ||
-                                                                (dealer.status || '').toLowerCase().includes('inactive')
-                                                                ? 'status-inactive'
-                                                                : 'status-active'
-                                                            }`}
-                                                    >
-                                                        <span className="status-dot" />
-                                                        <span>{dealer.status || 'Đang hoạt động'}</span>
-                                                    </span>
-                                                )}
+                                                    );
+                                                })()}
                                             </div>
                                         </td>
                                         <td>
@@ -997,6 +1393,22 @@ export default function DealerSearchView({
                                                 </button>
                                                 {openDropdownId === dealer.id && (
                                                     <div className="dealer-dropdown-menu">
+                                                        <button 
+                                                            type="button" 
+                                                            className="dealer-dropdown-item" 
+                                                            onClick={(e) => { e.stopPropagation(); handleOpenDetailModal(dealer); setOpenDropdownId(null); }}
+                                                        >
+                                                            <span style={{ width: '20px', display: 'inline-block' }}>👁️</span> Xem chi tiết
+                                                        </button>
+                                                        {canEditDealer && (
+                                                            <button 
+                                                                type="button" 
+                                                                className="dealer-dropdown-item" 
+                                                                onClick={(e) => { e.stopPropagation(); handleOpenEditModal(dealer); setOpenDropdownId(null); }}
+                                                            >
+                                                                <span style={{ width: '20px', display: 'inline-block' }}>✏️</span> Chỉnh sửa hồ sơ
+                                                            </button>
+                                                        )}
                                                         {canUpdateCreditLimit && (
                                                             <button 
                                                                 type="button" 
@@ -1029,6 +1441,15 @@ export default function DealerSearchView({
                                                         >
                                                             <span style={{ width: '20px', display: 'inline-block', opacity: 0.7 }}>🕒</span> Lịch sử
                                                         </button>
+                                                        {canAddDealer && (
+                                                            <button 
+                                                                type="button" 
+                                                                className="dealer-dropdown-item danger" 
+                                                                onClick={(e) => { e.stopPropagation(); handleDeleteDealer(dealer); setOpenDropdownId(null); }}
+                                                            >
+                                                                <span style={{ width: '20px', display: 'inline-block' }}>🗑️</span> Xóa hồ sơ
+                                                            </button>
+                                                        )}
                                                     </div>
                                                 )}
                                             </div>
@@ -1055,42 +1476,32 @@ export default function DealerSearchView({
                                         <h3 className="dealer-card-name">{dealer.name}</h3>
                                     </div>
                                     <div className="dealer-status-cell">
-                                        {canManageStatus ? (
-                                            <button
-                                                type="button"
-                                                className={`dealer-status-toggle-btn ${(dealer.status || '').toLowerCase().includes('ngừng') ||
-                                                        (dealer.status || '').toLowerCase().includes('inactive')
-                                                        ? 'status-inactive'
-                                                        : 'status-active'
-                                                    }`}
-                                                onClick={() => handleToggleStatus(dealer)}
-                                                disabled={togglingId === dealer.id}
-                                                title={
-                                                    (dealer.status || '').toLowerCase().includes('ngừng') ||
-                                                    (dealer.status || '').toLowerCase().includes('inactive')
-                                                        ? 'Bấm để chuyển sang Đang hoạt động'
-                                                        : 'Bấm để chuyển sang Tạm ngừng'
-                                                }
-                                            >
-                                                <span className="status-dot" />
-                                                <span>
-                                                    {togglingId === dealer.id
-                                                        ? 'Đang cập nhật...'
-                                                        : dealer.status || 'Đang hoạt động'}
+                                        {(() => {
+                                            const isInactive = (dealer.status || '').toLowerCase().includes('dừng')
+                                                || (dealer.status || '').toLowerCase().includes('ngừng')
+                                                || (dealer.status || '').toLowerCase().includes('inactive');
+                                            return canManageStatus ? (
+                                                <button
+                                                    type="button"
+                                                    className={`dealer-status-toggle-btn ${isInactive ? 'status-inactive' : 'status-active'}`}
+                                                    onClick={() => handleToggleStatus(dealer)}
+                                                    disabled={togglingId === dealer.id}
+                                                    title={isInactive ? 'Bấm để chuyển sang Đang hoạt động' : 'Bấm để chuyển sang Tạm dừng'}
+                                                >
+                                                    <span className="status-dot" />
+                                                    <span>
+                                                        {togglingId === dealer.id
+                                                            ? 'Đang cập nhật...'
+                                                            : formatDealerStatus(dealer.status)}
+                                                    </span>
+                                                </button>
+                                            ) : (
+                                                <span className={`dealer-status-toggle-btn read-only ${isInactive ? 'status-inactive' : 'status-active'}`}>
+                                                    <span className="status-dot" />
+                                                    <span>{formatDealerStatus(dealer.status)}</span>
                                                 </span>
-                                            </button>
-                                        ) : (
-                                            <span
-                                                className={`dealer-status-toggle-btn read-only ${(dealer.status || '').toLowerCase().includes('ngừng') ||
-                                                        (dealer.status || '').toLowerCase().includes('inactive')
-                                                        ? 'status-inactive'
-                                                        : 'status-active'
-                                                    }`}
-                                            >
-                                                <span className="status-dot" />
-                                                <span>{dealer.status || 'Đang hoạt động'}</span>
-                                            </span>
-                                        )}
+                                            );
+                                        })()}
                                     </div>
                                 </div>
 
@@ -1110,7 +1521,7 @@ export default function DealerSearchView({
                                     {dealer.assigned_sale_name && (
                                         <div className="dealer-card-meta">
                                             <span className="meta-label">Phụ trách:</span>
-                                            <span>{dealer.assigned_sale_name}</span>
+                                            <span>{formatSaleName(dealer.assigned_sale_name)}</span>
                                         </div>
                                     )}
 
@@ -1129,20 +1540,43 @@ export default function DealerSearchView({
                                                 {' / '} 
                                                 <span style={{ color: '#64748b' }}>{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(dealer.credit_limit ?? 50000000)}</span>
                                             </span>
-                                            {dealer.debt_status && (
-                                                <span style={{ 
-                                                    fontSize: '0.8rem',
-                                                    marginTop: '4px',
-                                                    color: dealer.debt_status.includes('Vượt') || dealer.debt_status.includes('Quá hạn') ? '#dc2626' : '#16a34a',
-                                                }}>
-                                                    Trạng thái: {dealer.debt_status}
-                                                </span>
-                                            )}
+                                            {(() => {
+                                                const currentDebt = dealer.current_debt ?? 0;
+                                                const limit = dealer.credit_limit ?? 50000000;
+                                                const debtSt = dealer.debt_status || (currentDebt > limit ? 'Vượt hạn mức' : 'Bình thường');
+                                                const isDanger = debtSt.includes('Vượt') || debtSt.includes('Quá hạn');
+                                                return (
+                                                    <span style={{ 
+                                                        fontSize: '0.8rem',
+                                                        marginTop: '4px',
+                                                        fontWeight: '600',
+                                                        color: isDanger ? '#dc2626' : '#16a34a',
+                                                    }}>
+                                                        Trạng thái: {debtSt}
+                                                    </span>
+                                                );
+                                            })()}
                                         </div>
                                     </div>
                                 </div>
 
                                 <div className="dealer-card-actions">
+                                    <button
+                                        onClick={() => handleOpenDetailModal(dealer)}
+                                        className="dealer-btn-call"
+                                        style={{ background: '#0284c7', color: '#fff', borderColor: '#0284c7' }}
+                                    >
+                                        Chi tiết
+                                    </button>
+                                    {canEditDealer && (
+                                        <button
+                                            onClick={() => handleOpenEditModal(dealer)}
+                                            className="dealer-btn-call"
+                                            style={{ background: '#f59e0b', color: '#fff', borderColor: '#f59e0b' }}
+                                        >
+                                            Sửa
+                                        </button>
+                                    )}
                                     {canUpdateCreditLimit && (
                                         <button
                                             onClick={() => handleOpenCreditModal(dealer)}
@@ -1183,8 +1617,8 @@ export default function DealerSearchView({
                         <div className="dealer-modal-header">
                             <div className="dealer-modal-title-wrap">
                                 <div>
-                                    <h3>Thêm đại lý & khách hàng mới</h3>
-                                    <p>Nhập thông tin đại lý hoặc khách hàng để đưa vào tuyến quản lý</p>
+                                    <h3>Thêm hồ sơ đại lý mới</h3>
+                                    <p>Nhập thông tin đại lý hoặc khách hàng để đưa vào danh sách chuẩn hóa toàn hệ thống</p>
                                 </div>
                             </div>
                             <button
@@ -1223,6 +1657,27 @@ export default function DealerSearchView({
                                     </div>
 
                                     <div className="dealer-modal-field">
+                                        <label>Bảng giá áp dụng (Theo nhóm)</label>
+                                        <div style={{
+                                            padding: '10px 12px',
+                                            borderRadius: '6px',
+                                            border: '1px solid #cbd5e1',
+                                            background: '#f8fafc',
+                                            color: '#1d4ed8',
+                                            fontWeight: '600',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '6px'
+                                        }}>
+                                            <span>📋</span>
+                                            <span>{getPriceListByCustomerGroup(addFormData.customer_group)}</span>
+                                        </div>
+                                        <span className="dealer-modal-field-hint" style={{ color: '#0369a1', fontSize: '0.75rem', marginTop: '3px' }}>
+                                            ℹ Nhóm khách hàng tự động quyết định bảng giá được áp dụng
+                                        </span>
+                                    </div>
+
+                                    <div className="dealer-modal-field">
                                         <label>Mã đại lý / khách hàng</label>
                                         <input
                                             type="text"
@@ -1241,7 +1696,17 @@ export default function DealerSearchView({
                                             required
                                             value={addFormData.name}
                                             onChange={(e) => setAddFormData({ ...addFormData, name: e.target.value })}
-                                            placeholder="Ví dụ: Đại lý Toàn Thắng hoặc Cửa hàng Minh Tuấn"
+                                            placeholder="Ví dụ: Đại lý Toàn Thắng hoặc Công ty Minh Tuấn"
+                                        />
+                                    </div>
+
+                                    <div className="dealer-modal-field">
+                                        <label>Mã số thuế (MST)</label>
+                                        <input
+                                            type="text"
+                                            value={addFormData.tax_id}
+                                            onChange={(e) => setAddFormData({ ...addFormData, tax_id: e.target.value })}
+                                            placeholder="Ví dụ: 0101234567"
                                         />
                                     </div>
 
@@ -1255,6 +1720,16 @@ export default function DealerSearchView({
                                             value={addFormData.phone}
                                             onChange={(e) => setAddFormData({ ...addFormData, phone: e.target.value })}
                                             placeholder="Ví dụ: 0987654321"
+                                        />
+                                    </div>
+
+                                    <div className="dealer-modal-field">
+                                        <label>Email liên hệ</label>
+                                        <input
+                                            type="email"
+                                            value={addFormData.email}
+                                            onChange={(e) => setAddFormData({ ...addFormData, email: e.target.value })}
+                                            placeholder="Ví dụ: daily@gmail.com"
                                         />
                                     </div>
 
@@ -1286,7 +1761,7 @@ export default function DealerSearchView({
                                             <option value="">-- Chọn nhân viên phụ trách * --</option>
                                             {sales.map((sale) => (
                                                 <option key={sale.id} value={sale.id}>
-                                                    {sale.name}
+                                                    {formatSaleName(sale.name)}
                                                 </option>
                                             ))}
                                         </select>
@@ -1324,10 +1799,349 @@ export default function DealerSearchView({
                                     className="dealer-btn-save"
                                     disabled={isSubmitting}
                                 >
-                                    {isSubmitting ? 'Đang lưu...' : 'Lưu đại lý & khách hàng'}
+                                    {isSubmitting ? 'Đang lưu...' : 'Lưu hồ sơ đại lý'}
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal Chỉnh sửa hồ sơ đại lý */}
+            {isEditModalOpen && editTargetDealer && (
+                <div className="dealer-modal-overlay" onClick={() => setIsEditModalOpen(false)}>
+                    <div className="dealer-modal-box" onClick={(e) => e.stopPropagation()}>
+                        <div className="dealer-modal-header">
+                            <div className="dealer-modal-title-wrap">
+                                <div>
+                                    <h3>Chỉnh sửa hồ sơ đại lý</h3>
+                                    <p>Cập nhật và chuẩn hóa thông tin đại lý: {editTargetDealer.name} ({editTargetDealer.code})</p>
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                className="dealer-modal-close-btn"
+                                onClick={() => setIsEditModalOpen(false)}
+                                title="Đóng"
+                            >
+                                ✕
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleEditSubmit} className="dealer-modal-form">
+                            <div className="dealer-modal-body">
+                                {editError && (
+                                    <div className="dealer-modal-error">
+                                        {editError}
+                                    </div>
+                                )}
+
+                                <div className="dealer-modal-form-grid">
+                                    <div className="dealer-modal-field">
+                                        <label>Nhóm khách hàng <span className="required">*</span></label>
+                                        <select
+                                            value={editFormData.customer_group}
+                                            onChange={(e) => setEditFormData({ ...editFormData, customer_group: e.target.value })}
+                                        >
+                                            {customerGroups.map((group) => (
+                                                <option key={group} value={group}>
+                                                    {group}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+
+                                    <div className="dealer-modal-field">
+                                        <label>Bảng giá áp dụng (Theo nhóm)</label>
+                                        <div style={{
+                                            padding: '10px 12px',
+                                            borderRadius: '6px',
+                                            border: '1px solid #cbd5e1',
+                                            background: '#f8fafc',
+                                            color: '#1d4ed8',
+                                            fontWeight: '600',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '6px'
+                                        }}>
+                                            <span>📋</span>
+                                            <span>{getPriceListByCustomerGroup(editFormData.customer_group)}</span>
+                                        </div>
+                                        <span className="dealer-modal-field-hint" style={{ color: '#0369a1', fontSize: '0.75rem', marginTop: '3px' }}>
+                                            ℹ Nhóm khách hàng tự động quyết định bảng giá được áp dụng
+                                        </span>
+                                    </div>
+
+                                    <div className="dealer-modal-field">
+                                        <label>Trạng thái hoạt động</label>
+                                        <select
+                                            value={editFormData.status}
+                                            onChange={(e) => setEditFormData({ ...editFormData, status: e.target.value })}
+                                        >
+                                            {statuses.map((st) => (
+                                                <option key={st} value={st}>
+                                                    {formatDealerStatus(st)}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+
+                                    <div className="dealer-modal-field dealer-form-full">
+                                        <label>
+                                            Tên đại lý / Khách hàng <span className="required">*</span>
+                                        </label>
+                                        <input
+                                            type="text"
+                                            required
+                                            value={editFormData.name}
+                                            onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+                                            placeholder="Tên đại lý hoặc doanh nghiệp..."
+                                        />
+                                    </div>
+
+                                    <div className="dealer-modal-field">
+                                        <label>Mã số thuế (MST)</label>
+                                        <input
+                                            type="text"
+                                            value={editFormData.tax_id}
+                                            onChange={(e) => setEditFormData({ ...editFormData, tax_id: e.target.value })}
+                                            placeholder="Ví dụ: 0101234567"
+                                        />
+                                    </div>
+
+                                    <div className="dealer-modal-field">
+                                        <label>
+                                            Số điện thoại liên hệ <span className="required">*</span>
+                                        </label>
+                                        <input
+                                            type="tel"
+                                            required
+                                            value={editFormData.phone}
+                                            onChange={(e) => setEditFormData({ ...editFormData, phone: e.target.value })}
+                                            placeholder="Ví dụ: 0987654321"
+                                        />
+                                    </div>
+
+                                    <div className="dealer-modal-field">
+                                        <label>Email liên hệ</label>
+                                        <input
+                                            type="email"
+                                            value={editFormData.email}
+                                            onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })}
+                                            placeholder="Ví dụ: daily@gmail.com"
+                                        />
+                                    </div>
+
+                                    <div className="dealer-modal-field">
+                                        <label>Khu vực <span className="required">*</span></label>
+                                        <select
+                                            value={editFormData.region}
+                                            onChange={(e) => setEditFormData({ ...editFormData, region: e.target.value })}
+                                        >
+                                            {regions.map((reg) => (
+                                                <option key={reg} value={reg}>
+                                                    {reg}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+
+                                    <div className="dealer-modal-field dealer-form-full">
+                                        <label>Nhân viên phụ trách</label>
+                                        <select
+                                            value={editFormData.assigned_sale_id}
+                                            onChange={(e) => setEditFormData({ ...editFormData, assigned_sale_id: e.target.value })}
+                                        >
+                                            <option value="">-- Chưa gán người phụ trách --</option>
+                                            {sales.map((sale) => (
+                                                <option key={sale.id} value={sale.id}>
+                                                    {formatSaleName(sale.name)}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+
+                                    <div className="dealer-modal-field dealer-form-full">
+                                        <label>Địa chỉ <span className="required">*</span></label>
+                                        <input
+                                            type="text"
+                                            required
+                                            value={editFormData.address}
+                                            onChange={(e) => setEditFormData({ ...editFormData, address: e.target.value })}
+                                            placeholder="Số nhà, tên đường, phường/xã, quận/huyện..."
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="dealer-modal-footer">
+                                <button
+                                    type="button"
+                                    className="dealer-btn-cancel"
+                                    onClick={() => setIsEditModalOpen(false)}
+                                    disabled={isSubmitting}
+                                >
+                                    Hủy bỏ
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="dealer-btn-save"
+                                    disabled={isSubmitting}
+                                >
+                                    {isSubmitting ? 'Đang lưu...' : 'Lưu cập nhật'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal Xem chi tiết hồ sơ đại lý */}
+            {isDetailModalOpen && detailTargetDealer && (
+                <div className="dealer-modal-overlay" onClick={() => setIsDetailModalOpen(false)}>
+                    <div className="dealer-modal-box" style={{ maxWidth: '650px' }} onClick={(e) => e.stopPropagation()}>
+                        <div className="dealer-modal-header">
+                            <div className="dealer-modal-title-wrap">
+                                <div>
+                                    <h3>Chi tiết hồ sơ đại lý</h3>
+                                    <p>Mã: <strong>{detailTargetDealer.code}</strong> | Trạng thái: <strong style={{ color: ((detailTargetDealer.status || '').includes('dừng') || (detailTargetDealer.status || '').includes('ngừng')) ? '#dc2626' : '#16a34a' }}>{formatDealerStatus(detailTargetDealer.status)}</strong></p>
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                className="dealer-modal-close-btn"
+                                onClick={() => setIsDetailModalOpen(false)}
+                                title="Đóng"
+                            >
+                                ✕
+                            </button>
+                        </div>
+
+                        <div className="dealer-modal-body" style={{ padding: '20px' }}>
+                            <div className="dealer-detail-grid">
+                                <div className="dealer-detail-section">
+                                    <h4>🏢 Thông tin pháp lý & Nhóm</h4>
+                                    <div className="dealer-detail-row">
+                                        <span className="label">Tên đại lý:</span>
+                                        <span className="value">{detailTargetDealer.name}</span>
+                                    </div>
+                                    <div className="dealer-detail-row">
+                                        <span className="label">Mã số thuế (MST):</span>
+                                        <span className="value">{detailTargetDealer.tax_id || 'Chưa cập nhật'}</span>
+                                    </div>
+                                    <div className="dealer-detail-row">
+                                        <span className="label">Nhóm khách hàng:</span>
+                                        <span className="value">{detailTargetDealer.customer_group || 'Đại lý cấp 1'}</span>
+                                    </div>
+                                    <div className="dealer-detail-row">
+                                        <span className="label">Bảng giá áp dụng:</span>
+                                        <span className="value">{detailTargetDealer.price_list || `Bảng giá ${detailTargetDealer.customer_group || 'Đại lý cấp 1'}`}</span>
+                                    </div>
+                                </div>
+
+                                <div className="dealer-detail-section">
+                                    <h4>📞 Thông tin liên hệ</h4>
+                                    <div className="dealer-detail-row">
+                                        <span className="label">Số điện thoại:</span>
+                                        <span className="value">
+                                            {detailTargetDealer.phone ? (
+                                                <a href={`tel:${detailTargetDealer.phone}`} style={{ color: '#2563eb', textDecoration: 'none' }}>
+                                                    {detailTargetDealer.phone}
+                                                </a>
+                                            ) : '-'}
+                                        </span>
+                                    </div>
+                                    <div className="dealer-detail-row">
+                                        <span className="label">Email:</span>
+                                        <span className="value">{detailTargetDealer.email || '-'}</span>
+                                    </div>
+                                    <div className="dealer-detail-row">
+                                        <span className="label">Khu vực:</span>
+                                        <span className="value">{detailTargetDealer.region || '-'}</span>
+                                    </div>
+                                    <div className="dealer-detail-row">
+                                        <span className="label">Địa chỉ:</span>
+                                        <span className="value">{detailTargetDealer.address || '-'}</span>
+                                    </div>
+                                </div>
+
+                                <div className="dealer-detail-section" style={{ gridColumn: 'span 2' }}>
+                                    <h4>💰 Quản lý công nợ & Phân công</h4>
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
+                                        <div style={{ background: '#ffffff', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                                            <div style={{ fontSize: '12px', color: '#64748b' }}>Nhân viên phụ trách</div>
+                                            <div style={{ fontSize: '15px', fontWeight: '700', color: '#0f172a', marginTop: '4px' }}>
+                                                {formatSaleName(detailTargetDealer.assigned_sale_name)}
+                                            </div>
+                                        </div>
+
+                                        <div style={{ background: '#ffffff', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                                            <div style={{ fontSize: '12px', color: '#64748b' }}>Hạn mức công nợ</div>
+                                            <div style={{ fontSize: '15px', fontWeight: '700', color: '#2563eb', marginTop: '4px' }}>
+                                                {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(detailTargetDealer.credit_limit ?? 50000000)}
+                                            </div>
+                                            <div style={{ fontSize: '11px', color: '#64748b' }}>Số ngày nợ: {detailTargetDealer.max_debt_days ?? 30} ngày</div>
+                                        </div>
+
+                                        <div style={{ background: '#ffffff', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                                            <div style={{ fontSize: '12px', color: '#64748b' }}>Dư nợ hiện tại</div>
+                                            <div style={{ fontSize: '15px', fontWeight: '700', color: '#dc2626', marginTop: '4px' }}>
+                                                {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(detailTargetDealer.current_debt ?? 0)}
+                                            </div>
+                                            <div style={{ fontSize: '11px', color: '#64748b' }}>Trạng thái: {detailTargetDealer.debt_status || 'Bình thường'}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="dealer-modal-footer" style={{ justifyContent: 'space-between' }}>
+                            <div style={{ display: 'flex', gap: '8px' }}>
+                                {canEditDealer && (
+                                    <button
+                                        type="button"
+                                        className="dealer-btn-save"
+                                        style={{ background: '#f59e0b' }}
+                                        onClick={() => {
+                                            setIsDetailModalOpen(false);
+                                            handleOpenEditModal(detailTargetDealer);
+                                        }}
+                                    >
+                                        Chỉnh sửa hồ sơ
+                                    </button>
+                                )}
+                                {canUpdateCreditLimit && (
+                                    <button
+                                        type="button"
+                                        className="dealer-btn-save"
+                                        style={{ background: '#8b5cf6' }}
+                                        onClick={() => {
+                                            setIsDetailModalOpen(false);
+                                            handleOpenCreditModal(detailTargetDealer);
+                                        }}
+                                    >
+                                        Hạn mức nợ
+                                    </button>
+                                )}
+                                <button
+                                    type="button"
+                                    className="dealer-btn-cancel"
+                                    onClick={() => {
+                                        setIsDetailModalOpen(false);
+                                        handleViewHistory(detailTargetDealer);
+                                    }}
+                                >
+                                    Lịch sử
+                                </button>
+                            </div>
+                            <button
+                                type="button"
+                                className="dealer-btn-cancel"
+                                onClick={() => setIsDetailModalOpen(false)}
+                            >
+                                Đóng
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
@@ -1348,7 +2162,7 @@ export default function DealerSearchView({
                         <div className="dealer-modal-body">
                             <div style={{ padding: '0 0 16px 0', borderBottom: '1px solid #eaeaea', marginBottom: '16px' }}>
                                 <p style={{ margin: '0 0 8px 0' }}>Đại lý / Khách hàng: <strong style={{ color: '#0f172a' }}>{assignTargetDealer.name}</strong></p>
-                                <p style={{ margin: '0' }}>Người phụ trách hiện tại: <strong style={{ color: '#64748b' }}>{assignTargetDealer.assigned_sale_name || 'Chưa có'}</strong></p>
+                                <p style={{ margin: '0' }}>Người phụ trách hiện tại: <strong style={{ color: '#64748b' }}>{formatSaleName(assignTargetDealer.assigned_sale_name)}</strong></p>
                             </div>
                             
                             <div className="dealer-modal-form-grid" style={{ gridTemplateColumns: '1fr' }}>
@@ -1361,7 +2175,7 @@ export default function DealerSearchView({
                                     >
                                         <option value="">-- Chọn nhân viên --</option>
                                         {sales.map(s => (
-                                            <option key={s.id} value={s.id}>{s.name}</option>
+                                            <option key={s.id} value={s.id}>{formatSaleName(s.name)}</option>
                                         ))}
                                     </select>
                                 </div>
@@ -1415,7 +2229,7 @@ export default function DealerSearchView({
                                     >
                                         <option value="">-- Chọn nhân viên --</option>
                                         {sales.map(s => (
-                                            <option key={s.id} value={s.id}>{s.name}</option>
+                                            <option key={s.id} value={s.id}>{formatSaleName(s.name)}</option>
                                         ))}
                                     </select>
                                 </div>
@@ -1482,7 +2296,7 @@ export default function DealerSearchView({
                                                 
                                                 if (log.action_type === 'DEALER_ASSIGNMENT') {
                                                     actionName = 'Chuyển giao NV';
-                                                    detail = `${oldObj.assigned_sale_name || 'Trống'} ➔ ${newObj.assigned_sale_name || 'Trống'}`;
+                                                    detail = `${formatSaleName(oldObj.assigned_sale_name) || 'Trống'} ➔ ${formatSaleName(newObj.assigned_sale_name) || 'Trống'}`;
                                                 } else if (log.action_type === 'DEBT_LIMIT_CHANGE') {
                                                     actionName = 'Đổi hạn mức';
                                                     const oldL = oldObj.credit_limit != null ? new Intl.NumberFormat('vi-VN').format(oldObj.credit_limit) : '-';
@@ -1492,7 +2306,7 @@ export default function DealerSearchView({
                                                     detail = `Hạn mức: ${oldL} ➔ ${newL} | Ngày: ${oldD} ➔ ${newD}`;
                                                 } else if (log.action_type === 'DEALER_STATUS_CHANGE') {
                                                     actionName = 'Đổi trạng thái';
-                                                    detail = `${oldObj.status || '-'} ➔ ${newObj.status || '-'}`;
+                                                    detail = `${formatDealerStatus(oldObj.status) || '-'} ➔ ${formatDealerStatus(newObj.status) || '-'}`;
                                                 }
 
                                                 return (
