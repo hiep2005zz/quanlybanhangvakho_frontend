@@ -17,12 +17,14 @@ import './dealer-search.css';
 const DEFAULT_CUSTOMER_GROUPS = [
     'dai_ly_cap_1',
     'dai_ly_cap_2',
+    'khach_si',
     'khach_le',
 ];
 
 const formatGroupName = (grp: string) => {
     if (grp === 'dai_ly_cap_1' || grp === 'CAP_1' || grp === 'Dai_ly_cap_1' || grp === 'Đại lý cấp 1') return 'Đại lý cấp 1';
     if (grp === 'dai_ly_cap_2' || grp === 'CAP_2' || grp === 'Dai_ly_cap_2' || grp === 'Đại lý cấp 2') return 'Đại lý cấp 2';
+    if (grp === 'khach_si' || grp === 'Khach_si' || grp === 'Khách sỉ') return 'Khách sỉ';
     if (grp === 'khach_le' || grp === 'RETAIL' || grp === 'Khach_le' || grp === 'Khách lẻ') return 'Khách lẻ';
     return grp;
 };

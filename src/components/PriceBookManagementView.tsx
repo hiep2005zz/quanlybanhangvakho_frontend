@@ -349,6 +349,7 @@ export function PriceBookManagementView({
   const formatGroupName = (grp: string) => {
     if (grp === 'CAP_1' || grp === 'Dai_ly_cap_1' || grp === 'Đại lý cấp 1' || grp === 'dai_ly_cap_1') return 'Đại lý cấp 1';
     if (grp === 'CAP_2' || grp === 'Dai_ly_cap_2' || grp === 'Đại lý cấp 2' || grp === 'dai_ly_cap_2') return 'Đại lý cấp 2';
+    if (grp === 'khach_si' || grp === 'Khach_si' || grp === 'Khách sỉ') return 'Khách sỉ';
     if (grp === 'RETAIL' || grp === 'Khach_le' || grp === 'Khách lẻ' || grp === 'khach_le') return 'Khách lẻ';
     return grp;
   };
@@ -434,6 +435,7 @@ export function PriceBookManagementView({
                 cursor: 'pointer',
                 fontWeight: '700',
                 fontSize: '13.5px',
+                marginLeft: '24px',
               }}
             >
               Sang trang Quản lý Đơn hàng
@@ -494,6 +496,7 @@ export function PriceBookManagementView({
           <option value="">Tất cả nhóm khách hàng</option>
           <option value="dai_ly_cap_1">Đại lý cấp 1</option>
           <option value="dai_ly_cap_2">Đại lý cấp 2</option>
+          <option value="khach_si">Khách sỉ</option>
           <option value="khach_le">Khách lẻ</option>
         </select>
         <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={{ padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '14px', minWidth: '180px', background: '#fff', cursor: 'pointer' }}>
@@ -741,6 +744,7 @@ export function PriceBookManagementView({
                       >
                         <option value="dai_ly_cap_1">Đại lý cấp 1</option>
                         <option value="dai_ly_cap_2">Đại lý cấp 2</option>
+                        <option value="khach_si">Khách sỉ</option>
                         <option value="khach_le">Khách lẻ</option>
                       </select>
                     </div>

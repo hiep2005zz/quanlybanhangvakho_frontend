@@ -103,6 +103,14 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
         borderColor: '#e9d5ff',
       };
     }
+    if (g === 'khach_si' || g === 'Khach_si' || g === 'Khách sỉ') {
+      return {
+        label: 'Khách sỉ',
+        badgeBg: '#e0f2fe',
+        badgeColor: '#0369a1',
+        borderColor: '#bae6fd',
+      };
+    }
     return {
       label: 'Khách lẻ',
       badgeBg: '#ffedd5',
@@ -133,9 +141,15 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
         const fallbackPrice = currentProd?.sell_price || 0;
         setSellPrice(fallbackPrice);
         setFloorPrice(null);
-        setPriceResolveNote(
-          `Chưa có bảng giá áp dụng cho nhóm khách hàng này - Áp dụng giá niêm yết: ${fallbackPrice.toLocaleString('vi-VN')} đồng`
-        );
+        if (groupInfo.label === 'Khách sỉ') {
+          setPriceResolveNote(
+            `Chưa có bảng giá áp dụng cho Khách sỉ`
+          );
+        } else {
+          setPriceResolveNote(
+            `Chưa có bảng giá áp dụng cho nhóm khách hàng này - Áp dụng giá niêm yết: ${fallbackPrice.toLocaleString('vi-VN')} đồng`
+          );
+        }
       } finally {
         setIsResolvingPrice(false);
       }
