@@ -13,6 +13,7 @@ import { AuditLogView } from './AuditLogView';
 import { ProductAuditDrawer } from './ProductAuditDrawer';
 import { PriceUpdateModal } from './PriceUpdateModal';
 import { ProfileView } from './ProfileView';
+import DiscountPolicyView from './DiscountPolicyView';
 import { ProductBulkImportModal } from './ProductBulkImportModal';
 import DealerSearchView from './DealerSearchView';
 import { ProductUnitModal } from './ProductUnitModal';
@@ -50,6 +51,14 @@ export default function DashboardPage({
   const isAdmin = user.role === 'admin' || Boolean(user.roles && user.roles.includes('admin'));
   const canReadOrders = hasPermission(user, Permissions.ORDER_READ);
   const canCreateOrders = hasPermission(user, Permissions.ORDER_WRITE);
+  const canAccessDiscounts =
+    isAdmin ||
+    isSalesManager ||
+    officialRoles.includes('sales') ||
+    user.role === 'sales' ||
+    officialRoles.includes('accountant') ||
+    user.role === 'accountant' ||
+    Boolean(user.permissions && (user.permissions.includes('discount:read') || user.permissions.includes('discount:manage')));
   const canManageOrders = officialRoles.includes('admin') || officialRoles.includes('sales_manager');
 
 
@@ -77,7 +86,7 @@ export default function DashboardPage({
   const canPerformProductAction = Boolean(canConfigUnit || canWriteInventory || isAdmin || isSalesManager);
 
   // 2. Khởi tạo State với Clean URL (/users, /audit-logs, /categories, /suppliers, /profile, /dealers)
-  const [activeTab, setActiveTabState] = useState<'inventory' | 'orders' | 'users' | 'categories' | 'audit-logs' | 'profile' | 'suppliers' | 'dealers'>(() => {
+  const [activeTab, setActiveTabState] = useState<'inventory' | 'orders' | 'users' | 'categories' | 'audit-logs' | 'profile' | 'suppliers' | 'dealers' | 'discounts'>(() => {
 
     const pathname = window.location.pathname.toLowerCase();
     const isUsersPath = pathname === '/users' || pathname.startsWith('/users/') || pathname === '/admin' || pathname.startsWith('/admin/');
@@ -85,7 +94,20 @@ export default function DashboardPage({
     const isAuditPath = pathname === '/audit-logs' || pathname.startsWith('/audit-logs/');
     const isOrdersPath = pathname === '/orders' || pathname.startsWith('/orders/');
     const isProfilePath = pathname === '/profile' || pathname.startsWith('/profile/');
-    const isDealersPath = pathname === '/dealers' || pathname.startsWith('/dealers/');
+    const isDiscountsPath = pathname === '/discounts' || pathname.startsWith('/discounts/');
+      if (isDiscountsPath || tabParam === 'discounts' || tabParam === 'discount') {
+        if (canAccessDiscounts) {
+          if (pathname !== '/discounts' || tabParam) {
+            try { window.history.replaceState({}, '', '/discounts'); } catch {}
+          }
+          setActiveTabState('discounts');
+        } else {
+          setActiveTabState('inventory');
+          try { window.history.replaceState({}, '', '/'); } catch {}
+        }
+        return;
+      }
+      const isDealersPath = pathname === '/dealers' || pathname.startsWith('/dealers/');
     // Dọn sạch tàn dư query parameter cũ (?tab=users, ?tab=audit-logs, ?tab=profile, ?tab=dealers)
     const params = new URLSearchParams(window.location.search);
     const hasOldTabParam = params.has('tab') || params.has('view');
@@ -151,7 +173,7 @@ export default function DashboardPage({
     return 'inventory';
   });
   // 3. Chuyển đổi Route Clean URL
-  const setActiveTab = (tab: 'inventory' | 'orders' | 'users' | 'categories' | 'audit-logs' | 'profile' | 'suppliers' | 'dealers') => {
+  const setActiveTab = (tab: 'inventory' | 'orders' | 'users' | 'categories' | 'audit-logs' | 'profile' | 'suppliers' | 'dealers' | 'discounts') => {
     if (tab === 'orders' && !canReadOrders) {
       setActiveTabState('inventory');
       window.history.replaceState({}, '', '/');
@@ -288,6 +310,19 @@ export default function DashboardPage({
         return;
       }
 
+      const isDiscountsPath = pathname === '/discounts' || pathname.startsWith('/discounts/');
+      if (isDiscountsPath || tabParam === 'discounts' || tabParam === 'discount') {
+        if (canAccessDiscounts) {
+          if (pathname !== '/discounts' || tabParam) {
+            try { window.history.replaceState({}, '', '/discounts'); } catch {}
+          }
+          setActiveTabState('discounts');
+        } else {
+          setActiveTabState('inventory');
+          try { window.history.replaceState({}, '', '/'); } catch {}
+        }
+        return;
+      }
       const isDealersPath = pathname === '/dealers' || pathname.startsWith('/dealers/');
       if (isDealersPath || tabParam === 'dealers') {
         if (pathname !== '/dealers' || tabParam) {
