@@ -170,6 +170,10 @@ export const AuditLogView: React.FC<AuditLogViewProps> = ({ currentUser: _curren
         color = '#7c3aed';
         bg = '#f5f3ff';
         break;
+      case 'DEALER_STATUS_CHANGE':
+        color = '#0284c7';
+        bg = '#e0f2fe';
+        break;
       case 'INVOICE_EDIT':
       case 'INVOICE_CANCEL':
         color = '#dc2626';
@@ -301,6 +305,13 @@ export const AuditLogView: React.FC<AuditLogViewProps> = ({ currentUser: _curren
       }
       if (log.action_type === 'INVOICE_CANCEL') {
         return 'Đã hủy hóa đơn';
+      }
+      if (log.action_type === 'DEALER_STATUS_CHANGE') {
+        const oldStatus = oldObj?.status;
+        const newStatus = newObj?.status;
+        if (oldStatus || newStatus) {
+          return `Trạng thái: ${oldStatus || '—'} ➔ ${newStatus || '—'}`;
+        }
       }
     } catch {
       // fallback
@@ -479,6 +490,7 @@ export const AuditLogView: React.FC<AuditLogViewProps> = ({ currentUser: _curren
               <option value="Inventory">Tồn kho (Kiểm kê, nhập/xuất kho)</option>
               <option value="ProductPrice">Giá sản phẩm (Giá bán, giá vốn)</option>
               <option value="CustomerDebt">Hạn mức công nợ (Hạn mức nợ đại lý)</option>
+              <option value="Dealer">Đại lý / Khách hàng (Đổi trạng thái)</option>
               <option value="Invoice">Hóa đơn (Sửa đổi, hủy hóa đơn)</option>
               <option value="Order">Đơn hàng (Sửa đơn, duyệt ngoại lệ)</option>
             </select>
@@ -644,7 +656,7 @@ export const AuditLogView: React.FC<AuditLogViewProps> = ({ currentUser: _curren
                     <td style={{ padding: '14px 18px', whiteSpace: 'nowrap' }}>
                       {(() => {
                         const matchedUser = usersList.find((u) => u.id === log.user_id || u.username.toLowerCase() === (log.user_name || '').toLowerCase() || u.full_name === log.user_name);
-                        const userAvatar = matchedUser?.avatar_url;
+                        const userAvatar = log.user_avatar || matchedUser?.avatar_url;
                         return (
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                             <div style={{

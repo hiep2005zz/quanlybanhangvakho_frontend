@@ -248,9 +248,10 @@
     background: #f1f5f9;
     border: 1px solid #cbd5e1;
     border-radius: 6px;
-    font-family: monospace;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
     font-weight: 700;
     font-size: 12.5px;
+    letter-spacing: 0.3px;
     color: #334155;
 }
 
@@ -318,6 +319,86 @@
     font-weight: 600;
 }
 
+.dealer-status-cell {
+    display: inline-flex;
+    align-items: center;
+}
+
+/* Nút bấm trạng thái gộp duy nhất (1-click toggle button) */
+.dealer-status-toggle-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 5px 13px;
+    border-radius: 20px;
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    white-space: nowrap;
+    user-select: none;
+    outline: none;
+}
+
+.dealer-status-toggle-btn .status-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    display: inline-block;
+    flex-shrink: 0;
+}
+
+.dealer-status-toggle-btn.status-active {
+    background: #dcfce7;
+    color: #15803d;
+    border-color: #86efac;
+}
+
+.dealer-status-toggle-btn.status-active .status-dot {
+    background: #16a34a;
+    box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.25);
+}
+
+.dealer-status-toggle-btn.status-active:hover:not(:disabled) {
+    background: #bbf7d0;
+    color: #14532d;
+    border-color: #4ade80;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 6px rgba(22, 101, 52, 0.12);
+}
+
+.dealer-status-toggle-btn.status-inactive {
+    background: #fee2e2;
+    color: #b91c1c;
+    border-color: #fca5a5;
+}
+
+.dealer-status-toggle-btn.status-inactive .status-dot {
+    background: #dc2626;
+    box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.25);
+}
+
+.dealer-status-toggle-btn.status-inactive:hover:not(:disabled) {
+    background: #fecaca;
+    color: #991b1b;
+    border-color: #f87171;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 6px rgba(153, 27, 27, 0.12);
+}
+
+.dealer-status-toggle-btn:disabled {
+    opacity: 0.7;
+    cursor: wait;
+}
+
+.dealer-status-toggle-btn.read-only {
+    cursor: default;
+    transform: none !important;
+    box-shadow: none !important;
+}
+
+/* Backward compatibility */
 .dealer-status-badge {
     display: inline-block;
     padding: 3px 10px;
@@ -599,7 +680,7 @@
     border-radius: 16px;
     width: 100%;
     max-width: 620px;
-    max-height: 90vh;
+    max-height: min(90vh, 760px);
     display: flex;
     flex-direction: column;
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
@@ -612,6 +693,7 @@
         opacity: 0;
         transform: scale(0.96) translateY(8px);
     }
+
     to {
         opacity: 1;
         transform: scale(1) translateY(0);
@@ -619,12 +701,21 @@
 }
 
 .dealer-modal-header {
+    flex-shrink: 0;
     padding: 18px 24px;
     background: #f8fafc;
     border-bottom: 1px solid #e2e8f0;
     display: flex;
     align-items: center;
     justify-content: space-between;
+}
+
+.dealer-modal-form {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
 }
 
 .dealer-modal-title-wrap {
@@ -677,7 +768,25 @@
 .dealer-modal-body {
     padding: 24px;
     overflow-y: auto;
-    max-height: calc(90vh - 150px);
+    flex: 1;
+    min-height: 0;
+}
+
+.dealer-modal-body::-webkit-scrollbar {
+    width: 6px;
+}
+
+.dealer-modal-body::-webkit-scrollbar-track {
+    background: #f8fafc;
+}
+
+.dealer-modal-body::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 999px;
+}
+
+.dealer-modal-body::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
 }
 
 .dealer-modal-form-grid {
@@ -743,6 +852,7 @@
 }
 
 .dealer-modal-footer {
+    flex-shrink: 0;
     padding: 16px 24px;
     background: #f8fafc;
     border-top: 1px solid #e2e8f0;
@@ -796,4 +906,4 @@
     .dealer-form-full {
         grid-column: span 1;
     }
-}
+}
