@@ -89,7 +89,7 @@ export default function DashboardPage({
   const [activeTab, setActiveTabState] = useState<'inventory' | 'orders' | 'users' | 'categories' | 'audit-logs' | 'profile' | 'suppliers' | 'dealers' | 'discounts'>(() => {
 
     const pathname = window.location.pathname.toLowerCase();
-    const params = new URLSearchParams(window.location.search);
+    
     const hasOldTabParam = params.has('tab') || params.has('view');
     const oldTabVal = tabParam;
 
