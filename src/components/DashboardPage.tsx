@@ -827,61 +827,7 @@ export default function DashboardPage({
                   </button>
                 )}
 
-                {/* Quản lý Đơn hàng / Tạo Đơn hàng (Dành cho Sales, Sales Manager, Admin) */}
-                {canAccessOrders && (
-                  <button
-                    onClick={() => {
-                      setIsUserMenuOpen(false);
-                      setActiveTab('orders');
-                    }}
-                    id="btn-popover-orders"
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '12px',
-                      width: '100%',
-                      padding: '10px 14px',
-                      borderRadius: '10px',
-                      background: activeTab === 'orders' ? '#eff6ff' : '#f8fafc',
-                      border: activeTab === 'orders' ? '1px solid #bfdbfe' : '1px solid #e2e8f0',
-                      color: activeTab === 'orders' ? '#1d4ed8' : '#1e293b',
-                      fontSize: '13.5px',
-                      fontWeight: '600',
-                      cursor: 'pointer',
-                      transition: 'all 0.18s ease',
-                      boxShadow: 'none',
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = '#eff6ff';
-                      e.currentTarget.style.borderColor = '#93c5fd';
-                      e.currentTarget.style.color = '#1d4ed8';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = activeTab === 'orders' ? '#eff6ff' : '#f8fafc';
-                      e.currentTarget.style.borderColor = activeTab === 'orders' ? '#bfdbfe' : '#e2e8f0';
-                      e.currentTarget.style.color = activeTab === 'orders' ? '#1d4ed8' : '#1e293b';
-                    }}
-                    title="Quản lý danh sách đơn hàng & lên đơn mới"
-                  >
-                    <div style={{
-                      width: '28px',
-                      height: '28px',
-                      borderRadius: '8px',
-                      background: '#dbeafe',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: '#2563eb',
-                    }}>
-                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                        <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
-                        <line x1="3" y1="6" x2="21" y2="6" />
-                        <path d="M16 10a4 4 0 0 1-8 0" />
-                      </svg>
-                    </div>
-                    <span>Quản lý Đơn hàng / Tạo Đơn hàng</span>
-                  </button>
-                )}
+
 
                 {(user.role === 'admin' || (user.roles && user.roles.includes('admin'))) && (
                   <button
@@ -1933,36 +1879,7 @@ export default function DashboardPage({
                   Hiển thị <strong style={{ color: '#0f172a' }}>{filteredProducts.length}</strong> / {products.length} SP
                 </span>
 
-                {/* Nút Lên Đơn Hàng nhanh cho Sales, Sales Manager, Admin */}
-                {canAccessOrders && (
-                  <button
-                    type="button"
-                    id="btn-inventory-create-order"
-                    onClick={() => setIsOrderModalOpen(true)}
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
-                      border: 'none',
-                      padding: '7px 14px',
-                      borderRadius: '8px',
-                      fontSize: '12.5px',
-                      fontWeight: '700',
-                      color: '#ffffff',
-                      cursor: 'pointer',
-                      boxShadow: '0 2px 6px rgba(37, 99, 235, 0.25)',
-                      transition: 'all 0.15s ease'
-                    }}
-                    title="Tạo đơn hàng mới cho đại lý / khách hàng"
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                      <line x1="12" y1="5" x2="12" y2="19" />
-                      <line x1="5" y1="12" x2="19" y2="12" />
-                    </svg>
-                    <span>+ Lên Đơn Hàng</span>
-                  </button>
-                )}
+
                 {/* Nút Nhập file Excel danh mục hàng loạt (Chỉ hiển thị cho admin và quản lý kinh doanh) */}
                 {(isAdmin || isSalesManager) && (
                   <button
