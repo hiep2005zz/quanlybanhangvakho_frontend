@@ -1326,6 +1326,16 @@ export async function deleteSupplierApi(token: string, code: string): Promise<{ 
   }
   return data;
 }
+function extractDeliveryPointError(data: any, fallback: string): string {
+  if (!data) return fallback;
+  if (typeof data.detail === 'string') return data.detail;
+  if (Array.isArray(data.detail) && data.detail.length > 0) {
+    return data.detail.map((d: any) => d.msg || JSON.stringify(d)).join('; ');
+  }
+  if (typeof data.message === 'string') return data.message;
+  return fallback;
+}
+
 async function deliveryPointRequest<T>(token: string, path: string, init: RequestInit = {}): Promise<T> {
   const response = await authenticatedFetch(`${API_BASE_URL}${path}`, {
     ...init,
@@ -1335,7 +1345,7 @@ async function deliveryPointRequest<T>(token: string, path: string, init: Reques
   if (response.status === 204) return undefined as T;
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(data.detail || `Lỗi điểm giao hàng (Mã lỗi ${response.status})`);
+    throw new Error(extractDeliveryPointError(data, `Lỗi điểm giao hàng (Mã lỗi ${response.status})`));
   }
   return data as T;
 }

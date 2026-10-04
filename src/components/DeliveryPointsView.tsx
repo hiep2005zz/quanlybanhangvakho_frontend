@@ -364,6 +364,14 @@ export default function DeliveryPointsView({
       return;
     }
 
+    if (form.receiver_phone && form.receiver_phone.trim()) {
+      const phoneClean = form.receiver_phone.trim();
+      if (!/^[0-9+\-\s]{8,20}$/.test(phoneClean)) {
+        setFormError('Số điện thoại nhận hàng phải từ 8 đến 20 số.');
+        return;
+      }
+    }
+
     setFormSubmitting(true);
     setFormError('');
     try {
@@ -412,7 +420,14 @@ export default function DeliveryPointsView({
       await loadPoints();
       await loadAllPoints();
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Có lỗi xảy ra khi lưu';
+      let msg = 'Có lỗi xảy ra khi lưu';
+      if (err instanceof Error) {
+        msg = err.message;
+      } else if (typeof err === 'string') {
+        msg = err;
+      } else if (typeof err === 'object' && err !== null) {
+        msg = (err as any).message || (err as any).detail || JSON.stringify(err);
+      }
       setFormError(msg);
     } finally {
       setFormSubmitting(false);
