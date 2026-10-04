@@ -462,6 +462,7 @@ export default function DiscountPolicyView({ token, user, onBackToHome }: Discou
                     style={{
                       background: '#f1f5f9',
                       border: '1px solid #cbd5e1',
+                      color: '#0f172a',
                       padding: '4px 10px',
                       borderRadius: '6px',
                       fontSize: '12px',
