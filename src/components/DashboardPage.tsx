@@ -19,7 +19,6 @@ import { ProductUnitModal } from './ProductUnitModal';
 import { StockActionModal } from './StockActionModal';
 import { OrderCreateModal } from './OrderCreateModal';
 import SalesOrderEntry from './SalesOrderEntry';
-import { ProductDrawer } from './ProductDrawer';
 import OrdersView from './OrdersView';
 import './dashboard.css';
 import { hasPermission, Permissions } from '../hooks/usePermission';
@@ -61,8 +60,6 @@ export default function DashboardPage({
   // Quyền quản lý ngành hàng
   const isSalesManager = user.role === 'sales_manager' || Boolean(user.roles && user.roles.includes('sales_manager'));
   const canManageCategories = isAdmin || isSalesManager;
-  const isManager = officialRoles.some((role) => ['admin', 'sales_manager', 'warehouse_manager'].includes(role));
-  const canManageProducts = isAdmin || isSalesManager || isManager;
   // Quyền tra cứu đại lý: Nhân viên kinh doanh (sales), Quản lý kinh doanh (sales_manager), Quản trị viên (admin)
   const DEALER_ROLES = ['admin', 'sales_manager', 'sales'];
   const canViewDealers = officialRoles.some((r) => DEALER_ROLES.includes(r));
@@ -386,11 +383,6 @@ export default function DashboardPage({
   // Price Update Modal State
   const [priceUpdateModalProduct, setPriceUpdateModalProduct] = useState<ProductItem | null>(null);
 
-  // State quản lý Product Detail Drawer (Khai báo & Chỉnh sửa sản phẩm)
-  const [productDrawerState, setProductDrawerState] = useState<{
-    isOpen: boolean;
-    product: ProductItem | null;
-  }>({ isOpen: false, product: null });
   // Move Category Modal State
   const [movingProduct, setMovingProduct] = useState<{ id: number; name: string; category_id?: number | null } | null>(null);
 
@@ -2013,45 +2005,6 @@ export default function DashboardPage({
                   </svg>
                   <span>Xuất file</span>
                 </button>
-
-                {/* Nút Quản lý sản phẩm mở Product Detail Drawer: Chỉ Admin và Quản lý */}
-                {canManageProducts && (
-                  <button
-                    type="button"
-                    id="btn-add-product"
-                    onClick={() => setProductDrawerState({ isOpen: true, product: null })}
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
-                      border: 'none',
-                      padding: '7px 14px',
-                      borderRadius: '8px',
-                      fontSize: '12.5px',
-                      fontWeight: '600',
-                      color: '#ffffff',
-                      cursor: 'pointer',
-                      boxShadow: '0 2px 6px rgba(37, 99, 235, 0.28)',
-                      transition: 'all 0.15s ease'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.transform = 'translateY(-1px)';
-                      e.currentTarget.style.boxShadow = '0 4px 10px rgba(37, 99, 235, 0.35)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.transform = 'translateY(0)';
-                      e.currentTarget.style.boxShadow = '0 2px 6px rgba(37, 99, 235, 0.28)';
-                    }}
-                    title="Khai báo sản phẩm mới (Mã SKU tự động, 4 khối chức năng)"
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <line x1="12" y1="5" x2="12" y2="19" />
-                      <line x1="5" y1="12" x2="19" y2="12" />
-                    </svg>
-                    <span>Quản lý sản phẩm</span>
-                  </button>
-                )}
               </div>
             </div>
 
@@ -2746,19 +2699,6 @@ export default function DashboardPage({
             title: 'Cập nhật giá thành công',
             message: 'Đã lưu giá mới thành công.',
           });
-          fetchProducts();
-        }}
-      />
-
-      {/* Product Detail Drawer (Khai báo & Chỉnh sửa sản phẩm 4 khối chức năng) */}
-      <ProductDrawer
-        isOpen={productDrawerState.isOpen}
-        onClose={() => setProductDrawerState((prev) => ({ ...prev, isOpen: false }))}
-        product={productDrawerState.product}
-        token={token}
-        isCostVisible={isCostVisible}
-        categories={Array.from(new Set(products.map((p) => p.category).filter(Boolean)))}
-        onSuccess={() => {
           fetchProducts();
         }}
       />
