@@ -51,6 +51,7 @@ export default function DashboardPage({
   const isAdmin = user.role === 'admin' || Boolean(user.roles && user.roles.includes('admin'));
   const canReadOrders = hasPermission(user, Permissions.ORDER_READ);
   const canCreateOrders = hasPermission(user, Permissions.ORDER_WRITE);
+  const isSalesManager = user.role === 'sales_manager' || Boolean(user.roles && user.roles.includes('sales_manager'));
   const canAccessDiscounts =
     isAdmin ||
     isSalesManager ||
@@ -67,7 +68,6 @@ export default function DashboardPage({
   const canManageSuppliers = officialRoles.some((r) => SUPPLIER_ROLES.includes(r));
 
   // Quyền quản lý ngành hàng
-  const isSalesManager = user.role === 'sales_manager' || Boolean(user.roles && user.roles.includes('sales_manager'));
   const canManageCategories = isAdmin || isSalesManager;
   // Quyền tra cứu đại lý: Nhân viên kinh doanh (sales), Quản lý kinh doanh (sales_manager), Quản trị viên (admin)
   const DEALER_ROLES = ['admin', 'sales_manager', 'sales'];
