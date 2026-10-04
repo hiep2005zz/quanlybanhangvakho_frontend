@@ -536,13 +536,7 @@ export default function DiscountPolicyView({ token, user, onBackToHome }: Discou
 
               {/* Action Buttons */}
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '24px' }}>
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  style={{ padding: '8px 16px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#fff', cursor: 'pointer' }}
-                >
-                  Hủy bỏ
-                </button>
+
                 <button
                   type="submit"
                   style={{
