@@ -569,9 +569,6 @@ export default function DeliveryPointsView({
                 {points.length} điểm giao
               </span>
             </div>
-            <p style={{ margin: '4px 0 0 0', fontSize: '14px', color: '#64748b' }}>
-              Quản lý danh sách địa chỉ nhận hàng, người liên hệ và điểm giao mặc định theo từng đại lý
-            </p>
           </div>
         </div>
 
@@ -770,7 +767,7 @@ export default function DeliveryPointsView({
 
                       {d.phone && (
                         <span style={{ fontSize: '12px', color: '#64748b' }}>
-                          📞 {d.phone}
+                          {d.phone}
                         </span>
                       )}
                     </div>
@@ -799,7 +796,7 @@ export default function DeliveryPointsView({
                         }}
                         title={d.address}
                       >
-                        📍 {d.address}
+                        {d.address}
                       </div>
                     )}
                   </div>
@@ -859,12 +856,12 @@ export default function DeliveryPointsView({
                 >
                   {selectedDealer.phone && (
                     <span>
-                      📞 <strong>SĐT:</strong> {selectedDealer.phone}
+                      <strong>SĐT:</strong> {selectedDealer.phone}
                     </span>
                   )}
                   {selectedDealer.address && (
                     <span>
-                      🏠 <strong>Địa chỉ chính:</strong> {selectedDealer.address}
+                      <strong>Địa chỉ chính:</strong> {selectedDealer.address}
                     </span>
                   )}
                 </div>
@@ -943,10 +940,6 @@ export default function DeliveryPointsView({
                   Điểm giao của đại lý này ({points.length})
                 </h4>
               </div>
-
-              <span style={{ fontSize: '12.5px', color: '#64748b' }}>
-                Đơn hàng sẽ tự động nhận điểm giao có dấu <strong style={{ color: '#4338ca' }}>Mặc định</strong>
-              </span>
             </div>
 
             {loadingPoints ? (
@@ -1014,12 +1007,9 @@ export default function DeliveryPointsView({
                     <circle cx="12" cy="10" r="3" />
                   </svg>
                 </div>
-                <h4 style={{ margin: '0 0 6px 0', fontSize: '16px', fontWeight: '700', color: '#0f172a' }}>
+                <h4 style={{ margin: '0 0 16px 0', fontSize: '16px', fontWeight: '700', color: '#0f172a' }}>
                   Chưa có điểm giao hàng nào
                 </h4>
-                <p style={{ margin: '0 0 20px 0', fontSize: '13.5px', color: '#64748b', maxWidth: '420px', marginLeft: 'auto', marginRight: 'auto' }}>
-                  Đại lý này chưa được cấu hình điểm giao hàng. Bạn có thể thêm kho nhận hàng, chi nhánh hoặc địa điểm giao để thuận tiện khi tạo đơn.
-                </p>
                 <button
                   type="button"
                   onClick={() => handleOpenSelectPointModal()}
@@ -1559,7 +1549,7 @@ export default function DeliveryPointsView({
                                 marginTop: '4px',
                               }}
                             >
-                              📍 Mở bản đồ chỉ đường
+                              Mở bản đồ chỉ đường
                             </a>
                           </td>
 
@@ -1572,7 +1562,7 @@ export default function DeliveryPointsView({
                                   href={`tel:${item.receiver_phone}`}
                                   style={{ color: '#0284c7', textDecoration: 'none', fontWeight: '600' }}
                                 >
-                                  📞 {item.receiver_phone}
+                                  {item.receiver_phone}
                                 </a>
                               </div>
                             )}
@@ -1968,7 +1958,7 @@ export default function DeliveryPointsView({
                             )}
                             {item.receiver_phone && (
                               <div style={{ fontSize: '12.5px', color: '#0284c7', marginTop: '2px', fontWeight: '500' }}>
-                                📞 {item.receiver_phone}
+                                {item.receiver_phone}
                               </div>
                             )}
                           </td>

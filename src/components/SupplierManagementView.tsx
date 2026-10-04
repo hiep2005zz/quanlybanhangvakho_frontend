@@ -36,16 +36,26 @@ const controlStyle: React.CSSProperties = {
   outline: 'none',
 };
 
-const smallBtn = (color: string, bg: string, border: string): React.CSSProperties => ({
-  padding: '6px 12px',
+const smallBtn = (color: string, bg: string, border: string, width?: string): React.CSSProperties => ({
+  height: '32px',
+  width: width,
+  minWidth: width,
+  padding: '0 10px',
   borderRadius: '8px',
   border: `1px solid ${border}`,
   background: bg,
   color,
-  fontSize: '12.5px',
+  fontSize: '12px',
   fontWeight: '600',
+  lineHeight: '1',
   cursor: 'pointer',
   whiteSpace: 'nowrap',
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  boxSizing: 'border-box',
+  textAlign: 'center',
+  transition: 'all 0.15s ease',
 });
 
 export const SupplierManagementView: React.FC<SupplierManagementViewProps> = ({ token, onBackToHome }) => {
@@ -346,7 +356,7 @@ export const SupplierManagementView: React.FC<SupplierManagementViewProps> = ({ 
                   <th style={thStyle}>Người liên hệ</th>
                   <th style={thStyle}>Điều khoản thanh toán</th>
                   <th style={{ ...thStyle, textAlign: 'center' }}>Trạng thái</th>
-                  <th style={{ ...thStyle, textAlign: 'center' }}>Thao tác</th>
+                  <th style={{ ...thStyle, textAlign: 'center', width: '330px', minWidth: '330px' }}>Thao tác</th>
                 </tr>
               </thead>
               <tbody>
@@ -391,7 +401,7 @@ export const SupplierManagementView: React.FC<SupplierManagementViewProps> = ({ 
                             verticalAlign: 'middle',
                           }}
                         >
-                          📦 Đã có phiếu nhập
+                          Đã có phiếu nhập
                         </span>
                       )}
                     </td>
@@ -449,15 +459,19 @@ export const SupplierManagementView: React.FC<SupplierManagementViewProps> = ({ 
                       )}
                     </td>
                     <td style={{ ...tdStyle, textAlign: 'center' }}>
-                      <div style={{ display: 'inline-flex', gap: '8px', alignItems: 'center' }}>
-                        <button type="button" onClick={() => openEdit(s)} style={smallBtn('#1d4ed8', '#eff6ff', '#bfdbfe')}>
+                      <div style={{ display: 'inline-flex', gap: '8px', alignItems: 'center', justifyContent: 'center' }}>
+                        <button
+                          type="button"
+                          onClick={() => openEdit(s)}
+                          style={smallBtn('#1d4ed8', '#eff6ff', '#bfdbfe', '58px')}
+                        >
                           Sửa
                         </button>
                         {s.is_active ? (
                           <button
                             type="button"
                             onClick={() => openDeactivate(s)}
-                            style={smallBtn('#b45309', '#fef3c7', '#fde68a')}
+                            style={smallBtn('#b45309', '#fef3c7', '#fde68a', '128px')}
                           >
                             Ngừng giao dịch
                           </button>
@@ -465,7 +479,7 @@ export const SupplierManagementView: React.FC<SupplierManagementViewProps> = ({ 
                           <button
                             type="button"
                             onClick={() => handleActivate(s)}
-                            style={smallBtn('#15803d', '#dcfce7', '#bbf7d0')}
+                            style={smallBtn('#15803d', '#dcfce7', '#bbf7d0', '128px')}
                           >
                             Mở lại giao dịch
                           </button>
@@ -476,13 +490,12 @@ export const SupplierManagementView: React.FC<SupplierManagementViewProps> = ({ 
                             disabled
                             title="Nhà cung cấp đã có phiếu nhập thì không xoá được, chỉ ngừng giao dịch."
                             style={{
-                              ...smallBtn('#94a3b8', '#f8fafc', '#e2e8f0'),
+                              ...smallBtn('#94a3b8', '#f8fafc', '#e2e8f0', '112px'),
                               cursor: 'not-allowed',
-                              opacity: 0.8,
-                              fontSize: '11.5px',
+                              opacity: 0.85,
                             }}
                           >
-                            🔒 Không thể xóa
+                            Không thể xóa
                           </button>
                         ) : (
                           <button
@@ -491,7 +504,7 @@ export const SupplierManagementView: React.FC<SupplierManagementViewProps> = ({ 
                               setSupplierToDelete(s);
                               setDeleteError(null);
                             }}
-                            style={smallBtn('#dc2626', '#fef2f2', '#fecaca')}
+                            style={smallBtn('#dc2626', '#fef2f2', '#fecaca', '112px')}
                           >
                             Xóa
                           </button>
@@ -701,7 +714,7 @@ export const SupplierManagementView: React.FC<SupplierManagementViewProps> = ({ 
               Bạn có chắc chắn muốn xóa nhà cung cấp <strong>"{supplierToDelete.name}"</strong> ({supplierToDelete.code}) không?
             </p>
             <div style={{ background: '#f8fafc', padding: '10px 14px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '12.5px', color: '#64748b', marginBottom: '14px' }}>
-              ℹ️ <strong>Quy định nghiệp vụ:</strong> Nếu nhà cung cấp đã phát sinh phiếu nhập kho, hệ thống sẽ từ chối xóa để bảo đảm truy nguyên nguồn hàng và yêu cầu chuyển sang <strong>Ngừng giao dịch</strong>.
+              <strong>Quy định nghiệp vụ:</strong> Nếu nhà cung cấp đã phát sinh phiếu nhập kho, hệ thống sẽ từ chối xóa để bảo đảm truy nguyên nguồn hàng và yêu cầu chuyển sang <strong>Ngừng giao dịch</strong>.
             </div>
 
             {deleteError && (
@@ -717,7 +730,7 @@ export const SupplierManagementView: React.FC<SupplierManagementViewProps> = ({ 
                   marginBottom: '14px',
                 }}
               >
-                <div style={{ fontWeight: '700', marginBottom: '4px' }}>⚠️ Không thể xóa nhà cung cấp</div>
+                <div style={{ fontWeight: '700', marginBottom: '4px' }}>Không thể xóa nhà cung cấp</div>
                 <div>{deleteError}</div>
                 {deleteError.includes('chỉ ngừng giao dịch') && (
                   <button
@@ -740,7 +753,7 @@ export const SupplierManagementView: React.FC<SupplierManagementViewProps> = ({ 
                       cursor: 'pointer',
                     }}
                   >
-                    👉 Chuyển sang "Ngừng giao dịch" ngay
+                    Chuyển sang "Ngừng giao dịch" ngay
                   </button>
                 )}
               </div>
