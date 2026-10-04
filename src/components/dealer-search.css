@@ -248,9 +248,10 @@
     background: #f1f5f9;
     border: 1px solid #cbd5e1;
     border-radius: 6px;
-    font-family: monospace;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
     font-weight: 700;
     font-size: 12.5px;
+    letter-spacing: 0.3px;
     color: #334155;
 }
 
