@@ -10,6 +10,7 @@ import {
     bulkAssignDealers,
     getDealerHistory,
     updateDealerCreditLimit,
+    deleteDealer,
 } from '../services/dealerSearchApi';
 import { User } from '../services/api';
 import { emitStatusToast } from './StatusToast';
@@ -127,6 +128,19 @@ export default function DealerSearchView({
             emitStatusToast({ title: 'Lỗi', message: 'Không thể tải lịch sử', type: 'error' });
         } finally {
             setLoadingHistory(false);
+        }
+    };
+
+    const handleDeleteDealer = async (dealer: DealerSearchItem) => {
+        if (!window.confirm(`Bạn có chắc chắn muốn xóa đại lý "${dealer.name}" (${dealer.code}) không?`)) {
+            return;
+        }
+        try {
+            await deleteDealer(dealer.id, token);
+            emitStatusToast({ title: 'Thành công', message: `Đã xóa đại lý "${dealer.name}"`, type: 'success' });
+            handleSearch();
+        } catch (err) {
+            emitStatusToast({ title: 'Lỗi', message: err instanceof Error ? err.message : 'Có lỗi khi xóa đại lý', type: 'error' });
         }
     };
 
@@ -598,15 +612,17 @@ export default function DealerSearchView({
                             </button>
                         )}
                         <div>
-                            <h2>Tra cứu đại lý & khách hàng</h2>
+                            <h2>{rawRoles.includes('sales_manager') || rawRoles.includes('admin') ? 'Quản lý & Tra cứu đại lý' : 'Tra cứu đại lý & khách hàng'}</h2>
                             <p>
-                                Tìm nhanh đại lý trong tuyến, liên hệ & chỉ đường trực tiếp khi đang di chuyển ngoài đường
+                                {rawRoles.includes('sales_manager') || rawRoles.includes('admin')
+                                    ? 'Quản lý danh sách, phân công phụ trách và theo dõi hạn mức công nợ đại lý'
+                                    : 'Tìm nhanh đại lý trong tuyến, liên hệ & chỉ đường trực tiếp khi đang di chuyển ngoài đường'}
                             </p>
                         </div>
                     </div>
 
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                        {currentUser && (
+                        {rawRoles.includes('sales') && !rawRoles.includes('admin') && !rawRoles.includes('sales_manager') && currentUser && (
                             <button
                                 type="button"
                                 onClick={toggleOnlyMyDealers}
@@ -768,7 +784,7 @@ export default function DealerSearchView({
             <div className="dealer-result">
                 <div className="dealer-result-title">
                     <div>
-                        <strong>Danh sách đại lý trong tuyến</strong>
+                        <strong>{rawRoles.includes('sales_manager') || rawRoles.includes('admin') ? 'Danh sách đại lý & khách hàng' : 'Danh sách đại lý trong tuyến'}</strong>
                         <span className="dealer-count-badge">{dealers.length} đại lý</span>
                         {selectedDealerIds.length > 0 && (
                             <span className="dealer-count-badge" style={{ background: '#f59e0b', marginLeft: 8 }}>
@@ -1029,6 +1045,16 @@ export default function DealerSearchView({
                                                         >
                                                             <span style={{ width: '20px', display: 'inline-block', opacity: 0.7 }}>🕒</span> Lịch sử
                                                         </button>
+                                                        {canAssignDealer && (
+                                                            <button 
+                                                                type="button" 
+                                                                className="dealer-dropdown-item" 
+                                                                onClick={(e) => { e.stopPropagation(); handleDeleteDealer(dealer); setOpenDropdownId(null); }}
+                                                                style={{ color: '#ef4444' }}
+                                                            >
+                                                                <span style={{ width: '20px', display: 'inline-block', opacity: 0.8 }}>🗑️</span> Xóa đại lý
+                                                            </button>
+                                                        )}
                                                     </div>
                                                 )}
                                             </div>

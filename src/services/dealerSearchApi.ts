@@ -565,4 +565,30 @@ export async function updateDealerCreditLimit(
         throw new Error(errorDetail);
     }
     return response.json();
-}
+}
+
+export async function deleteDealer(dealerId: number, token?: string): Promise<any> {
+    const authToken = getAuthToken(token);
+    const headers: Record<string, string> = {
+        Accept: 'application/json',
+    };
+    if (authToken) {
+        headers['Authorization'] = `Bearer ${authToken}`;
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/v1/dealers/${dealerId}`, {
+        method: 'DELETE',
+        headers,
+    });
+
+    if (!response.ok) {
+        let errorDetail = `Lỗi xóa đại lý (HTTP ${response.status})`;
+        try {
+            const errData = await response.json();
+            if (errData && errData.detail) errorDetail = typeof errData.detail === 'string' ? errData.detail : JSON.stringify(errData.detail);
+        } catch {}
+        throw new Error(errorDetail);
+    }
+    return response.json();
+}
+
