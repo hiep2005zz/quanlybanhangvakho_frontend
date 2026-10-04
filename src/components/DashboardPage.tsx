@@ -1665,6 +1665,28 @@ export default function DashboardPage({
                 )}
 
 
+                {/* Nút Tạo đơn hàng */}
+<button
+  type="button"
+  onClick={() => setIsOrderModalOpen(true)}
+  style={{
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '6px',
+    background: '#4f46e5',
+    border: '1px solid #4f46e5',
+    padding: '7px 12px',
+    borderRadius: '8px',
+    fontSize: '12.5px',
+    fontWeight: '600',
+    color: '#ffffff',
+    cursor: 'pointer',
+    marginRight: '8px',
+  }}
+  title="Tạo đơn hàng cho đại lý"
+>
+  <span>+ Tạo đơn hàng</span>
+</button>
                 {/* Nút Xuất file Excel danh mục */}
                 <button
                   type="button"

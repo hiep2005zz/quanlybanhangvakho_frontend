@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { AuditLogItem, getEntityAuditLogsApi, getUsersApi, UserAccount } from '../services/api';
+import { AuditLogItem, getEntityAuditLogsApi } from '../services/api';
 import { AuditDetailModal } from './AuditDetailModal';
 import { formatLocalDateTime } from '../utils/dateUtils';
 
@@ -23,7 +23,6 @@ export const ProductAuditDrawer: React.FC<ProductAuditDrawerProps> = ({
   isCostVisible = false,
 }) => {
   const [logs, setLogs] = useState<AuditLogItem[]>([]);
-  const [usersList, setUsersList] = useState<UserAccount[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedDetailLog, setSelectedDetailLog] = useState<AuditLogItem | null>(null);
@@ -34,18 +33,6 @@ export const ProductAuditDrawer: React.FC<ProductAuditDrawerProps> = ({
       setFilterType(initialFilter || 'ALL');
     }
   }, [isOpen, initialFilter]);
-
-  useEffect(() => {
-    if (isOpen && token) {
-      getUsersApi(token)
-        .then((res) => {
-          setUsersList(res.users || []);
-        })
-        .catch(() => {
-          // ignore error loading users
-        });
-    }
-  }, [isOpen, token]);
 
   useEffect(() => {
     if (isOpen && productCode) {

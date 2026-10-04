@@ -1,3 +1,4 @@
+import type { DeliveryPoint, DeliveryPointInput } from '../types/deliveryPoint';
 export const API_BASE_URL = 'http://localhost:8000/api/v1';
 
 /**
@@ -511,6 +512,7 @@ export interface OrderCreatePayload {
   dealer_id: number;
   items: OrderItemPayload[];
   note?: string;
+  delivery_point_id?: number | null;
 }
 
 export async function createOrderApi(token: string, payload: OrderCreatePayload): Promise<any> {
@@ -1102,4 +1104,59 @@ export async function activateSupplierApi(token: string, code: string): Promise<
     throw new Error(extractSupplierError(data, `Lỗi mở lại giao dịch nhà cung cấp (Mã lỗi ${response.status})`));
   }
   return data;
+}
+async function deliveryPointRequest<T>(token: string, path: string, init: RequestInit = {}): Promise<T> {
+  const response = await authenticatedFetch(`${API_BASE_URL}${path}`, {
+    ...init,
+    headers: { 'Content-Type': 'application/json', ...(init.headers || {}) },
+  }, token);
+
+  if (response.status === 204) return undefined as T;
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi điểm giao hàng (Mã lỗi ${response.status})`);
+  }
+  return data as T;
+}
+
+export function listDeliveryPointsApi(token: string, dealerId: number) {
+  return deliveryPointRequest<DeliveryPoint[]>(token, `/dealers/${dealerId}/delivery-points`);
+}
+
+export interface DealerOption {
+  id: number;
+  name: string;
+  code?: string;
+  phone?: string;
+  address?: string;
+}
+
+export function listDealersApi(token: string) {
+  return deliveryPointRequest<DealerOption[]>(token, `/dealers`);
+}
+
+export function createDeliveryPointApi(token: string, dealerId: number, body: DeliveryPointInput) {
+  return deliveryPointRequest<DeliveryPoint>(token, `/dealers/${dealerId}/delivery-points`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export function updateDeliveryPointApi(token: string, dealerId: number, id: number, body: DeliveryPointInput) {
+  return deliveryPointRequest<DeliveryPoint>(token, `/dealers/${dealerId}/delivery-points/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(body),
+  });
+}
+
+export function setDefaultDeliveryPointApi(token: string, dealerId: number, id: number) {
+  return deliveryPointRequest<DeliveryPoint>(token, `/dealers/${dealerId}/delivery-points/${id}/set-default`, {
+    method: 'POST',
+  });
+}
+
+export function deleteDeliveryPointApi(token: string, dealerId: number, id: number) {
+  return deliveryPointRequest<void>(token, `/dealers/${dealerId}/delivery-points/${id}`, {
+    method: 'DELETE',
+  });
 }

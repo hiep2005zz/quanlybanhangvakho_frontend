@@ -4,8 +4,13 @@ import {
   User,
   createOrderApi,
   getAvatarUrl,
+  listDealersApi,
+  listDeliveryPointsApi,
+  DealerOption,
 } from '../services/api';
 import { emitStatusToast } from './StatusToast';
+import DeliveryPointManager from './DeliveryPointManager';
+import type { DeliveryPoint } from '../types/deliveryPoint';
 
 interface OrderCreateModalProps {
   isOpen: boolean;
@@ -26,11 +31,75 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
 }) => {
   if (!isOpen) return null;
 
-  // Đại lý mẫu (id 1)
-  const [dealerId] = useState(1);
+  // Danh sách Đại lý / Khách hàng
+  const [dealers, setDealers] = useState<DealerOption[]>([]);
+  const [dealerId, setDealerId] = useState<number>(1);
+  const [loadingDealers, setLoadingDealers] = useState(false);
+
   const [selectedProductId, setSelectedProductId] = useState<number>(
     products.length > 0 ? products[0].id : 0
   );
+  // ----- Điểm giao hàng (3b) -----
+  const [points, setPoints] = useState<DeliveryPoint[]>([]);
+  const [deliveryPointId, setDeliveryPointId] = useState<number | null>(null);
+  const [showManager, setShowManager] = useState(false);
+
+  // Tải danh sách đại lý khi mở modal
+  useEffect(() => {
+    if (isOpen && token) {
+      setLoadingDealers(true);
+      listDealersApi(token)
+        .then((data) => {
+          if (Array.isArray(data) && data.length > 0) {
+            setDealers(data);
+            setDealerId(data[0].id);
+          } else {
+            const fallback: DealerOption[] = [
+              { id: 1, name: 'Đại Lý Phân Phối Miền Bắc - Sao Mai', code: 'DL001' },
+              { id: 2, name: 'Đại Lý Thời Trang Tân Bình', code: 'DL002' },
+              { id: 3, name: 'Đại Lý Tổng Hợp Hải Phòng', code: 'DL003' },
+            ];
+            setDealers(fallback);
+            setDealerId(1);
+          }
+        })
+        .catch(() => {
+          const fallback: DealerOption[] = [
+            { id: 1, name: 'Đại Lý Phân Phối Miền Bắc - Sao Mai', code: 'DL001' },
+            { id: 2, name: 'Đại Lý Thời Trang Tân Bình', code: 'DL002' },
+            { id: 3, name: 'Đại Lý Tổng Hợp Hải Phòng', code: 'DL003' },
+          ];
+          setDealers(fallback);
+          setDealerId(1);
+        })
+        .finally(() => {
+          setLoadingDealers(false);
+        });
+    }
+  }, [isOpen, token]);
+
+  // ----- Tải điểm giao theo Đại lý được chọn (3c) -----
+  const loadPoints = async () => {
+    if (!dealerId) { setPoints([]); setDeliveryPointId(null); return; }
+    try {
+      const list = await listDeliveryPointsApi(token, dealerId);
+      setPoints(list);
+      setDeliveryPointId((cur) =>
+        list.some((p) => p.id === cur) ? cur : (list.find((p) => p.is_default)?.id ?? (list[0]?.id ?? null))
+      );
+    } catch {
+      setPoints([]);
+      setDeliveryPointId(null);
+    }
+  };
+
+  useEffect(() => {
+    setShowManager(false);
+    loadPoints();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dealerId]);
+
+  const currentDealer = dealers.find((d) => d.id === dealerId);
 
   const selectedProduct = products.find((p) => p.id === selectedProductId) || products[0];
   const baseUnit = selectedProduct?.base_unit || 'Cái';
@@ -80,6 +149,7 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
     setIsSubmitting(true);
     try {
       const res = await createOrderApi(token, {
+
         dealer_id: dealerId,
         items: [
           {
@@ -91,6 +161,7 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
           },
         ],
         note: note.trim() || undefined,
+        delivery_point_id: deliveryPointId,
       });
 
       emitStatusToast({
@@ -130,6 +201,8 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
           width: '100%',
           boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
           border: '1px solid #e2e8f0',
+          maxHeight: '90vh',
+          overflowY: 'auto',
         }}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
@@ -139,7 +212,7 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
             </h3>
             <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginTop: '6px', flexWrap: 'wrap' }}>
               <p style={{ fontSize: '13px', color: '#64748b', margin: 0 }}>
-                Khách hàng: <strong style={{ color: '#2563eb' }}>Đại Lý Phân Phối Miền Bắc - Sao Mai</strong>
+                Khách hàng: <strong style={{ color: '#2563eb' }}>{currentDealer ? currentDealer.name : 'Đang tải...'}</strong>
               </p>
               {currentUser && (
                 <div style={{
@@ -181,12 +254,20 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
             type="button"
             onClick={onClose}
             style={{
-              background: 'transparent',
-              border: 'none',
-              fontSize: '20px',
-              color: '#94a3b8',
+              width: 36,
+              height: 36,
+              padding: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderRadius: '10px',
+              background: '#1e293b',
+              border: '1px solid #334155',
+              fontSize: '16px',
+              lineHeight: 1,
+              color: '#cbd5e1',
               cursor: 'pointer',
-              padding: '4px',
+              flex: '0 0 auto',
             }}
           >
             ✕
@@ -210,6 +291,42 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
         )}
 
         <form onSubmit={handleSubmit}>
+          {/* Chọn Đại lý / Khách hàng */}
+          <div style={{ marginBottom: '14px' }}>
+            <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '6px' }}>
+              <span>Đại lý / Khách hàng <span style={{ color: '#dc2626' }}>*</span></span>
+              {currentDealer?.phone && (
+                <span style={{ fontSize: '12px', fontWeight: 400, color: '#64748b' }}>
+                  SĐT: {currentDealer.phone}
+                </span>
+              )}
+            </label>
+            <select
+              value={dealerId}
+              onChange={(e) => setDealerId(parseInt(e.target.value, 10))}
+              disabled={loadingDealers || dealers.length === 0}
+              style={{
+                width: '100%',
+                padding: '9px 12px',
+                borderRadius: '8px',
+                border: '1px solid #cbd5e1',
+                fontSize: '13.5px',
+                background: '#ffffff',
+                outline: 'none',
+                cursor: 'pointer',
+                boxSizing: 'border-box',
+                fontWeight: '600',
+                color: '#0f172a',
+              }}
+            >
+              {dealers.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.code ? `[${d.code}] ` : ''}{d.name} {d.address ? `— ${d.address}` : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+
           {/* Chọn sản phẩm */}
           <div style={{ marginBottom: '14px' }}>
             <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '6px' }}>
@@ -325,28 +442,8 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
           </div>
 
           {/* Đơn giá & Tổng tiền */}
-          <div style={{ marginBottom: '14px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-            <div>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '6px' }}>
-                Đơn giá ({selectedUnitName})
-              </label>
-              <input
-                type="number"
-                min="0"
-                value={sellPrice}
-                onChange={(e) => setSellPrice(parseFloat(e.target.value) || 0)}
-                style={{
-                  width: '100%',
-                  padding: '9px 12px',
-                  borderRadius: '8px',
-                  border: '1px solid #cbd5e1',
-                  fontSize: '13.5px',
-                  outline: 'none',
-                  textAlign: 'right',
-                  boxSizing: 'border-box',
-                }}
-              />
-            </div>
+          <div style={{ marginBottom: '14px', display: 'grid', gridTemplateColumns: '1fr', gap: '12px' }}>
+
 
             <div>
               <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '6px' }}>
@@ -354,21 +451,143 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
               </label>
               <div
                 style={{
-                  padding: '9px 12px',
+                  height: 46,
+                  width: '100%',
+                  boxSizing: 'border-box',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'flex-end',
+                  padding: '0 14px',
                   borderRadius: '8px',
                   background: '#f1f5f9',
                   border: '1px solid #e2e8f0',
                   fontSize: '14px',
                   fontWeight: '700',
                   color: '#0f172a',
-                  textAlign: 'right',
                 }}
               >
-                {totalAmount.toLocaleString('vi-VN')} đ
+                <span style={{ fontSize: '12px', fontWeight: 400, color: '#94a3b8', marginRight: 'auto' }}>
+                  {sellPrice.toLocaleString('vi-VN')} đ × {numQty}
+                </span>
+                <span>{totalAmount.toLocaleString('vi-VN')} đ</span>
               </div>
             </div>
           </div>
 
+          {/* Điểm giao hàng */}
+          <div style={{ marginBottom: '20px' }}>
+            <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '6px' }}>
+              Điểm giao hàng
+            </label>
+            <select
+              value={deliveryPointId ?? ''}
+              onChange={(e) => setDeliveryPointId(e.target.value ? Number(e.target.value) : null)}
+              disabled={points.length === 0}
+              style={{
+                width: '100%',
+                padding: '9px 12px',
+                borderRadius: '8px',
+                border: '1px solid #cbd5e1',
+                fontSize: '13.5px',
+                outline: 'none',
+                boxSizing: 'border-box',
+                background: '#fff',
+              }}
+            >
+              {points.length === 0 && <option value="">Đại lý chưa có điểm giao</option>}
+              {points.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.label} - {p.address}{p.is_default ? ' (Mặc định)' : ''}
+                </option>
+              ))}
+            </select>
+            {(() => {
+              const selected = points.find((pt) => pt.id === deliveryPointId);
+              if (!selected) return null;
+              return (
+                <div
+                  style={{
+                    marginTop: 8,
+                    padding: 14,
+                    borderRadius: 12,
+                    border: '1px solid rgba(99, 102, 241, 0.45)',
+                    background: 'rgba(99, 102, 241, 0.08)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 6,
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <b style={{ fontSize: 14 }}>{selected.label}</b>
+                    {selected.is_default && (
+                      <span
+                        style={{
+                          fontSize: 11,
+                          fontWeight: 600,
+                          padding: '2px 8px',
+                          borderRadius: 999,
+                          background: 'rgba(99, 102, 241, 0.2)',
+                          color: '#a5b4fc',
+                        }}
+                      >
+                        Mặc định
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ fontSize: 13, color: '#cbd5e1' }}>Địa chỉ: {selected.address}</div>
+                  <div style={{ fontSize: 13, color: '#94a3b8' }}>
+                    Người nhận: {selected.receiver_name} - {selected.receiver_phone}
+                  </div>
+                  {selected.route_note && (
+                    <div style={{ fontSize: 12, fontStyle: 'italic', color: '#64748b' }}>
+                      Ghi chú đường đi: {selected.route_note}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+            <button
+              type="button"
+              onClick={() => setShowManager((v) => !v)}
+              disabled={!dealerId}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                marginTop: 8,
+                padding: '8px 14px',
+                borderRadius: 10,
+                border: '1px solid rgba(99, 102, 241, 0.45)',
+                background: 'rgba(99, 102, 241, 0.12)',
+                color: '#a5b4fc',
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(99, 102, 241, 0.22)';
+                e.currentTarget.style.borderColor = 'rgba(99, 102, 241, 0.7)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'rgba(99, 102, 241, 0.12)';
+                e.currentTarget.style.borderColor = 'rgba(99, 102, 241, 0.45)';
+              }}
+            >
+
+              {showManager ? '✕ Đóng quản lý điểm giao' : '＋ Quản lý điểm giao'}
+            </button>
+            {showManager && dealerId && (
+              <div style={{ marginTop: '8px', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '12px' }}>
+                <DeliveryPointManager
+                  token={token}
+                  dealerId={dealerId}
+                  onChanged={loadPoints}
+                  onCreated={() => setShowManager(false)}
+                />
+              </div>
+            )}
+          </div>
           {/* Ghi chú */}
           <div style={{ marginBottom: '20px' }}>
             <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '6px' }}>
