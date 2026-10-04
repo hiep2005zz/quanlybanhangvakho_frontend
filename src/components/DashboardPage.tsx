@@ -1406,7 +1406,12 @@ export default function DashboardPage({
         )
       ) : activeTab === 'price-books' ? (
         canAccessPriceBooks ? (
-          <PriceBookManagementView token={token} currentUser={user} onBackToHome={() => setActiveTab('inventory')} />
+          <PriceBookManagementView
+            token={token}
+            currentUser={user}
+            onBackToHome={() => setActiveTab('inventory')}
+            onNavigateToOrders={() => setActiveTab('orders')}
+          />
         ) : (
           <AccessDeniedView
             currentUser={user}
@@ -1423,6 +1428,7 @@ export default function DashboardPage({
             products={products}
             onBackToHome={() => setActiveTab('inventory')}
             onRefreshProducts={fetchProducts}
+            onNavigateToPriceBooks={() => setActiveTab('price-books')}
           />
         ) : (
           <AccessDeniedView

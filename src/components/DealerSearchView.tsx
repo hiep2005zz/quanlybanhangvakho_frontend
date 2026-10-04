@@ -15,11 +15,17 @@ import { emitStatusToast } from './StatusToast';
 import './dealer-search.css';
 
 const DEFAULT_CUSTOMER_GROUPS = [
-    'Đại lý cấp 1',
-    'Đại lý cấp 2',
-    'Khách sỉ',
-    'Khách lẻ',
+    'dai_ly_cap_1',
+    'dai_ly_cap_2',
+    'khach_le',
 ];
+
+const formatGroupName = (grp: string) => {
+    if (grp === 'dai_ly_cap_1' || grp === 'CAP_1' || grp === 'Dai_ly_cap_1' || grp === 'Đại lý cấp 1') return 'Đại lý cấp 1';
+    if (grp === 'dai_ly_cap_2' || grp === 'CAP_2' || grp === 'Dai_ly_cap_2' || grp === 'Đại lý cấp 2') return 'Đại lý cấp 2';
+    if (grp === 'khach_le' || grp === 'RETAIL' || grp === 'Khach_le' || grp === 'Khách lẻ') return 'Khách lẻ';
+    return grp;
+};
 
 const DEFAULT_STATUSES = [
     'Đang hoạt động',
@@ -64,7 +70,7 @@ export default function DealerSearchView({
         address: '',
         region: '',
         assigned_sale_id: '',
-        customer_group: 'Đại lý cấp 1',
+        customer_group: 'dai_ly_cap_1',
         status: 'Đang hoạt động',
     });
     const [addError, setAddError] = useState('');
@@ -244,7 +250,7 @@ export default function DealerSearchView({
             address: '',
             region: regions[0] || 'Hà Nội',
             assigned_sale_id: defaultSaleId,
-            customer_group: customerGroups[0] || 'Đại lý cấp 1',
+            customer_group: customerGroups.length > 0 ? customerGroups[0] : 'dai_ly_cap_1',
             status: 'Đang hoạt động',
         });
         setAddError('');
@@ -359,7 +365,7 @@ export default function DealerSearchView({
                 region: trimmedRegion,
                 assigned_sale_id: addFormData.assigned_sale_id ? Number(addFormData.assigned_sale_id) : undefined,
                 assigned_sale_name: saleName,
-                customer_group: addFormData.customer_group || 'Đại lý cấp 1',
+                customer_group: addFormData.customer_group || 'dai_ly_cap_1',
                 status: addFormData.status || 'Đang hoạt động',
             };
 
@@ -631,7 +637,7 @@ export default function DealerSearchView({
                         <option value="">Tất cả nhóm</option>
                         {customerGroups.map((group) => (
                             <option key={group} value={group}>
-                                {group}
+                                {formatGroupName(group)}
                             </option>
                         ))}
                     </select>
@@ -780,7 +786,7 @@ export default function DealerSearchView({
                                                 <strong>{dealer.name}</strong>
                                                 {dealer.customer_group && (
                                                     <span className="dealer-group-tag">
-                                                        {dealer.customer_group}
+                                                        {formatGroupName(dealer.customer_group)}
                                                     </span>
                                                 )}
                                             </div>

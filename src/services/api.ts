@@ -570,6 +570,20 @@ export async function approveOrderApi(token: string, orderIdOrCode: number | str
   return data;
 }
 
+export async function rejectOrderApi(token: string, orderIdOrCode: number | string, reason?: string): Promise<OrderResponseData> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/orders/${orderIdOrCode}/reject`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ reason: reason || 'Từ chối duyệt đơn hàng bán dưới giá sàn' }),
+  }, token);
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi từ chối đơn hàng (Mã lỗi ${response.status})`);
+  }
+  return data;
+}
+
 export interface DealerItem {
   id: number;
   code: string;
@@ -1288,6 +1302,7 @@ export async function clonePriceBookApi(token: string, id: number): Promise<Pric
 export async function resolvePriceApi(token: string, customerId: number, productId: number): Promise<{
   price_book_id?: number;
   price_book_code?: string;
+  price_book_name?: string;
   customer_id: number;
   customer_group: string;
   product_id: number;

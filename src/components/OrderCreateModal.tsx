@@ -20,11 +20,11 @@ interface OrderCreateModalProps {
 }
 
 const FALLBACK_DEALERS: DealerItem[] = [
-  { id: 1, code: 'DL001', name: 'Đại Lý Phân Phối Miền Bắc - Sao Mai', customer_group: 'Dai_ly_cap_1' },
-  { id: 2, code: 'DL002', name: 'Đại Lý Thời Trang Tân Bình', customer_group: 'Dai_ly_cap_2' },
-  { id: 3, code: 'DL003', name: 'Đại Lý Tổng Hợp Hải Phòng', customer_group: 'Dai_ly_cap_1' },
-  { id: 4, code: 'DL004', name: 'Công Ty TNHH Bán Lẻ An Phát', customer_group: 'Dai_ly_cap_2' },
-  { id: 5, code: 'DL005', name: 'Khách Mua Lẻ Trực Tiếp', customer_group: 'Khach_le' },
+  { id: 1, code: 'DL001', name: 'Đại Lý Phân Phối Miền Bắc - Sao Mai', customer_group: 'dai_ly_cap_1' },
+  { id: 2, code: 'DL002', name: 'Đại Lý Thời Trang Tân Bình', customer_group: 'dai_ly_cap_2' },
+  { id: 3, code: 'DL003', name: 'Đại Lý Tổng Hợp Hải Phòng', customer_group: 'dai_ly_cap_1' },
+  { id: 4, code: 'DL004', name: 'Công Ty TNHH Bán Lẻ An Phát', customer_group: 'dai_ly_cap_2' },
+  { id: 5, code: 'DL005', name: 'Khách Mua Lẻ Trực Tiếp', customer_group: 'khach_le' },
 ];
 
 export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
@@ -45,7 +45,6 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
   );
 
   const [floorPrice, setFloorPrice] = useState<number | null>(null);
-  const [resolvedPriceBookCode, setResolvedPriceBookCode] = useState<string | null>(null);
   const [isResolvingPrice, setIsResolvingPrice] = useState(false);
   const [priceResolveNote, setPriceResolveNote] = useState<string | null>(null);
 
@@ -81,14 +80,14 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
         }
       })
       .catch(() => {
-        // Fallback to FALLBACK_DEALERS
+        // Fallback danh sách đại lý mặc định
       });
   }, [token]);
 
   // Nhận diện nhãn và màu sắc nhóm khách hàng
   const getCustomerGroupDisplay = (group?: string) => {
-    const g = group || 'Dai_ly_cap_1';
-    if (g === 'Dai_ly_cap_1' || g === 'CAP_1' || g === 'Đại lý cấp 1') {
+    const g = group || 'dai_ly_cap_1';
+    if (g === 'dai_ly_cap_1' || g === 'Dai_ly_cap_1' || g === 'CAP_1' || g === 'Đại lý cấp 1') {
       return {
         label: 'Đại lý cấp 1',
         badgeBg: '#dbeafe',
@@ -96,7 +95,7 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
         borderColor: '#bfdbfe',
       };
     }
-    if (g === 'Dai_ly_cap_2' || g === 'CAP_2' || g === 'Đại lý cấp 2') {
+    if (g === 'dai_ly_cap_2' || g === 'Dai_ly_cap_2' || g === 'CAP_2' || g === 'Đại lý cấp 2') {
       return {
         label: 'Đại lý cấp 2',
         badgeBg: '#f3e8ff',
@@ -124,19 +123,18 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
         const res = await resolvePriceApi(token, dealerId, productId);
         setSellPrice(res.sale_price);
         setFloorPrice(res.floor_price);
-        setResolvedPriceBookCode(res.price_book_code || null);
+        const pbIdentifier = res.price_book_name || res.price_book_code || 'Bảng giá quy định';
         setPriceResolveNote(
-          `Áp dụng Bảng giá: ${res.price_book_code || 'Chuẩn'} (Đơn giá chuẩn: ${res.sale_price.toLocaleString('vi-VN')} đ | Giá sàn: ${res.floor_price.toLocaleString('vi-VN')} đ)`
+          `Áp dụng bảng giá: ${pbIdentifier} - Giá sàn quy định: ${res.floor_price.toLocaleString('vi-VN')} đồng`
         );
       } catch (err: any) {
-        // Sản phẩm không có trong bảng giá nhóm này, fallback về sell_price chuẩn của sản phẩm
+        // Trường hợp sản phẩm chưa có trong bảng giá nhóm này, dùng giá niêm yết
         const currentProd = products.find((p) => p.id === productId);
         const fallbackPrice = currentProd?.sell_price || 0;
         setSellPrice(fallbackPrice);
         setFloorPrice(null);
-        setResolvedPriceBookCode(null);
         setPriceResolveNote(
-          `Chưa có bảng giá riêng cho sản phẩm này ở nhóm ${groupInfo.label}. Đang dùng giá niêm yết: ${fallbackPrice.toLocaleString('vi-VN')} đ`
+          `Chưa có bảng giá áp dụng cho nhóm khách hàng này - Áp dụng giá niêm yết: ${fallbackPrice.toLocaleString('vi-VN')} đồng`
         );
       } finally {
         setIsResolvingPrice(false);
@@ -199,13 +197,13 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
 
       if (res.status === 'PENDING_APPROVAL' || res.requires_approval) {
         emitStatusToast({
-          title: '⚠️ Đơn hàng chuyển sang Chờ duyệt',
-          message: `Đơn ${res.order_code} đã tạo thành công và chuyển sang trạng thái CHỜ DUYỆT do đơn giá bán (${sellPrice.toLocaleString('vi-VN')} đ) thấp hơn giá sàn (${floorPrice?.toLocaleString('vi-VN')} đ).`,
+          title: 'Đơn hàng chuyển sang Chờ quản lý duyệt',
+          message: `Đơn ${res.order_code} đã được tạo thành công và chuyển sang trạng thái Chờ quản lý duyệt do đơn giá bán (${sellPrice.toLocaleString('vi-VN')} đồng) thấp hơn giá sàn quy định (${floorPrice?.toLocaleString('vi-VN')} đồng).`,
         });
       } else {
         emitStatusToast({
           title: 'Tạo đơn hàng thành công',
-          message: `Đơn ${res.order_code} đã tạo thành công với ${numQty} ${currentUnit.unit_name} (= ${baseQuantity} ${baseUnit}). Tồn kho đã được trừ ${baseQuantity} ${baseUnit}.`,
+          message: `Đơn ${res.order_code} đã được tạo thành công với trạng thái Đã xác nhận. Số lượng: ${numQty} ${currentUnit.unit_name} (tương đương ${baseQuantity} ${baseUnit}).`,
         });
       }
 
@@ -230,7 +228,6 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
         justifyContent: 'center',
         zIndex: 99999,
         padding: '16px',
-        animation: 'fadeInCard 0.15s ease-out',
       }}
     >
       <div
@@ -249,26 +246,28 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
         {/* Header Modal */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px', borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
           <div>
-            <h3 style={{ fontSize: '18px', fontWeight: '800', color: '#0f172a', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span>🛍️</span> Tạo Đơn Hàng Mới (Sales Order)
+            <h3 style={{ fontSize: '18px', fontWeight: '800', color: '#0f172a', margin: 0 }}>
+              Tạo Đơn Hàng Mới
             </h3>
             <p style={{ fontSize: '12.5px', color: '#64748b', margin: '4px 0 0 0' }}>
-              Tự động áp giá theo nhóm khách hàng & kiểm soát vi phạm giá sàn
+              Tự động áp giá theo nhóm khách hàng và kiểm soát giá sàn
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
             style={{
-              background: 'transparent',
-              border: 'none',
-              fontSize: '20px',
-              color: '#94a3b8',
+              background: '#f1f5f9',
+              border: '1px solid #cbd5e1',
+              borderRadius: '6px',
+              fontSize: '12px',
+              color: '#475569',
               cursor: 'pointer',
-              padding: '4px',
+              padding: '5px 12px',
+              fontWeight: '600',
             }}
           >
-            ✕
+            Đóng
           </button>
         </div>
 
@@ -284,7 +283,7 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
               marginBottom: '16px',
             }}
           >
-            ⚠️ {errorMsg}
+            {errorMsg}
           </div>
         )}
 
@@ -304,8 +303,8 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
                   color: groupInfo.badgeColor,
                   border: `1px solid ${groupInfo.borderColor}`,
                   borderRadius: '999px',
-                  padding: '2px 10px',
-                  fontSize: '11.5px',
+                  padding: '3px 12px',
+                  fontSize: '12px',
                   fontWeight: '700',
                   letterSpacing: '0.02em',
                 }}
@@ -374,65 +373,30 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
             >
               {products.map((p) => (
                 <option key={p.id} value={p.id}>
-                  {p.code} - {p.name} (Tồn kho: {p.stock} {p.base_unit || 'Cái'} - Giá niêm yết: {p.sell_price.toLocaleString('vi-VN')} đ)
+                  {p.code} - {p.name} (Tồn kho: {p.stock} {p.base_unit || 'Cái'} - Giá niêm yết: {p.sell_price.toLocaleString('vi-VN')} đồng)
                 </option>
               ))}
             </select>
           </div>
 
-          {/* Banner thông tin tra cứu bảng giá tự động */}
+          {/* Dòng thông báo văn bản thuần túy áp dụng bảng giá */}
           <div
+            id="banner-price-book-note"
             style={{
-              padding: '10px 12px',
+              padding: '10px 14px',
               borderRadius: '8px',
-              background: isResolvingPrice ? '#f1f5f9' : floorPrice !== null ? '#eff6ff' : '#f8fafc',
-              border: `1px solid ${floorPrice !== null ? '#bfdbfe' : '#e2e8f0'}`,
+              background: '#eff6ff',
+              border: '1px solid #bfdbfe',
+              color: '#1e40af',
+              fontSize: '12.5px',
+              fontWeight: '600',
               marginBottom: '14px',
-              fontSize: '12px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              color: floorPrice !== null ? '#1e40af' : '#64748b',
+              lineHeight: '1.5',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span>{isResolvingPrice ? '⏳' : floorPrice !== null ? '⚡' : 'ℹ️'}</span>
-              <span>
-                {isResolvingPrice
-                  ? 'Đang tra cứu giá tự động theo bảng giá của nhóm khách hàng...'
-                  : priceResolveNote}
-              </span>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              {resolvedPriceBookCode && (
-                <span
-                  style={{
-                    fontSize: '11px',
-                    fontWeight: '700',
-                    background: '#e0e7ff',
-                    color: '#3730a3',
-                    padding: '2px 8px',
-                    borderRadius: '6px',
-                  }}
-                >
-                  BG: {resolvedPriceBookCode}
-                </span>
-              )}
-              {floorPrice !== null && (
-                <span
-                  style={{
-                    fontSize: '11px',
-                    fontWeight: '700',
-                    background: '#dbeafe',
-                    color: '#1e40af',
-                    padding: '2px 8px',
-                    borderRadius: '6px',
-                  }}
-                >
-                  Giá sàn ẩn: {floorPrice.toLocaleString('vi-VN')} đ
-                </span>
-              )}
-            </div>
+            {isResolvingPrice
+              ? 'Đang tự động tra cứu bảng giá theo nhóm khách hàng...'
+              : (priceResolveNote || 'Chưa có bảng giá áp dụng cho nhóm khách hàng này')}
           </div>
 
           {/* Đơn vị tính & Số lượng */}
@@ -458,7 +422,7 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
               >
                 {availableUnits.map((u) => (
                   <option key={u.unit_name} value={u.unit_name}>
-                    {u.unit_name} {u.is_base ? '(ĐV cơ sở)' : `(= ${u.conversion_rate} ${baseUnit})`}
+                    {u.unit_name} {u.is_base ? '(Đơn vị cơ sở)' : `(= ${u.conversion_rate} ${baseUnit})`}
                   </option>
                 ))}
               </select>
@@ -491,7 +455,7 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
             </div>
           </div>
 
-          {/* Banner tính base_quantity và trừ kho */}
+          {/* Thông tin quy đổi số lượng kho */}
           <div
             style={{
               padding: '10px 14px',
@@ -505,10 +469,10 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
             }}
           >
             <div>
-              <div style={{ fontSize: '11.5px', color: '#475569', fontWeight: '700' }}>
-                QUY ĐỔI SỐ LƯỢNG TRỪ VÀO KHO CƠ SỞ:
+              <div style={{ fontSize: '12px', color: '#475569', fontWeight: '700' }}>
+                Quy đổi số lượng trừ vào kho cơ sở:
               </div>
-              <div style={{ fontSize: '11px', color: '#64748b' }}>
+              <div style={{ fontSize: '11.5px', color: '#64748b' }}>
                 1 {currentUnit.unit_name} = {currentUnit.conversion_rate} {baseUnit}
               </div>
             </div>
@@ -566,44 +530,28 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
                   textAlign: 'right',
                 }}
               >
-                {totalAmount.toLocaleString('vi-VN')} đ
+                {totalAmount.toLocaleString('vi-VN')} đồng
               </div>
             </div>
           </div>
 
-          {/* 3. CẢNH BÁO INLINE KHI ĐƠN GIÁ < FLOOR_PRICE (Yêu cầu đề bài) */}
+          {/* Thông báo chữ màu đỏ khi đơn giá bán < floor_price (Yêu cầu đề bài) */}
           {isBelowFloorPrice && (
             <div
               id="warning-floor-price-inline"
               style={{
-                padding: '12px 16px',
-                borderRadius: '10px',
-                background: '#fffbeb',
-                border: '1.5px solid #f59e0b',
-                color: '#92400e',
+                padding: '10px 14px',
+                borderRadius: '8px',
+                background: '#fef2f2',
+                border: '1.5px solid #f87171',
+                color: '#dc2626',
                 fontSize: '13px',
+                fontWeight: '700',
                 marginBottom: '16px',
-                display: 'flex',
-                alignItems: 'flex-start',
-                gap: '10px',
-                boxShadow: '0 2px 6px rgba(245, 158, 11, 0.15)',
-                animation: 'shake 0.2s ease-in-out',
+                lineHeight: '1.4',
               }}
             >
-              <div style={{ fontSize: '18px', lineHeight: 1 }}>⚠️</div>
-              <div>
-                <div style={{ fontWeight: '800', color: '#b45309', marginBottom: '2px' }}>
-                  Đơn giá thấp hơn giá sàn, đơn hàng sẽ chuyển sang trạng thái Chờ duyệt
-                </div>
-                <div style={{ fontSize: '12px', color: '#78350f' }}>
-                  • Giá sàn quy định tối thiểu:{' '}
-                  <strong>{floorPrice?.toLocaleString('vi-VN')} đ</strong> / {selectedUnitName}
-                  <br />
-                  • Đơn giá bạn đang nhập: <strong style={{ color: '#dc2626' }}>{sellPrice.toLocaleString('vi-VN')} đ</strong> (Giảm sâu {((floorPrice! - sellPrice) / floorPrice! * 100).toFixed(1)}%)
-                  <br />
-                  • Đơn sẽ cần được <strong>Quản lý kinh doanh (Sales Manager)</strong> hoặc <strong>Admin</strong> phê duyệt trước khi có thể xuất kho.
-                </div>
-              </div>
+              Đơn giá bán thấp hơn giá sàn quy định. Đơn hàng sẽ được gửi cho Quản lý phê duyệt.
             </div>
           )}
 
@@ -616,7 +564,7 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
               type="text"
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              placeholder={isBelowFloorPrice ? 'Bắt buộc/khuyến nghị nhập lý do bán dưới giá sàn...' : 'VD: Giao hàng giờ hành chính, đóng gói tiêu chuẩn...'}
+              placeholder={isBelowFloorPrice ? 'Nhập lý do bán dưới giá sàn...' : 'Ví dụ: Giao hàng giờ hành chính, đóng gói tiêu chuẩn...'}
               style={{
                 width: '100%',
                 padding: '9px 12px',
@@ -629,13 +577,13 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
             />
           </div>
 
-          {/* Actions */}
+          {/* Nút hành động */}
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', paddingTop: '12px', borderTop: '1px solid #f1f5f9' }}>
             <button
               type="button"
               onClick={onClose}
               style={{
-                padding: '9px 16px',
+                padding: '9px 18px',
                 borderRadius: '8px',
                 border: '1px solid #cbd5e1',
                 background: '#ffffff',
@@ -652,34 +600,18 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
               id="btn-submit-create-order"
               disabled={isSubmitting}
               style={{
-                padding: '9px 22px',
+                padding: '9px 24px',
                 borderRadius: '8px',
                 border: 'none',
-                background: isBelowFloorPrice
-                  ? 'linear-gradient(135deg, #d97706 0%, #b45309 100%)'
-                  : 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+                background: isBelowFloorPrice ? '#d97706' : '#2563eb',
                 color: '#ffffff',
                 fontSize: '13.5px',
                 fontWeight: '700',
                 cursor: isSubmitting ? 'not-allowed' : 'pointer',
-                boxShadow: isBelowFloorPrice
-                  ? '0 4px 12px rgba(217, 119, 6, 0.3)'
-                  : '0 4px 12px rgba(37, 99, 235, 0.3)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
+                boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
               }}
             >
-              {isSubmitting ? (
-                'Đang xử lý...'
-              ) : isBelowFloorPrice ? (
-                <>
-                  <span>⚠️</span>
-                  <span>Gửi Đơn Hàng (Chờ Duyệt)</span>
-                </>
-              ) : (
-                'Tạo Đơn Hàng'
-              )}
+              {isSubmitting ? 'Đang xử lý...' : 'Tạo Đơn Hàng'}
             </button>
           </div>
         </form>

@@ -2,14 +2,14 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { 
   PriceBook, 
   fetchPriceBooksApi, 
-  createPriceBookApi,
-  updatePriceBookApi,
-  clonePriceBookApi,
-  fetchPriceBookDetailApi,
-  PriceBookItem,
-  getProductsApi,
-  ProductItem,
-  User
+  createPriceBookApi, 
+  updatePriceBookApi, 
+  clonePriceBookApi, 
+  fetchPriceBookDetailApi, 
+  PriceBookItem, 
+  getProductsApi, 
+  ProductItem, 
+  User 
 } from '../services/api';
 import { emitStatusToast } from './StatusToast';
 
@@ -17,9 +17,15 @@ interface PriceBookManagementViewProps {
   token: string;
   currentUser?: User | null;
   onBackToHome?: () => void;
+  onNavigateToOrders?: () => void;
 }
 
-export function PriceBookManagementView({ token, currentUser, onBackToHome }: PriceBookManagementViewProps) {
+export function PriceBookManagementView({ 
+  token, 
+  currentUser, 
+  onBackToHome,
+  onNavigateToOrders,
+}: PriceBookManagementViewProps) {
   // Xác định vai trò người dùng (RBAC Matrix)
   const userRoles = useMemo(() => {
     if (currentUser?.roles && currentUser.roles.length > 0) {
@@ -30,7 +36,7 @@ export function PriceBookManagementView({ token, currentUser, onBackToHome }: Pr
 
   // Toàn quyền CRUD bảng giá: admin và sales_manager
   const canManagePriceBooks = userRoles.some(r => ['admin', 'sales_manager'].includes(r));
-  // Kế toán: Read-only (chỉ xem, cấm Thêm/Sửa/Clone)
+  // Kế toán: Chỉ xem (cấm Thêm/Sửa/Nhân bản)
   const isAccountant = userRoles.includes('accountant') && !canManagePriceBooks;
 
   const [priceBooks, setPriceBooks] = useState<PriceBook[]>([]);
@@ -38,7 +44,7 @@ export function PriceBookManagementView({ token, currentUser, onBackToHome }: Pr
   const [loading, setLoading] = useState(true);
   const [cloningId, setCloningId] = useState<number | null>(null);
   
-  // Filters
+  // Bộ lọc tìm kiếm
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [filterGroup, setFilterGroup] = useState<string>('');
@@ -56,20 +62,20 @@ export function PriceBookManagementView({ token, currentUser, onBackToHome }: Pr
   const [formData, setFormData] = useState({
     code: '',
     name: '',
-    customer_group: 'Dai_ly_cap_1',
+    customer_group: 'dai_ly_cap_1',
     valid_from: '',
     valid_to: '',
     status: 'ACTIVE',
     note: ''
   });
   
-  // Items State (for creating/updating)
+  // Items State (cho tạo/sửa)
   const [formItems, setFormItems] = useState<PriceBookItem[]>([]);
   const [newProductId, setNewProductId] = useState('');
   const [newSalePrice, setNewSalePrice] = useState('');
   const [newFloorPrice, setNewFloorPrice] = useState('');
 
-  // Debounce search
+  // Tự động tìm kiếm sau khi người dùng dừng gõ
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(searchQuery);
@@ -77,20 +83,20 @@ export function PriceBookManagementView({ token, currentUser, onBackToHome }: Pr
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  // Load products for dropdown
+  // Tải danh mục sản phẩm
   useEffect(() => {
     const loadProducts = async () => {
       try {
         const data = await getProductsApi(token);
         setProducts(data.items || []);
       } catch (err) {
-        console.error('Failed to fetch products', err);
+        console.error('Không thể tải danh sách sản phẩm', err);
       }
     };
     loadProducts();
   }, [token]);
 
-  // Load price books
+  // Tải danh sách bảng giá
   const loadPriceBooks = async () => {
     setLoading(true);
     try {
@@ -120,7 +126,6 @@ export function PriceBookManagementView({ token, currentUser, onBackToHome }: Pr
     const now = new Date();
     const thirtyDaysLater = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
     
-    // Format to YYYY-MM-DDTHH:mm for datetime-local
     const formatDT = (d: Date) => {
       const pad = (n: number) => n.toString().padStart(2, '0');
       return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
@@ -129,7 +134,7 @@ export function PriceBookManagementView({ token, currentUser, onBackToHome }: Pr
     setFormData({
       code: `BG-${Date.now().toString().slice(-6)}`,
       name: '',
-      customer_group: 'Dai_ly_cap_1',
+      customer_group: 'dai_ly_cap_1',
       valid_from: formatDT(now),
       valid_to: formatDT(thirtyDaysLater),
       status: 'ACTIVE',
@@ -190,7 +195,7 @@ export function PriceBookManagementView({ token, currentUser, onBackToHome }: Pr
       setCloningId(pb.id);
       const cloned = await clonePriceBookApi(token, pb.id);
       emitStatusToast({ 
-        message: `Đã nhân bản thành công bảng giá "${cloned.name}" (Mã: ${cloned.code}, Phiên bản: v${cloned.version || 2})!`,
+        message: `Đã nhân bản thành công bảng giá "${cloned.name}" (Mã: ${cloned.code}, Phiên bản: Phiên bản ${cloned.version || 2})!`,
         title: 'Nhân bản thành công'
       });
       loadPriceBooks();
@@ -210,7 +215,6 @@ export function PriceBookManagementView({ token, currentUser, onBackToHome }: Pr
       return;
     }
 
-    // Validate dates
     if (new Date(formData.valid_to) < new Date(formData.valid_from)) {
       emitStatusToast({ message: 'Ngày kết thúc không được nhỏ hơn ngày bắt đầu' });
       setActiveTab('info');
@@ -227,7 +231,6 @@ export function PriceBookManagementView({ token, currentUser, onBackToHome }: Pr
       const formattedValidFrom = new Date(formData.valid_from).toISOString();
       const formattedValidTo = new Date(formData.valid_to).toISOString();
 
-      // Chuẩn hóa đúng danh sách sản phẩm gửi xuống backend
       const normalizedItems = formItems.map(item => ({
         product_id: Number(item.product_id),
         sale_price: Number(item.sale_price) || 0,
@@ -344,41 +347,37 @@ export function PriceBookManagementView({ token, currentUser, onBackToHome }: Pr
   };
 
   const formatGroupName = (grp: string) => {
-    if (grp === 'CAP_1' || grp === 'Dai_ly_cap_1' || grp === 'Đại lý cấp 1') return 'Đại lý cấp 1';
-    if (grp === 'CAP_2' || grp === 'Dai_ly_cap_2' || grp === 'Đại lý cấp 2') return 'Đại lý cấp 2';
-    if (grp === 'RETAIL' || grp === 'Khach_le' || grp === 'Khách lẻ') return 'Khách lẻ';
+    if (grp === 'CAP_1' || grp === 'Dai_ly_cap_1' || grp === 'Đại lý cấp 1' || grp === 'dai_ly_cap_1') return 'Đại lý cấp 1';
+    if (grp === 'CAP_2' || grp === 'Dai_ly_cap_2' || grp === 'Đại lý cấp 2' || grp === 'dai_ly_cap_2') return 'Đại lý cấp 2';
+    if (grp === 'RETAIL' || grp === 'Khach_le' || grp === 'Khách lẻ' || grp === 'khach_le') return 'Khách lẻ';
     return grp;
   };
 
   const renderStatusBadge = (pb: PriceBook) => {
     if (pb.status === 'INACTIVE') {
       return (
-        <span style={{ padding: '4px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: '600', background: '#f1f5f9', color: '#64748b', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-          <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#94a3b8' }} />
-          Ngừng HĐ
+        <span style={{ padding: '4px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: '700', background: '#f1f5f9', color: '#64748b' }}>
+          Ngừng hoạt động
         </span>
       );
     }
     const now = new Date();
     if (pb.status === 'EXPIRED' || new Date(pb.valid_to) < now) {
       return (
-        <span style={{ padding: '4px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: '600', background: '#fef3c7', color: '#b45309', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-          <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#f59e0b' }} />
-          Hết hạn
+        <span style={{ padding: '4px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: '700', background: '#fef3c7', color: '#b45309' }}>
+          Đã hết hạn
         </span>
       );
     }
     if (new Date(pb.valid_from) > now) {
       return (
-        <span style={{ padding: '4px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: '600', background: '#e0f2fe', color: '#0369a1', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-          <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#0284c7' }} />
+        <span style={{ padding: '4px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: '700', background: '#e0f2fe', color: '#0369a1' }}>
           Chờ áp dụng
         </span>
       );
     }
     return (
-      <span style={{ padding: '4px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: '600', background: '#dcfce7', color: '#15803d', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-        <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#22c55e' }} />
+      <span style={{ padding: '4px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: '700', background: '#dcfce7', color: '#15803d' }}>
         Đang áp dụng
       </span>
     );
@@ -399,10 +398,11 @@ export function PriceBookManagementView({ token, currentUser, onBackToHome }: Pr
   return (
     <div style={{ padding: '24px', background: '#f8fafc', minHeight: '100vh', fontFamily: 'Inter, system-ui, sans-serif' }}>
       
-      {/* Header bar */}
+      {/* Thanh công cụ và tiêu đề */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
           <button 
+            type="button"
             onClick={handleBackHome}
             style={{ 
               background: '#ffffff', 
@@ -412,32 +412,54 @@ export function PriceBookManagementView({ token, currentUser, onBackToHome }: Pr
               borderRadius: '8px', 
               cursor: 'pointer', 
               fontWeight: '600', 
-              fontSize: '14px',
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: '8px',
+              fontSize: '13.5px',
               boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
             }}
-            title="Quay lại trang chủ"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
             Quay lại trang chủ
           </button>
+
+          {/* Nút chữ: Sang trang Quản lý Đơn hàng (Yêu cầu đề bài) */}
+          {onNavigateToOrders && (
+            <button
+              type="button"
+              id="btn-nav-to-orders"
+              onClick={onNavigateToOrders}
+              style={{
+                background: '#eff6ff',
+                color: '#1d4ed8',
+                border: '1px solid #93c5fd',
+                padding: '9px 16px',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontWeight: '700',
+                fontSize: '13.5px',
+              }}
+            >
+              Sang trang Quản lý Đơn hàng
+            </button>
+          )}
+
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <h1 style={{ fontSize: '24px', fontWeight: '800', color: '#0f172a', margin: 0, letterSpacing: '-0.02em' }}>Quản lý Bảng giá</h1>
+              <h1 style={{ fontSize: '24px', fontWeight: '800', color: '#0f172a', margin: 0, letterSpacing: '-0.02em' }}>
+                Quản lý Bảng giá
+              </h1>
               {isAccountant && (
                 <span style={{ padding: '3px 10px', borderRadius: '12px', background: '#fef3c7', color: '#92400e', fontSize: '12px', fontWeight: '700', border: '1px solid #fde68a' }}>
-                  Kế toán (Read-only)
+                  Kế toán (Chỉ xem)
                 </span>
               )}
             </div>
-            <p style={{ margin: '2px 0 0 0', fontSize: '13px', color: '#64748b' }}>Thiết lập đơn giá bán và giá sàn theo nhóm khách hàng & thời hạn hiệu lực</p>
+            <p style={{ margin: '2px 0 0 0', fontSize: '13px', color: '#64748b' }}>
+              Thiết lập đơn giá bán và giá sàn theo nhóm khách hàng và thời hạn hiệu lực
+            </p>
           </div>
         </div>
 
         {canManagePriceBooks && (
           <button 
+            type="button"
             onClick={handleOpenCreate}
             id="btn-add-price-book"
             style={{ 
@@ -447,64 +469,59 @@ export function PriceBookManagementView({ token, currentUser, onBackToHome }: Pr
               padding: '10px 20px', 
               borderRadius: '8px', 
               cursor: 'pointer', 
-              fontWeight: '600', 
-              fontSize: '14px',
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: '8px',
+              fontWeight: '700', 
+              fontSize: '13.5px',
               boxShadow: '0 2px 4px rgba(37, 99, 235, 0.2)'
             }}
           >
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-            + Thêm Bảng giá
+            Thêm Bảng giá
           </button>
         )}
       </div>
 
-      {/* Filter and Search Bar */}
+      {/* Thanh tìm kiếm và bộ lọc */}
       <div style={{ background: '#fff', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', marginBottom: '24px', display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
-        <div style={{ position: 'relative', flex: 1, minWidth: '260px' }}>
-          <svg style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+        <div style={{ flex: 1, minWidth: '260px' }}>
           <input 
             type="text" 
-            placeholder="Tìm theo Mã hoặc Tên Bảng Giá (Debounce)..." 
+            placeholder="Tìm theo mã hoặc tên bảng giá..." 
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            style={{ width: '100%', padding: '10px 12px 10px 38px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '14px', boxSizing: 'border-box' }}
+            style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '14px', boxSizing: 'border-box' }}
           />
         </div>
         <select value={filterGroup} onChange={e => setFilterGroup(e.target.value)} style={{ padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '14px', minWidth: '200px', background: '#fff', cursor: 'pointer' }}>
-          <option value="">-- Tất cả nhóm khách hàng --</option>
-          <option value="Dai_ly_cap_1">Đại lý cấp 1</option>
-          <option value="Dai_ly_cap_2">Đại lý cấp 2</option>
-          <option value="Khach_le">Khách lẻ</option>
+          <option value="">Tất cả nhóm khách hàng</option>
+          <option value="dai_ly_cap_1">Đại lý cấp 1</option>
+          <option value="dai_ly_cap_2">Đại lý cấp 2</option>
+          <option value="khach_le">Khách lẻ</option>
         </select>
         <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={{ padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '14px', minWidth: '180px', background: '#fff', cursor: 'pointer' }}>
-          <option value="">-- Tất cả trạng thái --</option>
+          <option value="">Tất cả trạng thái</option>
           <option value="ACTIVE">Đang hoạt động</option>
           <option value="INACTIVE">Ngừng hoạt động</option>
           <option value="EXPIRED">Đã hết hạn</option>
         </select>
       </div>
 
-      {/* Main Table View */}
+      {/* Bảng danh sách bảng giá */}
       <div style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
         {loading ? (
           <div style={{ padding: '60px', textAlign: 'center', color: '#64748b' }}>
-            <div style={{ display: 'inline-block', width: '28px', height: '28px', border: '3px solid #cbd5e1', borderTopColor: '#2563eb', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
-            <div style={{ marginTop: '12px', fontWeight: '500' }}>Đang tải danh sách bảng giá...</div>
+            <div style={{ fontSize: '14px', fontWeight: '600' }}>Đang tải danh sách bảng giá...</div>
           </div>
         ) : (
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
             <thead style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
               <tr>
-                <th style={{ padding: '14px 16px', fontWeight: '600', color: '#475569', fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Mã BG</th>
-                <th style={{ padding: '14px 16px', fontWeight: '600', color: '#475569', fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Tên Bảng Giá</th>
-                <th style={{ padding: '14px 16px', fontWeight: '600', color: '#475569', fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Nhóm KH</th>
-                <th style={{ padding: '14px 16px', fontWeight: '600', color: '#475569', fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Thời hạn</th>
-                <th style={{ padding: '14px 16px', textAlign: 'center', fontWeight: '600', color: '#475569', fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Version</th>
-                <th style={{ padding: '14px 16px', textAlign: 'center', fontWeight: '600', color: '#475569', fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Trạng thái</th>
-                <th style={{ padding: '14px 16px', textAlign: 'right', fontWeight: '600', color: '#475569', fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Thao tác</th>
+                <th style={{ padding: '14px 16px', fontWeight: '700', color: '#475569', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Mã Bảng Giá</th>
+                <th style={{ padding: '14px 16px', fontWeight: '700', color: '#475569', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Tên Bảng Giá</th>
+                <th style={{ padding: '14px 16px', fontWeight: '700', color: '#475569', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Nhóm Khách Hàng</th>
+                <th style={{ padding: '14px 16px', fontWeight: '700', color: '#475569', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Thời Hạn</th>
+                {/* Cột Phiên bản: Chỉ hiển thị chữ thuần túy, không có icon (Yêu cầu đề bài) */}
+                <th style={{ padding: '14px 16px', textAlign: 'center', fontWeight: '700', color: '#475569', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Phiên bản</th>
+                <th style={{ padding: '14px 16px', textAlign: 'center', fontWeight: '700', color: '#475569', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Trạng thái</th>
+                <th style={{ padding: '14px 16px', textAlign: 'right', fontWeight: '700', color: '#475569', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Thao tác</th>
               </tr>
             </thead>
             <tbody>
@@ -512,8 +529,8 @@ export function PriceBookManagementView({ token, currentUser, onBackToHome }: Pr
                 const isLocked = Boolean(pb.is_locked);
                 return (
                   <tr key={pb.id} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background-color 0.15s' }}>
-                    <td style={{ padding: '14px 16px', color: '#0f172a', fontWeight: '600', fontSize: '14px' }}>
-                      <span style={{ fontFamily: 'monospace', background: '#f1f5f9', padding: '2px 6px', borderRadius: '4px' }}>{pb.code}</span>
+                    <td style={{ padding: '14px 16px', color: '#0f172a', fontWeight: '700', fontSize: '13.5px' }}>
+                      <span style={{ fontFamily: 'monospace', background: '#f1f5f9', padding: '2px 8px', borderRadius: '4px' }}>{pb.code}</span>
                     </td>
                     <td style={{ padding: '14px 16px', color: '#334155' }}>
                       <div 
@@ -540,80 +557,78 @@ export function PriceBookManagementView({ token, currentUser, onBackToHome }: Pr
                     <td style={{ padding: '14px 16px', color: '#475569', fontSize: '13px' }}>
                       <div>{new Date(pb.valid_from).toLocaleDateString('vi-VN')} → {new Date(pb.valid_to).toLocaleDateString('vi-VN')}</div>
                     </td>
+                    
+                    {/* Cột Phiên bản: CHỈ chữ thuần túy, không có bất kỳ biểu tượng icon nào (Yêu cầu đề bài) */}
                     <td style={{ padding: '14px 16px', textAlign: 'center' }}>
                       <span style={{ 
-                        padding: '2px 8px', 
+                        padding: '3px 10px', 
                         borderRadius: '8px', 
                         background: isLocked ? '#fee2e2' : '#f1f5f9', 
-                        color: isLocked ? '#b91c1c' : '#475569', 
+                        color: isLocked ? '#b91c1c' : '#334155', 
                         fontWeight: '700', 
-                        fontSize: '12px',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '4px'
+                        fontSize: '12.5px',
+                        display: 'inline-block',
                       }}>
-                        v{pb.version || 1}
-                        {isLocked && (
-                          <span title="Đã phát sinh giao dịch, bảng giá bị khóa chỉnh sửa">🔒</span>
-                        )}
+                        Phiên bản {pb.version || 1}
                       </span>
                     </td>
+
                     <td style={{ padding: '14px 16px', textAlign: 'center' }}>
                       {renderStatusBadge(pb)}
                     </td>
+
                     <td style={{ padding: '14px 16px', textAlign: 'right' }}>
                       <div style={{ display: 'inline-flex', gap: '8px', alignItems: 'center' }}>
                         
-                        {/* Nút Xem Chi Tiết - Luôn khả dụng cho admin, sales_manager, accountant */}
+                        {/* Nút Xem Chi Tiết bằng chữ thuần túy */}
                         <button 
+                          type="button"
                           onClick={() => handleOpenDetail(pb.id)} 
-                          style={{ border: '1px solid #e2e8f0', background: '#fff', color: '#64748b', padding: '6px', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center' }} 
+                          style={{ border: '1px solid #cbd5e1', background: '#fff', color: '#475569', padding: '5px 10px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', fontWeight: '600' }} 
                           title="Xem chi tiết bảng giá"
                         >
-                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                          Chi tiết
                         </button>
 
-                        {/* Nút Sửa và Clone: CHỈ dành cho admin và sales_manager. Với accountant BỊ ẨN */}
+                        {/* Nút Sửa và Nhân bản bằng chữ thuần túy: Chỉ admin và sales_manager */}
                         {canManagePriceBooks && (
                           <>
-                            {/* Nút Sửa (Edit): Bị disabled kèm Tooltip nếu is_locked == true */}
                             <button 
+                              type="button"
                               onClick={() => !isLocked && handleOpenEdit(pb.id)} 
                               disabled={isLocked}
                               style={{ 
                                 border: '1px solid #cbd5e1', 
                                 background: isLocked ? '#f1f5f9' : '#eff6ff', 
                                 color: isLocked ? '#94a3b8' : '#2563eb', 
-                                padding: '6px', 
+                                padding: '5px 10px', 
                                 borderRadius: '6px', 
                                 cursor: isLocked ? 'not-allowed' : 'pointer', 
-                                opacity: isLocked ? 0.45 : 1,
-                                display: 'flex', 
-                                alignItems: 'center' 
+                                fontSize: '12px',
+                                fontWeight: '600'
                               }} 
-                              title={isLocked ? "Đã phát sinh giao dịch, không thể chỉnh sửa. Vui lòng nhân bản để tạo phiên bản mới." : "Chỉnh sửa bảng giá"}
+                              title={isLocked ? "Bảng giá đã phát sinh đơn hàng, không thể chỉnh sửa" : "Chỉnh sửa bảng giá"}
                             >
-                              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                              Sửa
                             </button>
 
-                            {/* Nút Clone (Nhân bản): Luôn khả dụng cho sales_manager và admin */}
                             <button 
+                              type="button"
                               onClick={() => handleClonePriceBook(pb)} 
                               disabled={cloningId === pb.id}
                               style={{ 
                                 border: '1px solid #86efac', 
                                 background: '#f0fdf4', 
                                 color: '#16a34a', 
-                                padding: '6px', 
+                                padding: '5px 10px', 
                                 borderRadius: '6px', 
                                 cursor: cloningId === pb.id ? 'wait' : 'pointer', 
-                                display: 'flex', 
-                                alignItems: 'center',
-                                opacity: cloningId === pb.id ? 0.5 : 1
+                                fontSize: '12px',
+                                fontWeight: '600'
                               }} 
-                              title="Tạo phiên bản mới (Clone)"
+                              title="Tạo phiên bản mới từ bảng giá này"
                             >
-                              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                              {cloningId === pb.id ? 'Đang tạo...' : 'Nhân bản'}
                             </button>
                           </>
                         )}
@@ -626,8 +641,7 @@ export function PriceBookManagementView({ token, currentUser, onBackToHome }: Pr
               {filteredBooks.length === 0 && (
                 <tr>
                   <td colSpan={7} style={{ padding: '48px', textAlign: 'center', color: '#94a3b8' }}>
-                    <svg style={{ margin: '0 auto 12px', color: '#cbd5e1' }} xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
-                    <div style={{ fontSize: '15px', fontWeight: '500', color: '#64748b' }}>Không tìm thấy bảng giá nào phù hợp</div>
+                    <div style={{ fontSize: '15px', fontWeight: '600', color: '#64748b' }}>Không tìm thấy bảng giá nào phù hợp</div>
                     <div style={{ fontSize: '13px', marginTop: '4px' }}>Nhấn nút "Thêm Bảng giá" để tạo bảng giá mới</div>
                   </td>
                 </tr>
@@ -651,12 +665,16 @@ export function PriceBookManagementView({ token, currentUser, onBackToHome }: Pr
                   {selectedBook ? 'Điều chỉnh thông tin và danh sách sản phẩm bảng giá' : 'Khai báo bảng giá theo nhóm khách hàng và thời gian hiệu lực'}
                 </p>
               </div>
-              <button onClick={() => setIsFormModalOpen(false)} style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#94a3b8', padding: '4px' }}>
-                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+              <button 
+                type="button"
+                onClick={() => setIsFormModalOpen(false)} 
+                style={{ border: '1px solid #cbd5e1', background: '#f8fafc', cursor: 'pointer', color: '#475569', padding: '4px 10px', borderRadius: '6px', fontSize: '12px', fontWeight: '600' }}
+              >
+                Đóng
               </button>
             </div>
 
-            {/* Tab navigation */}
+            {/* Tab điều hướng */}
             <div style={{ padding: '0 24px', borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
               <div style={{ display: 'flex', gap: '28px' }}>
                 <div 
@@ -670,7 +688,7 @@ export function PriceBookManagementView({ token, currentUser, onBackToHome }: Pr
                     borderBottom: activeTab === 'info' ? '2.5px solid #2563eb' : '2.5px solid transparent' 
                   }}
                 >
-                  Tab 1: Thông tin chung
+                  Thông tin chung
                 </div>
                 <div 
                   onClick={() => setActiveTab('items')} 
@@ -683,7 +701,7 @@ export function PriceBookManagementView({ token, currentUser, onBackToHome }: Pr
                     borderBottom: activeTab === 'items' ? '2.5px solid #2563eb' : '2.5px solid transparent' 
                   }}
                 >
-                  Tab 2: Danh sách sản phẩm ({formItems.length})
+                  Danh sách sản phẩm ({formItems.length})
                 </div>
               </div>
             </div>
@@ -701,7 +719,7 @@ export function PriceBookManagementView({ token, currentUser, onBackToHome }: Pr
                         value={formData.code} 
                         onChange={e => setFormData({...formData, code: e.target.value})} 
                         style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', background: selectedBook ? '#f1f5f9' : '#fff', boxSizing: 'border-box', fontSize: '14px' }} 
-                        placeholder="VD: BG-DL1-2026"
+                        placeholder="Ví dụ: BG-DL1-2026"
                       />
                     </div>
                     <div>
@@ -711,7 +729,7 @@ export function PriceBookManagementView({ token, currentUser, onBackToHome }: Pr
                         value={formData.name} 
                         onChange={e => setFormData({...formData, name: e.target.value})} 
                         style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', boxSizing: 'border-box', fontSize: '14px' }} 
-                        placeholder="VD: Bảng giá Đại lý cấp 1 - Quý 4"
+                        placeholder="Ví dụ: Bảng giá Đại lý cấp 1 - Quý 4"
                       />
                     </div>
                     <div>
@@ -721,9 +739,9 @@ export function PriceBookManagementView({ token, currentUser, onBackToHome }: Pr
                         onChange={e => setFormData({...formData, customer_group: e.target.value})} 
                         style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', background: '#fff', boxSizing: 'border-box', fontSize: '14px' }}
                       >
-                        <option value="Dai_ly_cap_1">Đại lý cấp 1</option>
-                        <option value="Dai_ly_cap_2">Đại lý cấp 2</option>
-                        <option value="Khach_le">Khách lẻ</option>
+                        <option value="dai_ly_cap_1">Đại lý cấp 1</option>
+                        <option value="dai_ly_cap_2">Đại lý cấp 2</option>
+                        <option value="khach_le">Khách lẻ</option>
                       </select>
                     </div>
                     <div>
@@ -733,8 +751,8 @@ export function PriceBookManagementView({ token, currentUser, onBackToHome }: Pr
                         onChange={e => setFormData({...formData, status: e.target.value})} 
                         style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', background: '#fff', boxSizing: 'border-box', fontSize: '14px' }}
                       >
-                        <option value="ACTIVE">Hoạt động (Active)</option>
-                        <option value="INACTIVE">Ngừng hoạt động (Inactive)</option>
+                        <option value="ACTIVE">Đang hoạt động</option>
+                        <option value="INACTIVE">Ngừng hoạt động</option>
                       </select>
                     </div>
                     <div>
@@ -783,7 +801,7 @@ export function PriceBookManagementView({ token, currentUser, onBackToHome }: Pr
 
                 {activeTab === 'items' && (
                   <div>
-                    {/* Add product section */}
+                    {/* Phần thêm sản phẩm */}
                     <div style={{ marginBottom: '20px', background: '#f8fafc', padding: '16px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
                       <div style={{ fontSize: '13px', fontWeight: '700', color: '#475569', marginBottom: '10px' }}>THÊM SẢN PHẨM VÀO BẢNG GIÁ</div>
                       <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -794,53 +812,50 @@ export function PriceBookManagementView({ token, currentUser, onBackToHome }: Pr
                         >
                           <option value="">-- Chọn Sản phẩm --</option>
                           {products.map(p => (
-                            <option key={p.id} value={p.id}>{p.code} - {p.name} (Niêm yết: {(p.sell_price || 0).toLocaleString()} ₫)</option>
+                            <option key={p.id} value={p.id}>{p.code} - {p.name} (Niêm yết: {(p.sell_price || 0).toLocaleString('vi-VN')} đồng)</option>
                           ))}
                         </select>
                         
-                        <div style={{ position: 'relative', flex: 1, minWidth: '140px' }}>
+                        <div style={{ flex: 1, minWidth: '140px' }}>
                           <input 
                             type="number" 
-                            placeholder="Giá bán..." 
+                            placeholder="Giá bán (đồng)..." 
                             value={newSalePrice} 
                             onChange={e => setNewSalePrice(e.target.value)} 
                             style={{ 
-                              padding: '10px 12px 10px 30px', 
+                              padding: '10px 12px', 
                               borderRadius: '8px', 
                               border: isAddingWarning ? '1.5px solid #ef4444' : '1px solid #cbd5e1', 
                               width: '100%', 
                               outline: 'none', 
-                              boxSizing: 'border-box',
-                              fontSize: '14px',
-                              fontWeight: '600',
-                              color: isAddingWarning ? '#ef4444' : '#0f172a'
+                              boxSizing: 'border-box', 
+                              fontSize: '14px', 
+                              fontWeight: '600', 
+                              color: isAddingWarning ? '#ef4444' : '#0f172a' 
                             }} 
                           />
-                          <span style={{ position: 'absolute', left: '12px', top: '10px', color: '#94a3b8', fontSize: '13px' }}>₫</span>
                         </div>
 
-                        <div style={{ position: 'relative', flex: 1, minWidth: '140px' }}>
+                        <div style={{ flex: 1, minWidth: '140px' }}>
                           <input 
                             type="number" 
-                            placeholder="Giá sàn..." 
+                            placeholder="Giá sàn (đồng)..." 
                             value={newFloorPrice} 
                             onChange={e => setNewFloorPrice(e.target.value)} 
                             style={{ 
-                              padding: '10px 12px 10px 30px', 
+                              padding: '10px 12px', 
                               borderRadius: '8px', 
                               border: '1px solid #cbd5e1', 
                               width: '100%', 
                               outline: 'none', 
-                              boxSizing: 'border-box',
-                              fontSize: '14px',
-                              fontWeight: '600',
-                              color: '#475569'
+                              boxSizing: 'border-box', 
+                              fontSize: '14px', 
+                              fontWeight: '600', 
+                              color: '#475569' 
                             }} 
                           />
-                          <span style={{ position: 'absolute', left: '12px', top: '10px', color: '#94a3b8', fontSize: '13px' }}>₫</span>
                         </div>
 
-                        {/* Nút Thêm đồng bộ màu Xanh Primary #2563eb */}
                         <button 
                           type="button" 
                           onClick={addFormItem} 
@@ -851,37 +866,32 @@ export function PriceBookManagementView({ token, currentUser, onBackToHome }: Pr
                             padding: '10px 24px', 
                             borderRadius: '8px', 
                             cursor: 'pointer', 
-                            fontWeight: '700',
-                            fontSize: '14px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '6px'
+                            fontWeight: '700', 
+                            fontSize: '14px' 
                           }}
                         >
-                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                          Thêm
+                          Thêm sản phẩm
                         </button>
                       </div>
 
-                      {/* Cảnh báo nếu Giá bán < Giá sàn */}
+                      {/* Cảnh báo chữ màu đỏ nếu Giá bán < Giá sàn */}
                       {isAddingWarning && (
-                        <div style={{ marginTop: '8px', color: '#ef4444', fontSize: '12.5px', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: '500' }}>
-                          <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-                          Cảnh báo: Giá bán nhỏ hơn giá sàn! Đơn hàng phát sinh giá này sẽ phải qua Quản lý kinh doanh duyệt.
+                        <div style={{ marginTop: '8px', color: '#dc2626', fontSize: '12.5px', fontWeight: '600' }}>
+                          Cảnh báo: Đơn giá bán nhỏ hơn giá sàn quy định! Đơn hàng sẽ phải chuyển sang Quản lý phê duyệt.
                         </div>
                       )}
                     </div>
 
-                    {/* Products list table */}
+                    {/* Bảng danh sách sản phẩm trong bảng giá */}
                     <div style={{ borderRadius: '8px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
                       <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                         <thead style={{ background: '#f1f5f9' }}>
                           <tr>
-                            <th style={{ padding: '12px 14px', textAlign: 'left', borderBottom: '1px solid #e2e8f0', color: '#475569', fontWeight: '600', fontSize: '13px' }}>Mã SP</th>
-                            <th style={{ padding: '12px 14px', textAlign: 'left', borderBottom: '1px solid #e2e8f0', color: '#475569', fontWeight: '600', fontSize: '13px' }}>Tên Sản phẩm</th>
-                            <th style={{ padding: '12px 14px', textAlign: 'right', borderBottom: '1px solid #e2e8f0', color: '#475569', fontWeight: '600', fontSize: '13px' }}>Giá Bán (₫)</th>
-                            <th style={{ padding: '12px 14px', textAlign: 'right', borderBottom: '1px solid #e2e8f0', color: '#475569', fontWeight: '600', fontSize: '13px' }}>Giá Sàn (₫)</th>
-                            <th style={{ padding: '12px 14px', textAlign: 'center', borderBottom: '1px solid #e2e8f0', color: '#475569', fontWeight: '600', fontSize: '13px', width: '60px' }}>Xóa</th>
+                            <th style={{ padding: '12px 14px', textAlign: 'left', borderBottom: '1px solid #e2e8f0', color: '#475569', fontWeight: '700', fontSize: '13px' }}>Mã Sản Phẩm</th>
+                            <th style={{ padding: '12px 14px', textAlign: 'left', borderBottom: '1px solid #e2e8f0', color: '#475569', fontWeight: '700', fontSize: '13px' }}>Tên Sản Phẩm</th>
+                            <th style={{ padding: '12px 14px', textAlign: 'right', borderBottom: '1px solid #e2e8f0', color: '#475569', fontWeight: '700', fontSize: '13px' }}>Giá Bán (đồng)</th>
+                            <th style={{ padding: '12px 14px', textAlign: 'right', borderBottom: '1px solid #e2e8f0', color: '#475569', fontWeight: '700', fontSize: '13px' }}>Giá Sàn (đồng)</th>
+                            <th style={{ padding: '12px 14px', textAlign: 'center', borderBottom: '1px solid #e2e8f0', color: '#475569', fontWeight: '700', fontSize: '13px', width: '70px' }}>Thao tác</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -898,30 +908,23 @@ export function PriceBookManagementView({ token, currentUser, onBackToHome }: Pr
                                   {item.product_name || '-'}
                                 </td>
                                 <td style={{ padding: '8px 14px', textAlign: 'right' }}>
-                                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                                    <input 
-                                      type="number" 
-                                      value={item.sale_price != null ? item.sale_price : ''}
-                                      onChange={(e) => handleInlineEdit(item.product_id, 'sale_price', e.target.value)}
-                                      style={{ 
-                                        textAlign: 'right', 
-                                        width: '130px', 
-                                        padding: '6px 8px', 
-                                        borderRadius: '6px', 
-                                        border: isBelowFloor ? '1.5px solid #ef4444' : '1px solid #cbd5e1', 
-                                        outline: 'none', 
-                                        background: '#fff', 
-                                        fontWeight: '600', 
-                                        color: isBelowFloor ? '#ef4444' : '#0f172a',
-                                        fontSize: '13.5px'
-                                      }}
-                                    />
-                                    {isBelowFloor && (
-                                      <span title="Giá bán nhỏ hơn giá sàn quy định" style={{ color: '#ef4444' }}>
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
-                                      </span>
-                                    )}
-                                  </div>
+                                  <input 
+                                    type="number" 
+                                    value={item.sale_price != null ? item.sale_price : ''}
+                                    onChange={(e) => handleInlineEdit(item.product_id, 'sale_price', e.target.value)}
+                                    style={{ 
+                                      textAlign: 'right', 
+                                      width: '130px', 
+                                      padding: '6px 8px', 
+                                      borderRadius: '6px', 
+                                      border: isBelowFloor ? '1.5px solid #ef4444' : '1px solid #cbd5e1', 
+                                      outline: 'none', 
+                                      background: '#fff', 
+                                      fontWeight: '600', 
+                                      color: isBelowFloor ? '#ef4444' : '#0f172a',
+                                      fontSize: '13.5px'
+                                    }}
+                                  />
                                 </td>
                                 <td style={{ padding: '8px 14px', textAlign: 'right' }}>
                                   <input 
@@ -946,10 +949,10 @@ export function PriceBookManagementView({ token, currentUser, onBackToHome }: Pr
                                   <button 
                                     type="button" 
                                     onClick={() => removeFormItem(item.product_id)} 
-                                    style={{ color: '#ef4444', border: 'none', background: 'none', cursor: 'pointer', padding: '4px', borderRadius: '4px' }}
+                                    style={{ color: '#ef4444', border: '1px solid #fca5a5', background: '#fef2f2', cursor: 'pointer', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: '600' }}
                                     title="Xóa khỏi bảng giá"
                                   >
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                                    Xóa
                                   </button>
                                 </td>
                               </tr>
@@ -958,7 +961,7 @@ export function PriceBookManagementView({ token, currentUser, onBackToHome }: Pr
                           {formItems.length === 0 && (
                             <tr>
                               <td colSpan={5} style={{ padding: '36px', textAlign: 'center', color: '#94a3b8' }}>
-                                Chưa có sản phẩm nào trong bảng giá. Hãy chọn sản phẩm ở ô trên và nhấn "Thêm".
+                                Chưa có sản phẩm nào trong bảng giá. Hãy chọn sản phẩm ở ô trên và nhấn "Thêm sản phẩm".
                               </td>
                             </tr>
                           )}
@@ -977,7 +980,7 @@ export function PriceBookManagementView({ token, currentUser, onBackToHome }: Pr
                   onClick={() => setIsFormModalOpen(false)} 
                   style={{ padding: '10px 20px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#fff', cursor: 'pointer', fontWeight: '600', color: '#475569', fontSize: '14px' }}
                 >
-                  Hủy
+                  Hủy bỏ
                 </button>
                 <button 
                   type="submit" 
@@ -991,7 +994,7 @@ export function PriceBookManagementView({ token, currentUser, onBackToHome }: Pr
         </div>
       )}
 
-      {/* Detail Modal */}
+      {/* Modal Chi Tiết Bảng Giá */}
       {isDetailModalOpen && selectedBook && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.65)', backdropFilter: 'blur(3px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
           <div style={{ background: '#fff', borderRadius: '16px', width: '800px', maxHeight: '90vh', display: 'flex', flexDirection: 'column', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }}>
@@ -1000,16 +1003,19 @@ export function PriceBookManagementView({ token, currentUser, onBackToHome }: Pr
               <div>
                 <h2 style={{ margin: '0 0 4px 0', fontSize: '18px', fontWeight: '800', color: '#0f172a' }}>{selectedBook.name}</h2>
                 <div style={{ color: '#64748b', fontSize: '13px' }}>
-                  Mã BG: <strong style={{color: '#0f172a', fontFamily: 'monospace'}}>{selectedBook.code}</strong> • Phiên bản: <strong style={{color: '#2563eb'}}>v{selectedBook.version || 1}</strong>
+                  Mã bảng giá: <strong style={{color: '#0f172a', fontFamily: 'monospace'}}>{selectedBook.code}</strong> • Phiên bản: <strong style={{color: '#2563eb'}}>Phiên bản {selectedBook.version || 1}</strong>
                 </div>
               </div>
-              <button onClick={() => setIsDetailModalOpen(false)} style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#94a3b8' }}>
-                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+              <button 
+                type="button"
+                onClick={() => setIsDetailModalOpen(false)} 
+                style={{ border: '1px solid #cbd5e1', background: '#f8fafc', cursor: 'pointer', color: '#475569', padding: '4px 10px', borderRadius: '6px', fontSize: '12px', fontWeight: '600' }}
+              >
+                Đóng
               </button>
             </div>
             
             <div style={{ padding: '24px', overflowY: 'auto' }}>
-              {/* Information card */}
               <div style={{ background: '#f8fafc', padding: '16px 20px', borderRadius: '12px', marginBottom: '24px', border: '1px solid #e2e8f0', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', fontSize: '14px' }}>
                 <div><span style={{color: '#64748b'}}>Nhóm khách hàng:</span> <strong>{formatGroupName(selectedBook.customer_group)}</strong></div>
                 <div><span style={{color: '#64748b'}}>Trạng thái:</span> {renderStatusBadge(selectedBook)}</div>
@@ -1018,9 +1024,9 @@ export function PriceBookManagementView({ token, currentUser, onBackToHome }: Pr
                 <div>
                   <span style={{color: '#64748b'}}>Tình trạng chỉnh sửa:</span>{' '}
                   {selectedBook.is_locked ? (
-                    <span style={{ color: '#b91c1c', fontWeight: '700' }}>🔒 Đã khóa (Đã phát sinh đơn hàng)</span>
+                    <span style={{ color: '#b91c1c', fontWeight: '700' }}>Đã khóa (Đã phát sinh đơn hàng)</span>
                   ) : (
-                    <span style={{ color: '#15803d', fontWeight: '600' }}>🔓 Cho phép chỉnh sửa</span>
+                    <span style={{ color: '#15803d', fontWeight: '600' }}>Cho phép chỉnh sửa</span>
                   )}
                 </div>
                 <div><span style={{color: '#64748b'}}>Người tạo:</span> <strong>{selectedBook.created_by || 'admin'}</strong></div>
@@ -1035,10 +1041,10 @@ export function PriceBookManagementView({ token, currentUser, onBackToHome }: Pr
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <thead style={{ background: '#f1f5f9' }}>
                     <tr>
-                      <th style={{ padding: '12px', textAlign: 'left', borderBottom: '1px solid #e2e8f0', color: '#475569', fontWeight: '600', fontSize: '13px' }}>Mã SP</th>
-                      <th style={{ padding: '12px', textAlign: 'left', borderBottom: '1px solid #e2e8f0', color: '#475569', fontWeight: '600', fontSize: '13px' }}>Tên Sản phẩm</th>
-                      <th style={{ padding: '12px', textAlign: 'right', borderBottom: '1px solid #e2e8f0', color: '#475569', fontWeight: '600', fontSize: '13px' }}>Giá Bán (₫)</th>
-                      <th style={{ padding: '12px', textAlign: 'right', borderBottom: '1px solid #e2e8f0', color: '#475569', fontWeight: '600', fontSize: '13px' }}>Giá Sàn (₫)</th>
+                      <th style={{ padding: '12px', textAlign: 'left', borderBottom: '1px solid #e2e8f0', color: '#475569', fontWeight: '700', fontSize: '13px' }}>Mã Sản Phẩm</th>
+                      <th style={{ padding: '12px', textAlign: 'left', borderBottom: '1px solid #e2e8f0', color: '#475569', fontWeight: '700', fontSize: '13px' }}>Tên Sản Phẩm</th>
+                      <th style={{ padding: '12px', textAlign: 'right', borderBottom: '1px solid #e2e8f0', color: '#475569', fontWeight: '700', fontSize: '13px' }}>Giá Bán (đồng)</th>
+                      <th style={{ padding: '12px', textAlign: 'right', borderBottom: '1px solid #e2e8f0', color: '#475569', fontWeight: '700', fontSize: '13px' }}>Giá Sàn (đồng)</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1050,10 +1056,10 @@ export function PriceBookManagementView({ token, currentUser, onBackToHome }: Pr
                           <td style={{ padding: '12px', fontWeight: '600', fontFamily: 'monospace', color: '#0f172a' }}>{item.product_code || `#${item.product_id}`}</td>
                           <td style={{ padding: '12px', color: '#334155' }}>{item.product_name || '-'}</td>
                           <td style={{ padding: '12px', textAlign: 'right', color: '#15803d', fontWeight: '700' }}>
-                            {salePrice ? Number(salePrice).toLocaleString() : '0'} ₫
+                            {salePrice ? Number(salePrice).toLocaleString('vi-VN') : '0'} đồng
                           </td>
                           <td style={{ padding: '12px', textAlign: 'right', color: '#475569', fontWeight: '600' }}>
-                            {floorPrice ? Number(floorPrice).toLocaleString() : '0'} ₫
+                            {floorPrice ? Number(floorPrice).toLocaleString('vi-VN') : '0'} đồng
                           </td>
                         </tr>
                       );
@@ -1070,6 +1076,7 @@ export function PriceBookManagementView({ token, currentUser, onBackToHome }: Pr
               <div>
                 {canManagePriceBooks && (
                   <button 
+                    type="button"
                     onClick={() => {
                       setIsDetailModalOpen(false);
                       handleClonePriceBook(selectedBook);
@@ -1082,18 +1089,15 @@ export function PriceBookManagementView({ token, currentUser, onBackToHome }: Pr
                       color: '#16a34a', 
                       cursor: 'pointer', 
                       fontWeight: '700', 
-                      fontSize: '13px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px'
+                      fontSize: '13px'
                     }}
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-                    Tạo phiên bản mới (Clone)
+                    Tạo phiên bản mới
                   </button>
                 )}
               </div>
               <button 
+                type="button"
                 onClick={() => setIsDetailModalOpen(false)} 
                 style={{ padding: '9px 22px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#fff', cursor: 'pointer', fontWeight: '600', color: '#475569', fontSize: '13px' }}
               >
@@ -1106,3 +1110,4 @@ export function PriceBookManagementView({ token, currentUser, onBackToHome }: Pr
     </div>
   );
 }
+export default PriceBookManagementView;
