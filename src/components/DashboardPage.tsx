@@ -89,6 +89,10 @@ export default function DashboardPage({
   const [activeTab, setActiveTabState] = useState<'inventory' | 'orders' | 'users' | 'categories' | 'audit-logs' | 'profile' | 'suppliers' | 'dealers' | 'discounts'>(() => {
 
     const pathname = window.location.pathname.toLowerCase();
+    const params = new URLSearchParams(window.location.search);
+    const hasOldTabParam = params.has('tab') || params.has('view');
+    const oldTabVal = tabParam;
+
     const isUsersPath = pathname === '/users' || pathname.startsWith('/users/') || pathname === '/admin' || pathname.startsWith('/admin/');
     const isCategoriesPath = pathname === '/categories';
     const isAuditPath = pathname === '/audit-logs' || pathname.startsWith('/audit-logs/');
@@ -109,10 +113,6 @@ export default function DashboardPage({
       }
       const isDealersPath = pathname === '/dealers' || pathname.startsWith('/dealers/');
     // Dọn sạch tàn dư query parameter cũ (?tab=users, ?tab=audit-logs, ?tab=profile, ?tab=dealers)
-    const params = new URLSearchParams(window.location.search);
-    const hasOldTabParam = params.has('tab') || params.has('view');
-    const oldTabVal = (params.get('tab') || params.get('view') || '').toLowerCase();
-
     if (pathname === '/suppliers' || pathname.startsWith('/suppliers/')) {
       return 'suppliers';
     }
@@ -287,13 +287,15 @@ export default function DashboardPage({
   useEffect(() => {
     const syncFromUrl = () => {
       const pathname = window.location.pathname.toLowerCase();
+    const params = new URLSearchParams(window.location.search);
+    const hasOldTabParam = params.has('tab') || params.has('view');
+    const oldTabVal = tabParam;
+
       const params = new URLSearchParams(window.location.search);
       const isUsersPath = pathname === '/users' || pathname.startsWith('/users/') || pathname === '/admin' || pathname.startsWith('/admin/');
       const isAuditPath = pathname === '/audit-logs' || pathname.startsWith('/audit-logs/');
       const isOrdersPath = pathname === '/orders' || pathname.startsWith('/orders/');
       const isProfilePath = pathname === '/profile' || pathname.startsWith('/profile/');
-      const tabParam = (params.get('tab') || params.get('view') || '').toLowerCase();
-
       if (pathname === '/suppliers' || pathname.startsWith('/suppliers/')) {
         setActiveTabState('suppliers');
         return;
