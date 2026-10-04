@@ -417,4 +417,111 @@ export async function updateDealerStatus(
     }
 
     return response.json();
+}
+
+export interface AssignDealerPayload {
+    assigned_sale_id: number;
+    reason?: string;
+}
+
+export async function assignDealer(
+    dealerId: number,
+    payload: AssignDealerPayload,
+    token?: string
+): Promise<DealerSearchItem> {
+    const authToken = getAuthToken(token);
+    const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+    };
+    if (authToken) {
+        headers['Authorization'] = `Bearer ${authToken}`;
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/v1/dealers/${dealerId}/assign`, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+        let errorDetail = `Lỗi phân công đại lý (HTTP ${response.status})`;
+        try {
+            const errData = await response.json();
+            if (errData && errData.detail) errorDetail = errData.detail;
+        } catch {}
+        throw new Error(errorDetail);
+    }
+    return response.json();
+}
+
+export interface BulkAssignPayload {
+    dealer_ids: number[];
+    new_sale_id: number;
+    reason?: string;
+}
+
+export async function bulkAssignDealers(
+    payload: BulkAssignPayload,
+    token?: string
+): Promise<{ message: string; errors?: string[] }> {
+    const authToken = getAuthToken(token);
+    const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+    };
+    if (authToken) {
+        headers['Authorization'] = `Bearer ${authToken}`;
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/v1/dealers/bulk-assign`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+        let errorDetail = `Lỗi phân công hàng loạt (HTTP ${response.status})`;
+        try {
+            const errData = await response.json();
+            if (errData && errData.detail) errorDetail = typeof errData.detail === 'string' ? errData.detail : JSON.stringify(errData.detail);
+        } catch {}
+        throw new Error(errorDetail);
+    }
+    return response.json();
+}
+
+export interface DealerHistoryItem {
+    id: number;
+    action_type: string;
+    entity_id: string;
+    old_values: string;
+    new_values: string;
+    reason: string;
+    created_at: string;
+    user_name: string;
+}
+
+export async function getDealerHistory(
+    dealerCode: string,
+    token?: string
+): Promise<DealerHistoryItem[]> {
+    const authToken = getAuthToken(token);
+    const headers: Record<string, string> = {
+        Accept: 'application/json',
+    };
+    if (authToken) {
+        headers['Authorization'] = `Bearer ${authToken}`;
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/v1/audit-logs/entity/Dealer/${dealerCode}`, {
+        method: 'GET',
+        headers,
+    });
+
+    if (!response.ok) {
+        throw new Error('Lỗi tải lịch sử');
+    }
+    const data = await response.json();
+    return data;
 }
