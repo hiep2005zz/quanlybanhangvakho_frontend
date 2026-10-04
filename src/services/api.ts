@@ -819,6 +819,7 @@ export interface AuditLogItem {
   id: number;
   user_id?: number | null;
   user_name?: string | null;
+  user_avatar?: string | null;
   action_type: string;
   entity_type: string;
   entity_id: string;
@@ -1131,8 +1132,18 @@ export interface DealerOption {
   address?: string;
 }
 
+export interface AllDeliveryPointItem extends DeliveryPoint {
+  dealer_name?: string;
+  dealer_code?: string;
+  dealer_phone?: string;
+}
+
 export function listDealersApi(token: string) {
   return deliveryPointRequest<DealerOption[]>(token, `/dealers`);
+}
+
+export function listAllDeliveryPointsApi(token: string) {
+  return deliveryPointRequest<AllDeliveryPointItem[]>(token, `/dealers/all-delivery-points`);
 }
 
 export function createDeliveryPointApi(token: string, dealerId: number, body: DeliveryPointInput) {
@@ -1157,6 +1168,26 @@ export function setDefaultDeliveryPointApi(token: string, dealerId: number, id: 
 
 export function deleteDeliveryPointApi(token: string, dealerId: number, id: number) {
   return deliveryPointRequest<void>(token, `/dealers/${dealerId}/delivery-points/${id}`, {
+    method: 'DELETE',
+  });
+}
+
+export function createMasterDeliveryPointApi(token: string, body: DeliveryPointInput) {
+  return deliveryPointRequest<AllDeliveryPointItem>(token, `/dealers/master-delivery-points`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export function updateMasterDeliveryPointApi(token: string, id: number, body: DeliveryPointInput) {
+  return deliveryPointRequest<AllDeliveryPointItem>(token, `/dealers/master-delivery-points/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(body),
+  });
+}
+
+export function deleteMasterDeliveryPointApi(token: string, id: number) {
+  return deliveryPointRequest<void>(token, `/dealers/master-delivery-points/${id}`, {
     method: 'DELETE',
   });
 }
