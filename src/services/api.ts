@@ -86,6 +86,91 @@ export interface ProductItem {
   transaction_count?: number; // Số giao dịch đã phát sinh (đơn hàng, nhập/xuất kho)
 }
 
+export interface OrderItem {
+  id: number;
+  order_code: string;
+  dealer_id: number;
+  dealer_name: string;
+  created_by: string;
+  assigned_sale_id?: number | null;
+  assigned_sale_name?: string | null;
+  total_amount: number;
+  status: string;
+  created_at: string;
+}
+
+export interface OrderDetail extends OrderItem {
+  subtotal_amount: number;
+  discount_percent: number;
+  discount_amount: number;
+  delivery_point?: string | null;
+  desired_delivery_date?: string | null;
+  note?: string | null;
+  items: Array<{
+    product_id: number;
+    product_name: string;
+    product_code?: string;
+    quantity: number;
+    price: number;
+    unit?: string;
+    unit_name?: string;
+    conversion_rate?: number;
+    base_quantity?: number;
+  }>;
+}
+
+export interface OrderDealer {
+  id: number;
+  code: string;
+  name: string;
+  phone?: string | null;
+  address?: string | null;
+}
+
+export interface CreateOrderPayload {
+  dealer_id: number;
+  delivery_point: string;
+  desired_delivery_date: string;
+  discount_percent: number;
+  items: Array<{
+    product_id: number;
+    quantity: number;
+    unit: string;
+    price: number;
+    conversion_rate?: number;
+  }>;
+  note?: string;
+}
+
+export interface OrderItemPayload {
+  product_id: number;
+  quantity: number;
+  price: number;
+  unit_name?: string;
+  conversion_rate?: number;
+}
+
+export interface OrderCreatePayload {
+  dealer_id: number;
+  items: OrderItemPayload[];
+  note?: string;
+}
+
+export type OrderItemCreatePayload = CreateOrderPayload['items'][number];
+
+const isOrderItem = (value: unknown): value is OrderItem => {
+  if (typeof value !== 'object' || value === null) return false;
+  const order = value as Record<string, unknown>;
+  return typeof order.id === 'number' &&
+    typeof order.order_code === 'string' &&
+    typeof order.dealer_id === 'number' &&
+    typeof order.dealer_name === 'string' &&
+    typeof order.created_by === 'string' &&
+    typeof order.total_amount === 'number' &&
+    typeof order.status === 'string' &&
+    typeof order.created_at === 'string';
+};
+
 export interface ProductFinancialSummary {
   total_products: number;
   total_stock: number;
@@ -102,6 +187,18 @@ export interface ProductListResponse {
   is_cost_price_visible: boolean;
   summary?: ProductFinancialSummary;
 }
+
+export interface OrderCreateResponse {
+  id: number;
+  order_code: string;
+  dealer_id: number;
+  dealer_name: string;
+  total_amount: number;
+  status: string;
+  created_at: string;
+}
+
+export type CreatedOrder = OrderCreateResponse;
 
 export interface RoleInfoItem {
   role: string;
@@ -141,6 +238,27 @@ export interface InventoryResponse {
   product_id: number;
   current_stock: number;
   transaction?: InventoryTransaction;
+}
+
+function getApiErrorMessage(data: unknown, fallback: string): string {
+  if (typeof data !== 'object' || data === null || !('detail' in data)) return fallback;
+  const detail = data.detail;
+  if (typeof detail === 'string') return detail;
+  if (Array.isArray(detail)) {
+    const messages = detail.map((item: unknown) => {
+      if (typeof item !== 'object' || item === null || !('msg' in item)) return '';
+      const message = typeof item.msg === 'string' ? item.msg : '';
+      const location = 'loc' in item && Array.isArray(item.loc)
+        ? item.loc.filter((part: unknown): part is string | number => typeof part === 'string' || typeof part === 'number').join('.')
+        : '';
+      return message ? (location ? `${location}: ${message}` : message) : '';
+    }).filter(Boolean);
+    if (messages.length) return messages.join('; ');
+  }
+  if (typeof detail === 'object' && detail !== null && 'message' in detail && typeof detail.message === 'string') {
+    return detail.message;
+  }
+  return fallback;
 }
 
 // Interceptor callback list for session expiration
@@ -384,7 +502,6 @@ export async function createProductApi(token: string, payload: ProductPayload): 
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   }, token);
-
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
     throw new Error(data.detail || `Lỗi tạo mới sản phẩm (Mã lỗi ${response.status})`);
@@ -414,6 +531,79 @@ export async function deleteProductApi(token: string, id: number): Promise<{ sta
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
     throw new Error(data.detail || `Lỗi xóa sản phẩm (Mã lỗi ${response.status})`);
+  }
+  return data;
+}
+
+export async function getOrdersApi(token: string): Promise<OrderItem[]> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/orders`, {
+    method: 'GET',
+  }, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi tải danh sách đơn hàng (Mã lỗi ${response.status})`);
+  }
+  if (!Array.isArray(data) || !data.every(isOrderItem)) {
+    throw new Error('Dữ liệu danh sách đơn hàng không hợp lệ.');
+  }
+  return data;
+}
+
+export async function getOrderDetailApi(token: string, orderCode: string): Promise<OrderDetail> {
+  const response = await authenticatedFetch(
+    `${API_BASE_URL}/orders/${encodeURIComponent(orderCode)}`,
+    { method: 'GET' },
+    token
+  );
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi tải chi tiết đơn hàng (Mã lỗi ${response.status})`);
+  }
+  return data as OrderDetail;
+}
+
+export async function getOrderDealersApi(token: string): Promise<OrderDealer[]> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/orders/dealers`, { method: 'GET' }, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi tải danh sách đại lý (Mã lỗi ${response.status})`);
+  }
+  if (!Array.isArray(data)) throw new Error('Dữ liệu danh sách đại lý không hợp lệ.');
+  return data;
+}
+
+export function createOrderApi(token: string, payload: CreateOrderPayload): Promise<CreatedOrder>;
+export function createOrderApi(token: string, payload: OrderCreatePayload): Promise<CreatedOrder>;
+export async function createOrderApi(
+  token: string,
+  payload: CreateOrderPayload | OrderCreatePayload
+): Promise<CreatedOrder> {
+  const endpoint = 'delivery_point' in payload ? '/orders/sales-entry' : '/orders';
+  const response = await authenticatedFetch(`${API_BASE_URL}${endpoint}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  }, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(getApiErrorMessage(data, `Lỗi tạo đơn hàng (Mã lỗi ${response.status})`));
+  }
+  return data as CreatedOrder;
+}
+
+export async function cancelOrderApi(
+  token: string,
+  orderCode: string,
+  reason: string
+): Promise<{ status: string; message: string; order: OrderItem }> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/orders/${encodeURIComponent(orderCode)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status: 'CANCELLED', reason }),
+  }, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi hủy đơn hàng (Mã lỗi ${response.status})`);
   }
   return data;
 }
@@ -551,46 +741,6 @@ export async function updateProductUnitsApi(
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
     throw new Error(data.detail || `Lỗi cập nhật đơn vị tính (Mã lỗi ${response.status})`);
-  }
-  return data;
-}
-
-export interface OrderItemPayload {
-  product_id: number;
-  quantity: number;
-  price: number;
-  unit_name?: string;
-  conversion_rate?: number;
-}
-
-export interface OrderCreatePayload {
-  dealer_id: number;
-  items: OrderItemPayload[];
-  note?: string;
-}
-
-export async function createOrderApi(token: string, payload: OrderCreatePayload): Promise<any> {
-  const response = await authenticatedFetch(`${API_BASE_URL}/orders`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  }, token);
-
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(data.detail || `Lỗi tạo đơn hàng (Mã lỗi ${response.status})`);
-  }
-  return data;
-}
-
-export async function getOrdersApi(token: string): Promise<any[]> {
-  const response = await authenticatedFetch(`${API_BASE_URL}/orders`, {
-    method: 'GET',
-  }, token);
-
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(data.detail || `Lỗi tải danh sách đơn hàng (Mã lỗi ${response.status})`);
   }
   return data;
 }
@@ -968,6 +1118,7 @@ export async function clearAllAuditLogsApi(token: string): Promise<{ message: st
   }
   return data;
 }
+<<<<<<< HEAD
 
 // ==========================================
 // CHÍNH SÁCH CHIẾT KHẤU THEO SẢN LƯỢNG (VOLUME DISCOUNT)
@@ -1143,6 +1294,8 @@ export async function calculateDiscountApi(
 }
 
 
+=======
+>>>>>>> 3fd45714f1b43923db2e5e2b810323b4428b4da1
 /**
  * User Story SCRUM-27: Xem và cập nhật hồ sơ cá nhân
  */
