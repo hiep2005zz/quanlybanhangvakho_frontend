@@ -1,3 +1,4 @@
+import type { DeliveryPoint, DeliveryPointInput } from '../types/deliveryPoint';
 export const API_BASE_URL = 'http://localhost:8000/api/v1';
 
 /**
@@ -155,6 +156,7 @@ export interface OrderCreatePayload {
   dealer_id: number;
   items: OrderItemPayload[];
   note?: string;
+  delivery_point_id?: number | null;
 }
 
 export type OrderItemCreatePayload = CreateOrderPayload['items'][number];
@@ -746,6 +748,7 @@ export async function updateProductUnitsApi(
   return data;
 }
 
+
 export interface UserAccount {
   id: number;
   username: string;
@@ -1203,6 +1206,7 @@ export interface Supplier {
   contact_person?: string | null;
   payment_terms?: string | null;
   is_active: boolean;
+  has_receipts?: boolean;
   inactive_reason?: string | null;
   deactivated_at?: string | null;
   deactivated_by?: string | null;
@@ -1310,3 +1314,111 @@ export async function activateSupplierApi(token: string, code: string): Promise<
   }
   return data;
 }
+
+export async function deleteSupplierApi(token: string, code: string): Promise<{ status: string; message: string }> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/suppliers/${encodeURIComponent(code)}`, {
+    method: 'DELETE',
+  }, token);
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(extractSupplierError(data, `Lỗi xóa nhà cung cấp (Mã lỗi ${response.status})`));
+  }
+  return data;
+}
+function extractDeliveryPointError(data: any, fallback: string): string {
+  if (!data) return fallback;
+  if (typeof data.detail === 'string') return data.detail;
+  if (Array.isArray(data.detail) && data.detail.length > 0) {
+    return data.detail.map((d: any) => d.msg || JSON.stringify(d)).join('; ');
+  }
+  if (typeof data.message === 'string') return data.message;
+  return fallback;
+}
+
+async function deliveryPointRequest<T>(token: string, path: string, init: RequestInit = {}): Promise<T> {
+  const response = await authenticatedFetch(`${API_BASE_URL}${path}`, {
+    ...init,
+    headers: { 'Content-Type': 'application/json', ...(init.headers || {}) },
+  }, token);
+
+  if (response.status === 204) return undefined as T;
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(extractDeliveryPointError(data, `Lỗi điểm giao hàng (Mã lỗi ${response.status})`));
+  }
+  return data as T;
+}
+
+export function listDeliveryPointsApi(token: string, dealerId: number) {
+  return deliveryPointRequest<DeliveryPoint[]>(token, `/dealers/${dealerId}/delivery-points`);
+}
+
+export interface DealerOption {
+  id: number;
+  name: string;
+  code?: string;
+  phone?: string;
+  address?: string;
+}
+
+export interface AllDeliveryPointItem extends DeliveryPoint {
+  dealer_name?: string;
+  dealer_code?: string;
+  dealer_phone?: string;
+}
+
+export function listDealersApi(token: string) {
+  return deliveryPointRequest<DealerOption[]>(token, `/dealers`);
+}
+
+export function listAllDeliveryPointsApi(token: string) {
+  return deliveryPointRequest<AllDeliveryPointItem[]>(token, `/dealers/all-delivery-points`);
+}
+
+export function createDeliveryPointApi(token: string, dealerId: number, body: DeliveryPointInput) {
+  return deliveryPointRequest<DeliveryPoint>(token, `/dealers/${dealerId}/delivery-points`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export function updateDeliveryPointApi(token: string, dealerId: number, id: number, body: DeliveryPointInput) {
+  return deliveryPointRequest<DeliveryPoint>(token, `/dealers/${dealerId}/delivery-points/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(body),
+  });
+}
+
+export function setDefaultDeliveryPointApi(token: string, dealerId: number, id: number) {
+  return deliveryPointRequest<DeliveryPoint>(token, `/dealers/${dealerId}/delivery-points/${id}/set-default`, {
+    method: 'POST',
+  });
+}
+
+export function deleteDeliveryPointApi(token: string, dealerId: number, id: number) {
+  return deliveryPointRequest<void>(token, `/dealers/${dealerId}/delivery-points/${id}`, {
+    method: 'DELETE',
+  });
+}
+
+export function createMasterDeliveryPointApi(token: string, body: DeliveryPointInput) {
+  return deliveryPointRequest<AllDeliveryPointItem>(token, `/dealers/master-delivery-points`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export function updateMasterDeliveryPointApi(token: string, id: number, body: DeliveryPointInput) {
+  return deliveryPointRequest<AllDeliveryPointItem>(token, `/dealers/master-delivery-points/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(body),
+  });
+}
+
+export function deleteMasterDeliveryPointApi(token: string, id: number) {
+  return deliveryPointRequest<void>(token, `/dealers/master-delivery-points/${id}`, {
+    method: 'DELETE',
+  });
+}
+

@@ -15,6 +15,7 @@ import { PriceUpdateModal } from './PriceUpdateModal';
 import { ProfileView } from './ProfileView';
 import { ProductBulkImportModal } from './ProductBulkImportModal';
 import DealerSearchView from './DealerSearchView';
+import DeliveryPointsView from './DeliveryPointsView';
 import { ProductUnitModal } from './ProductUnitModal';
 import { StockActionModal } from './StockActionModal';
 import { OrderCreateModal } from './OrderCreateModal';
@@ -64,7 +65,14 @@ export default function DashboardPage({
   const DEALER_ROLES = ['admin', 'sales_manager', 'sales', 'accountant'];
   const canViewDealers = officialRoles.some((r) => DEALER_ROLES.includes(r));
 
-
+  // Quyền quản lý điểm giao hàng: Chỉ hiển thị với 3 vai trò admin, sales, sales_manager
+  const DELIVERY_ROLES = ['admin', 'sales_manager', 'sales'];
+  const canManageDeliveryPoints = Boolean(
+    isAdmin ||
+    isSalesManager ||
+    user.role === 'sales' ||
+    officialRoles.some((r) => DELIVERY_ROLES.includes(r))
+  );
 
   // Quyền thao tác kho (Nhập/xuất/sửa kho: Admin, Quản lý kho, Thủ kho)
   const canWriteInventory = user.can_write_inventory ?? (isAdmin || officialRoles.some((r) => ['admin', 'warehouse', 'warehouse_manager'].includes(r)));
@@ -76,9 +84,8 @@ export default function DashboardPage({
   // Quyền thao tác các nút trên dòng sản phẩm (Cấu hình ĐVT, Nhập/Xuất kho, Lịch sử)
   const canPerformProductAction = Boolean(canConfigUnit || canWriteInventory || isAdmin || isSalesManager);
 
-  // 2. Khởi tạo State với Clean URL (/users, /audit-logs, /categories, /suppliers, /profile, /dealers)
-  const [activeTab, setActiveTabState] = useState<'inventory' | 'orders' | 'users' | 'categories' | 'audit-logs' | 'profile' | 'suppliers' | 'dealers'>(() => {
-
+  // 2. Khởi tạo State với Clean URL (/users, /audit-logs, /categories, /suppliers, /profile, /dealers, /orders, /delivery-points)
+  const [activeTab, setActiveTabState] = useState<'inventory' | 'orders' | 'users' | 'categories' | 'audit-logs' | 'profile' | 'suppliers' | 'dealers' | 'delivery-points'>(() => {
     const pathname = window.location.pathname.toLowerCase();
     const isUsersPath = pathname === '/users' || pathname.startsWith('/users/') || pathname === '/admin' || pathname.startsWith('/admin/');
     const isCategoriesPath = pathname === '/categories';
@@ -86,7 +93,9 @@ export default function DashboardPage({
     const isOrdersPath = pathname === '/orders' || pathname.startsWith('/orders/');
     const isProfilePath = pathname === '/profile' || pathname.startsWith('/profile/');
     const isDealersPath = pathname === '/dealers' || pathname.startsWith('/dealers/');
-    // Dọn sạch tàn dư query parameter cũ (?tab=users, ?tab=audit-logs, ?tab=profile, ?tab=dealers)
+    const isDeliveryPointsPath = pathname === '/delivery-points' || pathname.startsWith('/delivery-points/');
+
+    // Dọn sạch tàn dư query parameter cũ (?tab=users, ?tab=audit-logs, ?tab=profile, ?tab=dealers, ?tab=orders, ?tab=delivery-points)
     const params = new URLSearchParams(window.location.search);
     const hasOldTabParam = params.has('tab') || params.has('view');
     const oldTabVal = (params.get('tab') || params.get('view') || '').toLowerCase();
@@ -98,6 +107,16 @@ export default function DashboardPage({
       if (canReadOrders) return 'orders';
       window.history.replaceState({}, '', '/');
       return 'inventory';
+    }
+    if (isDeliveryPointsPath || oldTabVal === 'delivery-points') {
+      if (hasOldTabParam || pathname !== '/delivery-points') {
+        try {
+          window.history.replaceState({}, '', '/delivery-points');
+        } catch {
+          // ignore
+        }
+      }
+      return 'delivery-points';
     }
     if (isDealersPath || oldTabVal === 'dealers') {
       if (hasOldTabParam || pathname !== '/dealers') {
@@ -151,7 +170,7 @@ export default function DashboardPage({
     return 'inventory';
   });
   // 3. Chuyển đổi Route Clean URL
-  const setActiveTab = (tab: 'inventory' | 'orders' | 'users' | 'categories' | 'audit-logs' | 'profile' | 'suppliers' | 'dealers') => {
+  const setActiveTab = (tab: 'inventory' | 'orders' | 'users' | 'categories' | 'audit-logs' | 'profile' | 'suppliers' | 'dealers' | 'delivery-points') => {
     if (tab === 'orders' && !canReadOrders) {
       setActiveTabState('inventory');
       window.history.replaceState({}, '', '/');
@@ -168,6 +187,22 @@ export default function DashboardPage({
       setActiveTabState('profile');
       try {
         window.history.pushState({}, '', '/profile');
+      } catch {
+        // ignore
+      }
+    } else if (tab === 'delivery-points') {
+      if (!canManageDeliveryPoints) {
+        setActiveTabState('inventory');
+        try {
+          window.history.replaceState({}, '', '/');
+        } catch {
+          // ignore
+        }
+        return;
+      }
+      setActiveTabState('delivery-points');
+      try {
+        window.history.pushState({}, '', '/delivery-points');
       } catch {
         // ignore
       }
@@ -260,7 +295,15 @@ export default function DashboardPage({
         // ignore
       }
     }
-  }, [activeTab, canManageCategories, canViewDealers, user.username]);
+    if (activeTab === 'delivery-points' && !canManageDeliveryPoints) {
+      setActiveTabState('inventory');
+      try {
+        window.history.replaceState({}, '', '/');
+      } catch {
+        // ignore
+      }
+    }
+  }, [activeTab, canManageCategories, canViewDealers, canManageDeliveryPoints, user.username]);
 
   useEffect(() => {
     const syncFromUrl = () => {
@@ -285,6 +328,19 @@ export default function DashboardPage({
           setActiveTabState('inventory');
           window.history.replaceState({}, '', '/');
         }
+        return;
+      }
+
+      const isDeliveryPointsPath = pathname === '/delivery-points' || pathname.startsWith('/delivery-points/');
+      if (isDeliveryPointsPath || tabParam === 'delivery-points') {
+        if (pathname !== '/delivery-points' || tabParam) {
+          try {
+            window.history.replaceState({}, '', '/delivery-points');
+          } catch {
+            // ignore
+          }
+        }
+        setActiveTabState('delivery-points');
         return;
       }
 
@@ -1196,6 +1252,25 @@ export default function DashboardPage({
               <span style={{ fontWeight: activeTab === 'dealers' ? '700' : '500', fontSize: '14.5px' }}>Quản lý hồ sơ đại lý</span>
             </div>
           )}
+          {/* Điểm giao hàng */}
+          {canManageDeliveryPoints && (
+            <div
+              className={`sidebar-menu-item ${activeTab === 'delivery-points' ? 'active' : ''}`}
+              id="btn-sidebar-delivery-points"
+              onClick={() => {
+                setActiveTab('delivery-points');
+                handleCloseMenu();
+              }}
+            >
+              <div className="sidebar-icon-box">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+                  <circle cx="12" cy="10" r="3" />
+                </svg>
+              </div>
+              <span style={{ fontWeight: activeTab === 'delivery-points' ? '700' : '500', fontSize: '14.5px' }}>Điểm giao hàng</span>
+            </div>
+          )}
           {/* Nhà cung cấp - Thủ kho, Quản lý kho, Admin */}
           {canManageSuppliers && (
             <div
@@ -1422,6 +1497,21 @@ export default function DashboardPage({
           <AccessDeniedView
             currentUser={user}
             requiredPermission="Quản lý hồ sơ đại lý (Kế toán công nợ / Quản lý kinh doanh / Nhân viên kinh doanh / Quản trị viên)"
+            onBackToWorkflow={() => setActiveTab('inventory')}
+            onLogout={onLogout}
+          />
+        )
+      ) : activeTab === 'delivery-points' ? (
+        canManageDeliveryPoints ? (
+          <DeliveryPointsView
+            currentUser={user}
+            token={token}
+            onBackToHome={() => setActiveTab('inventory')}
+          />
+        ) : (
+          <AccessDeniedView
+            currentUser={user}
+            requiredPermission="Quản lý điểm giao hàng"
             onBackToWorkflow={() => setActiveTab('inventory')}
             onLogout={onLogout}
           />
@@ -1906,7 +1996,6 @@ export default function DashboardPage({
                     <span>Nhập file</span>
                   </button>
                 )}
-
 
                 {/* Nút Xuất file Excel danh mục */}
                 <button
