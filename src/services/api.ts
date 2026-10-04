@@ -1312,7 +1312,7 @@ export async function activateSupplierApi(token: string, code: string): Promise<
 }
 
 
-/ ==========================================
+// ==========================================
 // CHÍNH SÁCH CHIẾT KHẤU THEO SẢN LƯỢNG (VOLUME DISCOUNT)
 // ==========================================
 
