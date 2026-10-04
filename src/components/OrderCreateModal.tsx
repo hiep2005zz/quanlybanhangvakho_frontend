@@ -5,6 +5,7 @@ import {
   createOrderApi,
   getAvatarUrl,
 } from '../services/api';
+import { searchDealers, DealerSearchItem } from '../services/dealerSearchApi';
 import { emitStatusToast } from './StatusToast';
 
 interface OrderCreateModalProps {
@@ -26,11 +27,27 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
 }) => {
   if (!isOpen) return null;
 
-  // Đại lý mẫu (id 1)
-  const [dealerId] = useState(1);
+  const [dealers, setDealers] = useState<DealerSearchItem[]>([]);
+  const [selectedDealerId, setSelectedDealerId] = useState<number>(0);
   const [selectedProductId, setSelectedProductId] = useState<number>(
     products.length > 0 ? products[0].id : 0
   );
+
+  useEffect(() => {
+    if (isOpen) {
+      searchDealers(token).then((res) => {
+        setDealers(res.items);
+        if (res.items.length > 0) {
+            setSelectedDealerId(res.items[0].id);
+        }
+      }).catch((err) => {
+        console.error("Lỗi tải danh sách đại lý:", err);
+      });
+    }
+  }, [isOpen, token]);
+
+  const selectedDealer = dealers.find((d) => d.id === selectedDealerId);
+  const isDebtWarning = selectedDealer?.debt_status && (selectedDealer.debt_status.includes('Vượt') || selectedDealer.debt_status.includes('Quá hạn'));
 
   const selectedProduct = products.find((p) => p.id === selectedProductId) || products[0];
   const baseUnit = selectedProduct?.base_unit || 'Cái';
@@ -77,10 +94,15 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
       return;
     }
 
+    if (!selectedDealer) {
+      setErrorMsg('Vui lòng chọn khách hàng / đại lý.');
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const res = await createOrderApi(token, {
-        dealer_id: dealerId,
+        dealer_id: selectedDealerId,
         items: [
           {
             product_id: selectedProduct.id,
@@ -139,7 +161,7 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
             </h3>
             <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginTop: '6px', flexWrap: 'wrap' }}>
               <p style={{ fontSize: '13px', color: '#64748b', margin: 0 }}>
-                Khách hàng: <strong style={{ color: '#2563eb' }}>Đại Lý Phân Phối Miền Bắc - Sao Mai</strong>
+                Khách hàng: <strong style={{ color: '#2563eb' }}>{selectedDealer ? selectedDealer.name : 'Chưa chọn'}</strong>
               </p>
               {currentUser && (
                 <div style={{
@@ -210,6 +232,44 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
         )}
 
         <form onSubmit={handleSubmit}>
+          {/* Chọn Đại lý */}
+          <div style={{ marginBottom: '14px' }}>
+            <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '6px' }}>
+              Khách hàng / Đại lý <span style={{ color: '#dc2626' }}>*</span>
+            </label>
+            <select
+              value={selectedDealerId}
+              onChange={(e) => setSelectedDealerId(parseInt(e.target.value, 10))}
+              style={{
+                width: '100%',
+                padding: '9px 12px',
+                borderRadius: '8px',
+                border: '1px solid #cbd5e1',
+                fontSize: '13.5px',
+                background: '#ffffff',
+                outline: 'none',
+                cursor: 'pointer',
+                boxSizing: 'border-box',
+              }}
+            >
+              {dealers.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.code} - {d.name}
+                </option>
+              ))}
+            </select>
+            {isDebtWarning && (
+              <div style={{ marginTop: '6px', fontSize: '12.5px', color: '#dc2626', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                  <line x1="12" y1="9" x2="12" y2="13"/>
+                  <line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+                <span><strong>Cảnh báo:</strong> Khách hàng đang có trạng thái: <strong>{selectedDealer?.debt_status}</strong>. Đơn hàng có thể bị chặn khi lưu.</span>
+              </div>
+            )}
+          </div>
+
           {/* Chọn sản phẩm */}
           <div style={{ marginBottom: '14px' }}>
             <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '6px' }}>
