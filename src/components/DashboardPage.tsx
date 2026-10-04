@@ -291,7 +291,7 @@ export default function DashboardPage({
     const hasOldTabParam = params.has('tab') || params.has('view');
     const oldTabVal = tabParam;
 
-      const params = new URLSearchParams(window.location.search);
+
       const isUsersPath = pathname === '/users' || pathname.startsWith('/users/') || pathname === '/admin' || pathname.startsWith('/admin/');
       const isAuditPath = pathname === '/audit-logs' || pathname.startsWith('/audit-logs/');
       const isOrdersPath = pathname === '/orders' || pathname.startsWith('/orders/');
