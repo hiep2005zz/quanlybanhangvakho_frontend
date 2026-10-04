@@ -18,7 +18,10 @@ import DealerSearchView from './DealerSearchView';
 import { ProductUnitModal } from './ProductUnitModal';
 import { StockActionModal } from './StockActionModal';
 import { OrderCreateModal } from './OrderCreateModal';
+import SalesOrderEntry from './SalesOrderEntry';
+import OrdersView from './OrdersView';
 import './dashboard.css';
+import { hasPermission, Permissions } from '../hooks/usePermission';
 
 interface DashboardProps {
   user: User;
@@ -45,6 +48,10 @@ export default function DashboardPage({
     officialRoles.length === 0 &&
     (!user.branch || user.branch === 'Chưa phân công');
   const isAdmin = user.role === 'admin' || Boolean(user.roles && user.roles.includes('admin'));
+  const canReadOrders = hasPermission(user, Permissions.ORDER_READ);
+  const canCreateOrders = hasPermission(user, Permissions.ORDER_WRITE);
+  const canManageOrders = officialRoles.includes('admin') || officialRoles.includes('sales_manager');
+
 
   // Quyền quản lý nhà cung cấp
   const SUPPLIER_ROLES = ['admin', 'warehouse', 'warehouse_manager'];
@@ -53,10 +60,11 @@ export default function DashboardPage({
   // Quyền quản lý ngành hàng
   const isSalesManager = user.role === 'sales_manager' || Boolean(user.roles && user.roles.includes('sales_manager'));
   const canManageCategories = isAdmin || isSalesManager;
-
   // Quyền tra cứu đại lý: Nhân viên kinh doanh (sales), Quản lý kinh doanh (sales_manager), Quản trị viên (admin), Kế toán (accountant)
   const DEALER_ROLES = ['admin', 'sales_manager', 'sales', 'accountant'];
   const canViewDealers = officialRoles.some((r) => DEALER_ROLES.includes(r));
+
+
 
   // Quyền thao tác kho (Nhập/xuất/sửa kho: Admin, Quản lý kho, Thủ kho)
   const canWriteInventory = user.can_write_inventory ?? (isAdmin || officialRoles.some((r) => ['admin', 'warehouse', 'warehouse_manager'].includes(r)));
@@ -64,18 +72,20 @@ export default function DashboardPage({
   // Quyền Cấu hình ĐVT quy đổi (Chỉ Quản trị hệ thống và Quản lý kho)
   const canConfigUnit = isAdmin || officialRoles.some((r) => ['admin', 'warehouse_manager'].includes(r));
 
+
   // Quyền thao tác các nút trên dòng sản phẩm (Cấu hình ĐVT, Nhập/Xuất kho, Lịch sử)
   const canPerformProductAction = Boolean(canConfigUnit || canWriteInventory || isAdmin || isSalesManager);
 
   // 2. Khởi tạo State với Clean URL (/users, /audit-logs, /categories, /suppliers, /profile, /dealers)
-  const [activeTab, setActiveTabState] = useState<'inventory' | 'users' | 'categories' | 'audit-logs' | 'profile' | 'suppliers' | 'dealers'>(() => {
+  const [activeTab, setActiveTabState] = useState<'inventory' | 'orders' | 'users' | 'categories' | 'audit-logs' | 'profile' | 'suppliers' | 'dealers'>(() => {
+
     const pathname = window.location.pathname.toLowerCase();
     const isUsersPath = pathname === '/users' || pathname.startsWith('/users/') || pathname === '/admin' || pathname.startsWith('/admin/');
     const isCategoriesPath = pathname === '/categories';
     const isAuditPath = pathname === '/audit-logs' || pathname.startsWith('/audit-logs/');
+    const isOrdersPath = pathname === '/orders' || pathname.startsWith('/orders/');
     const isProfilePath = pathname === '/profile' || pathname.startsWith('/profile/');
     const isDealersPath = pathname === '/dealers' || pathname.startsWith('/dealers/');
-
     // Dọn sạch tàn dư query parameter cũ (?tab=users, ?tab=audit-logs, ?tab=profile, ?tab=dealers)
     const params = new URLSearchParams(window.location.search);
     const hasOldTabParam = params.has('tab') || params.has('view');
@@ -83,6 +93,11 @@ export default function DashboardPage({
 
     if (pathname === '/suppliers' || pathname.startsWith('/suppliers/')) {
       return 'suppliers';
+    }
+    if (isOrdersPath || oldTabVal === 'orders') {
+      if (canReadOrders) return 'orders';
+      window.history.replaceState({}, '', '/');
+      return 'inventory';
     }
     if (isDealersPath || oldTabVal === 'dealers') {
       if (hasOldTabParam || pathname !== '/dealers') {
@@ -131,13 +146,25 @@ export default function DashboardPage({
       } catch {
         // ignore
       }
+      return 'users';
     }
     return 'inventory';
   });
-
   // 3. Chuyển đổi Route Clean URL
-  const setActiveTab = (tab: 'inventory' | 'users' | 'categories' | 'audit-logs' | 'profile' | 'suppliers' | 'dealers') => {
-    if (tab === 'profile') {
+  const setActiveTab = (tab: 'inventory' | 'orders' | 'users' | 'categories' | 'audit-logs' | 'profile' | 'suppliers' | 'dealers') => {
+    if (tab === 'orders' && !canReadOrders) {
+      setActiveTabState('inventory');
+      window.history.replaceState({}, '', '/');
+      return;
+    }
+    if (tab === 'orders') {
+      setActiveTabState('orders');
+      try {
+        window.history.pushState({}, '', '/orders');
+      } catch {
+        // ignore
+      }
+    } else if (tab === 'profile') {
       setActiveTabState('profile');
       try {
         window.history.pushState({}, '', '/profile');
@@ -161,6 +188,15 @@ export default function DashboardPage({
         // ignore
       }
     } else if (tab === 'users') {
+      if (!isAdmin) {
+        setActiveTabState('inventory');
+        try {
+          window.history.replaceState({}, '', '/');
+        } catch {
+          // ignore
+        }
+        return;
+      }
       setActiveTabState('users');
       try {
         window.history.pushState({}, '', '/users');
@@ -199,23 +235,22 @@ export default function DashboardPage({
       }
     } else {
       setActiveTabState('inventory');
-      try {
-        window.history.pushState({}, '', '/');
-      } catch {
-        // ignore
-      }
+      window.history.replaceState({}, '', '/');
+      return;
     }
   };
 
-  // 4. [REACTIVE GUARD] Tự động bảo vệ khi phiên thay đổi (chỉ redirect nếu tab không thuộc luồng cho phép)
   useEffect(() => {
-    if (activeTab === 'categories' && !canManageCategories) {
+    const tabRequiresAdmin = activeTab === 'users' || activeTab === 'audit-logs';
+    const isAllowed =
+      tabRequiresAdmin ? isAdmin
+        : activeTab === 'categories' ? canManageCategories
+          : activeTab === 'orders' ? canReadOrders
+            : activeTab === 'suppliers' ? canManageSuppliers
+              : true;
+    if (!isAllowed) {
       setActiveTabState('inventory');
-      try {
-        window.history.replaceState({}, '', '/');
-      } catch {
-        // ignore
-      }
+      window.history.replaceState({}, '', '/');
     }
     if (activeTab === 'dealers' && !canViewDealers) {
       setActiveTabState('inventory');
@@ -227,18 +262,29 @@ export default function DashboardPage({
     }
   }, [activeTab, canManageCategories, canViewDealers, user.username]);
 
-  // 5. Đồng bộ sự kiện Lịch sử trình duyệt (Back/Forward - popstate)
   useEffect(() => {
     const syncFromUrl = () => {
       const pathname = window.location.pathname.toLowerCase();
+      const params = new URLSearchParams(window.location.search);
       const isUsersPath = pathname === '/users' || pathname.startsWith('/users/') || pathname === '/admin' || pathname.startsWith('/admin/');
       const isAuditPath = pathname === '/audit-logs' || pathname.startsWith('/audit-logs/');
+      const isOrdersPath = pathname === '/orders' || pathname.startsWith('/orders/');
       const isProfilePath = pathname === '/profile' || pathname.startsWith('/profile/');
-      const params = new URLSearchParams(window.location.search);
       const tabParam = (params.get('tab') || params.get('view') || '').toLowerCase();
 
       if (pathname === '/suppliers' || pathname.startsWith('/suppliers/')) {
         setActiveTabState('suppliers');
+        return;
+      }
+
+      if (isOrdersPath || tabParam === 'orders') {
+        if (canReadOrders) {
+          if (pathname !== '/orders' || tabParam) window.history.replaceState({}, '', '/orders');
+          setActiveTabState('orders');
+        } else {
+          setActiveTabState('inventory');
+          window.history.replaceState({}, '', '/');
+        }
         return;
       }
 
@@ -287,26 +333,31 @@ export default function DashboardPage({
           setActiveTabState('categories');
         } else {
           setActiveTabState('inventory');
-          try {
-            window.history.replaceState({}, '', '/');
-          } catch {
-            // ignore
-          }
+          window.history.replaceState({}, '', '/');
+          return;
         }
       } else {
         setActiveTabState('inventory');
+        if (pathname !== '/' || params.size) window.history.replaceState({}, '', '/');
       }
     };
 
     window.addEventListener('popstate', syncFromUrl);
-    return () => {
-      window.removeEventListener('popstate', syncFromUrl);
-    };
-  }, [canManageCategories]);
-
+    return () => window.removeEventListener('popstate', syncFromUrl);
+  }, [canManageCategories, canManageSuppliers, canReadOrders, isAdmin]);
   const [products, setProducts] = useState<ProductItem[]>([]);
+  const [productSearchInput, setProductSearchInput] = useState('');
   const [productSearchTerm, setProductSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
+
+  // Debounce tìm kiếm sản phẩm: Chỉ lọc khi người dùng ngừng nhập 350ms
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setProductSearchTerm(productSearchInput);
+      setCurrentPage(1);
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [productSearchInput]);
 
   // Phân trang danh sách sản phẩm (mặc định 20 cái/trang)
   const [currentPage, setCurrentPage] = useState(1);
@@ -346,6 +397,7 @@ export default function DashboardPage({
     product: ProductItem | null;
   }>({ isOpen: false, actionType: 'receipt', product: null });
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
+  const [isSalesOrderEntryOpen, setIsSalesOrderEntryOpen] = useState(false);
 
   // Timer điều khiển mở/đóng menu khi hover
   const menuTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -481,7 +533,7 @@ export default function DashboardPage({
             <button
               onMouseEnter={handleMouseEnterMenu}
               onMouseLeave={handleMouseLeaveMenu}
-              onClick={() => setIsMenuOpen((prev) => !prev)}
+              onClick={handleMouseEnterMenu}
               aria-label="Mở rộng menu"
               title="Mở rộng menu"
               className="hamburger-left-btn"
@@ -1103,6 +1155,26 @@ export default function DashboardPage({
             <span style={{ fontWeight: activeTab === 'inventory' ? '700' : '500', fontSize: '14.5px' }}>Quản lý kho hàng</span>
           </div>
 
+          {canReadOrders && (
+            <div
+              className={`sidebar-menu-item ${activeTab === 'orders' ? 'active' : ''}`}
+              id="btn-sidebar-orders"
+              onClick={() => {
+                setIsSalesOrderEntryOpen(false);
+                setActiveTab('orders');
+                handleCloseMenu();
+              }}
+            >
+              <div className="sidebar-icon-box">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 3h18v18H3z" />
+                  <path d="M8 8h8M8 12h8M8 16h4" />
+                </svg>
+              </div>
+              <span style={{ fontWeight: activeTab === 'orders' ? '700' : '500', fontSize: '14.5px' }}>Đơn hàng</span>
+            </div>
+          )}
+
           {/* Tra cứu đại lý - Cho nhân viên kinh doanh, quản lý và admin */}
           {canViewDealers && (
             <div
@@ -1124,7 +1196,6 @@ export default function DashboardPage({
               <span style={{ fontWeight: activeTab === 'dealers' ? '700' : '500', fontSize: '14.5px' }}>Tra cứu đại lý</span>
             </div>
           )}
-
           {/* Nhà cung cấp - Thủ kho, Quản lý kho, Admin */}
           {canManageSuppliers && (
             <div
@@ -1255,8 +1326,35 @@ export default function DashboardPage({
         </div>
       </aside>
 
-      {/* Main Content */}
-      {activeTab === 'users' ? (
+      {/* Main Content: Switch between Orders, User Management, Audit Logs, Inventory and Pending Authorization */}
+      {isSalesOrderEntryOpen && canCreateOrders ? (
+        <SalesOrderEntry
+          token={token}
+          username={user.username}
+          products={products}
+          onClose={() => setIsSalesOrderEntryOpen(false)}
+          onCreated={() => setIsSalesOrderEntryOpen(false)}
+        />
+      ) : activeTab === 'orders' ? (
+        canReadOrders ? (
+          <OrdersView
+            token={token}
+            username={user.username}
+            products={products}
+            canCreateOrders={canCreateOrders}
+            canManageOrders={canManageOrders}
+            onCreateOrderEntry={() => setIsSalesOrderEntryOpen(true)}
+            onBackToHome={() => setActiveTab('inventory')}
+          />
+        ) : (
+          <AccessDeniedView
+            currentUser={user}
+            requiredPermission="Quyền xem đơn hàng (order:read)"
+            onBackToWorkflow={() => setActiveTab('inventory')}
+            onLogout={onLogout}
+          />
+        )
+      ) : activeTab === 'users' ? (
         isAdmin ? (
           <UserManagementView
             currentUser={user}
@@ -1726,11 +1824,8 @@ export default function DashboardPage({
                   <input
                     type="text"
                     placeholder="Tìm theo mã hoặc tên sản phẩm..."
-                    value={productSearchTerm}
-                    onChange={(e) => {
-                      setProductSearchTerm(e.target.value);
-                      setCurrentPage(1);
-                    }}
+                    value={productSearchInput}
+                    onChange={(e) => setProductSearchInput(e.target.value)}
                     style={{
                       width: '100%',
                       padding: '7px 12px 7px 32px',
@@ -2101,7 +2196,6 @@ export default function DashboardPage({
                             </td>
                           </>
                         )}
-
                         {canPerformProductAction && (
                           <td style={{ padding: '13px 18px', textAlign: 'center' }}>
                             <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
@@ -2676,7 +2770,6 @@ export default function DashboardPage({
           }}
         />
       )}
-
       <StatusToastHost />
     </div>
   );
