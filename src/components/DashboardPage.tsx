@@ -67,12 +67,17 @@ export default function DashboardPage({
   // Quyền Quản lý sản phẩm (Khai báo, thêm mới, sửa sản phẩm: Chỉ Admin và Quản lý)
   const isManager = officialRoles.some((r) => ['admin', 'sales_manager', 'warehouse_manager'].includes(r));
   const canManageProducts = isAdmin || isSalesManager || isManager;
+  // Quyền tra cứu đại lý: Nhân viên kinh doanh (sales), Quản lý kinh doanh (sales_manager), Quản trị viên (admin)
+  const DEALER_ROLES = ['admin', 'sales_manager', 'sales'];
+  const canViewDealers = officialRoles.some((r) => DEALER_ROLES.includes(r));
 
   // Quyền thao tác kho (Nhập/xuất/sửa kho: Admin, Quản lý kho, Thủ kho)
   const canWriteInventory = user.can_write_inventory ?? (isAdmin || officialRoles.some((r) => ['admin', 'warehouse', 'warehouse_manager'].includes(r)));
 
   // Quyền Cấu hình ĐVT quy đổi (Chỉ Quản trị hệ thống và Quản lý kho)
   const canConfigUnit = isAdmin || officialRoles.some((r) => ['admin', 'warehouse_manager'].includes(r));
+
+  const canPerformProductAction = Boolean(canConfigUnit || canWriteInventory || isAdmin || isSalesManager);
 
   // 2. Khởi tạo State với Clean URL
   const [activeTab, setActiveTabState] = useState<'inventory' | 'users' | 'categories' | 'audit-logs' | 'profile' | 'suppliers' | 'dealers' | 'discounts'>(() => {
@@ -196,6 +201,15 @@ export default function DashboardPage({
         // ignore
       }
     } else if (tab === 'dealers') {
+      if (!canViewDealers) {
+        setActiveTabState('inventory');
+        try {
+          window.history.replaceState({}, '', '/');
+        } catch {
+          // ignore
+        }
+        return;
+      }
       setActiveTabState('dealers');
       try {
         window.history.pushState({}, '', '/dealers');
@@ -291,7 +305,15 @@ export default function DashboardPage({
         // ignore
       }
     }
-  }, [activeTab, isAdmin, canAccessDiscounts, canManageCategories, user.username]);
+    if (activeTab === 'dealers' && !canViewDealers) {
+      setActiveTabState('inventory');
+      try {
+        window.history.replaceState({}, '', '/');
+      } catch {
+        // ignore
+      }
+    }
+  }, [activeTab, isAdmin, canAccessDiscounts, canManageCategories, canViewDealers, user.username]);
 
   // 5. Đồng bộ sự kiện Lịch sử trình duyệt (Back/Forward - popstate)
   useEffect(() => {
@@ -767,13 +789,13 @@ export default function DashboardPage({
                     margin: '0 0 6px 0',
                     fontSize: '16.5px',
                     fontWeight: '700',
-                    color: '#ffffff',
+                    color: '#0f172a',
                     letterSpacing: '-0.01em',
                     whiteSpace: 'nowrap',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis'
                   }}>
-                    {user.full_name}
+                    {user.full_name || user.username}
                   </h4>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                     {(officialRoles.length > 0 ? officialRoles : ['customer']).map((rCode) => {
@@ -858,58 +880,60 @@ export default function DashboardPage({
                   <span>Hồ sơ cá nhân</span>
                 </button>
 
-                {/* Tra cứu đại lý */}
-                <button
-                  onClick={() => {
-                    setIsUserMenuOpen(false);
-                    setActiveTab('dealers');
-                  }}
-                  id="btn-popover-dealers"
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '12px',
-                    width: '100%',
-                    padding: '10px 14px',
-                    borderRadius: '10px',
-                    background: activeTab === 'dealers' ? '#eff6ff' : '#f8fafc',
-                    border: activeTab === 'dealers' ? '1px solid #bfdbfe' : '1px solid #e2e8f0',
-                    color: activeTab === 'dealers' ? '#1d4ed8' : '#1e293b',
-                    fontSize: '13.5px',
-                    fontWeight: '600',
-                    cursor: 'pointer',
-                    transition: 'all 0.18s ease',
-                    boxShadow: 'none',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = '#eff6ff';
-                    e.currentTarget.style.borderColor = '#93c5fd';
-                    e.currentTarget.style.color = '#1d4ed8';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = activeTab === 'dealers' ? '#eff6ff' : '#f8fafc';
-                    e.currentTarget.style.borderColor = activeTab === 'dealers' ? '#bfdbfe' : '#e2e8f0';
-                    e.currentTarget.style.color = activeTab === 'dealers' ? '#1d4ed8' : '#1e293b';
-                  }}
-                  title="Tìm kiếm và tra cứu đại lý trong tuyến"
-                >
-                  <div style={{
-                    width: '28px',
-                    height: '28px',
-                    borderRadius: '8px',
-                    background: '#fef3c7',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: '#d97706',
-                  }}>
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
-                      <circle cx="12" cy="10" r="3" />
-                    </svg>
-                  </div>
-                  <span>Tra cứu đại lý</span>
-                </button>
+                {/* Tra cứu đại lý - Không hiển thị ở popover cho Admin (đã có ở menu mở rộng) */}
+                {canViewDealers && !isAdmin && (
+                  <button
+                    onClick={() => {
+                      setIsUserMenuOpen(false);
+                      setActiveTab('dealers');
+                    }}
+                    id="btn-popover-dealers"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px',
+                      width: '100%',
+                      padding: '10px 14px',
+                      borderRadius: '10px',
+                      background: activeTab === 'dealers' ? '#eff6ff' : '#f8fafc',
+                      border: activeTab === 'dealers' ? '1px solid #bfdbfe' : '1px solid #e2e8f0',
+                      color: activeTab === 'dealers' ? '#1d4ed8' : '#1e293b',
+                      fontSize: '13.5px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      transition: 'all 0.18s ease',
+                      boxShadow: 'none',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = '#eff6ff';
+                      e.currentTarget.style.borderColor = '#93c5fd';
+                      e.currentTarget.style.color = '#1d4ed8';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = activeTab === 'dealers' ? '#eff6ff' : '#f8fafc';
+                      e.currentTarget.style.borderColor = activeTab === 'dealers' ? '#bfdbfe' : '#e2e8f0';
+                      e.currentTarget.style.color = activeTab === 'dealers' ? '#1d4ed8' : '#1e293b';
+                    }}
+                    title="Tìm kiếm và tra cứu đại lý trong tuyến"
+                  >
+                    <div style={{
+                      width: '28px',
+                      height: '28px',
+                      borderRadius: '8px',
+                      background: '#fef3c7',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#d97706',
+                    }}>
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+                        <circle cx="12" cy="10" r="3" />
+                      </svg>
+                    </div>
+                    <span>Tra cứu đại lý</span>
+                  </button>
+                )}
 
                 {(user.role === 'admin' || (user.roles && user.roles.includes('admin'))) && (
                   <button
@@ -1275,25 +1299,27 @@ export default function DashboardPage({
             <span style={{ fontWeight: activeTab === 'inventory' ? '700' : '500', fontSize: '14.5px' }}>Quản lý kho hàng</span>
           </div>
 
-          {/* Tra cứu đại lý - Cho nhân viên kinh doanh, quản lý và nhân viên toàn hệ thống */}
-          <div
-            className={`sidebar-menu-item ${activeTab === 'dealers' ? 'active' : ''}`}
-            id="btn-sidebar-dealers"
-            onClick={() => {
-              setActiveTab('dealers');
-              handleCloseMenu();
-            }}
-          >
-            <div className="sidebar-icon-box">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                <circle cx="9" cy="7" r="4" />
-                <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-              </svg>
+          {/* Tra cứu đại lý - Cho nhân viên kinh doanh, quản lý và admin */}
+          {canViewDealers && (
+            <div
+              className={`sidebar-menu-item ${activeTab === 'dealers' ? 'active' : ''}`}
+              id="btn-sidebar-dealers"
+              onClick={() => {
+                setActiveTab('dealers');
+                handleCloseMenu();
+              }}
+            >
+              <div className="sidebar-icon-box">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                  <circle cx="9" cy="7" r="4" />
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                </svg>
+              </div>
+              <span style={{ fontWeight: activeTab === 'dealers' ? '700' : '500', fontSize: '14.5px' }}>Tra cứu đại lý</span>
             </div>
-            <span style={{ fontWeight: activeTab === 'dealers' ? '700' : '500', fontSize: '14.5px' }}>Tra cứu đại lý</span>
-          </div>
+          )}
 
           {/* Nhà cung cấp - Thủ kho, Quản lý kho, Admin */}
           {canManageSuppliers && (
@@ -1519,11 +1545,20 @@ export default function DashboardPage({
           />
         )
       ) : activeTab === 'dealers' ? (
-        <DealerSearchView
-          currentUser={user}
-          token={token}
-          onBackToHome={() => setActiveTab('inventory')}
-        />
+        canViewDealers ? (
+          <DealerSearchView
+            currentUser={user}
+            token={token}
+            onBackToHome={() => setActiveTab('inventory')}
+          />
+        ) : (
+          <AccessDeniedView
+            currentUser={user}
+            requiredPermission="Tra cứu đại lý & khách hàng (Nhân viên kinh doanh / Quản lý kinh doanh / Quản trị viên)"
+            onBackToWorkflow={() => setActiveTab('inventory')}
+            onLogout={onLogout}
+          />
+        )
       ) : isPendingCustomer ? (
         <div style={{
           display: 'flex',
@@ -2214,7 +2249,9 @@ export default function DashboardPage({
                         </>
                       )}
                       <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'center', background: '#f8fafc' }}>Trạng Thái</th>
-                      <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'center', width: '220px', background: '#f8fafc' }}>Thao Tác</th>
+                      {canPerformProductAction && (
+                        <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'center', width: '220px', background: '#f8fafc' }}>Thao Tác</th>
+                      )}
                     </tr>
                   </thead>
                   <tbody>
@@ -2438,169 +2475,133 @@ export default function DashboardPage({
                           )}
                         </td>
 
-                        <td style={{ padding: '13px 18px', textAlign: 'center' }}>
-                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                            {/* Nút Cấu hình Đơn vị tính: Chỉ mở cho Quản trị hệ thống và Quản lý kho */}
-                            {canConfigUnit && (
-                              <button
-                                type="button"
-                                onClick={() => setUnitConfigProduct(item)}
-                                style={{
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '4px',
-                                  padding: '5px 8px',
-                                  background: '#f8fafc',
-                                  border: '1px solid #cbd5e1',
-                                  borderRadius: '6px',
-                                  fontSize: '11.5px',
-                                  fontWeight: '600',
-                                  color: '#334155',
-                                  cursor: 'pointer',
-                                  transition: 'all 0.15s ease'
-                                }}
-                                title="Cấu hình ĐVT cơ sở & danh sách ĐVT quy đổi (Lốc, Thùng...)"
-                                onMouseEnter={e => {
-                                  e.currentTarget.style.background = '#e2e8f0';
-                                  e.currentTarget.style.borderColor = '#94a3b8';
-                                }}
-                                onMouseLeave={e => {
-                                  e.currentTarget.style.background = '#f8fafc';
-                                  e.currentTarget.style.borderColor = '#cbd5e1';
-                                }}
-                              >
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                                  <circle cx="12" cy="12" r="3" />
-                                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
-                                </svg>
-                                <span>ĐVT</span>
-                              </button>
-                            )}
-
-                            {/* Nút Nhập kho & Xuất kho: Mở cho các tài khoản có quyền Nhập/xuất/sửa kho */}
-                            {canWriteInventory && (
-                              <>
+                                                {canPerformProductAction && (
+                          <td style={{ padding: '13px 18px', textAlign: 'center' }}>
+                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                              {/* Nút Cấu hình Đơn vị tính: Chỉ mở cho Quản trị hệ thống và Quản lý kho */}
+                              {canConfigUnit && (
                                 <button
                                   type="button"
-                                  onClick={() => setStockActionState({ isOpen: true, actionType: 'receipt', product: item })}
+                                  onClick={() => setUnitConfigProduct(item)}
                                   style={{
                                     display: 'inline-flex',
                                     alignItems: 'center',
-                                    gap: '3px',
+                                    gap: '4px',
                                     padding: '5px 8px',
-                                    background: '#ecfdf5',
-                                    border: '1px solid #a7f3d0',
+                                    background: '#f8fafc',
+                                    border: '1px solid #cbd5e1',
                                     borderRadius: '6px',
                                     fontSize: '11.5px',
                                     fontWeight: '600',
-                                    color: '#065f46',
+                                    color: '#334155',
                                     cursor: 'pointer',
                                     transition: 'all 0.15s ease'
                                   }}
-                                  title="Tạo phiếu nhập kho (cho phép chọn ĐVT quy đổi)"
+                                  title="Cấu hình ĐVT cơ sở & danh sách ĐVT quy đổi (Lốc, Thùng...)"
                                   onMouseEnter={e => {
-                                    e.currentTarget.style.background = '#d1fae5';
+                                    e.currentTarget.style.background = '#e2e8f0';
+                                    e.currentTarget.style.borderColor = '#94a3b8';
                                   }}
                                   onMouseLeave={e => {
-                                    e.currentTarget.style.background = '#ecfdf5';
+                                    e.currentTarget.style.background = '#f8fafc';
+                                    e.currentTarget.style.borderColor = '#cbd5e1';
                                   }}
                                 >
-                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                    <line x1="12" y1="5" x2="12" y2="19" />
-                                    <line x1="5" y1="12" x2="19" y2="12" />
+                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                    <circle cx="12" cy="12" r="3" />
+                                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
                                   </svg>
-                                  <span>Nhập</span>
+                                  <span>ĐVT</span>
                                 </button>
+                              )}
 
+                              {/* Nút Nhập kho & Xuất kho: Mở cho các tài khoản có quyền Nhập/xuất/sửa kho */}
+                              {canWriteInventory && (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => setStockActionState({ isOpen: true, actionType: 'receipt', product: item })}
+                                    style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '3px',
+                                      padding: '5px 8px',
+                                      background: '#ecfdf5',
+                                      border: '1px solid #a7f3d0',
+                                      borderRadius: '6px',
+                                      fontSize: '11.5px',
+                                      fontWeight: '600',
+                                      color: '#065f46',
+                                      cursor: 'pointer',
+                                      transition: 'all 0.15s ease'
+                                    }}
+                                    title="Tạo phiếu nhập kho (cho phép chọn ĐVT quy đổi)"
+                                    onMouseEnter={e => {
+                                      e.currentTarget.style.background = '#d1fae5';
+                                    }}
+                                    onMouseLeave={e => {
+                                      e.currentTarget.style.background = '#ecfdf5';
+                                    }}
+                                  >
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                      <line x1="12" y1="5" x2="12" y2="19" />
+                                      <line x1="5" y1="12" x2="19" y2="12" />
+                                    </svg>
+                                    <span>Nhập</span>
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => setStockActionState({ isOpen: true, actionType: 'issue', product: item })}
+                                    style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '3px',
+                                      padding: '5px 8px',
+                                      background: '#fff7ed',
+                                      border: '1px solid #fed7aa',
+                                      borderRadius: '6px',
+                                      fontSize: '11.5px',
+                                      fontWeight: '600',
+                                      color: '#9a3412',
+                                      cursor: 'pointer',
+                                      transition: 'all 0.15s ease'
+                                    }}
+                                    title="Tạo phiếu xuất kho (cho phép chọn ĐVT quy đổi)"
+                                    onMouseEnter={e => {
+                                      e.currentTarget.style.background = '#ffedd5';
+                                    }}
+                                    onMouseLeave={e => {
+                                      e.currentTarget.style.background = '#fff7ed';
+                                    }}
+                                  >
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                      <line x1="5" y1="12" x2="19" y2="12" />
+                                    </svg>
+                                    <span>Xuất</span>
+                                  </button>
+                                </>
+                              )}
+
+                              {(isAdmin || isSalesManager) && (
                                 <button
                                   type="button"
-                                  onClick={() => setStockActionState({ isOpen: true, actionType: 'issue', product: item })}
-                                  style={{
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: '3px',
-                                    padding: '5px 8px',
-                                    background: '#fff7ed',
-                                    border: '1px solid #fed7aa',
-                                    borderRadius: '6px',
-                                    fontSize: '11.5px',
-                                    fontWeight: '600',
-                                    color: '#9a3412',
-                                    cursor: 'pointer',
-                                    transition: 'all 0.15s ease'
-                                  }}
-                                  title="Tạo phiếu xuất kho (cho phép chọn ĐVT quy đổi)"
-                                  onMouseEnter={e => {
-                                    e.currentTarget.style.background = '#ffedd5';
-                                  }}
-                                  onMouseLeave={e => {
-                                    e.currentTarget.style.background = '#fff7ed';
-                                  }}
+                                  className="btn-inventory-history"
+                                  onClick={() => setProductAuditDrawerState({
+                                    isOpen: true,
+                                    productCode: item.code,
+                                    productName: item.name,
+                                    initialFilter: 'ALL',
+                                  })}
+                                  title="Xem lịch sử thay đổi tồn kho & giá của sản phẩm này"
+                                  style={{ padding: '5px 10px', fontSize: '11.5px', fontWeight: '600' }}
                                 >
-                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                    <line x1="5" y1="12" x2="19" y2="12" />
-                                  </svg>
-                                  <span>Xuất</span>
+                                  <span>Lịch sử</span>
                                 </button>
-                              </>
-                            )}
-
-                            {canManageProducts && (
-                              <button
-                                type="button"
-                                className="btn-inventory-history"
-                                onClick={() => setProductDrawerState({
-                                  isOpen: true,
-                                  product: item,
-                                })}
-                                title="Chỉnh sửa thông tin chi tiết sản phẩm"
-                                style={{
-                                  padding: '5px 8px',
-                                  fontSize: '11.5px',
-                                  background: '#eff6ff',
-                                  borderColor: '#bfdbfe',
-                                  color: '#1d4ed8',
-                                }}
-                              >
-                                <svg
-                                  width="12"
-                                  height="12"
-                                  viewBox="0 0 24 24"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  strokeWidth="2.2"
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                >
-                                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                                </svg>
-                                <span>Sửa</span>
-                              </button>
-                            )}
-
-                            {(isAdmin || isSalesManager) && (
-                              <button
-                                type="button"
-                                className="btn-inventory-history"
-                                onClick={() => setProductAuditDrawerState({
-                                  isOpen: true,
-                                  productCode: item.code,
-                                  productName: item.name,
-                                  initialFilter: 'ALL',
-                                })}
-                                title="Xem lịch sử thay đổi tồn kho & giá của sản phẩm này"
-                                style={{ padding: '5px 10px', fontSize: '11.5px', fontWeight: '600' }}
-                              >
-                                <span>Lịch sử</span>
-                              </button>
-                            )}
-
-                            {!canConfigUnit && !canWriteInventory && !isAdmin && (
-                              <span style={{ color: '#94a3b8', fontSize: '12px' }}>—</span>
-                            )}
-                          </div>
-                        </td>
+                              )}
+                            </div>
+                          </td>
+                        )}
                       </tr>
                     ))}
                   </tbody>
