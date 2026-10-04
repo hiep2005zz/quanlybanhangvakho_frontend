@@ -6,6 +6,7 @@ import {
   getSuppliersApi,
   deactivateSupplierApi,
   activateSupplierApi,
+  deleteSupplierApi,
 } from '../services/api';
 import SupplierModal from './SupplierModal';
 import { emitStatusToast } from './StatusToast';
@@ -68,6 +69,11 @@ export const SupplierManagementView: React.FC<SupplierManagementViewProps> = ({ 
   const [deactivateReason, setDeactivateReason] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+
+  // Popup xác nhận xóa nhà cung cấp
+  const [supplierToDelete, setSupplierToDelete] = useState<Supplier | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const loadSuppliers = useCallback(async () => {
     setIsLoading(true);
@@ -140,6 +146,22 @@ export const SupplierManagementView: React.FC<SupplierManagementViewProps> = ({ 
       setActionError(err.message || 'Không thể ngừng giao dịch nhà cung cấp này.');
     } finally {
       setIsProcessing(false);
+    }
+  };
+
+  const confirmDelete = async () => {
+    if (!supplierToDelete) return;
+    setIsDeleting(true);
+    setDeleteError(null);
+    try {
+      const res = await deleteSupplierApi(token, supplierToDelete.code);
+      emitStatusToast({ message: res.message || `Đã xóa nhà cung cấp "${supplierToDelete.name}" thành công.` });
+      setSupplierToDelete(null);
+      loadSuppliers();
+    } catch (err: any) {
+      setDeleteError(err.message || 'Không thể xóa nhà cung cấp này.');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -349,7 +371,30 @@ export const SupplierManagementView: React.FC<SupplierManagementViewProps> = ({ 
                     >
                       {s.code}
                     </td>
-                    <td style={{ ...tdStyle, fontWeight: '600', color: '#0f172a' }}>{s.name}</td>
+                    <td style={{ ...tdStyle, fontWeight: '600', color: '#0f172a' }}>
+                      {s.name}
+                      {s.has_receipts && (
+                        <span
+                          title="Nhà cung cấp đã có phiếu nhập kho hàng hóa"
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '3px',
+                            fontSize: '11px',
+                            fontWeight: '600',
+                            color: '#1d4ed8',
+                            background: '#eff6ff',
+                            border: '1px solid #bfdbfe',
+                            padding: '2px 7px',
+                            borderRadius: '999px',
+                            marginLeft: '8px',
+                            verticalAlign: 'middle',
+                          }}
+                        >
+                          📦 Đã có phiếu nhập
+                        </span>
+                      )}
+                    </td>
                     <td style={{ ...tdStyle, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: '12.5px' }}>
                       {s.tax_code || <span style={{ color: '#94a3b8', fontFamily: 'inherit' }}>Không có</span>}
                     </td>
@@ -404,7 +449,7 @@ export const SupplierManagementView: React.FC<SupplierManagementViewProps> = ({ 
                       )}
                     </td>
                     <td style={{ ...tdStyle, textAlign: 'center' }}>
-                      <div style={{ display: 'inline-flex', gap: '8px' }}>
+                      <div style={{ display: 'inline-flex', gap: '8px', alignItems: 'center' }}>
                         <button type="button" onClick={() => openEdit(s)} style={smallBtn('#1d4ed8', '#eff6ff', '#bfdbfe')}>
                           Sửa
                         </button>
@@ -423,6 +468,32 @@ export const SupplierManagementView: React.FC<SupplierManagementViewProps> = ({ 
                             style={smallBtn('#15803d', '#dcfce7', '#bbf7d0')}
                           >
                             Mở lại giao dịch
+                          </button>
+                        )}
+                        {s.has_receipts ? (
+                          <button
+                            type="button"
+                            disabled
+                            title="Nhà cung cấp đã có phiếu nhập thì không xoá được, chỉ ngừng giao dịch."
+                            style={{
+                              ...smallBtn('#94a3b8', '#f8fafc', '#e2e8f0'),
+                              cursor: 'not-allowed',
+                              opacity: 0.8,
+                              fontSize: '11.5px',
+                            }}
+                          >
+                            🔒 Không thể xóa
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSupplierToDelete(s);
+                              setDeleteError(null);
+                            }}
+                            style={smallBtn('#dc2626', '#fef2f2', '#fecaca')}
+                          >
+                            Xóa
                           </button>
                         )}
                       </div>
@@ -590,6 +661,128 @@ export const SupplierManagementView: React.FC<SupplierManagementViewProps> = ({ 
                 }}
               >
                 {isProcessing ? 'Đang xử lý...' : 'Xác nhận ngừng giao dịch'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal xác nhận xóa nhà cung cấp */}
+      {supplierToDelete && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(15, 23, 42, 0.6)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: '16px',
+            boxSizing: 'border-box',
+          }}
+        >
+          <div
+            style={{
+              background: '#ffffff',
+              border: '1px solid #fecaca',
+              borderRadius: '16px',
+              width: '100%',
+              maxWidth: '480px',
+              padding: '28px',
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+              color: '#0f172a',
+            }}
+          >
+            <h3 style={{ fontSize: '18px', fontWeight: '800', margin: '0 0 8px', color: '#dc2626' }}>
+              Xác nhận xóa nhà cung cấp?
+            </h3>
+            <p style={{ fontSize: '14px', color: '#475569', lineHeight: 1.6, margin: '0 0 14px' }}>
+              Bạn có chắc chắn muốn xóa nhà cung cấp <strong>"{supplierToDelete.name}"</strong> ({supplierToDelete.code}) không?
+            </p>
+            <div style={{ background: '#f8fafc', padding: '10px 14px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '12.5px', color: '#64748b', marginBottom: '14px' }}>
+              ℹ️ <strong>Quy định nghiệp vụ:</strong> Nếu nhà cung cấp đã phát sinh phiếu nhập kho, hệ thống sẽ từ chối xóa để bảo đảm truy nguyên nguồn hàng và yêu cầu chuyển sang <strong>Ngừng giao dịch</strong>.
+            </div>
+
+            {deleteError && (
+              <div
+                style={{
+                  background: '#fee2e2',
+                  border: '1px solid #fecaca',
+                  color: '#b91c1c',
+                  padding: '12px 14px',
+                  borderRadius: '8px',
+                  fontSize: '13px',
+                  lineHeight: 1.5,
+                  marginBottom: '14px',
+                }}
+              >
+                <div style={{ fontWeight: '700', marginBottom: '4px' }}>⚠️ Không thể xóa nhà cung cấp</div>
+                <div>{deleteError}</div>
+                {deleteError.includes('chỉ ngừng giao dịch') && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const sup = supplierToDelete;
+                      setSupplierToDelete(null);
+                      setDeleteError(null);
+                      openDeactivate(sup);
+                    }}
+                    style={{
+                      marginTop: '10px',
+                      background: '#b45309',
+                      border: 'none',
+                      borderRadius: '6px',
+                      color: '#ffffff',
+                      padding: '6px 14px',
+                      fontSize: '12.5px',
+                      fontWeight: '700',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    👉 Chuyển sang "Ngừng giao dịch" ngay
+                  </button>
+                )}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '16px' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setSupplierToDelete(null);
+                  setDeleteError(null);
+                }}
+                disabled={isDeleting}
+                style={{
+                  background: '#f1f5f9',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: '8px',
+                  color: '#475569',
+                  padding: '10px 18px',
+                  fontSize: '13.5px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                }}
+              >
+                Hủy bỏ
+              </button>
+              <button
+                type="button"
+                onClick={confirmDelete}
+                disabled={isDeleting}
+                style={{
+                  background: 'linear-gradient(135deg, #dc2626, #b91c1c)',
+                  border: 'none',
+                  borderRadius: '8px',
+                  color: '#ffffff',
+                  padding: '10px 22px',
+                  fontSize: '13.5px',
+                  fontWeight: '700',
+                  cursor: isDeleting ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {isDeleting ? 'Đang xóa...' : 'Xác nhận xóa'}
               </button>
             </div>
           </div>
