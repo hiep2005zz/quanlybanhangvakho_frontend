@@ -11,9 +11,6 @@ import { AccessDeniedView } from './AccessDeniedView';
 import SupplierManagementView from './SupplierManagementView';
 import { AuditLogView } from './AuditLogView';
 import { ProductAuditDrawer } from './ProductAuditDrawer';
-import DiscountPolicyView from './DiscountPolicyView';
-import { ProductDrawer } from './ProductDrawer';
->>>>>>> 3fd45714f1b43923db2e5e2b810323b4428b4da1
 import { PriceUpdateModal } from './PriceUpdateModal';
 import { ProfileView } from './ProfileView';
 import { ProductBulkImportModal } from './ProductBulkImportModal';
@@ -51,37 +48,22 @@ export default function DashboardPage({
     officialRoles.length === 0 &&
     (!user.branch || user.branch === 'Chưa phân công');
   const isAdmin = user.role === 'admin' || Boolean(user.roles && user.roles.includes('admin'));
-<<<<<<< HEAD
-  const isSalesManager = user.role === 'sales_manager' || Boolean(user.roles && user.roles.includes('sales_manager'));
-  const canAccessDiscounts =
-    isAdmin ||
-    isSalesManager ||
-    officialRoles.includes('sales') ||
-    user.role === 'sales' ||
-    officialRoles.includes('accountant') ||
-    user.role === 'accountant' ||
-    Boolean(user.permissions && (user.permissions.includes('discount:read') || user.permissions.includes('discount:manage')));
-=======
   const canReadOrders = hasPermission(user, Permissions.ORDER_READ);
   const canCreateOrders = hasPermission(user, Permissions.ORDER_WRITE);
   const canManageOrders = officialRoles.includes('admin') || officialRoles.includes('sales_manager');
+
 
   // Quyền quản lý nhà cung cấp
   const SUPPLIER_ROLES = ['admin', 'warehouse', 'warehouse_manager'];
   const canManageSuppliers = officialRoles.some((r) => SUPPLIER_ROLES.includes(r));
 
   // Quyền quản lý ngành hàng
+  const isSalesManager = user.role === 'sales_manager' || Boolean(user.roles && user.roles.includes('sales_manager'));
   const canManageCategories = isAdmin || isSalesManager;
+  // Quyền tra cứu đại lý: Nhân viên kinh doanh (sales), Quản lý kinh doanh (sales_manager), Quản trị viên (admin)
+  const DEALER_ROLES = ['admin', 'sales_manager', 'sales'];
+  const canViewDealers = officialRoles.some((r) => DEALER_ROLES.includes(r));
 
-  // Quyền Quản lý sản phẩm (Khai báo, thêm mới, sửa sản phẩm: Chỉ Admin và Quản lý)
-  const isManager = officialRoles.some((r) => ['admin', 'sales_manager', 'warehouse_manager'].includes(r));
-  const canManageProducts = isAdmin || isSalesManager || isManager;
-  // Quyền tra cứu đại lý: Nhân viên kinh doanh (sales), Quản lý kinh doanh (sales_manager), Quản trị viên (admin)
-  const DEALER_ROLES = ['admin', 'sales_manager', 'sales'];
-  const canViewDealers = officialRoles.some((r) => DEALER_ROLES.includes(r));
-  // Quyền tra cứu đại lý: Nhân viên kinh doanh (sales), Quản lý kinh doanh (sales_manager), Quản trị viên (admin)
-  const DEALER_ROLES = ['admin', 'sales_manager', 'sales'];
-  const canViewDealers = officialRoles.some((r) => DEALER_ROLES.includes(r));
 
 
   // Quyền thao tác kho (Nhập/xuất/sửa kho: Admin, Quản lý kho, Thủ kho)
@@ -90,70 +72,25 @@ export default function DashboardPage({
   // Quyền Cấu hình ĐVT quy đổi (Chỉ Quản trị hệ thống và Quản lý kho)
   const canConfigUnit = isAdmin || officialRoles.some((r) => ['admin', 'warehouse_manager'].includes(r));
 
-  const canPerformProductAction = Boolean(canConfigUnit || canWriteInventory || isAdmin || isSalesManager);
-
-  // 2. Khởi tạo State với Clean URL
-  const [activeTab, setActiveTabState] = useState<'inventory' | 'users' | 'categories' | 'audit-logs' | 'profile' | 'suppliers' | 'dealers' | 'discounts'>(() => {
 
   // Quyền thao tác các nút trên dòng sản phẩm (Cấu hình ĐVT, Nhập/Xuất kho, Lịch sử)
   const canPerformProductAction = Boolean(canConfigUnit || canWriteInventory || isAdmin || isSalesManager);
 
   // 2. Khởi tạo State với Clean URL (/users, /audit-logs, /categories, /suppliers, /profile, /dealers)
   const [activeTab, setActiveTabState] = useState<'inventory' | 'orders' | 'users' | 'categories' | 'audit-logs' | 'profile' | 'suppliers' | 'dealers'>(() => {
+
     const pathname = window.location.pathname.toLowerCase();
     const isUsersPath = pathname === '/users' || pathname.startsWith('/users/') || pathname === '/admin' || pathname.startsWith('/admin/');
     const isCategoriesPath = pathname === '/categories';
     const isAuditPath = pathname === '/audit-logs' || pathname.startsWith('/audit-logs/');
-    const isDiscountsPath = pathname === '/discounts' || pathname.startsWith('/discounts/');
-    const isOrdersPath = pathname === '/orders' || pathname.startsWith('/orders/');    const isProfilePath = pathname === '/profile' || pathname.startsWith('/profile/');
+    const isOrdersPath = pathname === '/orders' || pathname.startsWith('/orders/');
+    const isProfilePath = pathname === '/profile' || pathname.startsWith('/profile/');
     const isDealersPath = pathname === '/dealers' || pathname.startsWith('/dealers/');
     // Dọn sạch tàn dư query parameter cũ (?tab=users, ?tab=audit-logs, ?tab=profile, ?tab=dealers)
     const params = new URLSearchParams(window.location.search);
     const hasOldTabParam = params.has('tab') || params.has('view');
     const oldTabVal = (params.get('tab') || params.get('view') || '').toLowerCase();
 
-    if (isDiscountsPath || oldTabVal === 'discounts' || oldTabVal === 'discount') {
-      if (canAccessDiscounts) {
-        if (hasOldTabParam || pathname !== '/discounts') {
-          try {
-            window.history.replaceState({}, '', '/discounts');
-          } catch {
-            // ignore
-          }
-        }
-        return 'discounts';
-      }
-      try {
-        window.history.replaceState({}, '', '/');
-      } catch {
-        // ignore
-      }
-    } else if (isAuditPath || oldTabVal === 'audit-logs' || oldTabVal === 'audit') {
-      if (isAdmin) {
-        if (hasOldTabParam || pathname !== '/audit-logs') {
-          try {
-            window.history.replaceState({}, '', '/audit-logs');
-          } catch {
-          }
-        }
-        return 'audit-logs';
-      }
-      try {
-        window.history.replaceState({}, '', '/');
-      } catch {
-        // ignore
-      }
-    } else if (isUsersPath || hasOldTabParam) {
-      if (hasOldTabParam || pathname !== '/users') {
-        try {
-          window.history.replaceState({}, '', '/users');
-        } catch {
-          // ignore
-        }
-      }
-      return 'users';
-    }
-    
     if (pathname === '/suppliers' || pathname.startsWith('/suppliers/')) {
       return 'suppliers';
     }
@@ -214,8 +151,6 @@ export default function DashboardPage({
     return 'inventory';
   });
   // 3. Chuyển đổi Route Clean URL
-  const setActiveTab = (tab: 'inventory' | 'users' | 'categories' | 'audit-logs' | 'profile' | 'suppliers' | 'dealers' | 'discounts') => {
-    if (tab === 'profile') {
   const setActiveTab = (tab: 'inventory' | 'orders' | 'users' | 'categories' | 'audit-logs' | 'profile' | 'suppliers' | 'dealers') => {
     if (tab === 'orders' && !canReadOrders) {
       setActiveTabState('inventory');
@@ -229,7 +164,8 @@ export default function DashboardPage({
       } catch {
         // ignore
       }
-    } else if (tab === 'profile') {      setActiveTabState('profile');
+    } else if (tab === 'profile') {
+      setActiveTabState('profile');
       try {
         window.history.pushState({}, '', '/profile');
       } catch {
@@ -290,22 +226,6 @@ export default function DashboardPage({
       } catch {
         // ignore
       }
-    } else if (tab === 'discounts') {
-      if (!canAccessDiscounts) {
-        setActiveTabState('inventory');
-        try {
-          window.history.replaceState({}, '', '/');
-        } catch {
-          // ignore
-        }
-        return;
-      }
-      setActiveTabState('discounts');
-      try {
-        window.history.pushState({}, '', '/discounts');
-      } catch {
-        // ignore
-      }
     } else if (tab === 'suppliers') {
       setActiveTabState('suppliers');
       try {
@@ -320,8 +240,6 @@ export default function DashboardPage({
     }
   };
 
-  // 4. [REACTIVE GUARD] Tự động bảo vệ khi phiên thay đổi
->>>>>>> 3fd45714f1b43923db2e5e2b810323b4428b4da1
   useEffect(() => {
     const tabRequiresAdmin = activeTab === 'users' || activeTab === 'audit-logs';
     const isAllowed =
@@ -332,21 +250,8 @@ export default function DashboardPage({
               : true;
     if (!isAllowed) {
       setActiveTabState('inventory');
-<<<<<<< HEAD
-      try {
-        window.history.replaceState({}, '', '/');
-      } catch {
-        // ignore
-      }
-    } else if (activeTab === 'discounts' && !canAccessDiscounts) {
-      setActiveTabState('inventory');
-      try {
-        window.history.replaceState({}, '', '/');
-      } catch {
-        // ignore
-      }
-=======
-      window.history.replaceState({}, '', '/');    }
+      window.history.replaceState({}, '', '/');
+    }
     if (activeTab === 'dealers' && !canViewDealers) {
       setActiveTabState('inventory');
       try {
@@ -355,7 +260,7 @@ export default function DashboardPage({
         // ignore
       }
     }
-  }, [activeTab, isAdmin, canAccessDiscounts, canManageCategories, canViewDealers, user.username]);
+  }, [activeTab, canManageCategories, canViewDealers, user.username]);
 
   useEffect(() => {
     const syncFromUrl = () => {
@@ -363,40 +268,10 @@ export default function DashboardPage({
       const params = new URLSearchParams(window.location.search);
       const isUsersPath = pathname === '/users' || pathname.startsWith('/users/') || pathname === '/admin' || pathname.startsWith('/admin/');
       const isAuditPath = pathname === '/audit-logs' || pathname.startsWith('/audit-logs/');
-      const isDiscountsPath = pathname === '/discounts' || pathname.startsWith('/discounts/');
-      const isOrdersPath = pathname === '/orders' || pathname.startsWith('/orders/');      const isProfilePath = pathname === '/profile' || pathname.startsWith('/profile/');
+      const isOrdersPath = pathname === '/orders' || pathname.startsWith('/orders/');
+      const isProfilePath = pathname === '/profile' || pathname.startsWith('/profile/');
       const tabParam = (params.get('tab') || params.get('view') || '').toLowerCase();
 
-      if (isDiscountsPath || tabParam === 'discounts' || tabParam === 'discount') {
-        if (canAccessDiscounts) {
-          if (pathname !== '/discounts' || tabParam) {
-            try {
-              window.history.replaceState({}, '', '/discounts');
-            } catch {
-              // ignore
-            }
-          }
-          setActiveTabState('discounts');
-        } else {
-          setActiveTabState('inventory');
-          try {
-            window.history.replaceState({}, '', '/');
-          } catch {
-            // ignore
-          }
-        }
-      } else if (isAuditPath || tabParam === 'audit-logs' || tabParam === 'audit') {
-        if (isAdmin) {
-          if (pathname !== '/audit-logs' || tabParam) {
-            try {
-              window.history.replaceState({}, '', '/audit-logs');
-            } catch {
-              // ignore
-            }
-          }
-          setActiveTabState('audit-logs');
-        } else {
-          setActiveTabState('inventory');
       if (pathname === '/suppliers' || pathname.startsWith('/suppliers/')) {
         setActiveTabState('suppliers');
         return;
@@ -415,7 +290,8 @@ export default function DashboardPage({
 
       const isDealersPath = pathname === '/dealers' || pathname.startsWith('/dealers/');
       if (isDealersPath || tabParam === 'dealers') {
-        if (pathname !== '/dealers' || tabParam) {          try {
+        if (pathname !== '/dealers' || tabParam) {
+          try {
             window.history.replaceState({}, '', '/dealers');
           } catch {
             // ignore
@@ -466,25 +342,10 @@ export default function DashboardPage({
       }
     };
 
-    // 5. Làm sạch query param ?expired=true nếu vẫn còn lưu trên thanh địa chỉ
-    try {
-      const url = new URL(window.location.href);
-      if (url.searchParams.has('expired')) {
-        url.searchParams.delete('expired');
-        window.history.replaceState({}, '', url.pathname + (url.search ? url.search : ''));
-      }
-    } catch {
-      // ignore
-    }
-
     window.addEventListener('popstate', syncFromUrl);
-    return () => {
-      window.removeEventListener('popstate', syncFromUrl);
-    };
-  }, [isAdmin, canAccessDiscounts, canManageCategories]);
-
     return () => window.removeEventListener('popstate', syncFromUrl);
-  }, [canManageCategories, canManageSuppliers, canReadOrders, isAdmin]);  const [products, setProducts] = useState<ProductItem[]>([]);
+  }, [canManageCategories, canManageSuppliers, canReadOrders, isAdmin]);
+  const [products, setProducts] = useState<ProductItem[]>([]);
   const [productSearchInput, setProductSearchInput] = useState('');
   const [productSearchTerm, setProductSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -599,13 +460,11 @@ export default function DashboardPage({
       return;
     }
     setIsLoading(true);
-    setError(null);
     getProductsApi(token)
       .then((data) => {
         setProducts(data.items);
         setIsCostVisible(data.is_cost_price_visible);
         setIsLoading(false);
-        setError(null);
       })
       .catch((err) => {
         setError(err.message || 'Lỗi khi tải dữ liệu sản phẩm từ Backend.');
@@ -1098,62 +957,6 @@ export default function DashboardPage({
                   </button>
                 )}
 
-                {canAccessDiscounts && (
-                  <button
-                    onClick={() => {
-                      setIsUserMenuOpen(false);
-                      setActiveTab('discounts');
-                    }}
-                    id="btn-popover-discounts"
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '12px',
-                      width: '100%',
-                      padding: '10px 14px',
-                      borderRadius: '10px',
-                      background: activeTab === 'discounts' ? '#f5f3ff' : '#f8fafc',
-                      border: activeTab === 'discounts' ? '1px solid #ddd6fe' : '1px solid #e2e8f0',
-                      color: activeTab === 'discounts' ? '#7c3aed' : '#1e293b',
-                      fontSize: '13.5px',
-                      fontWeight: '600',
-                      cursor: 'pointer',
-                      transition: 'all 0.18s ease',
-                      boxShadow: 'none',
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = '#f5f3ff';
-                      e.currentTarget.style.borderColor = '#c4b5fd';
-                      e.currentTarget.style.color = '#7c3aed';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = activeTab === 'discounts' ? '#f5f3ff' : '#f8fafc';
-                      e.currentTarget.style.borderColor = activeTab === 'discounts' ? '#ddd6fe' : '#e2e8f0';
-                      e.currentTarget.style.color = activeTab === 'discounts' ? '#7c3aed' : '#1e293b';
-                    }}
-                    title="Khai báo & Quản lý chính sách chiết khấu theo sản lượng"
-                  >
-                    <div style={{
-                      width: '28px',
-                      height: '28px',
-                      borderRadius: '8px',
-                      background: '#ede9fe',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: '#7c3aed',
-                    }}>
-                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                        <line x1="19" y1="5" x2="5" y2="19" />
-                        <circle cx="6.5" cy="6.5" r="2.5" />
-                        <circle cx="17.5" cy="17.5" r="2.5" />
-                      </svg>
-                    </div>
-                    <span>Chính sách chiết khấu</span>
-                  </button>
-                )}
-
-
                 <button
                   onClick={() => {
                     setIsUserMenuOpen(false);
@@ -1494,27 +1297,6 @@ export default function DashboardPage({
               <span style={{ fontWeight: activeTab === 'audit-logs' ? '700' : '500', fontSize: '14.5px' }}>Nhật ký thao tác</span>
             </div>
           )}
-
-          {/* Mục Chính sách chiết khấu - Dành cho Quản lý kinh doanh, Admin, Sales, Kế toán */}
-          {canAccessDiscounts && (
-            <div
-              className={`sidebar-menu-item ${activeTab === 'discounts' ? 'active' : ''}`}
-              id="btn-sidebar-discounts"
-              onClick={() => {
-                setActiveTab('discounts');
-                handleCloseMenu();
-              }}
-            >
-              <div className="sidebar-icon-box">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="19" y1="5" x2="5" y2="19" />
-                  <circle cx="6.5" cy="6.5" r="2.5" />
-                  <circle cx="17.5" cy="17.5" r="2.5" />
-                </svg>
-              </div>
-              <span style={{ fontWeight: activeTab === 'discounts' ? '700' : '500', fontSize: '14.5px' }}>Chính sách chiết khấu</span>
-            </div>
-          )}
         </div>
 
         {/* Nút Đăng xuất ở cuối sidebar */}
@@ -1604,20 +1386,6 @@ export default function DashboardPage({
           <AccessDeniedView
             currentUser={user}
             requiredPermission="Quản trị hệ thống (Admin)"
-            onBackToWorkflow={() => setActiveTab('inventory')}
-            onLogout={onLogout}
-          />
-        )
-      ) : activeTab === 'discounts' ? (
-        canAccessDiscounts ? (
-          <DiscountPolicyView
-            token={token}
-            user={user}
-          />
-        ) : (
-          <AccessDeniedView
-            currentUser={user}
-            requiredPermission="Chính sách chiết khấu (sales_manager / sales / accountant)"
             onBackToWorkflow={() => setActiveTab('inventory')}
             onLogout={onLogout}
           />
@@ -1807,40 +1575,14 @@ export default function DashboardPage({
         <>
           {error && (
             <div style={{
-              background: 'rgba(239, 68, 68, 0.12)',
+              background: 'rgba(239, 68, 68, 0.2)',
               border: '1px solid #ef4444',
-              color: '#b91c1c',
+              color: '#fca5a5',
               padding: '12px 16px',
               borderRadius: '10px',
-              marginBottom: '20px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: '12px'
+              marginBottom: '20px'
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: '500' }}>
-                <span>⚠️</span>
-                <span>{error}</span>
-              </div>
-              <button
-                type="button"
-                onClick={fetchProducts}
-                style={{
-                  background: '#ef4444',
-                  color: '#ffffff',
-                  border: 'none',
-                  padding: '6px 14px',
-                  borderRadius: '6px',
-                  fontSize: '13px',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px'
-                }}
-              >
-                Tải lại dữ liệu
-              </button>
+              ⚠️ {error}
             </div>
           )}
 
@@ -2263,46 +2005,6 @@ export default function DashboardPage({
                   </svg>
                   <span>Xuất file</span>
                 </button>
-
-                {/* Nút Quản lý sản phẩm mở Product Detail Drawer: Chỉ Admin và Quản lý */}
-                {canManageProducts && (
-                  <button
-                    type="button"
-                    id="btn-add-product"
-                    onClick={() => setProductDrawerState({ isOpen: true, product: null })}
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
-                      border: 'none',
-                      padding: '7px 14px',
-                      borderRadius: '8px',
-                      fontSize: '12.5px',
-                      fontWeight: '600',
-                      color: '#ffffff',
-                      cursor: 'pointer',
-                      boxShadow: '0 2px 6px rgba(37, 99, 235, 0.28)',
-                      transition: 'all 0.15s ease'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.transform = 'translateY(-1px)';
-                      e.currentTarget.style.boxShadow = '0 4px 10px rgba(37, 99, 235, 0.35)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.transform = 'translateY(0)';
-                      e.currentTarget.style.boxShadow = '0 2px 6px rgba(37, 99, 235, 0.28)';
-                    }}
-                    title="Khai báo sản phẩm mới (Mã SKU tự động, 4 khối chức năng)"
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <line x1="12" y1="5" x2="12" y2="19" />
-                      <line x1="5" y1="12" x2="19" y2="12" />
-                    </svg>
-                    <span>Quản lý kho hàng</span>
-                  </button>
-                )}
->>>>>>> 3fd45714f1b43923db2e5e2b810323b4428b4da1
               </div>
             </div>
 
@@ -2348,9 +2050,7 @@ export default function DashboardPage({
                           <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'right', background: '#f8fafc' }}>Biên Lợi Nhuận</th>
                         </>
                       )}
-<<<<<<< HEAD
-                      <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'center', background: '#f8fafc' }}>Trạng Thái</th>
-=======                      {canPerformProductAction && (
+                      {canPerformProductAction && (
                         <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'center', width: '220px', background: '#f8fafc' }}>Thao Tác</th>
                       )}
                     </tr>
@@ -2377,45 +2077,7 @@ export default function DashboardPage({
                         </td>
 
                         <td style={{ padding: '13px 18px', fontWeight: '500', color: '#0f172a', fontSize: '13.5px', textAlign: 'left' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            {item.images && item.images.length > 0 ? (
-                              <img
-                                src={item.images[0]}
-                                alt={item.name}
-                                style={{
-                                  width: '38px',
-                                  height: '38px',
-                                  borderRadius: '8px',
-                                  objectFit: 'cover',
-                                  border: '1px solid #e2e8f0',
-                                  flexShrink: 0,
-                                  backgroundColor: '#f8fafc',
-                                }}
-                              />
-                            ) : (
-                              <div
-                                style={{
-                                  width: '38px',
-                                  height: '38px',
-                                  borderRadius: '8px',
-                                  backgroundColor: '#f1f5f9',
-                                  border: '1px solid #e2e8f0',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  color: '#94a3b8',
-                                  flexShrink: 0,
-                                }}
-                              >
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-                                  <circle cx="8.5" cy="8.5" r="1.5" />
-                                  <polyline points="21 15 16 10 5 21" />
-                                </svg>
-                              </div>
-                            )}
-                            <span style={{ wordBreak: 'break-word', lineHeight: '1.4' }}>{item.name}</span>
-                          </div>
+                          {item.name}
                         </td>
 
                         <td style={{ padding: '13px 18px', textAlign: 'left', color: '#64748b', fontSize: '12.5px' }}>
@@ -2534,50 +2196,8 @@ export default function DashboardPage({
                             </td>
                           </>
                         )}
-
-                        {/* Cột Trạng thái kinh doanh */}
-                        <td style={{ padding: '13px 18px', textAlign: 'center' }}>
-                          {item.status === 'inactive' ? (
-                            <span
-                              style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '4px',
-                                padding: '3px 8px',
-                                borderRadius: '999px',
-                                background: '#fef2f2',
-                                color: '#b91c1c',
-                                border: '1px solid #fecaca',
-                                fontSize: '11.5px',
-                                fontWeight: '600',
-                              }}
-                            >
-                              <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#ef4444' }} />
-                              Ngừng KD
-                            </span>
-                          ) : (
-                            <span
-                              style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '4px',
-                                padding: '3px 8px',
-                                borderRadius: '999px',
-                                background: '#f0fdf4',
-                                color: '#15803d',
-                                border: '1px solid #bbf7d0',
-                                fontSize: '11.5px',
-                                fontWeight: '600',
-                              }}
-                            >
-                              <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#22c55e' }} />
-                              Đang KD
-                            </span>
-                          )}
-                        </td>
-
-                                                {canPerformProductAction && (
-                        {canPerformProductAction && (                          <td style={{ padding: '13px 18px', textAlign: 'center' }}>
+                        {canPerformProductAction && (
+                          <td style={{ padding: '13px 18px', textAlign: 'center' }}>
                             <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
                               {/* Nút Cấu hình Đơn vị tính: Chỉ mở cho Quản trị hệ thống và Quản lý kho */}
                               {canConfigUnit && (
