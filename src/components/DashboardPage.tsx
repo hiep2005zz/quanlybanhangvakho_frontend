@@ -54,8 +54,8 @@ export default function DashboardPage({
   const isSalesManager = user.role === 'sales_manager' || Boolean(user.roles && user.roles.includes('sales_manager'));
   const canManageCategories = isAdmin || isSalesManager;
 
-  // Quyền tra cứu đại lý: Nhân viên kinh doanh (sales), Quản lý kinh doanh (sales_manager), Quản trị viên (admin)
-  const DEALER_ROLES = ['admin', 'sales_manager', 'sales'];
+  // Quyền tra cứu đại lý: Nhân viên kinh doanh (sales), Quản lý kinh doanh (sales_manager), Quản trị viên (admin), Kế toán (accountant)
+  const DEALER_ROLES = ['admin', 'sales_manager', 'sales', 'accountant'];
   const canViewDealers = officialRoles.some((r) => DEALER_ROLES.includes(r));
 
   // Quyền thao tác kho (Nhập/xuất/sửa kho: Admin, Quản lý kho, Thủ kho)
