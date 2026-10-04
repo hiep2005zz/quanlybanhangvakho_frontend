@@ -19,6 +19,7 @@ import DealerSearchView from './DealerSearchView';
 import { ProductUnitModal } from './ProductUnitModal';
 import { StockActionModal } from './StockActionModal';
 import { OrderCreateModal } from './OrderCreateModal';
+import { OrderManagementView } from './OrderManagementView';
 import './dashboard.css';
 
 interface DashboardProps {
@@ -53,7 +54,10 @@ export default function DashboardPage({
 
   // Quyền quản lý ngành hàng
   const isSalesManager = user.role === 'sales_manager' || Boolean(user.roles && user.roles.includes('sales_manager'));
+  const isAccountant = user.role === 'accountant' || Boolean(user.roles && user.roles.includes('accountant'));
   const canManageCategories = isAdmin || isSalesManager;
+  const canAccessPriceBooks = isAdmin || isSalesManager || isAccountant;
+  const canAccessOrders = isAdmin || isSalesManager || officialRoles.includes('sales');
 
   // Quyền thao tác kho (Nhập/xuất/sửa kho: Admin, Quản lý kho, Thủ kho)
   const canWriteInventory = user.can_write_inventory ?? (isAdmin || officialRoles.some((r) => ['admin', 'warehouse', 'warehouse_manager'].includes(r)));
@@ -61,9 +65,10 @@ export default function DashboardPage({
   // Quyền Cấu hình ĐVT quy đổi (Chỉ Quản trị hệ thống và Quản lý kho)
   const canConfigUnit = isAdmin || officialRoles.some((r) => ['admin', 'warehouse_manager'].includes(r));
 
-  // 2. Khởi tạo State với Clean URL (/users, /audit-logs, /categories, /suppliers, /profile, /dealers)
-  const [activeTab, setActiveTabState] = useState<'inventory' | 'users' | 'categories' | 'audit-logs' | 'profile' | 'suppliers' | 'dealers' | 'price-books'>(() => {
+  // 2. Khởi tạo State với Clean URL (/users, /audit-logs, /categories, /suppliers, /profile, /dealers, /orders)
+  const [activeTab, setActiveTabState] = useState<'inventory' | 'users' | 'categories' | 'audit-logs' | 'profile' | 'suppliers' | 'dealers' | 'price-books' | 'orders'>(() => {
     const pathname = window.location.pathname.toLowerCase();
+    const isOrdersPath = pathname === '/orders';
     const isPriceBooksPath = pathname === '/price-books';
     const isUsersPath = pathname === '/users' || pathname.startsWith('/users/') || pathname === '/admin' || pathname.startsWith('/admin/');
     const isCategoriesPath = pathname === '/categories';
@@ -76,6 +81,9 @@ export default function DashboardPage({
     const hasOldTabParam = params.has('tab') || params.has('view');
     const oldTabVal = (params.get('tab') || params.get('view') || '').toLowerCase();
 
+    if (isOrdersPath || oldTabVal === 'orders') {
+      return 'orders';
+    }
     if (isPriceBooksPath) {
       return 'price-books';
     }
@@ -134,8 +142,15 @@ export default function DashboardPage({
   });
 
   // 3. Chuyển đổi Route Clean URL
-  const setActiveTab = (tab: 'inventory' | 'users' | 'categories' | 'audit-logs' | 'profile' | 'suppliers' | 'dealers' | 'price-books') => {
-    if (tab === 'profile') {
+  const setActiveTab = (tab: 'inventory' | 'users' | 'categories' | 'audit-logs' | 'profile' | 'suppliers' | 'dealers' | 'price-books' | 'orders') => {
+    if (tab === 'orders') {
+      setActiveTabState('orders');
+      try {
+        window.history.pushState({}, '', '/orders');
+      } catch {
+        // ignore
+      }
+    } else if (tab === 'profile') {
       setActiveTabState('profile');
       try {
         window.history.pushState({}, '', '/profile');
@@ -217,13 +232,18 @@ export default function DashboardPage({
   useEffect(() => {
     const syncFromUrl = () => {
       const pathname = window.location.pathname.toLowerCase();
-    const isPriceBooksPath = pathname === '/price-books';
+      const isOrdersPath = pathname === '/orders';
+      const isPriceBooksPath = pathname === '/price-books';
       const isUsersPath = pathname === '/users' || pathname.startsWith('/users/') || pathname === '/admin' || pathname.startsWith('/admin/');
       const isAuditPath = pathname === '/audit-logs' || pathname.startsWith('/audit-logs/');
       const isProfilePath = pathname === '/profile' || pathname.startsWith('/profile/');
       const params = new URLSearchParams(window.location.search);
       const tabParam = (params.get('tab') || params.get('view') || '').toLowerCase();
 
+      if (isOrdersPath || tabParam === 'orders') {
+        setActiveTabState('orders');
+        return;
+      }
       if (pathname === '/suppliers' || pathname.startsWith('/suppliers/')) {
         setActiveTabState('suppliers');
         return;
@@ -781,6 +801,62 @@ export default function DashboardPage({
                   <span>Tra cứu đại lý</span>
                 </button>
 
+                {/* Quản lý Đơn hàng / Tạo Đơn hàng (Dành cho Sales, Sales Manager, Admin) */}
+                {canAccessOrders && (
+                  <button
+                    onClick={() => {
+                      setIsUserMenuOpen(false);
+                      setActiveTab('orders');
+                    }}
+                    id="btn-popover-orders"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px',
+                      width: '100%',
+                      padding: '10px 14px',
+                      borderRadius: '10px',
+                      background: activeTab === 'orders' ? '#eff6ff' : '#f8fafc',
+                      border: activeTab === 'orders' ? '1px solid #bfdbfe' : '1px solid #e2e8f0',
+                      color: activeTab === 'orders' ? '#1d4ed8' : '#1e293b',
+                      fontSize: '13.5px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      transition: 'all 0.18s ease',
+                      boxShadow: 'none',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = '#eff6ff';
+                      e.currentTarget.style.borderColor = '#93c5fd';
+                      e.currentTarget.style.color = '#1d4ed8';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = activeTab === 'orders' ? '#eff6ff' : '#f8fafc';
+                      e.currentTarget.style.borderColor = activeTab === 'orders' ? '#bfdbfe' : '#e2e8f0';
+                      e.currentTarget.style.color = activeTab === 'orders' ? '#1d4ed8' : '#1e293b';
+                    }}
+                    title="Quản lý danh sách đơn hàng & lên đơn mới"
+                  >
+                    <div style={{
+                      width: '28px',
+                      height: '28px',
+                      borderRadius: '8px',
+                      background: '#dbeafe',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#2563eb',
+                    }}>
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                        <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
+                        <line x1="3" y1="6" x2="21" y2="6" />
+                        <path d="M16 10a4 4 0 0 1-8 0" />
+                      </svg>
+                    </div>
+                    <span>Quản lý Đơn hàng / Tạo Đơn hàng</span>
+                  </button>
+                )}
+
                 {(user.role === 'admin' || (user.roles && user.roles.includes('admin'))) && (
                   <button
                     onClick={() => {
@@ -1109,6 +1185,29 @@ export default function DashboardPage({
             <span style={{ fontWeight: activeTab === 'dealers' ? '700' : '500', fontSize: '14.5px' }}>Tra cứu đại lý</span>
           </div>
 
+          {/* Quản lý Đơn hàng / Tạo Đơn hàng - Dành cho Sales, Sales Manager, Admin */}
+          {canAccessOrders && (
+            <div
+              className={`sidebar-menu-item ${activeTab === 'orders' ? 'active' : ''}`}
+              id="btn-sidebar-orders"
+              onClick={() => {
+                setActiveTab('orders');
+                handleCloseMenu();
+              }}
+            >
+              <div className="sidebar-icon-box">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
+                  <line x1="3" y1="6" x2="21" y2="6" />
+                  <path d="M16 10a4 4 0 0 1-8 0" />
+                </svg>
+              </div>
+              <span style={{ fontWeight: activeTab === 'orders' ? '700' : '500', fontSize: '14.5px' }}>
+                Quản lý Đơn hàng / Tạo Đơn hàng
+              </span>
+            </div>
+          )}
+
           {/* Nhà cung cấp - Thủ kho, Quản lý kho, Admin */}
           {canManageSuppliers && (
             <div
@@ -1133,7 +1232,7 @@ export default function DashboardPage({
 
 
           {/* Bảng giá */}
-          {canManageCategories && (
+          {canAccessPriceBooks && (
             <div
               className={`sidebar-menu-item ${activeTab === 'price-books' ? 'active' : ''}`}
               id="btn-sidebar-price-books"
@@ -1323,7 +1422,33 @@ export default function DashboardPage({
           onBackToHome={() => setActiveTab('inventory')}
         />
       ) : activeTab === 'price-books' ? (
-        <PriceBookManagementView token={token} />
+        canAccessPriceBooks ? (
+          <PriceBookManagementView token={token} currentUser={user} onBackToHome={() => setActiveTab('inventory')} />
+        ) : (
+          <AccessDeniedView
+            currentUser={user}
+            requiredPermission="Quản lý Bảng giá theo nhóm khách hàng (Quản trị hệ thống / Quản lý kinh doanh / Kế toán)"
+            onBackToWorkflow={() => setActiveTab('inventory')}
+            onLogout={onLogout}
+          />
+        )
+      ) : activeTab === 'orders' ? (
+        canAccessOrders ? (
+          <OrderManagementView
+            currentUser={user}
+            token={token}
+            products={products}
+            onBackToHome={() => setActiveTab('inventory')}
+            onRefreshProducts={fetchProducts}
+          />
+        ) : (
+          <AccessDeniedView
+            currentUser={user}
+            requiredPermission="Quản lý Đơn hàng / Bán hàng (Nhân viên kinh doanh / Quản lý kinh doanh / Quản trị hệ thống)"
+            onBackToWorkflow={() => setActiveTab('inventory')}
+            onLogout={onLogout}
+          />
+        )
       ) : isPendingCustomer ? (
         <div style={{
           display: 'flex',
@@ -1770,6 +1895,37 @@ export default function DashboardPage({
                 <span style={{ fontSize: '12.5px', color: '#64748b', marginRight: '4px' }}>
                   Hiển thị <strong style={{ color: '#0f172a' }}>{filteredProducts.length}</strong> / {products.length} SP
                 </span>
+
+                {/* Nút Lên Đơn Hàng nhanh cho Sales, Sales Manager, Admin */}
+                {canAccessOrders && (
+                  <button
+                    type="button"
+                    id="btn-inventory-create-order"
+                    onClick={() => setIsOrderModalOpen(true)}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+                      border: 'none',
+                      padding: '7px 14px',
+                      borderRadius: '8px',
+                      fontSize: '12.5px',
+                      fontWeight: '700',
+                      color: '#ffffff',
+                      cursor: 'pointer',
+                      boxShadow: '0 2px 6px rgba(37, 99, 235, 0.25)',
+                      transition: 'all 0.15s ease'
+                    }}
+                    title="Tạo đơn hàng mới cho đại lý / khách hàng"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <line x1="12" y1="5" x2="12" y2="19" />
+                      <line x1="5" y1="12" x2="19" y2="12" />
+                    </svg>
+                    <span>+ Lên Đơn Hàng</span>
+                  </button>
+                )}
                 {/* Nút Nhập file Excel danh mục hàng loạt (Chỉ hiển thị cho admin và quản lý kinh doanh) */}
                 {(isAdmin || isSalesManager) && (
                   <button
