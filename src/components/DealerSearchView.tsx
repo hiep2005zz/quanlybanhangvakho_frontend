@@ -6,6 +6,9 @@ import {
     createDealer,
     CreateDealerPayload,
     updateDealerStatus,
+    assignDealer,
+    bulkAssignDealers,
+    getDealerHistory,
 } from '../services/dealerSearchApi';
 import { User } from '../services/api';
 import { emitStatusToast } from './StatusToast';
@@ -76,6 +79,88 @@ export default function DealerSearchView({
         || Boolean(currentUser?.permissions && (currentUser.permissions.includes('user:manage') || currentUser.permissions.includes('*')))
         || !currentUser;
     const canManageStatus = canAddDealer;
+    const canAssignDealer = rawRoles.includes('admin') || rawRoles.includes('sales_manager');
+
+    // State cho SCRUM-48: Phân công
+    const [selectedDealerIds, setSelectedDealerIds] = useState<number[]>([]);
+    const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
+    const [isBulkAssignModalOpen, setIsBulkAssignModalOpen] = useState(false);
+    const [assignTargetDealer, setAssignTargetDealer] = useState<DealerSearchItem | null>(null);
+    const [newSaleIdForAssign, setNewSaleIdForAssign] = useState<string>('');
+    const [assignReason, setAssignReason] = useState<string>('');
+
+    // State cho SCRUM-48: Lịch sử phân công
+    const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+    const [historyTargetDealer, setHistoryTargetDealer] = useState<DealerSearchItem | null>(null);
+    const [historyLogs, setHistoryLogs] = useState<any[]>([]);
+    const [loadingHistory, setLoadingHistory] = useState(false);
+
+    const handleViewHistory = async (dealer: DealerSearchItem) => {
+        if (!dealer.code) return;
+        setHistoryTargetDealer(dealer);
+        setIsHistoryModalOpen(true);
+        setLoadingHistory(true);
+        setHistoryLogs([]);
+        try {
+            const logs = await getDealerHistory(dealer.code, token);
+            setHistoryLogs(logs.filter((l: any) => l.action_type === 'DEALER_ASSIGNMENT'));
+        } catch (err) {
+            emitStatusToast({ title: 'Lỗi', message: 'Không thể tải lịch sử', type: 'error' });
+        } finally {
+            setLoadingHistory(false);
+        }
+    };
+
+    const toggleSelectDealer = (id: number) => {
+        setSelectedDealerIds((prev) => 
+            prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+        );
+    };
+
+    const handleSelectAllDealers = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.checked) {
+            setSelectedDealerIds(dealers.map((d) => d.id));
+        } else {
+            setSelectedDealerIds([]);
+        }
+    };
+
+    const handleAssignSubmit = async () => {
+        if (!newSaleIdForAssign) {
+            emitStatusToast({ title: 'Lỗi', message: 'Vui lòng chọn nhân viên kinh doanh mới.', type: 'error' });
+            return;
+        }
+        if (assignTargetDealer && assignTargetDealer.assigned_sale_id === Number(newSaleIdForAssign)) {
+            emitStatusToast({ title: 'Cảnh báo', message: 'Nhân viên này đang phụ trách đại lý.', type: 'warning' });
+            return;
+        }
+        
+        setIsSubmitting(true);
+        try {
+            if (isBulkAssignModalOpen) {
+                const res = await bulkAssignDealers({
+                    dealer_ids: selectedDealerIds,
+                    new_sale_id: Number(newSaleIdForAssign),
+                    reason: assignReason
+                }, token);
+                emitStatusToast({ title: 'Thành công', message: res.message, type: 'success' });
+                setSelectedDealerIds([]);
+                setIsBulkAssignModalOpen(false);
+            } else if (assignTargetDealer) {
+                await assignDealer(assignTargetDealer.id, {
+                    assigned_sale_id: Number(newSaleIdForAssign),
+                    reason: assignReason
+                }, token);
+                emitStatusToast({ title: 'Thành công', message: `Đã chuyển giao đại lý ${assignTargetDealer.name}`, type: 'success' });
+                setIsAssignModalOpen(false);
+            }
+            handleSearch();
+        } catch (err) {
+            emitStatusToast({ title: 'Lỗi chuyển giao', message: err instanceof Error ? err.message : 'Có lỗi xảy ra', type: 'error' });
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
 
     const handleToggleStatus = async (dealer: DealerSearchItem) => {
         if (togglingId === dealer.id) return;
@@ -622,7 +707,25 @@ export default function DealerSearchView({
                     <div>
                         <strong>Danh sách đại lý trong tuyến</strong>
                         <span className="dealer-count-badge">{dealers.length} đại lý</span>
+                        {selectedDealerIds.length > 0 && (
+                            <span className="dealer-count-badge" style={{ background: '#f59e0b', marginLeft: 8 }}>
+                                Đã chọn {selectedDealerIds.length}
+                            </span>
+                        )}
                     </div>
+                    {canAssignDealer && selectedDealerIds.length > 0 && (
+                        <button
+                            type="button"
+                            className="btn-search-primary"
+                            onClick={() => {
+                                setNewSaleIdForAssign('');
+                                setAssignReason('');
+                                setIsBulkAssignModalOpen(true);
+                            }}
+                        >
+                            Chuyển giao hàng loạt
+                        </button>
+                    )}
                 </div>
 
                 {/* Bảng danh sách cho màn hình Desktop / Tablet */}
@@ -630,6 +733,15 @@ export default function DealerSearchView({
                     <table>
                         <thead>
                             <tr>
+                                {canAssignDealer && (
+                                    <th style={{ width: 40 }}>
+                                        <input
+                                            type="checkbox"
+                                            checked={dealers.length > 0 && selectedDealerIds.length === dealers.length}
+                                            onChange={handleSelectAllDealers}
+                                        />
+                                    </th>
+                                )}
                                 <th>Mã đại lý</th>
                                 <th>Tên đại lý</th>
                                 <th>Số điện thoại / Liên hệ</th>
@@ -637,6 +749,7 @@ export default function DealerSearchView({
                                 <th>Khu vực</th>
                                 <th>Người phụ trách</th>
                                 <th>Trạng thái</th>
+                                {canAssignDealer && <th>Thao tác</th>}
                             </tr>
                         </thead>
 
@@ -650,6 +763,15 @@ export default function DealerSearchView({
                             ) : (
                                 dealers.map((dealer) => (
                                     <tr key={dealer.id}>
+                                        {canAssignDealer && (
+                                            <td>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={selectedDealerIds.includes(dealer.id)}
+                                                    onChange={() => toggleSelectDealer(dealer.id)}
+                                                />
+                                            </td>
+                                        )}
                                         <td>
                                             <span className="dealer-code-badge">{dealer.code}</span>
                                         </td>
@@ -742,6 +864,33 @@ export default function DealerSearchView({
                                                 )}
                                             </div>
                                         </td>
+                                        {canAssignDealer && (
+                                            <td>
+                                                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                                                    <button
+                                                        type="button"
+                                                        className="btn-search-primary"
+                                                        style={{ padding: '4px 8px', fontSize: '0.8rem' }}
+                                                        onClick={() => {
+                                                            setAssignTargetDealer(dealer);
+                                                            setNewSaleIdForAssign('');
+                                                            setAssignReason('');
+                                                            setIsAssignModalOpen(true);
+                                                        }}
+                                                    >
+                                                        Chuyển giao
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        className="btn-search-reset"
+                                                        style={{ padding: '4px 8px', fontSize: '0.8rem' }}
+                                                        onClick={() => handleViewHistory(dealer)}
+                                                    >
+                                                        Lịch sử
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        )}
                                     </tr>
                                 ))
                             )}
@@ -1008,6 +1157,169 @@ export default function DealerSearchView({
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal Phân công lẻ */}
+            {isAssignModalOpen && assignTargetDealer && (
+                <div className="dealer-modal-overlay" onClick={() => setIsAssignModalOpen(false)}>
+                    <div className="dealer-modal-box" style={{ maxWidth: '500px' }} onClick={(e) => e.stopPropagation()}>
+                        <div className="dealer-modal-header">
+                            <div className="dealer-modal-title-wrap">
+                                <div>
+                                    <h3>Chuyển giao đại lý</h3>
+                                    <p>Chỉ định nhân viên kinh doanh mới phụ trách</p>
+                                </div>
+                            </div>
+                            <button type="button" className="dealer-modal-close-btn" onClick={() => setIsAssignModalOpen(false)} title="Đóng">✕</button>
+                        </div>
+                        <div className="dealer-modal-body">
+                            <div style={{ padding: '0 0 16px 0', borderBottom: '1px solid #eaeaea', marginBottom: '16px' }}>
+                                <p style={{ margin: '0 0 8px 0' }}>Đại lý / Khách hàng: <strong style={{ color: '#0f172a' }}>{assignTargetDealer.name}</strong></p>
+                                <p style={{ margin: '0' }}>Người phụ trách hiện tại: <strong style={{ color: '#64748b' }}>{assignTargetDealer.assigned_sale_name || 'Chưa có'}</strong></p>
+                            </div>
+                            
+                            <div className="dealer-modal-form-grid" style={{ gridTemplateColumns: '1fr' }}>
+                                <div className="dealer-modal-field dealer-form-full">
+                                    <label>Chọn nhân viên kinh doanh mới <span className="required">*</span></label>
+                                    <select 
+                                        value={newSaleIdForAssign}
+                                        onChange={(e) => setNewSaleIdForAssign(e.target.value)}
+                                        style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1' }}
+                                    >
+                                        <option value="">-- Chọn nhân viên --</option>
+                                        {sales.map(s => (
+                                            <option key={s.id} value={s.id}>{s.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div className="dealer-modal-field dealer-form-full">
+                                    <label>Lý do (tuỳ chọn)</label>
+                                    <input 
+                                        type="text" 
+                                        placeholder="Ví dụ: Thay đổi khu vực phụ trách"
+                                        value={assignReason}
+                                        onChange={(e) => setAssignReason(e.target.value)}
+                                        style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1' }}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                        <div className="dealer-modal-footer">
+                            <button type="button" className="dealer-btn-cancel" onClick={() => setIsAssignModalOpen(false)} disabled={isSubmitting}>Hủy bỏ</button>
+                            <button type="button" className="dealer-btn-save" onClick={handleAssignSubmit} disabled={isSubmitting}>
+                                {isSubmitting ? 'Đang lưu...' : 'Xác nhận chuyển giao'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal Phân công hàng loạt */}
+            {isBulkAssignModalOpen && (
+                <div className="dealer-modal-overlay" onClick={() => setIsBulkAssignModalOpen(false)}>
+                    <div className="dealer-modal-box" style={{ maxWidth: '500px' }} onClick={(e) => e.stopPropagation()}>
+                        <div className="dealer-modal-header">
+                            <div className="dealer-modal-title-wrap">
+                                <div>
+                                    <h3>Chuyển giao hàng loạt</h3>
+                                    <p>Chuyển {selectedDealerIds.length} đại lý sang người mới</p>
+                                </div>
+                            </div>
+                            <button type="button" className="dealer-modal-close-btn" onClick={() => setIsBulkAssignModalOpen(false)} title="Đóng">✕</button>
+                        </div>
+                        <div className="dealer-modal-body">
+                            <p style={{ margin: '0 0 16px 0', padding: '12px', background: '#eff6ff', borderRadius: '8px', color: '#1e40af' }}>
+                                Bạn đang chọn chuyển giao <strong>{selectedDealerIds.length}</strong> đại lý / khách hàng.
+                            </p>
+                            
+                            <div className="dealer-modal-form-grid" style={{ gridTemplateColumns: '1fr' }}>
+                                <div className="dealer-modal-field dealer-form-full">
+                                    <label>Chọn nhân viên kinh doanh tiếp nhận <span className="required">*</span></label>
+                                    <select 
+                                        value={newSaleIdForAssign}
+                                        onChange={(e) => setNewSaleIdForAssign(e.target.value)}
+                                        style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1' }}
+                                    >
+                                        <option value="">-- Chọn nhân viên --</option>
+                                        {sales.map(s => (
+                                            <option key={s.id} value={s.id}>{s.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div className="dealer-modal-field dealer-form-full">
+                                    <label>Lý do chuyển giao (tuỳ chọn)</label>
+                                    <input 
+                                        type="text" 
+                                        placeholder="Ghi chú thêm..."
+                                        value={assignReason}
+                                        onChange={(e) => setAssignReason(e.target.value)}
+                                        style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1' }}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                        <div className="dealer-modal-footer">
+                            <button type="button" className="dealer-btn-cancel" onClick={() => setIsBulkAssignModalOpen(false)} disabled={isSubmitting}>Hủy bỏ</button>
+                            <button type="button" className="dealer-btn-save" onClick={handleAssignSubmit} disabled={isSubmitting}>
+                                {isSubmitting ? 'Đang xử lý...' : 'Xác nhận chuyển giao'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {/* Modal Lịch sử phân công */}
+            {isHistoryModalOpen && historyTargetDealer && (
+                <div className="dealer-modal-overlay" onClick={() => setIsHistoryModalOpen(false)}>
+                    <div className="dealer-modal-box" style={{ maxWidth: '650px' }} onClick={(e) => e.stopPropagation()}>
+                        <div className="dealer-modal-header">
+                            <div className="dealer-modal-title-wrap">
+                                <div>
+                                    <h3>Lịch sử chuyển giao</h3>
+                                    <p>Đại lý: {historyTargetDealer.name}</p>
+                                </div>
+                            </div>
+                            <button type="button" className="dealer-modal-close-btn" onClick={() => setIsHistoryModalOpen(false)} title="Đóng">✕</button>
+                        </div>
+                        <div className="dealer-modal-body">
+                            {loadingHistory ? (
+                                <p style={{ textAlign: 'center', padding: '20px' }}>Đang tải dữ liệu...</p>
+                            ) : historyLogs.length === 0 ? (
+                                <p style={{ textAlign: 'center', padding: '20px', color: '#64748b' }}>Đại lý này chưa từng được chuyển giao.</p>
+                            ) : (
+                                <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
+                                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.9rem' }}>
+                                        <thead>
+                                            <tr style={{ borderBottom: '2px solid #e2e8f0' }}>
+                                                <th style={{ padding: '8px' }}>Thời gian</th>
+                                                <th style={{ padding: '8px' }}>Người thực hiện</th>
+                                                <th style={{ padding: '8px' }}>Nhân viên cũ</th>
+                                                <th style={{ padding: '8px' }}>Nhân viên mới</th>
+                                                <th style={{ padding: '8px' }}>Lý do</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {historyLogs.map(log => {
+                                                let oldObj: any = {};
+                                                let newObj: any = {};
+                                                try { if (log.old_values) oldObj = JSON.parse(log.old_values); } catch {}
+                                                try { if (log.new_values) newObj = JSON.parse(log.new_values); } catch {}
+                                                return (
+                                                <tr key={log.id} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                                                    <td style={{ padding: '8px' }}>{new Date(log.created_at).toLocaleString('vi-VN')}</td>
+                                                    <td style={{ padding: '8px', color: '#0f172a', fontWeight: 'bold' }}>{log.user_name}</td>
+                                                    <td style={{ padding: '8px', color: '#dc2626' }}>{oldObj.assigned_sale_name || 'Trống'}</td>
+                                                    <td style={{ padding: '8px', color: '#16a34a' }}>{newObj.assigned_sale_name || 'Trống'}</td>
+                                                    <td style={{ padding: '8px', color: '#64748b', fontStyle: 'italic' }}>{log.reason}</td>
+                                                </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
             )}
