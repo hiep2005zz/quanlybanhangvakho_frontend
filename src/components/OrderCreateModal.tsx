@@ -6,8 +6,8 @@ import {
   getAvatarUrl,
   listDealersApi,
   listDeliveryPointsApi,
-  DealerOption,
 } from '../services/api';
+import { searchDealers, DealerSearchItem } from '../services/dealerSearchApi';
 import { emitStatusToast } from './StatusToast';
 import DeliveryPointManager from './DeliveryPointManager';
 import type { DeliveryPoint } from '../types/deliveryPoint';
@@ -31,9 +31,9 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
 }) => {
   if (!isOpen) return null;
 
-  // Danh sách Đại lý / Khách hàng
-  const [dealers, setDealers] = useState<DealerOption[]>([]);
-  const [dealerId, setDealerId] = useState<number>(1);
+  // Danh sách Khách hàng / Đại lý
+  const [dealers, setDealers] = useState<DealerSearchItem[]>([]);
+  const [dealerId, setDealerId] = useState<number>(0);
   const [loadingDealers, setLoadingDealers] = useState(false);
 
   const [selectedProductId, setSelectedProductId] = useState<number>(
@@ -48,29 +48,34 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
   useEffect(() => {
     if (isOpen && token) {
       setLoadingDealers(true);
-      listDealersApi(token)
-        .then((data) => {
-          if (Array.isArray(data) && data.length > 0) {
-            setDealers(data);
-            setDealerId(data[0].id);
+      searchDealers(token)
+        .then((res) => {
+          const items = res.items || [];
+          setDealers(items);
+          if (items.length > 0) {
+            setDealerId((prev) => (items.some((d) => d.id === prev) ? prev : items[0].id));
           } else {
-            const fallback: DealerOption[] = [
-              { id: 1, name: 'Đại Lý Phân Phối Miền Bắc - Sao Mai', code: 'DL001' },
-              { id: 2, name: 'Đại Lý Thời Trang Tân Bình', code: 'DL002' },
-              { id: 3, name: 'Đại Lý Tổng Hợp Hải Phòng', code: 'DL003' },
-            ];
-            setDealers(fallback);
-            setDealerId(1);
+            setDealerId(0);
           }
         })
-        .catch(() => {
-          const fallback: DealerOption[] = [
-            { id: 1, name: 'Đại Lý Phân Phối Miền Bắc - Sao Mai', code: 'DL001' },
-            { id: 2, name: 'Đại Lý Thời Trang Tân Bình', code: 'DL002' },
-            { id: 3, name: 'Đại Lý Tổng Hợp Hải Phòng', code: 'DL003' },
-          ];
-          setDealers(fallback);
-          setDealerId(1);
+        .catch((err) => {
+          console.error("Lỗi tải danh sách đại lý:", err);
+          listDealersApi(token)
+            .then((data) => {
+              if (Array.isArray(data) && data.length > 0) {
+                const mapped: DealerSearchItem[] = data.map((d) => ({
+                  id: d.id,
+                  code: d.code || '',
+                  name: d.name,
+                  phone: d.phone,
+                  address: d.address,
+                  region: '',
+                }));
+                setDealers(mapped);
+                setDealerId(mapped[0].id);
+              }
+            })
+            .catch(() => {});
         })
         .finally(() => {
           setLoadingDealers(false);
@@ -99,7 +104,8 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dealerId]);
 
-  const currentDealer = dealers.find((d) => d.id === dealerId);
+  const selectedDealer = dealers.find((d) => d.id === dealerId);
+  const isDebtWarning = selectedDealer?.debt_status && (selectedDealer.debt_status.includes('Vượt') || selectedDealer.debt_status.includes('Quá hạn'));
 
   const selectedProduct = products.find((p) => p.id === selectedProductId) || products[0];
   const baseUnit = selectedProduct?.base_unit || 'Cái';
@@ -146,10 +152,14 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
       return;
     }
 
+    if (!selectedDealer) {
+      setErrorMsg('Vui lòng chọn khách hàng / đại lý.');
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const res = await createOrderApi(token, {
-
         dealer_id: dealerId,
         items: [
           {
@@ -212,7 +222,7 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
             </h3>
             <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginTop: '6px', flexWrap: 'wrap' }}>
               <p style={{ fontSize: '13px', color: '#64748b', margin: 0 }}>
-                Khách hàng: <strong style={{ color: '#2563eb' }}>{currentDealer ? currentDealer.name : 'Đang tải...'}</strong>
+                Khách hàng: <strong style={{ color: '#2563eb' }}>{selectedDealer ? selectedDealer.name : (loadingDealers ? 'Đang tải...' : 'Chưa chọn')}</strong>
               </p>
               {currentUser && (
                 <div style={{
@@ -294,10 +304,10 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
           {/* Chọn Đại lý / Khách hàng */}
           <div style={{ marginBottom: '14px' }}>
             <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '6px' }}>
-              <span>Đại lý / Khách hàng <span style={{ color: '#dc2626' }}>*</span></span>
-              {currentDealer?.phone && (
+              <span>Khách hàng / Đại lý <span style={{ color: '#dc2626' }}>*</span></span>
+              {selectedDealer?.phone && (
                 <span style={{ fontSize: '12px', fontWeight: 400, color: '#64748b' }}>
-                  SĐT: {currentDealer.phone}
+                  SĐT: {selectedDealer.phone}
                 </span>
               )}
             </label>
@@ -325,6 +335,16 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
                 </option>
               ))}
             </select>
+            {isDebtWarning && (
+              <div style={{ marginTop: '6px', fontSize: '12.5px', color: '#dc2626', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                  <line x1="12" y1="9" x2="12" y2="13"/>
+                  <line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+                <span><strong>Cảnh báo:</strong> Khách hàng đang có trạng thái: <strong>{selectedDealer?.debt_status}</strong>. Đơn hàng có thể bị chặn khi lưu.</span>
+              </div>
+            )}
           </div>
 
           {/* Chọn sản phẩm */}
