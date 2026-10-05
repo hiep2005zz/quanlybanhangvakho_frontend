@@ -1433,7 +1433,13 @@ const tabParam = params.get('tab') || params.get('view');
           token={token}
           onBackToHome={() => setActiveTab('inventory')}
         />
-      ) : activeTab === 'discounts' ? (\n        <DiscountPolicyView\n          token={token}\n          user={user}\n          onBackToHome={() => setActiveTab('inventory')}\n        />\n      ) : activeTab === 'audit-logs' ? (
+      ) : activeTab === 'discounts' ? (
+        <DiscountPolicyView
+          token={token}
+          user={user}
+          onBackToHome={() => setActiveTab('inventory')}
+        />
+      ) : activeTab === 'audit-logs' ? (
         isAdmin ? (
           <AuditLogView
             currentUser={user}
