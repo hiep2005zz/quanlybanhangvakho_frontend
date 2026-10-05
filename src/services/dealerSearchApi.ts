@@ -70,7 +70,7 @@ const MOCK_DEALERS: DealerSearchItem[] = [
         address: '45 Hoàng Hoa Thám, Phường Thụy Khuê, Tây Hồ, Hà Nội',
         region: 'Hà Nội',
         assigned_sale_id: 2,
-        assigned_sale_name: 'Trưởng phòng kinh doanh',
+        assigned_sale_name: 'Trưởng phòng',
         customer_group: 'Đại lý cấp 2',
         status: 'Đang hoạt động',
         current_debt: 0,
@@ -121,7 +121,7 @@ const MOCK_DEALERS: DealerSearchItem[] = [
         address: '76 Nguyễn Văn Linh, Phường Nam Dương, Hải Châu, Đà Nẵng',
         region: 'Đà Nẵng',
         assigned_sale_id: 2,
-        assigned_sale_name: 'Trưởng phòng kinh doanh',
+        assigned_sale_name: 'Trưởng phòng',
         customer_group: 'Đại lý cấp 1',
         status: 'Đang hoạt động',
         current_debt: 0,
@@ -172,7 +172,7 @@ const MOCK_DEALERS: DealerSearchItem[] = [
         address: '12 Tràng Thi, Phường Hàng Trống, Hoàn Kiếm, Hà Nội',
         region: 'Hà Nội',
         assigned_sale_id: 2,
-        assigned_sale_name: 'Trưởng phòng kinh doanh',
+        assigned_sale_name: 'Trưởng phòng',
         customer_group: 'Đại lý cấp 2',
         status: 'Tạm ngừng',
     },
@@ -339,13 +339,10 @@ export async function getDealerFilters(
 
     // Fallback dữ liệu bộ lọc từ danh sách mẫu
     const uniqueRegions = Array.from(new Set(MOCK_DEALERS.map((d) => d.region))).filter(Boolean);
-    const uniqueSalesMap = new Map<number, string>();
-    MOCK_DEALERS.forEach((d) => {
-        if (d.assigned_sale_id && d.assigned_sale_name) {
-            uniqueSalesMap.set(d.assigned_sale_id, d.assigned_sale_name);
-        }
-    });
-    const uniqueSales = Array.from(uniqueSalesMap.entries()).map(([id, name]) => ({ id, name }));
+    const uniqueSales = [
+        { id: 1, name: 'Nhân viên bán hàng' },
+        { id: 2, name: 'Trưởng phòng' },
+    ];
 
     return {
         regions: uniqueRegions,
@@ -764,4 +761,4 @@ export async function updateDealerCreditLimit(
         throw new Error(errorDetail);
     }
     return response.json();
-}
+}

@@ -34,13 +34,10 @@ const DEFAULT_STATUSES = [
 const formatSaleName = (name?: string | null): string => {
     if (!name) return 'Chưa gán';
     const trimmed = name.trim();
-    if (trimmed.includes('Trưởng Phòng') || trimmed.toLowerCase().includes('sales_manager')) {
-        return 'Trưởng phòng kinh doanh';
+    if (trimmed.includes('Trưởng') || trimmed.toLowerCase().includes('manager')) {
+        return 'Trưởng phòng';
     }
-    if (trimmed.includes('Bán Hàng') || trimmed.toLowerCase().includes('sales')) {
-        return 'Nhân viên bán hàng';
-    }
-    return trimmed;
+    return 'Nhân viên bán hàng';
 };
 
 const formatDealerStatus = (status?: string | null): string => {
@@ -796,13 +793,11 @@ export default function DealerSearchView({
                 setRegions(['Hà Nội', 'TP. HCM', 'Hải Phòng', 'Đà Nẵng']);
             }
 
-            if (data.sales && data.sales.length > 0) {
-                const cleanedSales = data.sales.map((s) => ({
-                    id: s.id,
-                    name: formatSaleName(s.name),
-                }));
-                setSales(cleanedSales);
-            }
+            const standardizedSales = [
+                { id: 1, name: 'Nhân viên bán hàng' },
+                { id: 2, name: 'Trưởng phòng' },
+            ];
+            setSales(standardizedSales);
 
             if (data.customer_groups && data.customer_groups.length > 0) {
                 const cleanedGroups = Array.from(
@@ -982,7 +977,7 @@ export default function DealerSearchView({
                         )}
                         <div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                                <h2>Quản lý hồ sơ đại lý</h2>
+                                <h2>Quản lý và tra cứu đại lý</h2>
                                 <span className="dealer-standard-badge">Danh sách khách hàng chuẩn hóa</span>
                             </div>
                             <p>
@@ -1104,7 +1099,7 @@ export default function DealerSearchView({
                             handleSearch({ assignedSaleId: val });
                         }}
                     >
-                        <option value="">Tất cả nhân viên</option>
+                        <option value="">Tất cả người phụ trách</option>
                         {sales.map((sale) => (
                             <option key={sale.id} value={sale.id}>
                                 {formatSaleName(sale.name)}
@@ -1236,8 +1231,14 @@ export default function DealerSearchView({
                                         </td>
                                         <td>
                                             <div className="dealer-name-cell">
-                                                <strong>{dealer.name}</strong>
-                                                <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginTop: '3px', flexWrap: 'wrap' }}>
+                                                <strong style={{ fontSize: '14.5px', color: '#0f172a' }}>{dealer.name}</strong>
+                                                <div style={{ fontSize: '12px', color: '#475569', marginTop: '3px', fontWeight: '500' }}>
+                                                    <span style={{ color: '#64748b' }}>MST: </span>
+                                                    <span style={{ fontFamily: 'monospace', fontWeight: '600', color: dealer.tax_id ? '#0f172a' : '#94a3b8' }}>
+                                                        {dealer.tax_id || 'Chưa cập nhật'}
+                                                    </span>
+                                                </div>
+                                                <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginTop: '4px', flexWrap: 'wrap' }}>
                                                     {dealer.customer_group && (
                                                         <span className="dealer-group-tag">
                                                             {dealer.customer_group}
@@ -1246,11 +1247,6 @@ export default function DealerSearchView({
                                                     <span className="dealer-group-tag" style={{ background: '#f0f9ff', color: '#0369a1', borderColor: '#bae6fd' }} title="Bảng giá áp dụng (quyết định theo nhóm khách hàng)">
                                                         📋 {dealer.price_list || getPriceListByCustomerGroup(dealer.customer_group)}
                                                     </span>
-                                                    {dealer.tax_id && (
-                                                        <span className="dealer-tax-badge" title="Mã số thuế doanh nghiệp">
-                                                            MST: {dealer.tax_id}
-                                                        </span>
-                                                    )}
                                                 </div>
                                             </div>
                                         </td>
@@ -1474,6 +1470,10 @@ export default function DealerSearchView({
                                     <div>
                                         <span className="dealer-code-badge">{dealer.code}</span>
                                         <h3 className="dealer-card-name">{dealer.name}</h3>
+                                        <div style={{ fontSize: '12px', color: '#475569', marginTop: '2px', fontWeight: '500' }}>
+                                            <span style={{ color: '#64748b' }}>MST: </span>
+                                            <span style={{ fontFamily: 'monospace', fontWeight: '600' }}>{dealer.tax_id || 'Chưa cập nhật'}</span>
+                                        </div>
                                     </div>
                                     <div className="dealer-status-cell">
                                         {(() => {
@@ -1751,14 +1751,14 @@ export default function DealerSearchView({
 
                                     <div className="dealer-modal-field dealer-form-full">
                                         <label>
-                                            Nhân viên phụ trách <span className="required">*</span>
+                                            Người phụ trách <span className="required">*</span>
                                         </label>
                                         <select
                                             required
                                             value={addFormData.assigned_sale_id}
                                             onChange={(e) => setAddFormData({ ...addFormData, assigned_sale_id: e.target.value })}
                                         >
-                                            <option value="">-- Chọn nhân viên phụ trách * --</option>
+                                            <option value="">-- Chọn người phụ trách * --</option>
                                             {sales.map((sale) => (
                                                 <option key={sale.id} value={sale.id}>
                                                     {formatSaleName(sale.name)}
@@ -1947,7 +1947,7 @@ export default function DealerSearchView({
                                     </div>
 
                                     <div className="dealer-modal-field dealer-form-full">
-                                        <label>Nhân viên phụ trách</label>
+                                        <label>Người phụ trách</label>
                                         <select
                                             value={editFormData.assigned_sale_id}
                                             onChange={(e) => setEditFormData({ ...editFormData, assigned_sale_id: e.target.value })}
@@ -2167,13 +2167,13 @@ export default function DealerSearchView({
                             
                             <div className="dealer-modal-form-grid" style={{ gridTemplateColumns: '1fr' }}>
                                 <div className="dealer-modal-field dealer-form-full">
-                                    <label>Chọn nhân viên kinh doanh mới <span className="required">*</span></label>
+                                    <label>Chọn người phụ trách mới <span className="required">*</span></label>
                                     <select 
                                         value={newSaleIdForAssign}
                                         onChange={(e) => setNewSaleIdForAssign(e.target.value)}
                                         style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1' }}
                                     >
-                                        <option value="">-- Chọn nhân viên --</option>
+                                        <option value="">-- Chọn người phụ trách --</option>
                                         {sales.map(s => (
                                             <option key={s.id} value={s.id}>{formatSaleName(s.name)}</option>
                                         ))}
@@ -2221,13 +2221,13 @@ export default function DealerSearchView({
                             
                             <div className="dealer-modal-form-grid" style={{ gridTemplateColumns: '1fr' }}>
                                 <div className="dealer-modal-field dealer-form-full">
-                                    <label>Chọn nhân viên kinh doanh tiếp nhận <span className="required">*</span></label>
+                                    <label>Chọn người phụ trách tiếp nhận <span className="required">*</span></label>
                                     <select 
                                         value={newSaleIdForAssign}
                                         onChange={(e) => setNewSaleIdForAssign(e.target.value)}
                                         style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1' }}
                                     >
-                                        <option value="">-- Chọn nhân viên --</option>
+                                        <option value="">-- Chọn người phụ trách --</option>
                                         {sales.map(s => (
                                             <option key={s.id} value={s.id}>{formatSaleName(s.name)}</option>
                                         ))}
