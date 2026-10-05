@@ -8,7 +8,7 @@ import {
     updateDealer,
     UpdateDealerPayload,
     updateDealerStatus,
-    checkDealerTransactions,
+    updateDealerDebtStatus,
     deleteDealer,
     assignDealer,
     bulkAssignDealers,
@@ -28,7 +28,7 @@ const DEFAULT_CUSTOMER_GROUPS = [
 
 const DEFAULT_STATUSES = [
     'Đang hoạt động',
-    'Tạm dừng',
+    'Tạm ngừng',
 ];
 
 const formatSaleName = (name?: string | null): string => {
@@ -43,13 +43,22 @@ const formatSaleName = (name?: string | null): string => {
 const formatDealerStatus = (status?: string | null): string => {
     if (!status) return 'Đang hoạt động';
     const lower = status.trim().toLowerCase();
-    if (lower.includes('dừng') || lower.includes('ngừng') || lower === 'inactive') {
-        return 'Tạm dừng';
+    if (lower.includes('ngừng') || lower.includes('dừng') || lower === 'inactive') {
+        return 'Tạm ngừng';
     }
     if (lower.includes('hoạt động') || lower === 'active') {
         return 'Đang hoạt động';
     }
     return status.trim();
+};
+
+const formatDebtStatus = (debtStatus?: string | null): string => {
+    if (!debtStatus) return 'Còn hạn';
+    const lower = debtStatus.trim().toLowerCase();
+    if (lower.includes('hết') || lower.includes('quá') || lower.includes('vượt') || lower === 'expired') {
+        return 'Hết hạn';
+    }
+    return 'Còn hạn';
 };
 
 const getPriceListByCustomerGroup = (group?: string | null): string => {
@@ -96,17 +105,18 @@ export default function DealerSearchView({
         code: '',
         name: '',
         phone: '',
-        email: '',
         tax_id: '',
         address: '',
         region: '',
         assigned_sale_id: '',
+        assigned_sale_name: '',
         customer_group: 'Đại lý cấp 1',
         status: 'Đang hoạt động',
     });
     const [addError, setAddError] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [togglingId, setTogglingId] = useState<number | null>(null);
+    const [togglingDebtId, setTogglingDebtId] = useState<number | null>(null);
     const [openDropdownId, setOpenDropdownId] = useState<number | null>(null);
 
     // Trạng thái cho tính năng Chỉnh sửa hồ sơ đại lý
@@ -309,10 +319,10 @@ export default function DealerSearchView({
             return;
         }
 
-        const isCurrentInactive = (dealer.status || '').toLowerCase().includes('dừng')
-            || (dealer.status || '').toLowerCase().includes('ngừng')
+        const isCurrentInactive = (dealer.status || '').toLowerCase().includes('ngừng')
+            || (dealer.status || '').toLowerCase().includes('dừng')
             || (dealer.status || '').toLowerCase().includes('inactive');
-        const nextStatus = isCurrentInactive ? 'Đang hoạt động' : 'Tạm dừng';
+        const nextStatus = isCurrentInactive ? 'Đang hoạt động' : 'Tạm ngừng';
 
         setTogglingId(dealer.id);
 
@@ -345,6 +355,41 @@ export default function DealerSearchView({
         }
     };
 
+    const handleToggleDebtStatus = async (dealer: DealerSearchItem) => {
+        if (togglingDebtId === dealer.id) return;
+
+        const currentDebtSt = formatDebtStatus(dealer.debt_status);
+        const nextDebtSt = currentDebtSt === 'Còn hạn' ? 'Hết hạn' : 'Còn hạn';
+
+        setTogglingDebtId(dealer.id);
+
+        // Chuyển đổi trạng thái công nợ tức thì trên giao diện (1-click)
+        setDealers((prev) =>
+            prev.map((d) => (d.id === dealer.id ? { ...d, debt_status: nextDebtSt } : d))
+        );
+
+        try {
+            await updateDealerDebtStatus(dealer.id, nextDebtSt, token);
+            emitStatusToast({
+                title: 'Trạng thái công nợ',
+                message: `Đã cập nhật trạng thái công nợ của đại lý "${dealer.name}" sang "${nextDebtSt}".`,
+                type: 'success',
+            });
+        } catch (err) {
+            setDealers((prev) =>
+                prev.map((d) => (d.id === dealer.id ? { ...d, debt_status: dealer.debt_status } : d))
+            );
+            const errMsg = err instanceof Error ? err.message : 'Có lỗi khi cập nhật trạng thái công nợ';
+            emitStatusToast({
+                title: 'Thông báo',
+                message: errMsg,
+                type: 'warning',
+            });
+        } finally {
+            setTogglingDebtId(null);
+        }
+    };
+
     const handleOpenAddModal = () => {
         if (!canAddDealer) {
             emitStatusToast({
@@ -371,11 +416,11 @@ export default function DealerSearchView({
             code: `DL-${Math.floor(1000 + Math.random() * 9000)}`,
             name: '',
             phone: '',
-            email: '',
             tax_id: '',
             address: '',
             region: regions.includes('Hà Nội') ? 'Hà Nội' : (regions[0] || 'Hà Nội'),
-            assigned_sale_id: defaultSaleId,
+            assigned_sale_id: defaultSaleId || '1',
+            assigned_sale_name: 'Nhân viên bán hàng',
             customer_group: customerGroups[0] || 'Đại lý cấp 1',
             status: 'Đang hoạt động',
         });
@@ -472,14 +517,15 @@ export default function DealerSearchView({
             return;
         }
 
-        // 7. Ràng buộc bắt buộc phải chọn Nhân viên phụ trách
-        if (!addFormData.assigned_sale_id) {
-            setAddError('Vui lòng chọn Nhân viên kinh doanh phụ trách đại lý / khách hàng.');
+        // 7. Ràng buộc điền tên nhân viên phụ trách
+        const trimmedSaleName = addFormData.assigned_sale_name.trim();
+        if (!trimmedSaleName) {
+            setAddError('Vui lòng điền tên nhân viên phụ trách đại lý / khách hàng.');
             return;
         }
 
         const selectedSale = sales.find((s) => String(s.id) === String(addFormData.assigned_sale_id));
-        const saleName = selectedSale ? selectedSale.name : null;
+        const saleId = selectedSale ? selectedSale.id : (addFormData.assigned_sale_id ? Number(addFormData.assigned_sale_id) : 1);
 
         setIsSubmitting(true);
         try {
@@ -487,12 +533,11 @@ export default function DealerSearchView({
                 code: cleanCode,
                 name: trimmedName,
                 phone: cleanPhone,
-                email: addFormData.email.trim() || undefined,
                 tax_id: addFormData.tax_id.trim() || undefined,
                 address: trimmedAddress,
                 region: trimmedRegion,
-                assigned_sale_id: addFormData.assigned_sale_id ? Number(addFormData.assigned_sale_id) : undefined,
-                assigned_sale_name: saleName,
+                assigned_sale_id: saleId,
+                assigned_sale_name: trimmedSaleName,
                 customer_group: addFormData.customer_group || 'Đại lý cấp 1',
                 price_list: getPriceListByCustomerGroup(addFormData.customer_group),
                 status: addFormData.status || 'Đang hoạt động',
@@ -658,42 +703,49 @@ export default function DealerSearchView({
             return;
         }
 
-        try {
-            const check = await checkDealerTransactions(dealer.id, token);
-            if (check.has_transactions || !check.can_delete) {
-                emitStatusToast({
-                    title: 'Không được phép xóa',
-                    message: `Đại lý "${dealer.name}" đã phát sinh giao dịch/đơn hàng, theo quy định không được phép xóa! Vui lòng ngừng giao dịch bằng cách chuyển sang "Tạm dừng".`,
-                    type: 'warning',
-                });
+        const currentDebt = dealer.current_debt ?? 0;
+        const hasDebt = currentDebt > 0 || formatDebtStatus(dealer.debt_status) === 'Hết hạn';
 
-                const confirmStop = window.confirm(
-                    `Đại lý "${dealer.name}" (${dealer.code}) đã phát sinh giao dịch trong hệ thống nên KHÔNG ĐƯỢC PHÉP XÓA theo quy định kế toán.\n\nBạn có muốn NGỪNG GIAO DỊCH đại lý này (chuyển trạng thái sang "Tạm dừng") ngay bây giờ không?`
-                );
-                if (confirmStop) {
-                    const isAlreadySuspended = (dealer.status || '').toLowerCase().includes('dừng') || (dealer.status || '').toLowerCase().includes('ngừng');
-                    if (isAlreadySuspended) {
-                        emitStatusToast({
-                            title: 'Trạng thái đại lý',
-                            message: `Đại lý "${dealer.name}" hiện đã ở trạng thái Tạm dừng (đang ngừng giao dịch).`,
-                            type: 'info',
-                        });
-                    } else {
-                        await handleToggleStatus(dealer);
-                    }
+        // 1. Nhắc nhở ĐANG CÒN CÔNG NỢ -> KHÔNG ĐƯỢC PHÉP XÓA
+        if (hasDebt) {
+            const formattedDebt = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(currentDebt);
+            emitStatusToast({
+                title: 'Không được phép xóa',
+                message: `Đại lý "${dealer.name}" đang còn công nợ (${formattedDebt}), không được phép xóa! Chỉ được tạm ngừng giao dịch.`,
+                type: 'warning',
+            });
+
+            const confirmStop = window.confirm(
+                `Đại lý "${dealer.name}" (${dealer.code}) ĐANG CÒN CÔNG NỢ (${formattedDebt}) nên KHÔNG ĐƯỢC PHÉP XÓA theo quy định kế toán.\n\nBạn có muốn chuyển trạng thái đại lý sang "Tạm ngừng" để ngừng giao dịch ngay không?`
+            );
+            if (confirmStop) {
+                const isAlreadyStopped = (dealer.status || '').toLowerCase().includes('ngừng') || (dealer.status || '').toLowerCase().includes('dừng');
+                if (isAlreadyStopped) {
+                    emitStatusToast({
+                        title: 'Trạng thái đại lý',
+                        message: `Đại lý "${dealer.name}" hiện đã ở trạng thái Tạm ngừng.`,
+                        type: 'info',
+                    });
+                } else {
+                    await handleToggleStatus(dealer);
                 }
-                return;
             }
+            return;
+        }
 
-            const confirmed = window.confirm(`Bạn có chắc chắn muốn xóa hồ sơ đại lý "${dealer.name}" (${dealer.code}) khỏi hệ thống chuẩn? Hành động này không thể hoàn tác.`);
-            if (!confirmed) return;
+        // 2. HẾT NỢ ĐƯỢC XÓA (Dư nợ = 0 VNĐ)
+        const confirmed = window.confirm(
+            `Đại lý "${dealer.name}" (${dealer.code}) ĐÃ HẾT NỢ (dư nợ 0 VNĐ).\n\nBạn có chắc chắn muốn xóa hồ sơ đại lý này khỏi hệ thống không? Hành động này không thể hoàn tác.`
+        );
+        if (!confirmed) return;
 
+        try {
             setTogglingId(dealer.id);
             await deleteDealer(dealer.id, token);
             setDealers((prev) => prev.filter((d) => d.id !== dealer.id));
             emitStatusToast({
                 title: 'Thành công',
-                message: `Đã xóa thành công hồ sơ đại lý "${dealer.name}".`,
+                message: `Đã xóa thành công hồ sơ đại lý "${dealer.name}" (đã hết công nợ).`,
                 type: 'success',
             });
         } catch (err) {
@@ -1297,18 +1349,27 @@ export default function DealerSearchView({
                                         </td>
                                         <td>
                                             {(() => {
-                                                const currentDebt = dealer.current_debt ?? 0;
-                                                const limit = dealer.credit_limit ?? 50000000;
-                                                const debtSt = dealer.debt_status || (currentDebt > limit ? 'Vượt hạn mức' : 'Bình thường');
-                                                const isDanger = debtSt.includes('Vượt') || debtSt.includes('Quá hạn');
+                                                const debtSt = formatDebtStatus(dealer.debt_status);
+                                                const isExpired = debtSt === 'Hết hạn';
                                                 return (
-                                                    <span className={`dealer-group-tag ${isDanger ? 'danger' : 'success'}`} style={{ 
-                                                        background: isDanger ? '#fee2e2' : '#dcfce7',
-                                                        color: isDanger ? '#dc2626' : '#16a34a',
-                                                        borderColor: isDanger ? '#fca5a5' : '#86efac'
-                                                    }}>
-                                                        {debtSt}
-                                                    </span>
+                                                    <button
+                                                        type="button"
+                                                        className={`dealer-status-toggle-btn ${isExpired ? 'status-inactive' : 'status-active'}`}
+                                                        style={{
+                                                            background: isExpired ? '#fee2e2' : '#dcfce7',
+                                                            borderColor: isExpired ? '#fca5a5' : '#86efac',
+                                                            color: isExpired ? '#b91c1c' : '#15803d',
+                                                            cursor: 'pointer',
+                                                        }}
+                                                        onClick={() => handleToggleDebtStatus(dealer)}
+                                                        disabled={togglingDebtId === dealer.id}
+                                                        title={isExpired ? 'Bấm 1 cái để chuyển sang Còn hạn' : 'Bấm 1 cái để chuyển sang Hết hạn'}
+                                                    >
+                                                        <span className="status-dot" style={{ background: isExpired ? '#ef4444' : '#22c55e' }} />
+                                                        <span>
+                                                            {togglingDebtId === dealer.id ? 'Đang đổi...' : debtSt}
+                                                        </span>
+                                                    </button>
                                                 );
                                             })()}
                                         </td>
@@ -1324,8 +1385,8 @@ export default function DealerSearchView({
                                         <td>
                                             <div className="dealer-status-cell">
                                                 {(() => {
-                                                    const isInactive = (dealer.status || '').toLowerCase().includes('dừng')
-                                                        || (dealer.status || '').toLowerCase().includes('ngừng')
+                                                    const isInactive = (dealer.status || '').toLowerCase().includes('ngừng')
+                                                        || (dealer.status || '').toLowerCase().includes('dừng')
                                                         || (dealer.status || '').toLowerCase().includes('inactive');
                                                     return canManageStatus ? (
                                                         <button
@@ -1333,7 +1394,7 @@ export default function DealerSearchView({
                                                             className={`dealer-status-toggle-btn ${isInactive ? 'status-inactive' : 'status-active'}`}
                                                             onClick={() => handleToggleStatus(dealer)}
                                                             disabled={togglingId === dealer.id}
-                                                            title={isInactive ? 'Bấm để chuyển sang Đang hoạt động' : 'Bấm để chuyển sang Tạm dừng'}
+                                                            title={isInactive ? 'Bấm 1 cái để chuyển sang Đang hoạt động' : 'Bấm 1 cái để chuyển sang Tạm ngừng'}
                                                         >
                                                             <span className="status-dot" />
                                                             <span>
@@ -1477,8 +1538,8 @@ export default function DealerSearchView({
                                     </div>
                                     <div className="dealer-status-cell">
                                         {(() => {
-                                            const isInactive = (dealer.status || '').toLowerCase().includes('dừng')
-                                                || (dealer.status || '').toLowerCase().includes('ngừng')
+                                            const isInactive = (dealer.status || '').toLowerCase().includes('ngừng')
+                                                || (dealer.status || '').toLowerCase().includes('dừng')
                                                 || (dealer.status || '').toLowerCase().includes('inactive');
                                             return canManageStatus ? (
                                                 <button
@@ -1486,7 +1547,7 @@ export default function DealerSearchView({
                                                     className={`dealer-status-toggle-btn ${isInactive ? 'status-inactive' : 'status-active'}`}
                                                     onClick={() => handleToggleStatus(dealer)}
                                                     disabled={togglingId === dealer.id}
-                                                    title={isInactive ? 'Bấm để chuyển sang Đang hoạt động' : 'Bấm để chuyển sang Tạm dừng'}
+                                                    title={isInactive ? 'Bấm để chuyển sang Đang hoạt động' : 'Bấm để chuyển sang Tạm ngừng'}
                                                 >
                                                     <span className="status-dot" />
                                                     <span>
@@ -1541,19 +1602,29 @@ export default function DealerSearchView({
                                                 <span style={{ color: '#64748b' }}>{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(dealer.credit_limit ?? 50000000)}</span>
                                             </span>
                                             {(() => {
-                                                const currentDebt = dealer.current_debt ?? 0;
-                                                const limit = dealer.credit_limit ?? 50000000;
-                                                const debtSt = dealer.debt_status || (currentDebt > limit ? 'Vượt hạn mức' : 'Bình thường');
-                                                const isDanger = debtSt.includes('Vượt') || debtSt.includes('Quá hạn');
+                                                const debtSt = formatDebtStatus(dealer.debt_status);
+                                                const isExpired = debtSt === 'Hết hạn';
                                                 return (
-                                                    <span style={{ 
-                                                        fontSize: '0.8rem',
-                                                        marginTop: '4px',
-                                                        fontWeight: '600',
-                                                        color: isDanger ? '#dc2626' : '#16a34a',
-                                                    }}>
-                                                        Trạng thái: {debtSt}
-                                                    </span>
+                                                    <button
+                                                        type="button"
+                                                        className={`dealer-status-toggle-btn ${isExpired ? 'status-inactive' : 'status-active'}`}
+                                                        style={{
+                                                            background: isExpired ? '#fee2e2' : '#dcfce7',
+                                                            borderColor: isExpired ? '#fca5a5' : '#86efac',
+                                                            color: isExpired ? '#b91c1c' : '#15803d',
+                                                            cursor: 'pointer',
+                                                            marginTop: '4px',
+                                                            alignSelf: 'flex-start',
+                                                        }}
+                                                        onClick={() => handleToggleDebtStatus(dealer)}
+                                                        disabled={togglingDebtId === dealer.id}
+                                                        title={isExpired ? 'Bấm để chuyển sang Còn hạn' : 'Bấm để chuyển sang Hết hạn'}
+                                                    >
+                                                        <span className="status-dot" style={{ background: isExpired ? '#ef4444' : '#22c55e' }} />
+                                                        <span>
+                                                            {togglingDebtId === dealer.id ? 'Đang đổi...' : debtSt}
+                                                        </span>
+                                                    </button>
                                                 );
                                             })()}
                                         </div>
@@ -1724,16 +1795,6 @@ export default function DealerSearchView({
                                     </div>
 
                                     <div className="dealer-modal-field">
-                                        <label>Email liên hệ</label>
-                                        <input
-                                            type="email"
-                                            value={addFormData.email}
-                                            onChange={(e) => setAddFormData({ ...addFormData, email: e.target.value })}
-                                            placeholder="Ví dụ: daily@gmail.com"
-                                        />
-                                    </div>
-
-                                    <div className="dealer-modal-field">
                                         <label>
                                             Khu vực <span className="required">*</span>
                                         </label>
@@ -1749,16 +1810,29 @@ export default function DealerSearchView({
                                         </select>
                                     </div>
 
+                                    <div className="dealer-modal-field">
+                                        <label>
+                                            Tên nhân viên phụ trách <span className="required">*</span>
+                                        </label>
+                                        <input
+                                            type="text"
+                                            required
+                                            value={addFormData.assigned_sale_name}
+                                            onChange={(e) => setAddFormData({ ...addFormData, assigned_sale_name: e.target.value })}
+                                            placeholder="Ví dụ: Nguyễn Văn A"
+                                        />
+                                    </div>
+
                                     <div className="dealer-modal-field dealer-form-full">
                                         <label>
-                                            Người phụ trách <span className="required">*</span>
+                                            Chức vụ người phụ trách <span className="required">*</span>
                                         </label>
                                         <select
                                             required
                                             value={addFormData.assigned_sale_id}
                                             onChange={(e) => setAddFormData({ ...addFormData, assigned_sale_id: e.target.value })}
                                         >
-                                            <option value="">-- Chọn người phụ trách * --</option>
+                                            <option value="">-- Chọn chức vụ người phụ trách * --</option>
                                             {sales.map((sale) => (
                                                 <option key={sale.id} value={sale.id}>
                                                     {formatSaleName(sale.name)}

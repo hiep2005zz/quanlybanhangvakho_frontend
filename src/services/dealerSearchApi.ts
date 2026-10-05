@@ -59,7 +59,7 @@ const MOCK_DEALERS: DealerSearchItem[] = [
         current_debt: 0,
         credit_limit: 50000000,
         max_debt_days: 30,
-        debt_status: 'Bình thường',
+        debt_status: 'Còn hạn',
     },
     {
         id: 2,
@@ -76,7 +76,7 @@ const MOCK_DEALERS: DealerSearchItem[] = [
         current_debt: 0,
         credit_limit: 50000000,
         max_debt_days: 30,
-        debt_status: 'Bình thường',
+        debt_status: 'Còn hạn',
     },
     {
         id: 3,
@@ -93,7 +93,7 @@ const MOCK_DEALERS: DealerSearchItem[] = [
         current_debt: 0,
         credit_limit: 50000000,
         max_debt_days: 30,
-        debt_status: 'Bình thường',
+        debt_status: 'Còn hạn',
     },
     {
         id: 4,
@@ -106,11 +106,11 @@ const MOCK_DEALERS: DealerSearchItem[] = [
         assigned_sale_id: 3,
         assigned_sale_name: 'Nhân viên bán hàng',
         customer_group: 'Khách sỉ',
-        status: 'Tạm dừng',
-        current_debt: 0,
+        status: 'Tạm ngừng',
+        current_debt: 15000000,
         credit_limit: 50000000,
         max_debt_days: 30,
-        debt_status: 'Bình thường',
+        debt_status: 'Hết hạn',
     },
     {
         id: 5,
@@ -127,7 +127,7 @@ const MOCK_DEALERS: DealerSearchItem[] = [
         current_debt: 0,
         credit_limit: 50000000,
         max_debt_days: 30,
-        debt_status: 'Bình thường',
+        debt_status: 'Còn hạn',
     },
     {
         id: 6,
@@ -144,7 +144,7 @@ const MOCK_DEALERS: DealerSearchItem[] = [
         current_debt: 0,
         credit_limit: 50000000,
         max_debt_days: 30,
-        debt_status: 'Bình thường',
+        debt_status: 'Còn hạn',
     },
     {
         id: 7,
@@ -161,7 +161,7 @@ const MOCK_DEALERS: DealerSearchItem[] = [
         current_debt: 0,
         credit_limit: 50000000,
         max_debt_days: 30,
-        debt_status: 'Bình thường',
+        debt_status: 'Còn hạn',
     },
     {
         id: 8,
@@ -175,6 +175,10 @@ const MOCK_DEALERS: DealerSearchItem[] = [
         assigned_sale_name: 'Trưởng phòng',
         customer_group: 'Đại lý cấp 2',
         status: 'Tạm ngừng',
+        current_debt: 0,
+        credit_limit: 50000000,
+        max_debt_days: 30,
+        debt_status: 'Còn hạn',
     },
 ];
 
@@ -348,7 +352,7 @@ export async function getDealerFilters(
         regions: uniqueRegions,
         sales: uniqueSales,
         customer_groups: ['Đại lý cấp 1', 'Đại lý cấp 2', 'Khách sỉ', 'Khách lẻ'],
-        statuses: ['Đang hoạt động', 'Tạm dừng'],
+        statuses: ['Đang hoạt động', 'Tạm ngừng'],
     };
 }
 
@@ -617,6 +621,45 @@ export async function updateDealerStatus(
         }
         throw err;
     }
+}
+
+export async function updateDealerDebtStatus(
+    dealerId: number,
+    debt_status: string,
+    token?: string
+): Promise<DealerSearchItem> {
+    const authToken = getAuthToken(token);
+    const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+    };
+    if (authToken) {
+        headers['Authorization'] = `Bearer ${authToken}`;
+    }
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/v1/dealers/${dealerId}`, {
+            method: 'PUT',
+            headers,
+            body: JSON.stringify({ debt_status }),
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            const idx = MOCK_DEALERS.findIndex((d) => d.id === dealerId);
+            if (idx !== -1) {
+                MOCK_DEALERS[idx].debt_status = debt_status;
+            }
+            return data;
+        }
+    } catch {}
+
+    const idx = MOCK_DEALERS.findIndex((d) => d.id === dealerId);
+    if (idx !== -1) {
+        MOCK_DEALERS[idx].debt_status = debt_status;
+        return MOCK_DEALERS[idx];
+    }
+    throw new Error('Không tìm thấy đại lý cần cập nhật trạng thái công nợ');
 }
 
 export interface AssignDealerPayload {
