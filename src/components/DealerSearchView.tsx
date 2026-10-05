@@ -1019,7 +1019,7 @@ export default function DealerSearchView({
                                                                 className="dealer-dropdown-item" 
                                                                 onClick={(e) => { e.stopPropagation(); handleOpenCreditModal(dealer); setOpenDropdownId(null); }}
                                                             >
-                                                                <span style={{ width: '20px', display: 'inline-block', opacity: 0.7 }}>💰</span> Cập nhật hạn mức
+                                                                Cập nhật hạn mức
                                                             </button>
                                                         )}
                                                         {canAssignDealer && (
@@ -1035,7 +1035,7 @@ export default function DealerSearchView({
                                                                     setOpenDropdownId(null);
                                                                 }}
                                                             >
-                                                                <span style={{ width: '20px', display: 'inline-block', opacity: 0.7 }}>👤</span> Chuyển giao
+                                                                Chuyển giao
                                                             </button>
                                                         )}
                                                         <button 
@@ -1043,7 +1043,7 @@ export default function DealerSearchView({
                                                             className="dealer-dropdown-item" 
                                                             onClick={(e) => { e.stopPropagation(); handleViewHistory(dealer); setOpenDropdownId(null); }}
                                                         >
-                                                            <span style={{ width: '20px', display: 'inline-block', opacity: 0.7 }}>🕒</span> Lịch sử
+                                                            Lịch sử
                                                         </button>
                                                         {canAssignDealer && (
                                                             <button 
@@ -1052,7 +1052,7 @@ export default function DealerSearchView({
                                                                 onClick={(e) => { e.stopPropagation(); handleDeleteDealer(dealer); setOpenDropdownId(null); }}
                                                                 style={{ color: '#ef4444' }}
                                                             >
-                                                                <span style={{ width: '20px', display: 'inline-block', opacity: 0.8 }}>🗑️</span> Xóa đại lý
+                                                                Xóa đại lý
                                                             </button>
                                                         )}
                                                     </div>
