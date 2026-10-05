@@ -406,7 +406,7 @@ export default function DiscountPolicyView({ token, user, onBackToHome }: Discou
                     <option value="">-- Chọn sản phẩm --</option>
                     <option value="Tất cả sản phẩm">Tất cả sản phẩm</option>
                     {products.map(p => (
-                      <option key={p.id} value={`${p.sku} - ${p.name}`}>{p.sku} - {p.name}</option>
+                      <option key={p.id} value={`${p.sku} - ${p.name}`}>{p.code} - {p.name}</option>
                     ))}
                   </select>
                 </div>
