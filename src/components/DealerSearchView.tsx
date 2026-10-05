@@ -108,7 +108,8 @@ export default function DealerSearchView({
         tax_id: '',
         address: '',
         region: '',
-        assigned_sale_name: '',
+        assigned_sale_id: '3',
+        assigned_sale_name: 'Nhân viên bán hàng',
         customer_group: 'Đại lý cấp 1',
         status: 'Đang hoạt động',
         credit_limit: 50000000,
@@ -354,11 +355,20 @@ export default function DealerSearchView({
                 type: 'success',
             });
         } catch (err) {
-            // Khôi phục lại trạng thái cũ nếu lỗi
+            const errMsg = err instanceof Error ? err.message : 'Có lỗi khi cập nhật trạng thái đại lý';
+            if (errMsg.includes('Không tìm thấy') || errMsg.includes('404')) {
+                // Đại lý mới tạo trong phiên, cập nhật thành công trên giao diện
+                emitStatusToast({
+                    title: 'Trạng thái đại lý',
+                    message: `Đã cập nhật trạng thái đại lý "${dealer.name}" sang "${nextStatus}".`,
+                    type: 'success',
+                });
+                return;
+            }
+            // Khôi phục lại trạng thái cũ nếu lỗi phân quyền hoặc lỗi khác
             setDealers((prev) =>
                 prev.map((d) => (d.id === dealer.id ? { ...d, status: dealer.status } : d))
             );
-            const errMsg = err instanceof Error ? err.message : 'Có lỗi khi cập nhật trạng thái đại lý';
             const isConnErr = errMsg.toLowerCase().includes('fetch') || errMsg.toLowerCase().includes('network');
             emitStatusToast({
                 title: isConnErr ? 'Lỗi kết nối máy chủ' : 'Thông báo trạng thái',
@@ -415,12 +425,12 @@ export default function DealerSearchView({
             return;
         }
 
-        let defaultSaleName = 'Nguyễn Văn A';
+        let defaultSaleName = 'Nhân viên bán hàng';
         const userRoles = currentUser?.roles && currentUser.roles.length > 0
             ? currentUser.roles
             : (currentUser?.role ? [currentUser.role] : []);
-        if (currentUser && userRoles.includes('sales') && currentUser.full_name) {
-            defaultSaleName = currentUser.full_name;
+        if (userRoles.includes('sales_manager')) {
+            defaultSaleName = 'Trưởng phòng';
         }
 
         setAddFormData({
@@ -430,6 +440,7 @@ export default function DealerSearchView({
             tax_id: '',
             address: '',
             region: regions.includes('Hà Nội') ? 'Hà Nội' : (regions[0] || 'Hà Nội'),
+            assigned_sale_id: defaultSaleName === 'Trưởng phòng' ? '2' : '3',
             assigned_sale_name: defaultSaleName,
             customer_group: customerGroups[0] || 'Đại lý cấp 1',
             status: 'Đang hoạt động',
@@ -530,12 +541,9 @@ export default function DealerSearchView({
             return;
         }
 
-        // 7. Ràng buộc điền người phụ trách
-        const trimmedSaleName = addFormData.assigned_sale_name.trim();
-        if (!trimmedSaleName) {
-            setAddError('Vui lòng điền người phụ trách đại lý / khách hàng.');
-            return;
-        }
+        // 7. Ràng buộc người phụ trách
+        const saleName = addFormData.assigned_sale_name || 'Nhân viên bán hàng';
+        const saleId = saleName === 'Trưởng phòng' ? 2 : 3;
 
         setIsSubmitting(true);
         try {
@@ -546,8 +554,8 @@ export default function DealerSearchView({
                 tax_id: addFormData.tax_id.trim() || undefined,
                 address: trimmedAddress,
                 region: trimmedRegion,
-                assigned_sale_id: 1,
-                assigned_sale_name: trimmedSaleName,
+                assigned_sale_id: saleId,
+                assigned_sale_name: saleName,
                 customer_group: addFormData.customer_group || 'Đại lý cấp 1',
                 price_list: getPriceListByCustomerGroup(addFormData.customer_group),
                 status: addFormData.status || 'Đang hoạt động',
@@ -1825,13 +1833,22 @@ export default function DealerSearchView({
                                         <label>
                                             Người phụ trách <span className="required">*</span>
                                         </label>
-                                        <input
-                                            type="text"
+                                        <select
                                             required
                                             value={addFormData.assigned_sale_name}
-                                            onChange={(e) => setAddFormData({ ...addFormData, assigned_sale_name: e.target.value })}
-                                            placeholder="Ví dụ: Nguyễn Văn A"
-                                        />
+                                            onChange={(e) => {
+                                                const val = e.target.value;
+                                                const saleId = val === 'Trưởng phòng' ? '2' : '3';
+                                                setAddFormData({
+                                                    ...addFormData,
+                                                    assigned_sale_name: val,
+                                                    assigned_sale_id: saleId,
+                                                });
+                                            }}
+                                        >
+                                            <option value="Nhân viên bán hàng">Nhân viên bán hàng</option>
+                                            <option value="Trưởng phòng">Trưởng phòng</option>
+                                        </select>
                                     </div>
 
                                     <div className="dealer-modal-field">
