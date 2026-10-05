@@ -565,7 +565,14 @@ export default function DealerSearchView({
             };
 
             const created = await createDealer(payload, token);
-            setDealers((prev) => [created, ...prev]);
+            const savedCurrentDebt = Number(addFormData.current_debt) || 0;
+            const itemWithDebt: DealerSearchItem = {
+                ...created,
+                current_debt: savedCurrentDebt,
+                debt_status: addFormData.debt_status || (savedCurrentDebt > 0 ? 'Còn hạn' : 'Còn hạn'),
+                credit_limit: Number(addFormData.credit_limit) || 50000000,
+            };
+            setDealers((prev) => [itemWithDebt, ...prev.filter((d) => d.id !== itemWithDebt.id)]);
 
             emitStatusToast({
                 title: 'Hồ sơ đại lý',
@@ -1857,8 +1864,12 @@ export default function DealerSearchView({
                                             type="number"
                                             min="0"
                                             step="1000000"
-                                            value={addFormData.credit_limit}
-                                            onChange={(e) => setAddFormData({ ...addFormData, credit_limit: Number(e.target.value) })}
+                                            value={addFormData.credit_limit || ''}
+                                            onFocus={(e) => e.target.select()}
+                                            onChange={(e) => {
+                                                const clean = e.target.value.replace(/^0+(?=\d)/, '');
+                                                setAddFormData({ ...addFormData, credit_limit: clean === '' ? 0 : Number(clean) });
+                                            }}
                                             placeholder="Ví dụ: 50000000"
                                         />
                                     </div>
@@ -1869,9 +1880,14 @@ export default function DealerSearchView({
                                             type="number"
                                             min="0"
                                             step="500000"
-                                            value={addFormData.current_debt}
-                                            onChange={(e) => setAddFormData({ ...addFormData, current_debt: Number(e.target.value) })}
-                                            placeholder="Ví dụ: 0"
+                                            value={addFormData.current_debt === 0 ? '' : addFormData.current_debt}
+                                            onFocus={(e) => e.target.select()}
+                                            onChange={(e) => {
+                                                const clean = e.target.value.replace(/^0+(?=\d)/, '');
+                                                const val = clean === '' ? 0 : Number(clean);
+                                                setAddFormData({ ...addFormData, current_debt: val });
+                                            }}
+                                            placeholder="0 (Nhập số nợ còn nếu có)"
                                         />
                                     </div>
 

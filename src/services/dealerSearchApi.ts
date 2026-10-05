@@ -236,6 +236,28 @@ function filterMockDealers(params?: DealerSearchParams): DealerSearchResponse {
     };
 }
 
+const LOCAL_DEBTS_KEY = 'dealer_custom_debts';
+
+function getLocalDealerDebt(id: number): { current_debt: number; debt_status: string } | null {
+    try {
+        const raw = sessionStorage.getItem(LOCAL_DEBTS_KEY);
+        if (!raw) return null;
+        const map = JSON.parse(raw);
+        return map[id] || null;
+    } catch {
+        return null;
+    }
+}
+
+export function saveLocalDealerDebt(id: number, current_debt: number, debt_status: string) {
+    try {
+        const raw = sessionStorage.getItem(LOCAL_DEBTS_KEY);
+        const map = raw ? JSON.parse(raw) : {};
+        map[id] = { current_debt, debt_status };
+        sessionStorage.setItem(LOCAL_DEBTS_KEY, JSON.stringify(map));
+    } catch {}
+}
+
 export async function searchDealers(
     params?: DealerSearchParams,
     token?: string
@@ -303,7 +325,21 @@ export async function searchDealers(
         );
 
         if (response.ok) {
-            return await response.json();
+            const data: DealerSearchResponse = await response.json();
+            if (data && Array.isArray(data.items)) {
+                data.items = data.items.map((item) => {
+                    const saved = getLocalDealerDebt(item.id);
+                    if (saved) {
+                        return {
+                            ...item,
+                            current_debt: saved.current_debt,
+                            debt_status: saved.debt_status,
+                        };
+                    }
+                    return item;
+                });
+            }
+            return data;
         }
     } catch {
         // Backend không khả dụng hoặc trả về lỗi, chuyển sang fallback dữ liệu mẫu
@@ -403,8 +439,19 @@ export async function createDealer(
         if (response.ok) {
             const result = await response.json();
             if (result && result.id) {
-                MOCK_DEALERS.unshift(result);
-                return result;
+                const finalItem: DealerSearchItem = {
+                    ...result,
+                    current_debt: (payload.current_debt !== undefined && payload.current_debt !== null)
+                        ? Number(payload.current_debt)
+                        : (result.current_debt ?? 0),
+                    debt_status: payload.debt_status || result.debt_status || 'Còn hạn',
+                    credit_limit: (payload.credit_limit !== undefined && payload.credit_limit !== null)
+                        ? Number(payload.credit_limit)
+                        : (result.credit_limit ?? 50000000),
+                };
+                MOCK_DEALERS.unshift(finalItem);
+                saveLocalDealerDebt(finalItem.id, finalItem.current_debt ?? 0, finalItem.debt_status ?? 'Còn hạn');
+                return finalItem;
             }
         }
     } catch {
@@ -425,11 +472,12 @@ export async function createDealer(
         customer_group: payload.customer_group || 'Đại lý cấp 1',
         status: payload.status || 'Đang hoạt động',
         credit_limit: payload.credit_limit ?? 50000000,
-        current_debt: payload.current_debt ?? 0,
+        current_debt: Number(payload.current_debt) || 0,
         debt_status: payload.debt_status || 'Còn hạn',
     };
 
     MOCK_DEALERS.unshift(newItem);
+    saveLocalDealerDebt(newItem.id, newItem.current_debt ?? 0, newItem.debt_status ?? 'Còn hạn');
     return newItem;
 }
 
