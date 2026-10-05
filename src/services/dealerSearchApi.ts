@@ -12,6 +12,10 @@ export interface DealerSearchItem {
     assigned_sale_name?: string | null;
     customer_group?: string | null;
     status?: string | null;
+    credit_limit?: number;
+    max_debt_days?: number;
+    current_debt?: number;
+    debt_status?: string;
 }
 
 export interface DealerSearchResponse {
@@ -524,4 +528,67 @@ export async function getDealerHistory(
     }
     const data = await response.json();
     return data;
-}
+}
+
+export interface UpdateCreditLimitPayload {
+    credit_limit: number;
+    max_debt_days: number;
+    reason: string;
+}
+
+export async function updateDealerCreditLimit(
+    dealerId: number,
+    payload: UpdateCreditLimitPayload,
+    token?: string
+): Promise<any> {
+    const authToken = getAuthToken(token);
+    const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+    };
+    if (authToken) {
+        headers['Authorization'] = `Bearer ${authToken}`;
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/v1/orders/dealers/${dealerId}/credit-limit`, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+        let errorDetail = `Lỗi cập nhật hạn mức (HTTP ${response.status})`;
+        try {
+            const errData = await response.json();
+            if (errData && errData.detail) errorDetail = typeof errData.detail === 'string' ? errData.detail : JSON.stringify(errData.detail);
+        } catch {}
+        throw new Error(errorDetail);
+    }
+    return response.json();
+}
+
+export async function deleteDealer(dealerId: number, token?: string): Promise<any> {
+    const authToken = getAuthToken(token);
+    const headers: Record<string, string> = {
+        Accept: 'application/json',
+    };
+    if (authToken) {
+        headers['Authorization'] = `Bearer ${authToken}`;
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/v1/dealers/${dealerId}`, {
+        method: 'DELETE',
+        headers,
+    });
+
+    if (!response.ok) {
+        let errorDetail = `Lỗi xóa đại lý (HTTP ${response.status})`;
+        try {
+            const errData = await response.json();
+            if (errData && errData.detail) errorDetail = typeof errData.detail === 'string' ? errData.detail : JSON.stringify(errData.detail);
+        } catch {}
+        throw new Error(errorDetail);
+    }
+    return response.json();
+}
+
