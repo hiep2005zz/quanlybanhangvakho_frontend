@@ -1000,8 +1000,9 @@ export async function deleteCategoryApi(token: string, categoryId: number): Prom
   return data;
 }
 
-export async function getCategorySalesReportApi(token: string): Promise<CategorySalesReport[]> {
-  const response = await authenticatedFetch(`${API_BASE_URL}/categories/sales-report`, {
+export async function getCategorySalesReportApi(token: string, period?: string): Promise<CategorySalesReport[]> {
+  const url = period ? `${API_BASE_URL}/categories/sales-report?period=${encodeURIComponent(period)}` : `${API_BASE_URL}/categories/sales-report`;
+  const response = await authenticatedFetch(url, {
     method: 'GET',
   }, token);
   if (!response.ok) throw new Error('Lỗi tải báo cáo doanh số');
