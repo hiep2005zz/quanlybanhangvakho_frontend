@@ -89,6 +89,7 @@ export function CategoryManagementView({ token, onBackToHome }: CategoryManageme
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
   const [formData, setFormData] = useState({ name: '', parent_id: '' });
   
   // Report Filter State
@@ -138,16 +139,22 @@ export function CategoryManagementView({ token, onBackToHome }: CategoryManageme
     setExpandedNodes(newExpanded);
   };
 
-  const handleDelete = async (id: number, e: React.MouseEvent) => {
+  const handleDelete = (id: number, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!window.confirm('CẢNH BÁO: Bạn có chắc chắn muốn xóa nhóm hàng này? Việc xóa sẽ thất bại nếu đang có nhóm con hoặc chứa sản phẩm.')) return;
+    setDeleteConfirmId(id);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteConfirmId) return;
     try {
-      await deleteCategoryApi(token, id);
+      await deleteCategoryApi(token, deleteConfirmId);
       emitStatusToast({ message: 'Xóa nhóm hàng thành công', title: 'Thành công' });
       loadData(false);
-      if (selectedCategoryId === id) setSelectedCategoryId(null);
+      if (selectedCategoryId === deleteConfirmId) setSelectedCategoryId(null);
     } catch (err: any) {
       emitStatusToast({ message: err.message, title: 'Lỗi xóa' });
+    } finally {
+      setDeleteConfirmId(null);
     }
   };
 
@@ -649,16 +656,24 @@ export function CategoryManagementView({ token, onBackToHome }: CategoryManageme
             transition: 'background 0.2s'
           }}>
             <td style={{ 
-              padding: `14px 16px 14px ${16 + level * 24}px`, 
-              color: level === 0 ? '#0f172a' : '#334155',
-              fontWeight: level === 0 ? '700' : '500',
+              padding: `14px 16px 14px ${24 + level * 40}px`, 
+              color: level === 0 ? '#0f172a' : (level === 1 ? '#334155' : '#475569'),
+              fontWeight: level === 0 ? '700' : (level === 1 ? '600' : '500'),
               display: 'flex',
               alignItems: 'center',
-              gap: '8px'
+              gap: '12px',
+              position: 'relative'
             }}>
-              {level > 0 && <span style={{ color: '#cbd5e1' }}>↳</span>}
-              {hasChildren ? <FolderIcon open={true} color="#3b82f6" /> : <span style={{ color: '#64748b' }}>•</span>}
-              {item.name}
+              {level > 0 && (
+                <>
+                  <div style={{ position: 'absolute', left: `${24 + (level - 1) * 40 + 11}px`, top: '-14px', bottom: '50%', width: '2px', background: '#e2e8f0' }}></div>
+                  <div style={{ position: 'absolute', left: `${24 + (level - 1) * 40 + 11}px`, top: '50%', width: '20px', height: '2px', background: '#e2e8f0' }}></div>
+                </>
+              )}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '24px', height: '24px', background: hasChildren ? '#eff6ff' : '#f8fafc', borderRadius: '6px', color: hasChildren ? '#3b82f6' : '#94a3b8', zIndex: 1, border: hasChildren ? '1px solid #bfdbfe' : '1px solid #e2e8f0' }}>
+                {hasChildren ? <ChevronDown /> : <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#cbd5e1' }}></span>}
+              </div>
+              <span style={{ fontSize: level === 0 ? '15px' : '14.5px' }}>{item.name}</span>
             </td>
             <td style={{ padding: '14px 16px', textAlign: 'right', color: '#64748b', fontVariantNumeric: 'tabular-nums' }}>
               {item.direct_sales > 0 ? `${item.direct_sales.toLocaleString('vi-VN')} ₫` : '-'}
@@ -974,6 +989,34 @@ export function CategoryManagementView({ token, onBackToHome }: CategoryManageme
                 <button type="submit" style={{ padding: '14px 24px', borderRadius: '12px', border: 'none', background: '#2563eb', color: '#fff', fontWeight: '800', cursor: 'pointer', flex: 1, boxShadow: '0 4px 12px rgba(37,99,235,0.3)', fontSize: '15px' }}>Lưu Thông Tin</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirmId && (
+        <div style={{
+          position: 'fixed', inset: 0,
+          background: 'rgba(15, 23, 42, 0.65)', backdropFilter: 'blur(8px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999,
+          animation: 'fadeIn 0.2s ease'
+        }}>
+          <div style={{ background: '#fff', padding: '32px', borderRadius: '24px', width: '400px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.3)', textAlign: 'center' }}>
+            <div style={{ width: '64px', height: '64px', background: '#fee2e2', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px auto', color: '#ef4444' }}>
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                <line x1="12" y1="9" x2="12" y2="13"></line>
+                <line x1="12" y1="17" x2="12.01" y2="17"></line>
+              </svg>
+            </div>
+            <h3 style={{ marginTop: 0, marginBottom: '12px', fontSize: '22px', fontWeight: '800', color: '#0f172a' }}>Xác nhận xóa</h3>
+            <p style={{ fontSize: '15px', color: '#64748b', marginBottom: '32px', lineHeight: '1.6' }}>
+              Bạn có chắc chắn muốn xóa nhóm hàng này không? Việc xóa sẽ thất bại nếu đang có nhóm con hoặc chứa sản phẩm.
+            </p>
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+              <button type="button" onClick={() => setDeleteConfirmId(null)} style={{ padding: '12px 24px', borderRadius: '12px', border: '1px solid #cbd5e1', background: '#fff', fontWeight: '700', color: '#475569', cursor: 'pointer', flex: 1, fontSize: '15px', transition: 'all 0.2s' }}>Hủy Bỏ</button>
+              <button type="button" onClick={confirmDelete} style={{ padding: '12px 24px', borderRadius: '12px', border: 'none', background: '#ef4444', color: '#fff', fontWeight: '700', cursor: 'pointer', flex: 1, boxShadow: '0 4px 12px rgba(239,68,68,0.3)', fontSize: '15px', transition: 'all 0.2s' }}>Xác Nhận Xóa</button>
+            </div>
           </div>
         </div>
       )}

@@ -52,7 +52,7 @@ const MOCK_DEALERS: DealerSearchItem[] = [
         region: 'Hà Nội',
         assigned_sale_id: 1,
         assigned_sale_name: 'Nguyễn Văn An',
-        customer_group: 'Đại lý cấp 1',
+        customer_group: 'dai_ly_cap_1',
         status: 'Đang hoạt động',
     },
     {
@@ -65,7 +65,7 @@ const MOCK_DEALERS: DealerSearchItem[] = [
         region: 'Hà Nội',
         assigned_sale_id: 2,
         assigned_sale_name: 'Trần Thị Bình',
-        customer_group: 'Đại lý cấp 2',
+        customer_group: 'dai_ly_cap_2',
         status: 'Đang hoạt động',
     },
     {
@@ -78,7 +78,7 @@ const MOCK_DEALERS: DealerSearchItem[] = [
         region: 'TP.HCM',
         assigned_sale_id: 1,
         assigned_sale_name: 'Nguyễn Văn An',
-        customer_group: 'Đại lý cấp 1',
+        customer_group: 'dai_ly_cap_1',
         status: 'Đang hoạt động',
     },
     {
@@ -91,7 +91,7 @@ const MOCK_DEALERS: DealerSearchItem[] = [
         region: 'TP.HCM',
         assigned_sale_id: 3,
         assigned_sale_name: 'Lê Hoàng Nam',
-        customer_group: 'Khách sỉ',
+        customer_group: 'dai_ly_cap_2',
         status: 'Tạm ngừng',
     },
     {
@@ -104,7 +104,7 @@ const MOCK_DEALERS: DealerSearchItem[] = [
         region: 'Đà Nẵng',
         assigned_sale_id: 2,
         assigned_sale_name: 'Trần Thị Bình',
-        customer_group: 'Đại lý cấp 1',
+        customer_group: 'dai_ly_cap_1',
         status: 'Đang hoạt động',
     },
     {
@@ -117,7 +117,7 @@ const MOCK_DEALERS: DealerSearchItem[] = [
         region: 'Hải Phòng',
         assigned_sale_id: 3,
         assigned_sale_name: 'Lê Hoàng Nam',
-        customer_group: 'Khách lẻ',
+        customer_group: 'khach_le',
         status: 'Đang hoạt động',
     },
     {
@@ -130,7 +130,7 @@ const MOCK_DEALERS: DealerSearchItem[] = [
         region: 'Cần Thơ',
         assigned_sale_id: 1,
         assigned_sale_name: 'Nguyễn Văn An',
-        customer_group: 'Khách sỉ',
+        customer_group: 'dai_ly_cap_2',
         status: 'Đang hoạt động',
     },
     {
@@ -143,7 +143,7 @@ const MOCK_DEALERS: DealerSearchItem[] = [
         region: 'Hà Nội',
         assigned_sale_id: 2,
         assigned_sale_name: 'Trần Thị Bình',
-        customer_group: 'Đại lý cấp 2',
+        customer_group: 'dai_ly_cap_2',
         status: 'Tạm ngừng',
     },
 ];
@@ -320,7 +320,7 @@ export async function getDealerFilters(
     return {
         regions: uniqueRegions,
         sales: uniqueSales,
-        customer_groups: ['Đại lý cấp 1', 'Đại lý cấp 2', 'Khách sỉ', 'Khách lẻ'],
+        customer_groups: ['dai_ly_cap_1', 'dai_ly_cap_2', 'khach_le'],
         statuses: ['Đang hoạt động', 'Tạm ngừng'],
     };
 }
@@ -379,7 +379,7 @@ export async function createDealer(
         region: payload.region.trim(),
         assigned_sale_id: payload.assigned_sale_id || null,
         assigned_sale_name: payload.assigned_sale_name || null,
-        customer_group: payload.customer_group || 'Đại lý cấp 1',
+        customer_group: payload.customer_group || 'dai_ly_cap_1',
         status: payload.status || 'Đang hoạt động',
     };
 
