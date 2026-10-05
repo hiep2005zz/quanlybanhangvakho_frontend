@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { User, getProductsApi, Product } from '../services/api';
+import { User, getProductsApi, ProductItem } from '../services/api';
 import { emitStatusToast } from './StatusToast';
 
 interface DiscountTier {
@@ -29,11 +29,11 @@ interface DiscountPolicyViewProps {
 
 export default function DiscountPolicyView({ token, user, onBackToHome }: DiscountPolicyViewProps) {
   console.log(token, user);
-    const [products, setProducts] = useState<Product[]>([]);
+    const [products, setProducts] = useState<ProductItem[]>([]);
   React.useEffect(() => {
     let active = true;
     getProductsApi(token).then(res => {
-      if (active) setProducts(res.data);
+      if (active) setProducts(res.items || []);
     }).catch(() => {});
     return () => { active = false; };
   }, [token]);
