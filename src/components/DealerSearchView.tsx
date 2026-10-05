@@ -108,16 +108,31 @@ export default function DealerSearchView({
         tax_id: '',
         address: '',
         region: '',
-        assigned_sale_id: '',
         assigned_sale_name: '',
         customer_group: 'Đại lý cấp 1',
         status: 'Đang hoạt động',
+        credit_limit: 50000000,
+        current_debt: 0,
+        debt_status: 'Còn hạn',
     });
     const [addError, setAddError] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [togglingId, setTogglingId] = useState<number | null>(null);
     const [togglingDebtId, setTogglingDebtId] = useState<number | null>(null);
     const [openDropdownId, setOpenDropdownId] = useState<number | null>(null);
+
+    // Trạng thái cho Modal Xóa đại lý / Cảnh báo công nợ (Thay thế localhost confirm popup)
+    const [deleteModal, setDeleteModal] = useState<{
+        isOpen: boolean;
+        dealer: DealerSearchItem | null;
+        hasDebt: boolean;
+        formattedDebt: string;
+    }>({
+        isOpen: false,
+        dealer: null,
+        hasDebt: false,
+        formattedDebt: '',
+    });
 
     // Trạng thái cho tính năng Chỉnh sửa hồ sơ đại lý
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -400,16 +415,12 @@ export default function DealerSearchView({
             return;
         }
 
-        let defaultSaleId = '';
+        let defaultSaleName = 'Nguyễn Văn A';
         const userRoles = currentUser?.roles && currentUser.roles.length > 0
             ? currentUser.roles
             : (currentUser?.role ? [currentUser.role] : []);
-        // Chỉ tự động chọn nếu người dùng hiện tại có vai trò Nhân viên kinh doanh (sales), Quản lý/Admin/Kế toán không tự gán
-        if (currentUser && userRoles.includes('sales') && !userRoles.includes('accountant') && !userRoles.includes('sales_manager') && !userRoles.includes('admin')) {
-            const matched = sales.find((s) => s.id === currentUser.id || s.name.toLowerCase() === (currentUser.full_name || '').toLowerCase());
-            if (matched) {
-                defaultSaleId = String(matched.id);
-            }
+        if (currentUser && userRoles.includes('sales') && currentUser.full_name) {
+            defaultSaleName = currentUser.full_name;
         }
 
         setAddFormData({
@@ -419,10 +430,12 @@ export default function DealerSearchView({
             tax_id: '',
             address: '',
             region: regions.includes('Hà Nội') ? 'Hà Nội' : (regions[0] || 'Hà Nội'),
-            assigned_sale_id: defaultSaleId || '1',
-            assigned_sale_name: 'Nhân viên bán hàng',
+            assigned_sale_name: defaultSaleName,
             customer_group: customerGroups[0] || 'Đại lý cấp 1',
             status: 'Đang hoạt động',
+            credit_limit: 50000000,
+            current_debt: 0,
+            debt_status: 'Còn hạn',
         });
         setAddError('');
         setIsAddModalOpen(true);
@@ -517,15 +530,12 @@ export default function DealerSearchView({
             return;
         }
 
-        // 7. Ràng buộc điền tên nhân viên phụ trách
+        // 7. Ràng buộc điền người phụ trách
         const trimmedSaleName = addFormData.assigned_sale_name.trim();
         if (!trimmedSaleName) {
-            setAddError('Vui lòng điền tên nhân viên phụ trách đại lý / khách hàng.');
+            setAddError('Vui lòng điền người phụ trách đại lý / khách hàng.');
             return;
         }
-
-        const selectedSale = sales.find((s) => String(s.id) === String(addFormData.assigned_sale_id));
-        const saleId = selectedSale ? selectedSale.id : (addFormData.assigned_sale_id ? Number(addFormData.assigned_sale_id) : 1);
 
         setIsSubmitting(true);
         try {
@@ -536,11 +546,14 @@ export default function DealerSearchView({
                 tax_id: addFormData.tax_id.trim() || undefined,
                 address: trimmedAddress,
                 region: trimmedRegion,
-                assigned_sale_id: saleId,
+                assigned_sale_id: 1,
                 assigned_sale_name: trimmedSaleName,
                 customer_group: addFormData.customer_group || 'Đại lý cấp 1',
                 price_list: getPriceListByCustomerGroup(addFormData.customer_group),
                 status: addFormData.status || 'Đang hoạt động',
+                credit_limit: Number(addFormData.credit_limit) || 50000000,
+                current_debt: Number(addFormData.current_debt) || 0,
+                debt_status: addFormData.debt_status || 'Còn hạn',
             };
 
             const created = await createDealer(payload, token);
@@ -692,8 +705,8 @@ export default function DealerSearchView({
         setIsDetailModalOpen(true);
     };
 
-    // Chức năng Xóa hồ sơ đại lý (Kiểm tra nếu đã phát sinh giao dịch thì chặn)
-    const handleDeleteDealer = async (dealer: DealerSearchItem) => {
+    // Chức năng Xóa hồ sơ đại lý (Mở Custom Modal thay vì window.confirm localhost)
+    const handleDeleteDealer = (dealer: DealerSearchItem) => {
         if (!canAddDealer) {
             emitStatusToast({
                 title: 'Thông báo quyền hạn',
@@ -705,47 +718,28 @@ export default function DealerSearchView({
 
         const currentDebt = dealer.current_debt ?? 0;
         const hasDebt = currentDebt > 0 || formatDebtStatus(dealer.debt_status) === 'Hết hạn';
+        const formattedDebt = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(currentDebt);
 
-        // 1. Nhắc nhở ĐANG CÒN CÔNG NỢ -> KHÔNG ĐƯỢC PHÉP XÓA
-        if (hasDebt) {
-            const formattedDebt = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(currentDebt);
-            emitStatusToast({
-                title: 'Không được phép xóa',
-                message: `Đại lý "${dealer.name}" đang còn công nợ (${formattedDebt}), không được phép xóa! Chỉ được tạm ngừng giao dịch.`,
-                type: 'warning',
-            });
+        setDeleteModal({
+            isOpen: true,
+            dealer,
+            hasDebt,
+            formattedDebt,
+        });
+    };
 
-            const confirmStop = window.confirm(
-                `Đại lý "${dealer.name}" (${dealer.code}) ĐANG CÒN CÔNG NỢ (${formattedDebt}) nên KHÔNG ĐƯỢC PHÉP XÓA theo quy định kế toán.\n\nBạn có muốn chuyển trạng thái đại lý sang "Tạm ngừng" để ngừng giao dịch ngay không?`
-            );
-            if (confirmStop) {
-                const isAlreadyStopped = (dealer.status || '').toLowerCase().includes('ngừng') || (dealer.status || '').toLowerCase().includes('dừng');
-                if (isAlreadyStopped) {
-                    emitStatusToast({
-                        title: 'Trạng thái đại lý',
-                        message: `Đại lý "${dealer.name}" hiện đã ở trạng thái Tạm ngừng.`,
-                        type: 'info',
-                    });
-                } else {
-                    await handleToggleStatus(dealer);
-                }
-            }
-            return;
-        }
-
-        // 2. HẾT NỢ ĐƯỢC XÓA (Dư nợ = 0 VNĐ)
-        const confirmed = window.confirm(
-            `Đại lý "${dealer.name}" (${dealer.code}) ĐÃ HẾT NỢ (dư nợ 0 VNĐ).\n\nBạn có chắc chắn muốn xóa hồ sơ đại lý này khỏi hệ thống không? Hành động này không thể hoàn tác.`
-        );
-        if (!confirmed) return;
+    const handleConfirmDelete = async () => {
+        if (!deleteModal.dealer) return;
+        const target = deleteModal.dealer;
+        setDeleteModal((prev) => ({ ...prev, isOpen: false }));
 
         try {
-            setTogglingId(dealer.id);
-            await deleteDealer(dealer.id, token);
-            setDealers((prev) => prev.filter((d) => d.id !== dealer.id));
+            setTogglingId(target.id);
+            await deleteDealer(target.id, token);
+            setDealers((prev) => prev.filter((d) => d.id !== target.id));
             emitStatusToast({
                 title: 'Thành công',
-                message: `Đã xóa thành công hồ sơ đại lý "${dealer.name}" (đã hết công nợ).`,
+                message: `Đã xóa thành công hồ sơ đại lý "${target.name}" (đã hết công nợ).`,
                 type: 'success',
             });
         } catch (err) {
@@ -756,6 +750,23 @@ export default function DealerSearchView({
             });
         } finally {
             setTogglingId(null);
+        }
+    };
+
+    const handleStopTransaction = async () => {
+        if (!deleteModal.dealer) return;
+        const target = deleteModal.dealer;
+        setDeleteModal((prev) => ({ ...prev, isOpen: false }));
+
+        const isAlreadyStopped = (target.status || '').toLowerCase().includes('ngừng') || (target.status || '').toLowerCase().includes('dừng');
+        if (isAlreadyStopped) {
+            emitStatusToast({
+                title: 'Trạng thái đại lý',
+                message: `Đại lý "${target.name}" hiện đã ở trạng thái Tạm ngừng.`,
+                type: 'info',
+            });
+        } else {
+            await handleToggleStatus(target);
         }
     };
 
@@ -1812,7 +1823,7 @@ export default function DealerSearchView({
 
                                     <div className="dealer-modal-field">
                                         <label>
-                                            Tên nhân viên phụ trách <span className="required">*</span>
+                                            Người phụ trách <span className="required">*</span>
                                         </label>
                                         <input
                                             type="text"
@@ -1823,21 +1834,51 @@ export default function DealerSearchView({
                                         />
                                     </div>
 
-                                    <div className="dealer-modal-field dealer-form-full">
+                                    <div className="dealer-modal-field">
+                                        <label>Hạn mức công nợ (VNĐ)</label>
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            step="1000000"
+                                            value={addFormData.credit_limit}
+                                            onChange={(e) => setAddFormData({ ...addFormData, credit_limit: Number(e.target.value) })}
+                                            placeholder="Ví dụ: 50000000"
+                                        />
+                                    </div>
+
+                                    <div className="dealer-modal-field">
+                                        <label>Số nợ còn (Dư nợ - VNĐ)</label>
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            step="500000"
+                                            value={addFormData.current_debt}
+                                            onChange={(e) => setAddFormData({ ...addFormData, current_debt: Number(e.target.value) })}
+                                            placeholder="Ví dụ: 0"
+                                        />
+                                    </div>
+
+                                    <div className="dealer-modal-field">
+                                        <label>Trạng thái công nợ</label>
+                                        <select
+                                            value={addFormData.debt_status}
+                                            onChange={(e) => setAddFormData({ ...addFormData, debt_status: e.target.value })}
+                                        >
+                                            <option value="Còn hạn">Còn hạn</option>
+                                            <option value="Hết hạn">Hết hạn</option>
+                                        </select>
+                                    </div>
+
+                                    <div className="dealer-modal-field">
                                         <label>
-                                            Chức vụ người phụ trách <span className="required">*</span>
+                                            Trạng thái hoạt động <span className="required">*</span>
                                         </label>
                                         <select
-                                            required
-                                            value={addFormData.assigned_sale_id}
-                                            onChange={(e) => setAddFormData({ ...addFormData, assigned_sale_id: e.target.value })}
+                                            value={addFormData.status}
+                                            onChange={(e) => setAddFormData({ ...addFormData, status: e.target.value })}
                                         >
-                                            <option value="">-- Chọn chức vụ người phụ trách * --</option>
-                                            {sales.map((sale) => (
-                                                <option key={sale.id} value={sale.id}>
-                                                    {formatSaleName(sale.name)}
-                                                </option>
-                                            ))}
+                                            <option value="Đang hoạt động">Đang hoạt động</option>
+                                            <option value="Tạm ngừng">Tạm ngừng</option>
                                         </select>
                                     </div>
 
@@ -2481,6 +2522,130 @@ export default function DealerSearchView({
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal Xóa đại lý / Cảnh báo công nợ (Thay thế popup localhost của trình duyệt) */}
+            {deleteModal.isOpen && deleteModal.dealer && (
+                <div className="dealer-modal-overlay" onClick={() => setDeleteModal({ ...deleteModal, isOpen: false })}>
+                    <div 
+                        className="dealer-modal-box" 
+                        style={{ maxWidth: '520px', borderRadius: '12px' }} 
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="dealer-modal-header" style={{ paddingBottom: '12px', borderBottom: '1px solid #e2e8f0' }}>
+                            <div className="dealer-modal-title-wrap" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                <div style={{
+                                    width: '42px',
+                                    height: '42px',
+                                    borderRadius: '50%',
+                                    backgroundColor: deleteModal.hasDebt ? '#fef3c7' : '#fee2e2',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    fontSize: '22px'
+                                }}>
+                                    {deleteModal.hasDebt ? '⚠️' : '🗑️'}
+                                </div>
+                                <div>
+                                    <h3 style={{ margin: 0, fontSize: '1.2rem', color: deleteModal.hasDebt ? '#b45309' : '#b91c1c' }}>
+                                        {deleteModal.hasDebt ? 'Không được phép xóa đại lý' : 'Xác nhận xóa đại lý'}
+                                    </h3>
+                                    <p style={{ margin: '2px 0 0', fontSize: '0.85rem', color: '#64748b' }}>
+                                        Mã đại lý: <strong>{deleteModal.dealer.code}</strong>
+                                    </p>
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                className="dealer-modal-close-btn"
+                                onClick={() => setDeleteModal({ ...deleteModal, isOpen: false })}
+                                title="Đóng"
+                            >
+                                ✕
+                            </button>
+                        </div>
+
+                        <div className="dealer-modal-body" style={{ padding: '20px 0' }}>
+                            {deleteModal.hasDebt ? (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                                    <div style={{
+                                        backgroundColor: '#fffbeb',
+                                        border: '1px solid #fde68a',
+                                        borderRadius: '8px',
+                                        padding: '12px 16px',
+                                        color: '#92400e',
+                                        fontSize: '0.92rem',
+                                        lineHeight: '1.5'
+                                    }}>
+                                        Đại lý <strong>"{deleteModal.dealer.name}"</strong> ({deleteModal.dealer.code}) 
+                                        đã phát sinh giao dịch trong hệ thống và <strong>ĐANG CÒN CÔNG NỢ ({deleteModal.formattedDebt})</strong> nên 
+                                        <strong style={{ color: '#dc2626' }}> KHÔNG ĐƯỢC PHÉP XÓA</strong> theo quy định kế toán.
+                                    </div>
+
+                                    <p style={{ margin: 0, color: '#334155', fontSize: '0.92rem', lineHeight: '1.5' }}>
+                                        Bạn có muốn <strong>NGỪNG GIAO DỊCH</strong> đại lý này (chuyển trạng thái sang <strong>"Tạm ngừng"</strong>) ngay bây giờ không?
+                                    </p>
+                                </div>
+                            ) : (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                                    <div style={{
+                                        backgroundColor: '#f0fdf4',
+                                        border: '1px solid #bbf7d0',
+                                        borderRadius: '8px',
+                                        padding: '12px 16px',
+                                        color: '#166534',
+                                        fontSize: '0.92rem',
+                                        lineHeight: '1.5'
+                                    }}>
+                                        Đại lý <strong>"{deleteModal.dealer.name}"</strong> ({deleteModal.dealer.code}) 
+                                        <strong> ĐÃ HẾT NỢ</strong> (dư nợ: <strong>0 VNĐ</strong>) và đủ điều kiện xóa khỏi hệ thống.
+                                    </div>
+
+                                    <p style={{ margin: 0, color: '#334155', fontSize: '0.92rem', lineHeight: '1.5' }}>
+                                        Bạn có chắc chắn muốn xóa vĩnh viễn hồ sơ đại lý này khỏi hệ thống không? Hành động này không thể hoàn tác.
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="dealer-modal-footer" style={{ borderTop: '1px solid #e2e8f0', paddingTop: '14px', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                            <button
+                                type="button"
+                                className="dealer-btn-cancel"
+                                onClick={() => setDeleteModal({ ...deleteModal, isOpen: false })}
+                            >
+                                {deleteModal.hasDebt ? 'Đóng' : 'Hủy bỏ'}
+                            </button>
+
+                            {deleteModal.hasDebt ? (
+                                <button
+                                    type="button"
+                                    style={{
+                                        padding: '8px 18px',
+                                        backgroundColor: '#f59e0b',
+                                        color: '#ffffff',
+                                        border: 'none',
+                                        borderRadius: '6px',
+                                        fontWeight: 600,
+                                        cursor: 'pointer',
+                                    }}
+                                    onClick={handleStopTransaction}
+                                >
+                                    Ngừng giao dịch (Tạm ngừng)
+                                </button>
+                            ) : (
+                                <button
+                                    type="button"
+                                    className="dealer-btn-save"
+                                    style={{ backgroundColor: '#dc2626' }}
+                                    onClick={handleConfirmDelete}
+                                >
+                                    Xác nhận xóa đại lý
+                                </button>
+                            )}
+                        </div>
                     </div>
                 </div>
             )}

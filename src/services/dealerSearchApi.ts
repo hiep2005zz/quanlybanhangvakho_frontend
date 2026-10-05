@@ -73,7 +73,7 @@ const MOCK_DEALERS: DealerSearchItem[] = [
         assigned_sale_name: 'Trưởng phòng',
         customer_group: 'Đại lý cấp 2',
         status: 'Đang hoạt động',
-        current_debt: 0,
+        current_debt: 28500000,
         credit_limit: 50000000,
         max_debt_days: 30,
         debt_status: 'Còn hạn',
@@ -107,7 +107,7 @@ const MOCK_DEALERS: DealerSearchItem[] = [
         assigned_sale_name: 'Nhân viên bán hàng',
         customer_group: 'Khách sỉ',
         status: 'Tạm ngừng',
-        current_debt: 15000000,
+        current_debt: 42000000,
         credit_limit: 50000000,
         max_debt_days: 30,
         debt_status: 'Hết hạn',
@@ -369,6 +369,9 @@ export interface CreateDealerPayload {
     customer_group?: string;
     price_list?: string;
     status?: string;
+    credit_limit?: number;
+    current_debt?: number;
+    debt_status?: string;
 }
 
 export async function createDealer(
@@ -415,6 +418,9 @@ export async function createDealer(
         assigned_sale_name: payload.assigned_sale_name || null,
         customer_group: payload.customer_group || 'Đại lý cấp 1',
         status: payload.status || 'Đang hoạt động',
+        credit_limit: payload.credit_limit ?? 50000000,
+        current_debt: payload.current_debt ?? 0,
+        debt_status: payload.debt_status || 'Còn hạn',
     };
 
     MOCK_DEALERS.unshift(newItem);
