@@ -1577,7 +1577,7 @@ export async function createPriceBookApi(token: string, data: PriceBookCreate): 
     method: 'POST',
     body: JSON.stringify(data),
   }, token);
-  
+
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
     throw new Error(errorData.detail || 'Lỗi tạo bảng giá');
@@ -1590,7 +1590,7 @@ export async function updatePriceBookApi(token: string, id: number, data: PriceB
     method: 'PUT',
     body: JSON.stringify(data),
   }, token);
-  
+
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
     throw new Error(errorData.detail || 'Lỗi cập nhật bảng giá (Có thể đã khóa)');

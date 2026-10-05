@@ -16,6 +16,7 @@ import { emitStatusToast } from './StatusToast';
 interface PriceBookManagementViewProps {
   token: string;
   currentUser?: User | null;
+  products?: ProductItem[];
   onBackToHome?: () => void;
   onNavigateToOrders?: () => void;
 }
@@ -23,6 +24,7 @@ interface PriceBookManagementViewProps {
 export function PriceBookManagementView({ 
   token, 
   currentUser, 
+  products: initialProducts,
   onBackToHome,
   onNavigateToOrders,
 }: PriceBookManagementViewProps) {
@@ -40,7 +42,7 @@ export function PriceBookManagementView({
   const isAccountant = userRoles.includes('accountant') && !canManagePriceBooks;
 
   const [priceBooks, setPriceBooks] = useState<PriceBook[]>([]);
-  const [products, setProducts] = useState<ProductItem[]>([]);
+  const [products, setProducts] = useState<ProductItem[]>(initialProducts || []);
   const [loading, setLoading] = useState(true);
   const [cloningId, setCloningId] = useState<number | null>(null);
   
@@ -459,26 +461,57 @@ export function PriceBookManagementView({
           </div>
         </div>
 
-        {canManagePriceBooks && (
-          <button 
-            type="button"
-            onClick={handleOpenCreate}
-            id="btn-add-price-book"
-            style={{ 
-              background: '#2563eb', 
-              color: 'white', 
-              border: 'none', 
-              padding: '10px 20px', 
-              borderRadius: '8px', 
-              cursor: 'pointer', 
-              fontWeight: '700', 
-              fontSize: '13.5px',
-              boxShadow: '0 2px 4px rgba(37, 99, 235, 0.2)'
-            }}
-          >
-            Thêm Bảng giá
-          </button>
-        )}
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+          {onNavigateToOrders && (
+            <button
+              type="button"
+              id="btn-nav-orders"
+              onClick={onNavigateToOrders}
+              style={{
+                background: '#059669',
+                color: '#ffffff',
+                border: 'none',
+                padding: '10px 18px',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontWeight: '700',
+                fontSize: '13.5px',
+                boxShadow: '0 2px 4px rgba(5, 150, 105, 0.25)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}
+              title="Chuyển đến trang Quản lý đơn hàng"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 3h18v18H3z" />
+                <path d="M8 8h8M8 12h8M8 16h4" />
+              </svg>
+              Quản lý đơn hàng
+            </button>
+          )}
+
+          {canManagePriceBooks && (
+            <button 
+              type="button"
+              onClick={handleOpenCreate}
+              id="btn-add-price-book"
+              style={{ 
+                background: '#2563eb', 
+                color: 'white', 
+                border: 'none', 
+                padding: '10px 20px', 
+                borderRadius: '8px', 
+                cursor: 'pointer', 
+                fontWeight: '700', 
+                fontSize: '13.5px',
+                boxShadow: '0 2px 4px rgba(37, 99, 235, 0.2)'
+              }}
+            >
+              Thêm Bảng giá
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Thanh tìm kiếm và bộ lọc */}

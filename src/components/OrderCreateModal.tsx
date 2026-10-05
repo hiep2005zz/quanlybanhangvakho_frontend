@@ -204,9 +204,9 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
         const currentProd = products.find((p) => p.id === pId);
         const fallbackPrice = currentProd?.sell_price || 0;
         setSellPrice(fallbackPrice);
-        setFloorPrice(null);
+        setFloorPrice(fallbackPrice);
         if (groupInfo.label === 'Khách sỉ') {
-          setPriceResolveNote(`Chưa có bảng giá áp dụng cho Khách sỉ`);
+          setPriceResolveNote(`Chưa có bảng giá áp dụng cho Khách sỉ - Áp dụng giá niêm yết: ${fallbackPrice.toLocaleString('vi-VN')} đồng`);
         } else {
           setPriceResolveNote(
             `Chưa có bảng giá áp dụng cho nhóm khách hàng này - Áp dụng giá niêm yết: ${fallbackPrice.toLocaleString('vi-VN')} đồng`
@@ -277,7 +277,7 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
       if (res.status === 'PENDING_APPROVAL' || (res as any).requires_approval) {
         emitStatusToast({
           title: 'Đơn hàng chuyển sang Chờ quản lý duyệt',
-          message: `Đơn ${res.order_code} đã được tạo thành công và chuyển sang trạng thái Chờ quản lý duyệt do đơn giá bán (${sellPrice.toLocaleString('vi-VN')} đồng) thấp hơn giá sàn quy định (${floorPrice?.toLocaleString('vi-VN')} đồng).`,
+          message: `Đơn ${res.order_code} đã được tạo thành công và chuyển sang trạng thái Chờ quản lý duyệt do đơn giá bán (${sellPrice.toLocaleString('vi-VN')} đồng) thấp hơn giá niêm yết / giá sàn quy định (${floorPrice?.toLocaleString('vi-VN')} đồng).`,
         });
       } else {
         emitStatusToast({
@@ -729,7 +729,7 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
                 lineHeight: '1.4',
               }}
             >
-              Đơn giá bán thấp hơn giá sàn quy định. Đơn hàng sẽ được gửi cho Quản lý phê duyệt.
+              Đơn giá bán thấp hơn giá niêm yết / giá sàn quy định. Đơn hàng sẽ được gửi cho Quản lý phê duyệt.
             </div>
           )}
 
@@ -906,7 +906,7 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
               {isSubmitting
                 ? 'Đang lưu đơn hàng...'
                 : isBelowFloorPrice
-                ? 'Gửi duyệt (Dưới giá sàn)'
+                ? 'Gửi duyệt (Dưới giá niêm yết / sàn)'
                 : 'Tạo đơn hàng'}
             </button>
           </div>
