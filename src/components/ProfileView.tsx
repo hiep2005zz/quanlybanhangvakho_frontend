@@ -105,10 +105,10 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
       return;
     }
 
-    // 2. Kiểm tra dung lượng tối đa 10MB cho ảnh gốc trước khi crop
-    const MAX_RAW_SIZE = 10 * 1024 * 1024;
+    // 2. Kiểm tra dung lượng tối đa 2MB cho ảnh trước khi crop
+    const MAX_RAW_SIZE = 2 * 1024 * 1024;
     if (file.size > MAX_RAW_SIZE) {
-      const err = `Dung lượng tệp (${(file.size / (1024 * 1024)).toFixed(1)}MB) vượt quá mức cho phép tối đa 10MB.`;
+      const err = `Dung lượng tệp (${(file.size / (1024 * 1024)).toFixed(1)}MB) vượt quá mức cho phép tối đa 2MB. Chỉ chấp nhận JPG/PNG tối đa 2MB.`;
       setAvatarError(err);
       emitStatusToast({ message: err, title: 'Ảnh đại diện' });
       return;
@@ -468,8 +468,6 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
     }
     return ROLE_TITLE_MAP[r] || r;
   };
-  const rawRoles = profile?.roles && profile.roles.length > 0 ? profile.roles : (currentUser.roles && currentUser.roles.length > 0 ? currentUser.roles : [primaryRole]);
-  const displayRoles: string[] = Array.from(new Set(rawRoles.filter(Boolean)));
   const roleColor = primaryRole === 'customer' && !isBranchAssigned ? '#94a3b8' : (ROLE_COLOR_MAP[primaryRole] || '#64748b');
   const roleTitle = getRoleTitle(primaryRole);
 
@@ -565,7 +563,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                 cursor: uploadingAvatar ? 'wait' : 'pointer',
                 transition: 'transform 0.15s ease, box-shadow 0.15s ease',
               }}
-              title="Nhấn để đổi ảnh đại diện (JPG/PNG tối đa 10MB)"
+              title="Nhấn để đổi ảnh đại diện (Chấp nhận JPG/PNG tối đa 2MB)"
             >
               {pendingAvatarPreview ? (
                 <img
@@ -643,7 +641,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                 transition: 'background-color 0.15s ease',
                 zIndex: 5,
               }}
-              title="Tải lên ảnh đại diện mới"
+              title="Tải lên ảnh đại diện mới (Chấp nhận JPG/PNG tối đa 2MB)"
               aria-label="Tải lên ảnh đại diện"
               onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#1d4ed8')}
               onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#2563eb')}
@@ -675,106 +673,10 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           </div>
 
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-              <h1 style={{ margin: 0, fontSize: '22px', fontWeight: '800', color: '#0f172a', letterSpacing: '-0.02em' }}>
-                {fullNameInput || currentUser.full_name}
-              </h1>
-              <span
-                style={{
-                  fontFamily: 'ui-monospace, monospace',
-                  background: '#f1f5f9',
-                  color: '#475569',
-                  fontSize: '12px',
-                  fontWeight: '600',
-                  padding: '3px 8px',
-                  borderRadius: '6px',
-                  border: '1px solid #e2e8f0',
-                }}
-              >
-                @{currentUser.username}
-              </span>
-              {(profile?.email || currentUser.email) && (
-                <span
-                  style={{
-                    color: '#475569',
-                    fontSize: '12.5px',
-                    fontWeight: '500',
-                    background: '#f8fafc',
-                    padding: '3px 10px',
-                    borderRadius: '6px',
-                    border: '1px solid #e2e8f0',
-                  }}
-                >
-                  {profile?.email || currentUser.email}
-                </span>
-              )}
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px', flexWrap: 'wrap' }}>
-              {displayRoles.map((rCode) => {
-                const c = rCode === 'customer' && !isBranchAssigned ? '#94a3b8' : (ROLE_COLOR_MAP[rCode] || '#64748b');
-                const label = getRoleTitle(rCode);
-                return (
-                  <span
-                    key={rCode}
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      padding: '3px 10px',
-                      borderRadius: '999px',
-                      background: `${c}15`,
-                      color: c,
-                      fontSize: '12px',
-                      fontWeight: '700',
-                      border: `1px solid ${c}30`,
-                    }}
-                  >
-                    {label}
-                  </span>
-                );
-              })}
-
-              <span
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  padding: '3px 10px',
-                  borderRadius: '999px',
-                  background: '#dcfce7',
-                  color: '#15803d',
-                  fontSize: '12px',
-                  fontWeight: '700',
-                  border: '1px solid #86efac',
-                }}
-              >
-                Đang hoạt động
-              </span>
-            </div>
+            <h1 style={{ margin: 0, fontSize: '22px', fontWeight: '800', color: '#0f172a', letterSpacing: '-0.02em' }}>
+              {fullNameInput || currentUser.full_name}
+            </h1>
           </div>
-        </div>
-
-        <div style={{ display: 'flex', gap: '10px' }}>
-          <button
-            type="button"
-            onClick={onBackToHome}
-            style={{
-              padding: '9px 18px',
-              borderRadius: '10px',
-              border: '1px solid #cbd5e1',
-              background: '#ffffff',
-              color: '#334155',
-              fontSize: '13.5px',
-              fontWeight: '600',
-              cursor: 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-              transition: 'all 0.15s ease',
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f8fafc')}
-            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#ffffff')}
-          >
-            Quay lại
-          </button>
         </div>
       </div>
 
@@ -1215,7 +1117,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                   Cắt ảnh vuông đại diện
                 </h3>
                 <p style={{ margin: '4px 0 0', fontSize: '12.5px', color: '#64748b' }}>
-                  Kéo khung vuông hoặc thanh kích thước để chọn vùng ảnh bạn muốn
+                  Chấp nhận JPG/PNG tối đa 2MB. Kéo khung vuông hoặc thanh kích thước để chọn vùng ảnh bạn muốn
                 </p>
               </div>
               <button

@@ -83,6 +83,8 @@ export function CategoryManagementView({ token, onBackToHome }: CategoryManageme
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedNodes, setExpandedNodes] = useState<Set<number>>(new Set());
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
+  const [productFilter, setProductFilter] = useState<'all' | 'unassigned' | 'assigned'>('all');
+  const [productSearch, setProductSearch] = useState('');
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -112,7 +114,7 @@ export function CategoryManagementView({ token, onBackToHome }: CategoryManageme
           return prev;
         });
       } else {
-        const report = await getCategorySalesReportApi(token);
+        const report = await getCategorySalesReportApi(token, reportPeriod);
         setSalesReport(report);
       }
     } catch (err: any) {
@@ -222,13 +224,11 @@ export function CategoryManagementView({ token, onBackToHome }: CategoryManageme
     setIsMoving(true);
     try {
       await moveProductCategoryApi(token, productId, targetCategoryId);
-      emitStatusToast({ message: `Đã chuyển sản phẩm ${product.name} vào nhóm ${categoryName} thành công`, title: 'Thành công' });
+      emitStatusToast({ message: `Đã đưa sản phẩm "${product.name}" vào nhóm "${categoryName}" thành công!`, title: 'Thành công' });
       // Cập nhật ngay lập tức category_id của sản phẩm đó trong state frontend (Optimistic Update)
       setProducts(prev => prev.map(p => p.id === productId ? { ...p, category_id: targetCategoryId, category: categoryName } : p));
       
-      // Automatically select the target category to show the user their product moved there
-      setSelectedCategoryId(targetCategoryId);
-      // Ensure the node is expanded if it has children, though we don't have direct access here easily, it's fine.
+      // Không ép đổi setSelectedCategoryId(targetCategoryId) để giữ nguyên danh sách các sản phẩm còn lại cho người dùng xem và kéo tiếp
     } catch (err: any) {
       emitStatusToast({ message: err.message || 'Lỗi', title: 'Lỗi' });
     } finally {
@@ -268,7 +268,7 @@ export function CategoryManagementView({ token, onBackToHome }: CategoryManageme
       return (
         <React.Fragment key={node.id}>
           <div 
-            onClick={() => setSelectedCategoryId(node.id)}
+            onClick={() => setSelectedCategoryId(prev => prev === node.id ? null : node.id)}
             onDragOver={(e) => handleDragOver(e, color)}
             onDragLeave={(e) => handleDragLeave(e, isSelected, color)}
             onDrop={(e) => handleDrop(e, node.id, node.name, isSelected, color)}
@@ -367,10 +367,21 @@ export function CategoryManagementView({ token, onBackToHome }: CategoryManageme
     });
   };
 
-  // -- Render Right Panel (Products) --
-  const displayedProducts = useMemo(() => {
-    if (!selectedCategoryId) return products;
+  // Kiểm tra sản phẩm đã được phân nhóm vào cây chưa
+  const isProductUnassigned = (p: ProductItem) => {
+    if (!p.category_id) return true;
+    if (!p.category || p.category.trim() === '' || p.category === 'Chưa phân loại') return true;
+    return false;
+  };
 
+  const unassignedCount = useMemo(() => {
+    return products.filter(isProductUnassigned).length;
+  }, [products]);
+
+  const assignedCount = products.length - unassignedCount;
+
+  const selectedCategoryName = useMemo(() => {
+    if (!selectedCategoryId) return null;
     const findCatName = (nodes: CategoryTreeResponse[], id: number): string | null => {
       for (const n of nodes) {
         if (n.id === id) return n.name;
@@ -381,80 +392,243 @@ export function CategoryManagementView({ token, onBackToHome }: CategoryManageme
       }
       return null;
     };
-    
-    const catName = findCatName(treeData, selectedCategoryId);
+    return findCatName(treeData, selectedCategoryId);
+  }, [selectedCategoryId, treeData]);
 
-    return products.filter(p => {
-      if (p.category_id) return p.category_id === selectedCategoryId;
-      if (catName && p.category === catName) return true;
-      return false;
-    });
-  }, [selectedCategoryId, products, treeData]);
+  // -- Render Right Panel (Products) --
+  const displayedProducts = useMemo(() => {
+    let list = products;
+
+    if (selectedCategoryId) {
+      list = list.filter(p => {
+        if (p.category_id) return p.category_id === selectedCategoryId;
+        if (selectedCategoryName && p.category === selectedCategoryName) return true;
+        return false;
+      });
+    } else {
+      if (productFilter === 'unassigned') {
+        list = list.filter(isProductUnassigned);
+      } else if (productFilter === 'assigned') {
+        list = list.filter(p => !isProductUnassigned(p));
+      }
+    }
+
+    if (productSearch.trim()) {
+      const q = productSearch.toLowerCase().trim();
+      list = list.filter(p =>
+        p.name.toLowerCase().includes(q) ||
+        p.code.toLowerCase().includes(q)
+      );
+    }
+
+    return list;
+  }, [products, selectedCategoryId, selectedCategoryName, productFilter, productSearch]);
 
   const renderProductsList = () => {
     return (
-      <div style={{ flex: '1', minWidth: '380px', maxWidth: '500px', background: '#ffffff', borderRadius: '20px', border: '1px solid #e2e8f0', boxShadow: '0 10px 40px -10px rgba(0,0,0,0.08)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        <div style={{ padding: '20px 24px', borderBottom: '1px solid #f1f5f9', background: '#f8fafc' }}>
-          <h3 style={{ margin: '0 0 4px 0', fontSize: '18px', fontWeight: '800', color: '#0f172a' }}>
-            {selectedCategoryId ? 'Sản phẩm trong nhóm' : 'Tất cả sản phẩm'}
-          </h3>
-          <p style={{ margin: 0, fontSize: '13px', color: '#64748b' }}>
-            <strong style={{ color: '#2563eb' }}>Kéo thả thẻ sản phẩm</strong> vào các thẻ ngành hàng bên trái để chuyển đổi nhanh chóng.
+      <div style={{ flex: '1', minWidth: '400px', maxWidth: '520px', background: '#ffffff', borderRadius: '20px', border: '1px solid #e2e8f0', boxShadow: '0 10px 40px -10px rgba(0,0,0,0.08)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        {/* Header */}
+        <div style={{ padding: '20px 24px 16px', borderBottom: '1px solid #f1f5f9', background: '#f8fafc' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+            <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '800', color: '#0f172a' }}>
+              Danh Sách Sản Phẩm
+            </h3>
+            <span style={{ fontSize: '12px', color: '#475569', fontWeight: '700', background: '#e2e8f0', padding: '3px 10px', borderRadius: '12px' }}>
+              {displayedProducts.length} / {products.length} SP
+            </span>
+          </div>
+          <p style={{ margin: '0 0 14px 0', fontSize: '13px', color: '#64748b' }}>
+            <strong style={{ color: '#2563eb' }}>Kéo thả thẻ sản phẩm</strong> vào các nhánh ngành hàng bên trái để phân nhóm.
           </p>
+
+          {/* Quick Filter Tabs */}
+          <div style={{ display: 'flex', gap: '6px', marginBottom: '12px', background: '#e2e8f0', padding: '4px', borderRadius: '12px' }}>
+            <button
+              onClick={() => { setProductFilter('all'); setSelectedCategoryId(null); }}
+              style={{
+                flex: 1, padding: '7px 8px', borderRadius: '8px', border: 'none',
+                background: (!selectedCategoryId && productFilter === 'all') ? '#ffffff' : 'transparent',
+                color: (!selectedCategoryId && productFilter === 'all') ? '#0f172a' : '#64748b',
+                fontWeight: (!selectedCategoryId && productFilter === 'all') ? '700' : '600',
+                fontSize: '12.5px', cursor: 'pointer', transition: 'all 0.15s',
+                boxShadow: (!selectedCategoryId && productFilter === 'all') ? '0 1px 3px rgba(0,0,0,0.08)' : 'none'
+              }}
+            >
+              Tất cả ({products.length})
+            </button>
+            <button
+              onClick={() => { setProductFilter('unassigned'); setSelectedCategoryId(null); }}
+              style={{
+                flex: 1, padding: '7px 8px', borderRadius: '8px', border: 'none',
+                background: (!selectedCategoryId && productFilter === 'unassigned') ? '#fef3c7' : 'transparent',
+                color: (!selectedCategoryId && productFilter === 'unassigned') ? '#b45309' : (unassignedCount > 0 ? '#b45309' : '#64748b'),
+                fontWeight: (!selectedCategoryId && productFilter === 'unassigned') ? '700' : '600',
+                fontSize: '12.5px', cursor: 'pointer', transition: 'all 0.15s',
+                boxShadow: (!selectedCategoryId && productFilter === 'unassigned') ? '0 1px 3px rgba(180,83,9,0.2)' : 'none'
+              }}
+            >
+              Chưa gán ({unassignedCount})
+            </button>
+            <button
+              onClick={() => { setProductFilter('assigned'); setSelectedCategoryId(null); }}
+              style={{
+                flex: 1, padding: '7px 8px', borderRadius: '8px', border: 'none',
+                background: (!selectedCategoryId && productFilter === 'assigned') ? '#ffffff' : 'transparent',
+                color: (!selectedCategoryId && productFilter === 'assigned') ? '#0f172a' : '#64748b',
+                fontWeight: (!selectedCategoryId && productFilter === 'assigned') ? '700' : '600',
+                fontSize: '12.5px', cursor: 'pointer', transition: 'all 0.15s',
+                boxShadow: (!selectedCategoryId && productFilter === 'assigned') ? '0 1px 3px rgba(0,0,0,0.08)' : 'none'
+              }}
+            >
+              Đã gán ({assignedCount})
+            </button>
+          </div>
+
+          {/* Active Tree Category Filter Alert */}
+          {selectedCategoryId && (
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '8px 12px', background: '#eff6ff', borderRadius: '10px',
+              border: '1px solid #bfdbfe', marginBottom: '12px', fontSize: '13px', color: '#1e40af'
+            }}>
+              <div>
+                Đang xem nhóm: <strong>{selectedCategoryName || `ID ${selectedCategoryId}`}</strong>
+              </div>
+              <button
+                onClick={() => setSelectedCategoryId(null)}
+                style={{
+                  background: '#ffffff', border: '1px solid #93c5fd', borderRadius: '6px',
+                  padding: '3px 8px', fontSize: '12px', color: '#1d4ed8', fontWeight: '700',
+                  cursor: 'pointer'
+                }}
+              >
+                ✕ Xem tất cả
+              </button>
+            </div>
+          )}
+
+          {/* Product Search Input */}
+          <div style={{ position: 'relative' }}>
+            <input
+              type="text"
+              placeholder="Tìm theo tên hoặc mã SP..."
+              value={productSearch}
+              onChange={(e) => setProductSearch(e.target.value)}
+              style={{
+                width: '100%', boxSizing: 'border-box', padding: '8px 12px',
+                borderRadius: '10px', border: '1px solid #cbd5e1', fontSize: '13px',
+                outline: 'none', background: '#ffffff', color: '#0f172a'
+              }}
+            />
+            {productSearch && (
+              <button
+                onClick={() => setProductSearch('')}
+                style={{
+                  position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)',
+                  background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '14px'
+                }}
+              >
+                ✕
+              </button>
+            )}
+          </div>
         </div>
         
+        {/* Products List Body */}
         <div style={{ padding: '16px 20px', overflowY: 'auto', flex: 1, maxHeight: 'calc(100vh - 350px)' }}>
           {displayedProducts.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '60px 20px', color: '#94a3b8' }}>
-              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" style={{ margin: '0 auto 16px', display: 'block', opacity: 0.5 }}>
-                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                <line x1="9" y1="3" x2="9" y2="21"></line>
-              </svg>
-              <div style={{ fontSize: '15px', fontWeight: '600', color: '#64748b' }}>Không có sản phẩm nào</div>
-              <div style={{ fontSize: '13px', marginTop: '4px' }}>Chọn một ngành hàng khác hoặc thêm sản phẩm.</div>
+            <div style={{ textAlign: 'center', padding: '50px 20px', color: '#94a3b8' }}>
+              <div style={{ fontSize: '36px', marginBottom: '12px' }}>
+                {productFilter === 'unassigned' ? '🎉' : '📦'}
+              </div>
+              <div style={{ fontSize: '15px', fontWeight: '700', color: '#475569' }}>
+                {productFilter === 'unassigned' 
+                  ? 'Tuyệt vời! Tất cả sản phẩm đã được phân nhóm.' 
+                  : 'Không có sản phẩm nào phù hợp'}
+              </div>
+              {selectedCategoryId && (
+                <button
+                  onClick={() => setSelectedCategoryId(null)}
+                  style={{
+                    marginTop: '12px', padding: '6px 14px', borderRadius: '8px',
+                    border: '1px solid #cbd5e1', background: '#ffffff', color: '#2563eb',
+                    fontWeight: '600', fontSize: '13px', cursor: 'pointer'
+                  }}
+                >
+                  Bỏ chọn nhóm để xem tất cả
+                </button>
+              )}
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {displayedProducts.map(product => (
-                <div
-                  key={product.id}
-                  draggable
-                  onDragStart={(e) => handleDragStart(e, product.id)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '14px',
-                    padding: '14px 16px',
-                    background: '#ffffff',
-                    border: '1px solid #e2e8f0',
-                    borderRadius: '12px',
-                    cursor: 'grab',
-                    transition: 'all 0.2s',
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.02)',
-                    opacity: isMoving ? 0.6 : 1
-                  }}
-                  className="product-drag-card"
-                  title="Kéo thả sản phẩm này"
-                >
-                  <div style={{ cursor: 'grab', color: '#cbd5e1', padding: '4px' }}>
-                    <DragIcon />
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: '14px', fontWeight: '700', color: '#0f172a', marginBottom: '4px' }}>{product.name}</div>
-                    <div style={{ display: 'flex', gap: '12px', fontSize: '12px', color: '#64748b' }}>
-                      <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <span style={{ color: '#94a3b8' }}>Mã:</span> <strong style={{ color: '#334155' }}>{product.code}</strong>
-                      </span>
-                      <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <span style={{ color: '#94a3b8' }}>Kho:</span> <strong style={{ color: '#059669' }}>{product.stock}</strong>
-                      </span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {displayedProducts.map(product => {
+                const unassigned = isProductUnassigned(product);
+                return (
+                  <div
+                    key={product.id}
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, product.id)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px',
+                      padding: '12px 14px',
+                      background: unassigned ? '#fffdf5' : '#ffffff',
+                      border: `1px solid ${unassigned ? '#fde68a' : '#e2e8f0'}`,
+                      borderRadius: '12px',
+                      cursor: 'grab',
+                      transition: 'all 0.2s',
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.02)',
+                      opacity: isMoving ? 0.6 : 1
+                    }}
+                    className="product-drag-card"
+                    title={`Kéo thả sản phẩm này vào ngành hàng bên trái (ID: ${product.id})`}
+                  >
+                    <div style={{ cursor: 'grab', color: unassigned ? '#d97706' : '#94a3b8', padding: '2px' }}>
+                      <DragIcon />
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px', marginBottom: '4px' }}>
+                        <div style={{ fontSize: '14px', fontWeight: '700', color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {product.name}
+                        </div>
+                        {unassigned ? (
+                          <span style={{
+                            fontSize: '11px', fontWeight: '700', color: '#b45309',
+                            background: '#fef3c7', border: '1px solid #fde68a',
+                            padding: '2px 6px', borderRadius: '6px', whiteSpace: 'nowrap'
+                          }}>
+                            Chưa gán
+                          </span>
+                        ) : (
+                          <span style={{
+                            fontSize: '11px', fontWeight: '600', color: '#0369a1',
+                            background: '#e0f2fe', border: '1px solid #bae6fd',
+                            padding: '2px 6px', borderRadius: '6px', whiteSpace: 'nowrap',
+                            maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis'
+                          }}>
+                            📁 {product.category || 'Đã phân nhóm'}
+                          </span>
+                        )}
+                      </div>
+                      <div style={{ display: 'flex', gap: '12px', fontSize: '12px', color: '#64748b' }}>
+                        <span>
+                          <span style={{ color: '#94a3b8' }}>Mã:</span> <strong style={{ color: '#334155' }}>{product.code}</strong>
+                        </span>
+                        <span>
+                          <span style={{ color: '#94a3b8' }}>Kho:</span> <strong style={{ color: '#059669' }}>{product.stock}</strong>
+                        </span>
+                        <span>
+                          <span style={{ color: '#94a3b8' }}>ĐVT:</span> <strong style={{ color: '#475569' }}>{product.base_unit || 'Cái'}</strong>
+                        </span>
+                      </div>
+                    </div>
+                    <div style={{ fontSize: '13.5px', fontWeight: '700', color: '#2563eb', whiteSpace: 'nowrap', textAlign: 'right' }}>
+                      {product.sell_price.toLocaleString('vi-VN')} đ
                     </div>
                   </div>
-                  <div style={{ fontSize: '14px', fontWeight: '700', color: '#2563eb' }}>
-                    {product.sell_price.toLocaleString('vi-VN')} đ
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
