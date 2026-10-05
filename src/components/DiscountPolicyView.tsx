@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { User } from '../services/api';
+import { User, getProductsApi, Product } from '../services/api';
 import { emitStatusToast } from './StatusToast';
 
 interface DiscountTier {
@@ -29,6 +29,15 @@ interface DiscountPolicyViewProps {
 
 export default function DiscountPolicyView({ token, user, onBackToHome }: DiscountPolicyViewProps) {
   console.log(token, user);
+    const [products, setProducts] = useState<Product[]>([]);
+  React.useEffect(() => {
+    let active = true;
+    getProductsApi(token).then(res => {
+      if (active) setProducts(res.data);
+    }).catch(() => {});
+    return () => { active = false; };
+  }, [token]);
+
   const [policies, setPolicies] = useState<DiscountPolicy[]>(() => {
     const saved = localStorage.getItem('discountPolicies');
     if (saved) {
@@ -386,16 +395,20 @@ export default function DiscountPolicyView({ token, user, onBackToHome }: Discou
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '6px' }}>
-                    Tên chính sách *
+                    Sản phẩm áp dụng *
                   </label>
-                  <input
-                    type="text"
+                  <select
                     required
-                    placeholder="VD: Chiết khấu sản lượng"
                     value={formData.title}
                     onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                    style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1' }}
-                  />
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', backgroundColor: 'white' }}
+                  >
+                    <option value="">-- Chọn sản phẩm --</option>
+                    <option value="Tất cả sản phẩm">Tất cả sản phẩm</option>
+                    {products.map(p => (
+                      <option key={p.id} value={`${p.sku} - ${p.name}`}>{p.sku} - {p.name}</option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '6px' }}>
