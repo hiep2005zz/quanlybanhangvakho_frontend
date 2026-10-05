@@ -1,14 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import {
   getOrdersApi,
-  approveOrderApi,
-  rejectOrderApi,
   OrderResponseData,
   User,
   ProductItem,
 } from '../services/api';
-import { emitStatusToast } from './StatusToast';
 import { OrderCreateModal } from './OrderCreateModal';
+import { RejectOrderModal } from './RejectOrderModal';
+import { ApproveOrderModal } from './ApproveOrderModal';
 
 interface OrderManagementViewProps {
   currentUser: User;
@@ -33,8 +32,9 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'PENDING_APPROVAL' | 'CONFIRMED' | 'REJECTED'>('ALL');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [actionProcessingId, setActionProcessingId] = useState<number | string | null>(null);
   const [selectedOrderDetail, setSelectedOrderDetail] = useState<OrderResponseData | null>(null);
+  const [approvingOrder, setApprovingOrder] = useState<OrderResponseData | null>(null);
+  const [rejectingOrder, setRejectingOrder] = useState<OrderResponseData | null>(null);
 
   const rawRoles = currentUser.roles && currentUser.roles.length > 0 ? currentUser.roles : [currentUser.role];
   const isAdmin = currentUser.role === 'admin' || rawRoles.includes('admin');
@@ -57,52 +57,6 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
   useEffect(() => {
     fetchOrders();
   }, [token]);
-
-  const handleApprove = async (order: OrderResponseData) => {
-    if (!window.confirm(`Xác nhận duyệt đơn hàng ${order.order_code}?`)) {
-      return;
-    }
-
-    setActionProcessingId(order.order_code);
-    try {
-      const updated = await approveOrderApi(token, order.order_code);
-      emitStatusToast({
-        title: 'Duyệt đơn thành công',
-        message: `Đơn hàng ${updated.order_code} đã được duyệt và chuyển sang trạng thái Đã xác nhận để xuất kho.`,
-      });
-      await fetchOrders();
-      if (onRefreshProducts) onRefreshProducts();
-    } catch (err: any) {
-      alert(err.message || 'Lỗi khi duyệt đơn hàng');
-    } finally {
-      setActionProcessingId(null);
-    }
-  };
-
-  const handleReject = async (order: OrderResponseData) => {
-    const inputReason = window.prompt(
-      `Nhập lý do từ chối đơn hàng ${order.order_code}:`,
-      'Bán dưới giá sàn không được chấp thuận'
-    );
-    if (inputReason === null) return;
-
-    const reason = inputReason.trim() || 'Bán dưới giá sàn không được chấp thuận';
-
-    setActionProcessingId(order.order_code);
-    try {
-      const updated = await rejectOrderApi(token, order.order_code, reason);
-      emitStatusToast({
-        title: 'Từ chối đơn hàng',
-        message: `Đơn hàng ${updated.order_code} đã bị từ chối phê duyệt.`,
-      });
-      await fetchOrders();
-      if (onRefreshProducts) onRefreshProducts();
-    } catch (err: any) {
-      alert(err.message || 'Lỗi khi từ chối đơn hàng');
-    } finally {
-      setActionProcessingId(null);
-    }
-  };
 
   // Tính toán số liệu thống kê
   const totalOrdersCount = orders.length;
@@ -504,8 +458,8 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                           <>
                             <button
                               type="button"
-                              onClick={() => handleApprove(order)}
-                              disabled={actionProcessingId === order.order_code}
+                              id={`btn-approve-order-${order.order_code}`}
+                              onClick={() => setApprovingOrder(order)}
                               style={{
                                 padding: '5px 12px',
                                 background: '#16a34a',
@@ -514,17 +468,17 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                                 color: '#ffffff',
                                 fontSize: '12px',
                                 fontWeight: '700',
-                                cursor: actionProcessingId === order.order_code ? 'not-allowed' : 'pointer',
+                                cursor: 'pointer',
                               }}
                               title="Phê duyệt đơn hàng bán dưới giá sàn"
                             >
-                              {actionProcessingId === order.order_code ? 'Đang xử lý...' : 'Duyệt đơn'}
+                              Duyệt đơn
                             </button>
 
                             <button
                               type="button"
-                              onClick={() => handleReject(order)}
-                              disabled={actionProcessingId === order.order_code}
+                              id={`btn-reject-order-${order.order_code}`}
+                              onClick={() => setRejectingOrder(order)}
                               style={{
                                 padding: '5px 12px',
                                 background: '#dc2626',
@@ -533,7 +487,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                                 color: '#ffffff',
                                 fontSize: '12px',
                                 fontWeight: '700',
-                                cursor: actionProcessingId === order.order_code ? 'not-allowed' : 'pointer',
+                                cursor: 'pointer',
                               }}
                               title="Từ chối đơn hàng bán dưới giá sàn"
                             >
@@ -687,9 +641,10 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                 <>
                   <button
                     type="button"
-                    onClick={async () => {
-                      await handleApprove(selectedOrderDetail);
+                    onClick={() => {
+                      const order = selectedOrderDetail;
                       setSelectedOrderDetail(null);
+                      setApprovingOrder(order);
                     }}
                     style={{
                       padding: '8px 16px',
@@ -706,9 +661,10 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                   </button>
                   <button
                     type="button"
-                    onClick={async () => {
-                      await handleReject(selectedOrderDetail);
+                    onClick={() => {
+                      const order = selectedOrderDetail;
                       setSelectedOrderDetail(null);
+                      setRejectingOrder(order);
                     }}
                     style={{
                       padding: '8px 16px',
@@ -756,6 +712,36 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
           onClose={() => setIsCreateModalOpen(false)}
           onSuccess={() => {
             setIsCreateModalOpen(false);
+            fetchOrders();
+            if (onRefreshProducts) onRefreshProducts();
+          }}
+        />
+      )}
+
+      {/* Modal Phê Duyệt Đơn Hàng (Không dùng window.confirm) */}
+      {approvingOrder && (
+        <ApproveOrderModal
+          isOpen={Boolean(approvingOrder)}
+          order={approvingOrder}
+          token={token}
+          onClose={() => setApprovingOrder(null)}
+          onSuccess={() => {
+            setApprovingOrder(null);
+            fetchOrders();
+            if (onRefreshProducts) onRefreshProducts();
+          }}
+        />
+      )}
+
+      {/* Modal Từ Chối Đơn Hàng (Không dùng window.prompt) */}
+      {rejectingOrder && (
+        <RejectOrderModal
+          isOpen={Boolean(rejectingOrder)}
+          order={rejectingOrder}
+          token={token}
+          onClose={() => setRejectingOrder(null)}
+          onSuccess={() => {
+            setRejectingOrder(null);
             fetchOrders();
             if (onRefreshProducts) onRefreshProducts();
           }}
