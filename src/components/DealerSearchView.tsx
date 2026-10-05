@@ -61,13 +61,23 @@ const formatDebtStatus = (debtStatus?: string | null): string => {
     return 'Còn hạn';
 };
 
+const normalizeCustomerGroupName = (group?: string | null): string => {
+    if (!group) return 'Đại lý cấp 1';
+    const lower = group.trim().toLowerCase().replace(/_/g, ' ');
+    if (lower.includes('cấp 1') || lower.includes('cap 1')) return 'Đại lý cấp 1';
+    if (lower.includes('cấp 2') || lower.includes('cap 2')) return 'Đại lý cấp 2';
+    if (lower.includes('sỉ') || lower.includes('si')) return 'Khách sỉ';
+    if (lower.includes('lẻ') || lower.includes('le') || lower.includes('retail')) return 'Khách lẻ';
+    return group.trim();
+};
+
 const getPriceListByCustomerGroup = (group?: string | null): string => {
-    const g = (group || '').trim().toLowerCase();
-    if (g.includes('cấp 1') || g.includes('cap 1')) return 'Bảng giá đại lý cấp 1';
-    if (g.includes('cấp 2') || g.includes('cap 2')) return 'Bảng giá đại lý cấp 2';
-    if (g.includes('sỉ') || g.includes('si')) return 'Bảng giá khách sỉ';
-    if (g.includes('lẻ') || g.includes('le')) return 'Bảng giá khách lẻ';
-    return group ? `Bảng giá ${group}` : 'Bảng giá đại lý cấp 1';
+    const normalized = normalizeCustomerGroupName(group);
+    if (normalized === 'Đại lý cấp 1') return 'Bảng giá đại lý cấp 1';
+    if (normalized === 'Đại lý cấp 2') return 'Bảng giá đại lý cấp 2';
+    if (normalized === 'Khách sỉ') return 'Bảng giá khách sỉ';
+    if (normalized === 'Khách lẻ') return 'Bảng giá khách lẻ';
+    return `Bảng giá ${normalized}`;
 };
 
 export interface DealerSearchViewProps {
@@ -878,22 +888,21 @@ export default function DealerSearchView({
             setSales(standardizedSales);
 
             if (data.customer_groups && data.customer_groups.length > 0) {
+                const validStandardGroups = ['Đại lý cấp 1', 'Đại lý cấp 2', 'Khách sỉ', 'Khách lẻ'];
                 const cleanedGroups = Array.from(
                     new Set(
                         data.customer_groups
-                            .map((g) => {
-                                const trim = (g || '').trim();
-                                if (trim.toLowerCase() === 'dai ly cap 1' || trim.toLowerCase() === 'dai ly 1') return 'Đại lý cấp 1';
-                                if (trim.toLowerCase() === 'dai ly cap 2' || trim.toLowerCase() === 'dai ly 2') return 'Đại lý cấp 2';
-                                return trim;
-                            })
-                            .filter(Boolean)
+                            .map((g) => normalizeCustomerGroupName(g))
+                            .filter((g) => g && !g.includes('_') && g !== 'khach_le' && g !== 'khach_si')
                     )
                 );
-                DEFAULT_CUSTOMER_GROUPS.forEach((dg) => {
+                validStandardGroups.forEach((dg) => {
                     if (!cleanedGroups.includes(dg)) cleanedGroups.push(dg);
                 });
-                setCustomerGroups(cleanedGroups);
+                const finalGroups = cleanedGroups.filter((g) => validStandardGroups.includes(g) || !g.includes('_'));
+                setCustomerGroups(finalGroups.length > 0 ? finalGroups : validStandardGroups);
+            } else {
+                setCustomerGroups(DEFAULT_CUSTOMER_GROUPS);
             }
 
             if (data.statuses && data.statuses.length > 0) {
@@ -1055,7 +1064,7 @@ export default function DealerSearchView({
                         )}
                         <div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                                <h2>Quản lý và tra cứu đại lý</h2>
+                                <h2>Tra cứu đại lý và khách hàng</h2>
                                 <span className="dealer-standard-badge">Danh sách khách hàng chuẩn hóa</span>
                             </div>
                             <p>
@@ -1090,11 +1099,11 @@ export default function DealerSearchView({
                             disabled={!canAddDealer}
                             title={
                                 canAddDealer
-                                    ? 'Thêm mới hồ sơ đại lý vào hệ thống chuẩn'
+                                    ? 'Thêm đại lý hoặc khách hàng mới vào hệ thống chuẩn'
                                     : 'Bạn không có quyền thực hiện chức năng này'
                             }
                         >
-                            <span>Thêm hồ sơ đại lý</span>
+                            <span>Thêm đại lý hoặc khách hàng mới</span>
                         </button>
                     </div>
                 </div>
@@ -1159,11 +1168,14 @@ export default function DealerSearchView({
                         }}
                     >
                         <option value="">Tất cả nhóm</option>
-                        {customerGroups.map((group) => (
-                            <option key={group} value={group}>
-                                {group}
-                            </option>
-                        ))}
+                        {customerGroups.map((group) => {
+                            const normalized = normalizeCustomerGroupName(group);
+                            return (
+                                <option key={normalized} value={normalized}>
+                                    {normalized}
+                                </option>
+                            );
+                        })}
                     </select>
                 </div>
 
@@ -1319,7 +1331,7 @@ export default function DealerSearchView({
                                                 <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginTop: '4px', flexWrap: 'wrap' }}>
                                                     {dealer.customer_group && (
                                                         <span className="dealer-group-tag">
-                                                            {dealer.customer_group}
+                                                            {normalizeCustomerGroupName(dealer.customer_group)}
                                                         </span>
                                                     )}
                                                     <span className="dealer-group-tag" style={{ background: '#f0f9ff', color: '#0369a1', borderColor: '#bae6fd' }} title="Bảng giá áp dụng (quyết định theo nhóm khách hàng)">
@@ -1596,7 +1608,7 @@ export default function DealerSearchView({
                                     {dealer.customer_group && (
                                         <div className="dealer-card-meta">
                                             <span className="meta-label">Nhóm:</span>
-                                            <span className="dealer-group-tag">{dealer.customer_group}</span>
+                                            <span className="dealer-group-tag">{normalizeCustomerGroupName(dealer.customer_group)}</span>
                                         </div>
                                     )}
 
@@ -1714,7 +1726,7 @@ export default function DealerSearchView({
                         <div className="dealer-modal-header">
                             <div className="dealer-modal-title-wrap">
                                 <div>
-                                    <h3>Thêm hồ sơ đại lý mới</h3>
+                                    <h3>Thêm đại lý hoặc khách hàng mới</h3>
                                     <p>Nhập thông tin đại lý hoặc khách hàng để đưa vào danh sách chuẩn hóa toàn hệ thống</p>
                                 </div>
                             </div>
@@ -1745,11 +1757,14 @@ export default function DealerSearchView({
                                             value={addFormData.customer_group}
                                             onChange={(e) => setAddFormData({ ...addFormData, customer_group: e.target.value })}
                                         >
-                                            {customerGroups.map((group) => (
-                                                <option key={group} value={group}>
-                                                    {group}
-                                                </option>
-                                            ))}
+                                            {customerGroups.map((group) => {
+                                                const normalized = normalizeCustomerGroupName(group);
+                                                return (
+                                                    <option key={normalized} value={normalized}>
+                                                        {normalized}
+                                                    </option>
+                                                );
+                                            })}
                                         </select>
                                     </div>
 
@@ -1947,7 +1962,7 @@ export default function DealerSearchView({
                                     className="dealer-btn-save"
                                     disabled={isSubmitting}
                                 >
-                                    {isSubmitting ? 'Đang lưu...' : 'Lưu hồ sơ đại lý'}
+                                    {isSubmitting ? 'Đang lưu...' : 'Lưu đại lý / khách hàng'}
                                 </button>
                             </div>
                         </form>
@@ -1991,11 +2006,14 @@ export default function DealerSearchView({
                                             value={editFormData.customer_group}
                                             onChange={(e) => setEditFormData({ ...editFormData, customer_group: e.target.value })}
                                         >
-                                            {customerGroups.map((group) => (
-                                                <option key={group} value={group}>
-                                                    {group}
-                                                </option>
-                                            ))}
+                                            {customerGroups.map((group) => {
+                                                const normalized = normalizeCustomerGroupName(group);
+                                                return (
+                                                    <option key={normalized} value={normalized}>
+                                                        {normalized}
+                                                    </option>
+                                                );
+                                            })}
                                         </select>
                                     </div>
 

@@ -371,7 +371,21 @@ export async function getDealerFilters(
         );
 
         if (response.ok) {
-            return await response.json();
+            const data = await response.json();
+            if (data && data.customer_groups && Array.isArray(data.customer_groups)) {
+                const normalized = (data.customer_groups as any[]).map((raw) => {
+                    const g = String(raw || '');
+                    if (!g) return 'Đại lý cấp 1';
+                    const lower = g.trim().toLowerCase().replace(/_/g, ' ');
+                    if (lower.includes('cấp 1') || lower.includes('cap 1')) return 'Đại lý cấp 1';
+                    if (lower.includes('cấp 2') || lower.includes('cap 2')) return 'Đại lý cấp 2';
+                    if (lower.includes('sỉ') || lower.includes('si')) return 'Khách sỉ';
+                    if (lower.includes('lẻ') || lower.includes('le') || lower.includes('retail')) return 'Khách lẻ';
+                    return g.trim();
+                });
+                data.customer_groups = Array.from(new Set(normalized)).filter((g) => !g.includes('_') && g !== 'khach_le' && g !== 'khach_si');
+            }
+            return data;
         }
     } catch {
         // Backend không khả dụng
