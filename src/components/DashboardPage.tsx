@@ -256,6 +256,22 @@ const tabParam = params.get('tab') || params.get('view');
       } catch {
         // ignore
       }
+    } else if (tab === 'discounts') {
+      if (!canAccessDiscounts) {
+        setActiveTabState('inventory');
+        try {
+          window.history.replaceState({}, '', '/');
+        } catch {
+          // ignore
+        }
+        return;
+      }
+      setActiveTabState('discounts');
+      try {
+        window.history.pushState({}, '', '/discounts');
+      } catch {
+        // ignore
+      }
     } else {
       setActiveTabState('inventory');
       window.history.replaceState({}, '', '/');
