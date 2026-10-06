@@ -13,7 +13,8 @@ export type TabType =
   | 'dealers'
   | 'price-books'
   | 'delivery-points'
-  | 'product-history';
+  | 'product-history'
+  | 'discounts';
 
 export interface SidebarProps {
   activeTab?: TabType;
@@ -26,6 +27,7 @@ export interface SidebarProps {
   canAccessPriceBooks?: boolean;
   canManageCategories?: boolean;
   canViewProductHistory?: boolean;
+  canAccessDiscounts?: boolean;
   isAdmin?: boolean;
   onLogout?: () => void;
   isLoggingOut?: boolean;
@@ -51,6 +53,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   canAccessPriceBooks = false,
   canManageCategories = false,
   canViewProductHistory = false,
+  canAccessDiscounts = false,
   onLogout,
   isLoggingOut = false,
 }) => {
@@ -165,6 +168,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
       icon: (
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
+        </svg>
+      ),
+    },
+    {
+      id: 'btn-sidebar-discounts',
+      tab: 'discounts',
+      path: '/discounts',
+      label: 'Chính sách chiết khấu',
+      visible: canAccessDiscounts,
+      icon: (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <line x1="19" y1="5" x2="5" y2="19" />
+          <circle cx="6.5" cy="6.5" r="2.5" />
+          <circle cx="17.5" cy="17.5" r="2.5" />
         </svg>
       ),
     },
