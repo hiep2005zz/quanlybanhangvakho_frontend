@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   getOrdersApi,
   getOrderDetailApi,
@@ -530,34 +531,52 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
       </div>
 
       {/* Modal Xem Chi Tiết Đơn Hàng */}
-      {selectedOrderDetail && (
+      {selectedOrderDetail && createPortal(
         <div
           style={{
             position: 'fixed',
             inset: 0,
-            background: 'rgba(15, 23, 42, 0.6)',
+            background: 'rgba(15, 23, 42, 0.65)',
             backdropFilter: 'blur(4px)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             zIndex: 99999,
             padding: '16px',
+            boxSizing: 'border-box',
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setSelectedOrderDetail(null);
           }}
         >
           <div
             style={{
               background: '#ffffff',
               borderRadius: '16px',
-              padding: '24px',
-              maxWidth: '720px',
+              maxWidth: '740px',
               width: '100%',
-              maxHeight: '90vh',
-              overflowY: 'auto',
-              boxShadow: '0 20px 40px rgba(0,0,0,0.2)',
+              maxHeight: 'calc(100vh - 32px)',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
               border: '1px solid #e2e8f0',
+              boxSizing: 'border-box',
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden',
             }}
+            onClick={(e) => e.stopPropagation()}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            {/* Header Modal Cố Định */}
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '20px 24px 16px 24px',
+                borderBottom: '1px solid #f1f5f9',
+                flexShrink: 0,
+                background: '#ffffff',
+              }}
+            >
               <div>
                 <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '800', color: '#0f172a' }}>
                   Chi Tiết Đơn Hàng #{selectedOrderDetail.order_code}
@@ -572,18 +591,32 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                 style={{
                   background: 'transparent',
                   border: 'none',
-                  fontSize: '20px',
+                  fontSize: '22px',
                   color: '#94a3b8',
                   cursor: 'pointer',
                   padding: '4px',
                   lineHeight: 1,
                   borderRadius: '6px',
+                  flexShrink: 0,
                 }}
                 title="Đóng"
               >
                 ✕
               </button>
             </div>
+
+            {/* Thân Modal Cuộn Mượt Mà */}
+            <div
+              style={{
+                flex: 1,
+                overflowY: 'auto',
+                padding: '20px 24px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '16px',
+              }}
+            >
+
 
             {selectedOrderDetail.approval_reason && (
               <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '8px', padding: '12px 14px', marginBottom: '16px', fontSize: '13px', color: '#b45309' }}>
@@ -718,7 +751,21 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
               );
             })()}
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '8px' }}>
+            </div>
+
+            {/* Footer Modal Cố Định ở Đáy */}
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '14px 24px',
+                borderTop: '1px solid #e2e8f0',
+                background: '#f8fafc',
+                flexShrink: 0,
+                boxShadow: '0 -2px 10px rgba(0, 0, 0, 0.03)',
+              }}
+            >
               <div style={{ fontSize: '13px', color: '#64748b' }}>
                 Trạng thái:{' '}
                 <strong
@@ -792,7 +839,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                   type="button"
                   onClick={() => setSelectedOrderDetail(null)}
                   style={{
-                    padding: '8px 16px',
+                    padding: '8px 18px',
                     background: '#f1f5f9',
                     border: '1px solid #cbd5e1',
                     borderRadius: '8px',
@@ -807,7 +854,8 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Modal Tạo Đơn Hàng */}

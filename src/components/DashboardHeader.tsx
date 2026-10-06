@@ -48,7 +48,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
         padding: '0 20px',
         boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
         position: 'relative',
-        zIndex: 1000,
+        zIndex: 40,
         flexShrink: 0,
         width: '100%',
       }}
