@@ -17,6 +17,7 @@ import { ProfileView } from './ProfileView';
 import DiscountPolicyView from './DiscountPolicyView';
 import { ProductBulkImportModal } from './ProductBulkImportModal';
 import DealerSearchView from './DealerSearchView';
+import DealerProfileManagementView from './DealerProfileManagementView';
 import DeliveryPointsView from './DeliveryPointsView';
 import { ProductUnitModal } from './ProductUnitModal';
 import { StockActionModal } from './StockActionModal';
@@ -79,6 +80,14 @@ export default function DashboardPage({
   // Quyền tra cứu đại lý: Nhân viên kinh doanh (sales), Quản lý kinh doanh (sales_manager), Quản trị viên (admin), Kế toán (accountant)
   const DEALER_ROLES = ['admin', 'sales_manager', 'sales', 'accountant'];
   const canViewDealers = officialRoles.some((r) => DEALER_ROLES.includes(r));
+  // Quyền quản lý hồ sơ đại lý: Kế toán công nợ (accountant), Quản lý kinh doanh (sales_manager), Quản trị viên (admin), Nhân viên kinh doanh (sales)
+  const canManageDealerProfiles = Boolean(
+    isAdmin ||
+    isSalesManager ||
+    isAccountant ||
+    user.role === 'sales' ||
+    officialRoles.some((r) => DEALER_ROLES.includes(r))
+  );
 
   // Quyền quản lý điểm giao hàng: Chỉ hiển thị với 3 vai trò admin, sales, sales_manager
   const DELIVERY_ROLES = ['admin', 'sales_manager', 'sales'];
@@ -109,6 +118,7 @@ export default function DashboardPage({
     const isOrdersPath = pathname === '/orders' || pathname.startsWith('/orders/');
     const isProfilePath = pathname === '/profile' || pathname.startsWith('/profile/');
     const isDiscountsPath = pathname === '/discounts' || pathname.startsWith('/discounts/');
+    const isDealerProfilesPath = pathname === '/dealer-profiles' || pathname.startsWith('/dealer-profiles/');
     const isDealersPath = pathname === '/dealers' || pathname.startsWith('/dealers/');
     const isDeliveryPointsPath = pathname === '/delivery-points' || pathname.startsWith('/delivery-points/');
     const isProductHistoryPath = pathname === '/product-history' || pathname.startsWith('/product-history/');
@@ -155,6 +165,12 @@ export default function DashboardPage({
         }
       }
       return 'delivery-points';
+    }
+    if (isDealerProfilesPath || oldTabVal === 'dealer-profiles') {
+      if (hasOldTabParam || pathname !== '/dealer-profiles') {
+        try { window.history.replaceState({}, '', '/dealer-profiles'); } catch {}
+      }
+      return 'dealer-profiles';
     }
     if (isDealersPath || oldTabVal === 'dealers') {
       if (hasOldTabParam || pathname !== '/dealers') {
@@ -385,6 +401,12 @@ export default function DashboardPage({
       setActiveTabState('inventory');
       window.history.replaceState({}, '', '/');
     }
+    if (activeTab === 'dealer-profiles' && !canManageDealerProfiles) {
+      setActiveTabState('inventory');
+      try {
+        window.history.replaceState({}, '', '/');
+      } catch {}
+    }
     if (activeTab === 'dealers' && !canViewDealers) {
       setActiveTabState('inventory');
       try {
@@ -401,7 +423,7 @@ export default function DashboardPage({
         // ignore
       }
     }
-  }, [activeTab, canManageCategories, canViewDealers, canManageDeliveryPoints, canAccessDiscounts, user.username]);
+  }, [activeTab, canManageCategories, canViewDealers, canManageDealerProfiles, canManageDeliveryPoints, canAccessDiscounts, user.username]);
 
   useEffect(() => {
     const syncFromUrl = () => {
@@ -476,6 +498,16 @@ export default function DashboardPage({
         return;
       }
 
+      const isDealerProfilesPath = pathname === '/dealer-profiles' || pathname.startsWith('/dealer-profiles/');
+      if (isDealerProfilesPath || tabParam === 'dealer-profiles') {
+        if (pathname !== '/dealer-profiles' || tabParam) {
+          try {
+            window.history.replaceState({}, '', '/dealer-profiles');
+          } catch {}
+        }
+        setActiveTabState('dealer-profiles');
+        return;
+      }
       const isDealersPath = pathname === '/dealers' || pathname.startsWith('/dealers/');
       if (isDealersPath || tabParam === 'dealers') {
         if (pathname !== '/dealers' || tabParam) {
@@ -715,6 +747,7 @@ export default function DashboardPage({
           canCreateOrders={canCreateOrders}
           canReadOrders={canReadOrders}
           canViewDealers={canViewDealers}
+          canManageDealerProfiles={canManageDealerProfiles}
           canManageDeliveryPoints={canManageDeliveryPoints}
           canManageSuppliers={canManageSuppliers}
           canAccessPriceBooks={canAccessPriceBooks}
@@ -969,6 +1002,51 @@ export default function DashboardPage({
                 </button>
 
                 {/* Tra cứu đại lý - Không hiển thị ở popover cho Admin (đã có ở menu mở rộng) */}
+                {canManageDealerProfiles && !isAdmin && (
+                  <button
+                    onClick={() => {
+                      setIsUserMenuOpen(false);
+                      setActiveTab('dealer-profiles');
+                    }}
+                    id="btn-popover-dealer-profiles"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px',
+                      width: '100%',
+                      padding: '10px 14px',
+                      borderRadius: '10px',
+                      background: activeTab === 'dealer-profiles' ? '#eff6ff' : '#f8fafc',
+                      border: activeTab === 'dealer-profiles' ? '1px solid #bfdbfe' : '1px solid #e2e8f0',
+                      color: activeTab === 'dealer-profiles' ? '#1d4ed8' : '#1e293b',
+                      fontSize: '13.5px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      transition: 'all 0.18s ease',
+                      boxShadow: 'none',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = '#eff6ff';
+                      e.currentTarget.style.borderColor = '#93c5fd';
+                      e.currentTarget.style.color = '#1d4ed8';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = activeTab === 'dealer-profiles' ? '#eff6ff' : '#f8fafc';
+                      e.currentTarget.style.borderColor = activeTab === 'dealer-profiles' ? '#bfdbfe' : '#e2e8f0';
+                      e.currentTarget.style.color = activeTab === 'dealer-profiles' ? '#1d4ed8' : '#1e293b';
+                    }}
+                  >
+                    <div style={{ color: activeTab === 'dealer-profiles' ? '#2563eb' : '#64748b', display: 'flex' }}>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                        <circle cx="9" cy="7" r="4" />
+                        <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                      </svg>
+                    </div>
+                    <span>Quản lý hồ sơ đại lý</span>
+                  </button>
+                )}
                 {canViewDealers && !isAdmin && (
                   <button
                     onClick={() => {
@@ -1378,6 +1456,21 @@ export default function DashboardPage({
           <AccessDeniedView
             currentUser={user}
             requiredPermission="Quản lý nhà cung cấp (Thủ kho / Quản lý kho / Quản trị)"
+            onBackToWorkflow={() => setActiveTab('inventory')}
+            onLogout={onLogout}
+          />
+        )
+      ) : activeTab === 'dealer-profiles' ? (
+        canManageDealerProfiles ? (
+          <DealerProfileManagementView
+            currentUser={user}
+            token={token}
+            onBackToHome={() => setActiveTab('inventory')}
+          />
+        ) : (
+          <AccessDeniedView
+            currentUser={user}
+            requiredPermission="Quản lý hồ sơ đại lý (Kế toán công nợ / Quản lý kinh doanh / Quản trị viên)"
             onBackToWorkflow={() => setActiveTab('inventory')}
             onLogout={onLogout}
           />
