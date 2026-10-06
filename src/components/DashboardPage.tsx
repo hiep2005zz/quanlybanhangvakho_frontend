@@ -9,17 +9,26 @@ import MoveCategoryModal from './MoveCategoryModal';
 import { StatusToastHost, emitStatusToast } from './StatusToast';
 import { AccessDeniedView } from './AccessDeniedView';
 import SupplierManagementView from './SupplierManagementView';
+import { PriceBookManagementView } from './PriceBookManagementView';
 import { AuditLogView } from './AuditLogView';
 import { ProductAuditDrawer } from './ProductAuditDrawer';
+<<<<<<< HEAD
 import { ProductDrawer } from './ProductDrawer';
+=======
+>>>>>>> 0301d8d197dd010b305df463ab0b23960ba4226b
 import { PriceUpdateModal } from './PriceUpdateModal';
 import { ProfileView } from './ProfileView';
 import { ProductBulkImportModal } from './ProductBulkImportModal';
 import DealerSearchView from './DealerSearchView';
+import DeliveryPointsView from './DeliveryPointsView';
 import { ProductUnitModal } from './ProductUnitModal';
 import { StockActionModal } from './StockActionModal';
-import { OrderCreateModal } from './OrderCreateModal';
+import { OrderManagementView } from './OrderManagementView';
+import SalesOrderEntry from './SalesOrderEntry';
+import { ProductHistoryView } from './ProductHistoryView';
+
 import './dashboard.css';
+import { hasPermission, Permissions } from '../hooks/usePermission';
 
 interface DashboardProps {
   user: User;
@@ -46,6 +55,9 @@ export default function DashboardPage({
     officialRoles.length === 0 &&
     (!user.branch || user.branch === 'Chưa phân công');
   const isAdmin = user.role === 'admin' || Boolean(user.roles && user.roles.includes('admin'));
+  const canReadOrders = hasPermission(user, Permissions.ORDER_READ) || user.role === 'sales' || Boolean(user.roles && user.roles.includes('sales'));
+  const canCreateOrders = hasPermission(user, Permissions.ORDER_WRITE) || user.role === 'sales' || Boolean(user.roles && user.roles.includes('sales'));
+
 
   // Quyền quản lý nhà cung cấp
   const SUPPLIER_ROLES = ['admin', 'warehouse', 'warehouse_manager'];
@@ -53,7 +65,9 @@ export default function DashboardPage({
 
   // Quyền quản lý ngành hàng
   const isSalesManager = user.role === 'sales_manager' || Boolean(user.roles && user.roles.includes('sales_manager'));
+  const isAccountant = user.role === 'accountant' || Boolean(user.roles && user.roles.includes('accountant'));
   const canManageCategories = isAdmin || isSalesManager;
+<<<<<<< HEAD
 
   // Quyền Quản lý sản phẩm (Khai báo, thêm mới, sửa sản phẩm: Chỉ Admin và Quản lý)
   const isManager = officialRoles.some((r) => ['admin', 'sales_manager', 'warehouse_manager'].includes(r));
@@ -62,6 +76,21 @@ export default function DashboardPage({
   // Quyền tra cứu đại lý: Nhân viên kinh doanh (sales), Quản lý kinh doanh (sales_manager), Quản trị viên (admin)
   const DEALER_ROLES = ['admin', 'sales_manager', 'sales'];
   const canViewDealers = officialRoles.some((r) => DEALER_ROLES.includes(r));
+=======
+  const canAccessPriceBooks = isAdmin || isSalesManager || isAccountant;
+  // Quyền tra cứu đại lý: Nhân viên kinh doanh (sales), Quản lý kinh doanh (sales_manager), Quản trị viên (admin), Kế toán (accountant)
+  const DEALER_ROLES = ['admin', 'sales_manager', 'sales', 'accountant'];
+  const canViewDealers = officialRoles.some((r) => DEALER_ROLES.includes(r));
+
+  // Quyền quản lý điểm giao hàng: Chỉ hiển thị với 3 vai trò admin, sales, sales_manager
+  const DELIVERY_ROLES = ['admin', 'sales_manager', 'sales'];
+  const canManageDeliveryPoints = Boolean(
+    isAdmin ||
+    isSalesManager ||
+    user.role === 'sales' ||
+    officialRoles.some((r) => DELIVERY_ROLES.includes(r))
+  );
+>>>>>>> 0301d8d197dd010b305df463ab0b23960ba4226b
 
   // Quyền thao tác kho (Nhập/xuất/sửa kho: Admin, Quản lý kho, Thủ kho)
   const canWriteInventory = user.can_write_inventory ?? (isAdmin || officialRoles.some((r) => ['admin', 'warehouse', 'warehouse_manager'].includes(r)));
@@ -69,22 +98,70 @@ export default function DashboardPage({
   // Quyền Cấu hình ĐVT quy đổi (Chỉ Quản trị hệ thống và Quản lý kho)
   const canConfigUnit = isAdmin || officialRoles.some((r) => ['admin', 'warehouse_manager'].includes(r));
 
+<<<<<<< HEAD
   // 2. Khởi tạo State với Clean URL (/users, /audit-logs, /categories, /suppliers, /profile, /dealers)
   const [activeTab, setActiveTabState] = useState<'inventory' | 'users' | 'categories' | 'audit-logs' | 'profile' | 'suppliers' | 'dealers'>(() => {
+=======
+
+  // Quyền thao tác các nút trên dòng sản phẩm (Cấu hình ĐVT, Nhập/Xuất kho)
+  const canPerformProductAction = Boolean(canConfigUnit || canWriteInventory);
+
+  // Quản lý sản phẩm được chọn để xem lịch sử (/product-history)
+  const [historyProductTarget, setHistoryProductTarget] = useState<{ code: string; name: string } | null>(() => {
+    const params = new URLSearchParams(window.location.search);
+    const c = params.get('code') || params.get('productCode') || '';
+    return c ? { code: c, name: '' } : null;
+  });
+
+  // 2. Khởi tạo State với Clean URL (/users, /audit-logs, /categories, /suppliers, /profile, /dealers, /orders, /delivery-points, /price-books, /product-history)
+  const [activeTab, setActiveTabState] = useState<'inventory' | 'orders' | 'create-order' | 'users' | 'categories' | 'audit-logs' | 'profile' | 'suppliers' | 'dealers' | 'price-books' | 'delivery-points' | 'product-history'>(() => {
+>>>>>>> 0301d8d197dd010b305df463ab0b23960ba4226b
     const pathname = window.location.pathname.toLowerCase();
+    const isProductHistoryPath = pathname === '/product-history' || pathname.startsWith('/product-history/');
+    const isCreateOrderPath = pathname === '/create-order' || pathname.startsWith('/create-order/');
+    const isPriceBooksPath = pathname === '/price-books';
     const isUsersPath = pathname === '/users' || pathname.startsWith('/users/') || pathname === '/admin' || pathname.startsWith('/admin/');
     const isCategoriesPath = pathname === '/categories';
     const isAuditPath = pathname === '/audit-logs' || pathname.startsWith('/audit-logs/');
+    const isOrdersPath = pathname === '/orders' || pathname.startsWith('/orders/');
     const isProfilePath = pathname === '/profile' || pathname.startsWith('/profile/');
     const isDealersPath = pathname === '/dealers' || pathname.startsWith('/dealers/');
+    const isDeliveryPointsPath = pathname === '/delivery-points' || pathname.startsWith('/delivery-points/');
 
-    // Dọn sạch tàn dư query parameter cũ (?tab=users, ?tab=audit-logs, ?tab=profile, ?tab=dealers)
+    // Dọn sạch tàn dư query parameter cũ (?tab=users, ?tab=audit-logs, ?tab=profile, ?tab=dealers, ?tab=orders, ?tab=delivery-points)
     const params = new URLSearchParams(window.location.search);
     const hasOldTabParam = params.has('tab') || params.has('view');
     const oldTabVal = (params.get('tab') || params.get('view') || '').toLowerCase();
 
+    if (isProductHistoryPath || oldTabVal === 'product-history') {
+      return 'product-history';
+    }
+    if (isCreateOrderPath || oldTabVal === 'create-order') {
+      return 'create-order';
+    }
+    if (isOrdersPath || oldTabVal === 'orders') {
+      return 'orders';
+    }
+    if (isPriceBooksPath) {
+      return 'price-books';
+    }
     if (pathname === '/suppliers' || pathname.startsWith('/suppliers/')) {
       return 'suppliers';
+    }
+    if (isOrdersPath || oldTabVal === 'orders') {
+      if (canReadOrders) return 'orders';
+      window.history.replaceState({}, '', '/');
+      return 'inventory';
+    }
+    if (isDeliveryPointsPath || oldTabVal === 'delivery-points') {
+      if (hasOldTabParam || pathname !== '/delivery-points') {
+        try {
+          window.history.replaceState({}, '', '/delivery-points');
+        } catch {
+          // ignore
+        }
+      }
+      return 'delivery-points';
     }
     if (isDealersPath || oldTabVal === 'dealers') {
       if (hasOldTabParam || pathname !== '/dealers') {
@@ -137,13 +214,50 @@ export default function DashboardPage({
     }
     return 'inventory';
   });
+  const setActiveTab = (tab: 'inventory' | 'orders' | 'create-order' | 'users' | 'categories' | 'audit-logs' | 'profile' | 'suppliers' | 'dealers' | 'price-books' | 'delivery-points' | 'product-history') => {
+    if (tab === 'create-order') {
+      setActiveTabState('create-order');
+      try {
+        window.history.pushState({}, '', '/create-order');
+      } catch {
+        // ignore
+      }
+      return;
+    }
 
-  // 3. Chuyển đổi Route Clean URL
-  const setActiveTab = (tab: 'inventory' | 'users' | 'categories' | 'audit-logs' | 'profile' | 'suppliers' | 'dealers') => {
-    if (tab === 'profile') {
+    if (tab === 'orders' && !canReadOrders) {
+      setActiveTabState('inventory');
+      window.history.replaceState({}, '', '/');
+      return;
+    }
+
+    if (tab === 'orders') {
+      setActiveTabState('orders');
+      try {
+        window.history.pushState({}, '', '/orders');
+      } catch {
+        // ignore
+      }
+    } else if (tab === 'profile') {
       setActiveTabState('profile');
       try {
         window.history.pushState({}, '', '/profile');
+      } catch {
+        // ignore
+      }
+    } else if (tab === 'delivery-points') {
+      if (!canManageDeliveryPoints) {
+        setActiveTabState('inventory');
+        try {
+          window.history.replaceState({}, '', '/');
+        } catch {
+          // ignore
+        }
+        return;
+      }
+      setActiveTabState('delivery-points');
+      try {
+        window.history.pushState({}, '', '/delivery-points');
       } catch {
         // ignore
       }
@@ -202,6 +316,11 @@ export default function DashboardPage({
       } catch {
         // ignore
       }
+    } else if (tab === 'price-books') {
+      setActiveTabState('price-books');
+      try {
+        window.history.pushState({}, '', '/price-books');
+      } catch {}
     } else if (tab === 'suppliers') {
       setActiveTabState('suppliers');
       try {
@@ -209,25 +328,37 @@ export default function DashboardPage({
       } catch {
         // ignore
       }
-    } else {
-      setActiveTabState('inventory');
+    } else if (tab === 'product-history') {
+      setActiveTabState('product-history');
       try {
-        window.history.pushState({}, '', '/');
+        const url = new URL(window.location.href);
+        url.pathname = '/product-history';
+        if (historyProductTarget?.code) {
+          url.searchParams.set('code', historyProductTarget.code);
+        }
+        window.history.pushState({}, '', url.toString());
       } catch {
         // ignore
       }
+    } else {
+      setActiveTabState('inventory');
+      window.history.replaceState({}, '', '/');
+      return;
     }
   };
 
-  // 4. [REACTIVE GUARD] Tự động bảo vệ khi phiên thay đổi (chỉ redirect nếu tab không thuộc luồng cho phép)
   useEffect(() => {
-    if (activeTab === 'categories' && !canManageCategories) {
+    const tabRequiresAdmin = activeTab === 'users' || activeTab === 'audit-logs';
+    const isAllowed =
+      tabRequiresAdmin ? isAdmin
+        : activeTab === 'categories' ? canManageCategories
+          : activeTab === 'orders' ? canReadOrders
+            : activeTab === 'create-order' ? canCreateOrders
+              : activeTab === 'suppliers' ? canManageSuppliers
+                : true;
+    if (!isAllowed) {
       setActiveTabState('inventory');
-      try {
-        window.history.replaceState({}, '', '/');
-      } catch {
-        // ignore
-      }
+      window.history.replaceState({}, '', '/');
     }
     if (activeTab === 'dealers' && !canViewDealers) {
       setActiveTabState('inventory');
@@ -237,20 +368,69 @@ export default function DashboardPage({
         // ignore
       }
     }
-  }, [activeTab, canManageCategories, canViewDealers, user.username]);
+    if (activeTab === 'delivery-points' && !canManageDeliveryPoints) {
+      setActiveTabState('inventory');
+      try {
+        window.history.replaceState({}, '', '/');
+      } catch {
+        // ignore
+      }
+    }
+  }, [activeTab, canManageCategories, canViewDealers, canManageDeliveryPoints, user.username]);
 
-  // 5. Đồng bộ sự kiện Lịch sử trình duyệt (Back/Forward - popstate)
   useEffect(() => {
     const syncFromUrl = () => {
       const pathname = window.location.pathname.toLowerCase();
+      const isPriceBooksPath = pathname === '/price-books';
+      const params = new URLSearchParams(window.location.search);
+
       const isUsersPath = pathname === '/users' || pathname.startsWith('/users/') || pathname === '/admin' || pathname.startsWith('/admin/');
       const isAuditPath = pathname === '/audit-logs' || pathname.startsWith('/audit-logs/');
+      const isOrdersPath = pathname === '/orders' || pathname.startsWith('/orders/');
       const isProfilePath = pathname === '/profile' || pathname.startsWith('/profile/');
-      const params = new URLSearchParams(window.location.search);
       const tabParam = (params.get('tab') || params.get('view') || '').toLowerCase();
 
+      const isProductHistoryPath = pathname === '/product-history' || pathname.startsWith('/product-history/');
+      if (isProductHistoryPath || tabParam === 'product-history') {
+        const code = params.get('code') || params.get('productCode');
+        if (code) {
+          setHistoryProductTarget((prev) => ({ code, name: prev?.code === code ? prev.name : '' }));
+        }
+        setActiveTabState('product-history');
+        return;
+      }
+
+      if (isOrdersPath || tabParam === 'orders') {
+        setActiveTabState('orders');
+        return;
+      }
       if (pathname === '/suppliers' || pathname.startsWith('/suppliers/')) {
         setActiveTabState('suppliers');
+        return;
+      }
+      if (isPriceBooksPath) { setActiveTabState('price-books'); return; }
+
+      if (isOrdersPath || tabParam === 'orders') {
+        if (canReadOrders) {
+          if (pathname !== '/orders' || tabParam) window.history.replaceState({}, '', '/orders');
+          setActiveTabState('orders');
+        } else {
+          setActiveTabState('inventory');
+          window.history.replaceState({}, '', '/');
+        }
+        return;
+      }
+
+      const isDeliveryPointsPath = pathname === '/delivery-points' || pathname.startsWith('/delivery-points/');
+      if (isDeliveryPointsPath || tabParam === 'delivery-points') {
+        if (pathname !== '/delivery-points' || tabParam) {
+          try {
+            window.history.replaceState({}, '', '/delivery-points');
+          } catch {
+            // ignore
+          }
+        }
+        setActiveTabState('delivery-points');
         return;
       }
 
@@ -299,15 +479,12 @@ export default function DashboardPage({
           setActiveTabState('categories');
         } else {
           setActiveTabState('inventory');
-          try {
-            window.history.replaceState({}, '', '/users');
-          } catch {
-            // ignore
-          }
+          window.history.replaceState({}, '', '/');
+          return;
         }
-        setActiveTabState('users');
       } else {
         setActiveTabState('inventory');
+        if (pathname !== '/' || params.size) window.history.replaceState({}, '', '/');
       }
     };
 
@@ -323,11 +500,8 @@ export default function DashboardPage({
     }
 
     window.addEventListener('popstate', syncFromUrl);
-    return () => {
-      window.removeEventListener('popstate', syncFromUrl);
-    };
-  }, [canManageCategories]);
-
+    return () => window.removeEventListener('popstate', syncFromUrl);
+  }, [canManageCategories, canManageSuppliers, canReadOrders, isAdmin]);
   const [products, setProducts] = useState<ProductItem[]>([]);
   const [productSearchInput, setProductSearchInput] = useState('');
   const [productSearchTerm, setProductSearchTerm] = useState('');
@@ -366,11 +540,6 @@ export default function DashboardPage({
   // Price Update Modal State
   const [priceUpdateModalProduct, setPriceUpdateModalProduct] = useState<ProductItem | null>(null);
 
-  // State quản lý Product Detail Drawer (Khai báo & Chỉnh sửa sản phẩm)
-  const [productDrawerState, setProductDrawerState] = useState<{
-    isOpen: boolean;
-    product: ProductItem | null;
-  }>({ isOpen: false, product: null });
   // Move Category Modal State
   const [movingProduct, setMovingProduct] = useState<{ id: number; name: string; category_id?: number | null } | null>(null);
 
@@ -384,7 +553,7 @@ export default function DashboardPage({
     actionType: 'receipt' | 'issue' | 'adjust';
     product: ProductItem | null;
   }>({ isOpen: false, actionType: 'receipt', product: null });
-  const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
+  const [isSalesOrderEntryOpen, setIsSalesOrderEntryOpen] = useState(false);
 
   // Timer điều khiển mở/đóng menu khi hover
   const menuTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -522,7 +691,7 @@ export default function DashboardPage({
             <button
               onMouseEnter={handleMouseEnterMenu}
               onMouseLeave={handleMouseLeaveMenu}
-              onClick={() => setIsMenuOpen((prev) => !prev)}
+              onClick={handleMouseEnterMenu}
               aria-label="Mở rộng menu"
               title="Mở rộng menu"
               className="hamburger-left-btn"
@@ -836,6 +1005,8 @@ export default function DashboardPage({
                   </button>
                 )}
 
+
+
                 {(user.role === 'admin' || (user.roles && user.roles.includes('admin'))) && (
                   <button
                     onClick={() => {
@@ -1144,6 +1315,45 @@ export default function DashboardPage({
             <span style={{ fontWeight: activeTab === 'inventory' ? '700' : '500', fontSize: '14.5px' }}>Quản lý kho hàng</span>
           </div>
 
+          {/* Tạo đơn hàng - Nhân viên sales và admin */}
+          {canCreateOrders && (
+            <div
+              className={`sidebar-menu-item ${activeTab === 'create-order' ? 'active' : ''}`}
+              id="btn-sidebar-create-order"
+              onClick={() => {
+                setActiveTab('create-order');
+                handleCloseMenu();
+              }}
+            >
+              <div className="sidebar-icon-box">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                </svg>
+              </div>
+              <span style={{ fontWeight: activeTab === 'create-order' ? '700' : '500', fontSize: '14.5px' }}>Tạo đơn hàng</span>
+            </div>
+          )}
+
+          {canReadOrders && (
+            <div
+              className={`sidebar-menu-item ${activeTab === 'orders' ? 'active' : ''}`}
+              id="btn-sidebar-orders"
+              onClick={() => {
+                setActiveTab('orders');
+                handleCloseMenu();
+              }}
+            >
+              <div className="sidebar-icon-box">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 3h18v18H3z" />
+                  <path d="M8 8h8M8 12h8M8 16h4" />
+                </svg>
+              </div>
+              <span style={{ fontWeight: activeTab === 'orders' ? '700' : '500', fontSize: '14.5px' }}>Quản lý đơn hàng</span>
+            </div>
+          )}
+
           {/* Tra cứu đại lý - Cho nhân viên kinh doanh, quản lý và admin */}
           {canViewDealers && (
             <div
@@ -1165,6 +1375,26 @@ export default function DashboardPage({
               <span style={{ fontWeight: activeTab === 'dealers' ? '700' : '500', fontSize: '14.5px' }}>Tra cứu đại lý</span>
             </div>
           )}
+          {/* Điểm giao hàng */}
+          {canManageDeliveryPoints && (
+            <div
+              className={`sidebar-menu-item ${activeTab === 'delivery-points' ? 'active' : ''}`}
+              id="btn-sidebar-delivery-points"
+              onClick={() => {
+                setActiveTab('delivery-points');
+                handleCloseMenu();
+              }}
+            >
+              <div className="sidebar-icon-box">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+                  <circle cx="12" cy="10" r="3" />
+                </svg>
+              </div>
+              <span style={{ fontWeight: activeTab === 'delivery-points' ? '700' : '500', fontSize: '14.5px' }}>Điểm giao hàng</span>
+            </div>
+          )}
+
 
           {/* Nhà cung cấp - Thủ kho, Quản lý kho, Admin */}
           {canManageSuppliers && (
@@ -1185,6 +1415,45 @@ export default function DashboardPage({
                 </svg>
               </div>
               <span style={{ fontWeight: activeTab === 'suppliers' ? '700' : '500', fontSize: '14.5px' }}>Nhà cung cấp</span>
+            </div>
+          )}
+
+
+          {/* Bảng giá */}
+          {canAccessPriceBooks && (
+            <div
+              className={`sidebar-menu-item ${activeTab === 'price-books' ? 'active' : ''}`}
+              id="btn-sidebar-price-books"
+              onClick={() => {
+                setActiveTab('price-books');
+              }}
+            >
+              <div className="sidebar-menu-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/>
+                </svg>
+              </div>
+              <span style={{ fontWeight: activeTab === 'price-books' ? '700' : '500', fontSize: '14.5px' }}>Bảng giá</span>
+            </div>
+          )}
+
+          {/* Lịch sử sản phẩm */}
+          {(isAdmin || isSalesManager || canWriteInventory) && (
+            <div
+              className={`sidebar-menu-item ${activeTab === 'product-history' ? 'active' : ''}`}
+              id="btn-sidebar-product-history"
+              onClick={() => {
+                setActiveTab('product-history');
+                handleCloseMenu();
+              }}
+            >
+              <div className="sidebar-icon-box">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10" />
+                  <polyline points="12 6 12 12 16 14" />
+                </svg>
+              </div>
+              <span style={{ fontWeight: activeTab === 'product-history' ? '700' : '500', fontSize: '14.5px' }}>Lịch sử sản phẩm</span>
             </div>
           )}
 
@@ -1296,8 +1565,50 @@ export default function DashboardPage({
         </div>
       </aside>
 
-      {/* Main Content */}
-      {activeTab === 'users' ? (
+      {/* Main Content: Switch between Create Order, Order Management, User Management, Audit Logs, Inventory and Pending Authorization */}
+      {activeTab === 'create-order' || (isSalesOrderEntryOpen && canCreateOrders) ? (
+        canCreateOrders ? (
+          <SalesOrderEntry
+            token={token}
+            username={user.username}
+            products={products}
+            onClose={() => {
+              setIsSalesOrderEntryOpen(false);
+              setActiveTab('orders');
+            }}
+            onCreated={() => {
+              setIsSalesOrderEntryOpen(false);
+              setActiveTab('orders');
+              fetchProducts();
+            }}
+          />
+        ) : (
+          <AccessDeniedView
+            currentUser={user}
+            requiredPermission="Quyền tạo đơn hàng (order:write)"
+            onBackToWorkflow={() => setActiveTab('inventory')}
+            onLogout={onLogout}
+          />
+        )
+      ) : activeTab === 'orders' ? (
+        canReadOrders ? (
+          <OrderManagementView
+            currentUser={user}
+            token={token}
+            products={products}
+            onBackToHome={() => setActiveTab('inventory')}
+            onRefreshProducts={fetchProducts}
+            onNavigateToPriceBooks={canAccessPriceBooks ? () => setActiveTab('price-books') : undefined}
+          />
+        ) : (
+          <AccessDeniedView
+            currentUser={user}
+            requiredPermission="Quyền xem đơn hàng (order:read)"
+            onBackToWorkflow={() => setActiveTab('inventory')}
+            onLogout={onLogout}
+          />
+        )
+      ) : activeTab === 'users' ? (
         isAdmin ? (
           <UserManagementView
             currentUser={user}
@@ -1369,6 +1680,58 @@ export default function DashboardPage({
             onLogout={onLogout}
           />
         )
+      ) : activeTab === 'price-books' ? (
+        canAccessPriceBooks ? (
+          <PriceBookManagementView
+            token={token}
+            currentUser={user}
+            products={products}
+            onBackToHome={() => setActiveTab('inventory')}
+            onNavigateToOrders={() => setActiveTab('orders')}
+          />
+        ) : (
+          <AccessDeniedView
+            currentUser={user}
+            requiredPermission="Quản lý Bảng giá theo nhóm khách hàng (Quản trị hệ thống / Quản lý kinh doanh / Kế toán)"
+            onBackToWorkflow={() => setActiveTab('inventory')}
+            onLogout={onLogout}
+          />
+        )
+      ) : activeTab === 'delivery-points' ? (
+        canManageDeliveryPoints ? (
+          <DeliveryPointsView
+            currentUser={user}
+            token={token}
+            onBackToHome={() => setActiveTab('inventory')}
+          />
+        ) : (
+          <AccessDeniedView
+            currentUser={user}
+            requiredPermission="Quản lý điểm giao hàng"
+            onBackToWorkflow={() => setActiveTab('inventory')}
+            onLogout={onLogout}
+          />
+        )
+      ) : activeTab === 'product-history' ? (
+        (isAdmin || isSalesManager || canWriteInventory) ? (
+          <ProductHistoryView
+            currentUser={user}
+            token={token}
+            products={products}
+            initialProductCode={historyProductTarget?.code}
+            initialProductName={historyProductTarget?.name}
+            isCostVisible={isCostVisible}
+            onBackToInventory={() => setActiveTab('inventory')}
+          />
+        ) : (
+          <AccessDeniedView
+            currentUser={user}
+            requiredPermission="Xem lịch sử thay đổi sản phẩm (Thủ kho / Quản lý kho / Quản lý kinh doanh / Quản trị viên)"
+            onBackToWorkflow={() => setActiveTab('inventory')}
+            onLogout={onLogout}
+          />
+        )
+
       ) : isPendingCustomer ? (
         <div style={{
           display: 'flex',
@@ -1838,6 +2201,8 @@ export default function DashboardPage({
                 <span style={{ fontSize: '12.5px', color: '#64748b', marginRight: '4px' }}>
                   Hiển thị <strong style={{ color: '#0f172a' }}>{filteredProducts.length}</strong> / {products.length} SP
                 </span>
+
+
                 {/* Nút Nhập file Excel danh mục hàng loạt (Chỉ hiển thị cho admin và quản lý kinh doanh) */}
                 {(isAdmin || isSalesManager) && (
                   <button
@@ -1875,7 +2240,6 @@ export default function DashboardPage({
                     <span>Nhập file</span>
                   </button>
                 )}
-
 
                 {/* Nút Xuất file Excel danh mục */}
                 <button
@@ -1974,6 +2338,7 @@ export default function DashboardPage({
                   </svg>
                   <span>Xuất file</span>
                 </button>
+<<<<<<< HEAD
 
                 {/* Nút Quản lý sản phẩm mở Product Detail Drawer: Chỉ Admin và Quản lý */}
                 {canManageProducts && (
@@ -2013,6 +2378,8 @@ export default function DashboardPage({
                     <span>Quản lý kho hàng</span>
                   </button>
                 )}
+=======
+>>>>>>> 0301d8d197dd010b305df463ab0b23960ba4226b
               </div>
             </div>
 
@@ -2058,8 +2425,14 @@ export default function DashboardPage({
                           <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'right', background: '#f8fafc' }}>Biên Lợi Nhuận</th>
                         </>
                       )}
+<<<<<<< HEAD
                       <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'center', background: '#f8fafc' }}>Trạng Thái</th>
                       <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'center', width: '220px', background: '#f8fafc' }}>Thao Tác</th>
+=======
+                      {canPerformProductAction && (
+                        <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'center', width: '180px', background: '#f8fafc' }}>Thao Tác</th>
+                      )}
+>>>>>>> 0301d8d197dd010b305df463ab0b23960ba4226b
                     </tr>
                   </thead>
                   <tbody>
@@ -2241,6 +2614,7 @@ export default function DashboardPage({
                             </td>
                           </>
                         )}
+<<<<<<< HEAD
 
                         {/* Cột Trạng thái kinh doanh */}
                         <td style={{ padding: '13px 18px', textAlign: 'center' }}>
@@ -2325,6 +2699,13 @@ export default function DashboardPage({
                             {/* Nút Nhập kho & Xuất kho: Mở cho các tài khoản có quyền Nhập/xuất/sửa kho */}
                             {canWriteInventory && (
                               <>
+=======
+                        {canPerformProductAction && (
+                          <td style={{ padding: '13px 18px', textAlign: 'center' }}>
+                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                              {/* Nút Cấu hình Đơn vị tính: Chỉ mở cho Quản trị hệ thống và Quản lý kho */}
+                              {canConfigUnit && (
+>>>>>>> 0301d8d197dd010b305df463ab0b23960ba4226b
                                 <button
                                   type="button"
                                   onClick={() => setStockActionState({ isOpen: true, actionType: 'receipt', product: item })}
@@ -2357,6 +2738,7 @@ export default function DashboardPage({
                                   <span>Nhập</span>
                                 </button>
 
+<<<<<<< HEAD
                                 <button
                                   type="button"
                                   onClick={() => setStockActionState({ isOpen: true, actionType: 'issue', product: item })}
@@ -2446,6 +2828,78 @@ export default function DashboardPage({
                             )}
                           </div>
                         </td>
+=======
+                              {/* Nút Nhập kho & Xuất kho: Mở cho các tài khoản có quyền Nhập/xuất/sửa kho */}
+                              {canWriteInventory && (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => setStockActionState({ isOpen: true, actionType: 'receipt', product: item })}
+                                    style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '3px',
+                                      padding: '5px 8px',
+                                      background: '#ecfdf5',
+                                      border: '1px solid #a7f3d0',
+                                      borderRadius: '6px',
+                                      fontSize: '11.5px',
+                                      fontWeight: '600',
+                                      color: '#065f46',
+                                      cursor: 'pointer',
+                                      transition: 'all 0.15s ease'
+                                    }}
+                                    title="Tạo phiếu nhập kho (cho phép chọn ĐVT quy đổi)"
+                                    onMouseEnter={e => {
+                                      e.currentTarget.style.background = '#d1fae5';
+                                    }}
+                                    onMouseLeave={e => {
+                                      e.currentTarget.style.background = '#ecfdf5';
+                                    }}
+                                  >
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                      <line x1="12" y1="5" x2="12" y2="19" />
+                                      <line x1="5" y1="12" x2="19" y2="12" />
+                                    </svg>
+                                    <span>Nhập</span>
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => setStockActionState({ isOpen: true, actionType: 'issue', product: item })}
+                                    style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '3px',
+                                      padding: '5px 8px',
+                                      background: '#fff7ed',
+                                      border: '1px solid #fed7aa',
+                                      borderRadius: '6px',
+                                      fontSize: '11.5px',
+                                      fontWeight: '600',
+                                      color: '#9a3412',
+                                      cursor: 'pointer',
+                                      transition: 'all 0.15s ease'
+                                    }}
+                                    title="Tạo phiếu xuất kho (cho phép chọn ĐVT quy đổi)"
+                                    onMouseEnter={e => {
+                                      e.currentTarget.style.background = '#ffedd5';
+                                    }}
+                                    onMouseLeave={e => {
+                                      e.currentTarget.style.background = '#fff7ed';
+                                    }}
+                                  >
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                      <line x1="5" y1="12" x2="19" y2="12" />
+                                    </svg>
+                                    <span>Xuất</span>
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          </td>
+                        )}
+>>>>>>> 0301d8d197dd010b305df463ab0b23960ba4226b
                       </tr>
                     ))}
                   </tbody>
@@ -2646,12 +3100,95 @@ export default function DashboardPage({
             textAlign: 'center',
             color: '#f8fafc'
           }}>
-            <h3 style={{ fontSize: '19px', fontWeight: '700', margin: '0 0 10px', color: '#fde68a' }}>
+            <div style={{
+              width: '56px',
+              height: '56px',
+              borderRadius: '50%',
+              backgroundColor: 'rgba(245, 158, 11, 0.15)',
+              color: '#f59e0b',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 16px auto',
+              border: '1px solid rgba(245, 158, 11, 0.3)'
+            }}>
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <polyline points="12 6 12 12 16 14" />
+              </svg>
+            </div>
+            <h3 style={{ fontSize: '20px', fontWeight: '700', margin: '0 0 8px', color: '#fde68a' }}>
               Phiên Làm Việc Sắp Hết Hạn
             </h3>
-            <p style={{ fontSize: '14px', color: '#cbd5e1', lineHeight: '1.6', margin: '0 0 14px' }}>
-              Hệ thống phát hiện bạn không thao tác trong một khoảng thời gian.
+            <p style={{ fontSize: '14px', color: '#cbd5e1', lineHeight: '1.6', margin: '0 0 16px' }}>
+              Hệ thống phát hiện bạn không thao tác trong một khoảng thời gian. Phiên làm việc sẽ tự động kết thúc sau:
             </p>
+            <div style={{
+              fontSize: '28px',
+              fontWeight: '800',
+              fontVariantNumeric: 'tabular-nums',
+              color: '#fbbf24',
+              backgroundColor: 'rgba(0, 0, 0, 0.25)',
+              padding: '10px 20px',
+              borderRadius: '10px',
+              display: 'inline-block',
+              marginBottom: '20px',
+              border: '1px solid rgba(251, 191, 36, 0.3)'
+            }}>
+              {Math.floor(remainingSeconds / 60)}:{(remainingSeconds % 60).toString().padStart(2, '0')}
+            </div>
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    await onLogout();
+                  } catch {
+                    // ignore
+                  }
+                }}
+                style={{
+                  flex: 1,
+                  padding: '11px 16px',
+                  borderRadius: '10px',
+                  border: '1px solid #475569',
+                  backgroundColor: '#334155',
+                  color: '#f1f5f9',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'background 0.15s ease'
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#475569')}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#334155')}
+              >
+                Đăng xuất
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  sessionManager.recordActivity();
+                  await sessionManager.forceRefresh();
+                }}
+                style={{
+                  flex: 2,
+                  padding: '11px 16px',
+                  borderRadius: '10px',
+                  border: 'none',
+                  backgroundColor: '#2563eb',
+                  color: '#ffffff',
+                  fontSize: '14px',
+                  fontWeight: '700',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 12px rgba(37, 99, 235, 0.35)',
+                  transition: 'background 0.15s ease'
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#1d4ed8')}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#2563eb')}
+              >
+                Tiếp tục làm việc
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -2826,19 +3363,6 @@ export default function DashboardPage({
         }}
       />
 
-      {/* Product Detail Drawer (Khai báo & Chỉnh sửa sản phẩm 4 khối chức năng) */}
-      <ProductDrawer
-        isOpen={productDrawerState.isOpen}
-        onClose={() => setProductDrawerState((prev) => ({ ...prev, isOpen: false }))}
-        product={productDrawerState.product}
-        token={token}
-        isCostVisible={isCostVisible}
-        categories={Array.from(new Set(products.map((p) => p.category).filter(Boolean)))}
-        onSuccess={() => {
-          fetchProducts();
-        }}
-      />
-
       {isProductBulkImportOpen && (
         <ProductBulkImportModal
           token={token}
@@ -2878,19 +3402,7 @@ export default function DashboardPage({
         />
       )}
 
-      {isOrderModalOpen && (
-        <OrderCreateModal
-          isOpen={isOrderModalOpen}
-          token={token}
-          currentUser={user}
-          products={products}
-          onClose={() => setIsOrderModalOpen(false)}
-          onSuccess={() => {
-            setIsOrderModalOpen(false);
-            fetchProducts();
-          }}
-        />
-      )}
+
 
       {movingProduct && (
         <MoveCategoryModal

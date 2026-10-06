@@ -25,9 +25,17 @@ export function hasPermission(user: User | null | undefined, permission: string)
   if (!user) return false;
   const userRoles = user.roles && user.roles.length > 0 ? user.roles : (user.role ? [user.role] : []);
   if (userRoles.includes('admin')) return true;
-  if (!user.permissions || !Array.isArray(user.permissions)) return false;
-  if (user.permissions.includes('*')) return true;
-  return user.permissions.includes(permission);
+  if (user.permissions && Array.isArray(user.permissions)) {
+    if (user.permissions.includes('*')) return true;
+    if (user.permissions.includes(permission)) return true;
+  }
+  // Fallback quyền Đơn hàng cho các vai trò kinh doanh & kế toán
+  if (permission === Permissions.ORDER_READ || permission === Permissions.ORDER_WRITE) {
+    if (userRoles.some((r) => ['sales', 'sales_manager', 'admin', 'accountant'].includes(r))) {
+      return true;
+    }
+  }
+  return false;
 }
 
 /**

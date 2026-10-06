@@ -1,0 +1,753 @@
+import React, { useEffect, useState } from 'react';
+import {
+  getOrdersApi,
+  OrderResponseData,
+  User,
+  ProductItem,
+} from '../services/api';
+import { OrderCreateModal } from './OrderCreateModal';
+import { RejectOrderModal } from './RejectOrderModal';
+import { ApproveOrderModal } from './ApproveOrderModal';
+
+interface OrderManagementViewProps {
+  currentUser: User;
+  token: string;
+  products: ProductItem[];
+  onBackToHome?: () => void;
+  onRefreshProducts?: () => void;
+  onNavigateToPriceBooks?: () => void;
+}
+
+export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
+  currentUser,
+  token,
+  products,
+  onBackToHome,
+  onRefreshProducts,
+  onNavigateToPriceBooks,
+}) => {
+  const [orders, setOrders] = useState<OrderResponseData[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'PENDING_APPROVAL' | 'CONFIRMED' | 'REJECTED'>('ALL');
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [selectedOrderDetail, setSelectedOrderDetail] = useState<OrderResponseData | null>(null);
+  const [approvingOrder, setApprovingOrder] = useState<OrderResponseData | null>(null);
+  const [rejectingOrder, setRejectingOrder] = useState<OrderResponseData | null>(null);
+
+  const rawRoles = currentUser.roles && currentUser.roles.length > 0 ? currentUser.roles : [currentUser.role];
+  const isAdmin = currentUser.role === 'admin' || rawRoles.includes('admin');
+  const isSalesManager = currentUser.role === 'sales_manager' || rawRoles.includes('sales_manager');
+  const canApprove = isAdmin || isSalesManager;
+
+  const fetchOrders = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await getOrdersApi(token);
+      setOrders(data);
+    } catch (err: any) {
+      setError(err.message || 'Không thể tải danh sách đơn hàng.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchOrders();
+  }, [token]);
+
+  // Tính toán số liệu thống kê
+  const totalOrdersCount = orders.length;
+  const pendingOrdersCount = orders.filter((o) => o.status === 'PENDING_APPROVAL').length;
+  const confirmedOrdersCount = orders.filter((o) => o.status === 'CONFIRMED').length;
+  const rejectedOrdersCount = orders.filter((o) => o.status === 'REJECTED').length;
+  const totalRevenue = orders.reduce((sum, o) => sum + (o.total_amount || 0), 0);
+
+  // Bộ lọc đơn hàng
+  const filteredOrders = orders.filter((o) => {
+    const q = searchTerm.trim().toLowerCase();
+    const matchSearch =
+      !q ||
+      o.order_code.toLowerCase().includes(q) ||
+      o.dealer_name.toLowerCase().includes(q) ||
+      o.created_by.toLowerCase().includes(q);
+
+    const matchStatus =
+      statusFilter === 'ALL' ||
+      (statusFilter === 'PENDING_APPROVAL' && o.status === 'PENDING_APPROVAL') ||
+      (statusFilter === 'CONFIRMED' && o.status === 'CONFIRMED') ||
+      (statusFilter === 'REJECTED' && o.status === 'REJECTED');
+
+    return matchSearch && matchStatus;
+  });
+
+  return (
+    <div style={{ padding: '24px 32px', maxWidth: '1440px', margin: '0 auto' }}>
+      {/* Thanh điều hướng và tiêu đề */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            {onBackToHome && (
+              <button
+                type="button"
+                onClick={onBackToHome}
+                style={{
+                  background: '#f1f5f9',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: '8px',
+                  padding: '7px 14px',
+                  fontSize: '13px',
+                  fontWeight: '600',
+                  color: '#475569',
+                  cursor: 'pointer',
+                }}
+              >
+                Quay lại Kho
+              </button>
+            )}
+
+            {/* Nút điều hướng sang Bảng giá (Chỉ hiển thị cho sales_manager và admin) */}
+            {canApprove && onNavigateToPriceBooks && (
+              <button
+                type="button"
+                id="btn-nav-to-price-books"
+                onClick={onNavigateToPriceBooks}
+                style={{
+                  background: '#eff6ff',
+                  border: '1px solid #93c5fd',
+                  borderRadius: '8px',
+                  padding: '7px 14px',
+                  fontSize: '13px',
+                  fontWeight: '700',
+                  color: '#1d4ed8',
+                  cursor: 'pointer',
+                }}
+              >
+                Sang trang Quản lý Bảng giá
+              </button>
+            )}
+
+            <h2 style={{ fontSize: '24px', fontWeight: '800', color: '#0f172a', margin: 0, letterSpacing: '-0.02em' }}>
+              Quản Lý Đơn Hàng & Bán Hàng
+            </h2>
+          </div>
+          <p style={{ fontSize: '13.5px', color: '#64748b', marginTop: '6px', margin: 0 }}>
+            Kết nối trực tiếp Bảng giá theo nhóm khách hàng · Tự động kiểm soát giá sàn và quy trình duyệt ngoại lệ
+          </p>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <button
+            type="button"
+            onClick={fetchOrders}
+            style={{
+              padding: '9px 16px',
+              background: '#ffffff',
+              border: '1px solid #cbd5e1',
+              borderRadius: '8px',
+              fontSize: '13.5px',
+              fontWeight: '600',
+              color: '#334155',
+              cursor: 'pointer',
+            }}
+            title="Tải lại danh sách đơn hàng"
+          >
+            Làm mới
+          </button>
+
+          <button
+            type="button"
+            id="btn-create-order-view"
+            onClick={() => setIsCreateModalOpen(true)}
+            style={{
+              padding: '9px 20px',
+              background: '#2563eb',
+              border: 'none',
+              borderRadius: '8px',
+              fontSize: '13.5px',
+              fontWeight: '700',
+              color: '#ffffff',
+              cursor: 'pointer',
+              boxShadow: '0 2px 4px rgba(37, 99, 235, 0.25)',
+            }}
+          >
+            Tạo Đơn Hàng Mới
+          </button>
+        </div>
+      </div>
+
+      {/* Thẻ thống kê */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: '16px', marginBottom: '24px' }}>
+        <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '16px 20px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+          <div style={{ fontSize: '13px', color: '#64748b', fontWeight: '600' }}>Tổng số đơn hàng</div>
+          <div style={{ fontSize: '26px', fontWeight: '800', color: '#0f172a', marginTop: '6px' }}>{totalOrdersCount} đơn</div>
+          <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '4px' }}>Toàn bộ đơn hàng trên hệ thống</div>
+        </div>
+
+        <div id="stat-card-pending-orders" style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '12px', padding: '16px 20px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+          <div style={{ fontSize: '13px', color: '#b45309', fontWeight: '700' }}>Đơn chờ quản lý duyệt</div>
+          <div style={{ fontSize: '26px', fontWeight: '800', color: '#b45309', marginTop: '6px' }}>{pendingOrdersCount} đơn</div>
+          <div style={{ fontSize: '12px', color: '#d97706', marginTop: '4px' }}>Bán dưới giá sàn cần phê duyệt</div>
+        </div>
+
+        <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '12px', padding: '16px 20px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+          <div style={{ fontSize: '13px', color: '#15803d', fontWeight: '700' }}>Đơn đã xác nhận</div>
+          <div style={{ fontSize: '26px', fontWeight: '800', color: '#15803d', marginTop: '6px' }}>{confirmedOrdersCount} đơn</div>
+          <div style={{ fontSize: '12px', color: '#16a34a', marginTop: '4px' }}>Đủ điều kiện xuất kho bán hàng</div>
+        </div>
+
+        <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '16px 20px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+          <div style={{ fontSize: '13px', color: '#64748b', fontWeight: '600' }}>Tổng doanh thu bán hàng</div>
+          <div style={{ fontSize: '26px', fontWeight: '800', color: '#2563eb', marginTop: '6px' }}>{totalRevenue.toLocaleString('vi-VN')} đồng</div>
+          <div style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>Giá trị lũy kế các đơn hàng</div>
+        </div>
+      </div>
+
+      {/* Bảng dữ liệu chính */}
+      <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}>
+        {/* Bộ lọc và tìm kiếm */}
+        <div style={{ padding: '16px 20px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', background: '#f8fafc' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, flexWrap: 'wrap' }}>
+            <input
+              type="text"
+              placeholder="Tìm theo mã đơn, tên khách hàng hoặc người tạo..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              style={{
+                width: '320px',
+                maxWidth: '100%',
+                padding: '8px 14px',
+                borderRadius: '8px',
+                border: '1px solid #cbd5e1',
+                fontSize: '13.5px',
+                background: '#ffffff',
+                outline: 'none',
+                boxSizing: 'border-box',
+              }}
+            />
+
+            <div style={{ display: 'inline-flex', background: '#e2e8f0', padding: '2px', borderRadius: '8px' }}>
+              <button
+                type="button"
+                onClick={() => setStatusFilter('ALL')}
+                style={{
+                  padding: '6px 14px',
+                  borderRadius: '6px',
+                  border: 'none',
+                  background: statusFilter === 'ALL' ? '#ffffff' : 'transparent',
+                  color: statusFilter === 'ALL' ? '#0f172a' : '#64748b',
+                  fontWeight: statusFilter === 'ALL' ? '700' : '500',
+                  fontSize: '13px',
+                  cursor: 'pointer',
+                  boxShadow: statusFilter === 'ALL' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                }}
+              >
+                Tất cả ({totalOrdersCount})
+              </button>
+              <button
+                type="button"
+                onClick={() => setStatusFilter('PENDING_APPROVAL')}
+                style={{
+                  padding: '6px 14px',
+                  borderRadius: '6px',
+                  border: 'none',
+                  background: statusFilter === 'PENDING_APPROVAL' ? '#ffffff' : 'transparent',
+                  color: statusFilter === 'PENDING_APPROVAL' ? '#b45309' : '#64748b',
+                  fontWeight: statusFilter === 'PENDING_APPROVAL' ? '700' : '500',
+                  fontSize: '13px',
+                  cursor: 'pointer',
+                  boxShadow: statusFilter === 'PENDING_APPROVAL' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                }}
+              >
+                Chờ duyệt ({pendingOrdersCount})
+              </button>
+              <button
+                type="button"
+                onClick={() => setStatusFilter('CONFIRMED')}
+                style={{
+                  padding: '6px 14px',
+                  borderRadius: '6px',
+                  border: 'none',
+                  background: statusFilter === 'CONFIRMED' ? '#ffffff' : 'transparent',
+                  color: statusFilter === 'CONFIRMED' ? '#15803d' : '#64748b',
+                  fontWeight: statusFilter === 'CONFIRMED' ? '700' : '500',
+                  fontSize: '13px',
+                  cursor: 'pointer',
+                  boxShadow: statusFilter === 'CONFIRMED' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                }}
+              >
+                Đã xác nhận ({confirmedOrdersCount})
+              </button>
+              {rejectedOrdersCount > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setStatusFilter('REJECTED')}
+                  style={{
+                    padding: '6px 14px',
+                    borderRadius: '6px',
+                    border: 'none',
+                    background: statusFilter === 'REJECTED' ? '#ffffff' : 'transparent',
+                    color: statusFilter === 'REJECTED' ? '#b91c1c' : '#64748b',
+                    fontWeight: statusFilter === 'REJECTED' ? '700' : '500',
+                    fontSize: '13px',
+                    cursor: 'pointer',
+                    boxShadow: statusFilter === 'REJECTED' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                  }}
+                >
+                  Bị từ chối ({rejectedOrdersCount})
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div style={{ fontSize: '13px', color: '#64748b' }}>
+            Hiển thị <strong>{filteredOrders.length}</strong> / {totalOrdersCount} đơn hàng
+          </div>
+        </div>
+
+        {/* Nội dung bảng */}
+        {loading ? (
+          <div style={{ padding: '60px', textAlign: 'center', color: '#64748b' }}>
+            <div style={{ fontSize: '14px', fontWeight: '600' }}>Đang tải danh sách đơn hàng...</div>
+          </div>
+        ) : error ? (
+          <div style={{ padding: '30px', textAlign: 'center', color: '#dc2626', fontWeight: '600' }}>
+            {error}
+          </div>
+        ) : filteredOrders.length === 0 ? (
+          <div style={{ padding: '60px 20px', textAlign: 'center', color: '#64748b' }}>
+            <div style={{ fontSize: '15px', fontWeight: '700', color: '#334155' }}>Không có đơn hàng nào phù hợp</div>
+            <p style={{ fontSize: '13.5px', color: '#94a3b8', marginTop: '6px' }}>
+              Hãy nhấn nút "Tạo Đơn Hàng Mới" để lên đơn bán hàng cho khách hàng.
+            </p>
+          </div>
+        ) : (
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13.5px' }}>
+            <thead>
+              <tr style={{ background: '#f8fafc', color: '#64748b', borderBottom: '1px solid #e2e8f0', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                <th style={{ padding: '12px 18px', fontWeight: '700' }}>Mã Đơn</th>
+                <th style={{ padding: '12px 18px', fontWeight: '700' }}>Khách Hàng / Đại Lý</th>
+                <th style={{ padding: '12px 18px', fontWeight: '700' }}>Người Lên Đơn</th>
+                <th style={{ padding: '12px 18px', fontWeight: '700', textAlign: 'right' }}>Tổng Giá Trị</th>
+                <th style={{ padding: '12px 18px', fontWeight: '700', textAlign: 'center' }}>Trạng Thái Duyệt</th>
+                <th style={{ padding: '12px 18px', fontWeight: '700' }}>Lý Do Cảnh Báo</th>
+                <th style={{ padding: '12px 18px', fontWeight: '700', textAlign: 'center' }}>Thao Tác</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredOrders.map((order, idx) => {
+                const isPending = order.status === 'PENDING_APPROVAL';
+                const isRejected = order.status === 'REJECTED';
+                const isConfirmed = order.status === 'CONFIRMED';
+
+                return (
+                  <tr
+                    key={order.id}
+                    style={{
+                      borderBottom: '1px solid #f1f5f9',
+                      background: isPending ? '#fffbeb' : idx % 2 === 0 ? '#ffffff' : '#fcfdfd',
+                      transition: 'background 0.15s ease',
+                    }}
+                  >
+                    <td style={{ padding: '14px 18px', fontFamily: 'monospace', fontWeight: '700', color: '#1e293b' }}>
+                      {order.order_code}
+                    </td>
+
+                    <td style={{ padding: '14px 18px' }}>
+                      <div style={{ fontWeight: '600', color: '#0f172a' }}>{order.dealer_name}</div>
+                      <div style={{ fontSize: '11.5px', color: '#64748b', marginTop: '2px' }}>
+                        Mã khách hàng: #{order.dealer_id}
+                      </div>
+                    </td>
+
+                    <td style={{ padding: '14px 18px' }}>
+                      <div style={{ fontWeight: '500', color: '#334155' }}>
+                        {order.assigned_sale_name || order.created_by}
+                      </div>
+                      <div style={{ fontSize: '11.5px', color: '#94a3b8' }}>
+                        Tài khoản: @{order.created_by}
+                      </div>
+                    </td>
+
+                    <td style={{ padding: '14px 18px', textAlign: 'right', fontWeight: '700', color: '#0f172a' }}>
+                      {order.total_amount.toLocaleString('vi-VN')} đồng
+                    </td>
+
+                    <td style={{ padding: '14px 18px', textAlign: 'center' }}>
+                      {isPending ? (
+                        <span
+                          style={{
+                            display: 'inline-block',
+                            background: '#fef3c7',
+                            color: '#92400e',
+                            border: '1px solid #fde68a',
+                            borderRadius: '999px',
+                            padding: '3px 12px',
+                            fontSize: '12px',
+                            fontWeight: '700',
+                          }}
+                        >
+                          Chờ quản lý duyệt
+                        </span>
+                      ) : isConfirmed ? (
+                        <span
+                          style={{
+                            display: 'inline-block',
+                            background: '#dcfce7',
+                            color: '#15803d',
+                            border: '1px solid #bbf7d0',
+                            borderRadius: '999px',
+                            padding: '3px 12px',
+                            fontSize: '12px',
+                            fontWeight: '700',
+                          }}
+                        >
+                          Đã xác nhận
+                        </span>
+                      ) : isRejected ? (
+                        <span
+                          style={{
+                            display: 'inline-block',
+                            background: '#fee2e2',
+                            color: '#b91c1c',
+                            border: '1px solid #fecaca',
+                            borderRadius: '999px',
+                            padding: '3px 12px',
+                            fontSize: '12px',
+                            fontWeight: '700',
+                          }}
+                        >
+                          Bị từ chối
+                        </span>
+                      ) : (
+                        <span
+                          style={{
+                            background: '#f1f5f9',
+                            color: '#64748b',
+                            borderRadius: '999px',
+                            padding: '3px 12px',
+                            fontSize: '12px',
+                            fontWeight: '600',
+                          }}
+                        >
+                          {order.status}
+                        </span>
+                      )}
+                    </td>
+
+                    <td style={{ padding: '14px 18px', maxWidth: '280px' }}>
+                      {order.approval_reason ? (
+                        <div style={{ fontSize: '12px', color: isRejected ? '#dc2626' : '#b45309', fontWeight: '500', lineHeight: '1.4' }}>
+                          {order.approval_reason}
+                        </div>
+                      ) : order.approved_by ? (
+                        <div style={{ fontSize: '12px', color: '#16a34a', fontWeight: '500' }}>
+                          Duyệt bởi @{order.approved_by}
+                        </div>
+                      ) : (
+                        <span style={{ color: '#94a3b8', fontSize: '12px' }}>Đơn giá chuẩn bảng giá</span>
+                      )}
+                    </td>
+
+                    <td style={{ padding: '14px 18px', textAlign: 'center' }}>
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                        {/* Nút Duyệt đơn & Từ chối cho sales_manager và admin khi đơn Chờ quản lý duyệt */}
+                        {isPending && canApprove && (
+                          <>
+                            <button
+                              type="button"
+                              id={`btn-approve-order-${order.order_code}`}
+                              onClick={() => setApprovingOrder(order)}
+                              style={{
+                                padding: '5px 12px',
+                                background: '#16a34a',
+                                border: 'none',
+                                borderRadius: '6px',
+                                color: '#ffffff',
+                                fontSize: '12px',
+                                fontWeight: '700',
+                                cursor: 'pointer',
+                              }}
+                              title="Phê duyệt đơn hàng bán dưới giá sàn"
+                            >
+                              Duyệt đơn
+                            </button>
+
+                            <button
+                              type="button"
+                              id={`btn-reject-order-${order.order_code}`}
+                              onClick={() => setRejectingOrder(order)}
+                              style={{
+                                padding: '5px 12px',
+                                background: '#dc2626',
+                                border: 'none',
+                                borderRadius: '6px',
+                                color: '#ffffff',
+                                fontSize: '12px',
+                                fontWeight: '700',
+                                cursor: 'pointer',
+                              }}
+                              title="Từ chối đơn hàng bán dưới giá sàn"
+                            >
+                              Từ chối
+                            </button>
+                          </>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={() => setSelectedOrderDetail(order)}
+                          style={{
+                            padding: '5px 10px',
+                            background: '#f1f5f9',
+                            border: '1px solid #cbd5e1',
+                            borderRadius: '6px',
+                            color: '#334155',
+                            fontSize: '12px',
+                            fontWeight: '600',
+                            cursor: 'pointer',
+                          }}
+                          title="Xem chi tiết các mặt hàng"
+                        >
+                          Chi tiết
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {/* Modal Xem Chi Tiết Đơn Hàng */}
+      {selectedOrderDetail && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(15, 23, 42, 0.6)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 99999,
+            padding: '16px',
+          }}
+        >
+          <div
+            style={{
+              background: '#ffffff',
+              borderRadius: '16px',
+              padding: '24px',
+              maxWidth: '600px',
+              width: '100%',
+              boxShadow: '0 20px 40px rgba(0,0,0,0.2)',
+              border: '1px solid #e2e8f0',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '800', color: '#0f172a' }}>
+                  Chi Tiết Đơn Hàng #{selectedOrderDetail.order_code}
+                </h3>
+                <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: '#64748b' }}>
+                  Khách hàng: <strong>{selectedOrderDetail.dealer_name}</strong>
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedOrderDetail(null)}
+                style={{
+                  background: '#f1f5f9',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: '6px',
+                  padding: '4px 10px',
+                  fontSize: '12px',
+                  color: '#475569',
+                  cursor: 'pointer',
+                  fontWeight: '600',
+                }}
+              >
+                Đóng
+              </button>
+            </div>
+
+            {selectedOrderDetail.approval_reason && (
+              <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '8px', padding: '12px 14px', marginBottom: '16px', fontSize: '13px', color: '#b45309' }}>
+                <strong>Lý do yêu cầu phê duyệt:</strong> {selectedOrderDetail.approval_reason}
+              </div>
+            )}
+
+            <div style={{ marginBottom: '16px' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                <thead>
+                  <tr style={{ background: '#f8fafc', color: '#64748b', borderBottom: '1px solid #e2e8f0' }}>
+                    <th style={{ padding: '8px 12px', textAlign: 'left' }}>Sản phẩm</th>
+                    <th style={{ padding: '8px 12px', textAlign: 'center' }}>Đơn vị tính</th>
+                    <th style={{ padding: '8px 12px', textAlign: 'right' }}>Số lượng</th>
+                    <th style={{ padding: '8px 12px', textAlign: 'right' }}>Đơn giá</th>
+                    <th style={{ padding: '8px 12px', textAlign: 'right' }}>Thành tiền</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(selectedOrderDetail.items || []).map((item, idx) => (
+                    <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                      <td style={{ padding: '10px 12px', fontWeight: '500' }}>{item.product_name || `Sản phẩm #${item.product_id}`}</td>
+                      <td style={{ padding: '10px 12px', textAlign: 'center' }}>{item.unit_name || 'Cái'}</td>
+                      <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: '600' }}>{item.quantity}</td>
+                      <td style={{ padding: '10px 12px', textAlign: 'right' }}>{(item.price || 0).toLocaleString('vi-VN')} đồng</td>
+                      <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: '700' }}>
+                        {((item.quantity || 1) * (item.price || 0)).toLocaleString('vi-VN')} đồng
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '12px', borderTop: '1px solid #e2e8f0' }}>
+              <div style={{ fontSize: '13px', color: '#64748b' }}>
+                Trạng thái:{' '}
+                <strong
+                  style={{
+                    color:
+                      selectedOrderDetail.status === 'CONFIRMED'
+                        ? '#16a34a'
+                        : selectedOrderDetail.status === 'REJECTED'
+                        ? '#dc2626'
+                        : '#d97706',
+                  }}
+                >
+                  {selectedOrderDetail.status === 'PENDING_APPROVAL'
+                    ? 'Chờ quản lý duyệt'
+                    : selectedOrderDetail.status === 'CONFIRMED'
+                    ? 'Đã xác nhận'
+                    : selectedOrderDetail.status === 'REJECTED'
+                    ? 'Bị từ chối'
+                    : selectedOrderDetail.status}
+                </strong>
+              </div>
+              <div style={{ fontSize: '16px', fontWeight: '800', color: '#0f172a' }}>
+                Tổng cộng: {selectedOrderDetail.total_amount.toLocaleString('vi-VN')} đồng
+              </div>
+            </div>
+
+            <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              {selectedOrderDetail.status === 'PENDING_APPROVAL' && canApprove && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const order = selectedOrderDetail;
+                      setSelectedOrderDetail(null);
+                      setApprovingOrder(order);
+                    }}
+                    style={{
+                      padding: '8px 16px',
+                      background: '#16a34a',
+                      border: 'none',
+                      borderRadius: '8px',
+                      color: '#ffffff',
+                      fontSize: '13px',
+                      fontWeight: '700',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Duyệt đơn
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const order = selectedOrderDetail;
+                      setSelectedOrderDetail(null);
+                      setRejectingOrder(order);
+                    }}
+                    style={{
+                      padding: '8px 16px',
+                      background: '#dc2626',
+                      border: 'none',
+                      borderRadius: '8px',
+                      color: '#ffffff',
+                      fontSize: '13px',
+                      fontWeight: '700',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Từ chối
+                  </button>
+                </>
+              )}
+              <button
+                type="button"
+                onClick={() => setSelectedOrderDetail(null)}
+                style={{
+                  padding: '8px 16px',
+                  background: '#f1f5f9',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: '8px',
+                  color: '#334155',
+                  fontSize: '13px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                }}
+              >
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Tạo Đơn Hàng */}
+      {isCreateModalOpen && (
+        <OrderCreateModal
+          isOpen={isCreateModalOpen}
+          token={token}
+          currentUser={currentUser}
+          products={products}
+          onClose={() => setIsCreateModalOpen(false)}
+          onSuccess={() => {
+            setIsCreateModalOpen(false);
+            fetchOrders();
+            if (onRefreshProducts) onRefreshProducts();
+          }}
+        />
+      )}
+
+      {/* Modal Phê Duyệt Đơn Hàng (Không dùng window.confirm) */}
+      {approvingOrder && (
+        <ApproveOrderModal
+          isOpen={Boolean(approvingOrder)}
+          order={approvingOrder}
+          token={token}
+          onClose={() => setApprovingOrder(null)}
+          onSuccess={() => {
+            setApprovingOrder(null);
+            fetchOrders();
+            if (onRefreshProducts) onRefreshProducts();
+          }}
+        />
+      )}
+
+      {/* Modal Từ Chối Đơn Hàng (Không dùng window.prompt) */}
+      {rejectingOrder && (
+        <RejectOrderModal
+          isOpen={Boolean(rejectingOrder)}
+          order={rejectingOrder}
+          token={token}
+          onClose={() => setRejectingOrder(null)}
+          onSuccess={() => {
+            setRejectingOrder(null);
+            fetchOrders();
+            if (onRefreshProducts) onRefreshProducts();
+          }}
+        />
+      )}
+    </div>
+  );
+};
+export default OrderManagementView;

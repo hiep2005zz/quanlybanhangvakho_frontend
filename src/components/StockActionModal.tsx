@@ -4,6 +4,8 @@ import {
   createStockReceiptApi,
   createStockIssueApi,
   adjustStockApi,
+  Supplier,
+  getSuppliersApi,
 } from '../services/api';
 import { emitStatusToast } from './StatusToast';
 
@@ -39,9 +41,25 @@ export const StockActionModal: React.FC<StockActionModalProps> = ({
   const [selectedUnitName, setSelectedUnitName] = useState<string>(baseUnit);
   const [inputQuantity, setInputQuantity] = useState<number | string>(1);
   const [partnerOrDest, setPartnerOrDest] = useState<string>('');
+  const [selectedSupplierCode, setSelectedSupplierCode] = useState<string>('');
+  const [suppliersList, setSuppliersList] = useState<Supplier[]>([]);
   const [noteOrReason, setNoteOrReason] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (isOpen && actionType === 'receipt' && token) {
+      getSuppliersApi(token, { status: 'active' })
+        .then((res) => {
+          setSuppliersList(res.items || []);
+        })
+        .catch(() => {
+          // fallback
+        });
+    }
+  }, [isOpen, actionType, token]);
+
+  const selectedSupplier = suppliersList.find((s) => s.code === selectedSupplierCode);
 
   // Tìm đơn vị đã chọn & hệ số
   const currentUnit =
@@ -225,17 +243,103 @@ export const StockActionModal: React.FC<StockActionModalProps> = ({
 
         <form onSubmit={handleSubmit}>
           {/* Nhập/chọn đối tác */}
-          {actionType !== 'adjust' && (
+          {actionType === 'receipt' ? (
             <div style={{ marginBottom: '16px' }}>
               <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '6px' }}>
-                {actionType === 'receipt' ? 'Nhà cung cấp (*)' : 'Nơi nhận / Khách hàng (*)'}
+                Nguồn hàng / Nhà cung cấp <span style={{ color: '#dc2626' }}>*</span>
+              </label>
+              <select
+                value={selectedSupplierCode}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setSelectedSupplierCode(val);
+                  if (val === 'CUSTOM') {
+                    setPartnerOrDest('');
+                  } else {
+                    const found = suppliersList.find((s) => s.code === val);
+                    if (found) {
+                      setPartnerOrDest(`[${found.code}] ${found.name}`);
+                    } else {
+                      setPartnerOrDest('');
+                    }
+                  }
+                }}
+                style={{
+                  width: '100%',
+                  padding: '9px 12px',
+                  borderRadius: '8px',
+                  border: '1px solid #cbd5e1',
+                  fontSize: '13.5px',
+                  outline: 'none',
+                  boxSizing: 'border-box',
+                  background: '#ffffff',
+                  marginBottom: selectedSupplierCode === 'CUSTOM' ? '8px' : '0',
+                }}
+              >
+                <option value="">-- Chọn Nhà cung cấp nguồn hàng từ danh mục --</option>
+                {suppliersList.map((sup) => (
+                  <option key={sup.id} value={sup.code}>
+                    [{sup.code}] {sup.name} {sup.tax_code ? `(MST: ${sup.tax_code})` : ''}
+                  </option>
+                ))}
+                <option value="CUSTOM">-- Tự nhập nhà cung cấp khác --</option>
+              </select>
+
+              {selectedSupplierCode === 'CUSTOM' && (
+                <input
+                  type="text"
+                  required
+                  value={partnerOrDest}
+                  onChange={(e) => setPartnerOrDest(e.target.value)}
+                  placeholder="Nhập tên nhà cung cấp..."
+                  style={{
+                    width: '100%',
+                    padding: '9px 12px',
+                    borderRadius: '8px',
+                    border: '1px solid #cbd5e1',
+                    fontSize: '13.5px',
+                    outline: 'none',
+                    boxSizing: 'border-box',
+                  }}
+                />
+              )}
+
+              {selectedSupplier && selectedSupplierCode !== 'CUSTOM' && (
+                <div
+                  style={{
+                    marginTop: '6px',
+                    fontSize: '12px',
+                    color: '#475569',
+                    background: '#f8fafc',
+                    padding: '8px 12px',
+                    borderRadius: '6px',
+                    border: '1px solid #e2e8f0',
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    gap: '12px',
+                  }}
+                >
+                  <span>Mã: <strong style={{ color: '#0f172a' }}>{selectedSupplier.code}</strong></span>
+                  {selectedSupplier.contact_person && (
+                    <span>Người liên hệ: <strong style={{ color: '#0f172a' }}>{selectedSupplier.contact_person}</strong></span>
+                  )}
+                  {selectedSupplier.payment_terms && (
+                    <span>Điều khoản TT: <strong style={{ color: '#0f172a' }}>{selectedSupplier.payment_terms}</strong></span>
+                  )}
+                </div>
+              )}
+            </div>
+          ) : actionType === 'issue' ? (
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '6px' }}>
+                Nơi nhận / Khách hàng <span style={{ color: '#dc2626' }}>*</span>
               </label>
               <input
                 type="text"
                 required
                 value={partnerOrDest}
                 onChange={(e) => setPartnerOrDest(e.target.value)}
-                placeholder={actionType === 'receipt' ? 'Nhập tên nhà cung cấp...' : 'Nhập điểm đến xuất hàng...'}
+                placeholder="Nhập điểm đến xuất hàng..."
                 style={{
                   width: '100%',
                   padding: '9px 12px',
@@ -247,7 +351,7 @@ export const StockActionModal: React.FC<StockActionModalProps> = ({
                 }}
               />
             </div>
-          )}
+          ) : null}
 
           {/* Tiêu chí 2: Chọn đơn vị tính quy đổi & Nhập số lượng */}
           <div style={{ marginBottom: '16px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
