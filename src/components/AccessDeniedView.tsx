@@ -71,48 +71,7 @@ export const AccessDeniedView: React.FC<AccessDeniedViewProps> = ({
       padding: '0 16px',
       animation: 'fadeInCard 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
     }}>
-      {/* 1. Breadcrumb điều hướng */}
-      <nav
-        aria-label="Breadcrumb"
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '10px',
-          fontSize: '13.5px',
-          color: '#64748b',
-          fontWeight: '500',
-        }}
-      >
-        <button
-          onClick={onBackToWorkflow}
-          style={{
-            background: '#ffffff',
-            border: '1px solid #cbd5e1',
-            borderRadius: '20px',
-            color: '#2563eb',
-            cursor: 'pointer',
-            padding: '6px 14px',
-            fontSize: '13px',
-            fontWeight: '600',
-            display: 'inline-flex',
-            alignItems: 'center',
-            boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
-            transition: 'all 0.15s ease',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.borderColor = '#93c5fd';
-            e.currentTarget.style.background = '#eff6ff';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.borderColor = '#cbd5e1';
-            e.currentTarget.style.background = '#ffffff';
-          }}
-        >
-          <span>Quay lại trang làm việc</span>
-        </button>
-      </nav>
-
-      {/* 2. Thẻ lỗi trung tâm Enterprise Card */}
+      {/* Thẻ lỗi trung tâm Enterprise Card */}
       <div style={{
         background: '#ffffff',
         border: '1px solid #fee2e2',

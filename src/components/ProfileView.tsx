@@ -822,13 +822,9 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                   if (!phoneError) e.target.style.borderColor = '#cbd5e1';
                 }}
               />
-              {phoneError ? (
+              {phoneError && (
                 <p style={{ margin: '5px 0 0', fontSize: '12px', color: '#dc2626', fontWeight: '500' }}>
                   {phoneError}
-                </p>
-              ) : (
-                <p style={{ margin: '4px 0 0', fontSize: '11.5px', color: '#64748b' }}>
-                  10 chữ số, đúng đầu số nhà mạng VN (03x, 05x, 07x, 08x, 09x).
                 </p>
               )}
             </div>

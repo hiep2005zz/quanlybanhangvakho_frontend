@@ -12,7 +12,7 @@ interface SalesOrderEntryProps {
   token: string;
   username: string;
   products: ProductItem[];
-  onClose: () => void;
+  onClose?: () => void;
   onCreated: () => void;
 }
 
@@ -92,7 +92,7 @@ const formatCurrency = (amount: number) =>
   new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(amount);
 const draftStorageKey = (username: string) => `sales-order-drafts:${encodeURIComponent(username.toLowerCase())}`;
 
-export default function SalesOrderEntry({ token, username, products, onClose, onCreated }: SalesOrderEntryProps) {
+export default function SalesOrderEntry({ token, username, products, onClose: _onClose, onCreated }: SalesOrderEntryProps) {
   const [dealers, setDealers] = useState<OrderDealer[]>([]);
   const [isLoadingDealers, setIsLoadingDealers] = useState(true);
   const [dealerLoadError, setDealerLoadError] = useState<string | null>(null);
@@ -354,7 +354,6 @@ export default function SalesOrderEntry({ token, username, products, onClose, on
           <h1>Tạo đơn hàng</h1>
           <p className="sales-order-subtitle">Nhập đơn trực tiếp tại cửa hàng của đại lý.</p>
         </div>
-        <button type="button" className="sales-order-secondary-button" onClick={onClose}>Quay lại đơn hàng</button>
       </div>
 
       {error && <div className="sales-order-alert error" role="alert">{error}</div>}
