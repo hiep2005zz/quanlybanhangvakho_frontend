@@ -2,9 +2,11 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   createOrderApi,
   getOrderDealersApi,
+  listDeliveryPointsApi,
   OrderDealer,
   ProductItem,
 } from '../services/api';
+import type { DeliveryPoint } from '../types/deliveryPoint';
 import { emitStatusToast } from './StatusToast';
 import './sales-order-entry.css';
 
@@ -30,6 +32,7 @@ interface OrderDraft {
   id: string;
   dealerId: string;
   deliveryPoint: string;
+  deliveryPointId?: number | null;
   desiredDeliveryDate: string;
   discountPercent: string;
   note: string;
@@ -98,6 +101,9 @@ export default function SalesOrderEntry({ token, username, products, onClose: _o
   const [dealerLoadError, setDealerLoadError] = useState<string | null>(null);
   const [dealerId, setDealerId] = useState('');
   const [deliveryPoint, setDeliveryPoint] = useState('');
+  const [deliveryPoints, setDeliveryPoints] = useState<DeliveryPoint[]>([]);
+  const [isLoadingDeliveryPoints, setIsLoadingDeliveryPoints] = useState(false);
+  const [deliveryPointId, setDeliveryPointId] = useState<number | null>(null);
   const [desiredDeliveryDate, setDesiredDeliveryDate] = useState(getToday);
   const [discountPercent, setDiscountPercent] = useState('0');
   const [note, setNote] = useState('');
@@ -132,6 +138,49 @@ export default function SalesOrderEntry({ token, username, products, onClose: _o
   }, [token]);
 
   useEffect(() => {
+    if (!dealerId) {
+      setDeliveryPoints([]);
+      setDeliveryPointId(null);
+      setDeliveryPoint('');
+      return;
+    }
+    let isMounted = true;
+    setIsLoadingDeliveryPoints(true);
+    listDeliveryPointsApi(token, Number(dealerId))
+      .then((points) => {
+        if (!isMounted) return;
+        setDeliveryPoints(points);
+        // Tự động chọn điểm giao mặc định nếu có
+        const defaultPt = points.find((p) => p.is_default && p.is_active);
+        if (defaultPt) {
+          setDeliveryPointId(defaultPt.id);
+          setDeliveryPoint(`${defaultPt.label} — ${defaultPt.address}`);
+        } else if (points.length > 0 && points[0].is_active) {
+          setDeliveryPointId(points[0].id);
+          setDeliveryPoint(`${points[0].label} — ${points[0].address}`);
+        } else {
+          const d = dealers.find((item) => String(item.id) === dealerId);
+          setDeliveryPointId(null);
+          setDeliveryPoint(d?.address || '');
+        }
+      })
+      .catch((loadErr) => {
+        console.error('Không thể tải điểm giao hàng:', loadErr);
+        if (!isMounted) return;
+        setDeliveryPoints([]);
+        const d = dealers.find((item) => String(item.id) === dealerId);
+        setDeliveryPointId(null);
+        setDeliveryPoint(d?.address || '');
+      })
+      .finally(() => {
+        if (isMounted) setIsLoadingDeliveryPoints(false);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, [dealerId, token, dealers]);
+
+  useEffect(() => {
     try {
       const storedDrafts = localStorage.getItem(draftStorageKey(username));
       if (!storedDrafts) return;
@@ -160,11 +209,18 @@ export default function SalesOrderEntry({ token, username, products, onClose: _o
   }, [username]);
 
   const selectedDealer = dealers.find((dealer) => String(dealer.id) === dealerId);
-  const deliveryPointMode = selectedDealer?.address && deliveryPoint === selectedDealer.address
-    ? 'registered'
-    : selectedDealer
-      ? 'custom'
-      : '';
+  const deliveryPointSelectValue = useMemo(() => {
+    if (deliveryPointId && deliveryPoints.some((p) => p.id === deliveryPointId)) {
+      return `point_${deliveryPointId}`;
+    }
+    if (selectedDealer?.address && deliveryPoint === selectedDealer.address) {
+      return 'dealer_address';
+    }
+    if (deliveryPoint) {
+      return 'custom';
+    }
+    return '';
+  }, [deliveryPointId, deliveryPoints, selectedDealer, deliveryPoint]);
   const searchResults = useMemo(() => {
     const query = productQuery.trim().toLocaleLowerCase('vi');
     if (query.length < 1) return [];
@@ -185,6 +241,8 @@ export default function SalesOrderEntry({ token, username, products, onClose: _o
   const resetForm = () => {
     setDealerId('');
     setDeliveryPoint('');
+    setDeliveryPointId(null);
+    setDeliveryPoints([]);
     setDesiredDeliveryDate(getToday());
     setDiscountPercent('0');
     setNote('');
@@ -207,6 +265,7 @@ export default function SalesOrderEntry({ token, username, products, onClose: _o
         id,
         dealerId,
         deliveryPoint,
+        deliveryPointId,
         desiredDeliveryDate,
         discountPercent,
         note,
@@ -228,6 +287,7 @@ export default function SalesOrderEntry({ token, username, products, onClose: _o
   const handleOpenDraft = (draft: OrderDraft) => {
     setDealerId(draft.dealerId);
     setDeliveryPoint(draft.deliveryPoint);
+    setDeliveryPointId(draft.deliveryPointId ?? null);
     setDesiredDeliveryDate(draft.desiredDeliveryDate || getToday());
     setDiscountPercent(draft.discountPercent || '0');
     setNote(draft.note || '');
@@ -285,7 +345,7 @@ export default function SalesOrderEntry({ token, username, products, onClose: _o
       return;
     }
     if (!deliveryPoint.trim()) {
-      setError('Vui lòng nhập điểm giao hàng.');
+      setError('Vui lòng nhập hoặc chọn điểm giao hàng.');
       return;
     }
     if (!desiredDeliveryDate) {
@@ -311,8 +371,9 @@ export default function SalesOrderEntry({ token, username, products, onClose: _o
       const created = await createOrderApi(token, {
         dealer_id: selectedDealer.id,
         delivery_point: deliveryPoint.trim(),
+        delivery_point_id: deliveryPointId ?? undefined,
         desired_delivery_date: desiredDeliveryDate,
-        discount_percent: parsedDiscount,
+        discount_percent: safeDiscount,
         items: lines.map((line) => ({
           product_id: line.productId,
           quantity: line.quantity,
@@ -369,9 +430,7 @@ export default function SalesOrderEntry({ token, username, products, onClose: _o
                   value={dealerId}
                   onChange={(event) => {
                     const nextId = event.target.value;
-                    const dealer = dealers.find((item) => String(item.id) === nextId);
                     setDealerId(nextId);
-                    setDeliveryPoint(dealer?.address || '');
                   }}
                   disabled={isLoadingDealers || !!dealerLoadError}
                 >
@@ -407,31 +466,65 @@ export default function SalesOrderEntry({ token, username, products, onClose: _o
               <label className="sales-order-field">
                 <span>Điểm giao hàng <b aria-hidden="true">*</b></span>
                 <select
-                  value={deliveryPointMode}
-                  disabled={!selectedDealer}
+                  value={deliveryPointSelectValue}
+                  disabled={!selectedDealer || isLoadingDeliveryPoints}
                   onChange={(event) => {
-                    if (event.target.value === 'registered') {
+                    const val = event.target.value;
+                    if (val.startsWith('point_')) {
+                      const pId = Number(val.replace('point_', ''));
+                      const pt = deliveryPoints.find((p) => p.id === pId);
+                      setDeliveryPointId(pId);
+                      setDeliveryPoint(pt ? `${pt.label} — ${pt.address}` : '');
+                    } else if (val === 'dealer_address') {
+                      setDeliveryPointId(null);
                       setDeliveryPoint(selectedDealer?.address || '');
-                    } else {
+                    } else if (val === 'custom') {
+                      setDeliveryPointId(null);
                       setDeliveryPoint('');
                     }
                   }}
                 >
-                  <option value="" disabled>Chọn đại lý trước</option>
-                  {selectedDealer?.address && (
-                    <option value="registered">Địa chỉ đại lý — {selectedDealer.address}</option>
+                  <option value="" disabled>
+                    {!selectedDealer
+                      ? 'Chọn đại lý trước'
+                      : isLoadingDeliveryPoints
+                      ? 'Đang tải điểm giao hàng...'
+                      : 'Chọn điểm giao hàng'}
+                  </option>
+                  {deliveryPoints
+                    .filter((p) => p.is_active)
+                    .map((p) => (
+                      <option key={p.id} value={`point_${p.id}`}>
+                        📍 {p.label} — {p.address}
+                        {p.receiver_name ? ` (${p.receiver_name}${p.receiver_phone ? ' - ' + p.receiver_phone : ''})` : ''}
+                        {p.is_default ? ' [Mặc định]' : ''}
+                      </option>
+                    ))}
+                  {selectedDealer?.address && !deliveryPoints.some((p) => p.address === selectedDealer.address) && (
+                    <option value="dealer_address">🏠 Địa chỉ đại lý — {selectedDealer.address}</option>
                   )}
-                  <option value="custom">Điểm giao khác</option>
+                  <option value="custom">✏️ Điểm giao khác</option>
                 </select>
-                {deliveryPointMode === 'custom' && (
+                {deliveryPointSelectValue === 'custom' && (
                   <input
                     aria-label="Địa chỉ giao hàng khác"
                     value={deliveryPoint}
                     onChange={(event) => setDeliveryPoint(event.target.value)}
-                    placeholder="Nhập địa chỉ giao hàng"
+                    placeholder="Nhập địa chỉ giao hàng cụ thể"
                     maxLength={500}
                   />
                 )}
+                {deliveryPointId && (() => {
+                  const pt = deliveryPoints.find((p) => p.id === deliveryPointId);
+                  if (!pt) return null;
+                  return (
+                    <div style={{ fontSize: '12px', color: '#047857', marginTop: '6px', background: '#ecfdf5', padding: '6px 10px', borderRadius: '6px', border: '1px solid #a7f3d0' }}>
+                      <strong>Người nhận:</strong> {pt.receiver_name || selectedDealer?.name || 'Đại lý'}
+                      {pt.receiver_phone ? ` • SĐT: ${pt.receiver_phone}` : ''}
+                      {pt.route_note ? ` • Tuyến: ${pt.route_note}` : ''}
+                    </div>
+                  );
+                })()}
               </label>
               <label className="sales-order-field">
                 <span>Ngày giao mong muốn <b aria-hidden="true">*</b></span>
