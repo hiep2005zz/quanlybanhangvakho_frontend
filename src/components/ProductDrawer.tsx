@@ -475,7 +475,7 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
                 {isEditing ? `Chỉnh Sửa Sản Phẩm: ${product?.code}` : 'Khai Báo Sản Phẩm Mới'}
               </h3>
               <p style={{ margin: '2px 0 0', fontSize: '12.5px', color: '#64748b' }}>
-                {isEditing ? 'Cập nhật thông tin chi tiết và trạng thái kinh doanh' : 'Nhập đầy đủ thông tin chuẩn hóa theo 4 khối nghiệp vụ'}
+                {isEditing ? 'Cập nhật thông tin chi tiết và trạng thái kinh doanh' : 'Nhập đầy đủ thông tin chuẩn hóa'}
               </p>
             </div>
           </div>
@@ -555,7 +555,7 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
               }}
             >
               <span style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b' }}>
-                Khối 1: Thông tin cơ bản
+                Thông tin cơ bản
               </span>
             </div>
 
@@ -933,7 +933,7 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
               }}
             >
               <span style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b' }}>
-                Khối 2: Quy cách & Đơn vị tính
+                Quy cách & Đơn vị tính
               </span>
             </div>
 
@@ -1102,7 +1102,7 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
               }}
             >
               <span style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b' }}>
-                Khối 3: Giá & Phân quyền dữ liệu
+                Giá & Phân quyền dữ liệu
               </span>
             </div>
 
@@ -1195,7 +1195,7 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
               }}
             >
               <span style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b' }}>
-                Khối 4: Trạng thái & Vòng đời sản phẩm
+                Trạng thái & Vòng đời sản phẩm
               </span>
             </div>
 
