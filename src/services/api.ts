@@ -1,5 +1,5 @@
 import type { DeliveryPoint, DeliveryPointInput } from '../types/deliveryPoint';
-export const API_BASE_URL = 'http://localhost:8000/api/v1';
+export const API_BASE_URL = typeof window !== 'undefined' && window.location.origin ? '/api/v1' : 'http://127.0.0.1:8000/api/v1';
 
 /**
  * Trả về URL tuyệt đối để tải ảnh đại diện từ backend nếu là đường dẫn tĩnh /uploads/...
@@ -155,6 +155,9 @@ export interface OrderItemPayload {
 export interface OrderCreatePayload {
   dealer_id: number;
   items: OrderItemPayload[];
+  discount_percent?: number;
+  discount_rate?: number;
+  discount_amount?: number;
   note?: string;
   delivery_point_id?: number | null;
 }
@@ -850,6 +853,7 @@ export interface UserCreatePayload {
   role?: string;
   roles?: string[];
   branch?: string;
+  phone?: string;
 }
 
 export interface UserUpdatePayload {
@@ -1085,10 +1089,8 @@ export async function moveProductCategoryApi(token: string, productId: number, c
   return data;
 }
 
-// ==========================================
-// SCRUM-29: AUDIT LOGS INTERFACES & CLIENT
-// ==========================================
-
+// ===================================// SCRUM-29: AUDIT LOGS INTERFACES & CLIENT
+// ===================================
 export interface AuditLogItem {
   id: number;
   user_id?: number | null;
@@ -1216,12 +1218,32 @@ export async function updateMyProfileApi(
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
     let msg = 'Cập nhật hồ sơ thất bại.';
+    let errorCode: string | undefined = err?.code;
+
     if (typeof err.detail === 'string') {
       msg = err.detail;
+    } else if (typeof err.detail === 'object' && err.detail !== null) {
+      if (err.detail.code) {
+        errorCode = err.detail.code;
+      }
+      if (err.detail.message) {
+        msg = err.detail.message;
+      } else if (err.detail.msg) {
+        msg = err.detail.msg;
+      }
     } else if (Array.isArray(err.detail) && err.detail.length > 0) {
       msg = err.detail.map((d: any) => d.msg || JSON.stringify(d)).join('; ');
     }
-    throw new Error(msg);
+
+    const error: any = new Error(msg);
+    error.status = response.status;
+    error.statusCode = response.status;
+    error.code = errorCode;
+    error.response = {
+      status: response.status,
+      data: err,
+    };
+    throw error;
   }
   return await response.json();
 }
@@ -1259,11 +1281,9 @@ export async function uploadProfileAvatarApi(
   return data;
 }
 
-// ============================================================================
-// DÁN TOÀN BỘ NỘI DUNG FILE NÀY VÀO CUỐI FILE: frontend/src/services/api.ts
+// =====================================================================// DÁN TOÀN BỘ NỘI DUNG FILE NÀY VÀO CUỐI FILE: frontend/src/services/api.ts
 // (không cần import thêm gì, vì api.ts đã có sẵn API_BASE_URL và authenticatedFetch)
-// ============================================================================
-// ---------- NHÀ CUNG CẤP ----------
+// =====================================================================// ---------- NHÀ CUNG CẤP ----------
 export interface Supplier {
   id: number;
   code: string;
@@ -1381,6 +1401,184 @@ export async function activateSupplierApi(token: string, code: string): Promise<
   return data;
 }
 
+
+// ===================================// CHÍNH SÁCH CHIẾT KHẤU THEO SẢN LƯỢNG (VOLUME DISCOUNT)
+// ===================================
+export interface DiscountTier {
+  id?: number | string;
+  min_quantity: number;
+  max_quantity?: number | null;
+  discount_percent: number;
+}
+
+export interface DiscountPolicy {
+  id?: number | string;
+  code: string;
+  name?: string;
+  title?: string;
+  category?: string;
+  target_dealer_type?: string;
+  target_group?: string;
+  description?: string | null;
+  is_active?: boolean;
+  status?: string;
+  start_date?: string;
+  end_date?: string;
+  tiers: DiscountTier[];
+  note?: string;
+  created_by?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface DiscountListResponse {
+  items: DiscountPolicy[];
+  total: number;
+}
+
+export interface DiscountPolicyCreatePayload {
+  name: string;
+  category?: string;
+  target_dealer_type?: string;
+  description?: string;
+  is_active?: boolean;
+  tiers: {
+    min_quantity: number;
+    max_quantity?: number | null;
+    discount_percent: number;
+  }[];
+}
+
+export interface DiscountCalculateResult {
+  product_id: number;
+  product_name: string;
+  quantity: number;
+  base_price: number;
+  cost_price?: number | null;
+  applied_policy_name?: string | null;
+  applied_tier_label?: string | null;
+  discount_percent: number;
+  unit_discount_amount: number;
+  final_unit_price: number;
+  subtotal_before_discount: number;
+  total_discount_amount: number;
+  final_total_amount: number;
+  estimated_profit?: number | null;
+  profit_margin_percent?: number | null;
+}
+
+export async function getDiscountPoliciesApi(
+  token: string,
+  params: { category?: string; is_active?: boolean } = {}
+): Promise<DiscountListResponse> {
+  const query = new URLSearchParams();
+  if (params.category && params.category !== 'ALL') {
+    query.set('category', params.category);
+  }
+  if (params.is_active !== undefined) {
+    query.set('is_active', String(params.is_active));
+  }
+
+  const url = `${API_BASE_URL}/discounts${query.toString() ? `?${query.toString()}` : ''}`;
+  const response = await authenticatedFetch(url, { method: 'GET' }, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi tải chính sách chiết khấu (Mã lỗi ${response.status})`);
+  }
+  return data;
+}
+
+export async function createDiscountPolicyApi(
+  payload: DiscountPolicyCreatePayload,
+  token: string
+): Promise<DiscountPolicy> {
+  const url = `${API_BASE_URL}/discounts`;
+  const response = await authenticatedFetch(
+    url,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    },
+    token
+  );
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi tạo chính sách chiết khấu (Mã lỗi ${response.status})`);
+  }
+  return data;
+}
+
+export async function updateDiscountPolicyApi(
+  id: number,
+  payload: Partial<DiscountPolicyCreatePayload>,
+  token: string
+): Promise<DiscountPolicy> {
+  const url = `${API_BASE_URL}/discounts/${id}`;
+  const response = await authenticatedFetch(
+    url,
+    {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    },
+    token
+  );
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi cập nhật chính sách chiết khấu (Mã lỗi ${response.status})`);
+  }
+  return data;
+}
+
+export async function toggleDiscountPolicyStatusApi(
+  id: number,
+  token: string
+): Promise<DiscountPolicy> {
+  const url = `${API_BASE_URL}/discounts/${id}/toggle-status`;
+  const response = await authenticatedFetch(url, { method: 'PATCH' }, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi thay đổi trạng thái chính sách (Mã lỗi ${response.status})`);
+  }
+  return data;
+}
+
+export async function deleteDiscountPolicyApi(
+  id: number,
+  token: string
+): Promise<{ message: string; deleted_id: number }> {
+  const url = `${API_BASE_URL}/discounts/${id}`;
+  const response = await authenticatedFetch(url, { method: 'DELETE' }, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi xóa chính sách chiết khấu (Mã lỗi ${response.status})`);
+  }
+  return data;
+}
+
+export async function calculateDiscountApi(
+  productId: number,
+  quantity: number,
+  token: string
+): Promise<DiscountCalculateResult> {
+  const url = `${API_BASE_URL}/discounts/calculate`;
+  const response = await authenticatedFetch(
+    url,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ product_id: productId, quantity: quantity }),
+    },
+    token
+  );
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi tính chiết khấu tự động (Mã lỗi ${response.status})`);
+  }
+  return data;
+}
+
 export async function deleteSupplierApi(token: string, code: string): Promise<{ status: string; message: string }> {
   const response = await authenticatedFetch(`${API_BASE_URL}/suppliers/${encodeURIComponent(code)}`, {
     method: 'DELETE',
@@ -1487,10 +1685,8 @@ export function deleteMasterDeliveryPointApi(token: string, id: number) {
     method: 'DELETE',
   });
 }
-// ==========================================
-// PRICE BOOKS & SALES ORDER APPROVAL EXTENSIONS
-// ==========================================
-
+// ===================================// PRICE BOOKS & SALES ORDER APPROVAL EXTENSIONS
+// ===================================
 export interface OrderResponseData {
   id: number;
   order_code: string;

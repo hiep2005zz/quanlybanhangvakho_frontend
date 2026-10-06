@@ -58,7 +58,7 @@ const smallBtn = (color: string, bg: string, border: string, width?: string): Re
   transition: 'all 0.15s ease',
 });
 
-export const SupplierManagementView: React.FC<SupplierManagementViewProps> = ({ token, onBackToHome }) => {
+export const SupplierManagementView: React.FC<SupplierManagementViewProps> = ({ token, onBackToHome: _onBackToHome }) => {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -188,32 +188,6 @@ export const SupplierManagementView: React.FC<SupplierManagementViewProps> = ({ 
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      {/* Breadcrumb */}
-      <nav
-        aria-label="Breadcrumb"
-        style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13.5px', color: '#64748b', padding: '2px 4px' }}
-      >
-        <button
-          type="button"
-          onClick={onBackToHome}
-          style={{
-            background: '#ffffff',
-            border: '1px solid #cbd5e1',
-            borderRadius: '20px',
-            color: '#2563eb',
-            cursor: 'pointer',
-            padding: '5px 14px',
-            fontSize: '13px',
-            fontWeight: '600',
-            boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
-          }}
-        >
-          ← Trang chủ
-        </button>
-        <span style={{ color: '#cbd5e1' }}>/</span>
-        <span style={{ color: '#0f172a', fontWeight: '600' }}>Nhà cung cấp</span>
-      </nav>
-
       {/* Tiêu đề + nút thêm */}
       <div
         style={{
@@ -311,7 +285,13 @@ export const SupplierManagementView: React.FC<SupplierManagementViewProps> = ({ 
               loadSuppliers();
               setCurrentPage(1);
             }}
-            style={{ ...controlStyle, fontWeight: '600', cursor: 'pointer', background: '#f8fafc' }}
+            style={{
+              ...controlStyle,
+              marginTop: 0,
+              fontWeight: '600',
+              cursor: 'pointer',
+              background: '#f8fafc',
+            }}
           >
             Làm mới
           </button>
@@ -355,7 +335,7 @@ export const SupplierManagementView: React.FC<SupplierManagementViewProps> = ({ 
                   <th style={thStyle}>Mã số thuế</th>
                   <th style={thStyle}>Người liên hệ</th>
                   <th style={thStyle}>Điều khoản thanh toán</th>
-                  <th style={{ ...thStyle, textAlign: 'center' }}>Trạng thái</th>
+                  <th style={{ ...thStyle, textAlign: 'center', width: '150px', minWidth: '150px', whiteSpace: 'nowrap' }}>Trạng thái</th>
                   <th style={{ ...thStyle, textAlign: 'center', width: '330px', minWidth: '330px' }}>Thao tác</th>
                 </tr>
               </thead>
@@ -412,7 +392,7 @@ export const SupplierManagementView: React.FC<SupplierManagementViewProps> = ({ 
                     <td style={{ ...tdStyle, maxWidth: '260px' }}>
                       {s.payment_terms || <span style={{ color: '#94a3b8' }}>Không có</span>}
                     </td>
-                    <td style={{ ...tdStyle, textAlign: 'center' }}>
+                    <td style={{ ...tdStyle, textAlign: 'center', whiteSpace: 'nowrap' }}>
                       {s.is_active ? (
                         <span
                           style={{
@@ -426,9 +406,10 @@ export const SupplierManagementView: React.FC<SupplierManagementViewProps> = ({ 
                             borderRadius: '999px',
                             fontSize: '12px',
                             fontWeight: '700',
+                            whiteSpace: 'nowrap',
                           }}
                         >
-                          <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#16a34a' }} />
+                          <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#16a34a', flexShrink: 0 }} />
                           Đang giao dịch
                         </span>
                       ) : (
@@ -445,9 +426,10 @@ export const SupplierManagementView: React.FC<SupplierManagementViewProps> = ({ 
                               borderRadius: '999px',
                               fontSize: '12px',
                               fontWeight: '700',
+                              whiteSpace: 'nowrap',
                             }}
                           >
-                            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#dc2626' }} />
+                            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#dc2626', flexShrink: 0 }} />
                             Ngừng giao dịch
                           </span>
                           {s.inactive_reason && (

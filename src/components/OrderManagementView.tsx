@@ -22,7 +22,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
   currentUser,
   token,
   products,
-  onBackToHome,
+  onBackToHome: _onBackToHome,
   onRefreshProducts,
   onNavigateToPriceBooks,
 }) => {
@@ -89,25 +89,6 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            {onBackToHome && (
-              <button
-                type="button"
-                onClick={onBackToHome}
-                style={{
-                  background: '#f1f5f9',
-                  border: '1px solid #cbd5e1',
-                  borderRadius: '8px',
-                  padding: '7px 14px',
-                  fontSize: '13px',
-                  fontWeight: '600',
-                  color: '#475569',
-                  cursor: 'pointer',
-                }}
-              >
-                Quay lại Kho
-              </button>
-            )}
-
             {/* Nút điều hướng sang Bảng giá (Chỉ hiển thị cho sales_manager và admin) */}
             {canApprove && onNavigateToPriceBooks && (
               <button
@@ -133,9 +114,6 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
               Quản Lý Đơn Hàng & Bán Hàng
             </h2>
           </div>
-          <p style={{ fontSize: '13.5px', color: '#64748b', marginTop: '6px', margin: 0 }}>
-            Kết nối trực tiếp Bảng giá theo nhóm khách hàng · Tự động kiểm soát giá sàn và quy trình duyệt ngoại lệ
-          </p>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -341,6 +319,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                 const isPending = order.status === 'PENDING_APPROVAL';
                 const isRejected = order.status === 'REJECTED';
                 const isConfirmed = order.status === 'CONFIRMED';
+                const isCancelled = order.status === 'CANCELLED';
 
                 return (
                   <tr
@@ -365,9 +344,6 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                     <td style={{ padding: '14px 18px' }}>
                       <div style={{ fontWeight: '500', color: '#334155' }}>
                         {order.assigned_sale_name || order.created_by}
-                      </div>
-                      <div style={{ fontSize: '11.5px', color: '#94a3b8' }}>
-                        Tài khoản: @{order.created_by}
                       </div>
                     </td>
 
@@ -421,6 +397,21 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                         >
                           Bị từ chối
                         </span>
+                      ) : isCancelled ? (
+                        <span
+                          style={{
+                            display: 'inline-block',
+                            background: '#f1f5f9',
+                            color: '#64748b',
+                            border: '1px solid #cbd5e1',
+                            borderRadius: '999px',
+                            padding: '3px 12px',
+                            fontSize: '12px',
+                            fontWeight: '700',
+                          }}
+                        >
+                          Đã hủy
+                        </span>
                       ) : (
                         <span
                           style={{
@@ -432,7 +423,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                             fontWeight: '600',
                           }}
                         >
-                          {order.status}
+                          {order.status === 'CANCELLED' ? 'Đã hủy' : order.status}
                         </span>
                       )}
                     </td>
@@ -628,6 +619,8 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                     ? 'Đã xác nhận'
                     : selectedOrderDetail.status === 'REJECTED'
                     ? 'Bị từ chối'
+                    : selectedOrderDetail.status === 'CANCELLED'
+                    ? 'Đã hủy'
                     : selectedOrderDetail.status}
                 </strong>
               </div>

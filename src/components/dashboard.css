@@ -211,11 +211,10 @@
 
 /* Dashboard Layout */
 .dashboard-main-container {
-  min-height: 100vh;
+  min-height: 100%;
   background: transparent;
   color: #334155;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  padding: 24px 32px;
   box-sizing: border-box;
   position: relative;
   z-index: 1;
