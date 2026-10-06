@@ -429,91 +429,45 @@ export const ProductFormView: React.FC<ProductFormViewProps> = ({
           </p>
         </div>
 
-        {/* Các nút thao tác góc phải */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          {isEditing && (
-            <button
-              type="button"
-              onClick={() => setShowDeleteConfirm(true)}
-              disabled={isDeleting || isSubmitting}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                background: '#fef2f2',
-                border: '1px solid #fecaca',
-                borderRadius: '9px',
-                padding: '9px 14px',
-                fontSize: '13px',
-                fontWeight: '600',
-                color: '#dc2626',
-                cursor: isDeleting ? 'not-allowed' : 'pointer',
-                transition: 'all 0.15s ease',
-              }}
-              onMouseEnter={(e) => {
-                if (!isDeleting) {
-                  e.currentTarget.style.background = '#fee2e2';
-                  e.currentTarget.style.borderColor = '#f87171';
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!isDeleting) {
-                  e.currentTarget.style.background = '#fef2f2';
-                  e.currentTarget.style.borderColor = '#fecaca';
-                }
-              }}
-              title="Xóa sản phẩm này khỏi hệ thống"
-            >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                <polyline points="3 6 5 6 21 6" />
-                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                <line x1="10" y1="11" x2="10" y2="17" />
-                <line x1="14" y1="11" x2="14" y2="17" />
-              </svg>
-              <span>{isDeleting ? 'Đang xóa...' : 'Xóa sản phẩm'}</span>
-            </button>
-          )}
-
-          {/* Nút Quay lại danh sách */}
-          <button
-            type="button"
-            onClick={onBack}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '8px',
-              background: '#ffffff',
-              border: '1px solid #cbd5e1',
-              borderRadius: '9px',
-              padding: '9px 16px',
-              fontSize: '13px',
-              fontWeight: '600',
-              color: '#334155',
-              cursor: 'pointer',
-              transition: 'all 0.15s ease',
-              boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = '#f8fafc';
-              e.currentTarget.style.borderColor = '#94a3b8';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = '#ffffff';
-              e.currentTarget.style.borderColor = '#cbd5e1';
-            }}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="19" y1="12" x2="5" y2="12" />
-              <polyline points="12 19 5 12 12 5" />
-            </svg>
-            <span>Quay lại danh sách</span>
-          </button>
-        </div>
+        {/* Nút Quay lại danh sách */}
+        <button
+          type="button"
+          onClick={onBack}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px',
+            background: '#ffffff',
+            border: '1px solid #cbd5e1',
+            borderRadius: '9px',
+            padding: '9px 16px',
+            fontSize: '13px',
+            fontWeight: '600',
+            color: '#334155',
+            cursor: 'pointer',
+            transition: 'all 0.15s ease',
+            boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = '#f8fafc';
+            e.currentTarget.style.borderColor = '#94a3b8';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = '#ffffff';
+            e.currentTarget.style.borderColor = '#cbd5e1';
+          }}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="19" y1="12" x2="5" y2="12" />
+            <polyline points="12 19 5 12 12 5" />
+          </svg>
+          <span>Quay lại danh sách</span>
+        </button>
       </div>
 
       {generalError && (
         <div className="sales-order-alert error" role="alert" style={{ marginBottom: '20px' }}>
-          ⚠️ {generalError}
+          {generalError}
         </div>
       )}
 
@@ -523,8 +477,7 @@ export const ProductFormView: React.FC<ProductFormViewProps> = ({
         <section className="sales-order-main">
           {/* Card 1: Thông tin cơ bản */}
           <section className="sales-order-card">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', borderBottom: '1px solid #f1f5f9', paddingBottom: '10px' }}>
-              <span style={{ fontSize: '18px' }}>📝</span>
+            <div style={{ marginBottom: '16px', borderBottom: '1px solid #f1f5f9', paddingBottom: '10px' }}>
               <h2 style={{ margin: 0, fontSize: '16px', fontWeight: '750', color: '#0f172a' }}>
                 Thông tin cơ bản
               </h2>
@@ -555,13 +508,13 @@ export const ProductFormView: React.FC<ProductFormViewProps> = ({
                   />
                   {skuChecking && (
                     <span style={{ position: 'absolute', right: '12px', top: '12px', fontSize: '12px', color: '#64748b' }}>
-                      ⏳ Đang kiểm tra...
+                      Đang kiểm tra...
                     </span>
                   )}
                 </div>
                 {hasTransactions && (
                   <span style={{ fontSize: '11.5px', color: '#94a3b8', marginTop: '2px' }}>
-                    🔒 Đã phát sinh giao dịch &rarr; Khóa chỉnh sửa mã SKU.
+                    Đã phát sinh giao dịch &rarr; Khóa chỉnh sửa mã SKU.
                   </span>
                 )}
                 {skuError && (
@@ -738,8 +691,7 @@ export const ProductFormView: React.FC<ProductFormViewProps> = ({
 
           {/* Card 2: Đơn vị tính & Quy cách đóng gói */}
           <section className="sales-order-card">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', borderBottom: '1px solid #f1f5f9', paddingBottom: '10px' }}>
-              <span style={{ fontSize: '18px' }}>📏</span>
+            <div style={{ marginBottom: '16px', borderBottom: '1px solid #f1f5f9', paddingBottom: '10px' }}>
               <h2 style={{ margin: 0, fontSize: '16px', fontWeight: '750', color: '#0f172a' }}>
                 Đơn vị tính & Quy cách đóng gói
               </h2>
@@ -858,8 +810,7 @@ export const ProductFormView: React.FC<ProductFormViewProps> = ({
 
           {/* Card 3: Chính sách giá & Trạng thái */}
           <section className="sales-order-card">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', borderBottom: '1px solid #f1f5f9', paddingBottom: '10px' }}>
-              <span style={{ fontSize: '18px' }}>💰</span>
+            <div style={{ marginBottom: '16px', borderBottom: '1px solid #f1f5f9', paddingBottom: '10px' }}>
               <h2 style={{ margin: 0, fontSize: '16px', fontWeight: '750', color: '#0f172a' }}>
                 Chính sách giá & Trạng thái kinh doanh
               </h2>
@@ -917,7 +868,7 @@ export const ProductFormView: React.FC<ProductFormViewProps> = ({
                 <span style={{ fontSize: '11.5px', color: isCostVisible ? '#64748b' : '#f59e0b' }}>
                   {isCostVisible
                     ? 'Dữ liệu nội bộ bảo mật phục vụ tính lãi gộp.'
-                    : '🔒 Bị ẩn bởi cơ chế bảo mật (Chỉ Admin / Quản lý kinh doanh).'}
+                    : 'Bị ẩn bởi cơ chế bảo mật (Chỉ Admin / Quản lý kinh doanh).'}
                 </span>
               </label>
 
@@ -1013,8 +964,7 @@ export const ProductFormView: React.FC<ProductFormViewProps> = ({
             />
 
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', borderBottom: '1px solid #f1f5f9', paddingBottom: '10px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '18px' }}>🖼️</span>
+              <div>
                 <h2 style={{ margin: 0, fontSize: '16px', fontWeight: '750', color: '#0f172a' }}>
                   Hình ảnh sản phẩm
                 </h2>
@@ -1069,7 +1019,13 @@ export const ProductFormView: React.FC<ProductFormViewProps> = ({
                   e.currentTarget.style.background = '#f8fafc';
                 }}
               >
-                <div style={{ fontSize: '32px', marginBottom: '8px' }}>📷</div>
+                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '8px' }}>
+                  <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                    <circle cx="8.5" cy="8.5" r="1.5" />
+                    <polyline points="21 15 16 10 5 21" />
+                  </svg>
+                </div>
                 <div style={{ fontSize: '13.5px', fontWeight: '700', color: '#1e293b', marginBottom: '4px' }}>
                   Nhấn vào đây để tải ảnh lên
                 </div>
@@ -1115,7 +1071,7 @@ export const ProductFormView: React.FC<ProductFormViewProps> = ({
                           borderRadius: '4px',
                         }}
                       >
-                        ⭐ Ảnh chính
+                        Ảnh chính
                       </span>
                     )}
                     <div
@@ -1381,7 +1337,7 @@ export const ProductFormView: React.FC<ProductFormViewProps> = ({
 
                   {hasTransactions && (
                     <p style={{ margin: '8px 0 0', fontSize: '11.5px', color: '#64748b', textAlign: 'center', lineHeight: '1.4' }}>
-                      🔒 Sản phẩm có {product?.transaction_count} giao dịch liên quan
+                      Sản phẩm có {product?.transaction_count} giao dịch liên quan
                     </p>
                   )}
                 </div>
@@ -1415,8 +1371,7 @@ export const ProductFormView: React.FC<ProductFormViewProps> = ({
               boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.2)',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
-              <span style={{ fontSize: '24px' }}>🗑️</span>
+            <div style={{ marginBottom: '12px' }}>
               <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '750', color: '#0f172a' }}>
                 Xác nhận xóa sản phẩm
               </h3>
@@ -1439,7 +1394,7 @@ export const ProductFormView: React.FC<ProductFormViewProps> = ({
                   lineHeight: '1.45',
                 }}
               >
-                ⚠️ <strong>Lưu ý:</strong> Sản phẩm này đã phát sinh <strong>{product?.transaction_count}</strong> giao dịch (đơn hàng/kho). Bạn có thể chọn xóa trực tiếp hoặc chuyển sang trạng thái <em>Ngừng kinh doanh</em>.
+                <strong>Lưu ý:</strong> Sản phẩm này đã phát sinh <strong>{product?.transaction_count}</strong> giao dịch (đơn hàng/kho). Bạn có thể chọn xóa trực tiếp hoặc chuyển sang trạng thái <em>Ngừng kinh doanh</em>.
               </div>
             )}
 
