@@ -114,9 +114,6 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
               Quản Lý Đơn Hàng & Bán Hàng
             </h2>
           </div>
-          <p style={{ fontSize: '13.5px', color: '#64748b', marginTop: '6px', margin: 0 }}>
-            Kết nối trực tiếp Bảng giá theo nhóm khách hàng · Tự động kiểm soát giá sàn và quy trình duyệt ngoại lệ
-          </p>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
