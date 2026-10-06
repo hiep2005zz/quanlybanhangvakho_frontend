@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { CustomerCreatePayload, createCustomerApi } from '../services/api';
+import { ModalPortal } from './ModalPortal';
 
 
 interface CreateCustomerModalProps {
@@ -108,43 +109,42 @@ export const CreateCustomerModal: React.FC<CreateCustomerModalProps> = ({
   };
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        width: '100vw',
-        height: '100vh',
-        background: 'rgba(15, 23, 42, 0.45)',
-        backdropFilter: 'blur(6px)',
-        WebkitBackdropFilter: 'blur(6px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 9999,
-        padding: '20px',
-        boxSizing: 'border-box',
-      }}
-      onClick={(e) => {
-        if (e.target === e.currentTarget) {
-          onClose();
-        }
-      }}
-    >
+    <ModalPortal>
       <div
         style={{
-          background: '#ffffff',
-          border: '1px solid #e2e8f0',
-          borderRadius: '16px',
-          width: '100%',
-          maxWidth: '540px',
-          boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
-          overflow: 'hidden',
-          color: '#0f172a',
-          animation: 'fadeInCard 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(15, 23, 42, 0.45)',
+          backdropFilter: 'blur(6px)',
+          WebkitBackdropFilter: 'blur(6px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 99999,
+          padding: '20px',
+          boxSizing: 'border-box',
         }}
-        onClick={(e) => e.stopPropagation()}
+        onClick={(e) => {
+          if (e.target === e.currentTarget) {
+            onClose();
+          }
+        }}
       >
+        <div
+          style={{
+            background: '#ffffff',
+            border: '1px solid #e2e8f0',
+            borderRadius: '16px',
+            width: '100%',
+            maxWidth: '540px',
+            maxHeight: 'calc(100vh - 32px)',
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+            overflowY: 'auto',
+            color: '#0f172a',
+            animation: 'fadeInCard 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
         {/* Header Modal */}
         <div
           style={{
@@ -408,6 +408,7 @@ export const CreateCustomerModal: React.FC<CreateCustomerModalProps> = ({
         </form>
       </div>
     </div>
+    </ModalPortal>
   );
 };
 export default CreateCustomerModal;

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { changePasswordApi } from '../services/api';
 import { CURRENT_TAB_ID } from '../services/sessionManager';
+import { ModalPortal } from './ModalPortal';
 
 interface SecurityModalProps {
   isOpen: boolean;
@@ -186,39 +187,43 @@ export default function SecurityModal({
   };
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 10000,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: 'rgba(15, 23, 42, 0.45)',
-        backdropFilter: 'blur(6px)',
-        WebkitBackdropFilter: 'blur(6px)',
-        padding: '20px',
-      }}
-      onClick={(e) => {
-        if (e.target === e.currentTarget && !isLoading) {
-          onClose();
-        }
-      }}
-    >
+    <ModalPortal>
       <div
         style={{
-          width: '100%',
-          maxWidth: '460px',
-          background: '#ffffff',
-          border: '1px solid #e2e8f0',
-          borderRadius: '16px',
-          padding: '28px',
-          boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
-          color: '#0f172a',
-          position: 'relative',
-          animation: 'fadeInCard 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+          position: 'fixed',
+          inset: 0,
+          zIndex: 99999,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: 'rgba(15, 23, 42, 0.45)',
+          backdropFilter: 'blur(6px)',
+          WebkitBackdropFilter: 'blur(6px)',
+          padding: '20px',
+          boxSizing: 'border-box',
+        }}
+        onClick={(e) => {
+          if (e.target === e.currentTarget && !isLoading) {
+            onClose();
+          }
         }}
       >
+        <div
+          style={{
+            width: '100%',
+            maxWidth: '460px',
+            maxHeight: 'calc(100vh - 32px)',
+            overflowY: 'auto',
+            background: '#ffffff',
+            border: '1px solid #e2e8f0',
+            borderRadius: '16px',
+            padding: '28px',
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+            color: '#0f172a',
+            position: 'relative',
+            animation: 'fadeInCard 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+          }}
+        >
         {/* Nút đóng [✕] */}
         <button
           onClick={onClose}
@@ -536,5 +541,6 @@ export default function SecurityModal({
         </form>
       </div>
     </div>
+    </ModalPortal>
   );
 }

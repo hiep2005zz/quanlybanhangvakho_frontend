@@ -5,6 +5,7 @@ import {
   uploadProductBulkPreviewApi,
   executeProductBulkConfirmApi,
 } from '../services/productApi';
+import { ModalPortal } from './ModalPortal';
 
 interface ProductBulkImportModalProps {
   token: string;
@@ -140,22 +141,21 @@ export const ProductBulkImportModal: React.FC<ProductBulkImportModalProps> = ({
   );
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: 'rgba(15, 23, 42, 0.75)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 9999,
-        padding: '20px',
-        backdropFilter: 'blur(4px)',
-      }}
-    >
+    <ModalPortal>
+      <div
+        style={{
+          position: 'fixed',
+          inset: 0,
+          backgroundColor: 'rgba(15, 23, 42, 0.75)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 99999,
+          padding: '20px',
+          boxSizing: 'border-box',
+          backdropFilter: 'blur(4px)',
+        }}
+      >
       <div
         style={{
           backgroundColor: '#ffffff',
@@ -830,5 +830,6 @@ export const ProductBulkImportModal: React.FC<ProductBulkImportModalProps> = ({
         </div>
       </div>
     </div>
+    </ModalPortal>
   );
 };
