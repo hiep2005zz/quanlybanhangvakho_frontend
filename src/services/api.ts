@@ -155,6 +155,9 @@ export interface OrderItemPayload {
 export interface OrderCreatePayload {
   dealer_id: number;
   items: OrderItemPayload[];
+  discount_percent?: number;
+  discount_rate?: number;
+  discount_amount?: number;
   note?: string;
   delivery_point_id?: number | null;
 }
@@ -1402,24 +1405,30 @@ export async function activateSupplierApi(token: string, code: string): Promise<
 // ===================================// CHÍNH SÁCH CHIẾT KHẤU THEO SẢN LƯỢNG (VOLUME DISCOUNT)
 // ===================================
 export interface DiscountTier {
-  id?: number;
+  id?: number | string;
   min_quantity: number;
   max_quantity?: number | null;
   discount_percent: number;
 }
 
 export interface DiscountPolicy {
-  id: number;
+  id?: number | string;
   code: string;
-  name: string;
-  category: string;
-  target_dealer_type: string;
+  name?: string;
+  title?: string;
+  category?: string;
+  target_dealer_type?: string;
+  target_group?: string;
   description?: string | null;
-  is_active: boolean;
+  is_active?: boolean;
+  status?: string;
+  start_date?: string;
+  end_date?: string;
   tiers: DiscountTier[];
-  created_by: string;
-  created_at: string;
-  updated_at: string;
+  note?: string;
+  created_by?: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface DiscountListResponse {

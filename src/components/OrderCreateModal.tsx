@@ -68,6 +68,7 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
   const [points, setPoints] = useState<DeliveryPoint[]>([]);
   const [deliveryPointId, setDeliveryPointId] = useState<number | null>(null);
 
+  const [discountPercent, setDiscountPercent] = useState<string>('0');
   const [note, setNote] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -311,7 +312,7 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
   };
 
   // Tính toán tổng tiền và tổng số lượng
-  const totalAmount = orderItems.reduce((sum, item) => {
+  const subtotalAmount = orderItems.reduce((sum, item) => {
     const qty = typeof item.quantity === 'number' ? item.quantity : parseFloat(item.quantity) || 0;
     return sum + qty * item.sellPrice;
   }, 0);
@@ -321,11 +322,15 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
     return sum + qty;
   }, 0);
 
+  const parsedDiscount = Number(discountPercent);
+  const safeDiscount = Number.isFinite(parsedDiscount) ? Math.min(100, Math.max(0, parsedDiscount)) : 0;
+  const discountAmount = Math.round((subtotalAmount * safeDiscount) / 100);
+  const totalAmount = subtotalAmount - discountAmount;
+
   // Kiểm tra xem có sản phẩm nào bán dưới giá sàn quy định hay không
   const isAnyBelowFloorPrice = orderItems.some(
     (item) => item.floorPrice !== null && item.sellPrice < item.floorPrice
   );
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
@@ -362,6 +367,7 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
             conversion_rate: item.conversionRate,
           };
         }),
+        discount_percent: safeDiscount,
         note: note.trim() || undefined,
         delivery_point_id: deliveryPointId,
       });
@@ -910,7 +916,66 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
               </span>
             </div>
             <div style={{ fontSize: '18px', fontWeight: '800', color: '#0f172a' }}>
-              {totalAmount.toLocaleString('vi-VN')} đồng
+              {subtotalAmount.toLocaleString('vi-VN')} đồng
+            </div>
+          </div>
+
+          {/* CHIẾT KHẤU ĐƠN HÀNG */}
+          <div style={{ marginBottom: '14px', background: '#f8fafc', padding: '12px 14px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', alignItems: 'center' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>
+                  Chiết khấu (%)
+                </label>
+                <input
+                  id="input-order-discount-percent"
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.1"
+                  value={discountPercent}
+                  onChange={(e) => setDiscountPercent(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    borderRadius: '8px',
+                    border: '1px solid #cbd5e1',
+                    fontSize: '13.5px',
+                    outline: 'none',
+                    textAlign: 'right',
+                    boxSizing: 'border-box',
+                    fontWeight: '700',
+                    background: '#ffffff',
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>
+                  Tiền chiết khấu
+                </label>
+                <div
+                  style={{
+                    padding: '8px 12px',
+                    borderRadius: '8px',
+                    background: '#ffffff',
+                    border: '1px solid #cbd5e1',
+                    fontSize: '13.5px',
+                    fontWeight: '700',
+                    color: '#15803d',
+                    textAlign: 'right',
+                  }}
+                >
+                  − {discountAmount.toLocaleString('vi-VN')} đ
+                </div>
+              </div>
+            </div>
+
+            <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px dashed #cbd5e1', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '13px', fontWeight: '700', color: '#0f172a' }}>Tổng thanh toán thực tế:</span>
+              <strong id="text-order-total-amount" style={{ fontSize: '16px', color: '#059669', fontWeight: '800' }}>
+                {totalAmount.toLocaleString('vi-VN')} đồng
+              </strong>
             </div>
           </div>
 
