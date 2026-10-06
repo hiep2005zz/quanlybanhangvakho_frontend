@@ -42,9 +42,9 @@ class SessionManager {
     this.handleMouseMove = this.throttle(this.handleMouseMove.bind(this), 2000);
     this.handleUserInteraction = this.throttle(this.handleUserInteraction.bind(this), 1000);
     this.handleOnline = this.handleOnline.bind(this);
-    // Throttle 60s để tránh gọi liên tục /auth/me và validate mỗi khi tab được focus hoặc click ra vào
-    this.handleWindowFocus = this.throttle(this.handleWindowFocus.bind(this), 60000);
-    this.handleVisibilityChange = this.throttle(this.handleVisibilityChange.bind(this), 60000);
+    // Throttle 5s để phản hồi ngay khi người dùng chuyển lại tab mà không spam request
+    this.handleWindowFocus = this.throttle(this.handleWindowFocus.bind(this), 5000);
+    this.handleVisibilityChange = this.throttle(this.handleVisibilityChange.bind(this), 5000);
   }
 
   private throttle(fn: () => void, wait: number) {
@@ -67,12 +67,12 @@ class SessionManager {
   public handleUserInteraction() {
     this.lastActivityTime = Date.now();
 
-    // Nếu người dùng chủ động thao tác khi thời gian còn dưới 2 phút (<= 120s):
-    // Tự động kích hoạt Silent Refresh ngầm để bảo toàn phiên và dữ liệu
+    // Nếu người dùng chủ động thao tác khi thời gian còn dưới 10 phút (<= 600s):
+    // Tự động kích hoạt Silent Refresh ngầm để bảo toàn phiên và dữ liệu liên tục
     const state = this.getSessionState();
-    if (state.remainingSeconds > 0 && state.remainingSeconds <= WARNING_THRESHOLD_SECONDS) {
+    if (state.remainingSeconds > 0 && state.remainingSeconds <= 600) {
       const now = Date.now();
-      if (now - this.lastSilentRefreshTrigger > 3000 && !this.isRefreshing) {
+      if (now - this.lastSilentRefreshTrigger > 5000 && !this.isRefreshing) {
         this.lastSilentRefreshTrigger = now;
         this.performSilentRefresh();
       }
@@ -85,29 +85,51 @@ class SessionManager {
 
   private handleOnline() {
     // Khi mạng có lại, lập tức thử làm mới phiên nếu token sắp hết hạn
-    if (this.currentToken && !this.isRefreshing) {
-      this.checkAndRefreshSession(true);
-      this.syncCurrentProfile();
+    const token = sessionStorage.getItem(AUTH_STORAGE.TOKEN) || this.currentToken;
+    if (token && !this.isRefreshing) {
+      void (async () => {
+        await this.checkAndRefreshSession(true);
+        await this.syncCurrentProfile();
+      })();
     }
   }
 
-  // Lắng nghe sự kiện chuyển tab / focus lại cửa sổ (đã được throttle 60s)
+  // Lắng nghe sự kiện chuyển tab / focus lại cửa sổ
   private handleWindowFocus() {
-    if (this.currentToken && !this.isRefreshing) {
-      this.syncCurrentProfile();
+    this.lastActivityTime = Date.now();
+    const token = sessionStorage.getItem(AUTH_STORAGE.TOKEN) || this.currentToken;
+    if (token && !this.isRefreshing) {
+      void (async () => {
+        const state = this.getSessionState();
+        if (state.isActive && state.remainingSeconds <= 600) {
+          await this.performSilentRefresh();
+        }
+        await this.syncCurrentProfile();
+      })();
     }
   }
 
   private handleVisibilityChange() {
-    if (document.visibilityState === 'visible' && this.currentToken && !this.isRefreshing) {
-      this.syncCurrentProfile();
+    if (document.visibilityState === 'visible') {
+      this.lastActivityTime = Date.now();
+      const token = sessionStorage.getItem(AUTH_STORAGE.TOKEN) || this.currentToken;
+      if (token && !this.isRefreshing) {
+        void (async () => {
+          const state = this.getSessionState();
+          if (state.isActive && state.remainingSeconds <= 600) {
+            await this.performSilentRefresh();
+          }
+          await this.syncCurrentProfile();
+        })();
+      }
     }
   }
 
   public async syncCurrentProfile(): Promise<User | null> {
-    if (!this.currentToken) return null;
+    const token = sessionStorage.getItem(AUTH_STORAGE.TOKEN) || this.currentToken;
+    if (!token || this.isRefreshing) return null;
     try {
-      const updatedUser = await getMeApi(this.currentToken);
+      const updatedUser = await getMeApi(token);
       if (updatedUser) {
         // So sánh với user hiện tại trong sessionStorage trước khi notify để tránh re-render lặp vô hạn
         const currentUserStr = sessionStorage.getItem(AUTH_STORAGE.USER);
@@ -354,7 +376,8 @@ class SessionManager {
   }
 
   private async checkAndRefreshSession(forceCheck: boolean = false) {
-    if (!this.currentToken || this.isRefreshing) return;
+    const token = sessionStorage.getItem(AUTH_STORAGE.TOKEN) || this.currentToken;
+    if (!token || this.isRefreshing) return;
 
     const expiresAtStr = sessionStorage.getItem(AUTH_STORAGE.EXPIRES_AT) || localStorage.getItem(AUTH_STORAGE.EXPIRES_AT);
     const expiresAt = expiresAtStr ? parseInt(expiresAtStr, 10) : 0;
@@ -362,35 +385,50 @@ class SessionManager {
     const remainingSeconds = Math.max(0, Math.floor((expiresAt - now) / 1000));
     const idleMs = now - this.lastActivityTime;
 
-    // 1. Kiểm tra hết hạn do không tương tác (Idle Timeout)
+    // 1. Kiểm tra hết hạn do không tương tác (Idle Timeout - 15 phút không có bất kỳ thao tác nào)
     if (idleMs >= INACTIVITY_TIMEOUT_MS) {
-      this.forceExpire();
+      this.forceExpire('Phiên làm việc đã hết hạn do không thao tác quá 15 phút.');
       return;
     }
 
-    // 2. Khi remainingSeconds = 0: Xóa sạch token, đưa về trang /login kèm thông báo
+    // 2. Sliding Expiration: Nếu người dùng vẫn đang hoạt động (chưa quá 15 phút idle)
+    // và token sắp hết hạn (còn <= 600 giây = 10 phút), tự động gia hạn ngầm định kỳ
+    if (remainingSeconds > 0 && remainingSeconds <= 600) {
+      const nowTs = Date.now();
+      if (nowTs - this.lastSilentRefreshTrigger > 5000) {
+        this.lastSilentRefreshTrigger = nowTs;
+        await this.performSilentRefresh();
+        return;
+      }
+    }
+
+    // 3. Khi remainingSeconds = 0: Nếu người dùng vẫn đang thao tác gần đây, thử làm mới lần cuối
     if (remainingSeconds <= 0) {
-      this.forceExpire();
+      if (idleMs < INACTIVITY_TIMEOUT_MS) {
+        const refreshed = await this.performSilentRefresh();
+        if (refreshed) return;
+      }
+      this.forceExpire('Phiên làm việc đã hết hạn do không thao tác quá 15 phút.');
       return;
     }
 
-    // 3. Nếu forceCheck (ví dụ: mạng vừa online trở lại) và token sắp hết hạn
+    // 4. Nếu forceCheck (ví dụ: mạng vừa online trở lại) và token sắp hết hạn
     if (forceCheck && remainingSeconds <= WARNING_THRESHOLD_SECONDS) {
       await this.performSilentRefresh();
     }
   }
 
   private async performSilentRefresh(): Promise<boolean> {
-    if (!this.currentToken || this.isRefreshing) return false;
+    const tokenToUse = sessionStorage.getItem(AUTH_STORAGE.TOKEN) || this.currentToken;
+    if (!tokenToUse || this.isRefreshing) return false;
 
     this.isRefreshing = true;
     this.notifyStatus();
 
     try {
-      const data = await refreshTokenApi(this.currentToken);
+      const data = await refreshTokenApi(tokenToUse);
       this.currentToken = data.access_token;
       this.lastRefreshedTime = Date.now();
-      this.lastActivityTime = Date.now();
 
       // Thông báo cho App và các component cập nhật token mới
       this.tokenRefreshListeners.forEach((listener) => listener(data.access_token));

@@ -320,12 +320,21 @@ export function getClientSession(): { user: User | null; token: string | null; e
   }
 }
 
+let isRefreshingGlobal = false;
+let refreshSubscribersGlobal: Array<(newToken: string) => void> = [];
+
+function onRefreshedGlobal(newToken: string) {
+  refreshSubscribersGlobal.forEach((cb) => cb(newToken));
+  refreshSubscribersGlobal = [];
+}
+
 /**
  * Fetch wrapper with 401 Interceptor:
- * If server returns 401 (token revoked or expired), immediately clears auth and redirects with notification.
+ * If server returns 401, attempts silent refresh once and retries original request before expiring session.
  */
 export async function authenticatedFetch(input: string, init: RequestInit = {}, token?: string): Promise<Response> {
-  const currentToken = token || sessionStorage.getItem(AUTH_STORAGE.TOKEN);
+  const storedToken = sessionStorage.getItem(AUTH_STORAGE.TOKEN);
+  const currentToken = storedToken || token;
   const headers = new Headers(init.headers || {});
   if (currentToken && !headers.has('Authorization')) {
     headers.set('Authorization', `Bearer ${currentToken}`);
@@ -337,9 +346,54 @@ export async function authenticatedFetch(input: string, init: RequestInit = {}, 
   }
 
   try {
-    const response = await fetch(input, { ...init, headers });
+    let response = await fetch(input, { ...init, headers });
 
     if (response.status === 401) {
+      const isAuthUrl = typeof input === 'string' && (input.includes('/auth/login') || input.includes('/auth/refresh'));
+      
+      // Nếu không phải endpoint login/refresh và client vẫn có token: thử làm mới ngầm 1 lần
+      if (!isAuthUrl && currentToken) {
+        if (!isRefreshingGlobal) {
+          isRefreshingGlobal = true;
+          try {
+            const refreshData = await refreshTokenApi(currentToken);
+            isRefreshingGlobal = false;
+            onRefreshedGlobal(refreshData.access_token);
+
+            // Thử lại request gốc với token mới
+            const retryHeaders = new Headers(init.headers || {});
+            retryHeaders.set('Authorization', `Bearer ${refreshData.access_token}`);
+            if (init.body && !retryHeaders.has('Content-Type') && !isFormData) {
+              retryHeaders.set('Content-Type', 'application/json');
+            }
+            response = await fetch(input, { ...init, headers: retryHeaders });
+            if (response.status !== 401) {
+              return response;
+            }
+          } catch {
+            isRefreshingGlobal = false;
+            refreshSubscribersGlobal = [];
+          }
+        } else {
+          // Đang có một tiến trình refresh chạy dở -> chờ token mới rồi retry
+          return new Promise<Response>((resolve, reject) => {
+            refreshSubscribersGlobal.push(async (newToken: string) => {
+              const retryHeaders = new Headers(init.headers || {});
+              retryHeaders.set('Authorization', `Bearer ${newToken}`);
+              if (init.body && !retryHeaders.has('Content-Type') && !isFormData) {
+                retryHeaders.set('Content-Type', 'application/json');
+              }
+              try {
+                const retried = await fetch(input, { ...init, headers: retryHeaders });
+                resolve(retried);
+              } catch (err) {
+                reject(err);
+              }
+            });
+          });
+        }
+      }
+
       let errorDetail = 'Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại.';
       try {
         const cloned = response.clone();
@@ -423,17 +477,21 @@ export async function loginApi(username: string, password: string): Promise<Logi
  * Silent Refresh / Keep-Alive API:
  * Calls server to refresh token and sliding expiration.
  */
-export async function refreshTokenApi(token: string): Promise<LoginResponse> {
+export async function refreshTokenApi(token?: string): Promise<LoginResponse> {
+  const activeToken = token || sessionStorage.getItem(AUTH_STORAGE.TOKEN);
+  if (!activeToken) {
+    throw new Error('Không có token để làm mới phiên.');
+  }
+
   const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
+      Authorization: `Bearer ${activeToken}`,
     },
   });
 
   if (response.status === 401) {
-    notifySessionExpired('Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại.');
     throw new Error('Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại.');
   }
 
@@ -442,7 +500,7 @@ export async function refreshTokenApi(token: string): Promise<LoginResponse> {
   }
 
   const data: LoginResponse = await response.json();
-  saveClientSession(data.user, data.access_token, data.expires_in || 900);
+  saveClientSession(data.user, data.access_token, data.expires_in || 3600);
   return data;
 }
 

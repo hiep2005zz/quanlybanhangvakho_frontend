@@ -306,7 +306,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
             });
           }
         })
-        .catch(() => {});
+        .catch(() => { });
     };
 
     window.addEventListener('USER_ROLE_UPDATED', fetchLatestProfile);
@@ -519,237 +519,303 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
         <span style={{ color: '#0f172a', fontWeight: '600', fontSize: '13.5px' }}>Hồ sơ cá nhân</span>
       </nav>
 
-      {/* Hero Banner Header */}
+      {/* 1 BẢNG DUY NHẤT CHO TOÀN BỘ HỒ SƠ */}
       <div
         style={{
           background: '#ffffff',
           border: '1px solid #e2e8f0',
-          borderRadius: '20px',
-          padding: '28px',
-          marginBottom: '24px',
+          borderRadius: '16px',
           boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: '20px',
+          padding: '24px 28px',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-          {/* Avatar Box & Upload Trigger */}
-          <div style={{ position: 'relative', display: 'inline-block' }}>
+        <form onSubmit={handleSubmit}>
+          {/* Phần trên cùng của bảng: Avatar + Thông tin tài khoản */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '20px',
+              paddingBottom: '20px',
+              borderBottom: '1px solid #e2e8f0',
+              flexWrap: 'wrap',
+            }}
+          >
+            {/* Avatar Box & Upload Trigger */}
+            <div style={{ position: 'relative', display: 'inline-block', flexShrink: 0 }}>
+              <div
+                onClick={() => {
+                  if (!uploadingAvatar) fileInputRef.current?.click();
+                }}
+                style={{
+                  width: '76px',
+                  height: '76px',
+                  borderRadius: '18px',
+                  background: (pendingAvatarPreview || profile?.avatar_url || currentUser.avatar_url)
+                    ? '#f1f5f9'
+                    : `linear-gradient(135deg, ${roleColor} 0%, #4f46e5 100%)`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#ffffff',
+                  fontSize: '28px',
+                  fontWeight: '800',
+                  boxShadow: `0 6px 16px ${roleColor}25`,
+                  flexShrink: 0,
+                  overflow: 'hidden',
+                  border: pendingAvatarPreview ? '3px solid #3b82f6' : '3px solid #ffffff',
+                  position: 'relative',
+                  cursor: uploadingAvatar ? 'wait' : 'pointer',
+                  transition: 'transform 0.15s ease, box-shadow 0.15s ease',
+                }}
+                title="Nhấn để đổi ảnh đại diện (Chấp nhận JPG/PNG tối đa 2MB)"
+              >
+                {pendingAvatarPreview ? (
+                  <img
+                    src={pendingAvatarPreview}
+                    alt={fullNameInput || currentUser.full_name}
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover',
+                      display: 'block',
+                    }}
+                  />
+                ) : (profile?.avatar_url || currentUser.avatar_url) ? (
+                  <img
+                    src={getAvatarUrl(profile?.avatar_url || currentUser.avatar_url)}
+                    alt={fullNameInput || currentUser.full_name}
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover',
+                      display: 'block',
+                    }}
+                  />
+                ) : (
+                  <span>{(fullNameInput || currentUser.username).charAt(0).toUpperCase()}</span>
+                )}
+
+                {/* Loading spinner overlay */}
+                {uploadingAvatar && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      inset: 0,
+                      background: 'rgba(15, 23, 42, 0.7)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#ffffff',
+                      fontSize: '11px',
+                      fontWeight: '600',
+                      zIndex: 4,
+                    }}
+                  >
+                    <span style={{ fontSize: '18px' }}>⏳</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Nút camera nhỏ ở góc dưới avatar */}
+              <button
+                type="button"
+                disabled={uploadingAvatar}
+                onClick={() => fileInputRef.current?.click()}
+                style={{
+                  position: 'absolute',
+                  bottom: '-2px',
+                  right: '-2px',
+                  width: '26px',
+                  height: '26px',
+                  minWidth: '26px',
+                  minHeight: '26px',
+                  maxWidth: '26px',
+                  maxHeight: '26px',
+                  padding: 0,
+                  borderRadius: '50%',
+                  background: '#2563eb',
+                  border: '2px solid #ffffff',
+                  color: '#ffffff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: uploadingAvatar ? 'not-allowed' : 'pointer',
+                  boxShadow: '0 2px 5px rgba(0,0,0,0.2)',
+                  transition: 'background-color 0.15s ease',
+                  zIndex: 5,
+                }}
+                title="Tải lên ảnh đại diện mới (Chấp nhận JPG/PNG tối đa 2MB)"
+                aria-label="Tải lên ảnh đại diện"
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#1d4ed8')}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#2563eb')}
+              >
+                <svg
+                  width="13"
+                  height="13"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  style={{ display: 'block', flexShrink: 0 }}
+                >
+                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                  <circle cx="12" cy="13" r="4" />
+                </svg>
+              </button>
+
+              {/* Input file ẩn */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".jpg,.jpeg,.png,image/jpeg,image/png"
+                style={{ display: 'none' }}
+                onChange={handleAvatarFileSelect}
+              />
+            </div>
+
+            {/* Thông tin họ và tên */}
+            <div style={{ flex: 1, minWidth: '220px' }}>
+              <h1 style={{ margin: 0, fontSize: '20px', fontWeight: '800', color: '#0f172a', letterSpacing: '-0.02em' }}>
+                {fullNameInput || currentUser.full_name}
+              </h1>
+            </div>
+          </div>
+
+          {/* Thông báo lỗi nếu có */}
+          {errorMsg && (
             <div
-              onClick={() => {
-                if (!uploadingAvatar) fileInputRef.current?.click();
-              }}
               style={{
-                width: '84px',
-                height: '84px',
-                borderRadius: '20px',
-                background: (pendingAvatarPreview || profile?.avatar_url || currentUser.avatar_url)
-                  ? '#f1f5f9'
-                  : `linear-gradient(135deg, ${roleColor} 0%, #4f46e5 100%)`,
+                background: '#fef2f2',
+                border: '1px solid #fecaca',
+                color: '#dc2626',
+                padding: '12px 18px',
+                borderRadius: '10px',
+                margin: '18px 0 0',
+                fontSize: '13.5px',
+                fontWeight: '600',
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'center',
-                color: '#ffffff',
-                fontSize: '32px',
-                fontWeight: '800',
-                boxShadow: `0 8px 20px ${roleColor}30`,
-                flexShrink: 0,
-                overflow: 'hidden',
-                border: pendingAvatarPreview ? '3px solid #3b82f6' : '3px solid #ffffff',
-                position: 'relative',
-                cursor: uploadingAvatar ? 'wait' : 'pointer',
-                transition: 'transform 0.15s ease, box-shadow 0.15s ease',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
               }}
-              title="Nhấn để đổi ảnh đại diện (Chấp nhận JPG/PNG tối đa 2MB)"
             >
-              {pendingAvatarPreview ? (
-                <img
-                  src={pendingAvatarPreview}
-                  alt={fullNameInput || currentUser.full_name}
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    objectFit: 'cover',
-                    display: 'block',
-                  }}
-                />
-              ) : (profile?.avatar_url || currentUser.avatar_url) ? (
-                <img
-                  src={getAvatarUrl(profile?.avatar_url || currentUser.avatar_url)}
-                  alt={fullNameInput || currentUser.full_name}
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    objectFit: 'cover',
-                    display: 'block',
-                  }}
-                />
-              ) : (
-                <span>{(fullNameInput || currentUser.username).charAt(0).toUpperCase()}</span>
-              )}
+              <span>{errorMsg}</span>
+            </div>
+          )}
 
-              {/* Loading spinner overlay */}
-              {uploadingAvatar && (
-                <div
-                  style={{
-                    position: 'absolute',
-                    inset: 0,
-                    background: 'rgba(15, 23, 42, 0.7)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: '#ffffff',
-                    fontSize: '11px',
-                    fontWeight: '600',
-                    zIndex: 4,
-                  }}
-                >
-                  <span style={{ fontSize: '18px' }}>⏳</span>
-                </div>
+          {/* Thông báo lỗi tải ảnh đại diện */}
+          {avatarError && (
+            <div
+              style={{
+                background: '#fef2f2',
+                border: '1px solid #fca5a5',
+                color: '#b91c1c',
+                padding: '12px 18px',
+                borderRadius: '10px',
+                margin: '18px 0 0',
+                fontSize: '13.5px',
+                fontWeight: '600',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+              }}
+            >
+              <span>⚠️ {avatarError}</span>
+            </div>
+          )}
+
+          {/* Toàn bộ các trường dữ liệu sắp xếp trong cùng 1 bảng gọn gàng */}
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+              gap: '18px 24px',
+              padding: '22px 0 18px',
+            }}
+          >
+            {/* Họ và tên (chỉnh sửa) */}
+            <div>
+              <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '600', color: '#1e293b', marginBottom: '6px' }}>
+                Họ và tên <span style={{ color: '#dc2626' }}>*</span>
+              </label>
+              <input
+                type="text"
+                required
+                placeholder="Nhập họ và tên đầy đủ..."
+                value={fullNameInput}
+                onChange={handleNameChange}
+                onBlur={() => validateName(fullNameInput)}
+                style={{
+                  width: '100%',
+                  padding: '10px 14px',
+                  borderRadius: '10px',
+                  border: `1.5px solid ${nameError ? '#ef4444' : '#cbd5e1'}`,
+                  fontSize: '13.5px',
+                  color: '#0f172a',
+                  fontWeight: '500',
+                  outline: 'none',
+                  transition: 'border-color 0.15s ease',
+                  background: '#ffffff',
+                }}
+                onFocus={(e) => {
+                  if (!nameError) e.target.style.borderColor = '#2563eb';
+                }}
+                onBlurCapture={(e) => {
+                  if (!nameError) e.target.style.borderColor = '#cbd5e1';
+                }}
+              />
+              {nameError && (
+                <p style={{ margin: '5px 0 0', fontSize: '12px', color: '#dc2626', fontWeight: '500' }}>
+                  {nameError}
+                </p>
               )}
             </div>
 
-            {/* Nút camera nhỏ ở góc dưới avatar */}
-            <button
-              type="button"
-              disabled={uploadingAvatar}
-              onClick={() => fileInputRef.current?.click()}
-              style={{
-                position: 'absolute',
-                bottom: '-2px',
-                right: '-2px',
-                width: '28px',
-                height: '28px',
-                minWidth: '28px',
-                minHeight: '28px',
-                maxWidth: '28px',
-                maxHeight: '28px',
-                padding: 0,
-                borderRadius: '50%',
-                background: '#2563eb',
-                border: '2px solid #ffffff',
-                color: '#ffffff',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: uploadingAvatar ? 'not-allowed' : 'pointer',
-                boxShadow: '0 2px 5px rgba(0,0,0,0.2)',
-                transition: 'background-color 0.15s ease',
-                zIndex: 5,
-              }}
-              title="Tải lên ảnh đại diện mới (Chấp nhận JPG/PNG tối đa 2MB)"
-              aria-label="Tải lên ảnh đại diện"
-              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#1d4ed8')}
-              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#2563eb')}
-            >
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                style={{ display: 'block', flexShrink: 0 }}
-              >
-                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
-                <circle cx="12" cy="13" r="4" />
-              </svg>
-            </button>
-
-            {/* Input file ẩn */}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".jpg,.jpeg,.png,image/jpeg,image/png"
-              style={{ display: 'none' }}
-              onChange={handleAvatarFileSelect}
-            />
-          </div>
-
-          <div>
-            <h1 style={{ margin: 0, fontSize: '22px', fontWeight: '800', color: '#0f172a', letterSpacing: '-0.02em' }}>
-              {fullNameInput || currentUser.full_name}
-            </h1>
-          </div>
-        </div>
-      </div>
-
-      {/* Thông báo lỗi */}
-      {errorMsg && (
-        <div
-          style={{
-            background: '#fef2f2',
-            border: '1px solid #fecaca',
-            color: '#dc2626',
-            padding: '14px 20px',
-            borderRadius: '12px',
-            marginBottom: '20px',
-            fontSize: '14px',
-            fontWeight: '600',
-            display: 'flex',
-            alignItems: 'center',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
-          }}
-        >
-          <span>{errorMsg}</span>
-        </div>
-      )}
-
-      {/* Thông báo lỗi tải ảnh đại diện */}
-      {avatarError && (
-        <div
-          style={{
-            background: '#fef2f2',
-            border: '1px solid #fca5a5',
-            color: '#b91c1c',
-            padding: '14px 20px',
-            borderRadius: '12px',
-            marginBottom: '20px',
-            fontSize: '14px',
-            fontWeight: '600',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
-          }}
-        >
-          <span>⚠️ {avatarError}</span>
-        </div>
-      )}
-
-      {/* Nội dung Form hồ sơ */}
-      <form onSubmit={handleSubmit}>
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))',
-            gap: '24px',
-            marginBottom: '24px',
-          }}
-        >
-          {/* Card 1: Thông tin hệ thống (Chỉ xem - Disabled / Read-only) */}
-          <div
-            style={{
-              background: '#ffffff',
-              border: '1px solid #e2e8f0',
-              borderRadius: '20px',
-              padding: '24px',
-              boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '18px',
-            }}
-          >
-            <div style={{ paddingBottom: '14px', borderBottom: '1px solid #f1f5f9' }}>
-              <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '700', color: '#0f172a' }}>
-                Thông tin hệ thống
-              </h3>
+            {/* Số điện thoại (chỉnh sửa) */}
+            <div>
+              <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '600', color: '#1e293b', marginBottom: '6px' }}>
+                Số điện thoại liên lạc <span style={{ color: '#dc2626' }}>*</span>
+              </label>
+              <input
+                type="tel"
+                required
+                placeholder="Ví dụ: 0912345678, 0389123456..."
+                value={phoneInput}
+                onChange={handlePhoneChange}
+                onBlur={() => validatePhone(phoneInput)}
+                maxLength={11}
+                style={{
+                  width: '100%',
+                  padding: '10px 14px',
+                  borderRadius: '10px',
+                  border: `1.5px solid ${phoneError ? '#ef4444' : '#cbd5e1'}`,
+                  fontSize: '13.5px',
+                  color: '#0f172a',
+                  fontWeight: '500',
+                  outline: 'none',
+                  transition: 'border-color 0.15s ease',
+                  background: '#ffffff',
+                }}
+                onFocus={(e) => {
+                  if (!phoneError) e.target.style.borderColor = '#2563eb';
+                }}
+                onBlurCapture={(e) => {
+                  if (!phoneError) e.target.style.borderColor = '#cbd5e1';
+                }}
+              />
+              {phoneError ? (
+                <p style={{ margin: '5px 0 0', fontSize: '12px', color: '#dc2626', fontWeight: '500' }}>
+                  {phoneError}
+                </p>
+              ) : (
+                <p style={{ margin: '4px 0 0', fontSize: '11.5px', color: '#64748b' }}>
+                  10 chữ số, đúng đầu số nhà mạng VN (03x, 05x, 07x, 08x, 09x).
+                </p>
+              )}
             </div>
 
             {/* Tên đăng nhập (Read-only) */}
@@ -798,14 +864,14 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               />
             </div>
 
-            {/* Vai trò trong hệ thống (Badge hiển thị) */}
+            {/* Vai trò trong hệ thống */}
             <div>
               <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '600', color: '#475569', marginBottom: '6px' }}>
                 Vai trò phân quyền
               </label>
               <div
                 style={{
-                  padding: '10px 14px',
+                  padding: '9px 14px',
                   borderRadius: '10px',
                   border: '1px solid #e2e8f0',
                   background: '#f8fafc',
@@ -830,7 +896,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               </div>
             </div>
 
-            {/* Kho / Địa bàn phụ trách */}
+            {/* Kho / Địa bàn phụ trách (Read-only) */}
             <div>
               <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '600', color: '#475569', marginBottom: '6px' }}>
                 Kho / Khu vực phụ trách
@@ -852,205 +918,73 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                 }}
               />
             </div>
-
-            <div
-              style={{
-                marginTop: 'auto',
-                background: '#f0fdf4',
-                border: '1px solid #bbf7d0',
-                borderRadius: '10px',
-                padding: '10px 14px',
-                fontSize: '12px',
-                color: '#166534',
-                lineHeight: '1.5',
-              }}
-            >
-              Các thông tin phân quyền và chi nhánh làm việc do Quản trị viên quản lý. Vui lòng liên hệ Admin nếu cần điều chỉnh.
-            </div>
           </div>
 
-          {/* Card 2: Thông tin cá nhân có thể chỉnh sửa */}
+          {/* Nút hành động Lưu & Hủy ngay dưới bảng */}
           <div
             style={{
-              background: '#ffffff',
-              border: '1px solid #e2e8f0',
-              borderRadius: '20px',
-              padding: '24px',
-              boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
+              paddingTop: '18px',
+              borderTop: '1px solid #e2e8f0',
               display: 'flex',
-              flexDirection: 'column',
-              gap: '18px',
+              alignItems: 'center',
+              justifyContent: 'flex-end',
+              gap: '12px',
             }}
           >
-            <div style={{ paddingBottom: '14px', borderBottom: '1px solid #f1f5f9' }}>
-              <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '700', color: '#0f172a' }}>
-                Chỉnh sửa thông tin
-              </h3>
-            </div>
-
-            {/* Họ và tên */}
-            <div>
-              <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '600', color: '#1e293b', marginBottom: '6px' }}>
-                Họ và tên <span style={{ color: '#dc2626' }}>*</span>
-              </label>
-              <input
-                type="text"
-                required
-                placeholder="Nhập họ và tên đầy đủ..."
-                value={fullNameInput}
-                onChange={handleNameChange}
-                onBlur={() => validateName(fullNameInput)}
-                style={{
-                  width: '100%',
-                  padding: '11px 14px',
-                  borderRadius: '10px',
-                  border: `1.5px solid ${nameError ? '#ef4444' : '#cbd5e1'}`,
-                  fontSize: '14px',
-                  color: '#0f172a',
-                  fontWeight: '500',
-                  outline: 'none',
-                  transition: 'border-color 0.15s ease',
-                }}
-                onFocus={(e) => {
-                  if (!nameError) e.target.style.borderColor = '#2563eb';
-                }}
-                onBlurCapture={(e) => {
-                  if (!nameError) e.target.style.borderColor = '#cbd5e1';
-                }}
-              />
-              {nameError && (
-                <p style={{ margin: '5px 0 0', fontSize: '12px', color: '#dc2626', fontWeight: '500' }}>
-                  {nameError}
-                </p>
-              )}
-            </div>
-
-            {/* Số điện thoại */}
-            <div>
-              <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '600', color: '#1e293b', marginBottom: '6px' }}>
-                Số điện thoại liên lạc <span style={{ color: '#dc2626' }}>*</span>
-              </label>
-              <input
-                type="tel"
-                required
-                placeholder="Ví dụ: 0912345678, 0389123456..."
-                value={phoneInput}
-                onChange={handlePhoneChange}
-                onBlur={() => validatePhone(phoneInput)}
-                maxLength={11}
-                style={{
-                  width: '100%',
-                  padding: '11px 14px',
-                  borderRadius: '10px',
-                  border: `1.5px solid ${phoneError ? '#ef4444' : '#cbd5e1'}`,
-                  fontSize: '14px',
-                  color: '#0f172a',
-                  fontWeight: '500',
-                  outline: 'none',
-                  transition: 'border-color 0.15s ease',
-                }}
-                onFocus={(e) => {
-                  if (!phoneError) e.target.style.borderColor = '#2563eb';
-                }}
-                onBlurCapture={(e) => {
-                  if (!phoneError) e.target.style.borderColor = '#cbd5e1';
-                }}
-              />
-              {phoneError ? (
-                <p style={{ margin: '5px 0 0', fontSize: '12px', color: '#dc2626', fontWeight: '500' }}>
-                  {phoneError}
-                </p>
-              ) : (
-                <p style={{ margin: '5px 0 0', fontSize: '12px', color: '#64748b' }}>
-                  Yêu cầu 10 chữ số, đúng đầu số nhà mạng VN (03x, 05x, 07x, 08x, 09x).
-                </p>
-              )}
-            </div>
-
-            {/* Hộp bảo mật an toàn */}
-            <div
+            <button
+              type="button"
+              onClick={handleReset}
+              disabled={saving}
               style={{
-                marginTop: 'auto',
-                background: '#f8fafc',
-                border: '1px solid #e2e8f0',
-                borderRadius: '12px',
-                padding: '14px',
-                fontSize: '12.5px',
+                padding: '9px 20px',
+                borderRadius: '9px',
+                border: '1px solid #cbd5e1',
+                background: '#ffffff',
                 color: '#475569',
+                fontSize: '13.5px',
+                fontWeight: '600',
+                cursor: saving ? 'not-allowed' : 'pointer',
+                transition: 'all 0.15s ease',
+              }}
+              onMouseEnter={(e) => {
+                if (!saving) e.currentTarget.style.backgroundColor = '#f1f5f9';
+              }}
+              onMouseLeave={(e) => {
+                if (!saving) e.currentTarget.style.backgroundColor = '#ffffff';
               }}
             >
-              Hệ thống đảm bảo bảo mật thông tin liên lạc cá nhân theo tiêu chuẩn kiểm toán hệ thống.
-            </div>
+              Hủy
+            </button>
+
+            <button
+              type="submit"
+              disabled={saving || loading}
+              style={{
+                padding: '9px 24px',
+                borderRadius: '9px',
+                border: 'none',
+                background: saving ? '#93c5fd' : '#2563eb',
+                color: '#ffffff',
+                fontSize: '13.5px',
+                fontWeight: '700',
+                cursor: saving || loading ? 'not-allowed' : 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                boxShadow: '0 3px 10px rgba(37, 99, 235, 0.25)',
+                transition: 'all 0.15s ease',
+              }}
+              onMouseEnter={(e) => {
+                if (!saving && !loading) e.currentTarget.style.backgroundColor = '#1d4ed8';
+              }}
+              onMouseLeave={(e) => {
+                if (!saving && !loading) e.currentTarget.style.backgroundColor = '#2563eb';
+              }}
+            >
+              {saving ? 'Đang lưu...' : 'Lưu thay đổi'}
+            </button>
           </div>
-        </div>
-
-        {/* Nút hành động Lưu & Hủy */}
-        <div
-          style={{
-            background: '#ffffff',
-            border: '1px solid #e2e8f0',
-            borderRadius: '16px',
-            padding: '16px 24px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'flex-end',
-            gap: '12px',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
-          }}
-        >
-          <button
-            type="button"
-            onClick={handleReset}
-            disabled={saving}
-            style={{
-              padding: '10px 22px',
-              borderRadius: '10px',
-              border: '1px solid #cbd5e1',
-              background: '#ffffff',
-              color: '#475569',
-              fontSize: '13.5px',
-              fontWeight: '600',
-              cursor: saving ? 'not-allowed' : 'pointer',
-              transition: 'all 0.15s ease',
-            }}
-            onMouseEnter={(e) => {
-              if (!saving) e.currentTarget.style.backgroundColor = '#f1f5f9';
-            }}
-            onMouseLeave={(e) => {
-              if (!saving) e.currentTarget.style.backgroundColor = '#ffffff';
-            }}
-          >
-            Hủy
-          </button>
-
-          <button
-            type="submit"
-            disabled={saving || loading}
-            style={{
-              padding: '10px 26px',
-              borderRadius: '10px',
-              border: 'none',
-              background: saving ? '#93c5fd' : '#2563eb',
-              color: '#ffffff',
-              fontSize: '13.5px',
-              fontWeight: '700',
-              cursor: saving || loading ? 'not-allowed' : 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-              boxShadow: '0 4px 12px rgba(37, 99, 235, 0.25)',
-              transition: 'all 0.15s ease',
-            }}
-            onMouseEnter={(e) => {
-              if (!saving && !loading) e.currentTarget.style.backgroundColor = '#1d4ed8';
-            }}
-            onMouseLeave={(e) => {
-              if (!saving && !loading) e.currentTarget.style.backgroundColor = '#2563eb';
-            }}
-          >
-            {saving ? 'Đang lưu...' : 'Lưu thay đổi'}
-          </button>
-        </div>
-      </form>
+        </form>
+      </div>
 
       {/* Modal Cắt ảnh vuông tự chọn (Interactive Square Cropper) */}
       {cropModalOpen && rawImageSrc && (
@@ -1111,12 +1045,12 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
             }}
           >
             {/* Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px' }}>
+              <div style={{ flex: 1 }}>
                 <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '800', color: '#0f172a' }}>
                   Cắt ảnh vuông đại diện
                 </h3>
-                <p style={{ margin: '4px 0 0', fontSize: '12.5px', color: '#64748b' }}>
+                <p style={{ margin: '4px 0 0', fontSize: '12.5px', color: '#64748b', lineHeight: 1.4 }}>
                   Chấp nhận JPG/PNG tối đa 2MB. Kéo khung vuông hoặc thanh kích thước để chọn vùng ảnh bạn muốn
                 </p>
               </div>
@@ -1128,16 +1062,48 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                   setRawImageSrc(null);
                 }}
                 style={{
-                  background: 'transparent',
+                  margin: 0,
+                  width: '32px',
+                  height: '32px',
+                  minWidth: '32px',
+                  minHeight: '32px',
+                  padding: 0,
+                  background: '#f1f5f9',
                   border: 'none',
-                  fontSize: '22px',
+                  borderRadius: '50%',
                   cursor: uploadingAvatar ? 'not-allowed' : 'pointer',
-                  color: '#94a3b8',
-                  padding: '4px',
-                  lineHeight: 1,
+                  color: '#64748b',
+                  boxShadow: 'none',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                  transition: 'all 0.15s ease',
                 }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#e2e8f0';
+                  e.currentTarget.style.color = '#0f172a';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = '#f1f5f9';
+                  e.currentTarget.style.color = '#64748b';
+                }}
+                title="Đóng"
+                aria-label="Đóng"
               >
-                ✕
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
               </button>
             </div>
 
@@ -1301,19 +1267,42 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                     }));
                   }}
                   style={{
+                    margin: 0,
+                    boxShadow: 'none',
                     width: '32px',
                     height: '32px',
+                    minWidth: '32px',
+                    minHeight: '32px',
+                    padding: 0,
                     borderRadius: '8px',
                     border: '1px solid #cbd5e1',
                     background: '#f8fafc',
                     cursor: 'pointer',
-                    fontSize: '16px',
-                    fontWeight: '700',
                     color: '#334155',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                    transition: 'all 0.15s ease',
                   }}
+                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#e2e8f0'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#f8fafc'; }}
                   title="Thu nhỏ vùng vuông"
+                  aria-label="Thu nhỏ vùng cắt"
                 >
-                  -
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    style={{ display: 'block' }}
+                  >
+                    <line x1="5" y1="12" x2="19" y2="12" />
+                  </svg>
                 </button>
                 <input
                   type="range"
@@ -1333,8 +1322,11 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                   }}
                   style={{
                     flex: 1,
+                    height: '32px',
+                    margin: 0,
                     cursor: 'pointer',
                     accentColor: '#0284c7',
+                    verticalAlign: 'middle',
                   }}
                 />
                 <button
@@ -1352,19 +1344,43 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                     }));
                   }}
                   style={{
+                    margin: 0,
+                    boxShadow: 'none',
                     width: '32px',
                     height: '32px',
+                    minWidth: '32px',
+                    minHeight: '32px',
+                    padding: 0,
                     borderRadius: '8px',
                     border: '1px solid #cbd5e1',
                     background: '#f8fafc',
                     cursor: 'pointer',
-                    fontSize: '16px',
-                    fontWeight: '700',
                     color: '#334155',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                    transition: 'all 0.15s ease',
                   }}
+                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#e2e8f0'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#f8fafc'; }}
                   title="Phóng to vùng vuông"
+                  aria-label="Phóng to vùng cắt"
                 >
-                  +
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    style={{ display: 'block' }}
+                  >
+                    <line x1="12" y1="5" x2="12" y2="19" />
+                    <line x1="5" y1="12" x2="19" y2="12" />
+                  </svg>
                 </button>
                 <button
                   type="button"
@@ -1377,7 +1393,11 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                     });
                   }}
                   style={{
-                    padding: '6px 12px',
+                    margin: 0,
+                    boxShadow: 'none',
+                    height: '32px',
+                    minHeight: '32px',
+                    padding: '0 12px',
                     borderRadius: '8px',
                     border: '1px solid #cbd5e1',
                     background: '#f8fafc',
@@ -1386,7 +1406,14 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                     fontWeight: '600',
                     color: '#475569',
                     whiteSpace: 'nowrap',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                    transition: 'all 0.15s ease',
                   }}
+                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#e2e8f0'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#f8fafc'; }}
                   title="Căn giữa vùng vuông"
                 >
                   Căn giữa
@@ -1404,6 +1431,8 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                   setRawImageSrc(null);
                 }}
                 style={{
+                  margin: 0,
+                  boxShadow: 'none',
                   padding: '9px 18px',
                   borderRadius: '10px',
                   border: '1px solid #cbd5e1',
@@ -1412,7 +1441,10 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                   fontSize: '13.5px',
                   fontWeight: '600',
                   cursor: uploadingAvatar ? 'not-allowed' : 'pointer',
+                  transition: 'background-color 0.15s ease',
                 }}
+                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#f8fafc'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#ffffff'; }}
               >
                 Hủy
               </button>
@@ -1421,6 +1453,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                 disabled={uploadingAvatar}
                 onClick={handleConfirmCropAndUpload}
                 style={{
+                  margin: 0,
                   padding: '9px 24px',
                   borderRadius: '10px',
                   border: 'none',

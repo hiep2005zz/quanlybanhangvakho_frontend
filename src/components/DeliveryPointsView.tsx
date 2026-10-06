@@ -634,25 +634,28 @@ export default function DeliveryPointsView({
         </div>
       </div>
 
-      {/* 2. Main Content: Master - Detail Split Layout */}
+      {/* 2. Main Content: 1 Unified Block (Khối thống nhất Master - Detail) */}
       <div
         style={{
+          background: '#ffffff',
+          borderRadius: '16px',
+          border: '1px solid #e2e8f0',
+          boxShadow: '0 4px 20px -2px rgba(15, 23, 42, 0.06)',
+          overflow: 'hidden',
           display: 'grid',
           gridTemplateColumns: 'minmax(300px, 360px) 1fr',
-          gap: '24px',
-          alignItems: 'start',
+          minHeight: 'calc(100vh - 210px)',
+          alignItems: 'stretch',
         }}
       >
         {/* LEFT COLUMN: Dealers Selector List */}
         <div
           style={{
-            background: '#ffffff',
-            borderRadius: '16px',
-            border: '1px solid #e2e8f0',
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
-            overflow: 'hidden',
+            background: '#fafbfc',
+            borderRight: '1px solid #e2e8f0',
             display: 'flex',
             flexDirection: 'column',
+            minHeight: 0,
           }}
         >
           {/* Header of dealer list */}
@@ -718,7 +721,7 @@ export default function DeliveryPointsView({
           </div>
 
           {/* Dealer cards scrollable list */}
-          <div style={{ maxHeight: 'calc(100vh - 280px)', overflowY: 'auto', padding: '8px' }}>
+          <div style={{ flex: 1, maxHeight: 'calc(100vh - 280px)', overflowY: 'auto', padding: '10px 8px' }}>
             {loadingDealers ? (
               <div style={{ padding: '32px 16px', textAlign: 'center', color: '#94a3b8', fontSize: '13.5px' }}>
                 Đang tải danh sách đại lý...
@@ -807,16 +810,14 @@ export default function DeliveryPointsView({
         </div>
 
         {/* RIGHT COLUMN: Delivery Points of Selected Dealer */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          {/* Dealer Info Banner with '+ Thêm điểm giao' button */}
+        <div style={{ display: 'flex', flexDirection: 'column', background: '#ffffff', minWidth: 0 }}>
+          {/* Dealer Info Banner Header with 'Chọn điểm giao' button */}
           {selectedDealer ? (
             <div
               style={{
                 background: '#ffffff',
-                borderRadius: '16px',
-                border: '1px solid #e2e8f0',
-                padding: '20px 24px',
-                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.03)',
+                borderBottom: '1px solid #e2e8f0',
+                padding: '18px 24px',
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
@@ -838,7 +839,7 @@ export default function DeliveryPointsView({
                   >
                     {selectedDealer.code || `DL-${selectedDealer.id}`}
                   </span>
-                  <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '700', color: '#0f172a' }}>
+                  <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '750', color: '#0f172a' }}>
                     {selectedDealer.name}
                   </h3>
                 </div>
@@ -848,20 +849,20 @@ export default function DeliveryPointsView({
                     display: 'flex',
                     alignItems: 'center',
                     gap: '16px',
-                    marginTop: '8px',
-                    fontSize: '13.5px',
+                    marginTop: '6px',
+                    fontSize: '13px',
                     color: '#475569',
                     flexWrap: 'wrap',
                   }}
                 >
                   {selectedDealer.phone && (
                     <span>
-                      <strong>SĐT:</strong> {selectedDealer.phone}
+                      <strong style={{ color: '#334155' }}>SĐT:</strong> {selectedDealer.phone}
                     </span>
                   )}
                   {selectedDealer.address && (
                     <span>
-                      <strong>Địa chỉ chính:</strong> {selectedDealer.address}
+                      <strong style={{ color: '#334155' }}>Địa chỉ chính:</strong> {selectedDealer.address}
                     </span>
                   )}
                 </div>
@@ -883,7 +884,7 @@ export default function DeliveryPointsView({
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: '7px',
-                  boxShadow: '0 3px 10px rgba(37, 99, 235, 0.25)',
+                  boxShadow: '0 2px 8px rgba(37, 99, 235, 0.25)',
                   transition: 'all 0.15s ease',
                 }}
                 onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#1d4ed8')}
@@ -899,26 +900,26 @@ export default function DeliveryPointsView({
           ) : (
             <div
               style={{
-                background: '#ffffff',
-                borderRadius: '16px',
-                border: '1px solid #e2e8f0',
-                padding: '32px',
+                background: '#f8fafc',
+                borderBottom: '1px solid #e2e8f0',
+                padding: '24px',
                 textAlign: 'center',
                 color: '#64748b',
+                fontSize: '13.5px',
               }}
             >
               Vui lòng chọn một đại lý ở danh sách bên trái.
             </div>
           )}
 
-          {/* Delivery Points Cards Section */}
+          {/* Delivery Points Section (Integrated into Unified Panel) */}
           <div
             style={{
-              background: '#ffffff',
-              borderRadius: '16px',
-              border: '1px solid #e2e8f0',
-              padding: '24px',
-              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.03)',
+              flex: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              padding: '20px 24px',
+              overflowY: 'auto',
             }}
           >
             <div

@@ -1,12 +1,25 @@
 const API_BASE_URL = 'http://localhost:8000';
 
+export interface AppliedPriceBookInfo {
+    id: number;
+    code: string;
+    name: string;
+    customer_group: string;
+    valid_from?: string | null;
+    valid_to?: string | null;
+    status: string;
+    is_active_now?: boolean;
+    items_count?: number;
+    note?: string | null;
+}
+
 export interface DealerSearchItem {
     id: number;
     code: string;
     name: string;
+    tax_code?: string | null;
     phone?: string | null;
     email?: string | null;
-    tax_id?: string | null;
     address?: string | null;
     region: string;
     assigned_sale_id?: number | null;
@@ -17,7 +30,9 @@ export interface DealerSearchItem {
     max_debt_days?: number;
     current_debt?: number;
     debt_status?: string;
-    price_list?: string | null;
+    transaction_count?: number;
+    has_transactions?: boolean;
+    applied_price_book?: AppliedPriceBookInfo | null;
 }
 
 export interface DealerSearchResponse {
@@ -53,13 +68,9 @@ const MOCK_DEALERS: DealerSearchItem[] = [
         address: 'Số 123 Cầu Giấy, Phường Dịch Vọng, Cầu Giấy, Hà Nội',
         region: 'Hà Nội',
         assigned_sale_id: 1,
-        assigned_sale_name: 'Nhân viên bán hàng',
-        customer_group: 'Đại lý cấp 1',
+        assigned_sale_name: 'Nguyễn Văn An',
+        customer_group: 'dai_ly_cap_1',
         status: 'Đang hoạt động',
-        current_debt: 0,
-        credit_limit: 50000000,
-        max_debt_days: 30,
-        debt_status: 'Còn hạn',
     },
     {
         id: 2,
@@ -70,13 +81,9 @@ const MOCK_DEALERS: DealerSearchItem[] = [
         address: '45 Hoàng Hoa Thám, Phường Thụy Khuê, Tây Hồ, Hà Nội',
         region: 'Hà Nội',
         assigned_sale_id: 2,
-        assigned_sale_name: 'Trưởng phòng',
-        customer_group: 'Đại lý cấp 2',
+        assigned_sale_name: 'Trần Thị Bình',
+        customer_group: 'dai_ly_cap_2',
         status: 'Đang hoạt động',
-        current_debt: 28500000,
-        credit_limit: 50000000,
-        max_debt_days: 30,
-        debt_status: 'Còn hạn',
     },
     {
         id: 3,
@@ -87,13 +94,9 @@ const MOCK_DEALERS: DealerSearchItem[] = [
         address: '88 Nguyễn Văn Cừ, Phường 2, Quận 5, TP. Hồ Chí Minh',
         region: 'TP.HCM',
         assigned_sale_id: 1,
-        assigned_sale_name: 'Nhân viên bán hàng',
-        customer_group: 'Đại lý cấp 1',
+        assigned_sale_name: 'Nguyễn Văn An',
+        customer_group: 'dai_ly_cap_1',
         status: 'Đang hoạt động',
-        current_debt: 0,
-        credit_limit: 50000000,
-        max_debt_days: 30,
-        debt_status: 'Còn hạn',
     },
     {
         id: 4,
@@ -104,13 +107,9 @@ const MOCK_DEALERS: DealerSearchItem[] = [
         address: '210 Lê Văn Sỹ, Phường 14, Quận 3, TP. Hồ Chí Minh',
         region: 'TP.HCM',
         assigned_sale_id: 3,
-        assigned_sale_name: 'Nhân viên bán hàng',
-        customer_group: 'Khách sỉ',
+        assigned_sale_name: 'Lê Hoàng Nam',
+        customer_group: 'dai_ly_cap_2',
         status: 'Tạm ngừng',
-        current_debt: 42000000,
-        credit_limit: 50000000,
-        max_debt_days: 30,
-        debt_status: 'Hết hạn',
     },
     {
         id: 5,
@@ -121,13 +120,9 @@ const MOCK_DEALERS: DealerSearchItem[] = [
         address: '76 Nguyễn Văn Linh, Phường Nam Dương, Hải Châu, Đà Nẵng',
         region: 'Đà Nẵng',
         assigned_sale_id: 2,
-        assigned_sale_name: 'Trưởng phòng',
-        customer_group: 'Đại lý cấp 1',
+        assigned_sale_name: 'Trần Thị Bình',
+        customer_group: 'dai_ly_cap_1',
         status: 'Đang hoạt động',
-        current_debt: 0,
-        credit_limit: 50000000,
-        max_debt_days: 30,
-        debt_status: 'Còn hạn',
     },
     {
         id: 6,
@@ -138,13 +133,9 @@ const MOCK_DEALERS: DealerSearchItem[] = [
         address: '15 Lạch Tray, Quận Ngô Quyền, Hải Phòng',
         region: 'Hải Phòng',
         assigned_sale_id: 3,
-        assigned_sale_name: 'Nhân viên bán hàng',
-        customer_group: 'Khách lẻ',
+        assigned_sale_name: 'Lê Hoàng Nam',
+        customer_group: 'khach_le',
         status: 'Đang hoạt động',
-        current_debt: 0,
-        credit_limit: 50000000,
-        max_debt_days: 30,
-        debt_status: 'Còn hạn',
     },
     {
         id: 7,
@@ -155,13 +146,9 @@ const MOCK_DEALERS: DealerSearchItem[] = [
         address: '54 Đường 30 Tháng 4, Phường An Phú, Ninh Kiều, Cần Thơ',
         region: 'Cần Thơ',
         assigned_sale_id: 1,
-        assigned_sale_name: 'Nhân viên bán hàng',
-        customer_group: 'Khách sỉ',
+        assigned_sale_name: 'Nguyễn Văn An',
+        customer_group: 'dai_ly_cap_2',
         status: 'Đang hoạt động',
-        current_debt: 0,
-        credit_limit: 50000000,
-        max_debt_days: 30,
-        debt_status: 'Còn hạn',
     },
     {
         id: 8,
@@ -172,13 +159,9 @@ const MOCK_DEALERS: DealerSearchItem[] = [
         address: '12 Tràng Thi, Phường Hàng Trống, Hoàn Kiếm, Hà Nội',
         region: 'Hà Nội',
         assigned_sale_id: 2,
-        assigned_sale_name: 'Trưởng phòng',
-        customer_group: 'Đại lý cấp 2',
+        assigned_sale_name: 'Trần Thị Bình',
+        customer_group: 'dai_ly_cap_2',
         status: 'Tạm ngừng',
-        current_debt: 0,
-        credit_limit: 50000000,
-        max_debt_days: 30,
-        debt_status: 'Còn hạn',
     },
 ];
 
@@ -234,28 +217,6 @@ function filterMockDealers(params?: DealerSearchParams): DealerSearchResponse {
         items: list,
         total: list.length,
     };
-}
-
-const LOCAL_DEBTS_KEY = 'dealer_custom_debts';
-
-function getLocalDealerDebt(id: number): { current_debt: number; debt_status: string } | null {
-    try {
-        const raw = sessionStorage.getItem(LOCAL_DEBTS_KEY);
-        if (!raw) return null;
-        const map = JSON.parse(raw);
-        return map[id] || null;
-    } catch {
-        return null;
-    }
-}
-
-export function saveLocalDealerDebt(id: number, current_debt: number, debt_status: string) {
-    try {
-        const raw = sessionStorage.getItem(LOCAL_DEBTS_KEY);
-        const map = raw ? JSON.parse(raw) : {};
-        map[id] = { current_debt, debt_status };
-        sessionStorage.setItem(LOCAL_DEBTS_KEY, JSON.stringify(map));
-    } catch {}
 }
 
 export async function searchDealers(
@@ -325,21 +286,7 @@ export async function searchDealers(
         );
 
         if (response.ok) {
-            const data: DealerSearchResponse = await response.json();
-            if (data && Array.isArray(data.items)) {
-                data.items = data.items.map((item) => {
-                    const saved = getLocalDealerDebt(item.id);
-                    if (saved) {
-                        return {
-                            ...item,
-                            current_debt: saved.current_debt,
-                            debt_status: saved.debt_status,
-                        };
-                    }
-                    return item;
-                });
-            }
-            return data;
+            return await response.json();
         }
     } catch {
         // Backend không khả dụng hoặc trả về lỗi, chuyển sang fallback dữ liệu mẫu
@@ -371,21 +318,7 @@ export async function getDealerFilters(
         );
 
         if (response.ok) {
-            const data = await response.json();
-            if (data && data.customer_groups && Array.isArray(data.customer_groups)) {
-                const normalized = (data.customer_groups as any[]).map((raw) => {
-                    const g = String(raw || '');
-                    if (!g) return 'Đại lý cấp 1';
-                    const lower = g.trim().toLowerCase().replace(/_/g, ' ');
-                    if (lower.includes('cấp 1') || lower.includes('cap 1')) return 'Đại lý cấp 1';
-                    if (lower.includes('cấp 2') || lower.includes('cap 2')) return 'Đại lý cấp 2';
-                    if (lower.includes('sỉ') || lower.includes('si')) return 'Khách sỉ';
-                    if (lower.includes('lẻ') || lower.includes('le') || lower.includes('retail')) return 'Khách lẻ';
-                    return g.trim();
-                });
-                data.customer_groups = Array.from(new Set(normalized)).filter((g) => !g.includes('_') && g !== 'khach_le' && g !== 'khach_si');
-            }
-            return data;
+            return await response.json();
         }
     } catch {
         // Backend không khả dụng
@@ -393,15 +326,18 @@ export async function getDealerFilters(
 
     // Fallback dữ liệu bộ lọc từ danh sách mẫu
     const uniqueRegions = Array.from(new Set(MOCK_DEALERS.map((d) => d.region))).filter(Boolean);
-    const uniqueSales = [
-        { id: 1, name: 'Nhân viên bán hàng' },
-        { id: 2, name: 'Trưởng phòng' },
-    ];
+    const uniqueSalesMap = new Map<number, string>();
+    MOCK_DEALERS.forEach((d) => {
+        if (d.assigned_sale_id && d.assigned_sale_name) {
+            uniqueSalesMap.set(d.assigned_sale_id, d.assigned_sale_name);
+        }
+    });
+    const uniqueSales = Array.from(uniqueSalesMap.entries()).map(([id, name]) => ({ id, name }));
 
     return {
         regions: uniqueRegions,
         sales: uniqueSales,
-        customer_groups: ['Đại lý cấp 1', 'Đại lý cấp 2', 'Khách sỉ', 'Khách lẻ'],
+        customer_groups: ['dai_ly_cap_1', 'dai_ly_cap_2', 'khach_le'],
         statuses: ['Đang hoạt động', 'Tạm ngừng'],
     };
 }
@@ -409,19 +345,93 @@ export async function getDealerFilters(
 export interface CreateDealerPayload {
     code?: string;
     name: string;
+    tax_code?: string | null;
     phone?: string;
     email?: string;
-    tax_id?: string;
     address?: string;
     region: string;
     assigned_sale_id?: number | null;
     assigned_sale_name?: string | null;
     customer_group?: string;
-    price_list?: string;
+    status?: string;
+    transaction_count?: number | null;
+}
+
+export interface UpdateDealerPayload {
+    code?: string;
+    name?: string;
+    tax_code?: string | null;
+    phone?: string | null;
+    email?: string | null;
+    address?: string | null;
+    region?: string;
+    assigned_sale_id?: number | null;
+    customer_group?: string;
     status?: string;
     credit_limit?: number;
-    current_debt?: number;
-    debt_status?: string;
+    max_debt_days?: number;
+    transaction_count?: number | null;
+}
+
+export async function updateDealerProfile(
+    dealerId: number,
+    payload: UpdateDealerPayload,
+    token?: string
+): Promise<DealerSearchItem> {
+    const authToken = getAuthToken(token);
+    const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+    };
+    if (authToken) {
+        headers['Authorization'] = `Bearer ${authToken}`;
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/v1/dealers/${dealerId}`, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+        let errorDetail = `Lỗi cập nhật hồ sơ đại lý (HTTP ${response.status})`;
+        try {
+            const errData = await response.json();
+            if (errData && errData.detail) errorDetail = typeof errData.detail === 'string' ? errData.detail : JSON.stringify(errData.detail);
+        } catch {}
+        throw new Error(errorDetail);
+    }
+    return response.json();
+}
+
+export async function getAppliedPriceBookPreview(
+    customerGroup: string,
+    token?: string
+): Promise<{ customer_group: string; applied_price_book: AppliedPriceBookInfo | null }> {
+    const authToken = getAuthToken(token);
+    const headers: Record<string, string> = {
+        Accept: 'application/json',
+    };
+    if (authToken) {
+        headers['Authorization'] = `Bearer ${authToken}`;
+    }
+
+    try {
+        const response = await fetch(
+            `${API_BASE_URL}/api/v1/dealers/price-book-preview?customer_group=${encodeURIComponent(customerGroup)}`,
+            {
+                method: 'GET',
+                headers,
+            }
+        );
+
+        if (response.ok) {
+            return await response.json();
+        }
+    } catch {
+        // ignore
+    }
+    return { customer_group: customerGroup, applied_price_book: null };
 }
 
 export async function createDealer(
@@ -437,212 +447,50 @@ export async function createDealer(
         headers.Authorization = `Bearer ${authToken}`;
     }
 
-    const backendSaleId = payload.assigned_sale_id || (payload.assigned_sale_name === 'Trưởng phòng' ? 2 : 3);
-    const apiPayload = {
-        ...payload,
-        assigned_sale_id: backendSaleId,
-    };
-
     try {
         const response = await fetch(`${API_BASE_URL}/api/v1/dealers`, {
             method: 'POST',
             headers,
-            body: JSON.stringify(apiPayload),
-        });
-
-        if (response.ok) {
-            const result = await response.json();
-            if (result && result.id) {
-                const finalItem: DealerSearchItem = {
-                    ...result,
-                    current_debt: (payload.current_debt !== undefined && payload.current_debt !== null)
-                        ? Number(payload.current_debt)
-                        : (result.current_debt ?? 0),
-                    debt_status: payload.debt_status || result.debt_status || 'Còn hạn',
-                    credit_limit: (payload.credit_limit !== undefined && payload.credit_limit !== null)
-                        ? Number(payload.credit_limit)
-                        : (result.credit_limit ?? 50000000),
-                };
-                MOCK_DEALERS.unshift(finalItem);
-                saveLocalDealerDebt(finalItem.id, finalItem.current_debt ?? 0, finalItem.debt_status ?? 'Còn hạn');
-                return finalItem;
-            }
-        }
-    } catch {
-        // Dự phòng fallback khi backend chưa cấu hình endpoint POST /dealers
-    }
-
-    const newItem: DealerSearchItem = {
-        id: Date.now(),
-        code: payload.code?.trim() || `DL-${Math.floor(1000 + Math.random() * 9000)}`,
-        name: payload.name.trim(),
-        phone: payload.phone?.trim() || null,
-        email: payload.email?.trim() || null,
-        tax_id: payload.tax_id?.trim() || null,
-        address: payload.address?.trim() || null,
-        region: payload.region.trim(),
-        assigned_sale_id: backendSaleId,
-        assigned_sale_name: payload.assigned_sale_name || 'Nhân viên bán hàng',
-        customer_group: payload.customer_group || 'Đại lý cấp 1',
-        status: payload.status || 'Đang hoạt động',
-        credit_limit: payload.credit_limit ?? 50000000,
-        current_debt: Number(payload.current_debt) || 0,
-        debt_status: payload.debt_status || 'Còn hạn',
-    };
-
-    MOCK_DEALERS.unshift(newItem);
-    saveLocalDealerDebt(newItem.id, newItem.current_debt ?? 0, newItem.debt_status ?? 'Còn hạn');
-    return newItem;
-}
-
-export interface UpdateDealerPayload {
-    code?: string;
-    name?: string;
-    phone?: string;
-    email?: string;
-    tax_id?: string;
-    address?: string;
-    region?: string;
-    assigned_sale_id?: number | null;
-    assigned_sale_name?: string | null;
-    customer_group?: string;
-    price_list?: string;
-    status?: string;
-}
-
-export async function updateDealer(
-    dealerId: number,
-    payload: UpdateDealerPayload,
-    token?: string
-): Promise<DealerSearchItem> {
-    const authToken = getAuthToken(token);
-    const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-    };
-    if (authToken) {
-        headers.Authorization = `Bearer ${authToken}`;
-    }
-
-    try {
-        const response = await fetch(`${API_BASE_URL}/api/v1/dealers/${dealerId}`, {
-            method: 'PUT',
-            headers,
             body: JSON.stringify(payload),
         });
 
-        if (response.ok) {
-            const result = await response.json();
-            if (result && result.id) {
-                const idx = MOCK_DEALERS.findIndex((d) => d.id === dealerId);
-                if (idx !== -1) {
-                    MOCK_DEALERS[idx] = { ...MOCK_DEALERS[idx], ...result };
-                }
-                return result;
-            }
-        } else {
-            let errorDetail = `Lỗi cập nhật hồ sơ đại lý (HTTP ${response.status})`;
+        if (!response.ok) {
+            let errorDetail = `Lỗi tạo đại lý (HTTP ${response.status})`;
             try {
                 const errData = await response.json();
                 if (errData && errData.detail) errorDetail = typeof errData.detail === 'string' ? errData.detail : JSON.stringify(errData.detail);
             } catch {}
             throw new Error(errorDetail);
         }
+
+        const result = await response.json();
+        if (result && result.id) {
+            MOCK_DEALERS.unshift(result);
+            return result;
+        }
     } catch (err) {
         if (err instanceof Error && !err.message.includes('Failed to fetch')) {
             throw err;
         }
-        // Fallback mock
     }
 
-    const idx = MOCK_DEALERS.findIndex((d) => d.id === dealerId);
-    if (idx !== -1) {
-        MOCK_DEALERS[idx] = {
-            ...MOCK_DEALERS[idx],
-            ...(payload.name !== undefined ? { name: payload.name.trim() } : {}),
-            ...(payload.code !== undefined ? { code: payload.code.trim() } : {}),
-            ...(payload.phone !== undefined ? { phone: payload.phone.trim() || null } : {}),
-            ...(payload.email !== undefined ? { email: payload.email.trim() || null } : {}),
-            ...(payload.tax_id !== undefined ? { tax_id: payload.tax_id.trim() || null } : {}),
-            ...(payload.address !== undefined ? { address: payload.address.trim() || null } : {}),
-            ...(payload.region !== undefined ? { region: payload.region.trim() } : {}),
-            ...(payload.assigned_sale_id !== undefined ? { assigned_sale_id: payload.assigned_sale_id } : {}),
-            ...(payload.assigned_sale_name !== undefined ? { assigned_sale_name: payload.assigned_sale_name } : {}),
-            ...(payload.customer_group !== undefined ? { customer_group: payload.customer_group } : {}),
-            ...(payload.price_list !== undefined ? { price_list: payload.price_list } : {}),
-            ...(payload.status !== undefined ? { status: payload.status } : {}),
-        };
-        return MOCK_DEALERS[idx];
-    }
-
-    throw new Error('Không tìm thấy đại lý cần cập nhật');
-}
-
-export async function checkDealerTransactions(
-    dealerId: number,
-    token?: string
-): Promise<{ dealer_id: number; has_transactions: boolean; transaction_count: number; can_delete: boolean; message: string }> {
-    const authToken = getAuthToken(token);
-    const headers: Record<string, string> = {
-        Accept: 'application/json',
+    const newItem: DealerSearchItem = {
+        id: Date.now(),
+        code: payload.code?.trim() || `DL-${Math.floor(1000 + Math.random() * 9000)}`,
+        name: payload.name.trim(),
+        tax_code: payload.tax_code?.trim() || null,
+        phone: payload.phone?.trim() || null,
+        email: payload.email?.trim() || null,
+        address: payload.address?.trim() || null,
+        region: payload.region.trim(),
+        assigned_sale_id: payload.assigned_sale_id || null,
+        assigned_sale_name: payload.assigned_sale_name || null,
+        customer_group: payload.customer_group || 'dai_ly_cap_1',
+        status: payload.status || 'Đang hoạt động',
     };
-    if (authToken) {
-        headers.Authorization = `Bearer ${authToken}`;
-    }
 
-    try {
-        const response = await fetch(`${API_BASE_URL}/api/v1/dealers/${dealerId}/transaction-status`, {
-            method: 'GET',
-            headers,
-        });
-
-        if (response.ok) {
-            return await response.json();
-        }
-    } catch {}
-
-    // Fallback: đại lý mặc định có id <= 5 coi như đã có giao dịch
-    return {
-        dealer_id: dealerId,
-        has_transactions: dealerId <= 5,
-        transaction_count: dealerId <= 5 ? 2 : 0,
-        can_delete: dealerId > 5,
-        message: dealerId <= 5 ? 'Đại lý đã phát sinh giao dịch, không được xóa.' : 'Đại lý chưa phát sinh giao dịch.',
-    };
-}
-
-export async function deleteDealer(
-    dealerId: number,
-    token?: string
-): Promise<{ success: boolean; message: string }> {
-    const authToken = getAuthToken(token);
-    const headers: Record<string, string> = {
-        Accept: 'application/json',
-    };
-    if (authToken) {
-        headers.Authorization = `Bearer ${authToken}`;
-    }
-
-    const response = await fetch(`${API_BASE_URL}/api/v1/dealers/${dealerId}`, {
-        method: 'DELETE',
-        headers,
-    });
-
-    if (!response.ok) {
-        let errorDetail = `Lỗi xóa đại lý (HTTP ${response.status})`;
-        try {
-            const errData = await response.json();
-            if (errData && errData.detail) errorDetail = typeof errData.detail === 'string' ? errData.detail : JSON.stringify(errData.detail);
-        } catch {}
-        throw new Error(errorDetail);
-    }
-
-    const idx = MOCK_DEALERS.findIndex((d) => d.id === dealerId);
-    if (idx !== -1) {
-        MOCK_DEALERS.splice(idx, 1);
-    }
-
-    return await response.json();
+    MOCK_DEALERS.unshift(newItem);
+    return newItem;
 }
 
 export async function updateDealerStatus(
@@ -659,101 +507,26 @@ export async function updateDealerStatus(
         headers['Authorization'] = `Bearer ${authToken}`;
     }
 
-    try {
-        const response = await fetch(`${API_BASE_URL}/api/v1/dealers/${dealerId}/status`, {
-            method: 'PATCH',
-            headers,
-            body: JSON.stringify({ status }),
-        });
+    const response = await fetch(`${API_BASE_URL}/api/v1/dealers/${dealerId}/status`, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify({ status }),
+    });
 
-        if (response.ok) {
-            const data = await response.json();
-            const idx = MOCK_DEALERS.findIndex((d) => d.id === dealerId);
-            if (idx !== -1) {
-                MOCK_DEALERS[idx].status = status;
+    if (!response.ok) {
+        let errorDetail = `Lỗi cập nhật trạng thái đại lý (HTTP ${response.status})`;
+        try {
+            const errData = await response.json();
+            if (errData && errData.detail) {
+                errorDetail = errData.detail;
             }
-            return data;
-        } else {
-            let errorDetail = `Lỗi cập nhật trạng thái đại lý (HTTP ${response.status})`;
-            try {
-                const errData = await response.json();
-                if (errData && errData.detail) {
-                    errorDetail = errData.detail;
-                }
-            } catch {}
-
-            // Nếu backend báo 404 (Không tìm thấy đại lý trong database, ví dụ đại lý vừa thêm):
-            // Fallback cập nhật ngay trong bộ nhớ để không làm nghẽn thao tác đổi trạng thái
-            if (response.status === 404 || errorDetail.includes('Không tìm thấy')) {
-                const idx = MOCK_DEALERS.findIndex((d) => d.id === dealerId);
-                if (idx !== -1) {
-                    MOCK_DEALERS[idx].status = status;
-                    return MOCK_DEALERS[idx];
-                }
-                return {
-                    id: dealerId,
-                    code: `DL-${dealerId}`,
-                    name: 'Đại lý',
-                    region: 'Hà Nội',
-                    status,
-                };
-            }
-            throw new Error(errorDetail);
+        } catch {
+            // ignore
         }
-    } catch (err) {
-        // Fallback cập nhật bộ dữ liệu mẫu trong bộ nhớ
-        const idx = MOCK_DEALERS.findIndex((d) => d.id === dealerId);
-        if (idx !== -1) {
-            MOCK_DEALERS[idx].status = status;
-            return MOCK_DEALERS[idx];
-        }
-        return {
-            id: dealerId,
-            code: `DL-${dealerId}`,
-            name: 'Đại lý',
-            region: 'Hà Nội',
-            status,
-        };
-    }
-}
-
-export async function updateDealerDebtStatus(
-    dealerId: number,
-    debt_status: string,
-    token?: string
-): Promise<DealerSearchItem> {
-    const authToken = getAuthToken(token);
-    const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-    };
-    if (authToken) {
-        headers['Authorization'] = `Bearer ${authToken}`;
+        throw new Error(errorDetail);
     }
 
-    try {
-        const response = await fetch(`${API_BASE_URL}/api/v1/dealers/${dealerId}`, {
-            method: 'PUT',
-            headers,
-            body: JSON.stringify({ debt_status }),
-        });
-
-        if (response.ok) {
-            const data = await response.json();
-            const idx = MOCK_DEALERS.findIndex((d) => d.id === dealerId);
-            if (idx !== -1) {
-                MOCK_DEALERS[idx].debt_status = debt_status;
-            }
-            return data;
-        }
-    } catch {}
-
-    const idx = MOCK_DEALERS.findIndex((d) => d.id === dealerId);
-    if (idx !== -1) {
-        MOCK_DEALERS[idx].debt_status = debt_status;
-        return MOCK_DEALERS[idx];
-    }
-    throw new Error('Không tìm thấy đại lý cần cập nhật trạng thái công nợ');
+    return response.json();
 }
 
 export interface AssignDealerPayload {
@@ -899,3 +672,29 @@ export async function updateDealerCreditLimit(
     }
     return response.json();
 }
+
+export async function deleteDealer(dealerId: number, token?: string): Promise<any> {
+    const authToken = getAuthToken(token);
+    const headers: Record<string, string> = {
+        Accept: 'application/json',
+    };
+    if (authToken) {
+        headers['Authorization'] = `Bearer ${authToken}`;
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/v1/dealers/${dealerId}`, {
+        method: 'DELETE',
+        headers,
+    });
+
+    if (!response.ok) {
+        let errorDetail = `Lỗi xóa đại lý (HTTP ${response.status})`;
+        try {
+            const errData = await response.json();
+            if (errData && errData.detail) errorDetail = typeof errData.detail === 'string' ? errData.detail : JSON.stringify(errData.detail);
+        } catch {}
+        throw new Error(errorDetail);
+    }
+    return response.json();
+}
+
