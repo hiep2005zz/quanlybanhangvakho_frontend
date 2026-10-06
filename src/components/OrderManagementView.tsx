@@ -570,17 +570,18 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                 type="button"
                 onClick={() => setSelectedOrderDetail(null)}
                 style={{
-                  background: '#f1f5f9',
-                  border: '1px solid #cbd5e1',
-                  borderRadius: '6px',
-                  padding: '4px 10px',
-                  fontSize: '12px',
-                  color: '#475569',
+                  background: 'transparent',
+                  border: 'none',
+                  fontSize: '20px',
+                  color: '#94a3b8',
                   cursor: 'pointer',
-                  fontWeight: '600',
+                  padding: '4px',
+                  lineHeight: 1,
+                  borderRadius: '6px',
                 }}
+                title="Đóng"
               >
-                Đóng
+                ✕
               </button>
             </div>
 
@@ -614,7 +615,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                   </div>
                 </div>
                 <div>
-                  <span style={{ color: '#64748b' }}>🕒 Thời gian tạo:</span>
+                  <span style={{ color: '#64748b' }}>Thời gian tạo:</span>
                   <div style={{ fontWeight: '600', color: '#0f172a', marginTop: '2px' }}>
                     {selectedOrderDetail.created_at
                       ? new Date(selectedOrderDetail.created_at).toLocaleString('vi-VN')
@@ -624,7 +625,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
               </div>
               {selectedOrderDetail.note && (
                 <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: '1px dashed #cbd5e1', fontSize: '13px', color: '#334155' }}>
-                  <span style={{ color: '#64748b' }}>📝 Ghi chú:</span> <em>{selectedOrderDetail.note}</em>
+                  <span style={{ color: '#64748b' }}>Ghi chú:</span> <em>{selectedOrderDetail.note}</em>
                 </div>
               )}
             </div>
