@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { getProductsApi, ProductItem, User } from '../services/api';
 import { sessionManager, SessionState } from '../services/sessionManager';
 import SecurityModal from './SecurityModal';
@@ -24,7 +24,7 @@ import { StockActionModal } from './StockActionModal';
 import { OrderManagementView } from './OrderManagementView';
 import SalesOrderEntry from './SalesOrderEntry';
 import { ProductHistoryView } from './ProductHistoryView';
-import { ProductDrawer } from './ProductDrawer';
+import { ProductFormView } from './ProductFormView';
 
 import './dashboard.css';
 import { Sidebar, type TabType } from './Sidebar';
@@ -632,6 +632,10 @@ export default function DashboardPage({
     product: ProductItem | null;
   }>({ isOpen: false, actionType: 'receipt', product: null });
   const [isSalesOrderEntryOpen, setIsSalesOrderEntryOpen] = useState(false);
+  const availableCategories = useMemo(
+    () => Array.from(new Set(['Thời trang', 'Giày dép', 'Phụ kiện', ...products.map((p) => p.category).filter(Boolean)])),
+    [products]
+  );
 
   // Dropdown menu 3 chấm trên dòng sản phẩm kho hàng
   const [openProductMenuId, setOpenProductMenuId] = useState<number | null>(null);
@@ -787,8 +791,54 @@ export default function DashboardPage({
       }
     >
       <div className="dashboard-main-container">
-      {/* Main Content: Switch between Create Order, Order Management, User Management, Audit Logs, Inventory and Pending Authorization */}
-      {activeTab === 'create-order' || (isSalesOrderEntryOpen && canCreateOrders) ? (
+      {/* Main Content: Switch between Product Form, Create Order, Order Management, User Management, Audit Logs, Inventory and Pending Authorization */}
+      {productDrawerState.isOpen ? (
+        canManageProducts ? (
+          <ProductFormView
+            product={productDrawerState.product}
+            token={token}
+            isCostVisible={isCostVisible}
+            categories={availableCategories}
+            onBack={() => {
+              setProductDrawerState({ isOpen: false, product: null });
+              try {
+                window.history.pushState({}, '', '/');
+              } catch {
+                // ignore
+              }
+            }}
+            onSuccess={(updatedProduct, isDeleted) => {
+              if (isDeleted) {
+                setProducts((prev) => prev.filter((p) => p.id !== productDrawerState.product?.id));
+              } else if (updatedProduct) {
+                setProducts((prev) => {
+                  const idx = prev.findIndex((p) => p.id === updatedProduct.id);
+                  if (idx >= 0) {
+                    const copy = [...prev];
+                    copy[idx] = updatedProduct;
+                    return copy;
+                  }
+                  return [updatedProduct, ...prev];
+                });
+              }
+              setProductDrawerState({ isOpen: false, product: null });
+              try {
+                window.history.pushState({}, '', '/');
+              } catch {
+                // ignore
+              }
+              fetchProducts();
+            }}
+          />
+        ) : (
+          <AccessDeniedView
+            currentUser={user}
+            requiredPermission="Quyền quản lý sản phẩm (Thủ kho / Quản lý kho / Quản lý kinh doanh / Quản trị viên)"
+            onBackToWorkflow={() => setProductDrawerState({ isOpen: false, product: null })}
+            onLogout={onLogout}
+          />
+        )
+      ) : activeTab === 'create-order' || (isSalesOrderEntryOpen && canCreateOrders) ? (
         canCreateOrders ? (
           <SalesOrderEntry
             token={token}
@@ -1473,6 +1523,50 @@ export default function DashboardPage({
                   Hiển thị <strong style={{ color: '#0f172a' }}>{filteredProducts.length}</strong> / {products.length} SP
                 </span>
 
+
+                {/* Nút Thêm sản phẩm (Chỉ hiển thị cho admin và quản lý kinh doanh) */}
+                {canManageProducts && (
+                  <button
+                    type="button"
+                    id="btn-add-product"
+                    onClick={() => {
+                      setProductDrawerState({ isOpen: true, product: null });
+                      try {
+                        window.history.pushState({}, '', '/add-product');
+                      } catch {
+                        // ignore
+                      }
+                    }}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      background: '#2563eb',
+                      border: '1px solid #1d4ed8',
+                      padding: '7px 14px',
+                      borderRadius: '8px',
+                      fontSize: '12.5px',
+                      fontWeight: '600',
+                      color: '#ffffff',
+                      cursor: 'pointer',
+                      boxShadow: '0 2px 6px rgba(37, 99, 235, 0.25)',
+                      transition: 'all 0.15s ease',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = '#1d4ed8';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = '#2563eb';
+                    }}
+                    title="Thêm mới sản phẩm vào hệ thống kho"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="12" y1="5" x2="12" y2="19" />
+                      <line x1="5" y1="12" x2="19" y2="12" />
+                    </svg>
+                    <span>Thêm sản phẩm</span>
+                  </button>
+                )}
 
                 {/* Nút Nhập file Excel danh mục hàng loạt (Chỉ hiển thị cho admin và quản lý kinh doanh) */}
                 {(isAdmin || isSalesManager) && (
@@ -2479,20 +2573,6 @@ export default function DashboardPage({
           onClose={() => setMovingProduct(null)}
           onSuccess={() => {
             setMovingProduct(null);
-            fetchProducts();
-          }}
-        />
-      )}
-
-      {productDrawerState.isOpen && (
-        <ProductDrawer
-          isOpen={productDrawerState.isOpen}
-          onClose={() => setProductDrawerState({ isOpen: false, product: null })}
-          product={productDrawerState.product}
-          token={token}
-          isCostVisible={isCostVisible}
-          categories={['Thời trang', 'Giày dép', 'Phụ kiện', 'Chưa phân loại']}
-          onSuccess={() => {
             fetchProducts();
           }}
         />
