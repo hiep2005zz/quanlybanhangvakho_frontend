@@ -58,7 +58,7 @@ const smallBtn = (color: string, bg: string, border: string, width?: string): Re
   transition: 'all 0.15s ease',
 });
 
-export const SupplierManagementView: React.FC<SupplierManagementViewProps> = ({ token, onBackToHome }) => {
+export const SupplierManagementView: React.FC<SupplierManagementViewProps> = ({ token, onBackToHome: _onBackToHome }) => {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -188,32 +188,6 @@ export const SupplierManagementView: React.FC<SupplierManagementViewProps> = ({ 
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      {/* Breadcrumb */}
-      <nav
-        aria-label="Breadcrumb"
-        style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13.5px', color: '#64748b', padding: '2px 4px' }}
-      >
-        <button
-          type="button"
-          onClick={onBackToHome}
-          style={{
-            background: '#ffffff',
-            border: '1px solid #cbd5e1',
-            borderRadius: '20px',
-            color: '#2563eb',
-            cursor: 'pointer',
-            padding: '5px 14px',
-            fontSize: '13px',
-            fontWeight: '600',
-            boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
-          }}
-        >
-          ← Trang chủ
-        </button>
-        <span style={{ color: '#cbd5e1' }}>/</span>
-        <span style={{ color: '#0f172a', fontWeight: '600' }}>Nhà cung cấp</span>
-      </nav>
-
       {/* Tiêu đề + nút thêm */}
       <div
         style={{

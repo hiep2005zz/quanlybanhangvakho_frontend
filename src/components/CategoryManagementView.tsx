@@ -15,7 +15,7 @@ import { emitStatusToast } from './StatusToast';
 
 interface CategoryManagementViewProps {
   token: string;
-  onBackToHome: () => void;
+  onBackToHome?: () => void;
 }
 
 // Icons
@@ -71,7 +71,7 @@ const DragIcon = () => (
   </svg>
 );
 
-export function CategoryManagementView({ token, onBackToHome }: CategoryManagementViewProps) {
+export function CategoryManagementView({ token, onBackToHome: _onBackToHome }: CategoryManagementViewProps) {
   const [treeData, setTreeData] = useState<CategoryTreeResponse[]>([]);
   const [products, setProducts] = useState<ProductItem[]>([]);
   const [salesReport, setSalesReport] = useState<CategorySalesReport[]>([]);
@@ -858,23 +858,6 @@ export function CategoryManagementView({ token, onBackToHome }: CategoryManageme
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-          <button
-            onClick={onBackToHome}
-            className="back-btn"
-            style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
-              padding: '0 16px', height: '42px', borderRadius: '12px',
-              border: '1px solid #cbd5e1', background: '#fff', cursor: 'pointer',
-              color: '#334155', fontWeight: '600', fontSize: '14.5px', transition: 'all 0.2s',
-              boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
-            }}
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="19" y1="12" x2="5" y2="12"></line>
-              <polyline points="12 19 5 12 12 5"></polyline>
-            </svg>
-            Quay lại kho
-          </button>
           <div>
             <h2 style={{ fontSize: '30px', fontWeight: '800', color: '#0f172a', margin: 0, letterSpacing: '-0.02em' }}>
               Quản Lý Ngành Hàng & Doanh Số
