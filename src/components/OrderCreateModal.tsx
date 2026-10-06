@@ -407,6 +407,22 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
       return;
     }
 
+    const isLockedDealer = Boolean(
+      selectedDealer?.status &&
+      (selectedDealer.status.toLowerCase().includes('khóa') ||
+       selectedDealer.status.toLowerCase().includes('lock') ||
+       selectedDealer.status.toLowerCase().includes('ngừng'))
+    );
+    if (isLockedDealer) {
+      setErrorMsg(`Đại lý "${selectedDealer?.name}" hiện đang bị KHÓA giao dịch. Không thể tạo đơn hàng mới.`);
+      emitStatusToast({
+        title: 'Đại lý bị khóa giao dịch',
+        message: `Đại lý "${selectedDealer?.name}" hiện đang bị KHÓA giao dịch. Vui lòng liên hệ quản trị viên.`,
+        type: 'error',
+      });
+      return;
+    }
+
     if (orderItems.length === 0) {
       setErrorMsg('Vui lòng chọn ít nhất một sản phẩm vào đơn hàng.');
       return;
@@ -632,13 +648,46 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
             >
               {dealers.map((d) => {
                 const dGroup = getCustomerGroupDisplay(d.customer_group);
+                const isLocked = Boolean(
+                  d.status &&
+                  (d.status.toLowerCase().includes('khóa') ||
+                   d.status.toLowerCase().includes('lock') ||
+                   d.status.toLowerCase().includes('ngừng'))
+                );
                 return (
-                  <option key={d.id} value={d.id}>
-                    {d.code ? `[${d.code}] ` : ''}{d.name} ({dGroup.label})
+                  <option key={d.id} value={d.id} disabled={isLocked}>
+                    {d.code ? `[${d.code}] ` : ''}{d.name} ({dGroup.label}){isLocked ? ' [Đã khóa]' : ''}
                   </option>
                 );
               })}
             </select>
+
+            {Boolean(
+              selectedDealer?.status &&
+              (selectedDealer.status.toLowerCase().includes('khóa') ||
+               selectedDealer.status.toLowerCase().includes('lock') ||
+               selectedDealer.status.toLowerCase().includes('ngừng'))
+            ) && (
+              <div
+                style={{
+                  marginTop: '8px',
+                  padding: '10px 12px',
+                  borderRadius: '6px',
+                  background: '#fef2f2',
+                  border: '1px solid #fecaca',
+                  fontSize: '12.5px',
+                  color: '#991b1b',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                }}
+              >
+                <span style={{ fontSize: '15px' }}>⚠️</span>
+                <span>
+                  <strong>Đại lý bị khóa giao dịch:</strong> Đại lý này hiện đang ở trạng thái <strong>Đã khóa</strong>. Hệ thống chặn tạo đơn hàng mới.
+                </span>
+              </div>
+            )}
 
             {isDebtWarning && (
               <div

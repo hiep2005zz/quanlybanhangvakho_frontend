@@ -75,6 +75,38 @@ export default function OrderDetailsModal({ token, orderCode, onClose }: OrderDe
         {error && <div className="orders-state orders-error" role="alert">{error}</div>}
         {order && (
           <div className="orders-detail-content">
+            {Boolean(
+              order.dealer_status &&
+              (order.dealer_status.toLowerCase().includes('khóa') ||
+               order.dealer_status.toLowerCase().includes('lock') ||
+               order.dealer_status.toLowerCase().includes('ngừng'))
+            ) && (
+              <div
+                style={{
+                  background: '#fef2f2',
+                  border: '1.5px solid #ef4444',
+                  borderRadius: '8px',
+                  padding: '12px 16px',
+                  marginBottom: '16px',
+                  color: '#991b1b',
+                  fontSize: '13.5px',
+                  lineHeight: '1.5',
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '10px',
+                  boxShadow: '0 2px 4px rgba(239, 68, 68, 0.08)',
+                }}
+              >
+                <span style={{ fontSize: '18px', lineHeight: 1 }}>⚠️</span>
+                <div>
+                  <strong style={{ display: 'block', marginBottom: '2px', color: '#b91c1c' }}>
+                    CẢNH BÁO CÔNG NỢ: Đại lý &apos;{order.dealer_name}&apos; hiện đang bị KHÓA giao dịch
+                    {order.dealer_lock_reason ? ` (Lý do: ${order.dealer_lock_reason})` : ''}.
+                  </strong>
+                  <span>Đơn dở dang này vẫn được phép xử lý nhưng vui lòng kiểm tra kỹ công nợ trước khi xuất hàng!</span>
+                </div>
+              </div>
+            )}
             <dl className="orders-detail-summary">
               <div><dt>Đại lý</dt><dd>{order.dealer_name}</dd></div>
               <div><dt>Người tạo</dt><dd>{order.created_by}</dd></div>

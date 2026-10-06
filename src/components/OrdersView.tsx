@@ -267,6 +267,21 @@ export default function OrdersView({ token, username, products, canCreateOrders,
 
   const submitOrder = async () => {
     if (!selectedDealer) return setCreateError('Vui lòng chọn đại lý.');
+    const isLockedDealer = Boolean(
+      selectedDealer?.status &&
+      (selectedDealer.status.toLowerCase().includes('khóa') ||
+       selectedDealer.status.toLowerCase().includes('lock') ||
+       selectedDealer.status.toLowerCase().includes('ngừng'))
+    );
+    if (isLockedDealer) {
+      setCreateError(`Đại lý "${selectedDealer.name}" hiện đang bị KHÓA giao dịch. Không thể tạo đơn hàng.`);
+      emitStatusToast({
+        title: 'Đại lý bị khóa giao dịch',
+        message: `Đại lý "${selectedDealer.name}" hiện đang bị KHÓA giao dịch. Vui lòng liên hệ quản trị viên.`,
+        type: 'error',
+      });
+      return;
+    }
     if (!deliveryPoint.trim()) return setCreateError('Vui lòng nhập điểm giao hàng.');
     if (!deliveryDate) return setCreateError('Vui lòng chọn ngày giao mong muốn.');
     if (!lines.length) return setCreateError('Vui lòng thêm ít nhất một dòng hàng.');
@@ -412,7 +427,19 @@ export default function OrdersView({ token, username, products, canCreateOrders,
                 setDeliveryPoint(dealers.find((dealer) => String(dealer.id) === nextDealerId)?.address || '');
               }}>
                 <option value="">{isLoadingDealers ? 'Đang tải đại lý...' : 'Chọn đại lý'}</option>
-                {dealers.map((dealer) => <option key={dealer.id} value={dealer.id}>{dealer.code} — {dealer.name}</option>)}
+                {dealers.map((dealer) => {
+                  const isLocked = Boolean(
+                    dealer.status &&
+                    (dealer.status.toLowerCase().includes('khóa') ||
+                     dealer.status.toLowerCase().includes('lock') ||
+                     dealer.status.toLowerCase().includes('ngừng'))
+                  );
+                  return (
+                    <option key={dealer.id} value={dealer.id} disabled={isLocked}>
+                      {dealer.code} — {dealer.name}{isLocked ? ' [Đã khóa]' : ''}
+                    </option>
+                  );
+                })}
               </select>
             </label>
             <label>Điểm giao hàng

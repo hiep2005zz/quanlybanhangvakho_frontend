@@ -99,6 +99,8 @@ export interface OrderItem {
   total_amount: number;
   status: string;
   created_at: string;
+  dealer_status?: string;
+  dealer_lock_reason?: string;
 }
 
 export interface OrderDetail extends OrderItem {
@@ -128,6 +130,8 @@ export interface OrderDealer {
   name: string;
   phone?: string | null;
   address?: string | null;
+  status?: string;
+  lock_reason?: string;
 }
 
 export interface CreateOrderPayload {
@@ -1708,6 +1712,8 @@ export interface OrderResponseData {
   approved_at?: string | null;
   delivery_point_id?: number | null;
   note?: string | null;
+  dealer_status?: string;
+  dealer_lock_reason?: string;
 }
 
 export async function approveOrderApi(token: string, orderIdOrCode: number | string): Promise<OrderResponseData> {

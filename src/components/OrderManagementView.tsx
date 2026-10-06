@@ -350,7 +350,30 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                     </td>
 
                     <td style={{ padding: '14px 18px' }}>
-                      <div style={{ fontWeight: '600', color: '#0f172a' }}>{order.dealer_name}</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                        <span style={{ fontWeight: '600', color: '#0f172a' }}>{order.dealer_name}</span>
+                        {Boolean(
+                          order.dealer_status &&
+                          (order.dealer_status.toLowerCase().includes('khóa') ||
+                           order.dealer_status.toLowerCase().includes('lock') ||
+                           order.dealer_status.toLowerCase().includes('ngừng'))
+                        ) && (
+                          <span
+                            style={{
+                              background: '#fee2e2',
+                              color: '#b91c1c',
+                              border: '1px solid #fca5a5',
+                              borderRadius: '4px',
+                              padding: '1px 6px',
+                              fontSize: '11px',
+                              fontWeight: 700,
+                            }}
+                            title={order.dealer_lock_reason ? `Lý do: ${order.dealer_lock_reason}` : 'Đại lý bị khóa giao dịch'}
+                          >
+                            Đã khóa
+                          </span>
+                        )}
+                      </div>
                       <div style={{ fontSize: '11.5px', color: '#64748b', marginTop: '2px' }}>
                         Mã khách hàng: #{order.dealer_id}
                       </div>
@@ -584,6 +607,38 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
               </button>
             </div>
 
+
+            {Boolean(
+              selectedOrderDetail?.dealer_status &&
+              (selectedOrderDetail.dealer_status.toLowerCase().includes('khóa') ||
+               selectedOrderDetail.dealer_status.toLowerCase().includes('lock') ||
+               selectedOrderDetail.dealer_status.toLowerCase().includes('ngừng'))
+            ) && (
+              <div
+                style={{
+                  background: '#fef2f2',
+                  border: '1.5px solid #ef4444',
+                  borderRadius: '8px',
+                  padding: '12px 16px',
+                  color: '#991b1b',
+                  fontSize: '13.5px',
+                  lineHeight: '1.5',
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '10px',
+                  boxShadow: '0 2px 4px rgba(239, 68, 68, 0.08)',
+                }}
+              >
+                <span style={{ fontSize: '18px', lineHeight: 1 }}>⚠️</span>
+                <div>
+                  <strong style={{ display: 'block', marginBottom: '2px', color: '#b91c1c' }}>
+                    CẢNH BÁO CÔNG NỢ: Đại lý &apos;{selectedOrderDetail.dealer_name}&apos; hiện đang bị KHÓA giao dịch
+                    {selectedOrderDetail.dealer_lock_reason ? ` (Lý do: ${selectedOrderDetail.dealer_lock_reason})` : ''}.
+                  </strong>
+                  <span>Đơn dở dang này vẫn được phép xử lý nhưng vui lòng kiểm tra kỹ công nợ trước khi xuất hàng!</span>
+                </div>
+              </div>
+            )}
             {selectedOrderDetail.approval_reason && (
               <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '8px', padding: '12px 14px', marginBottom: '16px', fontSize: '13px', color: '#b45309' }}>
                 <strong>Lý do yêu cầu phê duyệt:</strong> {selectedOrderDetail.approval_reason}

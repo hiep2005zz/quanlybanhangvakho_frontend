@@ -415,6 +415,21 @@ export default function SalesOrderEntry({ token, username, products, onClose: _o
       setError('Vui lòng chọn đại lý.');
       return;
     }
+    const isLockedDealer = Boolean(
+      selectedDealer?.status &&
+      (selectedDealer.status.toLowerCase().includes('khóa') ||
+       selectedDealer.status.toLowerCase().includes('lock') ||
+       selectedDealer.status.toLowerCase().includes('ngừng'))
+    );
+    if (isLockedDealer) {
+      setError(`Đại lý "${selectedDealer.name}" hiện đang bị KHÓA giao dịch. Không thể tạo đơn hàng.`);
+      emitStatusToast({
+        title: 'Đại lý bị khóa giao dịch',
+        message: `Đại lý "${selectedDealer.name}" hiện đang bị KHÓA giao dịch. Vui lòng liên hệ quản trị viên.`,
+        type: 'error',
+      });
+      return;
+    }
     if (!deliveryPoint.trim()) {
       setError('Vui lòng nhập hoặc chọn điểm giao hàng.');
       return;
@@ -506,10 +521,30 @@ export default function SalesOrderEntry({ token, username, products, onClose: _o
                   disabled={isLoadingDealers || !!dealerLoadError}
                 >
                   <option value="">{isLoadingDealers ? 'Đang tải đại lý...' : 'Chọn đại lý'}</option>
-                  {dealers.map((dealer) => (
-                    <option key={dealer.id} value={dealer.id}>{dealer.code} — {dealer.name}</option>
-                  ))}
+                  {dealers.map((dealer) => {
+                    const isLocked = Boolean(
+                      dealer.status &&
+                      (dealer.status.toLowerCase().includes('khóa') ||
+                       dealer.status.toLowerCase().includes('lock') ||
+                       dealer.status.toLowerCase().includes('ngừng'))
+                    );
+                    return (
+                      <option key={dealer.id} value={dealer.id} disabled={isLocked}>
+                        {dealer.code} — {dealer.name}{isLocked ? ' [Đã khóa]' : ''}
+                      </option>
+                    );
+                  })}
                 </select>
+                {Boolean(
+                  selectedDealer?.status &&
+                  (selectedDealer.status.toLowerCase().includes('khóa') ||
+                   selectedDealer.status.toLowerCase().includes('lock') ||
+                   selectedDealer.status.toLowerCase().includes('ngừng'))
+                ) && (
+                  <span className="sales-order-field-error" style={{ color: '#dc2626', background: '#fef2f2', border: '1px solid #fecaca', padding: '8px 12px', borderRadius: '6px', display: 'block', marginTop: '6px' }}>
+                    ⚠️ <strong>Đại lý bị khóa giao dịch:</strong> Đại lý này hiện đang bị <strong>KHÓA giao dịch</strong>. Không thể tạo đơn hàng mới.
+                  </span>
+                )}
                 {!isLoadingDealers && !dealerLoadError && dealers.length === 0 && (
                   <span className="sales-order-field-error">
                     Tài khoản chưa được phân công đại lý. Vui lòng liên hệ quản lý để được hỗ trợ.
