@@ -495,15 +495,15 @@ export default function SalesOrderEntry({ token, username, products, onClose: _o
                     .filter((p) => p.is_active)
                     .map((p) => (
                       <option key={p.id} value={`point_${p.id}`}>
-                        📍 {p.label} — {p.address}
+                        {p.label} — {p.address}
                         {p.receiver_name ? ` (${p.receiver_name}${p.receiver_phone ? ' - ' + p.receiver_phone : ''})` : ''}
                         {p.is_default ? ' [Mặc định]' : ''}
                       </option>
                     ))}
                   {selectedDealer?.address && !deliveryPoints.some((p) => p.address === selectedDealer.address) && (
-                    <option value="dealer_address">🏠 Địa chỉ đại lý — {selectedDealer.address}</option>
+                    <option value="dealer_address">Địa chỉ đại lý — {selectedDealer.address}</option>
                   )}
-                  <option value="custom">✏️ Điểm giao khác</option>
+                  <option value="custom">Điểm giao khác</option>
                 </select>
                 {deliveryPointSelectValue === 'custom' && (
                   <input

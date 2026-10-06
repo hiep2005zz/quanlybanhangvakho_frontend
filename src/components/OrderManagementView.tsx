@@ -594,13 +594,13 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
             <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '14px 16px', marginBottom: '16px' }}>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', fontSize: '13px' }}>
                 <div>
-                  <span style={{ color: '#64748b' }}>📍 Điểm giao hàng:</span>
+                  <span style={{ color: '#64748b' }}>Điểm giao hàng:</span>
                   <div style={{ fontWeight: '600', color: '#0f172a', marginTop: '2px' }}>
                     {selectedOrderDetail.delivery_point || 'Địa chỉ đại lý'}
                   </div>
                 </div>
                 <div>
-                  <span style={{ color: '#64748b' }}>📅 Ngày giao mong muốn:</span>
+                  <span style={{ color: '#64748b' }}>Ngày giao mong muốn:</span>
                   <div style={{ fontWeight: '600', color: '#0f172a', marginTop: '2px' }}>
                     {selectedOrderDetail.desired_delivery_date
                       ? new Date(selectedOrderDetail.desired_delivery_date).toLocaleDateString('vi-VN')
@@ -608,7 +608,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                   </div>
                 </div>
                 <div>
-                  <span style={{ color: '#64748b' }}>👤 Người lên đơn:</span>
+                  <span style={{ color: '#64748b' }}>Người lên đơn:</span>
                   <div style={{ fontWeight: '600', color: '#0f172a', marginTop: '2px' }}>
                     {selectedOrderDetail.assigned_sale_name || selectedOrderDetail.created_by}
                   </div>
