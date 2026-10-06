@@ -1933,38 +1933,6 @@ export default function DashboardPage({
                 {(isAdmin || isSalesManager) && (
                   <>
                     <button
-                      type="button"
-                      onClick={() => setProductDrawerState({ isOpen: true, product: null })}
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        background: '#3b82f6',
-                        border: '1px solid #2563eb',
-                        padding: '7px 12px',
-                        borderRadius: '8px',
-                        fontSize: '12.5px',
-                        fontWeight: '600',
-                        color: '#ffffff',
-                        cursor: 'pointer',
-                        transition: 'all 0.15s ease'
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.background = '#2563eb';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.background = '#3b82f6';
-                      }}
-                      title="Khai báo sản phẩm mới"
-                    >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                        <line x1="12" y1="5" x2="12" y2="19" />
-                        <line x1="5" y1="12" x2="19" y2="12" />
-                      </svg>
-                      <span>Thêm sản phẩm</span>
-                    </button>
-                    
-                    <button
                     type="button"
                     onClick={() => setIsProductBulkImportOpen(true)}
                     style={{
