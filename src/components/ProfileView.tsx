@@ -59,6 +59,10 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   const [phoneError, setPhoneError] = useState<string | null>(null);
   const [nameError, setNameError] = useState<string | null>(null);
 
+  // Tracking dirty state for 2-way binding to avoid losing typed input on blur/re-render
+  const isPhoneDirtyRef = useRef(false);
+  const isNameDirtyRef = useRef(false);
+
   // Avatar upload & resize states
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [avatarError, setAvatarError] = useState<string | null>(null);
@@ -86,40 +90,50 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Reset input để có thể chọn lại cùng 1 file nếu muốn
-    e.target.value = '';
+    // Hàm reset thẻ input ngay lập tức
+    const resetFileInput = () => {
+      e.target.value = '';
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    };
 
     setAvatarError(null);
     setErrorMsg(null);
 
-    // 1. Kiểm tra định dạng (JPG, PNG)
-    const validExtensions = ['.jpg', '.jpeg', '.png'];
+    // 1. Ràng buộc loại file: CHỈ được là image/jpeg hoặc image/png
+    const validMimes = ['image/jpeg', 'image/png'];
     const lowerName = file.name.toLowerCase();
-    const isExtensionValid = validExtensions.some((ext) => lowerName.endsWith(ext));
-    const isMimeValid = file.type === 'image/jpeg' || file.type === 'image/png';
+    const isMimeValid = validMimes.includes(file.type);
+    const hasValidExt = lowerName.endsWith('.jpg') || lowerName.endsWith('.jpeg') || lowerName.endsWith('.png');
 
-    if (!isExtensionValid || !isMimeValid) {
-      const err = 'Định dạng ảnh không hợp lệ. Chỉ chấp nhận tệp JPG hoặc PNG.';
+    if (!isMimeValid || !hasValidExt) {
+      resetFileInput();
+      setCropModalOpen(false);
+      setRawImageSrc(null);
+      const err = 'Định dạng ảnh không hợp lệ. Chỉ chấp nhận tệp image/jpeg hoặc image/png (.jpg, .jpeg, .png).';
       setAvatarError(err);
       emitStatusToast({ message: err, title: 'Ảnh đại diện' });
       return;
     }
 
-    // 2. Kiểm tra dung lượng tối đa 2MB cho ảnh trước khi crop
+    // 2. Ràng buộc dung lượng: Bắt buộc size <= 2 * 1024 * 1024 (tối đa 2MB)
     const MAX_RAW_SIZE = 2 * 1024 * 1024;
-    if (file.size > MAX_RAW_SIZE) {
-      const err = `Dung lượng tệp (${(file.size / (1024 * 1024)).toFixed(1)}MB) vượt quá mức cho phép tối đa 2MB. Chỉ chấp nhận JPG/PNG tối đa 2MB.`;
+    if (file.size > MAX_RAW_SIZE || file.size <= 0) {
+      resetFileInput();
+      setCropModalOpen(false);
+      setRawImageSrc(null);
+      const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
+      const err = file.size <= 0
+        ? 'Tệp hình ảnh rỗng hoặc không có dữ liệu.'
+        : `Dung lượng tệp (${sizeMB}MB) vượt quá mức cho phép tối đa 2MB (size <= 2 * 1024 * 1024).`;
       setAvatarError(err);
       emitStatusToast({ message: err, title: 'Ảnh đại diện' });
       return;
     }
 
-    if (file.size === 0) {
-      const err = 'Tệp hình ảnh rỗng hoặc bị lỗi.';
-      setAvatarError(err);
-      emitStatusToast({ message: err, title: 'Ảnh đại diện' });
-      return;
-    }
+    // Reset input để người dùng có thể chọn lại cùng file nếu muốn
+    resetFileInput();
 
     // Đọc ảnh và khởi tạo kích thước khung cắt vuông
     const reader = new FileReader();
@@ -243,8 +257,12 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
       .then((data) => {
         if (!isMounted) return;
         setProfile(data);
-        setFullNameInput(data.full_name || '');
-        setPhoneInput(data.phone_number || data.phone || '');
+        if (!isNameDirtyRef.current) {
+          setFullNameInput(data.full_name || '');
+        }
+        if (!isPhoneDirtyRef.current) {
+          setPhoneInput(data.phone_number || data.phone || '');
+        }
         setLoading(false);
 
         // Tự động đồng bộ ngược lại cho currentUser của toàn ứng dụng nếu có thông tin mới
@@ -286,8 +304,12 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
         .then((data) => {
           if (!isMounted) return;
           setProfile(data);
-          setFullNameInput(data.full_name || '');
-          setPhoneInput(data.phone_number || data.phone || '');
+          if (!isNameDirtyRef.current) {
+            setFullNameInput(data.full_name || '');
+          }
+          if (!isPhoneDirtyRef.current) {
+            setPhoneInput(data.phone_number || data.phone || '');
+          }
           if (onUserUpdated && data) {
             onUserUpdated({
               ...currentUser,
@@ -318,11 +340,15 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
     };
   }, [token]);
 
-  // Đồng bộ ngay khi props currentUser thay đổi vai trò
+  // Đồng bộ ngay khi props currentUser thay đổi vai trò (chỉ đồng bộ nếu người dùng chưa sửa dở trường dữ liệu)
   useEffect(() => {
     if (currentUser) {
-      setFullNameInput(currentUser.full_name || '');
-      setPhoneInput(currentUser.phone || currentUser.phone_number || '');
+      if (!isNameDirtyRef.current && currentUser.full_name) {
+        setFullNameInput(currentUser.full_name);
+      }
+      if (!isPhoneDirtyRef.current && (currentUser.phone || currentUser.phone_number)) {
+        setPhoneInput(currentUser.phone || currentUser.phone_number || '');
+      }
     }
   }, [currentUser?.role, currentUser?.roles?.join(','), currentUser?.full_name]);
 
@@ -353,14 +379,20 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   };
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    isPhoneDirtyRef.current = true;
     const val = e.target.value;
     setPhoneInput(val);
     if (phoneError) {
-      validatePhone(val);
+      if (phoneError === 'Số điện thoại này đã có trên hệ thống vui lòng đổi số khác') {
+        setPhoneError(null);
+      } else {
+        validatePhone(val);
+      }
     }
   };
 
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    isNameDirtyRef.current = true;
     const val = e.target.value;
     setFullNameInput(val);
     if (nameError) {
@@ -407,6 +439,8 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
       setPhoneInput(updated.phone_number || updated.phone || '');
       setPendingAvatarFile(null);
       setPendingAvatarPreview(null);
+      isPhoneDirtyRef.current = false;
+      isNameDirtyRef.current = false;
 
       emitStatusToast({ message: 'Cập nhật hồ sơ thành công', title: 'Hồ sơ cá nhân' });
 
@@ -433,7 +467,32 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
       // Tự động chuyển hướng về trang chủ làm việc
       onBackToHome();
     } catch (err: any) {
-      setErrorMsg(err.message || 'Lỗi khi cập nhật hồ sơ cá nhân.');
+      const errMsg = err?.message || '';
+      const errorCode =
+        err?.code ||
+        err?.response?.data?.code ||
+        err?.response?.data?.detail?.code;
+      const status =
+        err?.status ||
+        err?.statusCode ||
+        err?.response?.status;
+
+      const isDuplicatePhone =
+        status === 409 ||
+        errorCode === 'PHONE_DUPLICATED' ||
+        errMsg.includes('409') ||
+        errMsg.toLowerCase().includes('conflict') ||
+        errMsg.toLowerCase().includes('trùng') ||
+        errMsg.toLowerCase().includes('đã có') ||
+        errMsg.toLowerCase().includes('tồn tại') ||
+        errMsg.toLowerCase().includes('already exists');
+
+      if (isDuplicatePhone) {
+        // Bắt lỗi trùng số điện thoại (HTTP 409 Conflict / PHONE_DUPLICATED) và hiển thị chính xác thông báo yêu cầu
+        setPhoneError('Số điện thoại này đã có trên hệ thống vui lòng đổi số khác');
+      } else {
+        setErrorMsg(errMsg || 'Lỗi khi cập nhật hồ sơ cá nhân.');
+      }
     } finally {
       setSaving(false);
     }
@@ -446,6 +505,8 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
     }
     setPendingAvatarFile(null);
     setPendingAvatarPreview(null);
+    isPhoneDirtyRef.current = false;
+    isNameDirtyRef.current = false;
 
     if (profile) {
       setFullNameInput(profile.full_name || '');
@@ -1251,14 +1312,18 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
             </div>
 
             {/* Điều khiển kích thước vùng vuông (Crop Size Slider) */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12.5px', fontWeight: '600', color: '#334155' }}>
                 <span>Kích thước vùng cắt</span>
                 <span>{Math.round(cropBox.size)} px</span>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div
+                className="flex items-center justify-between gap-3"
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}
+              >
                 <button
                   type="button"
+                  id="crop-zoom-out-btn"
                   onClick={() => {
                     const newSize = Math.max(60, cropBox.size - 20);
                     setCropBox((prev) => ({
@@ -1266,6 +1331,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                       size: newSize,
                     }));
                   }}
+                  className="h-8 w-8 min-w-[32px] flex items-center justify-center rounded-lg border border-slate-300 bg-slate-50 text-slate-700 hover:bg-slate-100 font-bold text-lg cursor-pointer transition-colors"
                   style={{
                     margin: 0,
                     boxShadow: 'none',
@@ -1306,6 +1372,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                 </button>
                 <input
                   type="range"
+                  id="crop-size-slider"
                   min="60"
                   max={Math.min(displayedImgSize.width, displayedImgSize.height)}
                   step="2"
@@ -1320,6 +1387,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                       y: Math.min(prev.y, maxY),
                     }));
                   }}
+                  className="flex-1 cursor-pointer accent-sky-600 h-2"
                   style={{
                     flex: 1,
                     height: '32px',
@@ -1331,6 +1399,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                 />
                 <button
                   type="button"
+                  id="crop-zoom-in-btn"
                   onClick={() => {
                     const maxSize = Math.min(
                       displayedImgSize.width - cropBox.x,
@@ -1343,6 +1412,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                       size: newSize,
                     }));
                   }}
+                  className="h-8 w-8 min-w-[32px] flex items-center justify-center rounded-lg border border-slate-300 bg-slate-50 text-slate-700 hover:bg-slate-100 font-bold text-lg cursor-pointer transition-colors"
                   style={{
                     margin: 0,
                     boxShadow: 'none',
@@ -1384,6 +1454,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                 </button>
                 <button
                   type="button"
+                  id="crop-center-btn"
                   onClick={() => {
                     const initialCropSize = Math.min(displayedImgSize.width, displayedImgSize.height) * 0.85;
                     setCropBox({
@@ -1392,6 +1463,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                       size: initialCropSize,
                     });
                   }}
+                  className="h-8 px-3 flex items-center justify-center rounded-lg border border-slate-300 bg-slate-50 text-slate-700 hover:bg-slate-100 text-xs font-semibold whitespace-nowrap cursor-pointer transition-colors"
                   style={{
                     margin: 0,
                     boxShadow: 'none',
@@ -1402,9 +1474,9 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                     border: '1px solid #cbd5e1',
                     background: '#f8fafc',
                     cursor: 'pointer',
-                    fontSize: '12px',
+                    fontSize: '12.5px',
                     fontWeight: '600',
-                    color: '#475569',
+                    color: '#334155',
                     whiteSpace: 'nowrap',
                     display: 'inline-flex',
                     alignItems: 'center',
