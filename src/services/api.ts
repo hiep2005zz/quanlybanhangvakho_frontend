@@ -1,3 +1,4 @@
+import type { DeliveryPoint, DeliveryPointInput } from '../types/deliveryPoint';
 export const API_BASE_URL = 'http://localhost:8000/api/v1';
 
 /**
@@ -155,6 +156,7 @@ export interface OrderCreatePayload {
   dealer_id: number;
   items: OrderItemPayload[];
   note?: string;
+  delivery_point_id?: number | null;
 }
 
 export type OrderItemCreatePayload = CreateOrderPayload['items'][number];
@@ -318,12 +320,21 @@ export function getClientSession(): { user: User | null; token: string | null; e
   }
 }
 
+let isRefreshingGlobal = false;
+let refreshSubscribersGlobal: Array<(newToken: string) => void> = [];
+
+function onRefreshedGlobal(newToken: string) {
+  refreshSubscribersGlobal.forEach((cb) => cb(newToken));
+  refreshSubscribersGlobal = [];
+}
+
 /**
  * Fetch wrapper with 401 Interceptor:
- * If server returns 401 (token revoked or expired), immediately clears auth and redirects with notification.
+ * If server returns 401, attempts silent refresh once and retries original request before expiring session.
  */
 export async function authenticatedFetch(input: string, init: RequestInit = {}, token?: string): Promise<Response> {
-  const currentToken = token || sessionStorage.getItem(AUTH_STORAGE.TOKEN);
+  const storedToken = sessionStorage.getItem(AUTH_STORAGE.TOKEN);
+  const currentToken = storedToken || token;
   const headers = new Headers(init.headers || {});
   if (currentToken && !headers.has('Authorization')) {
     headers.set('Authorization', `Bearer ${currentToken}`);
@@ -335,9 +346,54 @@ export async function authenticatedFetch(input: string, init: RequestInit = {}, 
   }
 
   try {
-    const response = await fetch(input, { ...init, headers });
+    let response = await fetch(input, { ...init, headers });
 
     if (response.status === 401) {
+      const isAuthUrl = typeof input === 'string' && (input.includes('/auth/login') || input.includes('/auth/refresh'));
+      
+      // Nếu không phải endpoint login/refresh và client vẫn có token: thử làm mới ngầm 1 lần
+      if (!isAuthUrl && currentToken) {
+        if (!isRefreshingGlobal) {
+          isRefreshingGlobal = true;
+          try {
+            const refreshData = await refreshTokenApi(currentToken);
+            isRefreshingGlobal = false;
+            onRefreshedGlobal(refreshData.access_token);
+
+            // Thử lại request gốc với token mới
+            const retryHeaders = new Headers(init.headers || {});
+            retryHeaders.set('Authorization', `Bearer ${refreshData.access_token}`);
+            if (init.body && !retryHeaders.has('Content-Type') && !isFormData) {
+              retryHeaders.set('Content-Type', 'application/json');
+            }
+            response = await fetch(input, { ...init, headers: retryHeaders });
+            if (response.status !== 401) {
+              return response;
+            }
+          } catch {
+            isRefreshingGlobal = false;
+            refreshSubscribersGlobal = [];
+          }
+        } else {
+          // Đang có một tiến trình refresh chạy dở -> chờ token mới rồi retry
+          return new Promise<Response>((resolve, reject) => {
+            refreshSubscribersGlobal.push(async (newToken: string) => {
+              const retryHeaders = new Headers(init.headers || {});
+              retryHeaders.set('Authorization', `Bearer ${newToken}`);
+              if (init.body && !retryHeaders.has('Content-Type') && !isFormData) {
+                retryHeaders.set('Content-Type', 'application/json');
+              }
+              try {
+                const retried = await fetch(input, { ...init, headers: retryHeaders });
+                resolve(retried);
+              } catch (err) {
+                reject(err);
+              }
+            });
+          });
+        }
+      }
+
       let errorDetail = 'Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại.';
       try {
         const cloned = response.clone();
@@ -421,17 +477,21 @@ export async function loginApi(username: string, password: string): Promise<Logi
  * Silent Refresh / Keep-Alive API:
  * Calls server to refresh token and sliding expiration.
  */
-export async function refreshTokenApi(token: string): Promise<LoginResponse> {
+export async function refreshTokenApi(token?: string): Promise<LoginResponse> {
+  const activeToken = token || sessionStorage.getItem(AUTH_STORAGE.TOKEN);
+  if (!activeToken) {
+    throw new Error('Không có token để làm mới phiên.');
+  }
+
   const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
+      Authorization: `Bearer ${activeToken}`,
     },
   });
 
   if (response.status === 401) {
-    notifySessionExpired('Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại.');
     throw new Error('Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại.');
   }
 
@@ -440,7 +500,7 @@ export async function refreshTokenApi(token: string): Promise<LoginResponse> {
   }
 
   const data: LoginResponse = await response.json();
-  saveClientSession(data.user, data.access_token, data.expires_in || 900);
+  saveClientSession(data.user, data.access_token, data.expires_in || 3600);
   return data;
 }
 
@@ -746,6 +806,7 @@ export async function updateProductUnitsApi(
   return data;
 }
 
+
 export interface UserAccount {
   id: number;
   username: string;
@@ -808,10 +869,17 @@ export interface DealerItem {
   id: number;
   code: string;
   name: string;
-  phone?: string;
-  email?: string;
-  address?: string;
-  assigned_sale_id?: number;
+  phone?: string | null;
+  email?: string | null;
+  address?: string | null;
+  region?: string | null;
+  assigned_sale_id?: number | null;
+  assigned_sale_name?: string | null;
+  credit_limit?: number;
+  max_debt_days?: number;
+  customer_group?: string;
+  status?: string;
+  lock_reason?: string | null;
   needs_handover?: boolean;
 }
 
@@ -997,8 +1065,9 @@ export async function deleteCategoryApi(token: string, categoryId: number): Prom
   return data;
 }
 
-export async function getCategorySalesReportApi(token: string): Promise<CategorySalesReport[]> {
-  const response = await authenticatedFetch(`${API_BASE_URL}/categories/sales-report`, {
+export async function getCategorySalesReportApi(token: string, period?: string): Promise<CategorySalesReport[]> {
+  const url = period ? `${API_BASE_URL}/categories/sales-report?period=${encodeURIComponent(period)}` : `${API_BASE_URL}/categories/sales-report`;
+  const response = await authenticatedFetch(url, {
     method: 'GET',
   }, token);
   if (!response.ok) throw new Error('Lỗi tải báo cáo doanh số');
@@ -1016,10 +1085,8 @@ export async function moveProductCategoryApi(token: string, productId: number, c
   return data;
 }
 
-// ==========================================
-// SCRUM-29: AUDIT LOGS INTERFACES & CLIENT
-// ==========================================
-
+// ===================================// SCRUM-29: AUDIT LOGS INTERFACES & CLIENT
+// ===================================
 export interface AuditLogItem {
   id: number;
   user_id?: number | null;
@@ -1190,11 +1257,9 @@ export async function uploadProfileAvatarApi(
   return data;
 }
 
-// ============================================================================
-// DÁN TOÀN BỘ NỘI DUNG FILE NÀY VÀO CUỐI FILE: frontend/src/services/api.ts
+// =====================================================================// DÁN TOÀN BỘ NỘI DUNG FILE NÀY VÀO CUỐI FILE: frontend/src/services/api.ts
 // (không cần import thêm gì, vì api.ts đã có sẵn API_BASE_URL và authenticatedFetch)
-// ============================================================================
-// ---------- NHÀ CUNG CẤP ----------
+// =====================================================================// ---------- NHÀ CUNG CẤP ----------
 export interface Supplier {
   id: number;
   code: string;
@@ -1203,6 +1268,7 @@ export interface Supplier {
   contact_person?: string | null;
   payment_terms?: string | null;
   is_active: boolean;
+  has_receipts?: boolean;
   inactive_reason?: string | null;
   deactivated_at?: string | null;
   deactivated_by?: string | null;
@@ -1312,10 +1378,8 @@ export async function activateSupplierApi(token: string, code: string): Promise<
 }
 
 
-// ==========================================
-// CHÍNH SÁCH CHIẾT KHẤU THEO SẢN LƯỢNG (VOLUME DISCOUNT)
-// ==========================================
-
+// ===================================// CHÍNH SÁCH CHIẾT KHẤU THEO SẢN LƯỢNG (VOLUME DISCOUNT)
+// ===================================
 export interface DiscountTier {
   id?: number;
   min_quantity: number;
@@ -1483,4 +1547,314 @@ export async function calculateDiscountApi(
     throw new Error(data.detail || `Lỗi tính chiết khấu tự động (Mã lỗi ${response.status})`);
   }
   return data;
+}
+
+export async function deleteSupplierApi(token: string, code: string): Promise<{ status: string; message: string }> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/suppliers/${encodeURIComponent(code)}`, {
+    method: 'DELETE',
+  }, token);
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(extractSupplierError(data, `Lỗi xóa nhà cung cấp (Mã lỗi ${response.status})`));
+  }
+  return data;
+}
+function extractDeliveryPointError(data: any, fallback: string): string {
+  if (!data) return fallback;
+  if (typeof data.detail === 'string') return data.detail;
+  if (Array.isArray(data.detail) && data.detail.length > 0) {
+    return data.detail.map((d: any) => d.msg || JSON.stringify(d)).join('; ');
+  }
+  if (typeof data.message === 'string') return data.message;
+  return fallback;
+}
+
+async function deliveryPointRequest<T>(token: string, path: string, init: RequestInit = {}): Promise<T> {
+  const response = await authenticatedFetch(`${API_BASE_URL}${path}`, {
+    ...init,
+    headers: { 'Content-Type': 'application/json', ...(init.headers || {}) },
+  }, token);
+
+  if (response.status === 204) return undefined as T;
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(extractDeliveryPointError(data, `Lỗi điểm giao hàng (Mã lỗi ${response.status})`));
+  }
+  return data as T;
+}
+
+export function listDeliveryPointsApi(token: string, dealerId: number) {
+  return deliveryPointRequest<DeliveryPoint[]>(token, `/dealers/${dealerId}/delivery-points`);
+}
+
+export interface DealerOption {
+  id: number;
+  name: string;
+  code?: string;
+  phone?: string;
+  address?: string;
+}
+
+export interface AllDeliveryPointItem extends DeliveryPoint {
+  dealer_name?: string;
+  dealer_code?: string;
+  dealer_phone?: string;
+}
+
+export function listDealersApi(token: string) {
+  return deliveryPointRequest<DealerOption[]>(token, `/dealers`);
+}
+
+export function listAllDeliveryPointsApi(token: string) {
+  return deliveryPointRequest<AllDeliveryPointItem[]>(token, `/dealers/all-delivery-points`);
+}
+
+export function createDeliveryPointApi(token: string, dealerId: number, body: DeliveryPointInput) {
+  return deliveryPointRequest<DeliveryPoint>(token, `/dealers/${dealerId}/delivery-points`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export function updateDeliveryPointApi(token: string, dealerId: number, id: number, body: DeliveryPointInput) {
+  return deliveryPointRequest<DeliveryPoint>(token, `/dealers/${dealerId}/delivery-points/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(body),
+  });
+}
+
+export function setDefaultDeliveryPointApi(token: string, dealerId: number, id: number) {
+  return deliveryPointRequest<DeliveryPoint>(token, `/dealers/${dealerId}/delivery-points/${id}/set-default`, {
+    method: 'POST',
+  });
+}
+
+export function deleteDeliveryPointApi(token: string, dealerId: number, id: number) {
+  return deliveryPointRequest<void>(token, `/dealers/${dealerId}/delivery-points/${id}`, {
+    method: 'DELETE',
+  });
+}
+
+export function createMasterDeliveryPointApi(token: string, body: DeliveryPointInput) {
+  return deliveryPointRequest<AllDeliveryPointItem>(token, `/dealers/master-delivery-points`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export function updateMasterDeliveryPointApi(token: string, id: number, body: DeliveryPointInput) {
+  return deliveryPointRequest<AllDeliveryPointItem>(token, `/dealers/master-delivery-points/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(body),
+  });
+}
+
+export function deleteMasterDeliveryPointApi(token: string, id: number) {
+  return deliveryPointRequest<void>(token, `/dealers/master-delivery-points/${id}`, {
+    method: 'DELETE',
+  });
+}
+// ===================================// PRICE BOOKS & SALES ORDER APPROVAL EXTENSIONS
+// ===================================
+export interface OrderResponseData {
+  id: number;
+  order_code: string;
+  dealer_id: number;
+  dealer_name: string;
+  created_by: string;
+  assigned_sale_id?: number | null;
+  assigned_sale_name?: string | null;
+  total_amount: number;
+  status: string;
+  requires_approval?: boolean;
+  approval_reason?: string | null;
+  items?: any[];
+  items_json?: any;
+  created_at: string;
+  approved_by?: string | null;
+  approved_at?: string | null;
+  delivery_point_id?: number | null;
+  note?: string | null;
+}
+
+export async function approveOrderApi(token: string, orderIdOrCode: number | string): Promise<OrderResponseData> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/orders/${orderIdOrCode}/approve`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+  }, token);
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi phê duyệt đơn hàng (Mã lỗi ${response.status})`);
+  }
+  return data;
+}
+
+export async function rejectOrderApi(token: string, orderIdOrCode: number | string, reason?: string): Promise<OrderResponseData> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/orders/${orderIdOrCode}/reject`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ reason: reason || 'Từ chối duyệt đơn hàng' }),
+  }, token);
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi từ chối đơn hàng (Mã lỗi ${response.status})`);
+  }
+  return data;
+}
+
+
+
+export async function getDealersApi(token: string): Promise<DealerItem[]> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/dealers`, {
+    method: 'GET',
+  }, token);
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi tải danh sách đại lý (Mã lỗi ${response.status})`);
+  }
+  return Array.isArray(data) ? data : (data.items || []);
+}
+
+export interface PriceBookItem {
+  id?: number;
+  price_book_id?: number;
+  product_id: number;
+  product_code?: string;
+  product_name?: string;
+  price: number;
+  min_price: number;
+  sale_price?: number | null;
+  floor_price?: number | null;
+}
+
+export interface PriceBook {
+  id: number;
+  code: string;
+  name: string;
+  customer_group: string;
+  valid_from: string;
+  valid_to: string;
+  status: string;
+  version?: number;
+  is_locked?: boolean;
+  note?: string | null;
+  created_by: string;
+  created_at: string;
+  items?: PriceBookItem[];
+}
+
+export interface PriceBookCreate {
+  code: string;
+  name: string;
+  customer_group: string;
+  valid_from: string;
+  valid_to: string;
+  note?: string | null;
+  status?: string;
+  version?: number;
+  is_locked?: boolean;
+  items: Omit<PriceBookItem, 'id' | 'product_code' | 'product_name'>[];
+}
+
+export interface PriceBookUpdate {
+  name?: string;
+  customer_group?: string;
+  valid_from?: string;
+  valid_to?: string;
+  status?: string;
+  note?: string | null;
+  items?: Omit<PriceBookItem, 'id' | 'product_code' | 'product_name'>[];
+}
+
+export async function fetchPriceBooksApi(
+  token: string,
+  filters?: { customer_group?: string; status_filter?: string; is_active_now?: boolean; search?: string }
+): Promise<PriceBook[]> {
+  let url = `${API_BASE_URL}/price-books?`;
+  if (filters?.customer_group) url += `customer_group=${encodeURIComponent(filters.customer_group)}&`;
+  if (filters?.status_filter) url += `status_filter=${encodeURIComponent(filters.status_filter)}&`;
+  if (filters?.search) url += `search=${encodeURIComponent(filters.search)}&`;
+  if (filters?.is_active_now !== undefined) url += `is_active_now=${filters.is_active_now}&`;
+
+  const response = await authenticatedFetch(url, { method: 'GET' }, token);
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Lỗi khi tải danh sách bảng giá');
+  }
+  return response.json();
+}
+
+export async function fetchPriceBookDetailApi(token: string, id: number): Promise<PriceBook> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/price-books/${id}`, { method: 'GET' }, token);
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Lỗi khi tải chi tiết bảng giá');
+  }
+  return response.json();
+}
+
+export async function createPriceBookApi(token: string, data: PriceBookCreate): Promise<PriceBook> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/price-books`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  }, token);
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Lỗi tạo bảng giá');
+  }
+  return response.json();
+}
+
+export async function updatePriceBookApi(token: string, id: number, data: PriceBookUpdate): Promise<PriceBook> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/price-books/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  }, token);
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Lỗi cập nhật bảng giá (Có thể đã khóa)');
+  }
+  return response.json();
+}
+
+export async function clonePriceBookApi(token: string, id: number): Promise<PriceBook> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/price-books/${id}/clone`, {
+    method: 'POST',
+  }, token);
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Lỗi nhân bản bảng giá');
+  }
+  return response.json();
+}
+
+export async function resolvePriceApi(token: string, customerId: number, productId: number): Promise<{
+  price_book_id?: number;
+  price_book_code?: string;
+  price_book_name?: string;
+  customer_id: number;
+  customer_group: string;
+  product_id: number;
+  product_code?: string;
+  product_name?: string;
+  sale_price: number;
+  floor_price: number;
+}> {
+  const response = await authenticatedFetch(
+    `${API_BASE_URL}/price-books/resolve-price?customer_id=${customerId}&product_id=${productId}`,
+    { method: 'GET' },
+    token
+  );
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Lỗi tra cứu bảng giá');
+  }
+  return response.json();
 }
