@@ -1252,24 +1252,6 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
                   </span>
                 </label>
               </div>
-
-              {hasTransactions && (
-                <div
-                  style={{
-                    marginTop: '14px',
-                    padding: '10px 14px',
-                    borderRadius: '8px',
-                    background: '#f8fafc',
-                    border: '1px solid #e2e8f0',
-                    fontSize: '12px',
-                    color: '#475569',
-                    lineHeight: '1.5',
-                  }}
-                >
-                  ⚠️ <strong>Đã phát sinh giao dịch ({product?.transaction_count} đơn hàng/phiếu kho):</strong>{' '}
-                  Hệ thống ẩn nút Xóa. Bắt buộc chỉ cho phép chuyển trạng thái sang <em>Ngừng kinh doanh</em> để bảo toàn lịch sử sổ sách.
-                </div>
-              )}
             </div>
           </div>
         </form>
@@ -1308,8 +1290,7 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
                     }}
                     title="Sản phẩm đã có giao dịch phát sinh, chỉ có thể chọn Ngừng kinh doanh"
                   >
-                    <span>🔒</span>
-                    <span>Xóa sản phẩm</span>
+                    <span>Không thể xóa sản phẩm</span>
                   </button>
                 </div>
               ) : (

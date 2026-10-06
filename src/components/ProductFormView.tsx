@@ -360,10 +360,17 @@ export const ProductFormView: React.FC<ProductFormViewProps> = ({
   // Delete
   const handleDelete = async () => {
     if (!product) return;
+    if (hasTransactions) {
+      const msg = `Sản phẩm đã phát sinh giao dịch (${product.transaction_count} giao dịch). Không thể xóa, chỉ cho phép chuyển sang "Ngừng kinh doanh".`;
+      setGeneralError(msg);
+      emitStatusToast({ message: msg, title: 'Không thể xóa sản phẩm' });
+      setShowDeleteConfirm(false);
+      return;
+    }
 
     setIsDeleting(true);
     try {
-      await deleteProductApi(token, product.id, true);
+      await deleteProductApi(token, product.id);
       emitStatusToast({ message: `Đã xóa sản phẩm ${product.code} thành công.`, title: 'Xóa thành công' });
       onSuccess(product, true);
     } catch (err) {
@@ -1219,9 +1226,50 @@ export const ProductFormView: React.FC<ProductFormViewProps> = ({
               )}
             </div>
 
+            {/* Khối Trạng thái kinh doanh */}
+            <div
+              style={{
+                background: '#f8fafc',
+                border: '1px solid #e2e8f0',
+                borderRadius: '10px',
+                padding: '12px 14px',
+                marginBottom: '18px',
+              }}
+            >
+              <label style={{ fontSize: '13px', fontWeight: '700', color: '#1e293b', marginBottom: '8px', display: 'block' }}>
+                Trạng thái kinh doanh
+              </label>
+              <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '13px' }}>
+                  <input
+                    type="radio"
+                    name="product_status"
+                    value="active"
+                    checked={status === 'active'}
+                    onChange={() => setStatus('active')}
+                  />
+                  <span style={{ fontWeight: '600', color: '#16a34a' }}>
+                    Đang kinh doanh
+                  </span>
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '13px' }}>
+                  <input
+                    type="radio"
+                    name="product_status"
+                    value="inactive"
+                    checked={status === 'inactive'}
+                    onChange={() => setStatus('inactive')}
+                  />
+                  <span style={{ fontWeight: '600', color: '#dc2626' }}>
+                    Ngừng kinh doanh
+                  </span>
+                </label>
+              </div>
+            </div>
+
             {/* Các nút bấm thao tác */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {/* Nút Tạo / Lưu chính màu xanh giống Tạo đơn hàng trong ảnh 2 */}
+              {/* Nút Tạo / Lưu chính */}
               <button
                 type="submit"
                 disabled={isSubmitting || isDeleting}
@@ -1292,53 +1340,111 @@ export const ProductFormView: React.FC<ProductFormViewProps> = ({
 
               {/* Nút Xóa sản phẩm khi đang chỉnh sửa */}
               {isEditing && (
-                <div style={{ marginTop: '8px', paddingTop: '12px', borderTop: '1px dashed #e2e8f0' }}>
-                  <button
-                    type="button"
-                    onClick={() => setShowDeleteConfirm(true)}
-                    disabled={isDeleting || isSubmitting}
-                    style={{
-                      width: '100%',
-                      padding: '10px 16px',
-                      background: '#fef2f2',
-                      border: '1px solid #fecaca',
-                      borderRadius: '10px',
-                      color: '#dc2626',
-                      fontSize: '13.5px',
-                      fontWeight: '700',
-                      cursor: isDeleting ? 'not-allowed' : 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '8px',
-                      transition: 'all 0.15s ease',
-                    }}
-                    onMouseEnter={(e) => {
-                      if (!isDeleting) {
-                        e.currentTarget.style.background = '#fee2e2';
-                        e.currentTarget.style.borderColor = '#f87171';
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (!isDeleting) {
-                        e.currentTarget.style.background = '#fef2f2';
-                        e.currentTarget.style.borderColor = '#fecaca';
-                      }
-                    }}
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                      <polyline points="3 6 5 6 21 6" />
-                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                      <line x1="10" y1="11" x2="10" y2="17" />
-                      <line x1="14" y1="11" x2="14" y2="17" />
-                    </svg>
-                    <span>{isDeleting ? 'Đang xóa...' : 'Xóa sản phẩm này'}</span>
-                  </button>
+                <div style={{ marginTop: '10px', paddingTop: '12px', borderTop: '1px dashed #e2e8f0' }}>
+                  {hasTransactions ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <button
+                        type="button"
+                        disabled
+                        style={{
+                          width: '100%',
+                          padding: '10px 16px',
+                          background: '#f1f5f9',
+                          border: '1px solid #e2e8f0',
+                          borderRadius: '10px',
+                          color: '#94a3b8',
+                          fontSize: '13px',
+                          fontWeight: '600',
+                          cursor: 'not-allowed',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '8px',
+                        }}
+                        title={`Sản phẩm đã có ${product?.transaction_count} giao dịch phát sinh. Không thể xóa, chỉ cho phép chọn Ngừng kinh doanh.`}
+                      >
+                        <span>Không thể xóa sản phẩm</span>
+                      </button>
 
-                  {hasTransactions && (
-                    <p style={{ margin: '8px 0 0', fontSize: '11.5px', color: '#64748b', textAlign: 'center', lineHeight: '1.4' }}>
-                      Sản phẩm có {product?.transaction_count} giao dịch liên quan
-                    </p>
+                      <p style={{ margin: 0, fontSize: '11.5px', color: '#dc2626', textAlign: 'center', lineHeight: '1.4', fontWeight: '500' }}>
+                        Đã phát sinh {product?.transaction_count} giao dịch &rarr; Khóa xóa, chỉ cho phép Ngừng kinh doanh
+                      </p>
+
+                      {status === 'active' && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setStatus('inactive');
+                            emitStatusToast({
+                              message: 'Đã chuyển trạng thái sang "Ngừng kinh doanh". Hãy bấm "Lưu thay đổi" để áp dụng.',
+                              title: 'Thông báo',
+                            });
+                          }}
+                          style={{
+                            width: '100%',
+                            padding: '8px 12px',
+                            background: '#eff6ff',
+                            border: '1px solid #bfdbfe',
+                            borderRadius: '8px',
+                            color: '#1d4ed8',
+                            fontSize: '12.5px',
+                            fontWeight: '600',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '6px',
+                            transition: 'all 0.15s ease',
+                          }}
+                          onMouseEnter={(e) => (e.currentTarget.style.background = '#dbeafe')}
+                          onMouseLeave={(e) => (e.currentTarget.style.background = '#eff6ff')}
+                        >
+                          <span>Chuyển sang Ngừng kinh doanh</span>
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setShowDeleteConfirm(true)}
+                      disabled={isDeleting || isSubmitting}
+                      style={{
+                        width: '100%',
+                        padding: '10px 16px',
+                        background: '#fef2f2',
+                        border: '1px solid #fecaca',
+                        borderRadius: '10px',
+                        color: '#dc2626',
+                        fontSize: '13.5px',
+                        fontWeight: '700',
+                        cursor: isDeleting ? 'not-allowed' : 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '8px',
+                        transition: 'all 0.15s ease',
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!isDeleting) {
+                          e.currentTarget.style.background = '#fee2e2';
+                          e.currentTarget.style.borderColor = '#f87171';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!isDeleting) {
+                          e.currentTarget.style.background = '#fef2f2';
+                          e.currentTarget.style.borderColor = '#fecaca';
+                        }
+                      }}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                        <polyline points="3 6 5 6 21 6" />
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                        <line x1="10" y1="11" x2="10" y2="17" />
+                        <line x1="14" y1="11" x2="14" y2="17" />
+                      </svg>
+                      <span>{isDeleting ? 'Đang xóa...' : 'Xóa sản phẩm này'}</span>
+                    </button>
                   )}
                 </div>
               )}
@@ -1371,90 +1477,121 @@ export const ProductFormView: React.FC<ProductFormViewProps> = ({
               boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.2)',
             }}
           >
-            <div style={{ marginBottom: '12px' }}>
-              <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '750', color: '#0f172a' }}>
-                Xác nhận xóa sản phẩm
-              </h3>
-            </div>
+            {hasTransactions ? (
+              <>
+                <div style={{ marginBottom: '12px' }}>
+                  <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '750', color: '#b91c1c' }}>
+                    🔒 Không thể xóa sản phẩm
+                  </h3>
+                </div>
 
-            <p style={{ margin: '0 0 14px', fontSize: '13.5px', color: '#475569', lineHeight: '1.5' }}>
-              Bạn có chắc chắn muốn xóa sản phẩm <strong>{product?.code} - {product?.name}</strong> khỏi danh mục hệ thống?
-            </p>
+                <p style={{ margin: '0 0 14px', fontSize: '13.5px', color: '#475569', lineHeight: '1.5' }}>
+                  Sản phẩm <strong>{product?.code} - {product?.name}</strong> đã phát sinh{' '}
+                  <strong>{product?.transaction_count}</strong> giao dịch (đơn hàng/phiếu kho).
+                </p>
 
-            {hasTransactions && (
-              <div
-                style={{
-                  background: '#fffbeb',
-                  border: '1px solid #fde68a',
-                  borderRadius: '8px',
-                  padding: '10px 12px',
-                  fontSize: '12.5px',
-                  color: '#92400e',
-                  marginBottom: '16px',
-                  lineHeight: '1.45',
-                }}
-              >
-                <strong>Lưu ý:</strong> Sản phẩm này đã phát sinh <strong>{product?.transaction_count}</strong> giao dịch (đơn hàng/kho). Bạn có thể chọn xóa trực tiếp hoặc chuyển sang trạng thái <em>Ngừng kinh doanh</em>.
-              </div>
-            )}
-
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', flexWrap: 'wrap' }}>
-              <button
-                type="button"
-                onClick={() => setShowDeleteConfirm(false)}
-                disabled={isDeleting}
-                style={{
-                  padding: '8px 16px',
-                  background: '#f1f5f9',
-                  border: '1px solid #cbd5e1',
-                  borderRadius: '8px',
-                  color: '#475569',
-                  fontSize: '13px',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                }}
-              >
-                Hủy
-              </button>
-
-              {hasTransactions && (
-                <button
-                  type="button"
-                  onClick={handleSwitchToInactive}
-                  disabled={isDeleting}
+                <div
                   style={{
-                    padding: '8px 14px',
-                    background: '#eff6ff',
-                    border: '1px solid #bfdbfe',
+                    background: '#fef2f2',
+                    border: '1px solid #fecaca',
                     borderRadius: '8px',
-                    color: '#1d4ed8',
+                    padding: '12px 14px',
                     fontSize: '13px',
-                    fontWeight: '600',
-                    cursor: 'pointer',
+                    color: '#991b1b',
+                    marginBottom: '18px',
+                    lineHeight: '1.5',
                   }}
                 >
-                  Chuyển sang Ngừng KD
-                </button>
-              )}
+                  <strong>Quy định bảo toàn dữ liệu:</strong> Sản phẩm đã phát sinh giao dịch không thể xóa khỏi hệ thống để bảo đảm tính toàn vẹn chứng từ kế toán và lịch sử kho. Vui lòng chuyển sang trạng thái <strong>Ngừng kinh doanh</strong>.
+                </div>
 
-              <button
-                type="button"
-                onClick={handleDelete}
-                disabled={isDeleting}
-                style={{
-                  padding: '8px 18px',
-                  background: '#dc2626',
-                  border: 'none',
-                  borderRadius: '8px',
-                  color: '#ffffff',
-                  fontSize: '13px',
-                  fontWeight: '700',
-                  cursor: 'pointer',
-                }}
-              >
-                {isDeleting ? 'Đang xóa...' : 'Xác nhận xóa'}
-              </button>
-            </div>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setShowDeleteConfirm(false)}
+                    style={{
+                      padding: '8px 16px',
+                      background: '#f1f5f9',
+                      border: '1px solid #cbd5e1',
+                      borderRadius: '8px',
+                      color: '#475569',
+                      fontSize: '13px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Đóng
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleSwitchToInactive}
+                    style={{
+                      padding: '8px 16px',
+                      background: '#eff6ff',
+                      border: '1px solid #bfdbfe',
+                      borderRadius: '8px',
+                      color: '#1d4ed8',
+                      fontSize: '13px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Chuyển sang Ngừng kinh doanh
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div style={{ marginBottom: '12px' }}>
+                  <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '750', color: '#0f172a' }}>
+                    Xác nhận xóa sản phẩm
+                  </h3>
+                </div>
+
+                <p style={{ margin: '0 0 14px', fontSize: '13.5px', color: '#475569', lineHeight: '1.5' }}>
+                  Bạn có chắc chắn muốn xóa sản phẩm <strong>{product?.code} - {product?.name}</strong> khỏi danh mục hệ thống? Thao tác này không thể hoàn tác.
+                </p>
+
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setShowDeleteConfirm(false)}
+                    disabled={isDeleting}
+                    style={{
+                      padding: '8px 16px',
+                      background: '#f1f5f9',
+                      border: '1px solid #cbd5e1',
+                      borderRadius: '8px',
+                      color: '#475569',
+                      fontSize: '13px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Hủy
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleDelete}
+                    disabled={isDeleting}
+                    style={{
+                      padding: '8px 18px',
+                      background: '#dc2626',
+                      border: 'none',
+                      borderRadius: '8px',
+                      color: '#ffffff',
+                      fontSize: '13px',
+                      fontWeight: '700',
+                      cursor: isDeleting ? 'not-allowed' : 'pointer',
+                    }}
+                  >
+                    {isDeleting ? 'Đang xóa...' : 'Xác nhận xóa'}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
