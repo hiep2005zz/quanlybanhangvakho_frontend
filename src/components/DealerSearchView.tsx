@@ -627,7 +627,6 @@ export default function DealerSearchView({
 
     const handleClearKeyword = () => {
         setKeyword('');
-        handleSearch({ keyword: '' });
     };
 
     const toggleOnlyMyDealers = () => {
@@ -717,11 +716,7 @@ export default function DealerSearchView({
                     <label>Khu vực</label>
                     <select
                         value={region}
-                        onChange={(e) => {
-                            const val = e.target.value;
-                            setRegion(val);
-                            handleSearch({ region: val });
-                        }}
+                        onChange={(e) => setRegion(e.target.value)}
                     >
                         <option value="">Tất cả khu vực</option>
                         {regions.map((item) => (
@@ -736,11 +731,7 @@ export default function DealerSearchView({
                     <label>Nhóm khách hàng</label>
                     <select
                         value={customerGroup}
-                        onChange={(e) => {
-                            const val = e.target.value;
-                            setCustomerGroup(val);
-                            handleSearch({ customerGroup: val });
-                        }}
+                        onChange={(e) => setCustomerGroup(e.target.value)}
                     >
                         <option value="">Tất cả nhóm</option>
                         {getUniqueFormattedGroups(customerGroups).map((group) => (
@@ -755,11 +746,7 @@ export default function DealerSearchView({
                     <label>Người phụ trách</label>
                     <select
                         value={assignedSaleId}
-                        onChange={(e) => {
-                            const val = e.target.value;
-                            setAssignedSaleId(val);
-                            handleSearch({ assignedSaleId: val });
-                        }}
+                        onChange={(e) => setAssignedSaleId(e.target.value)}
                     >
                         <option value="">Tất cả nhân viên</option>
                         {sales.map((sale) => (
@@ -774,11 +761,7 @@ export default function DealerSearchView({
                     <label>Trạng thái</label>
                     <select
                         value={status}
-                        onChange={(e) => {
-                            const val = e.target.value;
-                            setStatus(val);
-                            handleSearch({ status: val });
-                        }}
+                        onChange={(e) => setStatus(e.target.value)}
                     >
                         <option value="">Tất cả trạng thái</option>
                         {statuses.map((st) => (
