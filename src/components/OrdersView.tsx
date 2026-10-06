@@ -367,7 +367,6 @@ export default function OrdersView({ token, username, products, canCreateOrders,
             <h1>Tạo đơn hàng</h1>
             <p className="orders-page-subtitle">Nhập đơn trực tiếp tại cửa hàng của đại lý.</p>
           </div>
-          <button type="button" className="orders-back-button" onClick={() => { setIsDraftPickerOpen(false); setIsCreating(false); resetOrderForm(); }}>Quay lại đơn hàng</button>
         </header>
         {createError && <div className="orders-create-error" role="alert">{createError}</div>}
         {isDraftPickerOpen && (
