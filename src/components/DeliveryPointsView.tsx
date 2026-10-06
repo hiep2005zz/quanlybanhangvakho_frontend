@@ -324,11 +324,14 @@ export default function DeliveryPointsView({
     setIsEditingMaster(false);
     setFormDealerId(p.dealer_id || selectedDealerId);
     setEditingPoint(p);
+    const rawPhone = (p.receiver_phone || '').trim();
+    const cleanDigits = rawPhone.replace(/\D/g, '');
+    const phoneVal = cleanDigits.length > 10 ? cleanDigits.slice(0, 10) : rawPhone;
     setForm({
       label: p.label,
       address: p.address,
       receiver_name: p.receiver_name || '',
-      receiver_phone: p.receiver_phone || '',
+      receiver_phone: phoneVal,
       route_note: p.route_note || '',
       is_default: Boolean(p.is_default),
     });
@@ -340,11 +343,14 @@ export default function DeliveryPointsView({
   const handleOpenEditMasterModal = (item: AllDeliveryPointItem) => {
     setIsEditingMaster(true);
     setEditingPoint(item);
+    const rawPhone = (item.receiver_phone || '').trim();
+    const cleanDigits = rawPhone.replace(/\D/g, '');
+    const phoneVal = cleanDigits.length > 10 ? cleanDigits.slice(0, 10) : rawPhone;
     setForm({
       label: item.label,
       address: item.address,
       receiver_name: item.receiver_name || '',
-      receiver_phone: item.receiver_phone || '',
+      receiver_phone: phoneVal,
       route_note: item.route_note || '',
       is_default: false,
     });
@@ -364,27 +370,49 @@ export default function DeliveryPointsView({
       return;
     }
 
-    if (form.receiver_phone && form.receiver_phone.trim()) {
-      const phoneClean = form.receiver_phone.trim();
-      if (!/^[0-9+\-\s]{8,20}$/.test(phoneClean)) {
-        setFormError('Số điện thoại nhận hàng phải từ 8 đến 20 số.');
+    const phoneClean = (form.receiver_phone || '').trim();
+    let finalPhone = phoneClean;
+    if (!editingPoint) {
+      if (!phoneClean) {
+        setFormError('Vui lòng nhập số điện thoại người nhận.');
         return;
       }
+      if (!/^[0-9]{10}$/.test(phoneClean)) {
+        setFormError('Số điện thoại người nhận phải bao gồm đúng 10 chữ số.');
+        return;
+      }
+    } else {
+      if (phoneClean) {
+        const cleanDigits = phoneClean.replace(/\D/g, '');
+        if (cleanDigits.length === 10) {
+          finalPhone = cleanDigits;
+        } else if (cleanDigits.length > 10) {
+          finalPhone = cleanDigits.slice(0, 10);
+        } else {
+          setFormError('Số điện thoại người nhận phải bao gồm đúng 10 chữ số.');
+          return;
+        }
+      }
     }
+
+    const submitPayload = {
+      ...form,
+      receiver_phone: finalPhone,
+    };
 
     setFormSubmitting(true);
     setFormError('');
     try {
       if (isEditingMaster) {
         if (editingPoint) {
-          await updateMasterDeliveryPointApi(token, editingPoint.id, form);
+          await updateMasterDeliveryPointApi(token, editingPoint.id, submitPayload);
           emitStatusToast({
             title: 'Cập nhật thành công',
             message: `Đã cập nhật điểm giao "${form.label}" trong danh sách chung`,
             type: 'success',
           });
         } else {
-          await createMasterDeliveryPointApi(token, form);
+          await createMasterDeliveryPointApi(token, submitPayload);
           emitStatusToast({
             title: 'Thêm mới thành công',
             message: `Đã thêm điểm giao "${form.label}" vào danh sách chung`,
@@ -398,14 +426,14 @@ export default function DeliveryPointsView({
           return;
         }
         if (editingPoint) {
-          await updateDeliveryPointApi(token, targetDealerId, editingPoint.id, form);
+          await updateDeliveryPointApi(token, targetDealerId, editingPoint.id, submitPayload);
           emitStatusToast({
             title: 'Cập nhật thành công',
             message: `Đã cập nhật điểm giao "${form.label}" cho đại lý`,
             type: 'success',
           });
         } else {
-          await createDeliveryPointApi(token, targetDealerId, form);
+          await createDeliveryPointApi(token, targetDealerId, submitPayload);
           emitStatusToast({
             title: 'Thêm mới thành công',
             message: `Đã thêm điểm giao "${form.label}" cho đại lý`,
@@ -519,18 +547,6 @@ export default function DeliveryPointsView({
               <h2 style={{ fontSize: '24px', fontWeight: '800', color: '#0f172a', margin: 0, letterSpacing: '-0.02em' }}>
                 Quản lý Điểm Giao Hàng
               </h2>
-              <span
-                style={{
-                  background: '#e0e7ff',
-                  color: '#4338ca',
-                  fontSize: '12px',
-                  fontWeight: '700',
-                  padding: '3px 9px',
-                  borderRadius: '999px',
-                }}
-              >
-                {points.length} điểm giao
-              </span>
             </div>
           </div>
         </div>
@@ -971,26 +987,9 @@ export default function DeliveryPointsView({
                     <circle cx="12" cy="10" r="3" />
                   </svg>
                 </div>
-                <h4 style={{ margin: '0 0 16px 0', fontSize: '16px', fontWeight: '700', color: '#0f172a' }}>
+                <h4 style={{ margin: 0, fontSize: '16px', fontWeight: '700', color: '#0f172a' }}>
                   Chưa có điểm giao hàng nào
                 </h4>
-                <button
-                  type="button"
-                  onClick={() => handleOpenSelectPointModal()}
-                  style={{
-                    padding: '9px 18px',
-                    borderRadius: '10px',
-                    background: '#2563eb',
-                    color: '#ffffff',
-                    border: 'none',
-                    fontSize: '13.5px',
-                    fontWeight: '600',
-                    cursor: 'pointer',
-                    boxShadow: '0 2px 8px rgba(37, 99, 235, 0.25)',
-                  }}
-                >
-                  Chọn điểm giao ngay
-                </button>
               </div>
             ) : (
               /* Points List */
@@ -2265,13 +2264,18 @@ export default function DeliveryPointsView({
 
                 <div>
                   <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>
-                    Số điện thoại nhận
+                    Số điện thoại nhận {!editingPoint && <span style={{ color: '#ef4444' }}>*</span>}
                   </label>
                   <input
                     type="tel"
                     placeholder="VD: 0912345678"
+                    maxLength={10}
+                    required={!editingPoint}
                     value={form.receiver_phone || ''}
-                    onChange={(e) => setForm({ ...form, receiver_phone: e.target.value })}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/\D/g, '').slice(0, 10);
+                      setForm({ ...form, receiver_phone: val });
+                    }}
                     style={{
                       width: '100%',
                       padding: '8px 10px',

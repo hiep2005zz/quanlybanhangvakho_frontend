@@ -285,7 +285,13 @@ export const SupplierManagementView: React.FC<SupplierManagementViewProps> = ({ 
               loadSuppliers();
               setCurrentPage(1);
             }}
-            style={{ ...controlStyle, fontWeight: '600', cursor: 'pointer', background: '#f8fafc' }}
+            style={{
+              ...controlStyle,
+              marginTop: 0,
+              fontWeight: '600',
+              cursor: 'pointer',
+              background: '#f8fafc',
+            }}
           >
             Làm mới
           </button>
@@ -329,7 +335,7 @@ export const SupplierManagementView: React.FC<SupplierManagementViewProps> = ({ 
                   <th style={thStyle}>Mã số thuế</th>
                   <th style={thStyle}>Người liên hệ</th>
                   <th style={thStyle}>Điều khoản thanh toán</th>
-                  <th style={{ ...thStyle, textAlign: 'center' }}>Trạng thái</th>
+                  <th style={{ ...thStyle, textAlign: 'center', width: '150px', minWidth: '150px', whiteSpace: 'nowrap' }}>Trạng thái</th>
                   <th style={{ ...thStyle, textAlign: 'center', width: '330px', minWidth: '330px' }}>Thao tác</th>
                 </tr>
               </thead>
@@ -386,7 +392,7 @@ export const SupplierManagementView: React.FC<SupplierManagementViewProps> = ({ 
                     <td style={{ ...tdStyle, maxWidth: '260px' }}>
                       {s.payment_terms || <span style={{ color: '#94a3b8' }}>Không có</span>}
                     </td>
-                    <td style={{ ...tdStyle, textAlign: 'center' }}>
+                    <td style={{ ...tdStyle, textAlign: 'center', whiteSpace: 'nowrap' }}>
                       {s.is_active ? (
                         <span
                           style={{
@@ -400,9 +406,10 @@ export const SupplierManagementView: React.FC<SupplierManagementViewProps> = ({ 
                             borderRadius: '999px',
                             fontSize: '12px',
                             fontWeight: '700',
+                            whiteSpace: 'nowrap',
                           }}
                         >
-                          <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#16a34a' }} />
+                          <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#16a34a', flexShrink: 0 }} />
                           Đang giao dịch
                         </span>
                       ) : (
@@ -419,9 +426,10 @@ export const SupplierManagementView: React.FC<SupplierManagementViewProps> = ({ 
                               borderRadius: '999px',
                               fontSize: '12px',
                               fontWeight: '700',
+                              whiteSpace: 'nowrap',
                             }}
                           >
-                            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#dc2626' }} />
+                            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#dc2626', flexShrink: 0 }} />
                             Ngừng giao dịch
                           </span>
                           {s.inactive_reason && (
