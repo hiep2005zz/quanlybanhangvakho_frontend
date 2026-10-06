@@ -589,8 +589,9 @@ export async function updateProductApi(token: string, id: number, payload: Parti
   return data;
 }
 
-export async function deleteProductApi(token: string, id: number): Promise<{ status: string; message: string }> {
-  const response = await authenticatedFetch(`${API_BASE_URL}/products/${id}`, {
+export async function deleteProductApi(token: string, id: number, force: boolean = true): Promise<{ status: string; message: string }> {
+  const url = force ? `${API_BASE_URL}/products/${id}?force=true` : `${API_BASE_URL}/products/${id}`;
+  const response = await authenticatedFetch(url, {
     method: 'DELETE',
   }, token);
 

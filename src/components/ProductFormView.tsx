@@ -360,14 +360,10 @@ export const ProductFormView: React.FC<ProductFormViewProps> = ({
   // Delete
   const handleDelete = async () => {
     if (!product) return;
-    if (hasTransactions) {
-      setGeneralError('Sản phẩm đã phát sinh giao dịch. Chỉ cho phép chuyển trạng thái sang "Ngừng kinh doanh"!');
-      return;
-    }
 
     setIsDeleting(true);
     try {
-      await deleteProductApi(token, product.id);
+      await deleteProductApi(token, product.id, true);
       emitStatusToast({ message: `Đã xóa sản phẩm ${product.code} thành công.`, title: 'Xóa thành công' });
       onSuccess(product, true);
     } catch (err) {
@@ -378,6 +374,17 @@ export const ProductFormView: React.FC<ProductFormViewProps> = ({
       setIsDeleting(false);
       setShowDeleteConfirm(false);
     }
+  };
+
+  // Nhanh chóng chuyển sang ngừng kinh doanh từ modal
+  const handleSwitchToInactive = async () => {
+    if (!product) return;
+    setStatus('inactive');
+    setShowDeleteConfirm(false);
+    emitStatusToast({
+      message: 'Đã chuyển trạng thái sang "Ngừng kinh doanh". Hãy bấm "Lưu thay đổi" để áp dụng.',
+      title: 'Thông báo',
+    });
   };
 
   const allCategories = Array.from(new Set([...categories, ...customCategories])).filter(Boolean);
@@ -422,40 +429,86 @@ export const ProductFormView: React.FC<ProductFormViewProps> = ({
           </p>
         </div>
 
-        {/* Nút Quay lại danh sách */}
-        <button
-          type="button"
-          onClick={onBack}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '8px',
-            background: '#ffffff',
-            border: '1px solid #cbd5e1',
-            borderRadius: '9px',
-            padding: '9px 16px',
-            fontSize: '13px',
-            fontWeight: '600',
-            color: '#334155',
-            cursor: 'pointer',
-            transition: 'all 0.15s ease',
-            boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = '#f8fafc';
-            e.currentTarget.style.borderColor = '#94a3b8';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = '#ffffff';
-            e.currentTarget.style.borderColor = '#cbd5e1';
-          }}
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="19" y1="12" x2="5" y2="12" />
-            <polyline points="12 19 5 12 12 5" />
-          </svg>
-          <span>Quay lại danh sách</span>
-        </button>
+        {/* Các nút thao tác góc phải */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          {isEditing && (
+            <button
+              type="button"
+              onClick={() => setShowDeleteConfirm(true)}
+              disabled={isDeleting || isSubmitting}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                background: '#fef2f2',
+                border: '1px solid #fecaca',
+                borderRadius: '9px',
+                padding: '9px 14px',
+                fontSize: '13px',
+                fontWeight: '600',
+                color: '#dc2626',
+                cursor: isDeleting ? 'not-allowed' : 'pointer',
+                transition: 'all 0.15s ease',
+              }}
+              onMouseEnter={(e) => {
+                if (!isDeleting) {
+                  e.currentTarget.style.background = '#fee2e2';
+                  e.currentTarget.style.borderColor = '#f87171';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!isDeleting) {
+                  e.currentTarget.style.background = '#fef2f2';
+                  e.currentTarget.style.borderColor = '#fecaca';
+                }
+              }}
+              title="Xóa sản phẩm này khỏi hệ thống"
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                <polyline points="3 6 5 6 21 6" />
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                <line x1="10" y1="11" x2="10" y2="17" />
+                <line x1="14" y1="11" x2="14" y2="17" />
+              </svg>
+              <span>{isDeleting ? 'Đang xóa...' : 'Xóa sản phẩm'}</span>
+            </button>
+          )}
+
+          {/* Nút Quay lại danh sách */}
+          <button
+            type="button"
+            onClick={onBack}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              background: '#ffffff',
+              border: '1px solid #cbd5e1',
+              borderRadius: '9px',
+              padding: '9px 16px',
+              fontSize: '13px',
+              fontWeight: '600',
+              color: '#334155',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+              boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = '#f8fafc';
+              e.currentTarget.style.borderColor = '#94a3b8';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = '#ffffff';
+              e.currentTarget.style.borderColor = '#cbd5e1';
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="19" y1="12" x2="5" y2="12" />
+              <polyline points="12 19 5 12 12 5" />
+            </svg>
+            <span>Quay lại danh sách</span>
+          </button>
+        </div>
       </div>
 
       {generalError && (
@@ -1281,66 +1334,60 @@ export const ProductFormView: React.FC<ProductFormViewProps> = ({
                 Hủy bỏ & Quay lại
               </button>
 
-              {/* Nút Xóa sản phẩm nếu đang sửa */}
+              {/* Nút Xóa sản phẩm khi đang chỉnh sửa */}
               {isEditing && (
                 <div style={{ marginTop: '8px', paddingTop: '12px', borderTop: '1px dashed #e2e8f0' }}>
-                  {hasTransactions ? (
-                    <div
-                      style={{
-                        padding: '8px 12px',
-                        background: '#f8fafc',
-                        border: '1px solid #e2e8f0',
-                        borderRadius: '8px',
-                        fontSize: '11.5px',
-                        color: '#64748b',
-                        lineHeight: '1.4',
-                      }}
-                    >
-                      🔒 <strong>Đã phát sinh giao dịch:</strong> Không thể xóa để bảo toàn lịch sử hóa đơn. Bạn có thể chọn <em>Ngừng kinh doanh</em>.
-                    </div>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => setShowDeleteConfirm(true)}
-                      disabled={isDeleting || isSubmitting}
-                      style={{
-                        width: '100%',
-                        padding: '9px 14px',
-                        background: '#fef2f2',
-                        border: '1px solid #fecaca',
-                        borderRadius: '8px',
-                        color: '#dc2626',
-                        fontSize: '13px',
-                        fontWeight: '600',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '6px',
-                        transition: 'all 0.15s ease',
-                      }}
-                      onMouseEnter={(e) => {
+                  <button
+                    type="button"
+                    onClick={() => setShowDeleteConfirm(true)}
+                    disabled={isDeleting || isSubmitting}
+                    style={{
+                      width: '100%',
+                      padding: '10px 16px',
+                      background: '#fef2f2',
+                      border: '1px solid #fecaca',
+                      borderRadius: '10px',
+                      color: '#dc2626',
+                      fontSize: '13.5px',
+                      fontWeight: '700',
+                      cursor: isDeleting ? 'not-allowed' : 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px',
+                      transition: 'all 0.15s ease',
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isDeleting) {
                         e.currentTarget.style.background = '#fee2e2';
-                        e.currentTarget.style.borderColor = '#fca5a5';
-                      }}
-                      onMouseLeave={(e) => {
+                        e.currentTarget.style.borderColor = '#f87171';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isDeleting) {
                         e.currentTarget.style.background = '#fef2f2';
                         e.currentTarget.style.borderColor = '#fecaca';
-                      }}
-                    >
-                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <polyline points="3 6 5 6 21 6" />
-                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                      </svg>
-                      <span>{isDeleting ? 'Đang xóa...' : 'Xóa sản phẩm này'}</span>
-                    </button>
+                      }
+                    }}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                      <polyline points="3 6 5 6 21 6" />
+                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                      <line x1="10" y1="11" x2="10" y2="17" />
+                      <line x1="14" y1="11" x2="14" y2="17" />
+                    </svg>
+                    <span>{isDeleting ? 'Đang xóa...' : 'Xóa sản phẩm này'}</span>
+                  </button>
+
+                  {hasTransactions && (
+                    <p style={{ margin: '8px 0 0', fontSize: '11.5px', color: '#64748b', textAlign: 'center', lineHeight: '1.4' }}>
+                      🔒 Sản phẩm có {product?.transaction_count} giao dịch liên quan
+                    </p>
                   )}
                 </div>
               )}
             </div>
           </section>
-
-
         </aside>
       </form>
 
@@ -1363,18 +1410,40 @@ export const ProductFormView: React.FC<ProductFormViewProps> = ({
               background: '#ffffff',
               borderRadius: '14px',
               padding: '24px',
-              maxWidth: '420px',
+              maxWidth: '460px',
               width: '90%',
               boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.2)',
             }}
           >
-            <h3 style={{ margin: '0 0 10px', fontSize: '18px', fontWeight: '750', color: '#0f172a' }}>
-              Xác nhận xóa sản phẩm
-            </h3>
-            <p style={{ margin: '0 0 20px', fontSize: '13.5px', color: '#475569', lineHeight: '1.5' }}>
-              Bạn có chắc chắn muốn xóa sản phẩm <strong>{product?.code} - {product?.name}</strong> khỏi danh mục hệ thống? Hành động này không thể hoàn tác.
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
+              <span style={{ fontSize: '24px' }}>🗑️</span>
+              <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '750', color: '#0f172a' }}>
+                Xác nhận xóa sản phẩm
+              </h3>
+            </div>
+
+            <p style={{ margin: '0 0 14px', fontSize: '13.5px', color: '#475569', lineHeight: '1.5' }}>
+              Bạn có chắc chắn muốn xóa sản phẩm <strong>{product?.code} - {product?.name}</strong> khỏi danh mục hệ thống?
             </p>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+
+            {hasTransactions && (
+              <div
+                style={{
+                  background: '#fffbeb',
+                  border: '1px solid #fde68a',
+                  borderRadius: '8px',
+                  padding: '10px 12px',
+                  fontSize: '12.5px',
+                  color: '#92400e',
+                  marginBottom: '16px',
+                  lineHeight: '1.45',
+                }}
+              >
+                ⚠️ <strong>Lưu ý:</strong> Sản phẩm này đã phát sinh <strong>{product?.transaction_count}</strong> giao dịch (đơn hàng/kho). Bạn có thể chọn xóa trực tiếp hoặc chuyển sang trạng thái <em>Ngừng kinh doanh</em>.
+              </div>
+            )}
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', flexWrap: 'wrap' }}>
               <button
                 type="button"
                 onClick={() => setShowDeleteConfirm(false)}
@@ -1392,6 +1461,27 @@ export const ProductFormView: React.FC<ProductFormViewProps> = ({
               >
                 Hủy
               </button>
+
+              {hasTransactions && (
+                <button
+                  type="button"
+                  onClick={handleSwitchToInactive}
+                  disabled={isDeleting}
+                  style={{
+                    padding: '8px 14px',
+                    background: '#eff6ff',
+                    border: '1px solid #bfdbfe',
+                    borderRadius: '8px',
+                    color: '#1d4ed8',
+                    fontSize: '13px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Chuyển sang Ngừng KD
+                </button>
+              )}
+
               <button
                 type="button"
                 onClick={handleDelete}
@@ -1407,7 +1497,7 @@ export const ProductFormView: React.FC<ProductFormViewProps> = ({
                   cursor: 'pointer',
                 }}
               >
-                {isDeleting ? 'Đang xóa...' : 'Đồng ý xóa'}
+                {isDeleting ? 'Đang xóa...' : 'Xác nhận xóa'}
               </button>
             </div>
           </div>
