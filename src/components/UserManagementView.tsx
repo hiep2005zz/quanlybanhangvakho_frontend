@@ -1498,10 +1498,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
         <ModalPortal>
         <div style={{
           position: 'fixed',
-          top: 0,
-          left: 0,
-          width: '100vw',
-          height: '100vh',
+          inset: 0,
           background: 'rgba(15, 23, 42, 0.55)',
           backdropFilter: 'blur(6px)',
           WebkitBackdropFilter: 'blur(6px)',
@@ -1509,8 +1506,9 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
           alignItems: 'center',
           justifyContent: 'center',
           zIndex: 99999,
-          padding: '16px',
+          padding: '24px 16px',
           boxSizing: 'border-box',
+          overflowY: 'auto',
         }}>
           <div style={{
             background: '#ffffff',
@@ -1518,7 +1516,8 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
             borderRadius: '16px',
             width: '100%',
             maxWidth: '560px',
-            maxHeight: 'calc(100vh - 32px)',
+            maxHeight: 'calc(100vh - 48px)',
+            margin: 'auto',
             display: 'flex',
             flexDirection: 'column',
             boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
@@ -2178,10 +2177,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
         <ModalPortal>
         <div style={{
           position: 'fixed',
-          top: 0,
-          left: 0,
-          width: '100vw',
-          height: '100vh',
+          inset: 0,
           background: 'rgba(15, 23, 42, 0.55)',
           backdropFilter: 'blur(6px)',
           WebkitBackdropFilter: 'blur(6px)',
@@ -2189,8 +2185,9 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
           alignItems: 'center',
           justifyContent: 'center',
           zIndex: 99999,
-          padding: '16px',
+          padding: '24px 16px',
           boxSizing: 'border-box',
+          overflowY: 'auto',
         }}>
           <div style={{
             background: '#ffffff',
@@ -2198,6 +2195,8 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
             borderRadius: '16px',
             width: '100%',
             maxWidth: '480px',
+            maxHeight: 'calc(100vh - 48px)',
+            margin: 'auto',
             boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
             overflow: 'hidden',
             color: '#0f172a',
@@ -2312,10 +2311,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
         <ModalPortal>
         <div style={{
           position: 'fixed',
-          top: 0,
-          left: 0,
-          width: '100vw',
-          height: '100vh',
+          inset: 0,
           background: 'rgba(15, 23, 42, 0.55)',
           backdropFilter: 'blur(6px)',
           WebkitBackdropFilter: 'blur(6px)',
@@ -2323,8 +2319,9 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
           alignItems: 'center',
           justifyContent: 'center',
           zIndex: 99999,
-          padding: '16px',
+          padding: '24px 16px',
           boxSizing: 'border-box',
+          overflowY: 'auto',
         }}>
           <div style={{
             background: '#ffffff',
@@ -2332,7 +2329,8 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
             borderRadius: '16px',
             width: '100%',
             maxWidth: '640px',
-            maxHeight: 'calc(100vh - 32px)',
+            maxHeight: 'calc(100vh - 48px)',
+            margin: 'auto',
             display: 'flex',
             flexDirection: 'column',
             boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',

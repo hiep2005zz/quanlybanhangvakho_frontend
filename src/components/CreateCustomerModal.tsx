@@ -121,8 +121,9 @@ export const CreateCustomerModal: React.FC<CreateCustomerModalProps> = ({
           alignItems: 'center',
           justifyContent: 'center',
           zIndex: 99999,
-          padding: '20px',
+          padding: '24px 16px',
           boxSizing: 'border-box',
+          overflowY: 'auto',
         }}
         onClick={(e) => {
           if (e.target === e.currentTarget) {
@@ -137,7 +138,8 @@ export const CreateCustomerModal: React.FC<CreateCustomerModalProps> = ({
             borderRadius: '16px',
             width: '100%',
             maxWidth: '540px',
-            maxHeight: 'calc(100vh - 32px)',
+            maxHeight: 'min(620px, calc(100vh - 48px))',
+            margin: 'auto',
             boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
             overflowY: 'auto',
             color: '#0f172a',
