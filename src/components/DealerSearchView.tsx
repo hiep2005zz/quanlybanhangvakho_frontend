@@ -17,18 +17,34 @@ import { emitStatusToast } from './StatusToast';
 import './dealer-search.css';
 
 const DEFAULT_CUSTOMER_GROUPS = [
-    'dai_ly_cap_1',
-    'dai_ly_cap_2',
-    'khach_si',
-    'khach_le',
+    'Đại lý cấp 1',
+    'Đại lý cấp 2',
+    'Khách sỉ',
+    'Khách lẻ',
 ];
 
 const formatGroupName = (grp: string) => {
-    if (grp === 'dai_ly_cap_1' || grp === 'CAP_1' || grp === 'Dai_ly_cap_1' || grp === 'Đại lý cấp 1') return 'Đại lý cấp 1';
-    if (grp === 'dai_ly_cap_2' || grp === 'CAP_2' || grp === 'Dai_ly_cap_2' || grp === 'Đại lý cấp 2') return 'Đại lý cấp 2';
-    if (grp === 'khach_si' || grp === 'Khach_si' || grp === 'Khách sỉ') return 'Khách sỉ';
-    if (grp === 'khach_le' || grp === 'RETAIL' || grp === 'Khach_le' || grp === 'Khách lẻ') return 'Khách lẻ';
-    return grp;
+    if (!grp) return '';
+    const clean = grp.trim();
+    if (clean === 'dai_ly_cap_1' || clean === 'CAP_1' || clean === 'Dai_ly_cap_1' || clean === 'Đại lý cấp 1') return 'Đại lý cấp 1';
+    if (clean === 'dai_ly_cap_2' || clean === 'CAP_2' || clean === 'Dai_ly_cap_2' || clean === 'Đại lý cấp 2') return 'Đại lý cấp 2';
+    if (clean === 'khach_si' || clean === 'Khach_si' || clean === 'Khách sỉ') return 'Khách sỉ';
+    if (clean === 'khach_le' || clean === 'RETAIL' || clean === 'Khach_le' || clean === 'Khách lẻ') return 'Khách lẻ';
+    return clean;
+};
+
+const getUniqueFormattedGroups = (groups: string[]): string[] => {
+    const formattedList = (groups || []).map(formatGroupName).filter(Boolean);
+    const unique = Array.from(new Set(formattedList));
+    const order = ['Đại lý cấp 1', 'Đại lý cấp 2', 'Khách sỉ', 'Khách lẻ'];
+    return unique.sort((a, b) => {
+        const ia = order.indexOf(a);
+        const ib = order.indexOf(b);
+        if (ia !== -1 && ib !== -1) return ia - ib;
+        if (ia !== -1) return -1;
+        if (ib !== -1) return 1;
+        return a.localeCompare(b, 'vi');
+    });
 };
 
 const DEFAULT_STATUSES = [
@@ -74,7 +90,7 @@ export default function DealerSearchView({
         address: '',
         region: '',
         assigned_sale_id: '',
-        customer_group: 'dai_ly_cap_1',
+        customer_group: 'Đại lý cấp 1',
         status: 'Đang hoạt động',
     });
     const [addError, setAddError] = useState('');
@@ -342,7 +358,7 @@ export default function DealerSearchView({
             address: '',
             region: regions[0] || 'Hà Nội',
             assigned_sale_id: defaultSaleId,
-            customer_group: customerGroups.length > 0 ? customerGroups[0] : 'dai_ly_cap_1',
+            customer_group: 'Đại lý cấp 1',
             status: 'Đang hoạt động',
         });
         setAddError('');
@@ -464,7 +480,7 @@ export default function DealerSearchView({
                 region: trimmedRegion,
                 assigned_sale_id: addFormData.assigned_sale_id ? Number(addFormData.assigned_sale_id) : undefined,
                 assigned_sale_name: saleName,
-                customer_group: addFormData.customer_group || 'dai_ly_cap_1',
+                customer_group: formatGroupName(addFormData.customer_group) || 'Đại lý cấp 1',
                 status: addFormData.status || 'Đang hoạt động',
             };
 
@@ -496,7 +512,7 @@ export default function DealerSearchView({
                 setSales(data.sales);
             }
             if (data.customer_groups && data.customer_groups.length > 0) {
-                setCustomerGroups(data.customer_groups);
+                setCustomerGroups(getUniqueFormattedGroups(data.customer_groups));
             }
             if (data.statuses && data.statuses.length > 0) {
                 setStatuses(data.statuses);
@@ -555,7 +571,7 @@ export default function DealerSearchView({
             // Lọc client-side bổ trợ nếu backend chưa filter một số trường
             if (searchGroup) {
                 items = items.filter(
-                    (d) => Boolean(d.customer_group && d.customer_group.toLowerCase() === searchGroup.toLowerCase())
+                    (d) => Boolean(d.customer_group && formatGroupName(d.customer_group) === formatGroupName(searchGroup))
                 );
             }
             if (searchStatus) {
@@ -726,9 +742,9 @@ export default function DealerSearchView({
                         }}
                     >
                         <option value="">Tất cả nhóm</option>
-                        {customerGroups.map((group) => (
+                        {getUniqueFormattedGroups(customerGroups).map((group) => (
                             <option key={group} value={group}>
-                                {formatGroupName(group)}
+                                {group}
                             </option>
                         ))}
                     </select>
@@ -1144,7 +1160,7 @@ export default function DealerSearchView({
                                     {dealer.customer_group && (
                                         <div className="dealer-card-meta">
                                             <span className="meta-label">Nhóm:</span>
-                                            <span className="dealer-group-tag">{dealer.customer_group}</span>
+                                            <span className="dealer-group-tag">{formatGroupName(dealer.customer_group)}</span>
                                         </div>
                                     )}
 
@@ -1260,7 +1276,7 @@ export default function DealerSearchView({
                                             value={addFormData.customer_group}
                                             onChange={(e) => setAddFormData({ ...addFormData, customer_group: e.target.value })}
                                         >
-                                            {customerGroups.map((group) => (
+                                            {getUniqueFormattedGroups(customerGroups).map((group) => (
                                                 <option key={group} value={group}>
                                                     {group}
                                                 </option>
