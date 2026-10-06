@@ -14,6 +14,7 @@ import {
 } from '../services/dealerSearchApi';
 import { User } from '../services/api';
 import { emitStatusToast } from './StatusToast';
+import { ModalPortal } from './ModalPortal';
 import './dealer-search.css';
 
 const DEFAULT_CUSTOMER_GROUPS = [
@@ -626,7 +627,6 @@ export default function DealerSearchView({
 
     const handleClearKeyword = () => {
         setKeyword('');
-        handleSearch({ keyword: '' });
     };
 
     const toggleOnlyMyDealers = () => {
@@ -728,11 +728,7 @@ export default function DealerSearchView({
                     <label>Khu vực</label>
                     <select
                         value={region}
-                        onChange={(e) => {
-                            const val = e.target.value;
-                            setRegion(val);
-                            handleSearch({ region: val });
-                        }}
+                        onChange={(e) => setRegion(e.target.value)}
                     >
                         <option value="">Tất cả khu vực</option>
                         {regions.map((item) => (
@@ -747,11 +743,7 @@ export default function DealerSearchView({
                     <label>Nhóm khách hàng</label>
                     <select
                         value={customerGroup}
-                        onChange={(e) => {
-                            const val = e.target.value;
-                            setCustomerGroup(val);
-                            handleSearch({ customerGroup: val });
-                        }}
+                        onChange={(e) => setCustomerGroup(e.target.value)}
                     >
                         <option value="">Tất cả nhóm</option>
                         {getUniqueFormattedGroups(customerGroups).map((group) => (
@@ -766,11 +758,7 @@ export default function DealerSearchView({
                     <label>Người phụ trách</label>
                     <select
                         value={assignedSaleId}
-                        onChange={(e) => {
-                            const val = e.target.value;
-                            setAssignedSaleId(val);
-                            handleSearch({ assignedSaleId: val });
-                        }}
+                        onChange={(e) => setAssignedSaleId(e.target.value)}
                     >
                         <option value="">Tất cả nhân viên</option>
                         {sales.map((sale) => (
@@ -785,11 +773,7 @@ export default function DealerSearchView({
                     <label>Trạng thái</label>
                     <select
                         value={status}
-                        onChange={(e) => {
-                            const val = e.target.value;
-                            setStatus(val);
-                            handleSearch({ status: val });
-                        }}
+                        onChange={(e) => setStatus(e.target.value)}
                     >
                         <option value="">Tất cả trạng thái</option>
                         {statuses.map((st) => (
@@ -882,7 +866,7 @@ export default function DealerSearchView({
                         <thead>
                             <tr>
                                 {canAssignDealer && (
-                                    <th style={{ width: 44, textAlign: 'center', verticalAlign: 'middle' }}>
+                                    <th style={{ width: 36, textAlign: 'center', verticalAlign: 'middle' }}>
                                         <input
                                             type="checkbox"
                                             checked={dealers.length > 0 && selectedDealerIds.length === dealers.length}
@@ -900,7 +884,7 @@ export default function DealerSearchView({
                                 <th style={{ whiteSpace: 'nowrap' }}>Trạng thái công nợ</th>
                                 <th style={{ whiteSpace: 'nowrap' }}>Người phụ trách</th>
                                 <th style={{ whiteSpace: 'nowrap' }}>Trạng thái</th>
-                                <th style={{ whiteSpace: 'nowrap', textAlign: 'center' }}>Thao tác</th>
+                                <th style={{ whiteSpace: 'nowrap', textAlign: 'center', width: 56 }}>Thao tác</th>
                             </tr>
                         </thead>
 
@@ -915,7 +899,7 @@ export default function DealerSearchView({
                                 paginatedDealers.map((dealer) => (
                                     <tr key={dealer.id}>
                                         {canAssignDealer && (
-                                            <td style={{ width: 44, textAlign: 'center', verticalAlign: 'middle' }}>
+                                            <td style={{ width: 36, textAlign: 'center', verticalAlign: 'middle' }}>
                                                 <input
                                                     type="checkbox"
                                                     checked={selectedDealerIds.includes(dealer.id)}
@@ -1046,7 +1030,7 @@ export default function DealerSearchView({
                                                 )}
                                             </div>
                                         </td>
-                                        <td style={{ textAlign: 'center', verticalAlign: 'middle' }}>
+                                        <td style={{ textAlign: 'center', verticalAlign: 'middle', width: 56 }}>
                                             <div className="dealer-dropdown-container" style={{ display: 'inline-flex', justifyContent: 'center' }}>
                                                 <button
                                                     type="button"
@@ -1433,6 +1417,7 @@ export default function DealerSearchView({
             </div>
 
             {isAddModalOpen && (
+                <ModalPortal>
                 <div className="dealer-modal-overlay" onClick={() => setIsAddModalOpen(false)}>
                     <div className="dealer-modal-box" onClick={(e) => e.stopPropagation()}>
                         <div className="dealer-modal-header">
@@ -1585,10 +1570,12 @@ export default function DealerSearchView({
                         </form>
                     </div>
                 </div>
+                </ModalPortal>
             )}
 
             {/* Modal Phân công lẻ */}
             {isAssignModalOpen && assignTargetDealer && (
+                <ModalPortal>
                 <div className="dealer-modal-overlay" onClick={() => setIsAssignModalOpen(false)}>
                     <div className="dealer-modal-box" style={{ maxWidth: '500px' }} onClick={(e) => e.stopPropagation()}>
                         <div className="dealer-modal-header">
@@ -1640,10 +1627,12 @@ export default function DealerSearchView({
                         </div>
                     </div>
                 </div>
+                </ModalPortal>
             )}
 
             {/* Modal Phân công hàng loạt */}
             {isBulkAssignModalOpen && (
+                <ModalPortal>
                 <div className="dealer-modal-overlay" onClick={() => setIsBulkAssignModalOpen(false)}>
                     <div className="dealer-modal-box" style={{ maxWidth: '500px' }} onClick={(e) => e.stopPropagation()}>
                         <div className="dealer-modal-header">
@@ -1694,9 +1683,11 @@ export default function DealerSearchView({
                         </div>
                     </div>
                 </div>
+                </ModalPortal>
             )}
             {/* Modal Lịch sử phân công */}
             {isHistoryModalOpen && historyTargetDealer && (
+                <ModalPortal>
                 <div className="dealer-modal-overlay" onClick={() => setIsHistoryModalOpen(false)}>
                     <div className="dealer-modal-box" style={{ maxWidth: '650px' }} onClick={(e) => e.stopPropagation()}>
                         <div className="dealer-modal-header">
@@ -1771,10 +1762,12 @@ export default function DealerSearchView({
                         </div>
                     </div>
                 </div>
+                </ModalPortal>
             )}
 
             {/* Modal Cập nhật hạn mức công nợ */}
             {isCreditModalOpen && creditTargetDealer && (
+                <ModalPortal>
                 <div className="dealer-modal-overlay" onClick={() => setIsCreditModalOpen(false)}>
                     <div className="dealer-modal-box" onClick={(e) => e.stopPropagation()}>
                         <div className="dealer-modal-header">
@@ -1850,9 +1843,11 @@ export default function DealerSearchView({
                         </form>
                     </div>
                 </div>
+                </ModalPortal>
             )}
             {/* Modal Xác Nhận Xóa Đại Lý (Thay cho window.confirm) */}
             {dealerToDelete && (
+                <ModalPortal>
                 <div 
                     style={{
                         position: 'fixed',
@@ -1983,6 +1978,7 @@ export default function DealerSearchView({
                         </div>
                     </div>
                 </div>
+                </ModalPortal>
             )}
         </div>
     );

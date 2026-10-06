@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   getOrdersApi,
   getOrderDetailApi,
@@ -25,7 +26,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
   products,
   onBackToHome: _onBackToHome,
   onRefreshProducts,
-  onNavigateToPriceBooks,
+  onNavigateToPriceBooks: _onNavigateToPriceBooks,
 }) => {
   const [orders, setOrders] = useState<OrderResponseData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -123,74 +124,15 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
         overflow: 'hidden',
       }}
     >
-      {/* Thanh điều hướng và tiêu đề */}
+      {/* Thanh tiêu đề */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '16px', flexShrink: 0 }}>
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            {/* Nút điều hướng sang Bảng giá (Chỉ hiển thị cho sales_manager và admin) */}
-            {canApprove && onNavigateToPriceBooks && (
-              <button
-                type="button"
-                id="btn-nav-to-price-books"
-                onClick={onNavigateToPriceBooks}
-                style={{
-                  background: '#eff6ff',
-                  border: '1px solid #93c5fd',
-                  borderRadius: '8px',
-                  padding: '7px 14px',
-                  fontSize: '13px',
-                  fontWeight: '700',
-                  color: '#1d4ed8',
-                  cursor: 'pointer',
-                }}
-              >
-                Sang trang Quản lý Bảng giá
-              </button>
-            )}
-
-            <h2 style={{ fontSize: '24px', fontWeight: '800', color: '#0f172a', margin: 0, letterSpacing: '-0.02em' }}>
-              Quản Lý Đơn Hàng & Bán Hàng
-            </h2>
-          </div>
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <button
-            type="button"
-            onClick={fetchOrders}
-            style={{
-              padding: '9px 16px',
-              background: '#ffffff',
-              border: '1px solid #cbd5e1',
-              borderRadius: '8px',
-              fontSize: '13.5px',
-              fontWeight: '600',
-              color: '#334155',
-              cursor: 'pointer',
-            }}
-            title="Tải lại danh sách đơn hàng"
-          >
-            Làm mới
-          </button>
-
-          <button
-            type="button"
-            id="btn-create-order-view"
-            onClick={() => setIsCreateModalOpen(true)}
-            style={{
-              padding: '9px 20px',
-              background: '#2563eb',
-              border: 'none',
-              borderRadius: '8px',
-              fontSize: '13.5px',
-              fontWeight: '700',
-              color: '#ffffff',
-              cursor: 'pointer',
-              boxShadow: '0 2px 4px rgba(37, 99, 235, 0.25)',
-            }}
-          >
-            Tạo Đơn Hàng Mới
-          </button>
+          <h2 style={{ fontSize: '24px', fontWeight: '800', color: '#0f172a', margin: 0, letterSpacing: '-0.02em' }}>
+            Quản Lý Đơn Hàng & Bán Hàng
+          </h2>
+          <p style={{ margin: '4px 0 0', fontSize: '13.5px', color: '#64748b' }}>
+            Theo dõi trạng thái đơn bán, kiểm soát biên lợi nhuận và phê duyệt đơn hàng
+          </p>
         </div>
       </div>
 
@@ -328,9 +270,49 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                 </button>
               )}
             </div>
+
+            {/* Nút Tạo Đơn Hàng Mới và nút Làm mới ở khoảng trắng */}
+            <button
+              type="button"
+              id="btn-create-order-view"
+              onClick={() => setIsCreateModalOpen(true)}
+              style={{
+                padding: '8px 16px',
+                background: '#2563eb',
+                border: 'none',
+                borderRadius: '8px',
+                fontSize: '13px',
+                fontWeight: '700',
+                color: '#ffffff',
+                cursor: 'pointer',
+                boxShadow: '0 2px 4px rgba(37, 99, 235, 0.25)',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              Tạo Đơn Hàng Mới
+            </button>
+
+            <button
+              type="button"
+              onClick={fetchOrders}
+              style={{
+                padding: '8px 14px',
+                background: '#ffffff',
+                border: '1px solid #cbd5e1',
+                borderRadius: '8px',
+                fontSize: '13px',
+                fontWeight: '600',
+                color: '#334155',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+              }}
+              title="Tải lại danh sách đơn hàng"
+            >
+              Làm mới
+            </button>
           </div>
 
-          <div style={{ fontSize: '13px', color: '#64748b' }}>
+          <div style={{ fontSize: '13px', color: '#64748b', whiteSpace: 'nowrap' }}>
             Hiển thị <strong>{paginatedOrders.length}</strong> / {filteredOrders.length} đơn hàng
           </div>
         </div>
@@ -733,34 +715,52 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
       </div>
 
       {/* Modal Xem Chi Tiết Đơn Hàng */}
-      {selectedOrderDetail && (
+      {selectedOrderDetail && createPortal(
         <div
           style={{
             position: 'fixed',
             inset: 0,
-            background: 'rgba(15, 23, 42, 0.6)',
+            background: 'rgba(15, 23, 42, 0.65)',
             backdropFilter: 'blur(4px)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             zIndex: 99999,
             padding: '16px',
+            boxSizing: 'border-box',
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setSelectedOrderDetail(null);
           }}
         >
           <div
             style={{
               background: '#ffffff',
               borderRadius: '16px',
-              padding: '24px',
-              maxWidth: '720px',
+              maxWidth: '740px',
               width: '100%',
-              maxHeight: '90vh',
-              overflowY: 'auto',
-              boxShadow: '0 20px 40px rgba(0,0,0,0.2)',
+              maxHeight: 'calc(100vh - 32px)',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
               border: '1px solid #e2e8f0',
+              boxSizing: 'border-box',
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden',
             }}
+            onClick={(e) => e.stopPropagation()}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            {/* Header Modal Cố Định */}
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '20px 24px 16px 24px',
+                borderBottom: '1px solid #f1f5f9',
+                flexShrink: 0,
+                background: '#ffffff',
+              }}
+            >
               <div>
                 <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '800', color: '#0f172a' }}>
                   Chi Tiết Đơn Hàng #{selectedOrderDetail.order_code}
@@ -773,19 +773,34 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                 type="button"
                 onClick={() => setSelectedOrderDetail(null)}
                 style={{
-                  background: '#f1f5f9',
-                  border: '1px solid #cbd5e1',
-                  borderRadius: '6px',
-                  padding: '4px 10px',
-                  fontSize: '12px',
-                  color: '#475569',
+                  background: 'transparent',
+                  border: 'none',
+                  fontSize: '22px',
+                  color: '#94a3b8',
                   cursor: 'pointer',
-                  fontWeight: '600',
+                  padding: '4px',
+                  lineHeight: 1,
+                  borderRadius: '6px',
+                  flexShrink: 0,
                 }}
+                title="Đóng"
               >
-                Đóng
+                ✕
               </button>
             </div>
+
+            {/* Thân Modal Cuộn Mượt Mà */}
+            <div
+              style={{
+                flex: 1,
+                overflowY: 'auto',
+                padding: '20px 24px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '16px',
+              }}
+            >
+
 
             {selectedOrderDetail.approval_reason && (
               <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '8px', padding: '12px 14px', marginBottom: '16px', fontSize: '13px', color: '#b45309' }}>
@@ -817,7 +832,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                   </div>
                 </div>
                 <div>
-                  <span style={{ color: '#64748b' }}>🕒 Thời gian tạo:</span>
+                  <span style={{ color: '#64748b' }}>Thời gian tạo:</span>
                   <div style={{ fontWeight: '600', color: '#0f172a', marginTop: '2px' }}>
                     {selectedOrderDetail.created_at
                       ? new Date(selectedOrderDetail.created_at).toLocaleString('vi-VN')
@@ -827,7 +842,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
               </div>
               {selectedOrderDetail.note && (
                 <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: '1px dashed #cbd5e1', fontSize: '13px', color: '#334155' }}>
-                  <span style={{ color: '#64748b' }}>📝 Ghi chú:</span> <em>{selectedOrderDetail.note}</em>
+                  <span style={{ color: '#64748b' }}>Ghi chú:</span> <em>{selectedOrderDetail.note}</em>
                 </div>
               )}
             </div>
@@ -920,7 +935,21 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
               );
             })()}
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '8px' }}>
+            </div>
+
+            {/* Footer Modal Cố Định ở Đáy */}
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '14px 24px',
+                borderTop: '1px solid #e2e8f0',
+                background: '#f8fafc',
+                flexShrink: 0,
+                boxShadow: '0 -2px 10px rgba(0, 0, 0, 0.03)',
+              }}
+            >
               <div style={{ fontSize: '13px', color: '#64748b' }}>
                 Trạng thái:{' '}
                 <strong
@@ -994,7 +1023,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                   type="button"
                   onClick={() => setSelectedOrderDetail(null)}
                   style={{
-                    padding: '8px 16px',
+                    padding: '8px 18px',
                     background: '#f1f5f9',
                     border: '1px solid #cbd5e1',
                     borderRadius: '8px',
@@ -1009,7 +1038,8 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Modal Tạo Đơn Hàng */}

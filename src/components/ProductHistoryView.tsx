@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   AuditLogItem,
   getEntityAuditLogsApi,
@@ -45,6 +45,21 @@ export const ProductHistoryView: React.FC<ProductHistoryViewProps> = ({
   // Bộ tìm kiếm sản phẩm trong dropdown
   const [productSearchTerm, setProductSearchTerm] = useState('');
   const [isProductPickerOpen, setIsProductPickerOpen] = useState(false);
+  const productPickerRef = useRef<HTMLDivElement>(null);
+
+  // Đóng dropdown khi click ra ngoài mà KHÔNG dùng fixed overlay chặn thao tác cuộn trang
+  useEffect(() => {
+    if (!isProductPickerOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (productPickerRef.current && !productPickerRef.current.contains(e.target as Node)) {
+        setIsProductPickerOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isProductPickerOpen]);
 
   // 2. Trạng thái tải nhật ký lịch sử
   const [logs, setLogs] = useState<AuditLogItem[]>([]);
@@ -331,8 +346,8 @@ export const ProductHistoryView: React.FC<ProductHistoryViewProps> = ({
             flexWrap: 'wrap',
           }}
         >
-          {/* Dropdown chọn sản phẩm */}
-          <div style={{ position: 'relative', flex: '1 1 340px', minWidth: '280px' }}>
+          {/* Chọn sản phẩm */}
+          <div ref={productPickerRef} style={{ position: 'relative', flex: '1 1 340px', minWidth: '280px' }}>
             <button
               type="button"
               onClick={() => setIsProductPickerOpen((prev) => !prev)}
@@ -381,112 +396,118 @@ export const ProductHistoryView: React.FC<ProductHistoryViewProps> = ({
 
             {/* Menu Dropdown danh sách sản phẩm */}
             {isProductPickerOpen && (
-              <>
-                <div
-                  onClick={() => setIsProductPickerOpen(false)}
-                  style={{ position: 'fixed', inset: 0, zIndex: 100 }}
+              <div
+                style={{
+                  position: 'absolute',
+                  top: 'calc(100% + 6px)',
+                  left: 0,
+                  right: 0,
+                  background: '#ffffff',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: '12px',
+                  boxShadow: '0 12px 28px rgba(0, 0, 0, 0.15)',
+                  zIndex: 101,
+                  padding: '10px',
+                  maxHeight: '380px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  boxSizing: 'border-box',
+                }}
+              >
+                <input
+                  type="text"
+                  value={productSearchTerm}
+                  onChange={(e) => setProductSearchTerm(e.target.value)}
+                  placeholder="Tìm theo mã hoặc tên sản phẩm..."
+                  autoFocus
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    borderRadius: '8px',
+                    border: '1px solid #cbd5e1',
+                    fontSize: '13px',
+                    marginBottom: '8px',
+                    boxSizing: 'border-box',
+                    outline: 'none',
+                  }}
                 />
                 <div
                   style={{
-                    position: 'absolute',
-                    top: 'calc(100% + 6px)',
-                    left: 0,
-                    right: 0,
-                    background: '#ffffff',
-                    border: '1px solid #cbd5e1',
-                    borderRadius: '12px',
-                    boxShadow: '0 12px 28px rgba(0, 0, 0, 0.15)',
-                    zIndex: 101,
-                    padding: '10px',
-                    maxHeight: '360px',
+                    flex: 1,
+                    minHeight: 0,
+                    maxHeight: '280px',
+                    overflowY: 'auto',
                     display: 'flex',
                     flexDirection: 'column',
+                    gap: '3px',
+                    overscrollBehavior: 'contain',
                   }}
                 >
-                  <input
-                    type="text"
-                    value={productSearchTerm}
-                    onChange={(e) => setProductSearchTerm(e.target.value)}
-                    placeholder="Tìm theo mã hoặc tên sản phẩm..."
-                    autoFocus
-                    style={{
-                      width: '100%',
-                      padding: '8px 12px',
-                      borderRadius: '8px',
-                      border: '1px solid #cbd5e1',
-                      fontSize: '13px',
-                      marginBottom: '8px',
-                      boxSizing: 'border-box',
-                      outline: 'none',
-                    }}
-                  />
-                  <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                    {filteredProductOptions.length === 0 ? (
-                      <div style={{ padding: '12px', textAlign: 'center', color: '#94a3b8', fontSize: '13px' }}>
-                        Không tìm thấy sản phẩm nào
-                      </div>
-                    ) : (
-                      filteredProductOptions.map((p) => {
-                        const isSelected = p.code === selectedProductCode;
-                        return (
-                          <div
-                            key={p.code}
-                            onClick={() => handleSelectProduct(p.code)}
-                            style={{
-                              padding: '8px 10px',
-                              borderRadius: '8px',
-                              cursor: 'pointer',
-                              background: isSelected ? '#eff6ff' : 'transparent',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'space-between',
-                              transition: 'background 0.12s ease',
-                            }}
-                            onMouseEnter={(e) => {
-                              if (!isSelected) e.currentTarget.style.background = '#f8fafc';
-                            }}
-                            onMouseLeave={(e) => {
-                              if (!isSelected) e.currentTarget.style.background = 'transparent';
-                            }}
-                          >
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
-                              <span
-                                style={{
-                                  background: isSelected ? '#bfdbfe' : '#f1f5f9',
-                                  color: isSelected ? '#1e40af' : '#475569',
-                                  fontFamily: 'monospace',
-                                  fontWeight: '700',
-                                  padding: '2px 6px',
-                                  borderRadius: '5px',
-                                  fontSize: '12px',
-                                  flexShrink: 0,
-                                }}
-                              >
-                                {p.code}
-                              </span>
-                              <span
-                                style={{
-                                  fontSize: '13.5px',
-                                  fontWeight: isSelected ? '700' : '500',
-                                  color: '#0f172a',
-                                  overflow: 'hidden',
-                                  textOverflow: 'ellipsis',
-                                  whiteSpace: 'nowrap',
-                                }}
-                              >
-                                {p.name}
-                              </span>
-                            </div>
-                            <span style={{ fontSize: '12px', color: '#64748b', flexShrink: 0, marginLeft: '8px' }}>
-                              Tồn: <strong>{p.stock}</strong>
+                  {filteredProductOptions.length === 0 ? (
+                    <div style={{ padding: '12px', textAlign: 'center', color: '#94a3b8', fontSize: '13px' }}>
+                      Không tìm thấy sản phẩm nào
+                    </div>
+                  ) : (
+                    filteredProductOptions.map((p) => {
+                      const isSelected = p.code === selectedProductCode;
+                      return (
+                        <div
+                          key={p.code}
+                          onClick={() => handleSelectProduct(p.code)}
+                          style={{
+                            padding: '8px 10px',
+                            borderRadius: '8px',
+                            cursor: 'pointer',
+                            background: isSelected ? '#eff6ff' : 'transparent',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            transition: 'background 0.12s ease',
+                          }}
+                          onMouseEnter={(e) => {
+                            if (!isSelected) e.currentTarget.style.background = '#f8fafc';
+                          }}
+                          onMouseLeave={(e) => {
+                            if (!isSelected) e.currentTarget.style.background = 'transparent';
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
+                            <span
+                              style={{
+                                background: isSelected ? '#bfdbfe' : '#f1f5f9',
+                                color: isSelected ? '#1e40af' : '#475569',
+                                fontFamily: 'monospace',
+                                fontWeight: '700',
+                                padding: '2px 6px',
+                                borderRadius: '5px',
+                                fontSize: '12px',
+                                flexShrink: 0,
+                              }}
+                            >
+                              {p.code}
+                            </span>
+                            <span
+                              style={{
+                                fontSize: '13.5px',
+                                fontWeight: isSelected ? '700' : '500',
+                                color: '#0f172a',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
+                              {p.name}
                             </span>
                           </div>
-                        );
-                      })
-                    )}
-                  </div>
+                          <span style={{ fontSize: '12px', color: '#64748b', flexShrink: 0, marginLeft: '8px' }}>
+                            Tồn: <strong>{p.stock}</strong>
+                          </span>
+                        </div>
+                      );
+                    })
+                  )}
                 </div>
-              </>
+              </div>
             )}
           </div>
 

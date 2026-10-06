@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import { User, getAvatarUrl } from '../services/api';
 import { TabType } from './Sidebar';
 
@@ -37,6 +37,22 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   primaryRole,
   currentBadgeColor,
 }) => {
+  const userMenuRef = useRef<HTMLDivElement>(null);
+
+  // Đóng popover user khi click ra ngoài mà KHÔNG dùng fixed overlay chặn cuộn trang
+  useEffect(() => {
+    if (!isUserMenuOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setIsUserMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isUserMenuOpen, setIsUserMenuOpen]);
+
   return (
     <header
       style={{
@@ -48,7 +64,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
         padding: '0 20px',
         boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
         position: 'relative',
-        zIndex: 1000,
+        zIndex: 40,
         flexShrink: 0,
         width: '100%',
       }}
@@ -98,7 +114,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
       </div>
 
       {/* Khối bên phải: Avatar Người dùng + Tên + Nút mở Menu */}
-      <div style={{ position: 'relative', zIndex: 501 }}>
+      <div ref={userMenuRef} style={{ position: 'relative', zIndex: 501 }}>
         <button
           onClick={() => setIsUserMenuOpen((prev) => !prev)}
           style={{
@@ -615,19 +631,6 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
           </div>
         )}
       </div>
-
-      {/* Backdrop đóng popover user khi click ra ngoài */}
-      {isUserMenuOpen && (
-        <div
-          onClick={() => setIsUserMenuOpen(false)}
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 499,
-            background: 'transparent',
-          }}
-        />
-      )}
     </header>
   );
 };

@@ -16,6 +16,7 @@ import {
 } from '../services/api';
 import type { DeliveryPoint, DeliveryPointInput } from '../types/deliveryPoint';
 import { emitStatusToast } from './StatusToast';
+import { ModalPortal } from './ModalPortal';
 
 interface DeliveryPointsViewProps {
   currentUser?: User;
@@ -1266,6 +1267,7 @@ export default function DeliveryPointsView({
 
       {/* 3. MODAL: Danh sách TẤT CẢ các điểm giao hàng đang có trong hệ thống */}
       {isAllPointsModalOpen && (
+        <ModalPortal>
         <div
           style={{
             position: 'fixed',
@@ -1275,8 +1277,9 @@ export default function DeliveryPointsView({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            zIndex: 99998,
+            zIndex: 99999,
             padding: '16px',
+            boxSizing: 'border-box',
           }}
           onClick={() => setIsAllPointsModalOpen(false)}
         >
@@ -1286,7 +1289,7 @@ export default function DeliveryPointsView({
               borderRadius: '20px',
               maxWidth: '860px',
               width: '100%',
-              maxHeight: '90vh',
+              maxHeight: 'calc(100vh - 32px)',
               display: 'flex',
               flexDirection: 'column',
               boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
@@ -1668,10 +1671,12 @@ export default function DeliveryPointsView({
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {/* MODAL: Chọn điểm giao từ danh sách có sẵn cho đại lý */}
       {isSelectPointModalOpen && selectedDealer && (
+        <ModalPortal>
         <div
           style={{
             position: 'fixed',
@@ -1681,8 +1686,9 @@ export default function DeliveryPointsView({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            zIndex: 99998,
+            zIndex: 99999,
             padding: '16px',
+            boxSizing: 'border-box',
           }}
           onClick={() => setIsSelectPointModalOpen(false)}
         >
@@ -1692,7 +1698,7 @@ export default function DeliveryPointsView({
               borderRadius: '20px',
               maxWidth: '860px',
               width: '100%',
-              maxHeight: '90vh',
+              maxHeight: 'calc(100vh - 32px)',
               display: 'flex',
               flexDirection: 'column',
               boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
@@ -2096,10 +2102,12 @@ export default function DeliveryPointsView({
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {/* 4. Modal: Thêm / Sửa điểm giao hàng (Thiết kế compact, không bị tràn màn hình) */}
       {isModalOpen && (
+        <ModalPortal>
         <div
           style={{
             position: 'fixed',
@@ -2111,6 +2119,7 @@ export default function DeliveryPointsView({
             justifyContent: 'center',
             zIndex: 99999,
             padding: '16px',
+            boxSizing: 'border-box',
           }}
           onClick={() => {
             if (!formSubmitting) setIsModalOpen(false);
@@ -2122,7 +2131,7 @@ export default function DeliveryPointsView({
               borderRadius: '16px',
               maxWidth: '560px',
               width: '100%',
-              maxHeight: '88vh',
+              maxHeight: 'calc(100vh - 32px)',
               display: 'flex',
               flexDirection: 'column',
               boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
@@ -2430,22 +2439,25 @@ export default function DeliveryPointsView({
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
 
 
       {/* 5. Modal: Xác nhận xóa điểm giao */}
       {deletingPoint && (
+        <ModalPortal>
         <div
           style={{
             position: 'fixed',
             inset: 0,
-            backgroundColor: 'rgba(15, 23, 42, 0.6)',
+            backgroundColor: 'rgba(15, 23, 42, 0.65)',
             backdropFilter: 'blur(4px)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             zIndex: 99999,
             padding: '16px',
+            boxSizing: 'border-box',
           }}
           onClick={() => {
             if (!isDeleting) setDeletingPoint(null);
@@ -2533,10 +2545,12 @@ export default function DeliveryPointsView({
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {/* MODAL: Xóa điểm giao khỏi Danh sách chung */}
       {deletingMasterPoint && (
+        <ModalPortal>
         <div
           style={{
             position: 'fixed',
@@ -2548,6 +2562,7 @@ export default function DeliveryPointsView({
             justifyContent: 'center',
             zIndex: 99999,
             padding: '16px',
+            boxSizing: 'border-box',
           }}
           onClick={() => setDeletingMasterPoint(null)}
         >
@@ -2633,6 +2648,7 @@ export default function DeliveryPointsView({
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
     </div>
   );

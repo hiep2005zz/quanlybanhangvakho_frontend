@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ProductItem, updateProductUnitsApi, UnitConversionItem } from '../services/api';
 import { emitStatusToast } from './StatusToast';
+import { ModalPortal } from './ModalPortal';
 
 interface ProductUnitModalProps {
   isOpen: boolean;
@@ -129,31 +130,35 @@ export const ProductUnitModal: React.FC<ProductUnitModalProps> = ({
   };
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        backgroundColor: 'rgba(15, 23, 42, 0.65)',
-        backdropFilter: 'blur(4px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 99999,
-        padding: '16px',
-        animation: 'fadeInCard 0.15s ease-out',
-      }}
-    >
+    <ModalPortal>
       <div
         style={{
-          backgroundColor: '#ffffff',
-          borderRadius: '16px',
-          padding: '24px',
-          maxWidth: '580px',
-          width: '100%',
-          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-          border: '1px solid #e2e8f0',
+          position: 'fixed',
+          inset: 0,
+          backgroundColor: 'rgba(15, 23, 42, 0.65)',
+          backdropFilter: 'blur(4px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 99999,
+          padding: '16px',
+          boxSizing: 'border-box',
+          animation: 'fadeInCard 0.15s ease-out',
         }}
       >
+        <div
+          style={{
+            backgroundColor: '#ffffff',
+            borderRadius: '16px',
+            padding: '24px',
+            maxWidth: '580px',
+            width: '100%',
+            maxHeight: 'calc(100vh - 32px)',
+            overflowY: 'auto',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+            border: '1px solid #e2e8f0',
+          }}
+        >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
           <div>
             <h3 style={{ fontSize: '18px', fontWeight: '700', color: '#0f172a', margin: 0 }}>
@@ -403,5 +408,6 @@ export const ProductUnitModal: React.FC<ProductUnitModalProps> = ({
         </form>
       </div>
     </div>
+    </ModalPortal>
   );
 };

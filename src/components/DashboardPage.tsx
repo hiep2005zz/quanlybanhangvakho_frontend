@@ -22,6 +22,7 @@ import { StockActionModal } from './StockActionModal';
 import { OrderManagementView } from './OrderManagementView';
 import SalesOrderEntry from './SalesOrderEntry';
 import { ProductHistoryView } from './ProductHistoryView';
+import { ModalPortal } from './ModalPortal';
 
 import './dashboard.css';
 import { Sidebar, type TabType } from './Sidebar';
@@ -2012,39 +2013,38 @@ export default function DashboardPage({
 
       {/* Cảnh báo phiên sắp hết hạn */}
       {isWarningZone && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          width: '100vw',
-          height: '100vh',
-          background: 'rgba(15, 23, 42, 0.7)',
-          backdropFilter: 'blur(6px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 9999,
-          padding: '20px'
-        }}>
+        <ModalPortal>
           <div style={{
-            width: '100%',
-            maxWidth: '440px',
-            background: '#1e293b',
-            border: '1px solid rgba(245, 158, 11, 0.5)',
-            borderRadius: '18px',
-            padding: '28px 24px',
-            boxShadow: '0 20px 50px rgba(0, 0, 0, 0.6), 0 0 25px rgba(245, 158, 11, 0.2)',
-            textAlign: 'center',
-            color: '#f8fafc'
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(15, 23, 42, 0.7)',
+            backdropFilter: 'blur(6px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 99999,
+            padding: '20px'
           }}>
-            <h3 style={{ fontSize: '19px', fontWeight: '700', margin: '0 0 10px', color: '#fde68a' }}>
-              Phiên Làm Việc Sắp Hết Hạn
-            </h3>
-            <p style={{ fontSize: '14px', color: '#cbd5e1', lineHeight: '1.6', margin: '0 0 14px' }}>
-              Hệ thống phát hiện bạn không thao tác trong một khoảng thời gian.
-            </p>
+            <div style={{
+              width: '100%',
+              maxWidth: '440px',
+              background: '#1e293b',
+              border: '1px solid rgba(245, 158, 11, 0.5)',
+              borderRadius: '18px',
+              padding: '28px 24px',
+              boxShadow: '0 20px 50px rgba(0, 0, 0, 0.6), 0 0 25px rgba(245, 158, 11, 0.2)',
+              textAlign: 'center',
+              color: '#f8fafc'
+            }}>
+              <h3 style={{ fontSize: '19px', fontWeight: '700', margin: '0 0 10px', color: '#fde68a' }}>
+                Phiên Làm Việc Sắp Hết Hạn
+              </h3>
+              <p style={{ fontSize: '14px', color: '#cbd5e1', lineHeight: '1.6', margin: '0 0 14px' }}>
+                Hệ thống phát hiện bạn không thao tác trong một khoảng thời gian.
+              </p>
+            </div>
           </div>
-        </div>
+        </ModalPortal>
       )}
 
       {/* Modals */}
@@ -2082,114 +2082,116 @@ export default function DashboardPage({
 
       {/* Xác nhận đăng xuất */}
       {showLogoutConfirm && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            backgroundColor: 'rgba(15, 23, 42, 0.65)',
-            backdropFilter: 'blur(4px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 99999,
-            padding: '16px',
-            animation: 'fadeInCard 0.15s ease-out'
-          }}
-        >
+        <ModalPortal>
           <div
             style={{
-              backgroundColor: '#ffffff',
-              borderRadius: '16px',
-              padding: '24px',
-              maxWidth: '380px',
-              width: '100%',
-              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-              textAlign: 'center',
-              border: '1px solid #e2e8f0'
+              position: 'fixed',
+              inset: 0,
+              backgroundColor: 'rgba(15, 23, 42, 0.65)',
+              backdropFilter: 'blur(4px)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 99999,
+              padding: '16px',
+              animation: 'fadeInCard 0.15s ease-out'
             }}
           >
             <div
               style={{
-                width: '52px',
-                height: '52px',
-                borderRadius: '50%',
-                backgroundColor: '#fef2f2',
-                color: '#dc2626',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                margin: '0 auto 16px auto',
-                border: '1px solid #fee2e2'
+                backgroundColor: '#ffffff',
+                borderRadius: '16px',
+                padding: '24px',
+                maxWidth: '380px',
+                width: '100%',
+                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+                textAlign: 'center',
+                border: '1px solid #e2e8f0'
               }}
             >
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                <polyline points="16 17 21 12 16 7" />
-                <line x1="21" y1="12" x2="9" y2="12" />
-              </svg>
-            </div>
-
-            <h3 style={{ fontSize: '18px', fontWeight: '700', color: '#0f172a', margin: '0 0 8px 0' }}>
-              Xác nhận đăng xuất
-            </h3>
-            <p style={{ fontSize: '14px', color: '#64748b', lineHeight: '1.5', margin: '0 0 24px 0' }}>
-              Bạn có chắc chắn muốn đăng xuất khỏi hệ thống không?
-            </p>
-
-            <div style={{ display: 'flex', justifyContent: 'center', gap: '10px' }}>
-              <button
-                type="button"
-                onClick={() => setShowLogoutConfirm(false)}
+              <div
                 style={{
-                  flex: 1,
-                  padding: '9px 16px',
-                  borderRadius: '10px',
-                  border: '1px solid #cbd5e1',
-                  backgroundColor: '#ffffff',
-                  color: '#334155',
-                  fontSize: '14px',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  transition: 'background 0.15s ease'
+                  width: '52px',
+                  height: '52px',
+                  borderRadius: '50%',
+                  backgroundColor: '#fef2f2',
+                  color: '#dc2626',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  margin: '0 auto 16px auto',
+                  border: '1px solid #fee2e2'
                 }}
-                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f1f5f9')}
-                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#ffffff')}
               >
-                Hủy bỏ
-              </button>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                  <polyline points="16 17 21 12 16 7" />
+                  <line x1="21" y1="12" x2="9" y2="12" />
+                </svg>
+              </div>
 
-              <button
-                type="button"
-                onClick={async () => {
-                  setShowLogoutConfirm(false);
-                  setIsLoggingOut(true);
-                  try {
-                    await onLogout();
-                  } finally {
-                    setIsLoggingOut(false);
-                  }
-                }}
-                style={{
-                  flex: 1,
-                  padding: '9px 16px',
-                  borderRadius: '10px',
-                  border: 'none',
-                  backgroundColor: '#dc2626',
-                  color: '#ffffff',
-                  fontSize: '14px',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  boxShadow: '0 2px 8px rgba(220, 38, 38, 0.25)',
-                  transition: 'background 0.15s ease'
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#b91c1c')}
-                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#dc2626')}
-              >
-                Đăng xuất
-              </button>
+              <h3 style={{ fontSize: '18px', fontWeight: '700', color: '#0f172a', margin: '0 0 8px 0' }}>
+                Xác nhận đăng xuất
+              </h3>
+              <p style={{ fontSize: '14px', color: '#64748b', lineHeight: '1.5', margin: '0 0 24px 0' }}>
+                Bạn có chắc chắn muốn đăng xuất khỏi hệ thống không?
+              </p>
+
+              <div style={{ display: 'flex', justifyContent: 'center', gap: '10px' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowLogoutConfirm(false)}
+                  style={{
+                    flex: 1,
+                    padding: '9px 16px',
+                    borderRadius: '10px',
+                    border: '1px solid #cbd5e1',
+                    backgroundColor: '#ffffff',
+                    color: '#334155',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    transition: 'background 0.15s ease'
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f1f5f9')}
+                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#ffffff')}
+                >
+                  Hủy bỏ
+                </button>
+
+                <button
+                  type="button"
+                  onClick={async () => {
+                    setShowLogoutConfirm(false);
+                    setIsLoggingOut(true);
+                    try {
+                      await onLogout();
+                    } finally {
+                      setIsLoggingOut(false);
+                    }
+                  }}
+                  style={{
+                    flex: 1,
+                    padding: '9px 16px',
+                    borderRadius: '10px',
+                    border: 'none',
+                    backgroundColor: '#dc2626',
+                    color: '#ffffff',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    boxShadow: '0 2px 8px rgba(220, 38, 38, 0.25)',
+                    transition: 'background 0.15s ease'
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#b91c1c')}
+                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#dc2626')}
+                >
+                  Đăng xuất
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        </ModalPortal>
       )}
 
       <ProductAuditDrawer

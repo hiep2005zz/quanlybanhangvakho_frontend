@@ -24,7 +24,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
         {sidebar}
 
         {/* Cột phải (Main Content) */}
-        <main className={`flex-1 ${noScroll ? 'overflow-hidden flex flex-col p-3 md:p-4' : 'overflow-y-auto p-6'}`}>
+        <main className={`flex-1 min-w-0 ${noScroll ? 'overflow-hidden flex flex-col p-3 md:p-4' : 'overflow-y-auto p-6'}`}>
           {children}
         </main>
       </div>

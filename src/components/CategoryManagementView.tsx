@@ -12,6 +12,7 @@ import {
   moveProductCategoryApi
 } from '../services/api';
 import { emitStatusToast } from './StatusToast';
+import { ModalPortal } from './ModalPortal';
 
 interface CategoryManagementViewProps {
   token: string;
@@ -1057,13 +1058,15 @@ export function CategoryManagementView({ token, onBackToHome: _onBackToHome }: C
 
       {/* Modal - Premium Design */}
       {isModalOpen && (
+        <ModalPortal>
         <div style={{
           position: 'fixed', inset: 0,
           background: 'rgba(15, 23, 42, 0.65)', backdropFilter: 'blur(8px)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999,
+          padding: '16px', boxSizing: 'border-box',
           animation: 'fadeIn 0.2s ease'
         }}>
-          <div style={{ background: '#fff', padding: '40px', borderRadius: '24px', width: '480px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.3)' }}>
+          <div style={{ background: '#fff', padding: '36px', borderRadius: '24px', width: '480px', maxWidth: '100%', maxHeight: 'calc(100vh - 32px)', overflowY: 'auto', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.3)' }}>
             <h3 style={{ marginTop: 0, marginBottom: '8px', fontSize: '24px', fontWeight: '800', color: '#0f172a', letterSpacing: '-0.02em' }}>
               {editingId ? 'Cập nhật thông tin' : (formData.parent_id ? 'Thêm mới Phân Loại' : 'Thêm mới Nhóm Hàng')}
             </h3>
@@ -1117,14 +1120,17 @@ export function CategoryManagementView({ token, onBackToHome: _onBackToHome }: C
             </form>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {/* Delete Confirmation Modal */}
       {deleteConfirmId && (
+        <ModalPortal>
         <div style={{
           position: 'fixed', inset: 0,
           background: 'rgba(15, 23, 42, 0.65)', backdropFilter: 'blur(8px)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999,
+          padding: '16px', boxSizing: 'border-box',
           animation: 'fadeIn 0.2s ease'
         }}>
           <div style={{ background: '#fff', padding: '32px', borderRadius: '24px', width: '400px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.3)', textAlign: 'center' }}>
@@ -1145,6 +1151,7 @@ export function CategoryManagementView({ token, onBackToHome: _onBackToHome }: C
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
     </div>
   );

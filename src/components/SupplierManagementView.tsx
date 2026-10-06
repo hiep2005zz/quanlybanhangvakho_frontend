@@ -9,6 +9,7 @@ import {
 } from '../services/api';
 import SupplierModal from './SupplierModal';
 import { emitStatusToast } from './StatusToast';
+import { ModalPortal } from './ModalPortal';
 
 interface SupplierManagementViewProps {
   token: string;
@@ -764,6 +765,7 @@ export const SupplierManagementView: React.FC<SupplierManagementViewProps> = ({ 
 
       {/* Popup xác nhận ngừng giao dịch */}
       {supplierToDeactivate && (
+        <ModalPortal>
         <div
           style={{
             position: 'fixed',
@@ -771,14 +773,14 @@ export const SupplierManagementView: React.FC<SupplierManagementViewProps> = ({ 
             left: 0,
             width: '100vw',
             height: '100vh',
-            background: 'rgba(15, 23, 42, 0.45)',
+            background: 'rgba(15, 23, 42, 0.55)',
             backdropFilter: 'blur(6px)',
             WebkitBackdropFilter: 'blur(6px)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            zIndex: 9999,
-            padding: '20px',
+            zIndex: 99999,
+            padding: '16px',
             boxSizing: 'border-box',
           }}
         >
@@ -876,19 +878,23 @@ export const SupplierManagementView: React.FC<SupplierManagementViewProps> = ({ 
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {/* Modal xác nhận xóa nhà cung cấp */}
       {supplierToDelete && (
+        <ModalPortal>
         <div
           style={{
             position: 'fixed',
             inset: 0,
-            background: 'rgba(15, 23, 42, 0.6)',
+            background: 'rgba(15, 23, 42, 0.55)',
+            backdropFilter: 'blur(6px)',
+            WebkitBackdropFilter: 'blur(6px)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            zIndex: 1000,
+            zIndex: 99999,
             padding: '16px',
             boxSizing: 'border-box',
           }}
@@ -998,6 +1004,7 @@ export const SupplierManagementView: React.FC<SupplierManagementViewProps> = ({ 
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
     </div>
   );

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { CategoryTreeResponse, getCategoryTreeApi, moveProductCategoryApi } from '../services/api';
 import { emitStatusToast } from './StatusToast';
+import { ModalPortal } from './ModalPortal';
 
 interface MoveCategoryModalProps {
   isOpen: boolean;
@@ -55,11 +56,13 @@ export default function MoveCategoryModal({ isOpen, onClose, token, productId, p
   };
 
   return (
-    <div style={{
-      position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-      background: 'rgba(15, 23, 42, 0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999
-    }}>
-      <div style={{ background: '#fff', padding: '24px', borderRadius: '16px', width: '400px', boxShadow: '0 10px 25px rgba(0,0,0,0.1)' }}>
+    <ModalPortal>
+      <div style={{
+        position: 'fixed', inset: 0,
+        background: 'rgba(15, 23, 42, 0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999,
+        padding: '16px', boxSizing: 'border-box'
+      }}>
+        <div style={{ background: '#fff', padding: '24px', borderRadius: '16px', width: '100%', maxWidth: '420px', maxHeight: 'calc(100vh - 32px)', overflowY: 'auto', boxShadow: '0 10px 25px rgba(0,0,0,0.1)' }}>
         <h3 style={{ marginTop: 0, marginBottom: '20px', fontSize: '18px', color: '#0f172a' }}>Chuyển Nhóm Hàng</h3>
         <p style={{ fontSize: '14px', color: '#64748b', marginBottom: '16px' }}>
           Sản phẩm: <strong>{productName}</strong>
@@ -139,5 +142,6 @@ export default function MoveCategoryModal({ isOpen, onClose, token, productId, p
         </form>
       </div>
     </div>
+    </ModalPortal>
   );
 }
