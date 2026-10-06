@@ -580,6 +580,15 @@ export default function DashboardPage({
   }>({ isOpen: false, actionType: 'receipt', product: null });
   const [isSalesOrderEntryOpen, setIsSalesOrderEntryOpen] = useState(false);
 
+  // Dropdown menu 3 chấm trên dòng sản phẩm kho hàng
+  const [openProductMenuId, setOpenProductMenuId] = useState<number | null>(null);
+
+  useEffect(() => {
+    const handleGlobalClick = () => setOpenProductMenuId(null);
+    window.addEventListener('click', handleGlobalClick);
+    return () => window.removeEventListener('click', handleGlobalClick);
+  }, []);
+
   // Tự động đóng popover user khi bấm phím Esc
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -2080,7 +2089,7 @@ export default function DashboardPage({
                         </>
                       )}
                       {canPerformProductAction && (
-                        <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'center', width: '220px', background: '#f8fafc' }}>Thao Tác</th>
+                        <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'center', width: '80px', background: '#f8fafc' }}>Thao Tác</th>
                       )}
                     </tr>
                   </thead>
@@ -2226,128 +2235,189 @@ export default function DashboardPage({
                           </>
                         )}
                         {canPerformProductAction && (
-                          <td style={{ padding: '13px 18px', textAlign: 'center' }}>
-                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                              {/* Nút Cấu hình Đơn vị tính: Chỉ mở cho Quản trị hệ thống và Quản lý kho */}
-                              {canConfigUnit && (
-                                <button
-                                  type="button"
-                                  onClick={() => setUnitConfigProduct(item)}
-                                  style={{
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: '4px',
-                                    padding: '5px 8px',
-                                    background: '#f8fafc',
-                                    border: '1px solid #cbd5e1',
-                                    borderRadius: '6px',
-                                    fontSize: '11.5px',
-                                    fontWeight: '600',
-                                    color: '#334155',
-                                    cursor: 'pointer',
-                                    transition: 'all 0.15s ease'
-                                  }}
-                                  title="Cấu hình ĐVT cơ sở & danh sách ĐVT quy đổi (Lốc, Thùng...)"
-                                  onMouseEnter={e => {
-                                    e.currentTarget.style.background = '#e2e8f0';
-                                    e.currentTarget.style.borderColor = '#94a3b8';
-                                  }}
-                                  onMouseLeave={e => {
+                          <td style={{ padding: '10px 18px', textAlign: 'center' }}>
+                            <div style={{ position: 'relative', display: 'inline-block' }}>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setOpenProductMenuId(openProductMenuId === item.id ? null : item.id);
+                                }}
+                                style={{
+                                  width: '32px',
+                                  height: '32px',
+                                  padding: 0,
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  background: openProductMenuId === item.id ? '#e2e8f0' : '#ffffff',
+                                  color: openProductMenuId === item.id ? '#0f172a' : '#64748b',
+                                  border: '1px solid #cbd5e1',
+                                  borderRadius: '8px',
+                                  cursor: 'pointer',
+                                  transition: 'all 0.15s ease',
+                                  boxShadow: 'none',
+                                  margin: 0,
+                                }}
+                                onMouseEnter={(e) => {
+                                  if (openProductMenuId !== item.id) {
                                     e.currentTarget.style.background = '#f8fafc';
+                                    e.currentTarget.style.color = '#0f172a';
+                                    e.currentTarget.style.borderColor = '#94a3b8';
+                                  }
+                                }}
+                                onMouseLeave={(e) => {
+                                  if (openProductMenuId !== item.id) {
+                                    e.currentTarget.style.background = '#ffffff';
+                                    e.currentTarget.style.color = '#64748b';
                                     e.currentTarget.style.borderColor = '#cbd5e1';
+                                  }
+                                }}
+                                title="Thao tác sản phẩm"
+                                aria-label="Thao tác sản phẩm"
+                              >
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                  <circle cx="12" cy="12" r="1.5" />
+                                  <circle cx="12" cy="5" r="1.5" />
+                                  <circle cx="12" cy="19" r="1.5" />
+                                </svg>
+                              </button>
+
+                              {openProductMenuId === item.id && (
+                                <div
+                                  style={{
+                                    position: 'absolute',
+                                    right: 0,
+                                    ...(idx >= paginatedProducts.length - 2 && paginatedProducts.length > 2
+                                      ? { bottom: 'calc(100% + 4px)' }
+                                      : { top: 'calc(100% + 4px)' }),
+                                    background: '#ffffff',
+                                    border: '1px solid #e2e8f0',
+                                    borderRadius: '10px',
+                                    boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.04)',
+                                    padding: '5px',
+                                    minWidth: '150px',
+                                    zIndex: 50,
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: '2px',
+                                    textAlign: 'left',
                                   }}
+                                  onClick={(e) => e.stopPropagation()}
                                 >
-                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                                    <circle cx="12" cy="12" r="3" />
-                                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
-                                  </svg>
-                                  <span>ĐVT</span>
-                                </button>
-                              )}
+                                  {canConfigUnit && (
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setUnitConfigProduct(item);
+                                        setOpenProductMenuId(null);
+                                      }}
+                                      style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '8px',
+                                        width: '100%',
+                                        padding: '8px 12px',
+                                        background: 'transparent',
+                                        border: 'none',
+                                        borderRadius: '6px',
+                                        fontSize: '13px',
+                                        fontWeight: '600',
+                                        color: '#334155',
+                                        cursor: 'pointer',
+                                        boxShadow: 'none',
+                                        margin: 0,
+                                        transition: 'background 0.15s ease',
+                                        textAlign: 'left',
+                                      }}
+                                      onMouseEnter={(e) => (e.currentTarget.style.background = '#f8fafc')}
+                                      onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                                      title="Cấu hình ĐVT cơ sở & danh sách ĐVT quy đổi (Lốc, Thùng...)"
+                                    >
+                                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                        <circle cx="12" cy="12" r="3" />
+                                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                                      </svg>
+                                      <span>Cấu hình ĐVT</span>
+                                    </button>
+                                  )}
 
-                              {/* Nút Nhập kho & Xuất kho: Mở cho các tài khoản có quyền Nhập/xuất/sửa kho */}
-                              {canWriteInventory && (
-                                <>
-                                  <button
-                                    type="button"
-                                    onClick={() => setStockActionState({ isOpen: true, actionType: 'receipt', product: item })}
-                                    style={{
-                                      display: 'inline-flex',
-                                      alignItems: 'center',
-                                      gap: '3px',
-                                      padding: '5px 8px',
-                                      background: '#ecfdf5',
-                                      border: '1px solid #a7f3d0',
-                                      borderRadius: '6px',
-                                      fontSize: '11.5px',
-                                      fontWeight: '600',
-                                      color: '#065f46',
-                                      cursor: 'pointer',
-                                      transition: 'all 0.15s ease'
-                                    }}
-                                    title="Tạo phiếu nhập kho (cho phép chọn ĐVT quy đổi)"
-                                    onMouseEnter={e => {
-                                      e.currentTarget.style.background = '#d1fae5';
-                                    }}
-                                    onMouseLeave={e => {
-                                      e.currentTarget.style.background = '#ecfdf5';
-                                    }}
-                                  >
-                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                      <line x1="12" y1="5" x2="12" y2="19" />
-                                      <line x1="5" y1="12" x2="19" y2="12" />
-                                    </svg>
-                                    <span>Nhập</span>
-                                  </button>
+                                  {canWriteInventory && (
+                                    <>
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setStockActionState({ isOpen: true, actionType: 'receipt', product: item });
+                                          setOpenProductMenuId(null);
+                                        }}
+                                        style={{
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          gap: '8px',
+                                          width: '100%',
+                                          padding: '8px 12px',
+                                          background: 'transparent',
+                                          border: 'none',
+                                          borderRadius: '6px',
+                                          fontSize: '13px',
+                                          fontWeight: '600',
+                                          color: '#065f46',
+                                          cursor: 'pointer',
+                                          boxShadow: 'none',
+                                          margin: 0,
+                                          transition: 'background 0.15s ease',
+                                          textAlign: 'left',
+                                        }}
+                                        onMouseEnter={(e) => (e.currentTarget.style.background = '#ecfdf5')}
+                                        onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                                        title="Tạo phiếu nhập kho (cho phép chọn ĐVT quy đổi)"
+                                      >
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                          <line x1="12" y1="5" x2="12" y2="19" />
+                                          <line x1="5" y1="12" x2="19" y2="12" />
+                                        </svg>
+                                        <span>Nhập kho</span>
+                                      </button>
 
-                                  <button
-                                    type="button"
-                                    onClick={() => setStockActionState({ isOpen: true, actionType: 'issue', product: item })}
-                                    style={{
-                                      display: 'inline-flex',
-                                      alignItems: 'center',
-                                      gap: '3px',
-                                      padding: '5px 8px',
-                                      background: '#fff7ed',
-                                      border: '1px solid #fed7aa',
-                                      borderRadius: '6px',
-                                      fontSize: '11.5px',
-                                      fontWeight: '600',
-                                      color: '#9a3412',
-                                      cursor: 'pointer',
-                                      transition: 'all 0.15s ease'
-                                    }}
-                                    title="Tạo phiếu xuất kho (cho phép chọn ĐVT quy đổi)"
-                                    onMouseEnter={e => {
-                                      e.currentTarget.style.background = '#ffedd5';
-                                    }}
-                                    onMouseLeave={e => {
-                                      e.currentTarget.style.background = '#fff7ed';
-                                    }}
-                                  >
-                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                      <line x1="5" y1="12" x2="19" y2="12" />
-                                    </svg>
-                                    <span>Xuất</span>
-                                  </button>
-                                </>
-                              )}
-
-                              {(isAdmin || isSalesManager) && (
-                                <button
-                                  type="button"
-                                  className="btn-inventory-history"
-                                  onClick={() => setProductAuditDrawerState({
-                                    isOpen: true,
-                                    productCode: item.code,
-                                    productName: item.name,
-                                    initialFilter: 'ALL',
-                                  })}
-                                  title="Xem lịch sử thay đổi tồn kho & giá của sản phẩm này"
-                                  style={{ padding: '5px 10px', fontSize: '11.5px', fontWeight: '600' }}
-                                >
-                                  <span>Lịch sử</span>
-                                </button>
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setStockActionState({ isOpen: true, actionType: 'issue', product: item });
+                                          setOpenProductMenuId(null);
+                                        }}
+                                        style={{
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          gap: '8px',
+                                          width: '100%',
+                                          padding: '8px 12px',
+                                          background: 'transparent',
+                                          border: 'none',
+                                          borderRadius: '6px',
+                                          fontSize: '13px',
+                                          fontWeight: '600',
+                                          color: '#9a3412',
+                                          cursor: 'pointer',
+                                          boxShadow: 'none',
+                                          margin: 0,
+                                          transition: 'background 0.15s ease',
+                                          textAlign: 'left',
+                                        }}
+                                        onMouseEnter={(e) => (e.currentTarget.style.background = '#fff7ed')}
+                                        onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                                        title="Tạo phiếu xuất kho (cho phép chọn ĐVT quy đổi)"
+                                      >
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                          <line x1="5" y1="12" x2="19" y2="12" />
+                                        </svg>
+                                        <span>Xuất kho</span>
+                                      </button>
+                                    </>
+                                  )}
+                                </div>
                               )}
                             </div>
                           </td>
