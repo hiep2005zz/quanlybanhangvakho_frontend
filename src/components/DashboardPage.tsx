@@ -284,6 +284,22 @@ export default function DashboardPage({
       } catch {
         // ignore
       }
+    } else if (tab === 'dealer-profiles') {
+      if (!canManageDealerProfiles) {
+        setActiveTabState('inventory');
+        try {
+          window.history.replaceState({}, '', '/');
+        } catch {
+          // ignore
+        }
+        return;
+      }
+      setActiveTabState('dealer-profiles');
+      try {
+        window.history.pushState({}, '', '/dealer-profiles');
+      } catch {
+        // ignore
+      }
     } else if (tab === 'dealers') {
       if (!canViewDealers) {
         setActiveTabState('inventory');
@@ -982,8 +998,8 @@ export default function DashboardPage({
                   <span>Hồ sơ cá nhân</span>
                 </button>
 
-                {/* Tra cứu đại lý - Không hiển thị ở popover cho Admin (đã có ở menu mở rộng) */}
-                {canManageDealerProfiles && !isAdmin && (
+                {/* Quản lý hồ sơ đại lý */}
+                {canManageDealerProfiles && (
                   <button
                     onClick={() => {
                       setIsUserMenuOpen(false);

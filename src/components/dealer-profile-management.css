@@ -528,6 +528,18 @@
   border-color: #fecaca;
 }
 
+.btn-icon-action.delete.has-tx-locked {
+  background: #fffbeb;
+  color: #b45309;
+  border-color: #fde68a;
+}
+
+.btn-icon-action.delete.has-tx-locked:hover {
+  background: #fef3c7;
+  color: #92400e;
+  border-color: #fcd34d;
+}
+
 /* Nút Thao tác có tên (Sửa / Xóa) hiển thị chữ rõ ràng */
 .btn-action-named {
   display: inline-flex;
