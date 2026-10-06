@@ -1,4 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap');
+@import "tailwindcss";
 
 :root {
   /* Core Typography */
@@ -277,8 +278,10 @@ input:focus {
   transform: translateY(-50%) scale(1.05) !important;
 }
 
-/* Buttons */
-button {
+/* Buttons - Giới hạn phạm vi trong các màn hình Auth/Login, tránh xung đột toàn cục */
+.auth-page button,
+.auth-card button,
+.submit-btn {
   margin-top: 8px;
   padding: 14px 24px;
   border: 0;
@@ -297,7 +300,9 @@ button {
 }
 
 /* Button Shine Effect */
-button::after {
+.auth-page button::after,
+.auth-card button::after,
+.submit-btn::after {
   content: '';
   position: absolute;
   top: 0;
@@ -309,27 +314,37 @@ button::after {
   transition: all 0.5s ease;
 }
 
-button:hover:not(:disabled) {
+.auth-page button:hover:not(:disabled),
+.auth-card button:hover:not(:disabled),
+.submit-btn:hover:not(:disabled) {
   transform: translateY(-2px);
   box-shadow: 0 8px 25px rgba(13, 148, 136, 0.45);
 }
 
-button:hover:not(:disabled)::after {
+.auth-page button:hover:not(:disabled)::after,
+.auth-card button:hover:not(:disabled)::after,
+.submit-btn:hover:not(:disabled)::after {
   left: 150%;
 }
 
-button:active:not(:disabled) {
+.auth-page button:active:not(:disabled),
+.auth-card button:active:not(:disabled),
+.submit-btn:active:not(:disabled) {
   transform: translateY(1px);
 }
 
-button:disabled {
+.auth-page button:disabled,
+.auth-card button:disabled,
+.submit-btn:disabled {
   background: var(--text-dim);
   cursor: not-allowed;
   box-shadow: none;
   opacity: 0.7;
 }
 
-button.secondary {
+.auth-page button.secondary,
+.auth-card button.secondary,
+.submit-btn.secondary {
   background: rgba(255, 255, 255, 0.6);
   color: var(--text-secondary);
   border: 1px solid rgba(255, 255, 255, 0.9);
@@ -337,7 +352,9 @@ button.secondary {
   backdrop-filter: blur(10px);
 }
 
-button.secondary:hover {
+.auth-page button.secondary:hover,
+.auth-card button.secondary:hover,
+.submit-btn.secondary:hover {
   background: rgba(255, 255, 255, 0.95);
   color: var(--text-primary);
   border-color: #5eead4;
