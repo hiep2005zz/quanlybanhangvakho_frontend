@@ -12,6 +12,7 @@ import {
   User 
 } from '../services/api';
 import { emitStatusToast } from './StatusToast';
+import { ModalPortal } from './ModalPortal';
 
 interface PriceBookManagementViewProps {
   token: string;
@@ -699,8 +700,9 @@ export function PriceBookManagementView({
 
       {/* Modal Thêm mới / Chỉnh sửa */}
       {isFormModalOpen && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.65)', backdropFilter: 'blur(3px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
-          <div style={{ background: '#fff', borderRadius: '16px', width: '860px', maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }}>
+        <ModalPortal>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.65)', backdropFilter: 'blur(3px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 99999, padding: '16px', boxSizing: 'border-box' }}>
+          <div style={{ background: '#fff', borderRadius: '16px', width: '860px', maxHeight: 'calc(100vh - 32px)', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }}>
             
             <div style={{ padding: '20px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #f1f5f9' }}>
               <div>
@@ -1039,12 +1041,14 @@ export function PriceBookManagementView({
             </form>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {/* Modal Chi Tiết Bảng Giá */}
       {isDetailModalOpen && selectedBook && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.65)', backdropFilter: 'blur(3px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
-          <div style={{ background: '#fff', borderRadius: '16px', width: '800px', maxHeight: '90vh', display: 'flex', flexDirection: 'column', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }}>
+        <ModalPortal>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.65)', backdropFilter: 'blur(3px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 99999, padding: '16px', boxSizing: 'border-box' }}>
+          <div style={{ background: '#fff', borderRadius: '16px', width: '800px', maxHeight: 'calc(100vh - 32px)', display: 'flex', flexDirection: 'column', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', overflow: 'hidden' }}>
             
             <div style={{ padding: '20px 24px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
@@ -1153,6 +1157,7 @@ export function PriceBookManagementView({
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
     </div>
   );

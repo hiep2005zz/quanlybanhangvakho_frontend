@@ -14,6 +14,7 @@ import {
 } from '../services/dealerSearchApi';
 import { User } from '../services/api';
 import { emitStatusToast } from './StatusToast';
+import { ModalPortal } from './ModalPortal';
 import './dealer-search.css';
 
 const DEFAULT_CUSTOMER_GROUPS = [
@@ -1263,6 +1264,7 @@ export default function DealerSearchView({
             </div>
 
             {isAddModalOpen && (
+                <ModalPortal>
                 <div className="dealer-modal-overlay" onClick={() => setIsAddModalOpen(false)}>
                     <div className="dealer-modal-box" onClick={(e) => e.stopPropagation()}>
                         <div className="dealer-modal-header">
@@ -1415,10 +1417,12 @@ export default function DealerSearchView({
                         </form>
                     </div>
                 </div>
+                </ModalPortal>
             )}
 
             {/* Modal Phân công lẻ */}
             {isAssignModalOpen && assignTargetDealer && (
+                <ModalPortal>
                 <div className="dealer-modal-overlay" onClick={() => setIsAssignModalOpen(false)}>
                     <div className="dealer-modal-box" style={{ maxWidth: '500px' }} onClick={(e) => e.stopPropagation()}>
                         <div className="dealer-modal-header">
@@ -1470,10 +1474,12 @@ export default function DealerSearchView({
                         </div>
                     </div>
                 </div>
+                </ModalPortal>
             )}
 
             {/* Modal Phân công hàng loạt */}
             {isBulkAssignModalOpen && (
+                <ModalPortal>
                 <div className="dealer-modal-overlay" onClick={() => setIsBulkAssignModalOpen(false)}>
                     <div className="dealer-modal-box" style={{ maxWidth: '500px' }} onClick={(e) => e.stopPropagation()}>
                         <div className="dealer-modal-header">
@@ -1524,9 +1530,11 @@ export default function DealerSearchView({
                         </div>
                     </div>
                 </div>
+                </ModalPortal>
             )}
             {/* Modal Lịch sử phân công */}
             {isHistoryModalOpen && historyTargetDealer && (
+                <ModalPortal>
                 <div className="dealer-modal-overlay" onClick={() => setIsHistoryModalOpen(false)}>
                     <div className="dealer-modal-box" style={{ maxWidth: '650px' }} onClick={(e) => e.stopPropagation()}>
                         <div className="dealer-modal-header">
@@ -1601,10 +1609,12 @@ export default function DealerSearchView({
                         </div>
                     </div>
                 </div>
+                </ModalPortal>
             )}
 
             {/* Modal Cập nhật hạn mức công nợ */}
             {isCreditModalOpen && creditTargetDealer && (
+                <ModalPortal>
                 <div className="dealer-modal-overlay" onClick={() => setIsCreditModalOpen(false)}>
                     <div className="dealer-modal-box" onClick={(e) => e.stopPropagation()}>
                         <div className="dealer-modal-header">
@@ -1680,9 +1690,11 @@ export default function DealerSearchView({
                         </form>
                     </div>
                 </div>
+                </ModalPortal>
             )}
             {/* Modal Xác Nhận Xóa Đại Lý (Thay cho window.confirm) */}
             {dealerToDelete && (
+                <ModalPortal>
                 <div 
                     style={{
                         position: 'fixed',
@@ -1813,6 +1825,7 @@ export default function DealerSearchView({
                         </div>
                     </div>
                 </div>
+                </ModalPortal>
             )}
         </div>
     );
