@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { User, getProductsApi, ProductItem } from '../services/api';
+import { User, getProductsApi, ProductItem, getDiscountPoliciesApi, createDiscountPolicyApi } from '../services/api';
 import { emitStatusToast } from './StatusToast';
 
 interface DiscountTier {
@@ -38,12 +38,84 @@ export default function DiscountPolicyView({ token, user, onBackToHome }: Discou
     return () => { active = false; };
   }, [token]);
 
+  React.useEffect(() => {
+    let active = true;
+    getDiscountPoliciesApi(token).then((res) => {
+      if (active && res.items && res.items.length > 0) {
+        setPolicies((prev) => {
+          const merged = [...prev];
+          res.items.forEach((bePolicy) => {
+            if (!merged.some((p) => p.code === bePolicy.code)) {
+              merged.push({
+                id: String(bePolicy.id),
+                title: bePolicy.name || bePolicy.title || bePolicy.code,
+                code: bePolicy.code,
+                target_group: (bePolicy.target_dealer_type === 'agent_tier_1' || bePolicy.target_group === 'agent_tier_1') ? 'agent_tier_1' : (bePolicy.target_dealer_type === 'agent_tier_2' || bePolicy.target_group === 'agent_tier_2') ? 'agent_tier_2' : 'all',
+                start_date: bePolicy.start_date || '2026-01-01',
+                end_date: bePolicy.end_date || '',
+                status: bePolicy.is_active ? 'active' : 'expired',
+                note: bePolicy.description || '',
+                tiers: (bePolicy.tiers || []).map((t) => ({
+                  id: String(t.id || Math.random()),
+                  min_quantity: t.min_quantity,
+                  max_quantity: t.max_quantity ?? null,
+                  discount_percent: t.discount_percent,
+                })),
+              });
+            }
+          });
+          return merged;
+        });
+      }
+    }).catch(() => {});
+    return () => { active = false; };
+  }, [token]);
+
   const [policies, setPolicies] = useState<DiscountPolicy[]>(() => {
     const saved = localStorage.getItem('discountPolicies');
     if (saved) {
-      return JSON.parse(saved);
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          // Đảm bảo CK-SL-001 luôn có mặt nếu chưa có
+          const hasSL = parsed.some((p: any) => p.code === 'CK-SL-001');
+          if (!hasSL) {
+            parsed.unshift({
+              id: 'sl-001',
+              title: 'Chính sách chiết khấu sản lượng toàn hệ thống',
+              code: 'CK-SL-001',
+              target_group: 'all',
+              start_date: '2026-01-01',
+              end_date: '2026-12-31',
+              status: 'active',
+              note: 'Áp dụng cho đơn hàng từ 100 sản phẩm trở lên',
+              tiers: [
+                { id: 't1', min_quantity: 100, max_quantity: 499, discount_percent: 5 },
+                { id: 't2', min_quantity: 500, max_quantity: 999, discount_percent: 10 },
+                { id: 't3', min_quantity: 1000, max_quantity: null, discount_percent: 15 },
+              ],
+            });
+          }
+          return parsed;
+        }
+      } catch {}
     }
     return [
+      {
+        id: 'sl-001',
+        title: 'Chính sách chiết khấu sản lượng toàn hệ thống',
+        code: 'CK-SL-001',
+        target_group: 'all',
+        start_date: '2026-01-01',
+        end_date: '2026-12-31',
+        status: 'active',
+        note: 'Áp dụng cho đơn hàng từ 100 sản phẩm trở lên',
+        tiers: [
+          { id: 't1', min_quantity: 100, max_quantity: 499, discount_percent: 5 },
+          { id: 't2', min_quantity: 500, max_quantity: 999, discount_percent: 10 },
+          { id: 't3', min_quantity: 1000, max_quantity: null, discount_percent: 15 },
+        ],
+      },
       {
         id: '1',
         title: 'Chính sách chiết khấu - Đại lý Cấp 1',
@@ -135,6 +207,20 @@ export default function DiscountPolicyView({ token, user, onBackToHome }: Discou
     setPolicies([newPolicy, ...policies]);
     setIsModalOpen(false);
     emitStatusToast({ title: 'Thành công', message: 'Khai báo chính sách chiết khấu sản lượng thành công!' });
+
+    // Đồng bộ lên backend API
+    createDiscountPolicyApi({
+      name: newPolicy.title,
+      category: 'ALL',
+      target_dealer_type: newPolicy.target_group,
+      description: newPolicy.note,
+      is_active: newPolicy.status === 'active',
+      tiers: newPolicy.tiers.map((t) => ({
+        min_quantity: t.min_quantity,
+        max_quantity: t.max_quantity,
+        discount_percent: t.discount_percent,
+      })),
+    }, token).catch(() => {});
   };
 
   const handleDeletePolicy = (id: string | undefined) => {

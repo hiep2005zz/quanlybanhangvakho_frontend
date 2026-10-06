@@ -572,3 +572,52 @@
     gap: 5px;
   }
 }
+
+.sales-order-policy-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  padding: 6px 10px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+  color: #15803d;
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.sales-order-policy-badge svg {
+  flex-shrink: 0;
+  color: #16a34a;
+}
+
+.sales-order-discount-override-btn {
+  margin-top: 4px;
+  background: none;
+  border: none;
+  padding: 0;
+  color: #2563eb;
+  font-size: 11px;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+  text-align: left;
+}
+
+.sales-order-discount-override-btn:hover {
+  color: #1d4ed8;
+}
+
+.sales-order-discount-warning {
+  margin-top: 6px;
+  padding: 6px 10px;
+  background: #fffbeb;
+  border: 1px solid #fef3c7;
+  border-radius: 8px;
+  color: #b45309;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.35;
+}
