@@ -255,19 +255,29 @@ export default function DiscountPolicyView({ token, user, onBackToHome }: Discou
         </button>
       </div>
 
-      {/* Danh sách chính sách hiện tại */}
-      <div style={{ display: 'grid', gap: '16px' }}>
-        {policies.map((policy) => (
-          <div
-            key={policy.id}
-            style={{
-              background: '#ffffff',
-              borderRadius: '12px',
-              border: '1px solid #e2e8f0',
-              padding: '20px',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-            }}
-          >
+      {/* Danh sách chính sách hiện tại (Khối liền nhau) */}
+      <div
+        style={{
+          background: '#ffffff',
+          borderRadius: '12px',
+          border: '1px solid #e2e8f0',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+          overflow: 'hidden',
+        }}
+      >
+        {policies.length === 0 ? (
+          <div style={{ padding: '40px 20px', textAlign: 'center', color: '#94a3b8', fontSize: '14px' }}>
+            Chưa có chính sách chiết khấu nào được khai báo.
+          </div>
+        ) : (
+          policies.map((policy, index) => (
+            <div
+              key={policy.id}
+              style={{
+                padding: '20px',
+                borderBottom: index < policies.length - 1 ? '1px solid #e2e8f0' : 'none',
+              }}
+            >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -385,7 +395,7 @@ export default function DiscountPolicyView({ token, user, onBackToHome }: Discou
               </div>
             </div>
           </div>
-        ))}
+        )))}
       </div>
 
       {/* Modal Khai báo chính sách mới */}
