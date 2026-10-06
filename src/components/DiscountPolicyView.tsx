@@ -143,6 +143,12 @@ export default function DiscountPolicyView({ token, user, onBackToHome }: Discou
     emitStatusToast({ title: 'Thành công', message: 'Xóa chính sách thành công!' });
   };
 
+  const handleStopPolicy = (id: string | undefined) => {
+    if (!id) return;
+    setPolicies(policies.map(p => p.id === id ? { ...p, status: 'expired' } : p));
+    emitStatusToast({ title: 'Thành công', message: 'Đã ngừng áp dụng chính sách!' });
+  };
+
   // Quay lại trang chủ (Kho hàng) an toàn
   const handleGoHome = () => {
     if (onBackToHome) {
@@ -297,32 +303,59 @@ export default function DiscountPolicyView({ token, user, onBackToHome }: Discou
                     color: policy.status === 'active' ? '#15803d' : '#64748b',
                   }}
                 >
-                  {policy.status === 'active' ? 'Đang áp dụng' : 'Dự thảo'}
+                  {policy.status === 'active' ? 'Đang áp dụng' : policy.status === 'expired' ? 'Đã ngừng' : 'Dự thảo'}
                 </span>
-                <button
-                  onClick={() => handleDeletePolicy(policy.id)}
-                  style={{
-                    background: 'none',
-                    border: '1px solid #fee2e2',
-                    borderRadius: '6px',
-                    color: '#ef4444',
-                    padding: '4px 8px',
-                    fontSize: '12px',
-                    cursor: 'pointer',
-                    fontWeight: '600',
-                    transition: 'all 0.2s',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = '#fef2f2';
-                    e.currentTarget.style.borderColor = '#fca5a5';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'none';
-                    e.currentTarget.style.borderColor = '#fee2e2';
-                  }}
-                >
-                  Xóa
-                </button>
+                {policy.status === 'active' ? (
+                  <button
+                    onClick={() => handleStopPolicy(policy.id)}
+                    style={{
+                      background: 'none',
+                      border: '1px solid #fef08a',
+                      borderRadius: '6px',
+                      color: '#ca8a04',
+                      padding: '4px 8px',
+                      fontSize: '12px',
+                      cursor: 'pointer',
+                      fontWeight: '600',
+                      transition: 'all 0.2s',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = '#fefce8';
+                      e.currentTarget.style.borderColor = '#fde047';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'none';
+                      e.currentTarget.style.borderColor = '#fef08a';
+                    }}
+                  >
+                    Ngừng áp dụng
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => handleDeletePolicy(policy.id)}
+                    style={{
+                      background: 'none',
+                      border: '1px solid #fee2e2',
+                      borderRadius: '6px',
+                      color: '#ef4444',
+                      padding: '4px 8px',
+                      fontSize: '12px',
+                      cursor: 'pointer',
+                      fontWeight: '600',
+                      transition: 'all 0.2s',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = '#fef2f2';
+                      e.currentTarget.style.borderColor = '#fca5a5';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'none';
+                      e.currentTarget.style.borderColor = '#fee2e2';
+                    }}
+                  >
+                    Xóa
+                  </button>
+                )}
               </div>
             </div>
 
