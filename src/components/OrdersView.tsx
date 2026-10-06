@@ -12,7 +12,7 @@ interface OrdersViewProps {
   canCreateOrders: boolean;
   canManageOrders: boolean;
   onCreateOrderEntry: () => void;
-  onBackToHome: () => void;
+  onBackToHome?: () => void;
 }
 
 interface DraftLine {
@@ -65,7 +65,7 @@ const getStatusLabel = (status: string) => {
   }
 };
 
-export default function OrdersView({ token, username, products, canCreateOrders, canManageOrders, onCreateOrderEntry, onBackToHome }: OrdersViewProps) {
+export default function OrdersView({ token, username, products, canCreateOrders, canManageOrders, onCreateOrderEntry, onBackToHome: _onBackToHome }: OrdersViewProps) {
   const [orders, setOrders] = useState<OrderItem[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(true);
@@ -367,7 +367,6 @@ export default function OrdersView({ token, username, products, canCreateOrders,
             <h1>Tạo đơn hàng</h1>
             <p className="orders-page-subtitle">Nhập đơn trực tiếp tại cửa hàng của đại lý.</p>
           </div>
-          <button type="button" className="orders-back-button" onClick={() => { setIsDraftPickerOpen(false); setIsCreating(false); resetOrderForm(); }}>Quay lại đơn hàng</button>
         </header>
         {createError && <div className="orders-create-error" role="alert">{createError}</div>}
         {isDraftPickerOpen && (
@@ -495,7 +494,6 @@ export default function OrdersView({ token, username, products, canCreateOrders,
         </div>
         <div className="orders-page-actions">
           {canCreateOrders && <button type="button" className="orders-create-submit" onClick={onCreateOrderEntry}>＋ Tạo đơn mới</button>}
-          <button type="button" className="orders-back-button" onClick={onBackToHome}>Về kho hàng</button>
         </div>
       </header>
 

@@ -225,9 +225,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <div className="min-w-0 flex-1">
           <h2
             className="text-sm font-bold text-gray-900 tracking-tight leading-tight truncate"
-            title="Quản Lý Kho & Bán Hàng"
+            title="Menu"
           >
-            Quản Lý Kho & Bán Hàng
+            Menu
           </h2>
         </div>
       </div>

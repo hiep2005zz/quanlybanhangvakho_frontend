@@ -16,7 +16,7 @@ interface ProductHistoryViewProps {
   initialProductCode?: string;
   initialProductName?: string;
   isCostVisible?: boolean;
-  onBackToInventory: () => void;
+  onBackToInventory?: () => void;
 }
 
 export const ProductHistoryView: React.FC<ProductHistoryViewProps> = ({
@@ -24,7 +24,7 @@ export const ProductHistoryView: React.FC<ProductHistoryViewProps> = ({
   products,
   initialProductCode,
   isCostVisible = false,
-  onBackToInventory,
+  onBackToInventory: _onBackToInventory,
 }) => {
   // 1. Quản lý sản phẩm đang chọn
   const [selectedProductCode, setSelectedProductCode] = useState<string>(() => {
@@ -174,78 +174,7 @@ export const ProductHistoryView: React.FC<ProductHistoryViewProps> = ({
 
   return (
     <div style={{ padding: '0 0 40px 0', width: '100%' }}>
-      {/* 1. BREADCRUMBS & ĐIỀU HƯỚNG */}
-      <nav
-        aria-label="Breadcrumb"
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          marginBottom: '18px',
-          flexWrap: 'wrap',
-        }}
-      >
-        <button
-          type="button"
-          onClick={onBackToInventory}
-          style={{
-            background: '#ffffff',
-            border: '1px solid #cbd5e1',
-            borderRadius: '8px',
-            padding: '5px 12px',
-            fontSize: '13px',
-            color: '#334155',
-            fontWeight: '600',
-            cursor: 'pointer',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '6px',
-            transition: 'all 0.15s ease',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.borderColor = '#94a3b8';
-            e.currentTarget.style.background = '#f8fafc';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.borderColor = '#cbd5e1';
-            e.currentTarget.style.background = '#ffffff';
-          }}
-        >
-          <span>Trang chủ</span>
-        </button>
-        <span style={{ color: '#cbd5e1', fontSize: '14px' }}>/</span>
-        <button
-          type="button"
-          onClick={onBackToInventory}
-          style={{
-            background: '#ffffff',
-            border: '1px solid #cbd5e1',
-            borderRadius: '8px',
-            padding: '5px 12px',
-            fontSize: '13px',
-            color: '#334155',
-            fontWeight: '600',
-            cursor: 'pointer',
-            transition: 'all 0.15s ease',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.borderColor = '#94a3b8';
-            e.currentTarget.style.background = '#f8fafc';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.borderColor = '#cbd5e1';
-            e.currentTarget.style.background = '#ffffff';
-          }}
-        >
-          <span>Kho hàng</span>
-        </button>
-        <span style={{ color: '#cbd5e1', fontSize: '14px' }}>/</span>
-        <span style={{ color: '#0f172a', fontWeight: '700', fontSize: '13.5px' }}>
-          Lịch sử thay đổi sản phẩm
-        </span>
-      </nav>
-
-      {/* 2. HEADER BAR CỦA TRANG */}
+      {/* HEADER BAR CỦA TRANG */}
       <div
         style={{
           background: '#ffffff',
@@ -330,28 +259,6 @@ export const ProductHistoryView: React.FC<ProductHistoryViewProps> = ({
             title="Làm mới lịch sử"
           >
             <span>{loading ? 'Đang tải...' : 'Làm mới 🔄'}</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={onBackToInventory}
-            style={{
-              background: '#2563eb',
-              border: 'none',
-              borderRadius: '10px',
-              padding: '9px 18px',
-              fontSize: '13.5px',
-              color: '#ffffff',
-              fontWeight: '600',
-              cursor: 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              boxShadow: '0 2px 6px rgba(37, 99, 235, 0.25)',
-              transition: 'background 0.15s ease',
-            }}
-          >
-            <span>← Quay lại kho hàng</span>
           </button>
         </div>
       </div>

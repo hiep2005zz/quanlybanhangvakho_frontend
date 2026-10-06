@@ -1,5 +1,5 @@
 import type { DeliveryPoint, DeliveryPointInput } from '../types/deliveryPoint';
-export const API_BASE_URL = 'http://localhost:8000/api/v1';
+export const API_BASE_URL = typeof window !== 'undefined' && window.location.origin ? '/api/v1' : 'http://127.0.0.1:8000/api/v1';
 
 /**
  * Trả về URL tuyệt đối để tải ảnh đại diện từ backend nếu là đường dẫn tĩnh /uploads/...
@@ -853,6 +853,7 @@ export interface UserCreatePayload {
   role?: string;
   roles?: string[];
   branch?: string;
+  phone?: string;
 }
 
 export interface UserUpdatePayload {

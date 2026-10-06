@@ -5,7 +5,7 @@ import { emitStatusToast } from './StatusToast';
 interface ProfileViewProps {
   currentUser: User;
   token: string;
-  onBackToHome: () => void;
+  onBackToHome?: () => void;
   onUserUpdated?: (updatedUser: User) => void;
 }
 
@@ -465,7 +465,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
       window.dispatchEvent(new CustomEvent('USER_ACCOUNTS_CHANGED', { detail: combinedUser }));
 
       // Tự động chuyển hướng về trang chủ làm việc
-      onBackToHome();
+      onBackToHome?.();
     } catch (err: any) {
       const errMsg = err?.message || '';
       const errorCode =
@@ -518,7 +518,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
     setNameError(null);
     setPhoneError(null);
     setErrorMsg(null);
-    onBackToHome();
+    onBackToHome?.();
   };
 
   const primaryRole = profile?.role || currentUser.role;
@@ -534,52 +534,6 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
 
   return (
     <main style={{ padding: '24px 32px', maxWidth: '1200px', margin: '0 auto', width: '100%' }}>
-      {/* Breadcrumb Navigation */}
-      <nav
-        aria-label="Breadcrumb"
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '10px',
-          fontSize: '13.5px',
-          color: '#64748b',
-          fontWeight: '500',
-          marginBottom: '20px',
-          padding: '2px 4px',
-        }}
-      >
-        <button
-          onClick={onBackToHome}
-          style={{
-            background: '#ffffff',
-            border: '1px solid #cbd5e1',
-            borderRadius: '20px',
-            color: '#2563eb',
-            cursor: 'pointer',
-            padding: '5px 14px',
-            fontSize: '13px',
-            fontWeight: '600',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '6px',
-            boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
-            transition: 'all 0.18s ease',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.borderColor = '#2563eb';
-            e.currentTarget.style.background = '#eff6ff';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.borderColor = '#cbd5e1';
-            e.currentTarget.style.background = '#ffffff';
-          }}
-        >
-          <span>Trang chủ</span>
-        </button>
-        <span style={{ color: '#cbd5e1', fontSize: '14px' }}>/</span>
-        <span style={{ color: '#0f172a', fontWeight: '600', fontSize: '13.5px' }}>Hồ sơ cá nhân</span>
-      </nav>
-
       {/* 1 BẢNG DUY NHẤT CHO TOÀN BỘ HỒ SƠ */}
       <div
         style={{
@@ -868,13 +822,9 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                   if (!phoneError) e.target.style.borderColor = '#cbd5e1';
                 }}
               />
-              {phoneError ? (
+              {phoneError && (
                 <p style={{ margin: '5px 0 0', fontSize: '12px', color: '#dc2626', fontWeight: '500' }}>
                   {phoneError}
-                </p>
-              ) : (
-                <p style={{ margin: '4px 0 0', fontSize: '11.5px', color: '#64748b' }}>
-                  10 chữ số, đúng đầu số nhà mạng VN (03x, 05x, 07x, 08x, 09x).
                 </p>
               )}
             </div>
