@@ -550,15 +550,11 @@ export function PriceBookManagementView({
                     <td style={{ padding: '14px 16px', color: '#0f172a', fontWeight: '700', fontSize: '13.5px' }}>
                       <span style={{ fontFamily: 'monospace', background: '#f1f5f9', padding: '2px 8px', borderRadius: '4px' }}>{pb.code}</span>
                     </td>
-                    <td style={{ padding: '14px 16px', color: '#334155' }}>
-                      <div 
-                        onClick={() => handleOpenDetail(pb.id)} 
-                        style={{ color: '#2563eb', cursor: 'pointer', fontWeight: '600', fontSize: '14px' }} 
-                        title="Xem chi tiết bảng giá"
-                      >
+                    <td style={{ padding: '14px 16px', color: '#0f172a' }}>
+                      <div style={{ fontWeight: '600', fontSize: '14px', color: '#0f172a' }}>
                         {pb.name}
                       </div>
-                      {pb.note && <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '2px' }}>{pb.note}</div>}
+                      {pb.note && <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>{pb.note}</div>}
                     </td>
                     <td style={{ padding: '14px 16px', color: '#334155', whiteSpace: 'nowrap' }}>
                       <span style={{ 
@@ -716,9 +712,19 @@ export function PriceBookManagementView({
               <button 
                 type="button"
                 onClick={() => setIsFormModalOpen(false)} 
-                style={{ border: '1px solid #cbd5e1', background: '#f8fafc', cursor: 'pointer', color: '#475569', padding: '4px 10px', borderRadius: '6px', fontSize: '12px', fontWeight: '600' }}
+                style={{ 
+                  background: 'transparent', 
+                  border: 'none', 
+                  fontSize: '20px', 
+                  color: '#94a3b8', 
+                  cursor: 'pointer', 
+                  padding: '4px 8px', 
+                  lineHeight: 1, 
+                  borderRadius: '6px' 
+                }}
+                title="Đóng"
               >
-                Đóng
+                ✕
               </button>
             </div>
 
@@ -1060,9 +1066,19 @@ export function PriceBookManagementView({
               <button 
                 type="button"
                 onClick={() => setIsDetailModalOpen(false)} 
-                style={{ border: '1px solid #cbd5e1', background: '#f8fafc', cursor: 'pointer', color: '#475569', padding: '4px 10px', borderRadius: '6px', fontSize: '12px', fontWeight: '600' }}
+                style={{ 
+                  background: 'transparent', 
+                  border: 'none', 
+                  fontSize: '20px', 
+                  color: '#94a3b8', 
+                  cursor: 'pointer', 
+                  padding: '4px 8px', 
+                  lineHeight: 1, 
+                  borderRadius: '6px' 
+                }}
+                title="Đóng"
               >
-                Đóng
+                ✕
               </button>
             </div>
             
