@@ -187,34 +187,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   return (
     <aside className="w-64 bg-white border-r border-gray-200 flex flex-col h-full flex-shrink-0 select-none">
-      {/* Brand Header: Logo & Tên ứng dụng */}
-      <div className="h-16 px-5 border-b border-gray-200 flex items-center gap-3 bg-white flex-shrink-0">
-        <div className="w-9 h-9 rounded-lg bg-blue-600 flex items-center justify-center text-white shadow-sm flex-shrink-0">
-          <svg
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
-            <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
-            <line x1="12" y1="22.08" x2="12" y2="12" />
-          </svg>
-        </div>
-        <div className="min-w-0 flex-1">
-          <h2
-            className="text-sm font-bold text-gray-900 tracking-tight leading-tight truncate"
-            title="Menu"
-          >
-            Menu
-          </h2>
-        </div>
-      </div>
-
       {/* Danh sách mục điều hướng Sidebar */}
       <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1" aria-label="Menu chính">
         {menuItems
