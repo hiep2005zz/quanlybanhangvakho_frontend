@@ -126,7 +126,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
       const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
       const err = file.size <= 0
         ? 'Tệp hình ảnh rỗng hoặc không có dữ liệu.'
-        : `Dung lượng tệp (${sizeMB}MB) vượt quá mức cho phép tối đa 2MB (size <= 2 * 1024 * 1024).`;
+        : `Dung lượng tệp (${sizeMB}MB) vượt quá mức cho phép tối đa 2MB.`;
       setAvatarError(err);
       emitStatusToast({ message: err, title: 'Ảnh đại diện' });
       return;

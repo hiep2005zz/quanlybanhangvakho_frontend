@@ -137,8 +137,8 @@ const checkRegionMatch = (userBranch: string, dealerAddress: string, sourceUserB
 export const UserManagementView: React.FC<UserManagementViewProps> = ({
   currentUser,
   token,
-  onBackToHome: _onBackToHome,
-  onCreateAccount: _onCreateAccount,
+  onBackToHome,
+  onCreateAccount,
 }) => {
   const [users, setUsers] = useState<UserAccount[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -526,6 +526,57 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      {/* 1. Breadcrumb: Trang chủ / Quản lý người dùng */}
+      {onBackToHome && (
+        <nav
+          aria-label="Breadcrumb"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            fontSize: '13.5px',
+            color: '#64748b',
+            fontWeight: '500',
+            padding: '2px 4px',
+          }}
+        >
+          <button
+            onClick={onBackToHome}
+            style={{
+              background: '#ffffff',
+              border: '1px solid #cbd5e1',
+              borderRadius: '20px',
+              color: '#2563eb',
+              cursor: 'pointer',
+              padding: '5px 14px',
+              fontSize: '13px',
+              fontWeight: '600',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
+              transition: 'all 0.18s ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = '#2563eb';
+              e.currentTarget.style.background = '#eff6ff';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = '#cbd5e1';
+              e.currentTarget.style.background = '#ffffff';
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+              <polyline points="9 22 9 12 15 12 15 22" />
+            </svg>
+            <span>Trang chủ</span>
+          </button>
+          <span style={{ color: '#cbd5e1', fontSize: '14px' }}>/</span>
+          <span style={{ color: '#0f172a', fontWeight: '600', fontSize: '13.5px' }}>Quản lý người dùng</span>
+        </nav>
+      )}
+
       {/* Tiêu đề: Quản Lý Phân Quyền Vai Trò */}
       <div style={{
         background: '#ffffff',
@@ -584,7 +635,84 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
           </div>
         </div>
 
-
+        {/* Nút Tạo tài khoản đặt ở trên góc phải, thẳng phía trên chữ Làm mới */}
+        {onCreateAccount && (
+          <div style={{ display: 'flex', gap: '10px' }}>
+            {/* Import Button */}
+            <button
+              type="button"
+              onClick={() => setIsImportModalOpen(true)}
+              style={{
+                background: '#ffffff',
+                border: '1px solid #cbd5e1',
+                borderRadius: '9px',
+                color: '#2563eb',
+                padding: '9px 16px',
+                fontSize: '13.5px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '7px',
+                boxShadow: '0 2px 4px rgba(0, 0, 0, 0.05)',
+                transition: 'all 0.18s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = '#2563eb';
+                e.currentTarget.style.background = '#eff6ff';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = '#cbd5e1';
+                e.currentTarget.style.background = '#ffffff';
+              }}
+              title="Nhập người dùng hàng loạt từ Excel"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="17 8 12 3 7 8"></polyline>
+                <line x1="12" y1="3" x2="12" y2="15"></line>
+              </svg>
+              <span>Nhập Excel</span>
+            </button>
+            <button
+              type="button"
+              onClick={onCreateAccount}
+              id="btn-userview-create-account"
+              style={{
+                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                border: 'none',
+                borderRadius: '9px',
+                color: '#ffffff',
+                padding: '9px 16px',
+                fontSize: '13.5px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '7px',
+                boxShadow: '0 2px 8px rgba(16, 185, 129, 0.35)',
+                transition: 'all 0.18s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-1.5px)';
+                e.currentTarget.style.boxShadow = '0 4px 14px rgba(16, 185, 129, 0.45)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 2px 8px rgba(16, 185, 129, 0.35)';
+              }}
+              title="Tạo tài khoản mới và gửi email kích hoạt"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                <circle cx="8.5" cy="7" r="4" />
+                <line x1="20" y1="8" x2="20" y2="14" />
+                <line x1="23" y1="11" x2="17" y2="11" />
+              </svg>
+              <span>Tạo tài khoản</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {isImportModalOpen && (
