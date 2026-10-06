@@ -541,10 +541,6 @@ export function CategoryManagementView({ token, onBackToHome: _onBackToHome }: C
                 </button>
               )}
             </div>
-
-            <span style={{ fontSize: '12px', color: '#64748b', whiteSpace: 'nowrap' }}>
-              🖐️ Kéo thả SP sang cột bên trái để gán nhóm
-            </span>
           </div>
 
           {/* Active Tree Category Filter Alert */}
