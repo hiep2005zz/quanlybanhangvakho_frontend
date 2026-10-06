@@ -80,7 +80,13 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  const isCustomer = currentUser?.role === 'customer' || Boolean(currentUser?.roles && currentUser.roles.includes('customer'));
   const selectedDealer = dealers.find((d) => d.id === dealerId) || dealers[0];
+  const isLockedDealer = Boolean(
+    selectedDealer?.status &&
+    (selectedDealer.status.toLowerCase().includes('khóa') ||
+     selectedDealer.status.toLowerCase().includes('lock'))
+  );
 
   useEffect(() => {
     if (isOpen && token) {
@@ -410,8 +416,7 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
     const isLockedDealer = Boolean(
       selectedDealer?.status &&
       (selectedDealer.status.toLowerCase().includes('khóa') ||
-       selectedDealer.status.toLowerCase().includes('lock') ||
-       selectedDealer.status.toLowerCase().includes('ngừng'))
+       selectedDealer.status.toLowerCase().includes('lock'))
     );
     if (isLockedDealer) {
       setErrorMsg(`Đại lý "${selectedDealer?.name}" hiện đang bị KHÓA giao dịch. Không thể tạo đơn hàng mới.`);
@@ -633,7 +638,7 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
               id="select-dealer-customer"
               value={dealerId}
               onChange={(e) => setDealerId(parseInt(e.target.value, 10))}
-              disabled={loadingDealers || dealers.length === 0}
+              disabled={loadingDealers || dealers.length === 0 || isCustomer || dealers.length === 1}
               style={{
                 width: '100%',
                 padding: '9px 12px',
@@ -641,7 +646,7 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
                 border: '1px solid #cbd5e1',
                 fontSize: '13.5px',
                 outline: 'none',
-                background: '#ffffff',
+                background: isCustomer || dealers.length === 1 ? '#f1f5f9' : '#ffffff',
                 boxSizing: 'border-box',
                 fontWeight: '500',
               }}
@@ -651,8 +656,7 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
                 const isLocked = Boolean(
                   d.status &&
                   (d.status.toLowerCase().includes('khóa') ||
-                   d.status.toLowerCase().includes('lock') ||
-                   d.status.toLowerCase().includes('ngừng'))
+                   d.status.toLowerCase().includes('lock'))
                 );
                 return (
                   <option key={d.id} value={d.id} disabled={isLocked}>
@@ -662,12 +666,7 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
               })}
             </select>
 
-            {Boolean(
-              selectedDealer?.status &&
-              (selectedDealer.status.toLowerCase().includes('khóa') ||
-               selectedDealer.status.toLowerCase().includes('lock') ||
-               selectedDealer.status.toLowerCase().includes('ngừng'))
-            ) && (
+            {isLockedDealer && (
               <div
                 style={{
                   marginTop: '8px',
@@ -682,7 +681,6 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
                   gap: '6px',
                 }}
               >
-                <span style={{ fontSize: '15px' }}>⚠️</span>
                 <span>
                   <strong>Đại lý bị khóa giao dịch:</strong> Đại lý này hiện đang ở trạng thái <strong>Đã khóa</strong>. Hệ thống chặn tạo đơn hàng mới.
                 </span>
@@ -1303,27 +1301,30 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
             <button
               id="btn-submit-order"
               type="submit"
-              disabled={isSubmitting || orderItems.length === 0}
+              disabled={isSubmitting || orderItems.length === 0 || isLockedDealer}
               style={{
                 padding: '9px 22px',
                 borderRadius: '8px',
                 border: 'none',
-                background: orderItems.length === 0 ? '#94a3b8' : isAnyBelowFloorPrice ? '#ea580c' : '#2563eb',
+                background: orderItems.length === 0 || isLockedDealer ? '#94a3b8' : isAnyBelowFloorPrice ? '#ea580c' : '#2563eb',
                 fontSize: '13.5px',
                 fontWeight: '700',
                 color: '#fff',
-                cursor: isSubmitting || orderItems.length === 0 ? 'not-allowed' : 'pointer',
+                cursor: isSubmitting || orderItems.length === 0 || isLockedDealer ? 'not-allowed' : 'pointer',
                 opacity: isSubmitting ? 0.7 : 1,
                 boxShadow:
-                  orderItems.length === 0
+                  orderItems.length === 0 || isLockedDealer
                     ? 'none'
                     : isAnyBelowFloorPrice
                     ? '0 4px 6px -1px rgba(234, 88, 12, 0.3)'
                     : '0 4px 6px -1px rgba(37, 99, 235, 0.3)',
               }}
+              title={isLockedDealer ? `Đại lý "${selectedDealer?.name}" hiện đang bị khóa giao dịch, không thể tạo đơn hàng` : undefined}
             >
               {isSubmitting
                 ? 'Đang lưu đơn hàng...'
+                : isLockedDealer
+                ? 'Đại lý bị khóa (Không thể tạo đơn)'
                 : isAnyBelowFloorPrice
                 ? 'Gửi duyệt (Dưới giá niêm yết / sàn)'
                 : `Tạo đơn hàng (${orderItems.length} sản phẩm)`}

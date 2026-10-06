@@ -916,7 +916,6 @@ export default function DealerSearchView({
                                             <span
                                                 className={`dealer-status-toggle-btn read-only ${isLocked ? 'status-inactive' : 'status-active'}`}
                                             >
-                                                <span className="status-dot" />
                                                 <span>{isLocked ? 'Đã khóa' : 'Đang hoạt động'}</span>
                                             </span>
                                         </div>
@@ -939,7 +938,6 @@ export default function DealerSearchView({
                                                 boxShadow: '0 1px 3px rgba(239, 68, 68, 0.1)',
                                             }}
                                         >
-                                            <span style={{ fontSize: '20px' }}>⚠️</span>
                                             <div>
                                                 <strong>Đại lý đã bị khóa giao dịch. Vui lòng liên hệ quản trị viên.</strong>
                                             </div>
@@ -1019,7 +1017,7 @@ export default function DealerSearchView({
                                                 })}
                                                 title="Đại lý hiện đã bị khóa giao dịch"
                                             >
-                                                <span>🔒 Đã khóa tạo đơn</span>
+                                                <span>Đã khóa tạo đơn</span>
                                             </button>
                                         ) : (
                                             <button
@@ -1034,7 +1032,7 @@ export default function DealerSearchView({
                                                 }}
                                                 onClick={() => handleCustomerCreateOrder(dealer)}
                                             >
-                                                <span>＋ Tạo đơn hàng</span>
+                                                <span>Tạo đơn hàng</span>
                                             </button>
                                         )}
                                     </div>
@@ -1241,7 +1239,6 @@ export default function DealerSearchView({
                                                                 : 'Bấm để khóa giao dịch'
                                                         }
                                                     >
-                                                        <span className="status-dot" />
                                                         <span>
                                                             {dealer.status || 'Đang hoạt động'}
                                                         </span>
@@ -1254,14 +1251,8 @@ export default function DealerSearchView({
                                                                 : 'status-active'
                                                             }`}
                                                     >
-                                                        <span className="status-dot" />
                                                         <span>{dealer.status || 'Đang hoạt động'}</span>
                                                     </span>
-                                                )}
-                                                {dealer.lock_reason && (
-                                                    <div style={{ fontSize: '11px', color: '#dc2626', marginTop: '2px', maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={`Lý do khóa: ${dealer.lock_reason}`}>
-                                                        Lý do: {dealer.lock_reason}
-                                                    </div>
                                                 )}
                                             </div>
                                         </td>
@@ -1387,7 +1378,6 @@ export default function DealerSearchView({
                                                         : 'Bấm để khóa giao dịch'
                                                 }
                                             >
-                                                <span className="status-dot" />
                                                 <span>
                                                     {dealer.status || 'Đang hoạt động'}
                                                 </span>
@@ -1400,14 +1390,8 @@ export default function DealerSearchView({
                                                         : 'status-active'
                                                     }`}
                                             >
-                                                <span className="status-dot" />
                                                 <span>{dealer.status || 'Đang hoạt động'}</span>
                                             </span>
-                                        )}
-                                        {dealer.lock_reason && (
-                                            <div style={{ fontSize: '11.5px', color: '#dc2626', marginTop: '4px' }}>
-                                                Lý do: {dealer.lock_reason}
-                                            </div>
                                         )}
                                     </div>
                                 </div>
@@ -2075,7 +2059,7 @@ export default function DealerSearchView({
                             </div>
 
                             <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', padding: '12px 14px', marginBottom: '16px', fontSize: '13px', color: '#991b1b', lineHeight: 1.5 }}>
-                                ⚠️ <strong>Lưu ý:</strong> Khóa giao dịch dừng ngay việc tạo đơn hàng cho đại lý này. Đại lý vẫn có thể đăng nhập bình thường để xem hồ sơ và công nợ.
+                                <strong>Lưu ý:</strong> Khóa giao dịch dừng ngay việc tạo đơn hàng cho đại lý này. Đại lý vẫn có thể đăng nhập bình thường để xem hồ sơ và công nợ.
                             </div>
                             
                             <div className="dealer-modal-form-grid" style={{ gridTemplateColumns: '1fr' }}>

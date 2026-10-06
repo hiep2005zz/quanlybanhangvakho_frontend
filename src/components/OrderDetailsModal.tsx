@@ -97,7 +97,6 @@ export default function OrderDetailsModal({ token, orderCode, onClose }: OrderDe
                   boxShadow: '0 2px 4px rgba(239, 68, 68, 0.08)',
                 }}
               >
-                <span style={{ fontSize: '18px', lineHeight: 1 }}>⚠️</span>
                 <div>
                   <strong style={{ display: 'block', marginBottom: '2px', color: '#b91c1c' }}>
                     CẢNH BÁO CÔNG NỢ: Đại lý &apos;{order.dealer_name}&apos; hiện đang bị KHÓA giao dịch

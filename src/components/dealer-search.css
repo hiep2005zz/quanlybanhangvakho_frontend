@@ -382,7 +382,7 @@
 .dealer-status-toggle-btn {
     display: inline-flex;
     align-items: center;
-    gap: 7px;
+    justify-content: center;
     padding: 5px 13px;
     border-radius: 20px;
     font-size: 12.5px;

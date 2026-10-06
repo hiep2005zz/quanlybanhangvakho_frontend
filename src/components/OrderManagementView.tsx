@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import {
   getOrdersApi,
   getOrderDetailApi,
+  getOrderDealersApi,
   OrderResponseData,
   User,
   ProductItem,
@@ -42,6 +43,28 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
   const isAdmin = currentUser.role === 'admin' || rawRoles.includes('admin');
   const isSalesManager = currentUser.role === 'sales_manager' || rawRoles.includes('sales_manager');
   const canApprove = isAdmin || isSalesManager;
+  const isCustomer = currentUser.role === 'customer' || Boolean(currentUser.roles && currentUser.roles.includes('customer'));
+  const [customerDealer, setCustomerDealer] = useState<any | null>(null);
+
+  const isCustomerLocked = isCustomer && Boolean(
+    customerDealer?.status &&
+    (customerDealer.status.toLowerCase().includes('khóa') ||
+     customerDealer.status.toLowerCase().includes('lock'))
+  );
+
+  const fetchCustomerDealer = async () => {
+    if (!isCustomer || !token) return;
+    try {
+      const dealersList = await getOrderDealersApi(token);
+      if (dealersList && dealersList.length > 0) {
+        setCustomerDealer(dealersList[0]);
+      } else {
+        setCustomerDealer(null);
+      }
+    } catch (e) {
+      console.warn('Lỗi lấy thông tin đại lý:', e);
+    }
+  };
 
   const handleOpenOrderDetail = async (order: OrderResponseData) => {
     setSelectedOrderDetail(order);
@@ -62,6 +85,9 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
     try {
       const data = await getOrdersApi(token);
       setOrders(data);
+      if (isCustomer) {
+        await fetchCustomerDealer();
+      }
     } catch (err: any) {
       setError(err.message || 'Không thể tải danh sách đơn hàng.');
     } finally {
@@ -71,7 +97,10 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
 
   useEffect(() => {
     fetchOrders();
-  }, [token]);
+    if (isCustomer) {
+      fetchCustomerDealer();
+    }
+  }, [token, isCustomer]);
 
   // Tính toán số liệu thống kê
   const totalOrdersCount = orders.length;
@@ -153,20 +182,22 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
           <button
             type="button"
             id="btn-create-order-view"
-            onClick={() => setIsCreateModalOpen(true)}
+            onClick={() => !isCustomerLocked && setIsCreateModalOpen(true)}
+            disabled={isCustomerLocked}
             style={{
               padding: '9px 20px',
-              background: '#2563eb',
+              background: isCustomerLocked ? '#94a3b8' : '#2563eb',
               border: 'none',
               borderRadius: '8px',
               fontSize: '13.5px',
               fontWeight: '700',
               color: '#ffffff',
-              cursor: 'pointer',
-              boxShadow: '0 2px 4px rgba(37, 99, 235, 0.25)',
+              cursor: isCustomerLocked ? 'not-allowed' : 'pointer',
+              boxShadow: isCustomerLocked ? 'none' : '0 2px 4px rgba(37, 99, 235, 0.25)',
             }}
+            title={isCustomerLocked ? 'Đại lý hiện đang bị khóa giao dịch, không thể tạo đơn hàng mới' : undefined}
           >
-            Tạo Đơn Hàng Mới
+            {isCustomerLocked ? 'Tạo Đơn Hàng Mới (Đã khóa)' : 'Tạo Đơn Hàng Mới'}
           </button>
         </div>
       </div>
@@ -467,6 +498,15 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                     </td>
 
                     <td style={{ padding: '14px 18px', maxWidth: '280px' }}>
+                      {Boolean(
+                        order.dealer_status &&
+                        (order.dealer_status.toLowerCase().includes('khóa') ||
+                         order.dealer_status.toLowerCase().includes('lock'))
+                      ) && (
+                        <div style={{ fontSize: '12px', color: '#dc2626', fontWeight: '600', marginBottom: order.approval_reason ? '4px' : '0' }}>
+                          Đại lý bị khóa giao dịch (Cần kiểm tra công nợ)
+                        </div>
+                      )}
                       {order.approval_reason ? (
                         <div style={{ fontSize: '12px', color: isRejected ? '#dc2626' : '#b45309', fontWeight: '500', lineHeight: '1.4' }}>
                           {order.approval_reason}
@@ -475,9 +515,13 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                         <div style={{ fontSize: '12px', color: '#16a34a', fontWeight: '500' }}>
                           Duyệt bởi @{order.approved_by}
                         </div>
-                      ) : (
+                      ) : !Boolean(
+                        order.dealer_status &&
+                        (order.dealer_status.toLowerCase().includes('khóa') ||
+                         order.dealer_status.toLowerCase().includes('lock'))
+                      ) ? (
                         <span style={{ color: '#94a3b8', fontSize: '12px' }}>Đơn giá chuẩn bảng giá</span>
-                      )}
+                      ) : null}
                     </td>
 
                     <td style={{ padding: '14px 18px', textAlign: 'center' }}>
@@ -629,7 +673,6 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                   boxShadow: '0 2px 4px rgba(239, 68, 68, 0.08)',
                 }}
               >
-                <span style={{ fontSize: '18px', lineHeight: 1 }}>⚠️</span>
                 <div>
                   <strong style={{ display: 'block', marginBottom: '2px', color: '#b91c1c' }}>
                     CẢNH BÁO CÔNG NỢ: Đại lý &apos;{selectedOrderDetail.dealer_name}&apos; hiện đang bị KHÓA giao dịch
