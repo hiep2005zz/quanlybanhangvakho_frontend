@@ -1,9 +1,23 @@
 const API_BASE_URL = 'http://localhost:8000';
 
+export interface AppliedPriceBookInfo {
+    id: number;
+    code: string;
+    name: string;
+    customer_group: string;
+    valid_from?: string | null;
+    valid_to?: string | null;
+    status: string;
+    is_active_now?: boolean;
+    items_count?: number;
+    note?: string | null;
+}
+
 export interface DealerSearchItem {
     id: number;
     code: string;
     name: string;
+    tax_code?: string | null;
     phone?: string | null;
     email?: string | null;
     address?: string | null;
@@ -16,6 +30,9 @@ export interface DealerSearchItem {
     max_debt_days?: number;
     current_debt?: number;
     debt_status?: string;
+    transaction_count?: number;
+    has_transactions?: boolean;
+    applied_price_book?: AppliedPriceBookInfo | null;
 }
 
 export interface DealerSearchResponse {
@@ -328,6 +345,7 @@ export async function getDealerFilters(
 export interface CreateDealerPayload {
     code?: string;
     name: string;
+    tax_code?: string | null;
     phone?: string;
     email?: string;
     address?: string;
@@ -336,6 +354,84 @@ export interface CreateDealerPayload {
     assigned_sale_name?: string | null;
     customer_group?: string;
     status?: string;
+    transaction_count?: number | null;
+}
+
+export interface UpdateDealerPayload {
+    code?: string;
+    name?: string;
+    tax_code?: string | null;
+    phone?: string | null;
+    email?: string | null;
+    address?: string | null;
+    region?: string;
+    assigned_sale_id?: number | null;
+    customer_group?: string;
+    status?: string;
+    credit_limit?: number;
+    max_debt_days?: number;
+    transaction_count?: number | null;
+}
+
+export async function updateDealerProfile(
+    dealerId: number,
+    payload: UpdateDealerPayload,
+    token?: string
+): Promise<DealerSearchItem> {
+    const authToken = getAuthToken(token);
+    const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+    };
+    if (authToken) {
+        headers['Authorization'] = `Bearer ${authToken}`;
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/v1/dealers/${dealerId}`, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+        let errorDetail = `Lỗi cập nhật hồ sơ đại lý (HTTP ${response.status})`;
+        try {
+            const errData = await response.json();
+            if (errData && errData.detail) errorDetail = typeof errData.detail === 'string' ? errData.detail : JSON.stringify(errData.detail);
+        } catch {}
+        throw new Error(errorDetail);
+    }
+    return response.json();
+}
+
+export async function getAppliedPriceBookPreview(
+    customerGroup: string,
+    token?: string
+): Promise<{ customer_group: string; applied_price_book: AppliedPriceBookInfo | null }> {
+    const authToken = getAuthToken(token);
+    const headers: Record<string, string> = {
+        Accept: 'application/json',
+    };
+    if (authToken) {
+        headers['Authorization'] = `Bearer ${authToken}`;
+    }
+
+    try {
+        const response = await fetch(
+            `${API_BASE_URL}/api/v1/dealers/price-book-preview?customer_group=${encodeURIComponent(customerGroup)}`,
+            {
+                method: 'GET',
+                headers,
+            }
+        );
+
+        if (response.ok) {
+            return await response.json();
+        }
+    } catch {
+        // ignore
+    }
+    return { customer_group: customerGroup, applied_price_book: null };
 }
 
 export async function createDealer(
@@ -358,21 +454,31 @@ export async function createDealer(
             body: JSON.stringify(payload),
         });
 
-        if (response.ok) {
-            const result = await response.json();
-            if (result && result.id) {
-                MOCK_DEALERS.unshift(result);
-                return result;
-            }
+        if (!response.ok) {
+            let errorDetail = `Lỗi tạo đại lý (HTTP ${response.status})`;
+            try {
+                const errData = await response.json();
+                if (errData && errData.detail) errorDetail = typeof errData.detail === 'string' ? errData.detail : JSON.stringify(errData.detail);
+            } catch {}
+            throw new Error(errorDetail);
         }
-    } catch {
-        // Dự phòng fallback khi backend chưa cấu hình endpoint POST /dealers
+
+        const result = await response.json();
+        if (result && result.id) {
+            MOCK_DEALERS.unshift(result);
+            return result;
+        }
+    } catch (err) {
+        if (err instanceof Error && !err.message.includes('Failed to fetch')) {
+            throw err;
+        }
     }
 
     const newItem: DealerSearchItem = {
         id: Date.now(),
         code: payload.code?.trim() || `DL-${Math.floor(1000 + Math.random() * 9000)}`,
         name: payload.name.trim(),
+        tax_code: payload.tax_code?.trim() || null,
         phone: payload.phone?.trim() || null,
         email: payload.email?.trim() || null,
         address: payload.address?.trim() || null,
