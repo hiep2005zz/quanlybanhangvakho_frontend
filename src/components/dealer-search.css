@@ -1,7 +1,8 @@
 .dealer-search-page {
-    padding: 24px;
-    max-width: 1400px;
+    padding: 0 0 24px 0;
+    max-width: 100%;
     margin: 0 auto;
+    box-sizing: border-box;
 }
 
 .dealer-search-header {
@@ -72,8 +73,8 @@
 .dealer-search-filter {
     display: grid;
     grid-template-columns: 2fr 1fr 1fr 1fr 1fr auto;
-    gap: 12px;
-    padding: 20px;
+    gap: 10px;
+    padding: 16px 18px;
     background: #ffffff;
     border: 1px solid #e2e8f0;
     border-radius: 14px;
@@ -267,20 +268,39 @@
 .dealer-table-wrapper {
     overflow-x: auto;
     width: 100%;
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e1 #f8fafc;
+}
+
+.dealer-table-wrapper::-webkit-scrollbar {
+    height: 6px;
+}
+
+.dealer-table-wrapper::-webkit-scrollbar-track {
+    background: #f8fafc;
+}
+
+.dealer-table-wrapper::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+}
+
+.dealer-table-wrapper::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
 }
 
 .dealer-table-wrapper table {
     width: 100%;
-    min-width: 1280px;
+    min-width: 960px;
     border-collapse: collapse;
 }
 
 .dealer-table-wrapper th,
 .dealer-table-wrapper td {
-    padding: 13px 16px;
+    padding: 10px 8px;
     text-align: left;
     border-top: 1px solid #f1f5f9;
-    font-size: 14px;
+    font-size: 13px;
     vertical-align: middle;
 }
 
@@ -288,12 +308,34 @@
     background: #f8fafc;
     font-weight: 700;
     color: #475569;
-    font-size: 12.5px;
+    font-size: 11.5px;
     text-transform: uppercase;
     letter-spacing: 0.02em;
     white-space: nowrap;
     vertical-align: middle;
     line-height: 1.4;
+    padding: 10px 8px;
+}
+
+/* Cột Thao tác ghim cố định ở cạnh phải để không bao giờ bị che khuất */
+.dealer-table-wrapper th:last-child {
+    position: sticky;
+    right: 0;
+    background: #f8fafc;
+    z-index: 5;
+    box-shadow: -2px 0 5px rgba(0, 0, 0, 0.04);
+}
+
+.dealer-table-wrapper td:last-child {
+    position: sticky;
+    right: 0;
+    background: #ffffff;
+    z-index: 4;
+    box-shadow: -2px 0 5px rgba(0, 0, 0, 0.04);
+}
+
+.dealer-table-wrapper tr:hover td:last-child {
+    background: #f8fafc;
 }
 
 .dealer-code-badge {
@@ -313,6 +355,8 @@
     display: flex;
     flex-direction: column;
     gap: 4px;
+    max-width: 175px;
+    word-break: break-word;
 }
 
 .dealer-group-tag {
@@ -348,6 +392,10 @@
     display: flex;
     flex-direction: column;
     gap: 4px;
+    max-width: 155px;
+    word-break: break-word;
+    font-size: 12.5px;
+    line-height: 1.35;
 }
 
 .dealer-map-link {
@@ -382,10 +430,10 @@
 .dealer-status-toggle-btn {
     display: inline-flex;
     align-items: center;
-    gap: 7px;
-    padding: 5px 13px;
+    gap: 6px;
+    padding: 4px 10px;
     border-radius: 20px;
-    font-size: 12.5px;
+    font-size: 12px;
     font-weight: 600;
     cursor: pointer;
     border: 1px solid transparent;
@@ -592,6 +640,17 @@
 }
 
 /* Responsive Breakpoints */
+@media (max-width: 1280px) {
+    .dealer-search-filter {
+        grid-template-columns: 1.5fr 1fr 1fr;
+    }
+
+    .dealer-actions {
+        grid-column: span 3;
+        justify-content: flex-end;
+    }
+}
+
 @media (max-width: 1024px) {
     .dealer-search-filter {
         grid-template-columns: 1fr 1fr 1fr;

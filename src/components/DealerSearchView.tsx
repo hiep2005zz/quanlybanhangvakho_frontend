@@ -870,7 +870,7 @@ export default function DealerSearchView({
                         <thead>
                             <tr>
                                 {canAssignDealer && (
-                                    <th style={{ width: 44, textAlign: 'center', verticalAlign: 'middle' }}>
+                                    <th style={{ width: 36, textAlign: 'center', verticalAlign: 'middle' }}>
                                         <input
                                             type="checkbox"
                                             checked={dealers.length > 0 && selectedDealerIds.length === dealers.length}
@@ -888,7 +888,7 @@ export default function DealerSearchView({
                                 <th style={{ whiteSpace: 'nowrap' }}>Trạng thái công nợ</th>
                                 <th style={{ whiteSpace: 'nowrap' }}>Người phụ trách</th>
                                 <th style={{ whiteSpace: 'nowrap' }}>Trạng thái</th>
-                                <th style={{ whiteSpace: 'nowrap', textAlign: 'center' }}>Thao tác</th>
+                                <th style={{ whiteSpace: 'nowrap', textAlign: 'center', width: 56 }}>Thao tác</th>
                             </tr>
                         </thead>
 
@@ -903,7 +903,7 @@ export default function DealerSearchView({
                                 dealers.map((dealer) => (
                                     <tr key={dealer.id}>
                                         {canAssignDealer && (
-                                            <td style={{ width: 44, textAlign: 'center', verticalAlign: 'middle' }}>
+                                            <td style={{ width: 36, textAlign: 'center', verticalAlign: 'middle' }}>
                                                 <input
                                                     type="checkbox"
                                                     checked={selectedDealerIds.includes(dealer.id)}
@@ -1034,7 +1034,7 @@ export default function DealerSearchView({
                                                 )}
                                             </div>
                                         </td>
-                                        <td style={{ textAlign: 'center', verticalAlign: 'middle' }}>
+                                        <td style={{ textAlign: 'center', verticalAlign: 'middle', width: 56 }}>
                                             <div className="dealer-dropdown-container" style={{ display: 'inline-flex', justifyContent: 'center' }}>
                                                 <button
                                                     type="button"
