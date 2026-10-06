@@ -11,7 +11,6 @@ import {
 } from '../services/api';
 import { searchDealers } from '../services/dealerSearchApi';
 import { emitStatusToast } from './StatusToast';
-import DeliveryPointManager from './DeliveryPointManager';
 import type { DeliveryPoint } from '../types/deliveryPoint';
 
 interface OrderCreateModalProps {
@@ -55,7 +54,6 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
   // Điểm giao hàng
   const [points, setPoints] = useState<DeliveryPoint[]>([]);
   const [deliveryPointId, setDeliveryPointId] = useState<number | null>(null);
-  const [showManager, setShowManager] = useState(false);
 
   // Giá bán & Giá sàn
   const [floorPrice, setFloorPrice] = useState<number | null>(null);
@@ -140,7 +138,6 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
   };
 
   useEffect(() => {
-    setShowManager(false);
     loadPoints();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dealerId]);
@@ -807,39 +804,6 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
                 </div>
               );
             })()}
-
-            <button
-              type="button"
-              onClick={() => setShowManager((v) => !v)}
-              disabled={!dealerId}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 6,
-                marginTop: 8,
-                padding: '6px 12px',
-                borderRadius: 8,
-                border: '1px solid #cbd5e1',
-                background: '#f1f5f9',
-                color: '#334155',
-                fontSize: 12.5,
-                fontWeight: 600,
-                cursor: 'pointer',
-              }}
-            >
-              {showManager ? '✕ Đóng quản lý điểm giao' : '＋ Quản lý điểm giao'}
-            </button>
-
-            {showManager && dealerId && (
-              <div style={{ marginTop: '8px', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '12px' }}>
-                <DeliveryPointManager
-                  token={token}
-                  dealerId={dealerId}
-                  onChanged={loadPoints}
-                  onCreated={() => setShowManager(false)}
-                />
-              </div>
-            )}
           </div>
 
           {/* 7. GHI CHÚ */}
