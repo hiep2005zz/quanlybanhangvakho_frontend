@@ -869,20 +869,25 @@ export const ProductFormView: React.FC<ProductFormViewProps> = ({
               </label>
 
               {/* Trạng thái kinh doanh */}
-              <label className="sales-order-field" style={{ gridColumn: 'span 2' }}>
-                <span>Trạng thái sản phẩm</span>
-                <div style={{ display: 'flex', gap: '14px', marginTop: '4px' }}>
+              <div style={{ gridColumn: 'span 2' }}>
+                <span style={{ fontSize: '13px', fontWeight: 600, color: '#334155', display: 'block', marginBottom: '6px' }}>
+                  Trạng thái sản phẩm
+                </span>
+                <div style={{ display: 'inline-flex', gap: '8px', alignItems: 'center' }}>
                   <label
                     style={{
-                      display: 'flex',
+                      display: 'inline-flex',
                       alignItems: 'center',
-                      gap: '8px',
-                      padding: '10px 18px',
-                      borderRadius: '9px',
-                      border: status === 'active' ? '2px solid #10b981' : '1px solid #cbd5e1',
+                      gap: '6px',
+                      padding: '6px 14px',
+                      borderRadius: '6px',
+                      border: status === 'active' ? '1.5px solid #10b981' : '1px solid #cbd5e1',
                       background: status === 'active' ? '#ecfdf5' : '#ffffff',
                       cursor: 'pointer',
                       transition: 'all 0.15s ease',
+                      fontSize: '13px',
+                      fontWeight: 600,
+                      color: status === 'active' ? '#047857' : '#64748b',
                     }}
                   >
                     <input
@@ -891,23 +896,33 @@ export const ProductFormView: React.FC<ProductFormViewProps> = ({
                       value="active"
                       checked={status === 'active'}
                       onChange={() => setStatus('active')}
+                      style={{
+                        width: '15px',
+                        height: '15px',
+                        minWidth: '15px',
+                        maxWidth: '15px',
+                        margin: 0,
+                        cursor: 'pointer',
+                        accentColor: '#10b981',
+                      }}
                     />
-                    <span style={{ fontWeight: '700', color: '#047857', fontSize: '13.5px' }}>
-                      ✓ Đang kinh doanh
-                    </span>
+                    <span>✓ Đang kinh doanh</span>
                   </label>
 
                   <label
                     style={{
-                      display: 'flex',
+                      display: 'inline-flex',
                       alignItems: 'center',
-                      gap: '8px',
-                      padding: '10px 18px',
-                      borderRadius: '9px',
-                      border: status === 'inactive' ? '2px solid #ef4444' : '1px solid #cbd5e1',
+                      gap: '6px',
+                      padding: '6px 14px',
+                      borderRadius: '6px',
+                      border: status === 'inactive' ? '1.5px solid #ef4444' : '1px solid #cbd5e1',
                       background: status === 'inactive' ? '#fef2f2' : '#ffffff',
                       cursor: 'pointer',
                       transition: 'all 0.15s ease',
+                      fontSize: '13px',
+                      fontWeight: 600,
+                      color: status === 'inactive' ? '#b91c1c' : '#64748b',
                     }}
                   >
                     <input
@@ -916,18 +931,34 @@ export const ProductFormView: React.FC<ProductFormViewProps> = ({
                       value="inactive"
                       checked={status === 'inactive'}
                       onChange={() => setStatus('inactive')}
+                      style={{
+                        width: '15px',
+                        height: '15px',
+                        minWidth: '15px',
+                        maxWidth: '15px',
+                        margin: 0,
+                        cursor: 'pointer',
+                        accentColor: '#ef4444',
+                      }}
                     />
-                    <span style={{ fontWeight: '700', color: '#b91c1c', fontSize: '13.5px' }}>
-                      ✕ Ngừng kinh doanh
-                    </span>
+                    <span>✕ Ngừng kinh doanh</span>
                   </label>
                 </div>
-              </label>
+              </div>
             </div>
           </section>
 
           {/* Card 4: Hình ảnh sản phẩm */}
           <section className="sales-order-card">
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept="image/png, image/jpeg, image/webp"
+              style={{ display: 'none' }}
+              onChange={(e) => handleImageUpload(e.target.files)}
+            />
+
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', borderBottom: '1px solid #f1f5f9', paddingBottom: '10px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span style={{ fontSize: '18px' }}>🖼️</span>
@@ -935,49 +966,65 @@ export const ProductFormView: React.FC<ProductFormViewProps> = ({
                   Hình ảnh sản phẩm
                 </h2>
               </div>
-              <span style={{ fontSize: '12px', color: '#64748b' }}>
-                Đã tải: <strong>{images.length}</strong> / 5 ảnh (PNG, JPG, WEBP &le; 5MB)
-              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span style={{ fontSize: '12px', color: '#64748b' }}>
+                  Đã tải: <strong>{images.length}</strong> / 5 ảnh
+                </span>
+                {images.length > 0 && images.length < 5 && (
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      padding: '4px 10px',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      color: '#2563eb',
+                      background: '#eff6ff',
+                      border: '1px solid #bfdbfe',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    + Thêm ảnh
+                  </button>
+                )}
+              </div>
             </div>
 
-            {/* Vùng kéo thả upload */}
-            <div
-              onClick={() => fileInputRef.current?.click()}
-              style={{
-                border: '2px dashed #cbd5e1',
-                borderRadius: '12px',
-                padding: '24px 20px',
-                textAlign: 'center',
-                background: '#f8fafc',
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-                marginBottom: images.length > 0 ? '16px' : '0',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = '#2563eb';
-                e.currentTarget.style.background = '#eff6ff';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = '#cbd5e1';
-                e.currentTarget.style.background = '#f8fafc';
-              }}
-            >
-              <input
-                ref={fileInputRef}
-                type="file"
-                multiple
-                accept="image/png, image/jpeg, image/webp"
-                style={{ display: 'none' }}
-                onChange={(e) => handleImageUpload(e.target.files)}
-              />
-              <div style={{ fontSize: '32px', marginBottom: '8px' }}>📷</div>
-              <div style={{ fontSize: '13.5px', fontWeight: '700', color: '#1e293b', marginBottom: '4px' }}>
-                Nhấn vào đây để tải ảnh lên
+            {/* Vùng kéo thả upload to (chỉ hiện khi chưa có ảnh) */}
+            {images.length === 0 && (
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                style={{
+                  border: '2px dashed #cbd5e1',
+                  borderRadius: '12px',
+                  padding: '24px 20px',
+                  textAlign: 'center',
+                  background: '#f8fafc',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = '#2563eb';
+                  e.currentTarget.style.background = '#eff6ff';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = '#cbd5e1';
+                  e.currentTarget.style.background = '#f8fafc';
+                }}
+              >
+                <div style={{ fontSize: '32px', marginBottom: '8px' }}>📷</div>
+                <div style={{ fontSize: '13.5px', fontWeight: '700', color: '#1e293b', marginBottom: '4px' }}>
+                  Nhấn vào đây để tải ảnh lên
+                </div>
+                <div style={{ fontSize: '12px', color: '#64748b' }}>
+                  Hoặc kéo thả file ảnh vào khung này (Tối đa 5 ảnh, định dạng PNG, JPG, WEBP &le; 5MB)
+                </div>
               </div>
-              <div style={{ fontSize: '12px', color: '#64748b' }}>
-                Hoặc kéo thả file ảnh vào khung này (Tối đa 5 ảnh, định dạng PNG, JPG, WEBP &le; 5MB)
-              </div>
-            </div>
+            )}
 
             {/* Danh sách ảnh đã upload */}
             {images.length > 0 && (
@@ -1075,6 +1122,42 @@ export const ProductFormView: React.FC<ProductFormViewProps> = ({
                     </div>
                   </div>
                 ))}
+
+                {/* Ô nhỏ thêm ảnh khi chưa đạt tối đa 5 ảnh */}
+                {images.length < 5 && (
+                  <div
+                    onClick={() => fileInputRef.current?.click()}
+                    style={{
+                      borderRadius: '10px',
+                      border: '2px dashed #cbd5e1',
+                      background: '#f8fafc',
+                      aspectRatio: '1',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      gap: '4px',
+                      transition: 'all 0.15s ease',
+                      color: '#64748b',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.borderColor = '#2563eb';
+                      e.currentTarget.style.background = '#eff6ff';
+                      e.currentTarget.style.color = '#2563eb';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.borderColor = '#cbd5e1';
+                      e.currentTarget.style.background = '#f8fafc';
+                      e.currentTarget.style.color = '#64748b';
+                    }}
+                    title="Thêm ảnh khác"
+                  >
+                    <span style={{ fontSize: '24px', lineHeight: 1 }}>+</span>
+                    <span style={{ fontSize: '12px', fontWeight: '600' }}>Thêm ảnh</span>
+                    <span style={{ fontSize: '10.5px', color: '#94a3b8' }}>({images.length}/5)</span>
+                  </div>
+                )}
               </div>
             )}
           </section>
@@ -1257,26 +1340,7 @@ export const ProductFormView: React.FC<ProductFormViewProps> = ({
             </div>
           </section>
 
-          {/* Card 2: Quy chuẩn & Hướng dẫn */}
-          <section className="sales-order-card" style={{ background: '#f8fafc' }}>
-            <h3 style={{ margin: '0 0 10px', fontSize: '14px', fontWeight: '700', color: '#1e293b' }}>
-              💡 Quy chuẩn danh mục
-            </h3>
-            <ul style={{ margin: 0, paddingLeft: '18px', fontSize: '12px', color: '#64748b', lineHeight: '1.6' }}>
-              <li>
-                <strong>Mã SKU:</strong> Viết hoa, không dấu, không khoảng trắng (VD: <code>SP001</code>, <code>AO-NAM-01</code>).
-              </li>
-              <li>
-                <strong>Tên sản phẩm:</strong> Đặt theo công thức: <em>[Loại SP] + [Thương hiệu/Đặc tính] + [Phân loại]</em>.
-              </li>
-              <li>
-                <strong>Đơn vị tính cơ sở:</strong> Là đơn vị nhỏ nhất để kiểm đếm tồn kho chính xác.
-              </li>
-              <li>
-                <strong>Bảo mật giá vốn:</strong> Giá vốn chỉ hiển thị với người dùng có thẩm quyền để bảo mật tỷ suất lợi nhuận.
-              </li>
-            </ul>
-          </section>
+
         </aside>
       </form>
 
