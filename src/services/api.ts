@@ -850,6 +850,7 @@ export interface UserCreatePayload {
   role?: string;
   roles?: string[];
   branch?: string;
+  phone?: string;
 }
 
 export interface UserUpdatePayload {
