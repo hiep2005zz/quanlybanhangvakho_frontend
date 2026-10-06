@@ -26,7 +26,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
   products,
   onBackToHome: _onBackToHome,
   onRefreshProducts,
-  onNavigateToPriceBooks,
+  onNavigateToPriceBooks: _onNavigateToPriceBooks,
 }) => {
   const [orders, setOrders] = useState<OrderResponseData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -101,74 +101,15 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
 
   return (
     <div style={{ padding: '24px 32px', maxWidth: '1440px', margin: '0 auto' }}>
-      {/* Thanh điều hướng và tiêu đề */}
+      {/* Thanh tiêu đề */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            {/* Nút điều hướng sang Bảng giá (Chỉ hiển thị cho sales_manager và admin) */}
-            {canApprove && onNavigateToPriceBooks && (
-              <button
-                type="button"
-                id="btn-nav-to-price-books"
-                onClick={onNavigateToPriceBooks}
-                style={{
-                  background: '#eff6ff',
-                  border: '1px solid #93c5fd',
-                  borderRadius: '8px',
-                  padding: '7px 14px',
-                  fontSize: '13px',
-                  fontWeight: '700',
-                  color: '#1d4ed8',
-                  cursor: 'pointer',
-                }}
-              >
-                Sang trang Quản lý Bảng giá
-              </button>
-            )}
-
-            <h2 style={{ fontSize: '24px', fontWeight: '800', color: '#0f172a', margin: 0, letterSpacing: '-0.02em' }}>
-              Quản Lý Đơn Hàng & Bán Hàng
-            </h2>
-          </div>
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <button
-            type="button"
-            onClick={fetchOrders}
-            style={{
-              padding: '9px 16px',
-              background: '#ffffff',
-              border: '1px solid #cbd5e1',
-              borderRadius: '8px',
-              fontSize: '13.5px',
-              fontWeight: '600',
-              color: '#334155',
-              cursor: 'pointer',
-            }}
-            title="Tải lại danh sách đơn hàng"
-          >
-            Làm mới
-          </button>
-
-          <button
-            type="button"
-            id="btn-create-order-view"
-            onClick={() => setIsCreateModalOpen(true)}
-            style={{
-              padding: '9px 20px',
-              background: '#2563eb',
-              border: 'none',
-              borderRadius: '8px',
-              fontSize: '13.5px',
-              fontWeight: '700',
-              color: '#ffffff',
-              cursor: 'pointer',
-              boxShadow: '0 2px 4px rgba(37, 99, 235, 0.25)',
-            }}
-          >
-            Tạo Đơn Hàng Mới
-          </button>
+          <h2 style={{ fontSize: '24px', fontWeight: '800', color: '#0f172a', margin: 0, letterSpacing: '-0.02em' }}>
+            Quản Lý Đơn Hàng & Bán Hàng
+          </h2>
+          <p style={{ margin: '4px 0 0', fontSize: '13.5px', color: '#64748b' }}>
+            Theo dõi trạng thái đơn bán, kiểm soát biên lợi nhuận và phê duyệt đơn hàng
+          </p>
         </div>
       </div>
 
@@ -294,9 +235,49 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                 </button>
               )}
             </div>
+
+            {/* Nút Tạo Đơn Hàng Mới và nút Làm mới ở khoảng trắng */}
+            <button
+              type="button"
+              id="btn-create-order-view"
+              onClick={() => setIsCreateModalOpen(true)}
+              style={{
+                padding: '8px 16px',
+                background: '#2563eb',
+                border: 'none',
+                borderRadius: '8px',
+                fontSize: '13px',
+                fontWeight: '700',
+                color: '#ffffff',
+                cursor: 'pointer',
+                boxShadow: '0 2px 4px rgba(37, 99, 235, 0.25)',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              Tạo Đơn Hàng Mới
+            </button>
+
+            <button
+              type="button"
+              onClick={fetchOrders}
+              style={{
+                padding: '8px 14px',
+                background: '#ffffff',
+                border: '1px solid #cbd5e1',
+                borderRadius: '8px',
+                fontSize: '13px',
+                fontWeight: '600',
+                color: '#334155',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+              }}
+              title="Tải lại danh sách đơn hàng"
+            >
+              Làm mới
+            </button>
           </div>
 
-          <div style={{ fontSize: '13px', color: '#64748b' }}>
+          <div style={{ fontSize: '13px', color: '#64748b', whiteSpace: 'nowrap' }}>
             Hiển thị <strong>{filteredOrders.length}</strong> / {totalOrdersCount} đơn hàng
           </div>
         </div>
