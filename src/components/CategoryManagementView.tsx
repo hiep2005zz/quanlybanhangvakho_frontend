@@ -541,10 +541,6 @@ export function CategoryManagementView({ token, onBackToHome: _onBackToHome }: C
                 </button>
               )}
             </div>
-
-            <span style={{ fontSize: '12px', color: '#64748b', whiteSpace: 'nowrap' }}>
-              🖐️ Kéo thả SP sang cột bên trái để gán nhóm
-            </span>
           </div>
 
           {/* Active Tree Category Filter Alert */}
@@ -1016,12 +1012,6 @@ export function CategoryManagementView({ token, onBackToHome: _onBackToHome }: C
                     {renderTree(filteredTreeData)}
                   </div>
                 )}
-              </div>
-
-              {/* Footer hướng dẫn cột trái */}
-              <div style={{ padding: '10px 16px', borderTop: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '11.5px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span>💡</span>
-                <span>Click nhóm để lọc SP • Kéo SP thả vào nhóm để phân loại</span>
               </div>
             </div>
 
