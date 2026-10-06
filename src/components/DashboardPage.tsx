@@ -1287,7 +1287,7 @@ export default function DashboardPage({
                     cursor: 'pointer'
                   }}
                 >
-                  <option value="all">Tất cả ngành hàng ({products.length})</option>
+                  <option value="all">Tất cả ngành hàng</option>
                   {Array.from(new Set(products.map((p) => p.category).filter(Boolean))).map((cat) => (
                     <option key={cat} value={cat}>
                       {cat}
