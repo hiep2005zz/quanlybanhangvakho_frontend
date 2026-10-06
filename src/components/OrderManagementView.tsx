@@ -22,7 +22,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
   currentUser,
   token,
   products,
-  onBackToHome,
+  onBackToHome: _onBackToHome,
   onRefreshProducts,
   onNavigateToPriceBooks,
 }) => {
@@ -89,25 +89,6 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            {onBackToHome && (
-              <button
-                type="button"
-                onClick={onBackToHome}
-                style={{
-                  background: '#f1f5f9',
-                  border: '1px solid #cbd5e1',
-                  borderRadius: '8px',
-                  padding: '7px 14px',
-                  fontSize: '13px',
-                  fontWeight: '600',
-                  color: '#475569',
-                  cursor: 'pointer',
-                }}
-              >
-                Quay lại Kho
-              </button>
-            )}
-
             {/* Nút điều hướng sang Bảng giá (Chỉ hiển thị cho sales_manager và admin) */}
             {canApprove && onNavigateToPriceBooks && (
               <button

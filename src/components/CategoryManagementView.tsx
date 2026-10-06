@@ -15,7 +15,7 @@ import { emitStatusToast } from './StatusToast';
 
 interface CategoryManagementViewProps {
   token: string;
-  onBackToHome: () => void;
+  onBackToHome?: () => void;
 }
 
 // Icons
@@ -71,7 +71,7 @@ const DragIcon = () => (
   </svg>
 );
 
-export function CategoryManagementView({ token, onBackToHome }: CategoryManagementViewProps) {
+export function CategoryManagementView({ token, onBackToHome: _onBackToHome }: CategoryManagementViewProps) {
   const [treeData, setTreeData] = useState<CategoryTreeResponse[]>([]);
   const [products, setProducts] = useState<ProductItem[]>([]);
   const [salesReport, setSalesReport] = useState<CategorySalesReport[]>([]);
@@ -168,10 +168,13 @@ export function CategoryManagementView({ token, onBackToHome }: CategoryManageme
 
       if (editingId) {
         await updateCategoryApi(token, editingId, payload);
-        emitStatusToast({ message: 'Cập nhật nhóm hàng thành công', title: 'Thành công' });
+        emitStatusToast({ message: 'Cập nhật thành công', title: 'Thành công' });
       } else {
         await createCategoryApi(token, payload);
-        emitStatusToast({ message: 'Tạo nhóm hàng thành công', title: 'Thành công' });
+        emitStatusToast({ 
+          message: formData.parent_id ? 'Tạo phân loại mới thành công' : 'Tạo nhóm hàng mới thành công', 
+          title: 'Thành công' 
+        });
       }
       setIsModalOpen(false);
       loadData(false);
@@ -345,7 +348,7 @@ export function CategoryManagementView({ token, onBackToHome }: CategoryManageme
                   setFormData({ name: '', parent_id: String(node.id) });
                   setIsModalOpen(true);
                 }}
-                title="Thêm nhóm con"
+                title="Thêm phân loại"
                 className="action-btn-add"
                 style={{ height: '26px', padding: '0 7px', fontSize: '11.5px', borderRadius: '6px' }}
               >
@@ -855,23 +858,6 @@ export function CategoryManagementView({ token, onBackToHome }: CategoryManageme
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-          <button
-            onClick={onBackToHome}
-            className="back-btn"
-            style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
-              padding: '0 16px', height: '42px', borderRadius: '12px',
-              border: '1px solid #cbd5e1', background: '#fff', cursor: 'pointer',
-              color: '#334155', fontWeight: '600', fontSize: '14.5px', transition: 'all 0.2s',
-              boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
-            }}
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="19" y1="12" x2="5" y2="12"></line>
-              <polyline points="12 19 5 12 12 5"></polyline>
-            </svg>
-            Quay lại kho
-          </button>
           <div>
             <h2 style={{ fontSize: '30px', fontWeight: '800', color: '#0f172a', margin: 0, letterSpacing: '-0.02em' }}>
               Quản Lý Ngành Hàng & Doanh Số
@@ -1066,17 +1052,21 @@ export function CategoryManagementView({ token, onBackToHome }: CategoryManageme
         }}>
           <div style={{ background: '#fff', padding: '40px', borderRadius: '24px', width: '480px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.3)' }}>
             <h3 style={{ marginTop: 0, marginBottom: '8px', fontSize: '24px', fontWeight: '800', color: '#0f172a', letterSpacing: '-0.02em' }}>
-              {editingId ? 'Cập nhật thông tin' : 'Thêm mới Ngành Hàng / Nhóm Hàng'}
+              {editingId ? 'Cập nhật thông tin' : (formData.parent_id ? 'Thêm mới Phân Loại' : 'Thêm mới Nhóm Hàng')}
             </h3>
-            <p style={{ fontSize: '15px', color: '#64748b', marginBottom: '32px' }}>Điền thông tin chi tiết để quản lý hệ sinh thái hàng hóa.</p>
+            <p style={{ fontSize: '15px', color: '#64748b', marginBottom: '32px' }}>
+              {formData.parent_id ? 'Thêm phân loại mới trực thuộc nhóm hàng đã chọn.' : 'Tạo nhóm hàng mới để phân cấp và theo dõi sản phẩm.'}
+            </p>
             
             <form onSubmit={handleSubmit}>
               <div style={{ marginBottom: '24px' }}>
-                <label style={{ display: 'block', marginBottom: '10px', fontWeight: '700', fontSize: '14px', color: '#1e293b' }}>Tên ngành hàng / loại sản phẩm <span style={{ color: '#ef4444' }}>*</span></label>
+                <label style={{ display: 'block', marginBottom: '10px', fontWeight: '700', fontSize: '14px', color: '#1e293b' }}>
+                  {formData.parent_id ? 'Tên phân loại' : 'Tên nhóm hàng'} <span style={{ color: '#ef4444' }}>*</span>
+                </label>
                 <input
                   type="text"
                   required
-                  placeholder="Ví dụ: Đồ điện gia dụng, Áo Thun Nam..."
+                  placeholder={formData.parent_id ? "Ví dụ: Áo Thun Nam, Phụ Kiện..." : "Ví dụ: Thời trang, Gia dụng, Điện tử..."}
                   value={formData.name}
                   onChange={e => setFormData({ ...formData, name: e.target.value })}
                   style={{ width: '100%', padding: '14px 16px', borderRadius: '12px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '15px', transition: 'border 0.2s', boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.02)' }}
@@ -1085,13 +1075,13 @@ export function CategoryManagementView({ token, onBackToHome }: CategoryManageme
                 />
               </div>
               <div style={{ marginBottom: '36px' }}>
-                <label style={{ display: 'block', marginBottom: '10px', fontWeight: '700', fontSize: '14px', color: '#1e293b' }}>Trực thuộc ngành hàng lớn (Tùy chọn)</label>
+                <label style={{ display: 'block', marginBottom: '10px', fontWeight: '700', fontSize: '14px', color: '#1e293b' }}>Trực thuộc nhóm hàng</label>
                 <select
                   value={formData.parent_id}
                   onChange={e => setFormData({ ...formData, parent_id: e.target.value })}
                   style={{ width: '100%', padding: '14px 16px', borderRadius: '12px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '15px', background: '#f8fafc' }}
                 >
-                  <option value="">-- Cấp cao nhất (Ngành Hàng Gốc) --</option>
+                  <option value="">-- Cấp cao nhất (Nhóm Hàng Gốc) --</option>
                   {
                     (function flattenTree(nodes: CategoryTreeResponse[], level = 0): React.ReactNode[] {
                       let res: React.ReactNode[] = [];
@@ -1104,7 +1094,7 @@ export function CategoryManagementView({ token, onBackToHome }: CategoryManageme
                     })(treeData)
                   }
                 </select>
-                <p style={{ margin: '8px 0 0', fontSize: '13px', color: '#94a3b8' }}>Để trống nếu đây là cấp cao nhất.</p>
+                <p style={{ margin: '8px 0 0', fontSize: '13px', color: '#94a3b8' }}>Để trống nếu đây là cấp cao nhất (Nhóm hàng gốc).</p>
               </div>
               
               <div style={{ display: 'flex', gap: '16px', justifyContent: 'flex-end' }}>
@@ -1134,7 +1124,7 @@ export function CategoryManagementView({ token, onBackToHome }: CategoryManageme
             </div>
             <h3 style={{ marginTop: 0, marginBottom: '12px', fontSize: '22px', fontWeight: '800', color: '#0f172a' }}>Xác nhận xóa</h3>
             <p style={{ fontSize: '15px', color: '#64748b', marginBottom: '32px', lineHeight: '1.6' }}>
-              Bạn có chắc chắn muốn xóa nhóm hàng này không? Việc xóa sẽ thất bại nếu đang có nhóm con hoặc chứa sản phẩm.
+              Bạn có chắc chắn muốn xóa nhóm hàng này không? Việc xóa sẽ thất bại nếu đang có phân loại trực thuộc hoặc chứa sản phẩm.
             </p>
             <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
               <button type="button" onClick={() => setDeleteConfirmId(null)} style={{ padding: '12px 24px', borderRadius: '12px', border: '1px solid #cbd5e1', background: '#fff', fontWeight: '700', color: '#475569', cursor: 'pointer', flex: 1, fontSize: '15px', transition: 'all 0.2s' }}>Hủy Bỏ</button>

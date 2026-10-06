@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { getProductsApi, ProductItem, User, getAvatarUrl } from '../services/api';
 import { sessionManager, SessionState } from '../services/sessionManager';
 import SecurityModal from './SecurityModal';
@@ -12,10 +12,6 @@ import SupplierManagementView from './SupplierManagementView';
 import { PriceBookManagementView } from './PriceBookManagementView';
 import { AuditLogView } from './AuditLogView';
 import { ProductAuditDrawer } from './ProductAuditDrawer';
-<<<<<<< HEAD
-import { ProductDrawer } from './ProductDrawer';
-=======
->>>>>>> 0301d8d197dd010b305df463ab0b23960ba4226b
 import { PriceUpdateModal } from './PriceUpdateModal';
 import { ProfileView } from './ProfileView';
 import { ProductBulkImportModal } from './ProductBulkImportModal';
@@ -28,6 +24,8 @@ import SalesOrderEntry from './SalesOrderEntry';
 import { ProductHistoryView } from './ProductHistoryView';
 
 import './dashboard.css';
+import { Sidebar, type TabType } from './Sidebar';
+import { DashboardLayout } from '../layouts/DashboardLayout';
 import { hasPermission, Permissions } from '../hooks/usePermission';
 
 interface DashboardProps {
@@ -67,16 +65,6 @@ export default function DashboardPage({
   const isSalesManager = user.role === 'sales_manager' || Boolean(user.roles && user.roles.includes('sales_manager'));
   const isAccountant = user.role === 'accountant' || Boolean(user.roles && user.roles.includes('accountant'));
   const canManageCategories = isAdmin || isSalesManager;
-<<<<<<< HEAD
-
-  // Quyền Quản lý sản phẩm (Khai báo, thêm mới, sửa sản phẩm: Chỉ Admin và Quản lý)
-  const isManager = officialRoles.some((r) => ['admin', 'sales_manager', 'warehouse_manager'].includes(r));
-  const canManageProducts = isAdmin || isSalesManager || isManager;
-
-  // Quyền tra cứu đại lý: Nhân viên kinh doanh (sales), Quản lý kinh doanh (sales_manager), Quản trị viên (admin)
-  const DEALER_ROLES = ['admin', 'sales_manager', 'sales'];
-  const canViewDealers = officialRoles.some((r) => DEALER_ROLES.includes(r));
-=======
   const canAccessPriceBooks = isAdmin || isSalesManager || isAccountant;
   // Quyền tra cứu đại lý: Nhân viên kinh doanh (sales), Quản lý kinh doanh (sales_manager), Quản trị viên (admin), Kế toán (accountant)
   const DEALER_ROLES = ['admin', 'sales_manager', 'sales', 'accountant'];
@@ -90,7 +78,6 @@ export default function DashboardPage({
     user.role === 'sales' ||
     officialRoles.some((r) => DELIVERY_ROLES.includes(r))
   );
->>>>>>> 0301d8d197dd010b305df463ab0b23960ba4226b
 
   // Quyền thao tác kho (Nhập/xuất/sửa kho: Admin, Quản lý kho, Thủ kho)
   const canWriteInventory = user.can_write_inventory ?? (isAdmin || officialRoles.some((r) => ['admin', 'warehouse', 'warehouse_manager'].includes(r)));
@@ -98,26 +85,13 @@ export default function DashboardPage({
   // Quyền Cấu hình ĐVT quy đổi (Chỉ Quản trị hệ thống và Quản lý kho)
   const canConfigUnit = isAdmin || officialRoles.some((r) => ['admin', 'warehouse_manager'].includes(r));
 
-<<<<<<< HEAD
-  // 2. Khởi tạo State với Clean URL (/users, /audit-logs, /categories, /suppliers, /profile, /dealers)
-  const [activeTab, setActiveTabState] = useState<'inventory' | 'users' | 'categories' | 'audit-logs' | 'profile' | 'suppliers' | 'dealers'>(() => {
-=======
 
-  // Quyền thao tác các nút trên dòng sản phẩm (Cấu hình ĐVT, Nhập/Xuất kho)
-  const canPerformProductAction = Boolean(canConfigUnit || canWriteInventory);
-
-  // Quản lý sản phẩm được chọn để xem lịch sử (/product-history)
-  const [historyProductTarget, setHistoryProductTarget] = useState<{ code: string; name: string } | null>(() => {
-    const params = new URLSearchParams(window.location.search);
-    const c = params.get('code') || params.get('productCode') || '';
-    return c ? { code: c, name: '' } : null;
-  });
+  // Quyền thao tác các nút trên dòng sản phẩm (Cấu hình ĐVT, Nhập/Xuất kho, Lịch sử)
+  const canPerformProductAction = Boolean(canConfigUnit || canWriteInventory || isAdmin || isSalesManager);
 
   // 2. Khởi tạo State với Clean URL (/users, /audit-logs, /categories, /suppliers, /profile, /dealers, /orders, /delivery-points, /price-books, /product-history)
-  const [activeTab, setActiveTabState] = useState<'inventory' | 'orders' | 'create-order' | 'users' | 'categories' | 'audit-logs' | 'profile' | 'suppliers' | 'dealers' | 'price-books' | 'delivery-points' | 'product-history'>(() => {
->>>>>>> 0301d8d197dd010b305df463ab0b23960ba4226b
+  const [activeTab, setActiveTabState] = useState<TabType>(() => {
     const pathname = window.location.pathname.toLowerCase();
-    const isProductHistoryPath = pathname === '/product-history' || pathname.startsWith('/product-history/');
     const isCreateOrderPath = pathname === '/create-order' || pathname.startsWith('/create-order/');
     const isPriceBooksPath = pathname === '/price-books';
     const isUsersPath = pathname === '/users' || pathname.startsWith('/users/') || pathname === '/admin' || pathname.startsWith('/admin/');
@@ -127,6 +101,7 @@ export default function DashboardPage({
     const isProfilePath = pathname === '/profile' || pathname.startsWith('/profile/');
     const isDealersPath = pathname === '/dealers' || pathname.startsWith('/dealers/');
     const isDeliveryPointsPath = pathname === '/delivery-points' || pathname.startsWith('/delivery-points/');
+    const isProductHistoryPath = pathname === '/product-history' || pathname.startsWith('/product-history/');
 
     // Dọn sạch tàn dư query parameter cũ (?tab=users, ?tab=audit-logs, ?tab=profile, ?tab=dealers, ?tab=orders, ?tab=delivery-points)
     const params = new URLSearchParams(window.location.search);
@@ -136,6 +111,7 @@ export default function DashboardPage({
     if (isProductHistoryPath || oldTabVal === 'product-history') {
       return 'product-history';
     }
+
     if (isCreateOrderPath || oldTabVal === 'create-order') {
       return 'create-order';
     }
@@ -214,7 +190,22 @@ export default function DashboardPage({
     }
     return 'inventory';
   });
-  const setActiveTab = (tab: 'inventory' | 'orders' | 'create-order' | 'users' | 'categories' | 'audit-logs' | 'profile' | 'suppliers' | 'dealers' | 'price-books' | 'delivery-points' | 'product-history') => {
+  const setActiveTab = (tab: TabType) => {
+    if (tab === 'product-history') {
+      setActiveTabState('product-history');
+      try {
+        const url = new URL(window.location.href);
+        url.pathname = '/product-history';
+        if (historyProductTarget?.code) {
+          url.searchParams.set('code', historyProductTarget.code);
+        }
+        window.history.pushState({}, '', url.toString());
+      } catch {
+        // ignore
+      }
+      return;
+    }
+
     if (tab === 'create-order') {
       setActiveTabState('create-order');
       try {
@@ -328,18 +319,6 @@ export default function DashboardPage({
       } catch {
         // ignore
       }
-    } else if (tab === 'product-history') {
-      setActiveTabState('product-history');
-      try {
-        const url = new URL(window.location.href);
-        url.pathname = '/product-history';
-        if (historyProductTarget?.code) {
-          url.searchParams.set('code', historyProductTarget.code);
-        }
-        window.history.pushState({}, '', url.toString());
-      } catch {
-        // ignore
-      }
     } else {
       setActiveTabState('inventory');
       window.history.replaceState({}, '', '/');
@@ -355,7 +334,8 @@ export default function DashboardPage({
           : activeTab === 'orders' ? canReadOrders
             : activeTab === 'create-order' ? canCreateOrders
               : activeTab === 'suppliers' ? canManageSuppliers
-                : true;
+                : activeTab === 'product-history' ? (isAdmin || isSalesManager || canWriteInventory)
+                  : true;
     if (!isAllowed) {
       setActiveTabState('inventory');
       window.history.replaceState({}, '', '/');
@@ -395,6 +375,13 @@ export default function DashboardPage({
         const code = params.get('code') || params.get('productCode');
         if (code) {
           setHistoryProductTarget((prev) => ({ code, name: prev?.code === code ? prev.name : '' }));
+        }
+        if (pathname !== '/product-history' || tabParam) {
+          try {
+            window.history.replaceState({}, '', '/product-history');
+          } catch {
+            // ignore
+          }
         }
         setActiveTabState('product-history');
         return;
@@ -488,17 +475,6 @@ export default function DashboardPage({
       }
     };
 
-    // 5. Làm sạch query param ?expired=true nếu vẫn còn lưu trên thanh địa chỉ
-    try {
-      const url = new URL(window.location.href);
-      if (url.searchParams.has('expired')) {
-        url.searchParams.delete('expired');
-        window.history.replaceState({}, '', url.pathname + (url.search ? url.search : ''));
-      }
-    } catch {
-      // ignore
-    }
-
     window.addEventListener('popstate', syncFromUrl);
     return () => window.removeEventListener('popstate', syncFromUrl);
   }, [canManageCategories, canManageSuppliers, canReadOrders, isAdmin]);
@@ -526,7 +502,6 @@ export default function DashboardPage({
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [sessionInfo, setSessionInfo] = useState<SessionState>(() => sessionManager.getSessionState());
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isSecurityModalOpen, setIsSecurityModalOpen] = useState(false);
   const [isCreateAccountModalOpen, setIsCreateAccountModalOpen] = useState(false);
@@ -546,6 +521,14 @@ export default function DashboardPage({
   // Bulk Import Product Modal State
   const [isProductBulkImportOpen, setIsProductBulkImportOpen] = useState(false);
 
+  // Quản lý sản phẩm được chọn để xem lịch sử (/product-history)
+  const [historyProductTarget, setHistoryProductTarget] = useState<{ code: string; name: string } | null>(() => {
+    const params = new URLSearchParams(window.location.search);
+    const c = params.get('code') || params.get('productCode') || '';
+    const n = params.get('name') || params.get('productName') || '';
+    return c ? { code: c, name: n } : null;
+  });
+
   // SCRUM Unit Conversion Modals State
   const [unitConfigProduct, setUnitConfigProduct] = useState<ProductItem | null>(null);
   const [stockActionState, setStockActionState] = useState<{
@@ -555,49 +538,29 @@ export default function DashboardPage({
   }>({ isOpen: false, actionType: 'receipt', product: null });
   const [isSalesOrderEntryOpen, setIsSalesOrderEntryOpen] = useState(false);
 
-  // Timer điều khiển mở/đóng menu khi hover
-  const menuTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Dropdown menu 3 chấm trên dòng sản phẩm kho hàng
+  const [openProductMenuId, setOpenProductMenuId] = useState<number | null>(null);
 
-  const handleMouseEnterMenu = () => {
-    if (menuTimerRef.current) {
-      clearTimeout(menuTimerRef.current);
-      menuTimerRef.current = null;
-    }
-    setIsMenuOpen(true);
-  };
+  useEffect(() => {
+    const handleGlobalClick = () => setOpenProductMenuId(null);
+    window.addEventListener('click', handleGlobalClick);
+    return () => window.removeEventListener('click', handleGlobalClick);
+  }, []);
 
-  const handleMouseLeaveMenu = () => {
-    if (menuTimerRef.current) {
-      clearTimeout(menuTimerRef.current);
-    }
-    menuTimerRef.current = setTimeout(() => {
-      setIsMenuOpen(false);
-    }, 250);
-  };
-
-  const handleCloseMenu = () => {
-    if (menuTimerRef.current) {
-      clearTimeout(menuTimerRef.current);
-      menuTimerRef.current = null;
-    }
-    setIsMenuOpen(false);
-  };
-
-  // Tự động đóng menu khi bấm phím Esc
+  // Tự động đóng popover user khi bấm phím Esc
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        setIsMenuOpen(false);
         setIsUserMenuOpen(false);
       }
     };
-    if (isMenuOpen || isUserMenuOpen) {
+    if (isUserMenuOpen) {
       window.addEventListener('keydown', handleKeyDown);
     }
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [isMenuOpen, isUserMenuOpen]);
+  }, [isUserMenuOpen]);
 
   // Lắng nghe cập nhật trạng thái phiên
   useEffect(() => {
@@ -616,13 +579,11 @@ export default function DashboardPage({
       return;
     }
     setIsLoading(true);
-    setError(null);
     getProductsApi(token)
       .then((data) => {
         setProducts(data.items);
         setIsCostVisible(data.is_cost_price_visible);
         setIsLoading(false);
-        setError(null);
       })
       .catch((err) => {
         setError(err.message || 'Lỗi khi tải dữ liệu sản phẩm từ Backend.');
@@ -683,40 +644,33 @@ export default function DashboardPage({
   const currentBadgeColor = roleBadgeColorMap[primaryRole] || '#64748b';
 
   return (
-    <div className="dashboard-main-container">
-      {/* Top Navbar */}
-      <header className="dashboard-header-bar">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          {activeTab === 'inventory' && !isPendingCustomer && (
-            <button
-              onMouseEnter={handleMouseEnterMenu}
-              onMouseLeave={handleMouseLeaveMenu}
-              onClick={handleMouseEnterMenu}
-              aria-label="Mở rộng menu"
-              title="Mở rộng menu"
-              className="hamburger-left-btn"
-              style={{
-                width: '56px',
-                height: '56px',
-                borderRadius: '12px',
-                padding: 0,
-                margin: 0,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0,
-                transform: 'none',
-              }}
-            >
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', alignItems: 'center' }}>
-                <span style={{ width: '22px', height: '2.5px', background: '#334155', borderRadius: '2px' }}></span>
-                <span style={{ width: '22px', height: '2.5px', background: '#334155', borderRadius: '2px' }}></span>
-                <span style={{ width: '22px', height: '2.5px', background: '#334155', borderRadius: '2px' }}></span>
-              </div>
-            </button>
-          )}
-
-          <div
+    <DashboardLayout
+      sidebar={
+        <Sidebar
+          activeTab={activeTab}
+          onSelectTab={setActiveTab}
+          canCreateOrders={canCreateOrders}
+          canReadOrders={canReadOrders}
+          canViewDealers={canViewDealers}
+          canManageDeliveryPoints={canManageDeliveryPoints}
+          canManageSuppliers={canManageSuppliers}
+          canAccessPriceBooks={canAccessPriceBooks}
+          canManageCategories={canManageCategories}
+          canViewProductHistory={isAdmin || isSalesManager || canWriteInventory}
+          isAdmin={isAdmin}
+          onLogout={() => {
+            if (isLoggingOut) return;
+            setShowLogoutConfirm(true);
+          }}
+          isLoggingOut={isLoggingOut}
+        />
+      }
+    >
+      <div className="dashboard-main-container">
+        {/* Top Navbar */}
+        <header className="dashboard-header-bar">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div
             className="brand-logo-animated"
             style={{
               width: '56px',
@@ -1239,332 +1193,6 @@ export default function DashboardPage({
         />
       )}
 
-      {/* Backdrop mờ khi mở Drawer */}
-      <div
-        className={`sidebar-drawer-overlay ${isMenuOpen ? 'open' : ''}`}
-        onClick={handleCloseMenu}
-      />
-
-      {/* Drawer menu mở rộng từ bên trái */}
-      <aside
-        className={`sidebar-drawer ${isMenuOpen ? 'open' : ''}`}
-        onMouseEnter={handleMouseEnterMenu}
-        onMouseLeave={handleMouseLeaveMenu}
-      >
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '16px 18px',
-          borderBottom: '1px solid rgba(255, 255, 255, 0.12)',
-          background: 'rgba(255, 255, 255, 0.05)'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: '#ffffff', fontWeight: '600', fontSize: '15px' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <span style={{ width: '18px', height: '2px', background: '#93c5fd', borderRadius: '2px' }}></span>
-              <span style={{ width: '18px', height: '2px', background: '#93c5fd', borderRadius: '2px' }}></span>
-              <span style={{ width: '18px', height: '2px', background: '#93c5fd', borderRadius: '2px' }}></span>
-            </div>
-            <span>Mở rộng menu</span>
-          </div>
-          <button
-            onClick={handleCloseMenu}
-            style={{
-              background: 'rgba(255, 255, 255, 0.1)',
-              border: '1px solid rgba(255, 255, 255, 0.15)',
-              color: '#ffffff',
-              cursor: 'pointer',
-              fontSize: '14px',
-              width: '28px',
-              height: '28px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              borderRadius: '8px',
-              transition: 'all 0.15s ease'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
-            }}
-            title="Đóng menu"
-          >
-            ✕
-          </button>
-        </div>
-
-        {/* Danh sách mục menu */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '12px 0' }}>
-          {/* Quản lý kho hàng */}
-          <div
-            className={`sidebar-menu-item ${activeTab === 'inventory' ? 'active' : ''}`}
-            onClick={() => {
-              setActiveTab('inventory');
-              handleCloseMenu();
-            }}
-          >
-            <div className="sidebar-icon-box">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
-                <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
-                <line x1="12" y1="22.08" x2="12" y2="12" />
-              </svg>
-            </div>
-            <span style={{ fontWeight: activeTab === 'inventory' ? '700' : '500', fontSize: '14.5px' }}>Quản lý kho hàng</span>
-          </div>
-
-          {/* Tạo đơn hàng - Nhân viên sales và admin */}
-          {canCreateOrders && (
-            <div
-              className={`sidebar-menu-item ${activeTab === 'create-order' ? 'active' : ''}`}
-              id="btn-sidebar-create-order"
-              onClick={() => {
-                setActiveTab('create-order');
-                handleCloseMenu();
-              }}
-            >
-              <div className="sidebar-icon-box">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                </svg>
-              </div>
-              <span style={{ fontWeight: activeTab === 'create-order' ? '700' : '500', fontSize: '14.5px' }}>Tạo đơn hàng</span>
-            </div>
-          )}
-
-          {canReadOrders && (
-            <div
-              className={`sidebar-menu-item ${activeTab === 'orders' ? 'active' : ''}`}
-              id="btn-sidebar-orders"
-              onClick={() => {
-                setActiveTab('orders');
-                handleCloseMenu();
-              }}
-            >
-              <div className="sidebar-icon-box">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M3 3h18v18H3z" />
-                  <path d="M8 8h8M8 12h8M8 16h4" />
-                </svg>
-              </div>
-              <span style={{ fontWeight: activeTab === 'orders' ? '700' : '500', fontSize: '14.5px' }}>Quản lý đơn hàng</span>
-            </div>
-          )}
-
-          {/* Tra cứu đại lý - Cho nhân viên kinh doanh, quản lý và admin */}
-          {canViewDealers && (
-            <div
-              className={`sidebar-menu-item ${activeTab === 'dealers' ? 'active' : ''}`}
-              id="btn-sidebar-dealers"
-              onClick={() => {
-                setActiveTab('dealers');
-                handleCloseMenu();
-              }}
-            >
-              <div className="sidebar-icon-box">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                  <circle cx="9" cy="7" r="4" />
-                  <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-                  <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-                </svg>
-              </div>
-              <span style={{ fontWeight: activeTab === 'dealers' ? '700' : '500', fontSize: '14.5px' }}>Tra cứu đại lý</span>
-            </div>
-          )}
-          {/* Điểm giao hàng */}
-          {canManageDeliveryPoints && (
-            <div
-              className={`sidebar-menu-item ${activeTab === 'delivery-points' ? 'active' : ''}`}
-              id="btn-sidebar-delivery-points"
-              onClick={() => {
-                setActiveTab('delivery-points');
-                handleCloseMenu();
-              }}
-            >
-              <div className="sidebar-icon-box">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
-                  <circle cx="12" cy="10" r="3" />
-                </svg>
-              </div>
-              <span style={{ fontWeight: activeTab === 'delivery-points' ? '700' : '500', fontSize: '14.5px' }}>Điểm giao hàng</span>
-            </div>
-          )}
-
-
-          {/* Nhà cung cấp - Thủ kho, Quản lý kho, Admin */}
-          {canManageSuppliers && (
-            <div
-              className={`sidebar-menu-item ${activeTab === 'suppliers' ? 'active' : ''}`}
-              id="btn-sidebar-suppliers"
-              onClick={() => {
-                setActiveTab('suppliers');
-                handleCloseMenu();
-              }}
-            >
-              <div className="sidebar-icon-box">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="1" y="3" width="15" height="13" />
-                  <polygon points="16 8 20 8 23 11 23 16 16 16 16 8" />
-                  <circle cx="5.5" cy="18.5" r="2.5" />
-                  <circle cx="18.5" cy="18.5" r="2.5" />
-                </svg>
-              </div>
-              <span style={{ fontWeight: activeTab === 'suppliers' ? '700' : '500', fontSize: '14.5px' }}>Nhà cung cấp</span>
-            </div>
-          )}
-
-
-          {/* Bảng giá */}
-          {canAccessPriceBooks && (
-            <div
-              className={`sidebar-menu-item ${activeTab === 'price-books' ? 'active' : ''}`}
-              id="btn-sidebar-price-books"
-              onClick={() => {
-                setActiveTab('price-books');
-              }}
-            >
-              <div className="sidebar-menu-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/>
-                </svg>
-              </div>
-              <span style={{ fontWeight: activeTab === 'price-books' ? '700' : '500', fontSize: '14.5px' }}>Bảng giá</span>
-            </div>
-          )}
-
-          {/* Lịch sử sản phẩm */}
-          {(isAdmin || isSalesManager || canWriteInventory) && (
-            <div
-              className={`sidebar-menu-item ${activeTab === 'product-history' ? 'active' : ''}`}
-              id="btn-sidebar-product-history"
-              onClick={() => {
-                setActiveTab('product-history');
-                handleCloseMenu();
-              }}
-            >
-              <div className="sidebar-icon-box">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="10" />
-                  <polyline points="12 6 12 12 16 14" />
-                </svg>
-              </div>
-              <span style={{ fontWeight: activeTab === 'product-history' ? '700' : '500', fontSize: '14.5px' }}>Lịch sử sản phẩm</span>
-            </div>
-          )}
-
-          {/* Hồ sơ cá nhân */}
-          <div
-            className={`sidebar-menu-item ${activeTab === 'profile' ? 'active' : ''}`}
-            id="btn-sidebar-profile"
-            onClick={() => {
-              setActiveTab('profile');
-              handleCloseMenu();
-            }}
-          >
-            <div className="sidebar-icon-box">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                <circle cx="12" cy="7" r="4" />
-              </svg>
-            </div>
-            <span style={{ fontWeight: activeTab === 'profile' ? '700' : '500', fontSize: '14.5px' }}>Hồ sơ cá nhân</span>
-          </div>
-
-          {/* Phân quyền & Tạo tài khoản - Admin */}
-          {(user.role === 'admin' || (user.roles && user.roles.includes('admin'))) && (
-            <div
-              className={`sidebar-menu-item ${activeTab === 'users' ? 'active' : ''}`}
-              id="btn-sidebar-roles-and-create"
-              onClick={() => {
-                setActiveTab('users');
-                handleCloseMenu();
-              }}
-            >
-              <div className="sidebar-icon-box">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                  <path d="M12 8v4" />
-                  <path d="M12 16h.01" />
-                </svg>
-              </div>
-              <span style={{ fontWeight: activeTab === 'users' ? '700' : '500', fontSize: '14.5px' }}>Phân quyền & Tạo tài khoản</span>
-            </div>
-          )}
-
-          {/* Quản lý Danh Mục - Admin hoặc Quản lý kinh doanh */}
-          {canManageCategories && (
-            <div
-              className={`sidebar-menu-item ${activeTab === 'categories' ? 'active' : ''}`}
-              onClick={() => {
-                setActiveTab('categories');
-                handleCloseMenu();
-              }}
-            >
-              <div className="sidebar-icon-box">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M3 3h7v7H3z" />
-                  <path d="M14 3h7v7h-7z" />
-                  <path d="M14 14h7v7h-7z" />
-                  <path d="M3 14h7v7H3z" />
-                </svg>
-              </div>
-              <span style={{ fontWeight: activeTab === 'categories' ? '700' : '500', fontSize: '14.5px' }}>Nhóm hàng & Doanh số</span>
-            </div>
-          )}
-
-          {/* Nhật ký thao tác - Admin */}
-          {(user.role === 'admin' || (user.roles && user.roles.includes('admin'))) && (
-            <div
-              className={`sidebar-menu-item ${activeTab === 'audit-logs' ? 'active' : ''}`}
-              id="btn-sidebar-audit-logs"
-              onClick={() => {
-                setActiveTab('audit-logs');
-                handleCloseMenu();
-              }}
-            >
-              <div className="sidebar-icon-box">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 20h9" />
-                  <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
-                </svg>
-              </div>
-              <span style={{ fontWeight: activeTab === 'audit-logs' ? '700' : '500', fontSize: '14.5px' }}>Nhật ký thao tác</span>
-            </div>
-          )}
-        </div>
-
-        {/* Nút Đăng xuất ở cuối sidebar */}
-        <div style={{
-          padding: '16px',
-          borderTop: '1px solid rgba(255, 255, 255, 0.12)',
-          background: 'rgba(0, 0, 0, 0.15)'
-        }}>
-          <button
-            className="sidebar-logout-btn"
-            onClick={() => {
-              if (isLoggingOut) return;
-              setIsMenuOpen(false);
-              setShowLogoutConfirm(true);
-            }}
-            disabled={isLoggingOut}
-          >
-            <div className="sidebar-logout-icon-box">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                <polyline points="16 17 21 12 16 7" />
-                <line x1="21" y1="12" x2="9" y2="12" />
-              </svg>
-            </div>
-            <span>{isLoggingOut ? 'Đang đăng xuất...' : 'Đăng xuất'}</span>
-          </button>
-        </div>
-      </aside>
-
       {/* Main Content: Switch between Create Order, Order Management, User Management, Audit Logs, Inventory and Pending Authorization */}
       {activeTab === 'create-order' || (isSalesOrderEntryOpen && canCreateOrders) ? (
         canCreateOrders ? (
@@ -1651,6 +1279,25 @@ export default function DashboardPage({
           onBackToHome={() => setActiveTab('inventory')}
           onUserUpdated={onUserUpdated}
         />
+      ) : activeTab === 'product-history' ? (
+        (isAdmin || isSalesManager || canWriteInventory) ? (
+          <ProductHistoryView
+            currentUser={user}
+            token={token}
+            products={products}
+            initialProductCode={historyProductTarget?.code}
+            initialProductName={historyProductTarget?.name}
+            isCostVisible={isCostVisible}
+            onBackToInventory={() => setActiveTab('inventory')}
+          />
+        ) : (
+          <AccessDeniedView
+            currentUser={user}
+            requiredPermission="Xem lịch sử thay đổi sản phẩm (Thủ kho / Quản lý kho / Quản lý kinh doanh / Quản trị viên)"
+            onBackToWorkflow={() => setActiveTab('inventory')}
+            onLogout={onLogout}
+          />
+        )
       ) : activeTab === 'suppliers' ? (
         canManageSuppliers ? (
           <SupplierManagementView
@@ -1708,25 +1355,6 @@ export default function DashboardPage({
           <AccessDeniedView
             currentUser={user}
             requiredPermission="Quản lý điểm giao hàng"
-            onBackToWorkflow={() => setActiveTab('inventory')}
-            onLogout={onLogout}
-          />
-        )
-      ) : activeTab === 'product-history' ? (
-        (isAdmin || isSalesManager || canWriteInventory) ? (
-          <ProductHistoryView
-            currentUser={user}
-            token={token}
-            products={products}
-            initialProductCode={historyProductTarget?.code}
-            initialProductName={historyProductTarget?.name}
-            isCostVisible={isCostVisible}
-            onBackToInventory={() => setActiveTab('inventory')}
-          />
-        ) : (
-          <AccessDeniedView
-            currentUser={user}
-            requiredPermission="Xem lịch sử thay đổi sản phẩm (Thủ kho / Quản lý kho / Quản lý kinh doanh / Quản trị viên)"
             onBackToWorkflow={() => setActiveTab('inventory')}
             onLogout={onLogout}
           />
@@ -1881,40 +1509,14 @@ export default function DashboardPage({
         <>
           {error && (
             <div style={{
-              background: 'rgba(239, 68, 68, 0.12)',
+              background: 'rgba(239, 68, 68, 0.2)',
               border: '1px solid #ef4444',
-              color: '#b91c1c',
+              color: '#fca5a5',
               padding: '12px 16px',
               borderRadius: '10px',
-              marginBottom: '20px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: '12px'
+              marginBottom: '20px'
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: '500' }}>
-                <span>⚠️</span>
-                <span>{error}</span>
-              </div>
-              <button
-                type="button"
-                onClick={fetchProducts}
-                style={{
-                  background: '#ef4444',
-                  color: '#ffffff',
-                  border: 'none',
-                  padding: '6px 14px',
-                  borderRadius: '6px',
-                  fontSize: '13px',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px'
-                }}
-              >
-                Tải lại dữ liệu
-              </button>
+              ⚠️ {error}
             </div>
           )}
 
@@ -2338,48 +1940,6 @@ export default function DashboardPage({
                   </svg>
                   <span>Xuất file</span>
                 </button>
-<<<<<<< HEAD
-
-                {/* Nút Quản lý sản phẩm mở Product Detail Drawer: Chỉ Admin và Quản lý */}
-                {canManageProducts && (
-                  <button
-                    type="button"
-                    id="btn-add-product"
-                    onClick={() => setProductDrawerState({ isOpen: true, product: null })}
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
-                      border: 'none',
-                      padding: '7px 14px',
-                      borderRadius: '8px',
-                      fontSize: '12.5px',
-                      fontWeight: '600',
-                      color: '#ffffff',
-                      cursor: 'pointer',
-                      boxShadow: '0 2px 6px rgba(37, 99, 235, 0.28)',
-                      transition: 'all 0.15s ease'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.transform = 'translateY(-1px)';
-                      e.currentTarget.style.boxShadow = '0 4px 10px rgba(37, 99, 235, 0.35)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.transform = 'translateY(0)';
-                      e.currentTarget.style.boxShadow = '0 2px 6px rgba(37, 99, 235, 0.28)';
-                    }}
-                    title="Khai báo sản phẩm mới (Mã SKU tự động, 4 khối chức năng)"
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <line x1="12" y1="5" x2="12" y2="19" />
-                      <line x1="5" y1="12" x2="19" y2="12" />
-                    </svg>
-                    <span>Quản lý kho hàng</span>
-                  </button>
-                )}
-=======
->>>>>>> 0301d8d197dd010b305df463ab0b23960ba4226b
               </div>
             </div>
 
@@ -2425,14 +1985,9 @@ export default function DashboardPage({
                           <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'right', background: '#f8fafc' }}>Biên Lợi Nhuận</th>
                         </>
                       )}
-<<<<<<< HEAD
-                      <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'center', background: '#f8fafc' }}>Trạng Thái</th>
-                      <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'center', width: '220px', background: '#f8fafc' }}>Thao Tác</th>
-=======
                       {canPerformProductAction && (
-                        <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'center', width: '180px', background: '#f8fafc' }}>Thao Tác</th>
+                        <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'center', width: '80px', background: '#f8fafc' }}>Thao Tác</th>
                       )}
->>>>>>> 0301d8d197dd010b305df463ab0b23960ba4226b
                     </tr>
                   </thead>
                   <tbody>
@@ -2457,45 +2012,7 @@ export default function DashboardPage({
                         </td>
 
                         <td style={{ padding: '13px 18px', fontWeight: '500', color: '#0f172a', fontSize: '13.5px', textAlign: 'left' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            {item.images && item.images.length > 0 ? (
-                              <img
-                                src={item.images[0]}
-                                alt={item.name}
-                                style={{
-                                  width: '38px',
-                                  height: '38px',
-                                  borderRadius: '8px',
-                                  objectFit: 'cover',
-                                  border: '1px solid #e2e8f0',
-                                  flexShrink: 0,
-                                  backgroundColor: '#f8fafc',
-                                }}
-                              />
-                            ) : (
-                              <div
-                                style={{
-                                  width: '38px',
-                                  height: '38px',
-                                  borderRadius: '8px',
-                                  backgroundColor: '#f1f5f9',
-                                  border: '1px solid #e2e8f0',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  color: '#94a3b8',
-                                  flexShrink: 0,
-                                }}
-                              >
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-                                  <circle cx="8.5" cy="8.5" r="1.5" />
-                                  <polyline points="21 15 16 10 5 21" />
-                                </svg>
-                              </div>
-                            )}
-                            <span style={{ wordBreak: 'break-word', lineHeight: '1.4' }}>{item.name}</span>
-                          </div>
+                          {item.name}
                         </td>
 
                         <td style={{ padding: '13px 18px', textAlign: 'left', color: '#64748b', fontSize: '12.5px' }}>
@@ -2614,292 +2131,194 @@ export default function DashboardPage({
                             </td>
                           </>
                         )}
-<<<<<<< HEAD
-
-                        {/* Cột Trạng thái kinh doanh */}
-                        <td style={{ padding: '13px 18px', textAlign: 'center' }}>
-                          {item.status === 'inactive' ? (
-                            <span
-                              style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '4px',
-                                padding: '3px 8px',
-                                borderRadius: '999px',
-                                background: '#fef2f2',
-                                color: '#b91c1c',
-                                border: '1px solid #fecaca',
-                                fontSize: '11.5px',
-                                fontWeight: '600',
-                              }}
-                            >
-                              <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#ef4444' }} />
-                              Ngừng KD
-                            </span>
-                          ) : (
-                            <span
-                              style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '4px',
-                                padding: '3px 8px',
-                                borderRadius: '999px',
-                                background: '#f0fdf4',
-                                color: '#15803d',
-                                border: '1px solid #bbf7d0',
-                                fontSize: '11.5px',
-                                fontWeight: '600',
-                              }}
-                            >
-                              <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#22c55e' }} />
-                              Đang KD
-                            </span>
-                          )}
-                        </td>
-
-                        <td style={{ padding: '13px 18px', textAlign: 'center' }}>
-                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                            {/* Nút Cấu hình Đơn vị tính: Chỉ mở cho Quản trị hệ thống và Quản lý kho */}
-                            {canConfigUnit && (
+                        {canPerformProductAction && (
+                          <td style={{ padding: '10px 18px', textAlign: 'center' }}>
+                            <div style={{ position: 'relative', display: 'inline-block' }}>
                               <button
                                 type="button"
-                                onClick={() => setUnitConfigProduct(item)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setOpenProductMenuId(openProductMenuId === item.id ? null : item.id);
+                                }}
                                 style={{
+                                  width: '32px',
+                                  height: '32px',
+                                  padding: 0,
                                   display: 'inline-flex',
                                   alignItems: 'center',
-                                  gap: '4px',
-                                  padding: '5px 8px',
-                                  background: '#f8fafc',
+                                  justifyContent: 'center',
+                                  background: openProductMenuId === item.id ? '#e2e8f0' : '#ffffff',
+                                  color: openProductMenuId === item.id ? '#0f172a' : '#64748b',
                                   border: '1px solid #cbd5e1',
-                                  borderRadius: '6px',
-                                  fontSize: '11.5px',
-                                  fontWeight: '600',
-                                  color: '#334155',
+                                  borderRadius: '8px',
                                   cursor: 'pointer',
-                                  transition: 'all 0.15s ease'
+                                  transition: 'all 0.15s ease',
+                                  boxShadow: 'none',
+                                  margin: 0,
                                 }}
-                                title="Cấu hình ĐVT cơ sở & danh sách ĐVT quy đổi (Lốc, Thùng...)"
-                                onMouseEnter={e => {
-                                  e.currentTarget.style.background = '#e2e8f0';
-                                  e.currentTarget.style.borderColor = '#94a3b8';
+                                onMouseEnter={(e) => {
+                                  if (openProductMenuId !== item.id) {
+                                    e.currentTarget.style.background = '#f8fafc';
+                                    e.currentTarget.style.color = '#0f172a';
+                                    e.currentTarget.style.borderColor = '#94a3b8';
+                                  }
                                 }}
-                                onMouseLeave={e => {
-                                  e.currentTarget.style.background = '#f8fafc';
-                                  e.currentTarget.style.borderColor = '#cbd5e1';
+                                onMouseLeave={(e) => {
+                                  if (openProductMenuId !== item.id) {
+                                    e.currentTarget.style.background = '#ffffff';
+                                    e.currentTarget.style.color = '#64748b';
+                                    e.currentTarget.style.borderColor = '#cbd5e1';
+                                  }
                                 }}
+                                title="Thao tác sản phẩm"
+                                aria-label="Thao tác sản phẩm"
                               >
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                                  <circle cx="12" cy="12" r="3" />
-                                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                  <circle cx="12" cy="12" r="1.5" />
+                                  <circle cx="12" cy="5" r="1.5" />
+                                  <circle cx="12" cy="19" r="1.5" />
                                 </svg>
-                                <span>ĐVT</span>
                               </button>
-                            )}
 
-                            {/* Nút Nhập kho & Xuất kho: Mở cho các tài khoản có quyền Nhập/xuất/sửa kho */}
-                            {canWriteInventory && (
-                              <>
-=======
-                        {canPerformProductAction && (
-                          <td style={{ padding: '13px 18px', textAlign: 'center' }}>
-                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                              {/* Nút Cấu hình Đơn vị tính: Chỉ mở cho Quản trị hệ thống và Quản lý kho */}
-                              {canConfigUnit && (
->>>>>>> 0301d8d197dd010b305df463ab0b23960ba4226b
-                                <button
-                                  type="button"
-                                  onClick={() => setStockActionState({ isOpen: true, actionType: 'receipt', product: item })}
+                              {openProductMenuId === item.id && (
+                                <div
                                   style={{
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: '3px',
-                                    padding: '5px 8px',
-                                    background: '#ecfdf5',
-                                    border: '1px solid #a7f3d0',
-                                    borderRadius: '6px',
-                                    fontSize: '11.5px',
-                                    fontWeight: '600',
-                                    color: '#065f46',
-                                    cursor: 'pointer',
-                                    transition: 'all 0.15s ease'
+                                    position: 'absolute',
+                                    right: 0,
+                                    ...(idx >= paginatedProducts.length - 2 && paginatedProducts.length > 2
+                                      ? { bottom: 'calc(100% + 4px)' }
+                                      : { top: 'calc(100% + 4px)' }),
+                                    background: '#ffffff',
+                                    border: '1px solid #e2e8f0',
+                                    borderRadius: '10px',
+                                    boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.04)',
+                                    padding: '5px',
+                                    minWidth: '150px',
+                                    zIndex: 50,
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: '2px',
+                                    textAlign: 'left',
                                   }}
-                                  title="Tạo phiếu nhập kho (cho phép chọn ĐVT quy đổi)"
-                                  onMouseEnter={e => {
-                                    e.currentTarget.style.background = '#d1fae5';
-                                  }}
-                                  onMouseLeave={e => {
-                                    e.currentTarget.style.background = '#ecfdf5';
-                                  }}
+                                  onClick={(e) => e.stopPropagation()}
                                 >
-                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                    <line x1="12" y1="5" x2="12" y2="19" />
-                                    <line x1="5" y1="12" x2="19" y2="12" />
-                                  </svg>
-                                  <span>Nhập</span>
-                                </button>
+                                  {canConfigUnit && (
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setUnitConfigProduct(item);
+                                        setOpenProductMenuId(null);
+                                      }}
+                                      style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '8px',
+                                        width: '100%',
+                                        padding: '8px 12px',
+                                        background: 'transparent',
+                                        border: 'none',
+                                        borderRadius: '6px',
+                                        fontSize: '13px',
+                                        fontWeight: '600',
+                                        color: '#334155',
+                                        cursor: 'pointer',
+                                        boxShadow: 'none',
+                                        margin: 0,
+                                        transition: 'background 0.15s ease',
+                                        textAlign: 'left',
+                                      }}
+                                      onMouseEnter={(e) => (e.currentTarget.style.background = '#f8fafc')}
+                                      onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                                      title="Cấu hình ĐVT cơ sở & danh sách ĐVT quy đổi (Lốc, Thùng...)"
+                                    >
+                                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                        <circle cx="12" cy="12" r="3" />
+                                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                                      </svg>
+                                      <span>Cấu hình ĐVT</span>
+                                    </button>
+                                  )}
 
-<<<<<<< HEAD
-                                <button
-                                  type="button"
-                                  onClick={() => setStockActionState({ isOpen: true, actionType: 'issue', product: item })}
-                                  style={{
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: '3px',
-                                    padding: '5px 8px',
-                                    background: '#fff7ed',
-                                    border: '1px solid #fed7aa',
-                                    borderRadius: '6px',
-                                    fontSize: '11.5px',
-                                    fontWeight: '600',
-                                    color: '#9a3412',
-                                    cursor: 'pointer',
-                                    transition: 'all 0.15s ease'
-                                  }}
-                                  title="Tạo phiếu xuất kho (cho phép chọn ĐVT quy đổi)"
-                                  onMouseEnter={e => {
-                                    e.currentTarget.style.background = '#ffedd5';
-                                  }}
-                                  onMouseLeave={e => {
-                                    e.currentTarget.style.background = '#fff7ed';
-                                  }}
-                                >
-                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                    <line x1="5" y1="12" x2="19" y2="12" />
-                                  </svg>
-                                  <span>Xuất</span>
-                                </button>
-                              </>
-                            )}
+                                  {canWriteInventory && (
+                                    <>
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setStockActionState({ isOpen: true, actionType: 'receipt', product: item });
+                                          setOpenProductMenuId(null);
+                                        }}
+                                        style={{
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          gap: '8px',
+                                          width: '100%',
+                                          padding: '8px 12px',
+                                          background: 'transparent',
+                                          border: 'none',
+                                          borderRadius: '6px',
+                                          fontSize: '13px',
+                                          fontWeight: '600',
+                                          color: '#065f46',
+                                          cursor: 'pointer',
+                                          boxShadow: 'none',
+                                          margin: 0,
+                                          transition: 'background 0.15s ease',
+                                          textAlign: 'left',
+                                        }}
+                                        onMouseEnter={(e) => (e.currentTarget.style.background = '#ecfdf5')}
+                                        onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                                        title="Tạo phiếu nhập kho (cho phép chọn ĐVT quy đổi)"
+                                      >
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                          <line x1="12" y1="5" x2="12" y2="19" />
+                                          <line x1="5" y1="12" x2="19" y2="12" />
+                                        </svg>
+                                        <span>Nhập kho</span>
+                                      </button>
 
-                            {canManageProducts && (
-                              <button
-                                type="button"
-                                className="btn-inventory-history"
-                                onClick={() => setProductDrawerState({
-                                  isOpen: true,
-                                  product: item,
-                                })}
-                                title="Chỉnh sửa thông tin chi tiết sản phẩm"
-                                style={{
-                                  padding: '5px 8px',
-                                  fontSize: '11.5px',
-                                  background: '#eff6ff',
-                                  borderColor: '#bfdbfe',
-                                  color: '#1d4ed8',
-                                }}
-                              >
-                                <svg
-                                  width="12"
-                                  height="12"
-                                  viewBox="0 0 24 24"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  strokeWidth="2.2"
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                >
-                                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                                </svg>
-                                <span>Sửa</span>
-                              </button>
-                            )}
-
-                            {(isAdmin || isSalesManager) && (
-                              <button
-                                type="button"
-                                className="btn-inventory-history"
-                                onClick={() => setProductAuditDrawerState({
-                                  isOpen: true,
-                                  productCode: item.code,
-                                  productName: item.name,
-                                  initialFilter: 'ALL',
-                                })}
-                                title="Xem lịch sử thay đổi tồn kho & giá của sản phẩm này"
-                                style={{ padding: '5px 10px', fontSize: '11.5px', fontWeight: '600' }}
-                              >
-                                <span>Lịch sử</span>
-                              </button>
-                            )}
-
-                            {!canConfigUnit && !canWriteInventory && !isAdmin && (
-                              <span style={{ color: '#94a3b8', fontSize: '12px' }}>—</span>
-                            )}
-                          </div>
-                        </td>
-=======
-                              {/* Nút Nhập kho & Xuất kho: Mở cho các tài khoản có quyền Nhập/xuất/sửa kho */}
-                              {canWriteInventory && (
-                                <>
-                                  <button
-                                    type="button"
-                                    onClick={() => setStockActionState({ isOpen: true, actionType: 'receipt', product: item })}
-                                    style={{
-                                      display: 'inline-flex',
-                                      alignItems: 'center',
-                                      gap: '3px',
-                                      padding: '5px 8px',
-                                      background: '#ecfdf5',
-                                      border: '1px solid #a7f3d0',
-                                      borderRadius: '6px',
-                                      fontSize: '11.5px',
-                                      fontWeight: '600',
-                                      color: '#065f46',
-                                      cursor: 'pointer',
-                                      transition: 'all 0.15s ease'
-                                    }}
-                                    title="Tạo phiếu nhập kho (cho phép chọn ĐVT quy đổi)"
-                                    onMouseEnter={e => {
-                                      e.currentTarget.style.background = '#d1fae5';
-                                    }}
-                                    onMouseLeave={e => {
-                                      e.currentTarget.style.background = '#ecfdf5';
-                                    }}
-                                  >
-                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                      <line x1="12" y1="5" x2="12" y2="19" />
-                                      <line x1="5" y1="12" x2="19" y2="12" />
-                                    </svg>
-                                    <span>Nhập</span>
-                                  </button>
-
-                                  <button
-                                    type="button"
-                                    onClick={() => setStockActionState({ isOpen: true, actionType: 'issue', product: item })}
-                                    style={{
-                                      display: 'inline-flex',
-                                      alignItems: 'center',
-                                      gap: '3px',
-                                      padding: '5px 8px',
-                                      background: '#fff7ed',
-                                      border: '1px solid #fed7aa',
-                                      borderRadius: '6px',
-                                      fontSize: '11.5px',
-                                      fontWeight: '600',
-                                      color: '#9a3412',
-                                      cursor: 'pointer',
-                                      transition: 'all 0.15s ease'
-                                    }}
-                                    title="Tạo phiếu xuất kho (cho phép chọn ĐVT quy đổi)"
-                                    onMouseEnter={e => {
-                                      e.currentTarget.style.background = '#ffedd5';
-                                    }}
-                                    onMouseLeave={e => {
-                                      e.currentTarget.style.background = '#fff7ed';
-                                    }}
-                                  >
-                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                      <line x1="5" y1="12" x2="19" y2="12" />
-                                    </svg>
-                                    <span>Xuất</span>
-                                  </button>
-                                </>
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setStockActionState({ isOpen: true, actionType: 'issue', product: item });
+                                          setOpenProductMenuId(null);
+                                        }}
+                                        style={{
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          gap: '8px',
+                                          width: '100%',
+                                          padding: '8px 12px',
+                                          background: 'transparent',
+                                          border: 'none',
+                                          borderRadius: '6px',
+                                          fontSize: '13px',
+                                          fontWeight: '600',
+                                          color: '#9a3412',
+                                          cursor: 'pointer',
+                                          boxShadow: 'none',
+                                          margin: 0,
+                                          transition: 'background 0.15s ease',
+                                          textAlign: 'left',
+                                        }}
+                                        onMouseEnter={(e) => (e.currentTarget.style.background = '#fff7ed')}
+                                        onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                                        title="Tạo phiếu xuất kho (cho phép chọn ĐVT quy đổi)"
+                                      >
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                          <line x1="5" y1="12" x2="19" y2="12" />
+                                        </svg>
+                                        <span>Xuất kho</span>
+                                      </button>
+                                    </>
+                                  )}
+                                </div>
                               )}
                             </div>
                           </td>
                         )}
->>>>>>> 0301d8d197dd010b305df463ab0b23960ba4226b
                       </tr>
                     ))}
                   </tbody>
@@ -3100,95 +2519,12 @@ export default function DashboardPage({
             textAlign: 'center',
             color: '#f8fafc'
           }}>
-            <div style={{
-              width: '56px',
-              height: '56px',
-              borderRadius: '50%',
-              backgroundColor: 'rgba(245, 158, 11, 0.15)',
-              color: '#f59e0b',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              margin: '0 auto 16px auto',
-              border: '1px solid rgba(245, 158, 11, 0.3)'
-            }}>
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="10" />
-                <polyline points="12 6 12 12 16 14" />
-              </svg>
-            </div>
-            <h3 style={{ fontSize: '20px', fontWeight: '700', margin: '0 0 8px', color: '#fde68a' }}>
+            <h3 style={{ fontSize: '19px', fontWeight: '700', margin: '0 0 10px', color: '#fde68a' }}>
               Phiên Làm Việc Sắp Hết Hạn
             </h3>
-            <p style={{ fontSize: '14px', color: '#cbd5e1', lineHeight: '1.6', margin: '0 0 16px' }}>
-              Hệ thống phát hiện bạn không thao tác trong một khoảng thời gian. Phiên làm việc sẽ tự động kết thúc sau:
+            <p style={{ fontSize: '14px', color: '#cbd5e1', lineHeight: '1.6', margin: '0 0 14px' }}>
+              Hệ thống phát hiện bạn không thao tác trong một khoảng thời gian.
             </p>
-            <div style={{
-              fontSize: '28px',
-              fontWeight: '800',
-              fontVariantNumeric: 'tabular-nums',
-              color: '#fbbf24',
-              backgroundColor: 'rgba(0, 0, 0, 0.25)',
-              padding: '10px 20px',
-              borderRadius: '10px',
-              display: 'inline-block',
-              marginBottom: '20px',
-              border: '1px solid rgba(251, 191, 36, 0.3)'
-            }}>
-              {Math.floor(remainingSeconds / 60)}:{(remainingSeconds % 60).toString().padStart(2, '0')}
-            </div>
-            <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
-              <button
-                type="button"
-                onClick={async () => {
-                  try {
-                    await onLogout();
-                  } catch {
-                    // ignore
-                  }
-                }}
-                style={{
-                  flex: 1,
-                  padding: '11px 16px',
-                  borderRadius: '10px',
-                  border: '1px solid #475569',
-                  backgroundColor: '#334155',
-                  color: '#f1f5f9',
-                  fontSize: '14px',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  transition: 'background 0.15s ease'
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#475569')}
-                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#334155')}
-              >
-                Đăng xuất
-              </button>
-              <button
-                type="button"
-                onClick={async () => {
-                  sessionManager.recordActivity();
-                  await sessionManager.forceRefresh();
-                }}
-                style={{
-                  flex: 2,
-                  padding: '11px 16px',
-                  borderRadius: '10px',
-                  border: 'none',
-                  backgroundColor: '#2563eb',
-                  color: '#ffffff',
-                  fontSize: '14px',
-                  fontWeight: '700',
-                  cursor: 'pointer',
-                  boxShadow: '0 4px 12px rgba(37, 99, 235, 0.35)',
-                  transition: 'background 0.15s ease'
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#1d4ed8')}
-                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#2563eb')}
-              >
-                Tiếp tục làm việc
-              </button>
-            </div>
           </div>
         </div>
       )}
@@ -3420,5 +2756,6 @@ export default function DashboardPage({
       )}
       <StatusToastHost />
     </div>
+    </DashboardLayout>
   );
 }

@@ -1,9 +1,6 @@
-<<<<<<< HEAD
-export const API_BASE_URL = typeof window !== 'undefined' && window.location.origin ? '/api/v1' : 'http://127.0.0.1:8000/api/v1';
-=======
 import type { DeliveryPoint, DeliveryPointInput } from '../types/deliveryPoint';
-export const API_BASE_URL = 'http://localhost:8000/api/v1';
->>>>>>> 0301d8d197dd010b305df463ab0b23960ba4226b
+export const API_BASE_URL = typeof window !== 'undefined' && window.location.origin ? '/api/v1' : 'http://127.0.0.1:8000/api/v1';
+
 
 /**
  * Trả về URL tuyệt đối để tải ảnh đại diện từ backend nếu là đường dẫn tĩnh /uploads/...
@@ -1219,12 +1216,32 @@ export async function updateMyProfileApi(
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
     let msg = 'Cập nhật hồ sơ thất bại.';
+    let errorCode: string | undefined = err?.code;
+
     if (typeof err.detail === 'string') {
       msg = err.detail;
+    } else if (typeof err.detail === 'object' && err.detail !== null) {
+      if (err.detail.code) {
+        errorCode = err.detail.code;
+      }
+      if (err.detail.message) {
+        msg = err.detail.message;
+      } else if (err.detail.msg) {
+        msg = err.detail.msg;
+      }
     } else if (Array.isArray(err.detail) && err.detail.length > 0) {
       msg = err.detail.map((d: any) => d.msg || JSON.stringify(d)).join('; ');
     }
-    throw new Error(msg);
+
+    const error: any = new Error(msg);
+    error.status = response.status;
+    error.statusCode = response.status;
+    error.code = errorCode;
+    error.response = {
+      status: response.status,
+      data: err,
+    };
+    throw error;
   }
   return await response.json();
 }

@@ -17,7 +17,7 @@ interface AuditLogViewProps {
   onBackToHome?: () => void;
 }
 
-export const AuditLogView: React.FC<AuditLogViewProps> = ({ currentUser: _currentUser, token, onBackToHome }) => {
+export const AuditLogView: React.FC<AuditLogViewProps> = ({ currentUser: _currentUser, token, onBackToHome: _onBackToHome }) => {
   const [logs, setLogs] = useState<AuditLogItem[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -321,58 +321,6 @@ export const AuditLogView: React.FC<AuditLogViewProps> = ({ currentUser: _curren
 
   return (
     <main style={{ padding: '24px 32px', maxWidth: '1440px', margin: '0 auto', width: '100%' }}>
-      {/* Breadcrumb Navigation */}
-      <nav
-        aria-label="Breadcrumb"
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '10px',
-          fontSize: '13.5px',
-          color: '#64748b',
-          fontWeight: '500',
-          marginBottom: '20px',
-          padding: '2px 4px',
-        }}
-      >
-        <button
-          onClick={onBackToHome}
-          style={{
-            background: '#ffffff',
-            border: '1px solid #cbd5e1',
-            borderRadius: '20px',
-            color: '#2563eb',
-            cursor: 'pointer',
-            padding: '5px 14px',
-            fontSize: '13px',
-            fontWeight: '600',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '6px',
-            boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
-            transition: 'all 0.18s ease',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.borderColor = '#2563eb';
-            e.currentTarget.style.background = '#eff6ff';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.borderColor = '#cbd5e1';
-            e.currentTarget.style.background = '#ffffff';
-          }}
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-            <polyline points="9 22 9 12 15 12 15 22" />
-          </svg>
-          <span>Trang chủ</span>
-        </button>
-        <span style={{ color: '#cbd5e1', fontSize: '14px' }}>/</span>
-        <span style={{ color: '#64748b', fontSize: '13.5px' }}>Quản trị hệ thống</span>
-        <span style={{ color: '#cbd5e1', fontSize: '14px' }}>/</span>
-        <span style={{ color: '#0f172a', fontWeight: '600', fontSize: '13.5px' }}>Nhật ký thao tác</span>
-      </nav>
-
       {/* Header Title Banner */}
       <div style={{
         background: '#ffffff',

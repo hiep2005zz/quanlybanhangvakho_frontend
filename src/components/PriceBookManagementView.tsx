@@ -25,7 +25,7 @@ export function PriceBookManagementView({
   token, 
   currentUser, 
   products: initialProducts,
-  onBackToHome,
+  onBackToHome: _onBackToHome,
   onNavigateToOrders,
 }: PriceBookManagementViewProps) {
   // Xác định vai trò người dùng (RBAC Matrix)
@@ -386,14 +386,6 @@ export function PriceBookManagementView({
     );
   };
 
-  const handleBackHome = () => {
-    if (onBackToHome) {
-      onBackToHome();
-    } else {
-      window.location.href = '/';
-    }
-  };
-
   const isAddingWarning = Boolean(
     newSalePrice && newFloorPrice && parseFloat(newSalePrice) < parseFloat(newFloorPrice)
   );
@@ -404,24 +396,6 @@ export function PriceBookManagementView({
       {/* Thanh công cụ và tiêu đề */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-          <button 
-            type="button"
-            onClick={handleBackHome}
-            style={{ 
-              background: '#ffffff', 
-              color: '#334155', 
-              border: '1px solid #cbd5e1', 
-              padding: '9px 16px', 
-              borderRadius: '8px', 
-              cursor: 'pointer', 
-              fontWeight: '600', 
-              fontSize: '13.5px',
-              boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
-            }}
-          >
-            Quay lại trang chủ
-          </button>
-
           {/* Nút chữ: Sang trang Quản lý Đơn hàng (Yêu cầu đề bài) */}
           {onNavigateToOrders && (
             <button
@@ -437,7 +411,6 @@ export function PriceBookManagementView({
                 cursor: 'pointer',
                 fontWeight: '700',
                 fontSize: '13.5px',
-                marginLeft: '24px',
               }}
             >
               Sang trang Quản lý Đơn hàng

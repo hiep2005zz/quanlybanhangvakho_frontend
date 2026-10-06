@@ -45,7 +45,7 @@ export interface DealerSearchViewProps {
 export default function DealerSearchView({
     currentUser,
     token,
-    onBackToHome,
+    onBackToHome: _onBackToHome,
 }: DealerSearchViewProps) {
     const [dealers, setDealers] = useState<DealerSearchItem[]>([]);
     const [keyword, setKeyword] = useState('');
@@ -609,16 +609,6 @@ export default function DealerSearchView({
             <div className="dealer-search-header">
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '14px', width: '100%' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
-                        {onBackToHome && (
-                            <button
-                                type="button"
-                                onClick={onBackToHome}
-                                className="dealer-back-btn"
-                                title="Quay lại Kho hàng"
-                            >
-                                <span>Về kho hàng</span>
-                            </button>
-                        )}
                         <div>
                             <h2>{rawRoles.includes('sales_manager') || rawRoles.includes('admin') ? 'Quản lý & Tra cứu đại lý' : 'Tra cứu đại lý & khách hàng'}</h2>
                             <p>
