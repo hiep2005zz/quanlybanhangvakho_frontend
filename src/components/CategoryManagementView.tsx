@@ -458,9 +458,9 @@ export function CategoryManagementView({ token, onBackToHome: _onBackToHome }: C
 
   const renderProductsList = () => {
     return (
-      <div style={{ flex: '1', display: 'flex', flexDirection: 'column', background: '#ffffff', minWidth: '460px', overflow: 'hidden' }}>
+      <div style={{ flex: '1', display: 'flex', flexDirection: 'column', background: '#ffffff', minWidth: '460px', minHeight: 0, height: '100%', overflow: 'hidden' }}>
         {/* Header Cột Phải */}
-        <div style={{ padding: '16px 20px', borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
+        <div style={{ padding: '14px 18px', borderBottom: '1px solid #e2e8f0', background: '#f8fafc', flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', marginBottom: '12px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '800', color: '#0f172a' }}>
@@ -580,7 +580,8 @@ export function CategoryManagementView({ token, onBackToHome: _onBackToHome }: C
           fontWeight: '700',
           color: '#64748b',
           textTransform: 'uppercase',
-          letterSpacing: '0.05em'
+          letterSpacing: '0.05em',
+          flexShrink: 0,
         }}>
           <div style={{ textAlign: 'center' }}>⋮⋮</div>
           <div>Sản phẩm & Mã SKU</div>
@@ -591,7 +592,7 @@ export function CategoryManagementView({ token, onBackToHome: _onBackToHome }: C
         </div>
 
         {/* Products List Rows */}
-        <div style={{ padding: '8px 12px', overflowY: 'auto', flex: 1, maxHeight: 'calc(100vh - 380px)', minHeight: '440px' }}>
+        <div className="roles-grid-scroll" style={{ padding: '8px 12px', overflowY: 'auto', flex: 1, minHeight: 0 }}>
           {displayedProducts.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '60px 20px', color: '#94a3b8' }}>
               <div style={{ fontSize: '36px', marginBottom: '10px' }}>
@@ -835,7 +836,19 @@ export function CategoryManagementView({ token, onBackToHome: _onBackToHome }: C
   };
 
   return (
-    <div style={{ padding: '32px 40px', maxWidth: '1400px', margin: '0 auto', fontFamily: 'Inter, sans-serif' }}>
+    <div
+      style={{
+        width: '100%',
+        maxWidth: '1680px',
+        margin: '0 auto',
+        padding: 0,
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+        fontFamily: 'Inter, sans-serif',
+      }}
+    >
       <style>{`
         .category-tree-card:hover { transform: translateX(2px); box-shadow: 0 4px 12px rgba(0,0,0,0.05) !important; }
         .product-drag-card:hover { transform: translateY(-2px); box-shadow: 0 6px 12px rgba(0,0,0,0.08) !important; border-color: #cbd5e1 !important; }
@@ -851,33 +864,35 @@ export function CategoryManagementView({ token, onBackToHome: _onBackToHome }: C
         @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
       `}</style>
       
-      {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+      {/* Header - Compacted */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           <div>
-            <h2 style={{ fontSize: '30px', fontWeight: '800', color: '#0f172a', margin: 0, letterSpacing: '-0.02em' }}>
+            <h2 style={{ fontSize: '22px', fontWeight: '800', color: '#0f172a', margin: 0, letterSpacing: '-0.02em' }}>
               Quản Lý Ngành Hàng & Doanh Số
             </h2>
-            <p style={{ margin: '6px 0 0 0', color: '#64748b', fontSize: '15px' }}>Tổ chức cấu trúc sản phẩm và theo dõi hiệu suất bán hàng chi tiết</p>
+            <p style={{ margin: '3px 0 0 0', color: '#64748b', fontSize: '13px' }}>
+              Tổ chức cấu trúc sản phẩm và theo dõi hiệu suất bán hàng chi tiết
+            </p>
           </div>
         </div>
       </div>
 
-      {/* Modern Tabs */}
-      <div style={{ display: 'flex', gap: '12px', marginBottom: '28px' }}>
+      {/* Modern Tabs - Compacted */}
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '14px', flexShrink: 0 }}>
         <button
           onClick={() => setActiveTab('manage')}
           style={{
-            display: 'flex', alignItems: 'center', gap: '10px',
-            padding: '12px 28px', borderRadius: '16px', fontWeight: '700', fontSize: '15px',
+            display: 'flex', alignItems: 'center', gap: '8px',
+            padding: '8px 18px', borderRadius: '10px', fontWeight: '700', fontSize: '13.5px',
             background: activeTab === 'manage' ? '#2563eb' : '#fff',
             color: activeTab === 'manage' ? '#fff' : '#64748b',
             border: activeTab === 'manage' ? 'none' : '1px solid #e2e8f0',
             cursor: 'pointer', transition: 'all 0.2s ease',
-            boxShadow: activeTab === 'manage' ? '0 8px 20px -6px rgba(37,99,235,0.4)' : '0 1px 3px rgba(0,0,0,0.05)'
+            boxShadow: activeTab === 'manage' ? '0 4px 12px -3px rgba(37,99,235,0.4)' : '0 1px 3px rgba(0,0,0,0.05)'
           }}
         >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <line x1="8" y1="6" x2="21" y2="6"></line>
             <line x1="8" y1="12" x2="21" y2="12"></line>
             <line x1="8" y1="18" x2="21" y2="18"></line>
@@ -890,16 +905,16 @@ export function CategoryManagementView({ token, onBackToHome: _onBackToHome }: C
         <button
           onClick={() => setActiveTab('report')}
           style={{
-            display: 'flex', alignItems: 'center', gap: '10px',
-            padding: '12px 28px', borderRadius: '16px', fontWeight: '700', fontSize: '15px',
+            display: 'flex', alignItems: 'center', gap: '8px',
+            padding: '8px 18px', borderRadius: '10px', fontWeight: '700', fontSize: '13.5px',
             background: activeTab === 'report' ? '#2563eb' : '#fff',
             color: activeTab === 'report' ? '#fff' : '#64748b',
             border: activeTab === 'report' ? 'none' : '1px solid #e2e8f0',
             cursor: 'pointer', transition: 'all 0.2s ease',
-            boxShadow: activeTab === 'report' ? '0 8px 20px -6px rgba(37,99,235,0.4)' : '0 1px 3px rgba(0,0,0,0.05)'
+            boxShadow: activeTab === 'report' ? '0 4px 12px -3px rgba(37,99,235,0.4)' : '0 1px 3px rgba(0,0,0,0.05)'
           }}
         >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <line x1="12" y1="20" x2="12" y2="10"></line>
             <line x1="18" y1="20" x2="18" y2="4"></line>
             <line x1="6" y1="20" x2="6" y2="16"></line>
@@ -909,7 +924,7 @@ export function CategoryManagementView({ token, onBackToHome: _onBackToHome }: C
       </div>
 
       {/* Main Content Area */}
-      <div style={{ minHeight: '600px' }}>
+      <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         {activeTab === 'manage' && (
           <div
             style={{
@@ -920,23 +935,28 @@ export function CategoryManagementView({ token, onBackToHome: _onBackToHome }: C
               boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
               display: 'flex',
               overflow: 'hidden',
-              minHeight: '620px',
+              flex: 1,
+              minHeight: 0,
+              height: '100%',
             }}
           >
             {/* Cột trái: Cây Ngành Hàng */}
             <div
               style={{
                 width: '42%',
-                minWidth: '380px',
-                maxWidth: '480px',
+                minWidth: '360px',
+                maxWidth: '460px',
                 borderRight: '1px solid #e2e8f0',
                 display: 'flex',
                 flexDirection: 'column',
                 background: '#fafbfc',
+                minHeight: 0,
+                height: '100%',
+                overflow: 'hidden',
               }}
             >
               {/* Header Cột Trái */}
-              <div style={{ padding: '16px 20px', borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
+              <div style={{ padding: '14px 18px', borderBottom: '1px solid #e2e8f0', background: '#f8fafc', flexShrink: 0 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '800', color: '#0f172a' }}>
@@ -997,7 +1017,10 @@ export function CategoryManagementView({ token, onBackToHome: _onBackToHome }: C
               </div>
 
               {/* Vùng cuộn danh sách cây ngành hàng */}
-              <div style={{ padding: '14px 16px', overflowY: 'auto', flex: 1, maxHeight: 'calc(100vh - 380px)', minHeight: '440px' }}>
+              <div
+                className="roles-grid-scroll"
+                style={{ padding: '14px 16px', overflowY: 'auto', flex: 1, minHeight: 0 }}
+              >
                 {isLoading ? (
                   <div style={{ padding: '60px 20px', textAlign: 'center', color: '#64748b' }}>
                     <div style={{ fontSize: '28px', marginBottom: '8px' }}>⏳</div>
@@ -1021,7 +1044,7 @@ export function CategoryManagementView({ token, onBackToHome: _onBackToHome }: C
         )}
 
         {activeTab === 'report' && (
-          <div>
+          <div className="roles-grid-scroll" style={{ flex: 1, minHeight: 0, overflowY: 'auto', paddingRight: '4px' }}>
             {isLoading ? (
               <div style={{ padding: '80px', textAlign: 'center', color: '#64748b', background: '#fff', borderRadius: '24px', border: '1px solid #e2e8f0' }}>
                 <div style={{ fontSize: '40px', marginBottom: '16px' }}>📊</div>

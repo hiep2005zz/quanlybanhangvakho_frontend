@@ -1,11 +1,17 @@
 .dealer-search-page {
-    padding: 24px;
-    max-width: 1400px;
+    padding: 0;
+    width: 100%;
+    max-width: 1680px;
     margin: 0 auto;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
 }
 
 .dealer-search-header {
-    margin-bottom: 20px;
+    margin-bottom: 12px;
+    flex-shrink: 0;
 }
 
 .dealer-search-header h2 {
@@ -73,12 +79,13 @@
     display: grid;
     grid-template-columns: 2fr 1fr 1fr 1fr 1fr auto;
     gap: 12px;
-    padding: 20px;
+    padding: 14px 18px;
     background: #ffffff;
     border: 1px solid #e2e8f0;
     border-radius: 14px;
-    margin-bottom: 20px;
+    margin-bottom: 14px;
     box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+    flex-shrink: 0;
 }
 
 .dealer-field {
@@ -234,16 +241,21 @@
     border-radius: 14px;
     overflow: hidden;
     box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
 }
 
 .dealer-result-title {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 16px 20px;
+    padding: 12px 18px;
     border-bottom: 1px solid #f1f5f9;
     flex-wrap: wrap;
     gap: 10px;
+    flex-shrink: 0;
 }
 
 .dealer-count-badge {
@@ -266,7 +278,22 @@
 
 .dealer-table-wrapper {
     overflow-x: auto;
+    overflow-y: auto;
     width: 100%;
+    flex: 1;
+    min-height: 0;
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e1 transparent;
+}
+
+.dealer-table-wrapper::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+.dealer-table-wrapper::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
 }
 
 .dealer-table-wrapper table {
@@ -285,7 +312,11 @@
 }
 
 .dealer-table-wrapper th {
+    position: sticky;
+    top: 0;
+    z-index: 10;
     background: #f8fafc;
+    box-shadow: 0 1px 0 #e2e8f0;
     font-weight: 700;
     color: #475569;
     font-size: 12.5px;

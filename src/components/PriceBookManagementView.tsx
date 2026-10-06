@@ -123,6 +123,18 @@ export function PriceBookManagementView({
     return priceBooks;
   }, [priceBooks]);
 
+  // Phân trang danh sách bảng giá
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const pageSize = 6;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filterGroup, filterStatus, debouncedSearch, filteredBooks.length]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredBooks.length / pageSize));
+  const safePage = Math.min(Math.max(1, currentPage), totalPages);
+  const paginatedBooks = filteredBooks.slice((safePage - 1) * pageSize, safePage * pageSize);
+
   const handleOpenCreate = () => {
     setSelectedBook(null);
     const now = new Date();
@@ -399,10 +411,22 @@ export function PriceBookManagementView({
   );
 
   return (
-    <div style={{ padding: '24px', background: '#f8fafc', minHeight: '100vh', fontFamily: 'Inter, system-ui, sans-serif' }}>
+    <div
+      style={{
+        width: '100%',
+        maxWidth: '1680px',
+        margin: '0 auto',
+        padding: 0,
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+        fontFamily: 'Inter, system-ui, sans-serif',
+      }}
+    >
       
       {/* Thanh công cụ và tiêu đề */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '16px', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
           {/* Nút chữ: Sang trang Quản lý Đơn hàng (Yêu cầu đề bài) */}
           {onNavigateToOrders && (
@@ -496,7 +520,7 @@ export function PriceBookManagementView({
       </div>
 
       {/* Thanh tìm kiếm và bộ lọc */}
-      <div style={{ background: '#fff', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', marginBottom: '24px', display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
+      <div style={{ background: '#fff', padding: '14px 16px', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', marginBottom: '16px', display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap', flexShrink: 0 }}>
         <div style={{ flex: 1, minWidth: '260px' }}>
           <input 
             type="text" 
@@ -522,27 +546,49 @@ export function PriceBookManagementView({
       </div>
 
       {/* Bảng danh sách bảng giá */}
-      <div style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
+      <div
+        style={{
+          background: '#fff',
+          borderRadius: '12px',
+          border: '1px solid #e2e8f0',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+          overflow: 'hidden',
+          flex: 1,
+          minHeight: 0,
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+      >
         {loading ? (
           <div style={{ padding: '60px', textAlign: 'center', color: '#64748b' }}>
             <div style={{ fontSize: '14px', fontWeight: '600' }}>Đang tải danh sách bảng giá...</div>
           </div>
         ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-            <thead style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-              <tr>
-                <th style={{ padding: '14px 16px', fontWeight: '700', color: '#475569', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Mã Bảng Giá</th>
-                <th style={{ padding: '14px 16px', fontWeight: '700', color: '#475569', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Tên Bảng Giá</th>
-                <th style={{ padding: '14px 16px', fontWeight: '700', color: '#475569', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap' }}>Nhóm Khách Hàng</th>
-                <th style={{ padding: '14px 16px', fontWeight: '700', color: '#475569', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Thời Hạn</th>
-                {/* Cột Phiên bản: Chỉ hiển thị chữ thuần túy, không có icon (Yêu cầu đề bài) */}
-                <th style={{ padding: '14px 16px', textAlign: 'center', fontWeight: '700', color: '#475569', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Phiên bản</th>
-                <th style={{ padding: '14px 16px', textAlign: 'center', fontWeight: '700', color: '#475569', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap' }}>Trạng thái</th>
-                <th style={{ padding: '14px 16px', textAlign: 'right', fontWeight: '700', color: '#475569', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap' }}>Thao tác</th>
-              </tr>
-            </thead>
+          <>
+            <div
+              className="roles-grid-scroll"
+            style={{
+              flex: 1,
+              minHeight: 0,
+              overflowY: 'auto',
+              overflowX: 'auto',
+            }}
+          >
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+              <thead style={{ position: 'sticky', top: 0, zIndex: 10, background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                <tr>
+                  <th style={{ padding: '14px 16px', fontWeight: '700', color: '#475569', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.04em', background: '#f8fafc' }}>Mã Bảng Giá</th>
+                  <th style={{ padding: '14px 16px', fontWeight: '700', color: '#475569', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.04em', background: '#f8fafc' }}>Tên Bảng Giá</th>
+                  <th style={{ padding: '14px 16px', fontWeight: '700', color: '#475569', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap', background: '#f8fafc' }}>Nhóm Khách Hàng</th>
+                  <th style={{ padding: '14px 16px', fontWeight: '700', color: '#475569', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.04em', background: '#f8fafc' }}>Thời Hạn</th>
+                  {/* Cột Phiên bản: Chỉ hiển thị chữ thuần túy, không có icon (Yêu cầu đề bài) */}
+                  <th style={{ padding: '14px 16px', textAlign: 'center', fontWeight: '700', color: '#475569', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.04em', background: '#f8fafc' }}>Phiên bản</th>
+                  <th style={{ padding: '14px 16px', textAlign: 'center', fontWeight: '700', color: '#475569', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap', background: '#f8fafc' }}>Trạng thái</th>
+                  <th style={{ padding: '14px 16px', textAlign: 'right', fontWeight: '700', color: '#475569', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap', background: '#f8fafc' }}>Thao tác</th>
+                </tr>
+              </thead>
             <tbody>
-              {filteredBooks.map(pb => {
+              {paginatedBooks.map(pb => {
                 const isLocked = Boolean(pb.is_locked);
                 return (
                   <tr key={pb.id} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background-color 0.15s' }}>
@@ -694,6 +740,166 @@ export function PriceBookManagementView({
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* FOOTER PHÂN TRANG */}
+        {!loading && filteredBooks.length > 0 && (
+          <div
+            style={{
+              padding: '12px 20px',
+              display: 'flex',
+              justifyContent: 'flex-end',
+              alignItems: 'center',
+              borderTop: '1px solid #e2e8f0',
+              background: '#f8fafc',
+              fontSize: '13px',
+              color: '#64748b',
+              flexShrink: 0,
+            }}
+          >
+            {/* Khối phân trang liền thanh chuẩn theo thiết kế */}
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'stretch',
+                border: '1px solid #d1d5db',
+                borderRadius: '8px',
+                overflow: 'hidden',
+                background: '#ffffff',
+                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
+                height: '32px',
+              }}
+            >
+              {/* Nút trang trước (<) - hiển thị khi trang > 1 */}
+              {safePage > 1 && (
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  style={{
+                    minWidth: '32px',
+                    height: '100%',
+                    padding: '0 8px',
+                    border: 'none',
+                    borderRight: '1px solid #e5e7eb',
+                    background: '#ffffff',
+                    color: '#4b5563',
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transition: 'background-color 0.15s ease',
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f9fafb')}
+                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#ffffff')}
+                  title="Trang trước"
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="15 18 9 12 15 6" />
+                  </svg>
+                </button>
+              )}
+
+              {/* Danh sách các số trang */}
+              {Array.from({ length: totalPages }, (_, i) => i + 1)
+                .filter((p) => p === 1 || p === totalPages || Math.abs(p - safePage) <= 1)
+                .reduce<(number | string)[]>((acc, p, idx, arr) => {
+                  if (idx > 0 && typeof arr[idx - 1] === 'number' && (p as number) - (arr[idx - 1] as number) > 1) {
+                    acc.push('...');
+                  }
+                  acc.push(p);
+                  return acc;
+                }, [])
+                .map((p, idx, arr) => {
+                  const hasNext = safePage < totalPages;
+                  const isLastItem = idx === arr.length - 1 && !hasNext;
+                  if (typeof p === 'string') {
+                    return (
+                      <span
+                        key={`ellipsis-${idx}`}
+                        style={{
+                          minWidth: '32px',
+                          height: '100%',
+                          padding: '0 8px',
+                          borderRight: isLastItem ? 'none' : '1px solid #e5e7eb',
+                          background: '#ffffff',
+                          color: '#6b7280',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '13px',
+                          userSelect: 'none',
+                        }}
+                      >
+                        ...
+                      </span>
+                    );
+                  }
+
+                  const isActive = p === safePage;
+                  return (
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={() => setCurrentPage(p)}
+                      style={{
+                        minWidth: '32px',
+                        height: '100%',
+                        padding: '0 10px',
+                        border: 'none',
+                        borderRight: isLastItem ? 'none' : '1px solid #e5e7eb',
+                        background: isActive ? '#2ba1f4' : '#ffffff',
+                        color: isActive ? '#ffffff' : '#374151',
+                        cursor: isActive ? 'default' : 'pointer',
+                        fontSize: '13px',
+                        fontWeight: isActive ? '700' : '500',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        transition: 'background-color 0.15s ease',
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!isActive) e.currentTarget.style.backgroundColor = '#f9fafb';
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!isActive) e.currentTarget.style.backgroundColor = '#ffffff';
+                      }}
+                    >
+                      {p}
+                    </button>
+                  );
+                })}
+
+              {/* Nút trang sau (>) - hiển thị khi chưa tới trang cuối */}
+              {safePage < totalPages && (
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  style={{
+                    minWidth: '32px',
+                    height: '100%',
+                    padding: '0 8px',
+                    border: 'none',
+                    background: '#ffffff',
+                    color: '#4b5563',
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transition: 'background-color 0.15s ease',
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f9fafb')}
+                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#ffffff')}
+                  title="Trang sau"
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="9 18 15 12 9 6" />
+                  </svg>
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+          </>
         )}
       </div>
 
