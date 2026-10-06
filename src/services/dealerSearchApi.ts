@@ -351,23 +351,30 @@ export async function createDealer(
         headers.Authorization = `Bearer ${authToken}`;
     }
 
-    try {
         const response = await fetch(`${API_BASE_URL}/api/v1/dealers`, {
             method: 'POST',
             headers,
             body: JSON.stringify(payload),
         });
 
-        if (response.ok) {
-            const result = await response.json();
-            if (result && result.id) {
-                MOCK_DEALERS.unshift(result);
-                return result;
+        if (!response.ok) {
+            let errorDetail = `Lỗi tạo đại lý (HTTP ${response.status})`;
+            try {
+                const errData = await response.json();
+                if (errData && errData.detail) {
+                    errorDetail = typeof errData.detail === 'string' ? errData.detail : JSON.stringify(errData.detail);
+                }
+            } catch {
+                // ignore
             }
+            throw new Error(errorDetail);
         }
-    } catch {
-        // Dự phòng fallback khi backend chưa cấu hình endpoint POST /dealers
-    }
+
+        const result = await response.json();
+        if (result && result.id) {
+            MOCK_DEALERS.unshift(result);
+            return result;
+        }
 
     const newItem: DealerSearchItem = {
         id: Date.now(),

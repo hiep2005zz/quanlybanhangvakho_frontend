@@ -25,7 +25,7 @@ export function PriceBookManagementView({
   token, 
   currentUser, 
   products: initialProducts,
-  onBackToHome,
+  onBackToHome: _onBackToHome,
   onNavigateToOrders,
 }: PriceBookManagementViewProps) {
   // Xác định vai trò người dùng (RBAC Matrix)
@@ -357,9 +357,17 @@ export function PriceBookManagementView({
   };
 
   const renderStatusBadge = (pb: PriceBook) => {
+    const badgeStyle: React.CSSProperties = {
+      padding: '4px 10px',
+      borderRadius: '12px',
+      fontSize: '12px',
+      fontWeight: '700',
+      whiteSpace: 'nowrap',
+      display: 'inline-block',
+    };
     if (pb.status === 'INACTIVE') {
       return (
-        <span style={{ padding: '4px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: '700', background: '#f1f5f9', color: '#64748b' }}>
+        <span style={{ ...badgeStyle, background: '#f1f5f9', color: '#64748b' }}>
           Ngừng hoạt động
         </span>
       );
@@ -367,31 +375,23 @@ export function PriceBookManagementView({
     const now = new Date();
     if (pb.status === 'EXPIRED' || new Date(pb.valid_to) < now) {
       return (
-        <span style={{ padding: '4px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: '700', background: '#fef3c7', color: '#b45309' }}>
+        <span style={{ ...badgeStyle, background: '#fef3c7', color: '#b45309' }}>
           Đã hết hạn
         </span>
       );
     }
     if (new Date(pb.valid_from) > now) {
       return (
-        <span style={{ padding: '4px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: '700', background: '#e0f2fe', color: '#0369a1' }}>
+        <span style={{ ...badgeStyle, background: '#e0f2fe', color: '#0369a1' }}>
           Chờ áp dụng
         </span>
       );
     }
     return (
-      <span style={{ padding: '4px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: '700', background: '#dcfce7', color: '#15803d' }}>
+      <span style={{ ...badgeStyle, background: '#dcfce7', color: '#15803d' }}>
         Đang áp dụng
       </span>
     );
-  };
-
-  const handleBackHome = () => {
-    if (onBackToHome) {
-      onBackToHome();
-    } else {
-      window.location.href = '/';
-    }
   };
 
   const isAddingWarning = Boolean(
@@ -404,24 +404,6 @@ export function PriceBookManagementView({
       {/* Thanh công cụ và tiêu đề */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-          <button 
-            type="button"
-            onClick={handleBackHome}
-            style={{ 
-              background: '#ffffff', 
-              color: '#334155', 
-              border: '1px solid #cbd5e1', 
-              padding: '9px 16px', 
-              borderRadius: '8px', 
-              cursor: 'pointer', 
-              fontWeight: '600', 
-              fontSize: '13.5px',
-              boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
-            }}
-          >
-            Quay lại trang chủ
-          </button>
-
           {/* Nút chữ: Sang trang Quản lý Đơn hàng (Yêu cầu đề bài) */}
           {onNavigateToOrders && (
             <button
@@ -437,7 +419,6 @@ export function PriceBookManagementView({
                 cursor: 'pointer',
                 fontWeight: '700',
                 fontSize: '13.5px',
-                marginLeft: '24px',
               }}
             >
               Sang trang Quản lý Đơn hàng
@@ -552,12 +533,12 @@ export function PriceBookManagementView({
               <tr>
                 <th style={{ padding: '14px 16px', fontWeight: '700', color: '#475569', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Mã Bảng Giá</th>
                 <th style={{ padding: '14px 16px', fontWeight: '700', color: '#475569', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Tên Bảng Giá</th>
-                <th style={{ padding: '14px 16px', fontWeight: '700', color: '#475569', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Nhóm Khách Hàng</th>
+                <th style={{ padding: '14px 16px', fontWeight: '700', color: '#475569', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap' }}>Nhóm Khách Hàng</th>
                 <th style={{ padding: '14px 16px', fontWeight: '700', color: '#475569', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Thời Hạn</th>
                 {/* Cột Phiên bản: Chỉ hiển thị chữ thuần túy, không có icon (Yêu cầu đề bài) */}
                 <th style={{ padding: '14px 16px', textAlign: 'center', fontWeight: '700', color: '#475569', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Phiên bản</th>
-                <th style={{ padding: '14px 16px', textAlign: 'center', fontWeight: '700', color: '#475569', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Trạng thái</th>
-                <th style={{ padding: '14px 16px', textAlign: 'right', fontWeight: '700', color: '#475569', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Thao tác</th>
+                <th style={{ padding: '14px 16px', textAlign: 'center', fontWeight: '700', color: '#475569', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap' }}>Trạng thái</th>
+                <th style={{ padding: '14px 16px', textAlign: 'right', fontWeight: '700', color: '#475569', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap' }}>Thao tác</th>
               </tr>
             </thead>
             <tbody>
@@ -578,24 +559,26 @@ export function PriceBookManagementView({
                       </div>
                       {pb.note && <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '2px' }}>{pb.note}</div>}
                     </td>
-                    <td style={{ padding: '14px 16px', color: '#334155' }}>
+                    <td style={{ padding: '14px 16px', color: '#334155', whiteSpace: 'nowrap' }}>
                       <span style={{ 
                         padding: '3px 10px', 
                         background: pb.customer_group?.includes('cap_1') || pb.customer_group?.includes('CAP_1') ? '#e0e7ff' : pb.customer_group?.includes('cap_2') || pb.customer_group?.includes('CAP_2') ? '#f3e8ff' : '#fef3c7', 
                         color: pb.customer_group?.includes('cap_1') || pb.customer_group?.includes('CAP_1') ? '#3730a3' : pb.customer_group?.includes('cap_2') || pb.customer_group?.includes('CAP_2') ? '#6b21a8' : '#92400e', 
                         borderRadius: '12px', 
                         fontSize: '12px', 
-                        fontWeight: '600' 
+                        fontWeight: '600',
+                        whiteSpace: 'nowrap',
+                        display: 'inline-block',
                       }}>
                         {formatGroupName(pb.customer_group)}
                       </span>
                     </td>
-                    <td style={{ padding: '14px 16px', color: '#475569', fontSize: '13px' }}>
+                    <td style={{ padding: '14px 16px', color: '#475569', fontSize: '13px', whiteSpace: 'nowrap' }}>
                       <div>{new Date(pb.valid_from).toLocaleDateString('vi-VN')} → {new Date(pb.valid_to).toLocaleDateString('vi-VN')}</div>
                     </td>
                     
                     {/* Cột Phiên bản: CHỈ chữ thuần túy, không có bất kỳ biểu tượng icon nào (Yêu cầu đề bài) */}
-                    <td style={{ padding: '14px 16px', textAlign: 'center' }}>
+                    <td style={{ padding: '14px 16px', textAlign: 'center', whiteSpace: 'nowrap' }}>
                       <span style={{ 
                         padding: '3px 10px', 
                         borderRadius: '8px', 
@@ -609,18 +592,33 @@ export function PriceBookManagementView({
                       </span>
                     </td>
 
-                    <td style={{ padding: '14px 16px', textAlign: 'center' }}>
+                    <td style={{ padding: '14px 16px', textAlign: 'center', whiteSpace: 'nowrap' }}>
                       {renderStatusBadge(pb)}
                     </td>
 
-                    <td style={{ padding: '14px 16px', textAlign: 'right' }}>
-                      <div style={{ display: 'inline-flex', gap: '8px', alignItems: 'center' }}>
+                    <td style={{ padding: '14px 16px', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                      <div style={{ display: 'inline-flex', gap: '6px', alignItems: 'center', justifyContent: 'flex-end' }}>
                         
                         {/* Nút Xem Chi Tiết bằng chữ thuần túy */}
                         <button 
                           type="button"
                           onClick={() => handleOpenDetail(pb.id)} 
-                          style={{ border: '1px solid #cbd5e1', background: '#fff', color: '#475569', padding: '5px 10px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', fontWeight: '600' }} 
+                          style={{ 
+                            border: '1px solid #cbd5e1', 
+                            background: '#fff', 
+                            color: '#475569', 
+                            width: '60px',
+                            height: '27px',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            boxSizing: 'border-box',
+                            padding: 0,
+                            borderRadius: '5px', 
+                            cursor: 'pointer', 
+                            fontSize: '11.5px', 
+                            fontWeight: '600' 
+                          }} 
                           title="Xem chi tiết bảng giá"
                         >
                           Chi tiết
@@ -637,10 +635,16 @@ export function PriceBookManagementView({
                                 border: '1px solid #cbd5e1', 
                                 background: isLocked ? '#f1f5f9' : '#eff6ff', 
                                 color: isLocked ? '#94a3b8' : '#2563eb', 
-                                padding: '5px 10px', 
-                                borderRadius: '6px', 
+                                width: '60px',
+                                height: '27px',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                boxSizing: 'border-box',
+                                padding: 0,
+                                borderRadius: '5px', 
                                 cursor: isLocked ? 'not-allowed' : 'pointer', 
-                                fontSize: '12px',
+                                fontSize: '11.5px', 
                                 fontWeight: '600'
                               }} 
                               title={isLocked ? "Bảng giá đã phát sinh đơn hàng, không thể chỉnh sửa" : "Chỉnh sửa bảng giá"}
@@ -656,10 +660,16 @@ export function PriceBookManagementView({
                                 border: '1px solid #86efac', 
                                 background: '#f0fdf4', 
                                 color: '#16a34a', 
-                                padding: '5px 10px', 
-                                borderRadius: '6px', 
+                                width: '60px',
+                                height: '27px',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                boxSizing: 'border-box',
+                                padding: 0,
+                                borderRadius: '5px', 
                                 cursor: cloningId === pb.id ? 'wait' : 'pointer', 
-                                fontSize: '12px',
+                                fontSize: '11.5px', 
                                 fontWeight: '600'
                               }} 
                               title="Tạo phiên bản mới từ bảng giá này"

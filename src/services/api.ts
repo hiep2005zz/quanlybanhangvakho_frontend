@@ -106,6 +106,7 @@ export interface OrderDetail extends OrderItem {
   discount_percent: number;
   discount_amount: number;
   delivery_point?: string | null;
+  delivery_point_id?: number | null;
   desired_delivery_date?: string | null;
   note?: string | null;
   items: Array<{
@@ -132,6 +133,7 @@ export interface OrderDealer {
 export interface CreateOrderPayload {
   dealer_id: number;
   delivery_point: string;
+  delivery_point_id?: number | null;
   desired_delivery_date: string;
   discount_percent: number;
   items: Array<{
@@ -853,6 +855,7 @@ export interface UserCreatePayload {
   role?: string;
   roles?: string[];
   branch?: string;
+  phone?: string;
 }
 
 export interface UserUpdatePayload {

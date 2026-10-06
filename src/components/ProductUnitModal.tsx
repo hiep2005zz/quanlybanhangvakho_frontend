@@ -148,7 +148,7 @@ export const ProductUnitModal: React.FC<ProductUnitModalProps> = ({
           backgroundColor: '#ffffff',
           borderRadius: '16px',
           padding: '24px',
-          maxWidth: '540px',
+          maxWidth: '580px',
           width: '100%',
           boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
           border: '1px solid #e2e8f0',
@@ -261,14 +261,15 @@ export const ProductUnitModal: React.FC<ProductUnitModalProps> = ({
                       value={item.conversion_rate}
                       onChange={(e) => handleUpdateUnitRate(idx, e.target.value)}
                       style={{
-                        width: '90px',
+                        width: '105px',
                         padding: '6px 10px',
                         borderRadius: '6px',
                         border: '1px solid #cbd5e1',
                         fontSize: '13px',
-                        textAlign: 'right',
+                        textAlign: 'center',
                         fontWeight: '600',
                         color: '#2563eb',
+                        background: '#ffffff',
                       }}
                     />
                     <span style={{ fontSize: '13px', color: '#64748b', flex: 1 }}>
@@ -306,7 +307,6 @@ export const ProductUnitModal: React.FC<ProductUnitModalProps> = ({
                 display: 'flex',
                 alignItems: 'center',
                 gap: '8px',
-                flexWrap: 'wrap',
               }}
             >
               <input
@@ -316,14 +316,15 @@ export const ProductUnitModal: React.FC<ProductUnitModalProps> = ({
                 onChange={(e) => setNewUnitName(e.target.value)}
                 style={{
                   flex: 1,
-                  minWidth: '120px',
+                  minWidth: '130px',
                   padding: '7px 10px',
                   borderRadius: '6px',
                   border: '1px solid #cbd5e1',
                   fontSize: '13px',
+                  background: '#ffffff',
                 }}
               />
-              <span style={{ fontSize: '12.5px', color: '#475569', fontWeight: '500' }}>=</span>
+              <span style={{ fontSize: '13px', color: '#475569', fontWeight: '600' }}>=</span>
               <input
                 type="number"
                 step="any"
@@ -332,15 +333,16 @@ export const ProductUnitModal: React.FC<ProductUnitModalProps> = ({
                 value={newUnitRate}
                 onChange={(e) => setNewUnitRate(e.target.value)}
                 style={{
-                  width: '95px',
+                  width: '120px',
                   padding: '7px 10px',
                   borderRadius: '6px',
                   border: '1px solid #cbd5e1',
                   fontSize: '13px',
-                  textAlign: 'right',
+                  textAlign: 'left',
+                  background: '#ffffff',
                 }}
               />
-              <span style={{ fontSize: '12.5px', color: '#475569' }}>{baseUnit}</span>
+              <span style={{ fontSize: '12.5px', color: '#475569', whiteSpace: 'nowrap' }}>{baseUnit}</span>
               <button
                 type="button"
                 onClick={handleAddUnit}
@@ -354,6 +356,7 @@ export const ProductUnitModal: React.FC<ProductUnitModalProps> = ({
                   fontWeight: '600',
                   cursor: 'pointer',
                   whiteSpace: 'nowrap',
+                  flexShrink: 0,
                 }}
               >
                 + Thêm
