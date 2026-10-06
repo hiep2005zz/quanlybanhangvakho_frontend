@@ -139,16 +139,29 @@ export default function DealerSearchView({
         }
     };
 
-    const handleDeleteDealer = async (dealer: DealerSearchItem) => {
-        if (!window.confirm(`Bạn có chắc chắn muốn xóa đại lý "${dealer.name}" (${dealer.code}) không?`)) {
-            return;
-        }
+    // Modal Xác nhận xóa Đại lý (thay thế window.confirm bằng modal hệ thống)
+    const [dealerToDelete, setDealerToDelete] = useState<DealerSearchItem | null>(null);
+    const [isDeletingDealer, setIsDeletingDealer] = useState<boolean>(false);
+    const [deleteDealerError, setDeleteDealerError] = useState<string | null>(null);
+
+    const openDeleteDealerModal = (dealer: DealerSearchItem) => {
+        setDealerToDelete(dealer);
+        setDeleteDealerError(null);
+    };
+
+    const handleConfirmDeleteDealer = async () => {
+        if (!dealerToDelete) return;
+        setIsDeletingDealer(true);
+        setDeleteDealerError(null);
         try {
-            await deleteDealer(dealer.id, token);
-            emitStatusToast({ title: 'Thành công', message: `Đã xóa đại lý "${dealer.name}"`, type: 'success' });
+            await deleteDealer(dealerToDelete.id, token);
+            emitStatusToast({ title: 'Thành công', message: `Đã xóa đại lý "${dealerToDelete.name}" thành công`, type: 'success' });
+            setDealerToDelete(null);
             handleSearch();
         } catch (err) {
-            emitStatusToast({ title: 'Lỗi', message: err instanceof Error ? err.message : 'Có lỗi khi xóa đại lý', type: 'error' });
+            setDeleteDealerError(err instanceof Error ? err.message : 'Có lỗi khi xóa đại lý');
+        } finally {
+            setIsDeletingDealer(false);
         }
     };
 
@@ -1049,7 +1062,7 @@ export default function DealerSearchView({
                                                             <button 
                                                                 type="button" 
                                                                 className="dealer-dropdown-item" 
-                                                                onClick={(e) => { e.stopPropagation(); handleDeleteDealer(dealer); setOpenDropdownId(null); }}
+                                                                onClick={(e) => { e.stopPropagation(); openDeleteDealerModal(dealer); setOpenDropdownId(null); }}
                                                                 style={{ color: '#ef4444' }}
                                                             >
                                                                 Xóa đại lý
@@ -1619,6 +1632,142 @@ export default function DealerSearchView({
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+            {/* Modal Xác Nhận Xóa Đại Lý (Thay cho window.confirm) */}
+            {dealerToDelete && (
+                <div 
+                    style={{
+                        position: 'fixed',
+                        inset: 0,
+                        background: 'rgba(15, 23, 42, 0.45)',
+                        backdropFilter: 'blur(6px)',
+                        WebkitBackdropFilter: 'blur(6px)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        zIndex: 9999,
+                        padding: '20px'
+                    }}
+                    onClick={() => {
+                        if (!isDeletingDealer) setDealerToDelete(null);
+                    }}
+                >
+                    <div 
+                        style={{
+                            background: '#ffffff',
+                            border: '1px solid #fee2e2',
+                            borderRadius: '16px',
+                            width: '100%',
+                            maxWidth: '480px',
+                            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+                            overflow: 'hidden',
+                            color: '#0f172a',
+                            textAlign: 'center',
+                            padding: '32px 28px',
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {/* Warning Icon */}
+                        <div style={{
+                            width: '64px',
+                            height: '64px',
+                            borderRadius: '50%',
+                            background: '#fee2e2',
+                            border: '2px solid #fecaca',
+                            color: '#dc2626',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '28px',
+                            margin: '0 auto 18px',
+                        }}>
+                            ⚠️
+                        </div>
+
+                        <h3 style={{ fontSize: '20px', fontWeight: '800', margin: '0 0 10px', color: '#0f172a' }}>
+                            Xác Nhận Xóa Đại Lý?
+                        </h3>
+
+                        <p style={{ fontSize: '14px', color: '#475569', lineHeight: '1.6', margin: '0 0 18px' }}>
+                            Bạn có chắc chắn muốn xóa đại lý <strong style={{ color: '#b91c1c' }}>"{dealerToDelete.name}"</strong> ({dealerToDelete.code}) không?
+                        </p>
+
+                        <div style={{
+                            background: '#f8fafc',
+                            border: '1px solid #e2e8f0',
+                            borderRadius: '10px',
+                            padding: '12px 16px',
+                            marginBottom: '20px',
+                            fontSize: '13px',
+                            color: '#64748b',
+                            textAlign: 'left',
+                            lineHeight: '1.6'
+                        }}>
+                            <div>• Mã đại lý: <strong style={{ color: '#0f172a' }}>{dealerToDelete.code}</strong></div>
+                            <div>• Tên đại lý: <strong style={{ color: '#0f172a' }}>{dealerToDelete.name}</strong></div>
+                            <div>• Khu vực: <strong style={{ color: '#0f172a' }}>{dealerToDelete.region || 'Chưa cập nhật'}</strong></div>
+                            <div>• Người phụ trách: <strong style={{ color: '#0f172a' }}>{dealerToDelete.assigned_sale_name || 'Chưa phân công'}</strong></div>
+                            <div style={{ color: '#dc2626', marginTop: '6px', fontWeight: '500' }}>
+                                ⚠️ Dữ liệu đại lý này sẽ bị xóa khỏi hệ thống và không thể hoàn tác.
+                            </div>
+                        </div>
+
+                        {deleteDealerError && (
+                            <div style={{
+                                background: '#fee2e2',
+                                border: '1px solid #fecaca',
+                                color: '#b91c1c',
+                                padding: '10px 14px',
+                                borderRadius: '8px',
+                                fontSize: '13px',
+                                marginBottom: '16px'
+                            }}>
+                                ⚠️ {deleteDealerError}
+                            </div>
+                        )}
+
+                        {/* Actions */}
+                        <div style={{ display: 'flex', justifyContent: 'center', gap: '12px' }}>
+                            <button
+                                type="button"
+                                onClick={() => setDealerToDelete(null)}
+                                disabled={isDeletingDealer}
+                                style={{
+                                    background: '#f1f5f9',
+                                    border: '1px solid #cbd5e1',
+                                    borderRadius: '8px',
+                                    color: '#475569',
+                                    padding: '10px 22px',
+                                    fontSize: '14px',
+                                    fontWeight: '600',
+                                    cursor: isDeletingDealer ? 'not-allowed' : 'pointer'
+                                }}
+                            >
+                                Hủy bỏ
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleConfirmDeleteDealer}
+                                disabled={isDeletingDealer}
+                                style={{
+                                    background: isDeletingDealer ? '#f87171' : '#dc2626',
+                                    border: 'none',
+                                    borderRadius: '8px',
+                                    color: '#ffffff',
+                                    padding: '10px 22px',
+                                    fontSize: '14px',
+                                    fontWeight: '600',
+                                    cursor: isDeletingDealer ? 'not-allowed' : 'pointer',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '6px'
+                                }}
+                            >
+                                {isDeletingDealer ? 'Đang xóa...' : 'Xác nhận xóa'}
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
