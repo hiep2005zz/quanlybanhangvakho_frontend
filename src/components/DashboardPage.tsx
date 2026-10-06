@@ -22,6 +22,7 @@ import { StockActionModal } from './StockActionModal';
 import { OrderManagementView } from './OrderManagementView';
 import SalesOrderEntry from './SalesOrderEntry';
 import { ProductHistoryView } from './ProductHistoryView';
+import { ProductDrawer } from './ProductDrawer';
 
 import './dashboard.css';
 import { Sidebar, type TabType } from './Sidebar';
@@ -520,6 +521,7 @@ export default function DashboardPage({
 
   // Bulk Import Product Modal State
   const [isProductBulkImportOpen, setIsProductBulkImportOpen] = useState(false);
+  const [productDrawerState, setProductDrawerState] = useState<{ isOpen: boolean; product: ProductItem | null }>({ isOpen: false, product: null });
 
   // Quản lý sản phẩm được chọn để xem lịch sử (/product-history)
   const [historyProductTarget, setHistoryProductTarget] = useState<{ code: string; name: string } | null>(() => {
@@ -1807,7 +1809,40 @@ export default function DashboardPage({
 
                 {/* Nút Nhập file Excel danh mục hàng loạt (Chỉ hiển thị cho admin và quản lý kinh doanh) */}
                 {(isAdmin || isSalesManager) && (
-                  <button
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setProductDrawerState({ isOpen: true, product: null })}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        background: '#3b82f6',
+                        border: '1px solid #2563eb',
+                        padding: '7px 12px',
+                        borderRadius: '8px',
+                        fontSize: '12.5px',
+                        fontWeight: '600',
+                        color: '#ffffff',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = '#2563eb';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = '#3b82f6';
+                      }}
+                      title="Khai báo sản phẩm mới"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="12" y1="5" x2="12" y2="19" />
+                        <line x1="5" y1="12" x2="19" y2="12" />
+                      </svg>
+                      <span>Thêm sản phẩm</span>
+                    </button>
+                    
+                    <button
                     type="button"
                     onClick={() => setIsProductBulkImportOpen(true)}
                     style={{
@@ -1841,6 +1876,7 @@ export default function DashboardPage({
                     </svg>
                     <span>Nhập file</span>
                   </button>
+                  </>
                 )}
 
                 {/* Nút Xuất file Excel danh mục */}
@@ -2012,7 +2048,28 @@ export default function DashboardPage({
                         </td>
 
                         <td style={{ padding: '13px 18px', fontWeight: '500', color: '#0f172a', fontSize: '13.5px', textAlign: 'left' }}>
-                          {item.name}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            {item.images && item.images.length > 0 ? (
+                              <img src={item.images[0]} alt="" style={{ width: '32px', height: '32px', borderRadius: '4px', objectFit: 'cover', border: '1px solid #cbd5e1' }} />
+                            ) : (
+                              <div style={{ width: '32px', height: '32px', borderRadius: '4px', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', border: '1px solid #e2e8f0' }}>
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                              </div>
+                            )}
+                            <div style={{ display: 'flex', flexDirection: 'column' }}>
+                              <span>{item.name}</span>
+                              {item.status === 'inactive' && (
+                                <span style={{ fontSize: '10px', background: '#fef2f2', color: '#ef4444', border: '1px solid #fecaca', padding: '1px 4px', borderRadius: '4px', width: 'fit-content', marginTop: '2px' }}>
+                                  Ngừng kinh doanh
+                                </span>
+                              )}
+                              {item.status === 'active' && (
+                                <span style={{ fontSize: '10px', background: '#f0fdf4', color: '#16a34a', border: '1px solid #bbf7d0', padding: '1px 4px', borderRadius: '4px', width: 'fit-content', marginTop: '2px' }}>
+                                  Đang kinh doanh
+                                </span>
+                              )}
+                            </div>
+                          </div>
                         </td>
 
                         <td style={{ padding: '13px 18px', textAlign: 'left', color: '#64748b', fontSize: '12.5px' }}>
@@ -2202,6 +2259,43 @@ export default function DashboardPage({
                                   }}
                                   onClick={(e) => e.stopPropagation()}
                                 >
+                                  {(isAdmin || isSalesManager) && (
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setProductDrawerState({ isOpen: true, product: item });
+                                        setOpenProductMenuId(null);
+                                      }}
+                                      style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '8px',
+                                        width: '100%',
+                                        padding: '8px 12px',
+                                        background: 'transparent',
+                                        border: 'none',
+                                        borderRadius: '6px',
+                                        fontSize: '13px',
+                                        fontWeight: '600',
+                                        color: '#0f172a',
+                                        cursor: 'pointer',
+                                        boxShadow: 'none',
+                                        margin: 0,
+                                        transition: 'background 0.15s ease',
+                                        textAlign: 'left',
+                                      }}
+                                      onMouseEnter={(e) => (e.currentTarget.style.background = '#f1f5f9')}
+                                      onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                                    >
+                                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M12 20h9" />
+                                        <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                                      </svg>
+                                      <span>Chỉnh sửa sản phẩm</span>
+                                    </button>
+                                  )}
+
                                   {canConfigUnit && (
                                     <button
                                       type="button"
@@ -2750,6 +2844,20 @@ export default function DashboardPage({
           onClose={() => setMovingProduct(null)}
           onSuccess={() => {
             setMovingProduct(null);
+            fetchProducts();
+          }}
+        />
+      )}
+
+      {productDrawerState.isOpen && (
+        <ProductDrawer
+          isOpen={productDrawerState.isOpen}
+          onClose={() => setProductDrawerState({ isOpen: false, product: null })}
+          product={productDrawerState.product}
+          token={token}
+          isCostVisible={isCostVisible}
+          categories={['Thời trang', 'Giày dép', 'Phụ kiện', 'Chưa phân loại']}
+          onSuccess={() => {
             fetchProducts();
           }}
         />
