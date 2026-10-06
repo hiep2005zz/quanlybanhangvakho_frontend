@@ -1709,9 +1709,6 @@ export default function DealerSearchView({
                             <div>• Tên đại lý: <strong style={{ color: '#0f172a' }}>{dealerToDelete.name}</strong></div>
                             <div>• Khu vực: <strong style={{ color: '#0f172a' }}>{dealerToDelete.region || 'Chưa cập nhật'}</strong></div>
                             <div>• Người phụ trách: <strong style={{ color: '#0f172a' }}>{dealerToDelete.assigned_sale_name || 'Chưa phân công'}</strong></div>
-                            <div style={{ color: '#dc2626', marginTop: '6px', fontWeight: '500' }}>
-                                ⚠️ Dữ liệu đại lý này sẽ bị xóa khỏi hệ thống và không thể hoàn tác.
-                            </div>
                         </div>
 
                         {deleteDealerError && (
