@@ -373,6 +373,13 @@ export default function DealerSearchView({
             setAddError('Tên không hợp lệ! Tên đại lý / khách hàng không được chỉ bao gồm chữ số.');
             return;
         }
+        const isDuplicateName = dealers.some(
+            (d) => d.name && d.name.trim().toLowerCase() === trimmedName.toLowerCase()
+        );
+        if (isDuplicateName) {
+            setAddError(`Tên đại lý / khách hàng "${trimmedName}" đã tồn tại trên hệ thống! Vui lòng đặt tên khác.`);
+            return;
+        }
 
         // 3. Ràng buộc Mã đại lý / Khách hàng (In hoa, không trùng lặp)
         const cleanCode = (addFormData.code.trim() || `DL-${Math.floor(1000 + Math.random() * 9000)}`).toUpperCase();
