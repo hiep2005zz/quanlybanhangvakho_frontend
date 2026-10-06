@@ -81,7 +81,7 @@
   font-weight: 650;
 }
 
-.sales-order-field > span b {
+.sales-order-field>span b {
   color: #dc2626;
 }
 
@@ -159,7 +159,7 @@
   background: #f8fafc;
 }
 
-.sales-order-search-results button > span {
+.sales-order-search-results button>span {
   min-width: 0;
   overflow-wrap: anywhere;
 }
@@ -198,7 +198,7 @@
   gap: 12px;
 }
 
-.sales-order-line-heading > div {
+.sales-order-line-heading>div {
   min-width: 0;
 }
 

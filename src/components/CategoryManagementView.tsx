@@ -257,73 +257,88 @@ export function CategoryManagementView({ token, onBackToHome }: CategoryManageme
 
   // Tree View Renderer
   const renderTree = (nodes: CategoryTreeResponse[], level = 0) => {
-    const levelColors = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6'];
+    const levelColors = ['#2563eb', '#059669', '#d97706', '#7c3aed'];
     const color = levelColors[Math.min(level, levelColors.length - 1)];
 
     return nodes.map(node => {
       const hasChildren = node.sub_categories && node.sub_categories.length > 0;
       const isExpanded = searchTerm.trim() ? true : expandedNodes.has(node.id);
       const isSelected = selectedCategoryId === node.id;
+      const prodCount = categoryProductCountMap.get(node.id) || 0;
       
       return (
         <React.Fragment key={node.id}>
           <div 
             onClick={() => setSelectedCategoryId(prev => prev === node.id ? null : node.id)}
             onDragOver={(e) => handleDragOver(e, color)}
-            onDragLeave={(e) => handleDragLeave(e, isSelected, color)}
-            onDrop={(e) => handleDrop(e, node.id, node.name, isSelected, color)}
+            onDragLeave={(e) => handleDragLeave(e, isSelected, '#e2e8f0')}
+            onDrop={(e) => handleDrop(e, node.id, node.name, isSelected, '#e2e8f0')}
             style={{ 
               display: 'flex', 
               alignItems: 'center', 
               justifyContent: 'space-between',
-              padding: '12px 16px',
-              marginLeft: `${level * 28}px`,
-              background: '#ffffff',
-              borderRadius: '12px',
-              border: `1px solid ${isSelected ? color : '#f1f5f9'}`,
-              borderLeft: `5px solid ${color}`,
-              boxShadow: isSelected ? `0 4px 12px ${color}22` : '0 1px 3px rgba(0,0,0,0.05)',
+              padding: '9px 12px',
+              marginLeft: `${level * 20}px`,
+              background: isSelected ? '#eff6ff' : '#ffffff',
+              borderRadius: '8px',
+              border: `1px solid ${isSelected ? '#3b82f6' : '#e2e8f0'}`,
+              borderLeft: `4px solid ${isSelected ? '#2563eb' : color}`,
+              boxShadow: isSelected ? '0 2px 6px rgba(37,99,235,0.12)' : '0 1px 2px rgba(0,0,0,0.03)',
               cursor: 'pointer',
-              transition: 'all 0.2s ease',
-              marginBottom: '10px',
+              transition: 'all 0.15s ease',
+              marginBottom: '6px',
               position: 'relative',
               overflow: 'hidden'
             }}
             className="category-tree-card"
           >
-            {isSelected && (
-              <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: '4px', background: color }}></div>
-            )}
-            
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flex: 1 }}>
               {/* Expand Toggle */}
               {hasChildren ? (
                 <button 
                   onClick={(e) => toggleExpand(node.id, e)}
                   style={{ 
-                    background: isExpanded ? `${color}11` : '#f1f5f9', 
-                    border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', 
-                    color: color, padding: '6px', borderRadius: '8px', transition: 'all 0.2s'
+                    background: isExpanded ? `${color}15` : '#f1f5f9', 
+                    border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    color: color, width: '22px', height: '22px', borderRadius: '6px', transition: 'all 0.15s', flexShrink: 0
                   }}
+                  title={isExpanded ? "Thu gọn" : "Mở rộng"}
                 >
                   {isExpanded ? <ChevronDown /> : <ChevronRight />}
                 </button>
               ) : (
-                <span style={{ width: '30px', display: 'inline-block' }}></span>
+                <span style={{ width: '22px', flexShrink: 0 }}></span>
               )}
               
               {/* Icon & Name */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#0f172a', fontWeight: isSelected ? '700' : '600' }}>
-                <FolderIcon open={isExpanded} color={color} />
-                <span style={{ fontSize: '15px' }}>{node.name}</span>
-                <span style={{ fontSize: '12px', color: '#64748b', background: '#f8fafc', padding: '2px 8px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-                  ID: {node.id}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '7px', minWidth: 0, flex: 1 }}>
+                <span style={{ flexShrink: 0, display: 'flex', alignItems: 'center' }}>
+                  <FolderIcon open={isExpanded} color={color} />
+                </span>
+                <span style={{ fontSize: '13.5px', fontWeight: isSelected ? '700' : '600', color: isSelected ? '#1d4ed8' : '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {node.name}
+                </span>
+                <span style={{ fontSize: '11px', color: '#64748b', background: '#f8fafc', padding: '1px 5px', borderRadius: '5px', border: '1px solid #e2e8f0', flexShrink: 0 }}>
+                  #{node.id}
+                </span>
+                <span style={{
+                  fontSize: '11px',
+                  fontWeight: '700',
+                  color: prodCount > 0 ? '#0369a1' : '#94a3b8',
+                  background: prodCount > 0 ? '#e0f2fe' : '#f1f5f9',
+                  padding: '1px 7px',
+                  borderRadius: '10px',
+                  flexShrink: 0
+                }}
+                title={`${prodCount} sản phẩm trực thuộc nhóm này`}
+                >
+                  {prodCount} SP
                 </span>
               </div>
             </div>
 
             {/* Actions */}
-            <div style={{ display: 'flex', gap: '8px' }} className="category-actions" onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', gap: '4px', flexShrink: 0, marginLeft: '6px' }} className="category-actions" onClick={e => e.stopPropagation()}>
               <button
                 onClick={() => {
                   setEditingId(null);
@@ -332,8 +347,9 @@ export function CategoryManagementView({ token, onBackToHome }: CategoryManageme
                 }}
                 title="Thêm nhóm con"
                 className="action-btn-add"
+                style={{ height: '26px', padding: '0 7px', fontSize: '11.5px', borderRadius: '6px' }}
               >
-                <PlusIcon /> Thêm Con
+                <PlusIcon /> Con
               </button>
               <button
                 onClick={() => {
@@ -343,22 +359,24 @@ export function CategoryManagementView({ token, onBackToHome }: CategoryManageme
                 }}
                 title="Sửa nhóm"
                 className="action-btn-edit"
+                style={{ height: '26px', padding: '0 7px', fontSize: '11.5px', borderRadius: '6px' }}
               >
-                <EditIcon /> Sửa
+                <EditIcon />
               </button>
               <button
                 onClick={(e) => handleDelete(node.id, e)}
                 title="Xóa nhóm"
                 className="action-btn-del"
+                style={{ height: '26px', padding: '0 7px', fontSize: '11.5px', borderRadius: '6px' }}
               >
-                <TrashIcon /> Xóa
+                <TrashIcon />
               </button>
             </div>
           </div>
           
           {/* Render Children if expanded */}
           {hasChildren && isExpanded && (
-            <div style={{ animation: 'slideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1)' }}>
+            <div style={{ animation: 'slideDown 0.2s ease' }}>
               {renderTree(node.sub_categories, level + 1)}
             </div>
           )}
@@ -379,6 +397,17 @@ export function CategoryManagementView({ token, onBackToHome }: CategoryManageme
   }, [products]);
 
   const assignedCount = products.length - unassignedCount;
+
+  // Bản đồ đếm số lượng sản phẩm theo từng nhóm ngành hàng
+  const categoryProductCountMap = useMemo(() => {
+    const map = new Map<number, number>();
+    products.forEach(p => {
+      if (p.category_id) {
+        map.set(p.category_id, (map.get(p.category_id) || 0) + 1);
+      }
+    });
+    return map;
+  }, [products]);
 
   const selectedCategoryName = useMemo(() => {
     if (!selectedCategoryId) return null;
@@ -426,79 +455,110 @@ export function CategoryManagementView({ token, onBackToHome }: CategoryManageme
 
   const renderProductsList = () => {
     return (
-      <div style={{ flex: '1', minWidth: '400px', maxWidth: '520px', background: '#ffffff', borderRadius: '20px', border: '1px solid #e2e8f0', boxShadow: '0 10px 40px -10px rgba(0,0,0,0.08)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        {/* Header */}
-        <div style={{ padding: '20px 24px 16px', borderBottom: '1px solid #f1f5f9', background: '#f8fafc' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-            <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '800', color: '#0f172a' }}>
-              Danh Sách Sản Phẩm
-            </h3>
-            <span style={{ fontSize: '12px', color: '#475569', fontWeight: '700', background: '#e2e8f0', padding: '3px 10px', borderRadius: '12px' }}>
-              {displayedProducts.length} / {products.length} SP
-            </span>
-          </div>
-          <p style={{ margin: '0 0 14px 0', fontSize: '13px', color: '#64748b' }}>
-            <strong style={{ color: '#2563eb' }}>Kéo thả thẻ sản phẩm</strong> vào các nhánh ngành hàng bên trái để phân nhóm.
-          </p>
+      <div style={{ flex: '1', display: 'flex', flexDirection: 'column', background: '#ffffff', minWidth: '460px', overflow: 'hidden' }}>
+        {/* Header Cột Phải */}
+        <div style={{ padding: '16px 20px', borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', marginBottom: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '800', color: '#0f172a' }}>
+                Danh Sách Sản Phẩm
+              </h3>
+              <span style={{ fontSize: '11.5px', color: '#475569', fontWeight: '700', background: '#e2e8f0', padding: '2px 8px', borderRadius: '10px' }}>
+                {displayedProducts.length} / {products.length} SP
+              </span>
+            </div>
 
-          {/* Quick Filter Tabs */}
-          <div style={{ display: 'flex', gap: '6px', marginBottom: '12px', background: '#e2e8f0', padding: '4px', borderRadius: '12px' }}>
-            <button
-              onClick={() => { setProductFilter('all'); setSelectedCategoryId(null); }}
-              style={{
-                flex: 1, padding: '7px 8px', borderRadius: '8px', border: 'none',
-                background: (!selectedCategoryId && productFilter === 'all') ? '#ffffff' : 'transparent',
-                color: (!selectedCategoryId && productFilter === 'all') ? '#0f172a' : '#64748b',
-                fontWeight: (!selectedCategoryId && productFilter === 'all') ? '700' : '600',
-                fontSize: '12.5px', cursor: 'pointer', transition: 'all 0.15s',
-                boxShadow: (!selectedCategoryId && productFilter === 'all') ? '0 1px 3px rgba(0,0,0,0.08)' : 'none'
-              }}
-            >
-              Tất cả ({products.length})
-            </button>
-            <button
-              onClick={() => { setProductFilter('unassigned'); setSelectedCategoryId(null); }}
-              style={{
-                flex: 1, padding: '7px 8px', borderRadius: '8px', border: 'none',
-                background: (!selectedCategoryId && productFilter === 'unassigned') ? '#fef3c7' : 'transparent',
-                color: (!selectedCategoryId && productFilter === 'unassigned') ? '#b45309' : (unassignedCount > 0 ? '#b45309' : '#64748b'),
-                fontWeight: (!selectedCategoryId && productFilter === 'unassigned') ? '700' : '600',
-                fontSize: '12.5px', cursor: 'pointer', transition: 'all 0.15s',
-                boxShadow: (!selectedCategoryId && productFilter === 'unassigned') ? '0 1px 3px rgba(180,83,9,0.2)' : 'none'
-              }}
-            >
-              Chưa gán ({unassignedCount})
-            </button>
-            <button
-              onClick={() => { setProductFilter('assigned'); setSelectedCategoryId(null); }}
-              style={{
-                flex: 1, padding: '7px 8px', borderRadius: '8px', border: 'none',
-                background: (!selectedCategoryId && productFilter === 'assigned') ? '#ffffff' : 'transparent',
-                color: (!selectedCategoryId && productFilter === 'assigned') ? '#0f172a' : '#64748b',
-                fontWeight: (!selectedCategoryId && productFilter === 'assigned') ? '700' : '600',
-                fontSize: '12.5px', cursor: 'pointer', transition: 'all 0.15s',
-                boxShadow: (!selectedCategoryId && productFilter === 'assigned') ? '0 1px 3px rgba(0,0,0,0.08)' : 'none'
-              }}
-            >
-              Đã gán ({assignedCount})
-            </button>
+            {/* Quick Filter Tabs */}
+            <div style={{ display: 'flex', gap: '4px', background: '#e2e8f0', padding: '3px', borderRadius: '8px' }}>
+              <button
+                onClick={() => { setProductFilter('all'); setSelectedCategoryId(null); }}
+                style={{
+                  padding: '5px 11px', borderRadius: '6px', border: 'none',
+                  background: (!selectedCategoryId && productFilter === 'all') ? '#ffffff' : 'transparent',
+                  color: (!selectedCategoryId && productFilter === 'all') ? '#0f172a' : '#64748b',
+                  fontWeight: (!selectedCategoryId && productFilter === 'all') ? '700' : '600',
+                  fontSize: '12px', cursor: 'pointer', transition: 'all 0.15s',
+                  boxShadow: (!selectedCategoryId && productFilter === 'all') ? '0 1px 2px rgba(0,0,0,0.06)' : 'none'
+                }}
+              >
+                Tất cả ({products.length})
+              </button>
+              <button
+                onClick={() => { setProductFilter('unassigned'); setSelectedCategoryId(null); }}
+                style={{
+                  padding: '5px 11px', borderRadius: '6px', border: 'none',
+                  background: (!selectedCategoryId && productFilter === 'unassigned') ? '#fef3c7' : 'transparent',
+                  color: (!selectedCategoryId && productFilter === 'unassigned') ? '#b45309' : (unassignedCount > 0 ? '#b45309' : '#64748b'),
+                  fontWeight: (!selectedCategoryId && productFilter === 'unassigned') ? '700' : '600',
+                  fontSize: '12px', cursor: 'pointer', transition: 'all 0.15s',
+                  boxShadow: (!selectedCategoryId && productFilter === 'unassigned') ? '0 1px 2px rgba(180,83,9,0.15)' : 'none'
+                }}
+              >
+                Chưa gán ({unassignedCount})
+              </button>
+              <button
+                onClick={() => { setProductFilter('assigned'); setSelectedCategoryId(null); }}
+                style={{
+                  padding: '5px 11px', borderRadius: '6px', border: 'none',
+                  background: (!selectedCategoryId && productFilter === 'assigned') ? '#ffffff' : 'transparent',
+                  color: (!selectedCategoryId && productFilter === 'assigned') ? '#0f172a' : '#64748b',
+                  fontWeight: (!selectedCategoryId && productFilter === 'assigned') ? '700' : '600',
+                  fontSize: '12px', cursor: 'pointer', transition: 'all 0.15s',
+                  boxShadow: (!selectedCategoryId && productFilter === 'assigned') ? '0 1px 2px rgba(0,0,0,0.06)' : 'none'
+                }}
+              >
+                Đã gán ({assignedCount})
+              </button>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            {/* Product Search Input */}
+            <div style={{ position: 'relative', flex: 1 }}>
+              <input
+                type="text"
+                placeholder="Tìm theo tên hoặc mã SP..."
+                value={productSearch}
+                onChange={(e) => setProductSearch(e.target.value)}
+                style={{
+                  width: '100%', boxSizing: 'border-box', padding: '8px 12px',
+                  borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px',
+                  outline: 'none', background: '#ffffff', color: '#0f172a'
+                }}
+              />
+              {productSearch && (
+                <button
+                  onClick={() => setProductSearch('')}
+                  style={{
+                    position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)',
+                    background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '13px'
+                  }}
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+
+            <span style={{ fontSize: '12px', color: '#64748b', whiteSpace: 'nowrap' }}>
+              🖐️ Kéo thả SP sang cột bên trái để gán nhóm
+            </span>
           </div>
 
           {/* Active Tree Category Filter Alert */}
           {selectedCategoryId && (
             <div style={{
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              padding: '8px 12px', background: '#eff6ff', borderRadius: '10px',
-              border: '1px solid #bfdbfe', marginBottom: '12px', fontSize: '13px', color: '#1e40af'
+              padding: '7px 12px', background: '#eff6ff', borderRadius: '8px',
+              border: '1px solid #bfdbfe', marginTop: '10px', fontSize: '12.5px', color: '#1e40af'
             }}>
               <div>
-                Đang xem nhóm: <strong>{selectedCategoryName || `ID ${selectedCategoryId}`}</strong>
+                Đang xem nhóm: <strong>{selectedCategoryName || `ID ${selectedCategoryId}`}</strong> ({displayedProducts.length} sản phẩm)
               </div>
               <button
                 onClick={() => setSelectedCategoryId(null)}
                 style={{
                   background: '#ffffff', border: '1px solid #93c5fd', borderRadius: '6px',
-                  padding: '3px 8px', fontSize: '12px', color: '#1d4ed8', fontWeight: '700',
+                  padding: '3px 9px', fontSize: '11.5px', color: '#1d4ed8', fontWeight: '700',
                   cursor: 'pointer'
                 }}
               >
@@ -506,42 +566,39 @@ export function CategoryManagementView({ token, onBackToHome }: CategoryManageme
               </button>
             </div>
           )}
-
-          {/* Product Search Input */}
-          <div style={{ position: 'relative' }}>
-            <input
-              type="text"
-              placeholder="Tìm theo tên hoặc mã SP..."
-              value={productSearch}
-              onChange={(e) => setProductSearch(e.target.value)}
-              style={{
-                width: '100%', boxSizing: 'border-box', padding: '8px 12px',
-                borderRadius: '10px', border: '1px solid #cbd5e1', fontSize: '13px',
-                outline: 'none', background: '#ffffff', color: '#0f172a'
-              }}
-            />
-            {productSearch && (
-              <button
-                onClick={() => setProductSearch('')}
-                style={{
-                  position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)',
-                  background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '14px'
-                }}
-              >
-                ✕
-              </button>
-            )}
-          </div>
         </div>
-        
-        {/* Products List Body */}
-        <div style={{ padding: '16px 20px', overflowY: 'auto', flex: 1, maxHeight: 'calc(100vh - 350px)' }}>
+
+        {/* Table Column Headers */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: '32px 1fr 65px 60px 110px 130px',
+          gap: '8px',
+          alignItems: 'center',
+          padding: '9px 16px',
+          background: '#f1f5f9',
+          borderBottom: '1px solid #e2e8f0',
+          fontSize: '11px',
+          fontWeight: '700',
+          color: '#64748b',
+          textTransform: 'uppercase',
+          letterSpacing: '0.05em'
+        }}>
+          <div style={{ textAlign: 'center' }}>⋮⋮</div>
+          <div>Sản phẩm & Mã SKU</div>
+          <div style={{ textAlign: 'center' }}>Kho</div>
+          <div style={{ textAlign: 'center' }}>ĐVT</div>
+          <div style={{ textAlign: 'right' }}>Đơn giá</div>
+          <div style={{ textAlign: 'right' }}>Phân nhóm</div>
+        </div>
+
+        {/* Products List Rows */}
+        <div style={{ padding: '8px 12px', overflowY: 'auto', flex: 1, maxHeight: 'calc(100vh - 380px)', minHeight: '440px' }}>
           {displayedProducts.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '50px 20px', color: '#94a3b8' }}>
-              <div style={{ fontSize: '36px', marginBottom: '12px' }}>
+            <div style={{ textAlign: 'center', padding: '60px 20px', color: '#94a3b8' }}>
+              <div style={{ fontSize: '36px', marginBottom: '10px' }}>
                 {productFilter === 'unassigned' ? '🎉' : '📦'}
               </div>
-              <div style={{ fontSize: '15px', fontWeight: '700', color: '#475569' }}>
+              <div style={{ fontSize: '14.5px', fontWeight: '700', color: '#475569' }}>
                 {productFilter === 'unassigned' 
                   ? 'Tuyệt vời! Tất cả sản phẩm đã được phân nhóm.' 
                   : 'Không có sản phẩm nào phù hợp'}
@@ -550,17 +607,17 @@ export function CategoryManagementView({ token, onBackToHome }: CategoryManageme
                 <button
                   onClick={() => setSelectedCategoryId(null)}
                   style={{
-                    marginTop: '12px', padding: '6px 14px', borderRadius: '8px',
+                    marginTop: '10px', padding: '5px 12px', borderRadius: '6px',
                     border: '1px solid #cbd5e1', background: '#ffffff', color: '#2563eb',
-                    fontWeight: '600', fontSize: '13px', cursor: 'pointer'
+                    fontWeight: '600', fontSize: '12.5px', cursor: 'pointer'
                   }}
                 >
-                  Bỏ chọn nhóm để xem tất cả
+                  Bỏ lọc để xem tất cả
                 </button>
               )}
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
               {displayedProducts.map(product => {
                 const unassigned = isProductUnassigned(product);
                 return (
@@ -569,62 +626,73 @@ export function CategoryManagementView({ token, onBackToHome }: CategoryManageme
                     draggable
                     onDragStart={(e) => handleDragStart(e, product.id)}
                     style={{
-                      display: 'flex',
+                      display: 'grid',
+                      gridTemplateColumns: '32px 1fr 65px 60px 110px 130px',
+                      gap: '8px',
                       alignItems: 'center',
-                      gap: '12px',
-                      padding: '12px 14px',
+                      padding: '8px 12px',
                       background: unassigned ? '#fffdf5' : '#ffffff',
                       border: `1px solid ${unassigned ? '#fde68a' : '#e2e8f0'}`,
-                      borderRadius: '12px',
+                      borderRadius: '8px',
                       cursor: 'grab',
-                      transition: 'all 0.2s',
-                      boxShadow: '0 2px 4px rgba(0,0,0,0.02)',
+                      transition: 'all 0.15s ease',
+                      boxShadow: '0 1px 2px rgba(0,0,0,0.02)',
                       opacity: isMoving ? 0.6 : 1
                     }}
                     className="product-drag-card"
-                    title={`Kéo thả sản phẩm này vào ngành hàng bên trái (ID: ${product.id})`}
+                    title={`Kéo thả sản phẩm "${product.name}" vào ngành hàng bên trái để phân nhóm`}
                   >
-                    <div style={{ cursor: 'grab', color: unassigned ? '#d97706' : '#94a3b8', padding: '2px' }}>
+                    <div style={{ cursor: 'grab', color: unassigned ? '#d97706' : '#94a3b8', display: 'flex', justifyContent: 'center' }}>
                       <DragIcon />
                     </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px', marginBottom: '4px' }}>
-                        <div style={{ fontSize: '14px', fontWeight: '700', color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {product.name}
-                        </div>
-                        {unassigned ? (
-                          <span style={{
-                            fontSize: '11px', fontWeight: '700', color: '#b45309',
-                            background: '#fef3c7', border: '1px solid #fde68a',
-                            padding: '2px 6px', borderRadius: '6px', whiteSpace: 'nowrap'
-                          }}>
-                            Chưa gán
-                          </span>
-                        ) : (
-                          <span style={{
-                            fontSize: '11px', fontWeight: '600', color: '#0369a1',
-                            background: '#e0f2fe', border: '1px solid #bae6fd',
-                            padding: '2px 6px', borderRadius: '6px', whiteSpace: 'nowrap',
-                            maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis'
-                          }}>
-                            📁 {product.category || 'Đã phân nhóm'}
-                          </span>
-                        )}
+                    
+                    {/* Tên & Mã */}
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: '13px', fontWeight: '700', color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {product.name}
                       </div>
-                      <div style={{ display: 'flex', gap: '12px', fontSize: '12px', color: '#64748b' }}>
-                        <span>
-                          <span style={{ color: '#94a3b8' }}>Mã:</span> <strong style={{ color: '#334155' }}>{product.code}</strong>
-                        </span>
-                        <span>
-                          <span style={{ color: '#94a3b8' }}>Kho:</span> <strong style={{ color: '#059669' }}>{product.stock}</strong>
-                        </span>
-                        <span>
-                          <span style={{ color: '#94a3b8' }}>ĐVT:</span> <strong style={{ color: '#475569' }}>{product.base_unit || 'Cái'}</strong>
-                        </span>
+                      <div style={{ fontSize: '11.5px', color: '#64748b', marginTop: '1px' }}>
+                        Mã: <code style={{ fontFamily: 'monospace', fontWeight: '600', color: '#334155', background: '#f1f5f9', padding: '1px 5px', borderRadius: '4px' }}>{product.code}</code>
                       </div>
                     </div>
-                    <div style={{ fontSize: '13.5px', fontWeight: '700', color: '#2563eb', whiteSpace: 'nowrap', textAlign: 'right' }}>
+
+                    {/* Kho */}
+                    <div style={{ textAlign: 'center', fontSize: '12.5px', fontWeight: '700', color: '#059669' }}>
+                      {product.stock}
+                    </div>
+
+                    {/* ĐVT */}
+                    <div style={{ textAlign: 'center', fontSize: '12px', color: '#475569' }}>
+                      {product.base_unit || 'Cái'}
+                    </div>
+
+                    {/* Giá bán */}
+                    <div style={{ textAlign: 'right', fontSize: '13px', fontWeight: '700', color: '#2563eb', fontVariantNumeric: 'tabular-nums' }}>
                       {product.sell_price.toLocaleString('vi-VN')} đ
+                    </div>
+
+                    {/* Trạng thái phân nhóm */}
+                    <div style={{ textAlign: 'right' }}>
+                      {unassigned ? (
+                        <span style={{
+                          fontSize: '11px', fontWeight: '700', color: '#b45309',
+                          background: '#fef3c7', border: '1px solid #fde68a',
+                          padding: '2px 7px', borderRadius: '6px', whiteSpace: 'nowrap'
+                        }}>
+                          Chưa gán
+                        </span>
+                      ) : (
+                        <span style={{
+                          fontSize: '11px', fontWeight: '600', color: '#0369a1',
+                          background: '#e0f2fe', border: '1px solid #bae6fd',
+                          padding: '2px 7px', borderRadius: '6px', whiteSpace: 'nowrap',
+                          display: 'inline-block', maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis'
+                        }}
+                        title={product.category || 'Đã phân nhóm'}
+                        >
+                          📁 {product.category || 'Đã phân nhóm'}
+                        </span>
+                      )}
                     </div>
                   </div>
                 );
@@ -861,50 +929,100 @@ export function CategoryManagementView({ token, onBackToHome }: CategoryManageme
       {/* Main Content Area */}
       <div style={{ minHeight: '600px' }}>
         {activeTab === 'manage' && (
-          <div style={{ animation: 'fadeIn 0.3s ease', display: 'flex', gap: '28px', alignItems: 'flex-start' }}>
-            
-            {/* Left: Category Tree */}
-            <div style={{ flex: '1', minWidth: '400px', background: '#f8fafc', borderRadius: '24px', padding: '28px', border: '1px solid #e2e8f0', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.02)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
-                <div style={{ position: 'relative', width: '320px' }}>
-                  <span style={{ position: 'absolute', left: '16px', top: '12px', color: '#94a3b8' }}><SearchIcon /></span>
+          <div
+            style={{
+              animation: 'fadeIn 0.25s ease',
+              background: '#ffffff',
+              borderRadius: '16px',
+              border: '1px solid #e2e8f0',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+              display: 'flex',
+              overflow: 'hidden',
+              minHeight: '620px',
+            }}
+          >
+            {/* Cột trái: Cây Ngành Hàng */}
+            <div
+              style={{
+                width: '42%',
+                minWidth: '380px',
+                maxWidth: '480px',
+                borderRight: '1px solid #e2e8f0',
+                display: 'flex',
+                flexDirection: 'column',
+                background: '#fafbfc',
+              }}
+            >
+              {/* Header Cột Trái */}
+              <div style={{ padding: '16px 20px', borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '800', color: '#0f172a' }}>
+                      Cơ Cấu Ngành Hàng
+                    </h3>
+                    <span style={{ fontSize: '11.5px', color: '#64748b', background: '#e2e8f0', padding: '2px 8px', borderRadius: '10px', fontWeight: '700' }}>
+                      {treeData.length} Gốc
+                    </span>
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      setEditingId(null);
+                      setFormData({ name: '', parent_id: '' });
+                      setIsModalOpen(true);
+                    }}
+                    style={{
+                      display: 'inline-flex', alignItems: 'center', gap: '6px',
+                      padding: '7px 14px', borderRadius: '8px', fontWeight: '700', fontSize: '12.5px',
+                      background: '#10b981', color: '#fff', border: 'none', cursor: 'pointer',
+                      boxShadow: '0 2px 6px rgba(16, 185, 129, 0.25)', transition: 'all 0.15s'
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.backgroundColor = '#059669'}
+                    onMouseLeave={e => e.currentTarget.style.backgroundColor = '#10b981'}
+                  >
+                    <PlusIcon /> Thêm Ngành Hàng
+                  </button>
+                </div>
+
+                {/* Ô tìm kiếm ngành hàng */}
+                <div style={{ position: 'relative' }}>
+                  <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', display: 'flex' }}><SearchIcon /></span>
                   <input 
                     type="text" 
                     placeholder="Tìm nhanh ngành hàng, nhóm hàng..." 
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    style={{ width: '100%', padding: '12px 16px 12px 44px', borderRadius: '14px', border: '1px solid #cbd5e1', fontSize: '14px', outline: 'none', boxShadow: '0 2px 4px rgba(0,0,0,0.02)', transition: 'border 0.2s' }}
+                    style={{
+                      width: '100%', boxSizing: 'border-box', padding: '8px 12px 8px 36px',
+                      borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px',
+                      outline: 'none', background: '#ffffff', color: '#0f172a', transition: 'border-color 0.15s'
+                    }}
                     onFocus={e => e.target.style.borderColor = '#3b82f6'}
                     onBlur={e => e.target.style.borderColor = '#cbd5e1'}
                   />
+                  {searchTerm && (
+                    <button
+                      onClick={() => setSearchTerm('')}
+                      style={{
+                        position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)',
+                        background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '13px'
+                      }}
+                    >
+                      ✕
+                    </button>
+                  )}
                 </div>
-                <button
-                  onClick={() => {
-                    setEditingId(null);
-                    setFormData({ name: '', parent_id: '' });
-                    setIsModalOpen(true);
-                  }}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: '8px',
-                    padding: '12px 24px', borderRadius: '14px', fontWeight: '700', fontSize: '14px',
-                    background: '#10b981', color: '#fff', border: 'none', cursor: 'pointer',
-                    boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)', transition: 'all 0.2s'
-                  }}
-                  onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-1px)'}
-                  onMouseLeave={e => e.currentTarget.style.transform = 'none'}
-                >
-                  <PlusIcon /> Thêm Ngành Hàng
-                </button>
               </div>
-              
-              <div>
+
+              {/* Vùng cuộn danh sách cây ngành hàng */}
+              <div style={{ padding: '14px 16px', overflowY: 'auto', flex: 1, maxHeight: 'calc(100vh - 380px)', minHeight: '440px' }}>
                 {isLoading ? (
-                  <div style={{ padding: '60px', textAlign: 'center', color: '#64748b' }}>
-                    <div style={{ fontSize: '32px', marginBottom: '12px' }}>⏳</div>
-                    <div style={{ fontSize: '14.5px', fontWeight: '500' }}>Đang nạp cấu trúc ngành hàng...</div>
+                  <div style={{ padding: '60px 20px', textAlign: 'center', color: '#64748b' }}>
+                    <div style={{ fontSize: '28px', marginBottom: '8px' }}>⏳</div>
+                    <div style={{ fontSize: '13.5px', fontWeight: '500' }}>Đang nạp cấu trúc ngành hàng...</div>
                   </div>
                 ) : filteredTreeData.length === 0 ? (
-                  <div style={{ padding: '60px', textAlign: 'center', color: '#64748b', fontSize: '14.5px' }}>
+                  <div style={{ padding: '60px 20px', textAlign: 'center', color: '#64748b', fontSize: '13.5px' }}>
                     Không tìm thấy ngành hàng / nhóm hàng nào phù hợp.
                   </div>
                 ) : (
@@ -913,11 +1031,16 @@ export function CategoryManagementView({ token, onBackToHome }: CategoryManageme
                   </div>
                 )}
               </div>
+
+              {/* Footer hướng dẫn cột trái */}
+              <div style={{ padding: '10px 16px', borderTop: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '11.5px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span>💡</span>
+                <span>Click nhóm để lọc SP • Kéo SP thả vào nhóm để phân loại</span>
+              </div>
             </div>
 
-            {/* Right: Product Drag-Drop List */}
+            {/* Cột phải: Danh Sách Sản Phẩm */}
             {renderProductsList()}
-            
           </div>
         )}
 

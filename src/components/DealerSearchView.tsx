@@ -821,31 +821,32 @@ export default function DealerSearchView({
                         <thead>
                             <tr>
                                 {canAssignDealer && (
-                                    <th style={{ width: 40 }}>
+                                    <th style={{ width: 44, textAlign: 'center', verticalAlign: 'middle' }}>
                                         <input
                                             type="checkbox"
                                             checked={dealers.length > 0 && selectedDealerIds.length === dealers.length}
                                             onChange={handleSelectAllDealers}
+                                            style={{ cursor: 'pointer', verticalAlign: 'middle' }}
                                         />
                                     </th>
                                 )}
-                                <th>Mã đại lý</th>
-                                <th>Tên đại lý</th>
-                                <th>Số điện thoại / Liên hệ</th>
-                                <th>Địa chỉ</th>
-                                <th>Khu vực</th>
-                                <th>Công nợ</th>
-                                <th>Trạng thái công nợ</th>
-                                <th>Người phụ trách</th>
-                                <th>Trạng thái</th>
-                                <th>Thao tác</th>
+                                <th style={{ whiteSpace: 'nowrap' }}>Mã đại lý</th>
+                                <th style={{ whiteSpace: 'nowrap' }}>Tên đại lý</th>
+                                <th style={{ whiteSpace: 'nowrap' }}>Số điện thoại / Liên hệ</th>
+                                <th style={{ whiteSpace: 'nowrap' }}>Địa chỉ</th>
+                                <th style={{ whiteSpace: 'nowrap' }}>Khu vực</th>
+                                <th style={{ whiteSpace: 'nowrap' }}>Công nợ</th>
+                                <th style={{ whiteSpace: 'nowrap' }}>Trạng thái công nợ</th>
+                                <th style={{ whiteSpace: 'nowrap' }}>Người phụ trách</th>
+                                <th style={{ whiteSpace: 'nowrap' }}>Trạng thái</th>
+                                <th style={{ whiteSpace: 'nowrap', textAlign: 'center' }}>Thao tác</th>
                             </tr>
                         </thead>
 
                         <tbody>
                             {dealers.length === 0 && !loading ? (
                                 <tr>
-                                    <td colSpan={10} className="dealer-empty">
+                                    <td colSpan={canAssignDealer ? 11 : 10} className="dealer-empty">
                                         Không tìm thấy đại lý phù hợp với điều kiện lọc
                                     </td>
                                 </tr>
@@ -853,11 +854,12 @@ export default function DealerSearchView({
                                 dealers.map((dealer) => (
                                     <tr key={dealer.id}>
                                         {canAssignDealer && (
-                                            <td>
+                                            <td style={{ width: 44, textAlign: 'center', verticalAlign: 'middle' }}>
                                                 <input
                                                     type="checkbox"
                                                     checked={selectedDealerIds.includes(dealer.id)}
                                                     onChange={() => toggleSelectDealer(dealer.id)}
+                                                    style={{ cursor: 'pointer', verticalAlign: 'middle' }}
                                                 />
                                             </td>
                                         )}
@@ -983,8 +985,8 @@ export default function DealerSearchView({
                                                 )}
                                             </div>
                                         </td>
-                                        <td>
-                                            <div className="dealer-dropdown-container">
+                                        <td style={{ textAlign: 'center', verticalAlign: 'middle' }}>
+                                            <div className="dealer-dropdown-container" style={{ display: 'inline-flex', justifyContent: 'center' }}>
                                                 <button
                                                     type="button"
                                                     style={{ 

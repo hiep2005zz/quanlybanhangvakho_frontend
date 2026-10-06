@@ -217,10 +217,12 @@
 
 .dealer-table-wrapper {
     overflow-x: auto;
+    width: 100%;
 }
 
 .dealer-table-wrapper table {
     width: 100%;
+    min-width: 1280px;
     border-collapse: collapse;
 }
 
@@ -235,11 +237,14 @@
 
 .dealer-table-wrapper th {
     background: #f8fafc;
-    font-weight: 600;
+    font-weight: 700;
     color: #475569;
-    font-size: 13px;
+    font-size: 12.5px;
     text-transform: uppercase;
     letter-spacing: 0.02em;
+    white-space: nowrap;
+    vertical-align: middle;
+    line-height: 1.4;
 }
 
 .dealer-code-badge {

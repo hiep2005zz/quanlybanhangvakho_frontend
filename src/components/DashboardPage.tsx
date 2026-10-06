@@ -21,6 +21,7 @@ import { ProductUnitModal } from './ProductUnitModal';
 import { StockActionModal } from './StockActionModal';
 import { OrderManagementView } from './OrderManagementView';
 import SalesOrderEntry from './SalesOrderEntry';
+import { ProductHistoryView } from './ProductHistoryView';
 
 import './dashboard.css';
 import { hasPermission, Permissions } from '../hooks/usePermission';
@@ -83,12 +84,20 @@ export default function DashboardPage({
   const canConfigUnit = isAdmin || officialRoles.some((r) => ['admin', 'warehouse_manager'].includes(r));
 
 
-  // Quyền thao tác các nút trên dòng sản phẩm (Cấu hình ĐVT, Nhập/Xuất kho, Lịch sử)
-  const canPerformProductAction = Boolean(canConfigUnit || canWriteInventory || isAdmin || isSalesManager);
+  // Quyền thao tác các nút trên dòng sản phẩm (Cấu hình ĐVT, Nhập/Xuất kho)
+  const canPerformProductAction = Boolean(canConfigUnit || canWriteInventory);
 
-  // 2. Khởi tạo State với Clean URL (/users, /audit-logs, /categories, /suppliers, /profile, /dealers, /orders, /delivery-points, /price-books)
-  const [activeTab, setActiveTabState] = useState<'inventory' | 'orders' | 'create-order' | 'users' | 'categories' | 'audit-logs' | 'profile' | 'suppliers' | 'dealers' | 'price-books' | 'delivery-points'>(() => {
+  // Quản lý sản phẩm được chọn để xem lịch sử (/product-history)
+  const [historyProductTarget, setHistoryProductTarget] = useState<{ code: string; name: string } | null>(() => {
+    const params = new URLSearchParams(window.location.search);
+    const c = params.get('code') || params.get('productCode') || '';
+    return c ? { code: c, name: '' } : null;
+  });
+
+  // 2. Khởi tạo State với Clean URL (/users, /audit-logs, /categories, /suppliers, /profile, /dealers, /orders, /delivery-points, /price-books, /product-history)
+  const [activeTab, setActiveTabState] = useState<'inventory' | 'orders' | 'create-order' | 'users' | 'categories' | 'audit-logs' | 'profile' | 'suppliers' | 'dealers' | 'price-books' | 'delivery-points' | 'product-history'>(() => {
     const pathname = window.location.pathname.toLowerCase();
+    const isProductHistoryPath = pathname === '/product-history' || pathname.startsWith('/product-history/');
     const isCreateOrderPath = pathname === '/create-order' || pathname.startsWith('/create-order/');
     const isPriceBooksPath = pathname === '/price-books';
     const isUsersPath = pathname === '/users' || pathname.startsWith('/users/') || pathname === '/admin' || pathname.startsWith('/admin/');
@@ -104,6 +113,9 @@ export default function DashboardPage({
     const hasOldTabParam = params.has('tab') || params.has('view');
     const oldTabVal = (params.get('tab') || params.get('view') || '').toLowerCase();
 
+    if (isProductHistoryPath || oldTabVal === 'product-history') {
+      return 'product-history';
+    }
     if (isCreateOrderPath || oldTabVal === 'create-order') {
       return 'create-order';
     }
@@ -182,7 +194,7 @@ export default function DashboardPage({
     }
     return 'inventory';
   });
-  const setActiveTab = (tab: 'inventory' | 'orders' | 'create-order' | 'users' | 'categories' | 'audit-logs' | 'profile' | 'suppliers' | 'dealers' | 'price-books' | 'delivery-points') => {
+  const setActiveTab = (tab: 'inventory' | 'orders' | 'create-order' | 'users' | 'categories' | 'audit-logs' | 'profile' | 'suppliers' | 'dealers' | 'price-books' | 'delivery-points' | 'product-history') => {
     if (tab === 'create-order') {
       setActiveTabState('create-order');
       try {
@@ -296,6 +308,18 @@ export default function DashboardPage({
       } catch {
         // ignore
       }
+    } else if (tab === 'product-history') {
+      setActiveTabState('product-history');
+      try {
+        const url = new URL(window.location.href);
+        url.pathname = '/product-history';
+        if (historyProductTarget?.code) {
+          url.searchParams.set('code', historyProductTarget.code);
+        }
+        window.history.pushState({}, '', url.toString());
+      } catch {
+        // ignore
+      }
     } else {
       setActiveTabState('inventory');
       window.history.replaceState({}, '', '/');
@@ -345,6 +369,16 @@ export default function DashboardPage({
       const isOrdersPath = pathname === '/orders' || pathname.startsWith('/orders/');
       const isProfilePath = pathname === '/profile' || pathname.startsWith('/profile/');
       const tabParam = (params.get('tab') || params.get('view') || '').toLowerCase();
+
+      const isProductHistoryPath = pathname === '/product-history' || pathname.startsWith('/product-history/');
+      if (isProductHistoryPath || tabParam === 'product-history') {
+        const code = params.get('code') || params.get('productCode');
+        if (code) {
+          setHistoryProductTarget((prev) => ({ code, name: prev?.code === code ? prev.name : '' }));
+        }
+        setActiveTabState('product-history');
+        return;
+      }
 
       if (isOrdersPath || tabParam === 'orders') {
         setActiveTabState('orders');
@@ -1370,6 +1404,26 @@ export default function DashboardPage({
             </div>
           )}
 
+          {/* Lịch sử sản phẩm */}
+          {(isAdmin || isSalesManager || canWriteInventory) && (
+            <div
+              className={`sidebar-menu-item ${activeTab === 'product-history' ? 'active' : ''}`}
+              id="btn-sidebar-product-history"
+              onClick={() => {
+                setActiveTab('product-history');
+                handleCloseMenu();
+              }}
+            >
+              <div className="sidebar-icon-box">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10" />
+                  <polyline points="12 6 12 12 16 14" />
+                </svg>
+              </div>
+              <span style={{ fontWeight: activeTab === 'product-history' ? '700' : '500', fontSize: '14.5px' }}>Lịch sử sản phẩm</span>
+            </div>
+          )}
+
           {/* Hồ sơ cá nhân */}
           <div
             className={`sidebar-menu-item ${activeTab === 'profile' ? 'active' : ''}`}
@@ -1621,6 +1675,25 @@ export default function DashboardPage({
           <AccessDeniedView
             currentUser={user}
             requiredPermission="Quản lý điểm giao hàng"
+            onBackToWorkflow={() => setActiveTab('inventory')}
+            onLogout={onLogout}
+          />
+        )
+      ) : activeTab === 'product-history' ? (
+        (isAdmin || isSalesManager || canWriteInventory) ? (
+          <ProductHistoryView
+            currentUser={user}
+            token={token}
+            products={products}
+            initialProductCode={historyProductTarget?.code}
+            initialProductName={historyProductTarget?.name}
+            isCostVisible={isCostVisible}
+            onBackToInventory={() => setActiveTab('inventory')}
+          />
+        ) : (
+          <AccessDeniedView
+            currentUser={user}
+            requiredPermission="Xem lịch sử thay đổi sản phẩm (Thủ kho / Quản lý kho / Quản lý kinh doanh / Quản trị viên)"
             onBackToWorkflow={() => setActiveTab('inventory')}
             onLogout={onLogout}
           />
@@ -2252,7 +2325,7 @@ export default function DashboardPage({
                         </>
                       )}
                       {canPerformProductAction && (
-                        <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'center', width: '220px', background: '#f8fafc' }}>Thao Tác</th>
+                        <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'center', width: '180px', background: '#f8fafc' }}>Thao Tác</th>
                       )}
                     </tr>
                   </thead>
@@ -2504,23 +2577,6 @@ export default function DashboardPage({
                                   </button>
                                 </>
                               )}
-
-                              {(isAdmin || isSalesManager) && (
-                                <button
-                                  type="button"
-                                  className="btn-inventory-history"
-                                  onClick={() => setProductAuditDrawerState({
-                                    isOpen: true,
-                                    productCode: item.code,
-                                    productName: item.name,
-                                    initialFilter: 'ALL',
-                                  })}
-                                  title="Xem lịch sử thay đổi tồn kho & giá của sản phẩm này"
-                                  style={{ padding: '5px 10px', fontSize: '11.5px', fontWeight: '600' }}
-                                >
-                                  <span>Lịch sử</span>
-                                </button>
-                              )}
                             </div>
                           </td>
                         )}
@@ -2724,12 +2780,95 @@ export default function DashboardPage({
             textAlign: 'center',
             color: '#f8fafc'
           }}>
-            <h3 style={{ fontSize: '19px', fontWeight: '700', margin: '0 0 10px', color: '#fde68a' }}>
+            <div style={{
+              width: '56px',
+              height: '56px',
+              borderRadius: '50%',
+              backgroundColor: 'rgba(245, 158, 11, 0.15)',
+              color: '#f59e0b',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 16px auto',
+              border: '1px solid rgba(245, 158, 11, 0.3)'
+            }}>
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <polyline points="12 6 12 12 16 14" />
+              </svg>
+            </div>
+            <h3 style={{ fontSize: '20px', fontWeight: '700', margin: '0 0 8px', color: '#fde68a' }}>
               Phiên Làm Việc Sắp Hết Hạn
             </h3>
-            <p style={{ fontSize: '14px', color: '#cbd5e1', lineHeight: '1.6', margin: '0 0 14px' }}>
-              Hệ thống phát hiện bạn không thao tác trong một khoảng thời gian.
+            <p style={{ fontSize: '14px', color: '#cbd5e1', lineHeight: '1.6', margin: '0 0 16px' }}>
+              Hệ thống phát hiện bạn không thao tác trong một khoảng thời gian. Phiên làm việc sẽ tự động kết thúc sau:
             </p>
+            <div style={{
+              fontSize: '28px',
+              fontWeight: '800',
+              fontVariantNumeric: 'tabular-nums',
+              color: '#fbbf24',
+              backgroundColor: 'rgba(0, 0, 0, 0.25)',
+              padding: '10px 20px',
+              borderRadius: '10px',
+              display: 'inline-block',
+              marginBottom: '20px',
+              border: '1px solid rgba(251, 191, 36, 0.3)'
+            }}>
+              {Math.floor(remainingSeconds / 60)}:{(remainingSeconds % 60).toString().padStart(2, '0')}
+            </div>
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    await onLogout();
+                  } catch {
+                    // ignore
+                  }
+                }}
+                style={{
+                  flex: 1,
+                  padding: '11px 16px',
+                  borderRadius: '10px',
+                  border: '1px solid #475569',
+                  backgroundColor: '#334155',
+                  color: '#f1f5f9',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'background 0.15s ease'
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#475569')}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#334155')}
+              >
+                Đăng xuất
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  sessionManager.recordActivity();
+                  await sessionManager.forceRefresh();
+                }}
+                style={{
+                  flex: 2,
+                  padding: '11px 16px',
+                  borderRadius: '10px',
+                  border: 'none',
+                  backgroundColor: '#2563eb',
+                  color: '#ffffff',
+                  fontSize: '14px',
+                  fontWeight: '700',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 12px rgba(37, 99, 235, 0.35)',
+                  transition: 'background 0.15s ease'
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#1d4ed8')}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#2563eb')}
+              >
+                Tiếp tục làm việc
+              </button>
+            </div>
           </div>
         </div>
       )}
