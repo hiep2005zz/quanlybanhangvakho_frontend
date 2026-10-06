@@ -226,6 +226,11 @@ export default function DashboardPage({
   });
   // 3. Chuyển đổi Route Clean URL
   const setActiveTab = (tab: TabType) => {
+    // Luôn đóng màn hình Thêm/Sửa sản phẩm khi chuyển sang bất kỳ tab/nhánh nào
+    if (tab !== 'add-product') {
+      setProductDrawerState({ isOpen: false, product: null });
+    }
+
     if (tab === 'product-history') {
       setActiveTabState('product-history');
       try {
@@ -294,6 +299,22 @@ export default function DashboardPage({
       setActiveTabState('delivery-points');
       try {
         window.history.pushState({}, '', '/delivery-points');
+      } catch {
+        // ignore
+      }
+    } else if (tab === 'dealer-profiles') {
+      if (!canManageDealerProfiles) {
+        setActiveTabState('inventory');
+        try {
+          window.history.replaceState({}, '', '/');
+        } catch {
+          // ignore
+        }
+        return;
+      }
+      setActiveTabState('dealer-profiles');
+      try {
+        window.history.pushState({}, '', '/dealer-profiles');
       } catch {
         // ignore
       }
@@ -432,6 +453,11 @@ export default function DashboardPage({
       const isPriceBooksPath = pathname === '/price-books';
       const params = new URLSearchParams(window.location.search);
       const tabParam = (params.get('tab') || params.get('view') || '').toLowerCase();
+
+      const isAddProduct = pathname === '/add-product' || pathname.startsWith('/add-product/') || tabParam === 'add-product';
+      if (!isAddProduct) {
+        setProductDrawerState({ isOpen: false, product: null });
+      }
 
       const isUsersPath = pathname === '/users' || pathname.startsWith('/users/') || pathname === '/admin' || pathname.startsWith('/admin/');
       const isAuditPath = pathname === '/audit-logs' || pathname.startsWith('/audit-logs/');
@@ -792,7 +818,7 @@ export default function DashboardPage({
     >
       <div className="dashboard-main-container">
       {/* Main Content: Switch between Product Form, Create Order, Order Management, User Management, Audit Logs, Inventory and Pending Authorization */}
-      {productDrawerState.isOpen ? (
+      {productDrawerState.isOpen && activeTab === 'inventory' ? (
         canManageProducts ? (
           <ProductFormView
             product={productDrawerState.product}
