@@ -72,8 +72,9 @@ export default function DashboardPage({
   const SUPPLIER_ROLES = ['admin', 'warehouse', 'warehouse_manager'];
   const canManageSuppliers = officialRoles.some((r) => SUPPLIER_ROLES.includes(r));
 
-  // Quyền quản lý ngành hàng
+  // Quyền quản lý ngành hàng & sản phẩm
   const canManageCategories = isAdmin || isSalesManager;
+  const canManageProducts = isAdmin || isSalesManager;
   const canAccessPriceBooks = isAdmin || isSalesManager || isAccountant;
   // Quyền tra cứu đại lý: Nhân viên kinh doanh (sales), Quản lý kinh doanh (sales_manager), Quản trị viên (admin), Kế toán (accountant)
   const DEALER_ROLES = ['admin', 'sales_manager', 'sales', 'accountant'];
@@ -222,6 +223,17 @@ export default function DashboardPage({
       }
       return;
     }
+    if (tab === 'add-product') {
+      setActiveTabState('inventory');
+      setProductDrawerState({ isOpen: true, product: null });
+      try {
+        window.history.pushState({}, '', '/');
+      } catch {
+        // ignore
+      }
+      return;
+    }
+
     if (tab === 'create-order') {
       setActiveTabState('create-order');
       try {
@@ -563,7 +575,13 @@ export default function DashboardPage({
 
   // Bulk Import Product Modal State
   const [isProductBulkImportOpen, setIsProductBulkImportOpen] = useState(false);
-  const [productDrawerState, setProductDrawerState] = useState<{ isOpen: boolean; product: ProductItem | null }>({ isOpen: false, product: null });
+  const [productDrawerState, setProductDrawerState] = useState<{ isOpen: boolean; product: ProductItem | null }>(() => {
+    const pathname = window.location.pathname.toLowerCase();
+    const params = new URLSearchParams(window.location.search);
+    const oldTabVal = (params.get('tab') || params.get('view') || '').toLowerCase();
+    const isAddProduct = pathname === '/add-product' || pathname.startsWith('/add-product/') || oldTabVal === 'add-product';
+    return { isOpen: isAddProduct, product: null };
+  });
 
   // Quản lý sản phẩm được chọn để xem lịch sử (/product-history)
   const [historyProductTarget, setHistoryProductTarget] = useState<{ code: string; name: string } | null>(() => {
@@ -693,6 +711,7 @@ export default function DashboardPage({
         <Sidebar
           activeTab={activeTab}
           onSelectTab={setActiveTab}
+          canManageProducts={canManageProducts}
           canCreateOrders={canCreateOrders}
           canReadOrders={canReadOrders}
           canViewDealers={canViewDealers}
