@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   AuditLogItem,
   AuditLogListResponse,
@@ -63,9 +63,6 @@ export const AuditLogView: React.FC<AuditLogViewProps> = ({ currentUser: _curren
       });
   }, [token]);
 
-  // Ref để lưu debounce timer
-  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
   // Fetch audit logs theo appliedFilters
   const executeFetchLogs = useCallback(
     (currentPage: number, filtersToUse = appliedFilters) => {
@@ -100,45 +97,9 @@ export const AuditLogView: React.FC<AuditLogViewProps> = ({ currentUser: _curren
     executeFetchLogs(page, appliedFilters);
   }, [appliedFilters, page]);
 
-  // Áp dụng Debounce 400ms: Tự động gom các thao tác gõ mã đối tượng hoặc đổi dropdown sau 400ms mới gọi API 1 lần duy nhất
-  useEffect(() => {
-    if (
-      selectedUserId === appliedFilters.user_id &&
-      selectedEntityType === appliedFilters.entity_type &&
-      entityIdSearch === appliedFilters.entity_id &&
-      fromDate === appliedFilters.from_date &&
-      toDate === appliedFilters.to_date
-    ) {
-      return;
-    }
-
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
-    }
-
-    debounceTimerRef.current = setTimeout(() => {
-      setAppliedFilters({
-        user_id: selectedUserId,
-        entity_type: selectedEntityType,
-        entity_id: entityIdSearch,
-        from_date: fromDate,
-        to_date: toDate,
-      });
-      setPage(1);
-    }, 400);
-
-    return () => {
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-      }
-    };
-  }, [selectedUserId, selectedEntityType, entityIdSearch, fromDate, toDate, appliedFilters]);
-
+  // Chỉ thực hiện lọc khi người dùng nhấn nút 'Lọc' hoặc submit form
   const handleApplyFilter = (e: React.FormEvent) => {
     e.preventDefault();
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
-    }
     const newFilters = {
       user_id: selectedUserId,
       entity_type: selectedEntityType,
@@ -148,7 +109,6 @@ export const AuditLogView: React.FC<AuditLogViewProps> = ({ currentUser: _curren
     };
     setAppliedFilters(newFilters);
     setPage(1);
-    executeFetchLogs(1, newFilters);
   };
 
 
@@ -516,10 +476,10 @@ export const AuditLogView: React.FC<AuditLogViewProps> = ({ currentUser: _curren
                 transition: 'all 0.15s ease',
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.background = '#1d4ed8';
+                e.currentTarget.style.background = '#0fa786';
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.background = '#2563eb';
+                e.currentTarget.style.background = '#0fad89';
               }}
             >
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
