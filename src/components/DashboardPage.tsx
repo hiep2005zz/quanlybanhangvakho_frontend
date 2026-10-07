@@ -14,6 +14,7 @@ import { AuditLogView } from './AuditLogView';
 import { ProductAuditDrawer } from './ProductAuditDrawer';
 import { PriceUpdateModal } from './PriceUpdateModal';
 import { ProfileView } from './ProfileView';
+import DiscountPolicyView from './DiscountPolicyView';
 import { ProductBulkImportModal } from './ProductBulkImportModal';
 import DealerSearchView from './DealerSearchView';
 import DeliveryPointsView from './DeliveryPointsView';
@@ -57,15 +58,22 @@ export default function DashboardPage({
   const isAdmin = user.role === 'admin' || Boolean(user.roles && user.roles.includes('admin'));
   const canReadOrders = hasPermission(user, Permissions.ORDER_READ) || user.role === 'sales' || Boolean(user.roles && user.roles.includes('sales'));
   const canCreateOrders = hasPermission(user, Permissions.ORDER_WRITE) || user.role === 'sales' || Boolean(user.roles && user.roles.includes('sales'));
-
+  const isSalesManager = user.role === 'sales_manager' || Boolean(user.roles && user.roles.includes('sales_manager'));
+  const isAccountant = user.role === 'accountant' || Boolean(user.roles && user.roles.includes('accountant'));
+  const canAccessDiscounts =
+    isAdmin ||
+    isSalesManager ||
+    officialRoles.includes('sales') ||
+    user.role === 'sales' ||
+    officialRoles.includes('accountant') ||
+    user.role === 'accountant' ||
+    Boolean(user.permissions && (user.permissions.includes('discount:read') || user.permissions.includes('discount:manage')));
 
   // Quyền quản lý nhà cung cấp
   const SUPPLIER_ROLES = ['admin', 'warehouse', 'warehouse_manager'];
   const canManageSuppliers = officialRoles.some((r) => SUPPLIER_ROLES.includes(r));
 
   // Quyền quản lý ngành hàng
-  const isSalesManager = user.role === 'sales_manager' || Boolean(user.roles && user.roles.includes('sales_manager'));
-  const isAccountant = user.role === 'accountant' || Boolean(user.roles && user.roles.includes('accountant'));
   const canManageCategories = isAdmin || isSalesManager;
   const canAccessPriceBooks = isAdmin || isSalesManager || isAccountant;
   // Quyền tra cứu đại lý: Nhân viên kinh doanh (sales), Quản lý kinh doanh (sales_manager), Quản trị viên (admin), Kế toán (accountant)
@@ -87,11 +95,10 @@ export default function DashboardPage({
   // Quyền Cấu hình ĐVT quy đổi (Chỉ Quản trị hệ thống và Quản lý kho)
   const canConfigUnit = isAdmin || officialRoles.some((r) => ['admin', 'warehouse_manager'].includes(r));
 
-
   // Quyền thao tác các nút trên dòng sản phẩm (Cấu hình ĐVT, Nhập/Xuất kho, Lịch sử)
   const canPerformProductAction = Boolean(canConfigUnit || canWriteInventory || isAdmin || isSalesManager);
 
-  // 2. Khởi tạo State với Clean URL (/users, /audit-logs, /categories, /suppliers, /profile, /dealers, /orders, /delivery-points, /price-books, /product-history)
+  // 2. Khởi tạo State với Clean URL
   const [activeTab, setActiveTabState] = useState<TabType>(() => {
     const pathname = window.location.pathname.toLowerCase();
     const isCreateOrderPath = pathname === '/create-order' || pathname.startsWith('/create-order/');
@@ -101,14 +108,25 @@ export default function DashboardPage({
     const isAuditPath = pathname === '/audit-logs' || pathname.startsWith('/audit-logs/');
     const isOrdersPath = pathname === '/orders' || pathname.startsWith('/orders/');
     const isProfilePath = pathname === '/profile' || pathname.startsWith('/profile/');
+    const isDiscountsPath = pathname === '/discounts' || pathname.startsWith('/discounts/');
     const isDealersPath = pathname === '/dealers' || pathname.startsWith('/dealers/');
     const isDeliveryPointsPath = pathname === '/delivery-points' || pathname.startsWith('/delivery-points/');
     const isProductHistoryPath = pathname === '/product-history' || pathname.startsWith('/product-history/');
 
-    // Dọn sạch tàn dư query parameter cũ (?tab=users, ?tab=audit-logs, ?tab=profile, ?tab=dealers, ?tab=orders, ?tab=delivery-points)
     const params = new URLSearchParams(window.location.search);
     const hasOldTabParam = params.has('tab') || params.has('view');
     const oldTabVal = (params.get('tab') || params.get('view') || '').toLowerCase();
+
+    if (isDiscountsPath || oldTabVal === 'discounts' || oldTabVal === 'discount') {
+      if (canAccessDiscounts) {
+        if (pathname !== '/discounts' || hasOldTabParam) {
+          try { window.history.replaceState({}, '', '/discounts'); } catch {}
+        }
+        return 'discounts';
+      }
+      try { window.history.replaceState({}, '', '/'); } catch {}
+      return 'inventory';
+    }
 
     if (isProductHistoryPath || oldTabVal === 'product-history') {
       return 'product-history';
@@ -116,9 +134,6 @@ export default function DashboardPage({
 
     if (isCreateOrderPath || oldTabVal === 'create-order') {
       return 'create-order';
-    }
-    if (isOrdersPath || oldTabVal === 'orders') {
-      return 'orders';
     }
     if (isPriceBooksPath) {
       return 'price-books';
@@ -192,6 +207,7 @@ export default function DashboardPage({
     }
     return 'inventory';
   });
+  // 3. Chuyển đổi Route Clean URL
   const setActiveTab = (tab: TabType) => {
     if (tab === 'product-history') {
       setActiveTabState('product-history');
@@ -207,7 +223,6 @@ export default function DashboardPage({
       }
       return;
     }
-
     if (tab === 'create-order') {
       setActiveTabState('create-order');
       try {
@@ -321,6 +336,22 @@ export default function DashboardPage({
       } catch {
         // ignore
       }
+    } else if (tab === 'discounts') {
+      if (!canAccessDiscounts) {
+        setActiveTabState('inventory');
+        try {
+          window.history.replaceState({}, '', '/');
+        } catch {
+          // ignore
+        }
+        return;
+      }
+      setActiveTabState('discounts');
+      try {
+        window.history.pushState({}, '', '/discounts');
+      } catch {
+        // ignore
+      }
     } else {
       setActiveTabState('inventory');
       window.history.replaceState({}, '', '/');
@@ -336,6 +367,7 @@ export default function DashboardPage({
           : activeTab === 'orders' ? canReadOrders
             : activeTab === 'create-order' ? canCreateOrders
               : activeTab === 'suppliers' ? canManageSuppliers
+                : activeTab === 'discounts' ? canAccessDiscounts
                 : activeTab === 'product-history' ? (isAdmin || isSalesManager || canWriteInventory)
                   : true;
     if (!isAllowed) {
@@ -358,21 +390,21 @@ export default function DashboardPage({
         // ignore
       }
     }
-  }, [activeTab, canManageCategories, canViewDealers, canManageDeliveryPoints, user.username]);
+  }, [activeTab, canManageCategories, canViewDealers, canManageDeliveryPoints, canAccessDiscounts, user.username]);
 
   useEffect(() => {
     const syncFromUrl = () => {
       const pathname = window.location.pathname.toLowerCase();
       const isPriceBooksPath = pathname === '/price-books';
       const params = new URLSearchParams(window.location.search);
+      const tabParam = (params.get('tab') || params.get('view') || '').toLowerCase();
 
       const isUsersPath = pathname === '/users' || pathname.startsWith('/users/') || pathname === '/admin' || pathname.startsWith('/admin/');
       const isAuditPath = pathname === '/audit-logs' || pathname.startsWith('/audit-logs/');
       const isOrdersPath = pathname === '/orders' || pathname.startsWith('/orders/');
       const isProfilePath = pathname === '/profile' || pathname.startsWith('/profile/');
-      const tabParam = (params.get('tab') || params.get('view') || '').toLowerCase();
-
       const isProductHistoryPath = pathname === '/product-history' || pathname.startsWith('/product-history/');
+
       if (isProductHistoryPath || tabParam === 'product-history') {
         const code = params.get('code') || params.get('productCode');
         if (code) {
@@ -389,10 +421,6 @@ export default function DashboardPage({
         return;
       }
 
-      if (isOrdersPath || tabParam === 'orders') {
-        setActiveTabState('orders');
-        return;
-      }
       if (pathname === '/suppliers' || pathname.startsWith('/suppliers/')) {
         setActiveTabState('suppliers');
         return;
@@ -406,6 +434,20 @@ export default function DashboardPage({
         } else {
           setActiveTabState('inventory');
           window.history.replaceState({}, '', '/');
+        }
+        return;
+      }
+
+      const isDiscountsPath = pathname === '/discounts' || pathname.startsWith('/discounts/');
+      if (isDiscountsPath || tabParam === 'discounts' || tabParam === 'discount') {
+        if (canAccessDiscounts) {
+          if (pathname !== '/discounts' || tabParam) {
+            try { window.history.replaceState({}, '', '/discounts'); } catch {}
+          }
+          setActiveTabState('discounts');
+        } else {
+          setActiveTabState('inventory');
+          try { window.history.replaceState({}, '', '/'); } catch {}
         }
         return;
       }
@@ -479,8 +521,8 @@ export default function DashboardPage({
 
     window.addEventListener('popstate', syncFromUrl);
     return () => window.removeEventListener('popstate', syncFromUrl);
-  }, [canManageCategories, canManageSuppliers, canReadOrders, isAdmin]);
-  const [products, setProducts] = useState<ProductItem[]>([]);
+  }, [canManageCategories, canManageSuppliers, canReadOrders, isAdmin, canAccessDiscounts]);
+    const [products, setProducts] = useState<ProductItem[]>([]);
   const [productSearchInput, setProductSearchInput] = useState('');
   const [productSearchTerm, setProductSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -684,6 +726,7 @@ export default function DashboardPage({
           canAccessPriceBooks={canAccessPriceBooks}
           canManageCategories={canManageCategories}
           canViewProductHistory={isAdmin || isSalesManager || canWriteInventory}
+          canAccessDiscounts={canAccessDiscounts}
           isAdmin={isAdmin}
           onLogout={() => {
             if (isLoggingOut) return;
@@ -766,6 +809,12 @@ export default function DashboardPage({
       ) : activeTab === 'categories' ? (
         <CategoryManagementView
           token={token}
+          onBackToHome={() => setActiveTab('inventory')}
+        />
+      ) : activeTab === 'discounts' ? (
+        <DiscountPolicyView
+          token={token}
+          user={user}
           onBackToHome={() => setActiveTab('inventory')}
         />
       ) : activeTab === 'audit-logs' ? (
@@ -1244,6 +1293,60 @@ export default function DashboardPage({
               </div>
             )}
           </div>
+
+          {/* ACTIVE DISCOUNTS TABLE */}
+          {(() => {
+            try {
+              const savedPolicies = localStorage.getItem('discountPolicies');
+              if (savedPolicies) {
+                const policies = JSON.parse(savedPolicies);
+                const activePolicies = policies.filter((p: any) => p.status === 'active');
+                if (activePolicies.length > 0) {
+                  return (
+                    <div style={{ marginBottom: '24px', background: '#fff', borderRadius: '12px', padding: '16px', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
+                      <h3 style={{ fontSize: '15px', fontWeight: '600', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px', color: '#0f172a' }}>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.5 12H16c-.7 2-3 3-4.9 3a5 5 0 0 1-5.1-3H2.5"/><path d="M2 12c0 5.5 4.5 10 10 10s10-4.5 10-10-4.5-10-10-10S2 6.5 2 12Z"/></svg>
+                        Chính sách chiết khấu đang áp dụng
+                      </h3>
+                      <div style={{ overflowX: 'auto' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                          <thead>
+                            <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', textAlign: 'left' }}>
+                              <th style={{ padding: '10px 12px', fontWeight: '600', color: '#475569' }}>Mã CS</th>
+                              <th style={{ padding: '10px 12px', fontWeight: '600', color: '#475569' }}>Sản phẩm áp dụng</th>
+                              <th style={{ padding: '10px 12px', fontWeight: '600', color: '#475569' }}>Đối tượng</th>
+                              <th style={{ padding: '10px 12px', fontWeight: '600', color: '#475569' }}>Thời hạn</th>
+                              <th style={{ padding: '10px 12px', fontWeight: '600', color: '#475569' }}>Bậc chiết khấu</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {activePolicies.map((p: any) => (
+                              <tr key={p.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                <td style={{ padding: '10px 12px', fontWeight: '600', color: '#2563eb' }}>{p.code}</td>
+                                <td style={{ padding: '10px 12px', fontWeight: '500', color: '#334155' }}>{p.title === 'Tất cả sản phẩm' ? <span style={{ background: '#dbeafe', color: '#1e40af', padding: '2px 8px', borderRadius: '12px', fontSize: '11px' }}>Tất cả SP</span> : p.title}</td>
+                                <td style={{ padding: '10px 12px', color: '#475569' }}>{p.target_group === 'all' ? 'Tất cả đại lý' : p.target_group === 'agent_tier_1' ? 'Đại lý Cấp 1' : 'Đại lý Cấp 2'}</td>
+                                <td style={{ padding: '10px 12px', color: '#64748b' }}>{p.start_date} - {p.end_date || 'Vô thời hạn'}</td>
+                                <td style={{ padding: '10px 12px' }}>
+                                  <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                                    {p.tiers && p.tiers.map((t: any, idx: number) => (
+                                      <span key={idx} style={{ background: '#ecfdf5', color: '#059669', border: '1px solid #d1fae5', padding: '2px 6px', borderRadius: '4px', fontSize: '11px', fontWeight: '500' }}>
+                                        Từ {t.min_quantity}sp: -{t.discount_percent}%
+                                      </span>
+                                    ))}
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  );
+                }
+              }
+            } catch (e) {}
+            return null;
+          })()}
 
           {/* Clean Enterprise Data Table Container */}
           <div

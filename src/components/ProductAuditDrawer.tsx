@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { AuditLogItem, getEntityAuditLogsApi, getAvatarUrl } from '../services/api';
+import { AuditLogItem, getEntityAuditLogsApi, getUsersApi, UserAccount, getAvatarUrl } from '../services/api';
 import { AuditDetailModal } from './AuditDetailModal';
 import { formatLocalDateTime } from '../utils/dateUtils';
 import { ModalPortal } from './ModalPortal';
@@ -24,6 +24,7 @@ export const ProductAuditDrawer: React.FC<ProductAuditDrawerProps> = ({
   isCostVisible = false,
 }) => {
   const [logs, setLogs] = useState<AuditLogItem[]>([]);
+  const [usersList, setUsersList] = useState<UserAccount[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedDetailLog, setSelectedDetailLog] = useState<AuditLogItem | null>(null);
@@ -34,6 +35,18 @@ export const ProductAuditDrawer: React.FC<ProductAuditDrawerProps> = ({
       setFilterType(initialFilter || 'ALL');
     }
   }, [isOpen, initialFilter]);
+
+  useEffect(() => {
+    if (isOpen && token) {
+      getUsersApi(token)
+        .then((res) => {
+          setUsersList(res.users || []);
+        })
+        .catch(() => {
+          // ignore error loading users
+        });
+    }
+  }, [isOpen, token]);
 
   useEffect(() => {
     if (isOpen && productCode) {
@@ -441,40 +454,42 @@ export const ProductAuditDrawer: React.FC<ProductAuditDrawerProps> = ({
                       </div>
                     )}
 
-                    {/* Người sửa có Avatar */}
-                    <div style={{ margin: '0 0 10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ fontSize: '12.5px', color: '#64748b' }}>Người sửa:</span>
-                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
-                        <div style={{
-                          width: '26px',
-                          height: '26px',
-                          borderRadius: '50%',
-                          background: log.user_avatar ? '#f1f5f9' : 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
-                          color: '#ffffff',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontWeight: '700',
-                          fontSize: '11px',
-                          overflow: 'hidden',
-                          border: '1.5px solid #e2e8f0',
-                          boxShadow: '0 1px 2px rgba(0,0,0,0.06)',
-                          flexShrink: 0,
-                        }}>
-                          {log.user_avatar ? (
-                            <img
-                              src={getAvatarUrl(log.user_avatar)}
-                              alt={log.user_name || 'U'}
-                              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                            />
-                          ) : (
-                            (log.user_name || 'U').charAt(0).toUpperCase()
-                          )}
-                        </div>
-                        <strong style={{ color: '#0f172a', fontSize: '13px' }}>
-                          {log.user_name || 'Hệ thống'}
-                        </strong>
-                      </div>
+                    {/* Người sửa */}
+                    <div style={{ margin: '0 0 8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      {(() => {
+                        const matchedUser = usersList.find((u) => u.id === log.user_id || u.username.toLowerCase() === (log.user_name || '').toLowerCase() || u.full_name === log.user_name);
+                        const userAvatar = matchedUser?.avatar_url;
+                        return (
+                          <div style={{
+                            width: '24px',
+                            height: '24px',
+                            borderRadius: '6px',
+                            background: userAvatar ? '#f1f5f9' : '#eff6ff',
+                            color: '#2563eb',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontWeight: '700',
+                            fontSize: '11px',
+                            overflow: 'hidden',
+                            border: userAvatar ? '1px solid #e2e8f0' : 'none',
+                            flexShrink: 0,
+                          }}>
+                            {userAvatar ? (
+                              <img
+                                src={getAvatarUrl(userAvatar)}
+                                alt={log.user_name || 'U'}
+                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                              />
+                            ) : (
+                              (log.user_name || 'U').charAt(0).toUpperCase()
+                            )}
+                          </div>
+                        );
+                      })()}
+                      <p style={{ margin: 0, fontSize: '12.5px', color: '#334155' }}>
+                        Người sửa: <strong style={{ color: '#0f172a' }}>{log.user_name || 'Hệ thống'}</strong>
+                      </p>
                     </div>
 
                     {/* Lý do điều chỉnh */}

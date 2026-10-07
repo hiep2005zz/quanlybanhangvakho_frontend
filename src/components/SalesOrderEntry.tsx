@@ -2,11 +2,14 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   createOrderApi,
   getOrderDealersApi,
+  getDiscountPoliciesApi,
+  DiscountPolicy,
   listDeliveryPointsApi,
   OrderDealer,
   ProductItem,
 } from '../services/api';
 import type { DeliveryPoint } from '../types/deliveryPoint';
+import { evaluateBestDiscountPolicy, parseStoredPolicies } from '../utils/discountEngine';
 import { emitStatusToast } from './StatusToast';
 import './sales-order-entry.css';
 
@@ -106,6 +109,8 @@ export default function SalesOrderEntry({ token, username, products, onClose: _o
   const [deliveryPointId, setDeliveryPointId] = useState<number | null>(null);
   const [desiredDeliveryDate, setDesiredDeliveryDate] = useState(getToday);
   const [discountPercent, setDiscountPercent] = useState('0');
+  const [policies, setPolicies] = useState<DiscountPolicy[]>([]);
+  const [isManualOverride, setIsManualOverride] = useState(false);
   const [note, setNote] = useState('');
   const [lines, setLines] = useState<OrderLine[]>([]);
   const [productQuery, setProductQuery] = useState('');
@@ -113,6 +118,34 @@ export default function SalesOrderEntry({ token, username, products, onClose: _o
   const [activeDraftId, setActiveDraftId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    const localPolicies = parseStoredPolicies();
+    if (localPolicies.length > 0) {
+      setPolicies(localPolicies);
+    }
+    getDiscountPoliciesApi(token, { is_active: true })
+      .then((result) => {
+        if (isMounted && result.items) {
+          const merged = [...result.items];
+          localPolicies.forEach((lp) => {
+            if (!merged.some((p) => p.code === lp.code)) {
+              merged.push(lp);
+            }
+          });
+          setPolicies(merged);
+        }
+      })
+      .catch(() => {
+        if (isMounted && localPolicies.length > 0) {
+          setPolicies(localPolicies);
+        }
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, [token]);
 
   useEffect(() => {
     let isMounted = true;
@@ -233,6 +266,42 @@ export default function SalesOrderEntry({ token, username, products, onClose: _o
   }, [productQuery, products]);
 
   const subtotal = lines.reduce((total, line) => total + line.quantity * line.price, 0);
+  const totalQuantity = lines.reduce((total, line) => total + line.quantity, 0);
+
+  // Tự động kiểm tra danh sách chính sách chiết khấu đang áp dụng theo Best Price Rule
+  const discountEvaluation = useMemo(() => {
+    return evaluateBestDiscountPolicy(
+      policies,
+      lines.map((line) => ({
+        productId: line.productId,
+        quantity: line.quantity,
+        price: line.price,
+        name: line.name,
+        code: line.code,
+      })),
+      selectedDealer
+        ? {
+            id: selectedDealer.id,
+            customer_group: (selectedDealer as any).customer_group || '',
+            name: selectedDealer.name,
+          }
+        : null,
+      totalQuantity,
+      subtotal
+    );
+  }, [policies, lines, selectedDealer, totalQuantity, subtotal]);
+
+  // Tự động điền giá trị % vào ô "Chiết khấu (%)" khi số lượng thỏa mãn các bậc
+  useEffect(() => {
+    if (!isManualOverride) {
+      if (discountEvaluation.isQualified) {
+        setDiscountPercent(String(discountEvaluation.discountPercent));
+      } else {
+        setDiscountPercent('0');
+      }
+    }
+  }, [discountEvaluation, isManualOverride]);
+
   const parsedDiscount = Number(discountPercent);
   const safeDiscount = Number.isFinite(parsedDiscount) ? Math.min(100, Math.max(0, parsedDiscount)) : 0;
   const discountAmount = Math.round(subtotal * safeDiscount / 100);
@@ -245,6 +314,7 @@ export default function SalesOrderEntry({ token, username, products, onClose: _o
     setDeliveryPoints([]);
     setDesiredDeliveryDate(getToday());
     setDiscountPercent('0');
+    setIsManualOverride(false);
     setNote('');
     setLines([]);
     setProductQuery('');
@@ -290,6 +360,7 @@ export default function SalesOrderEntry({ token, username, products, onClose: _o
     setDeliveryPointId(draft.deliveryPointId ?? null);
     setDesiredDeliveryDate(draft.desiredDeliveryDate || getToday());
     setDiscountPercent(draft.discountPercent || '0');
+    setIsManualOverride(true);
     setNote(draft.note || '');
     setLines(draft.lines || []);
     setActiveDraftId(draft.id);
@@ -636,17 +707,57 @@ export default function SalesOrderEntry({ token, username, products, onClose: _o
             <div className="sales-order-summary-row">
               <span>Tổng tiền hàng</span><strong>{formatCurrency(subtotal)}</strong>
             </div>
-            <label className="sales-order-discount">
-              <span>Chiết khấu (%)</span>
-              <input
-                type="number"
-                min={0}
-                max={100}
-                step="0.1"
-                value={discountPercent}
-                onChange={(event) => setDiscountPercent(event.target.value)}
-              />
-            </label>
+            <div className="sales-order-discount-block">
+              <label className="sales-order-discount">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                  <span>Chiết khấu (%)</span>
+                  {isManualOverride && discountEvaluation.isQualified && (
+                    <button
+                      type="button"
+                      className="sales-order-discount-override-btn"
+                      onClick={() => {
+                        setIsManualOverride(false);
+                        setDiscountPercent(String(discountEvaluation.discountPercent));
+                      }}
+                      title="Khôi phục lại mức chiết khấu tự động từ chính sách"
+                    >
+                      ↺ Theo chính sách ({discountEvaluation.discountPercent}%)
+                    </button>
+                  )}
+                </div>
+                <input
+                  type="number"
+                  min={0}
+                  max={100}
+                  step="0.1"
+                  value={discountPercent}
+                  onChange={(event) => {
+                    setIsManualOverride(true);
+                    setDiscountPercent(event.target.value);
+                  }}
+                  placeholder="0"
+                />
+              </label>
+
+              {discountEvaluation.isQualified && (
+                <div
+                  className="sales-order-policy-badge"
+                  title={discountEvaluation.label || 'Chính sách chiết khấu tự động'}
+                >
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                    <polyline points="22 4 12 14.01 9 11.01" />
+                  </svg>
+                  <span>{discountEvaluation.label}</span>
+                </div>
+              )}
+
+              {isManualOverride && safeDiscount > discountEvaluation.discountPercent && (
+                <div className="sales-order-discount-warning">
+                  ⚠️ Chiết khấu bạn nhập ({safeDiscount}%) cao hơn mức chính sách ({discountEvaluation.discountPercent}%). Đơn hàng sẽ cần Quản lý phê duyệt.
+                </div>
+              )}
+            </div>
             <div className="sales-order-summary-row muted">
               <span>Tiền chiết khấu</span><strong>− {formatCurrency(discountAmount)}</strong>
             </div>

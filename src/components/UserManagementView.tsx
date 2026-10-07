@@ -138,12 +138,13 @@ const checkRegionMatch = (userBranch: string, dealerAddress: string, sourceUserB
 export const UserManagementView: React.FC<UserManagementViewProps> = ({
   currentUser,
   token,
-  onBackToHome: _onBackToHome,
+  onBackToHome,
   onCreateAccount,
 }) => {
   const [users, setUsers] = useState<UserAccount[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+
 
   // Filter, Search & Pagination (S1-08 / S1-10: 20 dòng/trang mặc định)
   const [searchInput, setSearchInput] = useState<string>('');
@@ -461,7 +462,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
   // Open Delete Confirm Popup
   const openDeleteConfirm = (targetUser: UserAccount) => {
     if (targetUser.username.toLowerCase() === currentUser.username.toLowerCase()) {
-      alert('Bảo vệ hệ thống: Bạn không được tự xóa tài khoản Quản trị viên của chính mình!');
+      emitStatusToast({ title: 'Cảnh báo', message: 'Bạn không được tự xóa tài khoản của chính mình!' });
       return;
     }
     setDeleteModalError(null);
@@ -526,6 +527,57 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      {/* 1. Breadcrumb: Trang chủ / Quản lý người dùng */}
+      {onBackToHome && (
+        <nav
+          aria-label="Breadcrumb"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            fontSize: '13.5px',
+            color: '#64748b',
+            fontWeight: '500',
+            padding: '2px 4px',
+          }}
+        >
+          <button
+            onClick={onBackToHome}
+            style={{
+              background: '#ffffff',
+              border: '1px solid #cbd5e1',
+              borderRadius: '20px',
+              color: '#2563eb',
+              cursor: 'pointer',
+              padding: '5px 14px',
+              fontSize: '13px',
+              fontWeight: '600',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
+              transition: 'all 0.18s ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = '#2563eb';
+              e.currentTarget.style.background = '#eff6ff';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = '#cbd5e1';
+              e.currentTarget.style.background = '#ffffff';
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+              <polyline points="9 22 9 12 15 12 15 22" />
+            </svg>
+            <span>Trang chủ</span>
+          </button>
+          <span style={{ color: '#cbd5e1', fontSize: '14px' }}>/</span>
+          <span style={{ color: '#0f172a', fontWeight: '600', fontSize: '13.5px' }}>Quản lý người dùng</span>
+        </nav>
+      )}
+
       {/* Tiêu đề: Quản Lý Phân Quyền Vai Trò */}
       <div style={{
         background: '#ffffff',
@@ -2593,6 +2645,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
         </div>
         </ModalPortal>
       )}
+
     </div>
   );
 };
