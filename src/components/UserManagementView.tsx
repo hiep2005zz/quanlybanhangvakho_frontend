@@ -891,13 +891,13 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
         <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <div style={{ width: '4px', height: '20px', borderRadius: '4px', background: 'linear-gradient(180deg, #6366f1 0%, #a855f7 100%)' }} />
-            <h2 style={{ fontSize: '18px', fontWeight: '700', margin: 0, color: '#f8fafc', letterSpacing: '-0.01em' }}>
+            <h2 style={{ fontSize: '18px', fontWeight: '700', margin: 0, color: '#0f172a', letterSpacing: '-0.01em' }}>
               Danh Sách Nhân Viên
             </h2>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '12.5px', color: '#94a3b8', background: 'rgba(255, 255, 255, 0.05)', padding: '4px 12px', borderRadius: '8px', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
-              Kết quả: <strong style={{ color: '#38bdf8' }}>{filteredUsers.length}</strong> / {users.length} nhân viên
+            <span style={{ fontSize: '12.5px', color: '#475569', background: '#f8fafc', padding: '4px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontWeight: '500' }}>
+              Kết quả: <strong style={{ color: '#0284c7' }}>{filteredUsers.length}</strong> / {users.length} nhân viên
             </span>
           </div>
         </div>
