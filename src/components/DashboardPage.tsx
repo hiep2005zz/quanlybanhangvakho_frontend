@@ -1075,14 +1075,14 @@ export default function DashboardPage({
                 style={{
                   width: '100%',
                   padding: '12px',
-                  background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+                  background: 'linear-gradient(135deg, #0fba90, #0fad89)',
                   border: 'none',
                   borderRadius: '10px',
                   color: '#ffffff',
                   fontSize: '14px',
                   fontWeight: '700',
                   cursor: 'pointer',
-                  boxShadow: '0 4px 14px rgba(59, 130, 246, 0.35)',
+                  boxShadow: '0 4px 14px rgba(15, 173, 137, 0.35)',
                   transition: 'all 0.2s ease',
                 }}
                 onMouseEnter={(e) => (e.currentTarget.style.transform = 'translateY(-1px)')}

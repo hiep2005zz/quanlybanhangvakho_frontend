@@ -335,7 +335,7 @@ export const PriceUpdateModal: React.FC<PriceUpdateModalProps> = ({
                 padding: '9px 20px',
                 borderRadius: '8px',
                 border: 'none',
-                background: loading ? '#93c5fd' : '#2563eb',
+                background: loading ? '#a7f3d0' : '#0fad89',
                 color: '#ffffff',
                 fontSize: '13.5px',
                 fontWeight: '600',

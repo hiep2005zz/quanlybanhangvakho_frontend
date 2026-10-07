@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   AuditLogItem,
   AuditLogListResponse,
@@ -63,9 +63,6 @@ export const AuditLogView: React.FC<AuditLogViewProps> = ({ currentUser: _curren
       });
   }, [token]);
 
-  // Ref để lưu debounce timer
-  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
   // Fetch audit logs theo appliedFilters
   const executeFetchLogs = useCallback(
     (currentPage: number, filtersToUse = appliedFilters) => {
@@ -100,45 +97,9 @@ export const AuditLogView: React.FC<AuditLogViewProps> = ({ currentUser: _curren
     executeFetchLogs(page, appliedFilters);
   }, [appliedFilters, page]);
 
-  // Áp dụng Debounce 400ms: Tự động gom các thao tác gõ mã đối tượng hoặc đổi dropdown sau 400ms mới gọi API 1 lần duy nhất
-  useEffect(() => {
-    if (
-      selectedUserId === appliedFilters.user_id &&
-      selectedEntityType === appliedFilters.entity_type &&
-      entityIdSearch === appliedFilters.entity_id &&
-      fromDate === appliedFilters.from_date &&
-      toDate === appliedFilters.to_date
-    ) {
-      return;
-    }
-
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
-    }
-
-    debounceTimerRef.current = setTimeout(() => {
-      setAppliedFilters({
-        user_id: selectedUserId,
-        entity_type: selectedEntityType,
-        entity_id: entityIdSearch,
-        from_date: fromDate,
-        to_date: toDate,
-      });
-      setPage(1);
-    }, 400);
-
-    return () => {
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-      }
-    };
-  }, [selectedUserId, selectedEntityType, entityIdSearch, fromDate, toDate, appliedFilters]);
-
+  // Chỉ thực hiện lọc khi người dùng nhấn nút 'Lọc' hoặc submit form
   const handleApplyFilter = (e: React.FormEvent) => {
     e.preventDefault();
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
-    }
     const newFilters = {
       user_id: selectedUserId,
       entity_type: selectedEntityType,
@@ -148,7 +109,6 @@ export const AuditLogView: React.FC<AuditLogViewProps> = ({ currentUser: _curren
     };
     setAppliedFilters(newFilters);
     setPage(1);
-    executeFetchLogs(1, newFilters);
   };
 
 
@@ -162,6 +122,14 @@ export const AuditLogView: React.FC<AuditLogViewProps> = ({ currentUser: _curren
         color = '#0284c7';
         bg = '#e0f2fe';
         break;
+      case 'STOCK_RECEIPT':
+        color = '#059669';
+        bg = '#ecfdf5';
+        break;
+      case 'STOCK_ISSUE':
+        color = '#ea580c';
+        bg = '#fff7ed';
+        break;
       case 'PRICE_CHANGE':
         color = '#d97706';
         bg = '#fef3c7';
@@ -170,34 +138,20 @@ export const AuditLogView: React.FC<AuditLogViewProps> = ({ currentUser: _curren
         color = '#7c3aed';
         bg = '#f5f3ff';
         break;
-      case 'DEALER_STATUS_CHANGE':
-        color = '#0284c7';
-        bg = '#e0f2fe';
+      case 'INVOICE_CREATE':
+      case 'ORDER_CREATE':
+        color = '#0fad89';
+        bg = '#ecfdf5';
         break;
+      case 'ORDER_APPROVE':
+        color = '#16a34a';
+        bg = '#f0fdf4';
+        break;
+      case 'ORDER_REJECT':
       case 'INVOICE_EDIT':
       case 'INVOICE_CANCEL':
         color = '#dc2626';
         bg = '#fef2f2';
-        break;
-      case 'STOCK_RECEIPT':
-      case 'PRODUCT_BULK_IMPORT':
-      case 'USER_BULK_IMPORT':
-        color = '#059669';
-        bg = '#ecfdf5';
-        break;
-      case 'STOCK_ISSUE':
-        color = '#ea580c';
-        bg = '#fff7ed';
-        break;
-      case 'USER_CREATE':
-      case 'USER_UNLOCK':
-        color = '#16a34a';
-        bg = '#f0fdf4';
-        break;
-      case 'USER_LOCK':
-      case 'USER_DELETE':
-        color = '#e11d48';
-        bg = '#fff1f2';
         break;
       default:
         break;
@@ -247,17 +201,7 @@ export const AuditLogView: React.FC<AuditLogViewProps> = ({ currentUser: _curren
       const oldObj = log.old_values ? JSON.parse(log.old_values) : null;
       const newObj = log.new_values ? JSON.parse(log.new_values) : null;
 
-      if (log.action_type === 'PRODUCT_BULK_IMPORT' || log.action_type === 'USER_BULK_IMPORT') {
-        const parts: string[] = [];
-        if (newObj?.created_count !== undefined) parts.push(`Tạo mới: ${newObj.created_count}`);
-        if (newObj?.updated_count !== undefined) parts.push(`Cập nhật: ${newObj.updated_count}`);
-        if (newObj?.failed_count !== undefined && newObj.failed_count > 0) parts.push(`Lỗi: ${newObj.failed_count}`);
-        if (parts.length > 0) {
-          return parts.join(' | ');
-        }
-      }
-
-      if (log.action_type === 'INVENTORY_ADJUST') {
+      if (log.action_type === 'INVENTORY_ADJUST' || log.action_type === 'STOCK_RECEIPT' || log.action_type === 'STOCK_ISSUE') {
         const oldStock = oldObj?.stock;
         const newStock = newObj?.stock;
         if (typeof oldStock === 'number' && typeof newStock === 'number') {
@@ -279,12 +223,27 @@ export const AuditLogView: React.FC<AuditLogViewProps> = ({ currentUser: _curren
           const newCost = `${Number(newObj.cost_price).toLocaleString('vi-VN')} đ`;
           parts.push(`Giá vốn: ${oldCost} ➔ ${newCost}`);
         }
-        return parts.join(' | ') || 'Cập nhật giá';
+        if (newObj?.items_count !== undefined) {
+          parts.push(`Cập nhật bảng giá (${newObj.items_count} mặt hàng)`);
+        }
+        return parts.join(' | ') || 'Cập nhật giá bán';
       }
       if (log.action_type === 'DEBT_LIMIT_CHANGE') {
         const oldLimit = oldObj?.credit_limit !== undefined ? `${Number(oldObj.credit_limit).toLocaleString('vi-VN')} đ` : '—';
         const newLimit = newObj?.credit_limit !== undefined ? `${Number(newObj.credit_limit).toLocaleString('vi-VN')} đ` : '—';
         return `Hạn mức: ${oldLimit} ➔ ${newLimit}`;
+      }
+      if (log.action_type === 'INVOICE_CREATE' || log.action_type === 'ORDER_CREATE') {
+        const total = newObj?.total_amount !== undefined ? `${Number(newObj.total_amount).toLocaleString('vi-VN')} đ` : '';
+        const count = newObj?.items_count !== undefined ? `${newObj.items_count} SP` : '';
+        const details = [total, count].filter(Boolean).join(' • ');
+        return details ? `Tạo mới đơn (${details})` : 'Tạo mới hóa đơn / đơn hàng';
+      }
+      if (log.action_type === 'ORDER_APPROVE') {
+        return 'Duyệt đơn hàng bán dưới sàn';
+      }
+      if (log.action_type === 'ORDER_REJECT') {
+        return 'Từ chối duyệt đơn hàng';
       }
       if (log.action_type === 'INVOICE_EDIT') {
         const rawStatus = newObj?.status;
@@ -305,13 +264,6 @@ export const AuditLogView: React.FC<AuditLogViewProps> = ({ currentUser: _curren
       }
       if (log.action_type === 'INVOICE_CANCEL') {
         return 'Đã hủy hóa đơn';
-      }
-      if (log.action_type === 'DEALER_STATUS_CHANGE') {
-        const oldStatus = oldObj?.status;
-        const newStatus = newObj?.status;
-        if (oldStatus || newStatus) {
-          return `Trạng thái: ${oldStatus || '—'} ➔ ${newStatus || '—'}`;
-        }
       }
     } catch {
       // fallback
@@ -340,12 +292,12 @@ export const AuditLogView: React.FC<AuditLogViewProps> = ({ currentUser: _curren
             width: '48px',
             height: '48px',
             borderRadius: '14px',
-            background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
+            background: 'linear-gradient(135deg, #0fba90 0%, #0fad89 100%)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             color: '#ffffff',
-            boxShadow: '0 8px 16px rgba(37, 99, 235, 0.25)',
+            boxShadow: '0 8px 16px rgba(15, 173, 137, 0.25)',
           }}>
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 20h9" />
@@ -434,13 +386,11 @@ export const AuditLogView: React.FC<AuditLogViewProps> = ({ currentUser: _curren
                 color: '#1e293b',
               }}
             >
-              <option value="ALL">Tất cả nghiệp vụ</option>
+              <option value="ALL">Tất cả (Tồn kho, Giá bán, Công nợ, Hoá đơn)</option>
               <option value="Inventory">Tồn kho (Kiểm kê, nhập/xuất kho)</option>
-              <option value="ProductPrice">Giá sản phẩm (Giá bán, giá vốn)</option>
-              <option value="CustomerDebt">Hạn mức công nợ (Hạn mức nợ đại lý)</option>
-              <option value="Dealer">Đại lý / Khách hàng (Đổi trạng thái)</option>
-              <option value="Invoice">Hóa đơn (Sửa đổi, hủy hóa đơn)</option>
-              <option value="Order">Đơn hàng (Sửa đơn, duyệt ngoại lệ)</option>
+              <option value="ProductPrice">Giá bán (Giá bán niêm yết, bảng giá)</option>
+              <option value="CustomerDebt">Hạn mức công nợ (Hạn mức nợ đại lý / khách hàng)</option>
+              <option value="Invoice">Hóa đơn (Tạo mới, sửa đổi, hủy, duyệt hóa đơn)</option>
             </select>
           </div>
 
@@ -513,7 +463,7 @@ export const AuditLogView: React.FC<AuditLogViewProps> = ({ currentUser: _curren
                 width: '100%',
                 padding: '10px 16px',
                 borderRadius: '8px',
-                background: '#2563eb',
+                background: '#0fad89',
                 color: '#ffffff',
                 border: 'none',
                 fontWeight: '600',
@@ -526,10 +476,10 @@ export const AuditLogView: React.FC<AuditLogViewProps> = ({ currentUser: _curren
                 transition: 'all 0.15s ease',
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.background = '#1d4ed8';
+                e.currentTarget.style.background = '#0fa786';
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.background = '#2563eb';
+                e.currentTarget.style.background = '#0fad89';
               }}
             >
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">

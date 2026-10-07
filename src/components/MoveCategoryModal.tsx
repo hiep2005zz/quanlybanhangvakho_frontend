@@ -117,22 +117,22 @@ export default function MoveCategoryModal({ isOpen, onClose, token, productId, p
                 padding: '9px 18px',
                 borderRadius: '8px',
                 border: 'none',
-                backgroundColor: (isLoading || selectedCategoryId === '' || selectedCategoryId === currentCategoryId) ? '#94a3b8' : '#2563eb',
+                backgroundColor: (isLoading || selectedCategoryId === '' || selectedCategoryId === currentCategoryId) ? '#94a3b8' : '#0fad89',
                 color: '#ffffff',
                 fontSize: '14px',
                 fontWeight: '600',
                 cursor: (isLoading || selectedCategoryId === '' || selectedCategoryId === currentCategoryId) ? 'not-allowed' : 'pointer',
-                boxShadow: (isLoading || selectedCategoryId === '' || selectedCategoryId === currentCategoryId) ? 'none' : '0 2px 8px rgba(37, 99, 235, 0.3)',
+                boxShadow: (isLoading || selectedCategoryId === '' || selectedCategoryId === currentCategoryId) ? 'none' : '0 2px 8px rgba(15, 173, 137, 0.3)',
                 transition: 'all 0.15s ease'
               }}
               onMouseEnter={(e) => {
                 if (!(isLoading || selectedCategoryId === '' || selectedCategoryId === currentCategoryId)) {
-                  e.currentTarget.style.backgroundColor = '#1d4ed8';
+                  e.currentTarget.style.backgroundColor = '#0a8f70';
                 }
               }}
               onMouseLeave={(e) => {
                 if (!(isLoading || selectedCategoryId === '' || selectedCategoryId === currentCategoryId)) {
-                  e.currentTarget.style.backgroundColor = '#2563eb';
+                  e.currentTarget.style.backgroundColor = '#0fad89';
                 }
               }}
             >

@@ -179,7 +179,7 @@
     border: none;
     border-radius: 8px;
     cursor: pointer;
-    background: #2563eb;
+    background: #0fad89;
     color: #ffffff;
     display: inline-flex;
     align-items: center;
@@ -190,7 +190,7 @@
 }
 
 .btn-search-primary:hover {
-    background: #1d4ed8;
+    background: #0a8f70;
 }
 
 .btn-bulk-assign {
@@ -203,7 +203,7 @@
     border: none;
     border-radius: 8px;
     cursor: pointer;
-    background: #2563eb;
+    background: #0fad89;
     color: #ffffff;
     display: inline-flex;
     align-items: center;
@@ -215,8 +215,8 @@
 }
 
 .btn-bulk-assign:hover {
-    background: #1d4ed8;
-    box-shadow: 0 2px 6px 0 rgba(37, 99, 235, 0.25);
+    background: #0a8f70;
+    box-shadow: 0 2px 6px 0 rgba(15, 173, 137, 0.25);
 }
 
 .btn-search-reset {
@@ -706,21 +706,21 @@
     align-items: center;
     gap: 8px;
     padding: 9px 18px;
-    background: linear-gradient(135deg, #10b981, #059669);
+    background: linear-gradient(135deg, #0fba90, #0fad89);
     color: #ffffff;
     border: 1px solid rgba(255, 255, 255, 0.2);
     border-radius: 9px;
     font-size: 13.5px;
     font-weight: 600;
     cursor: pointer;
-    box-shadow: 0 2px 6px rgba(16, 185, 129, 0.25);
+    box-shadow: 0 2px 6px rgba(15, 186, 144, 0.25);
     transition: all 0.2s ease;
 }
 
 .dealer-btn-add:hover {
-    background: linear-gradient(135deg, #059669, #047857);
+    background: linear-gradient(135deg, #0fad89, #0a8f70);
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.35);
+    box-shadow: 0 4px 12px rgba(15, 186, 144, 0.35);
 }
 
 .dealer-btn-add:active {
@@ -996,14 +996,14 @@
 }
 
 .dealer-btn-save {
-    background: linear-gradient(135deg, #10b981, #059669);
+    background: linear-gradient(135deg, #0fba90, #0fad89);
     border: none;
     color: #ffffff;
-    box-shadow: 0 2px 4px rgba(16, 185, 129, 0.25);
+    box-shadow: 0 2px 4px rgba(15, 186, 144, 0.25);
 }
 
 .dealer-btn-save:hover:not(:disabled) {
-    background: linear-gradient(135deg, #059669, #047857);
+    background: linear-gradient(135deg, #0fad89, #0a8f70);
 }
 
 .dealer-btn-save:disabled {

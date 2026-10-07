@@ -243,14 +243,14 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
               onClick={() => setIsCreateModalOpen(true)}
               style={{
                 padding: '8px 16px',
-                background: '#2563eb',
+                background: '#0fad89',
                 border: 'none',
                 borderRadius: '8px',
                 fontSize: '13px',
                 fontWeight: '700',
                 color: '#ffffff',
                 cursor: 'pointer',
-                boxShadow: '0 2px 4px rgba(37, 99, 235, 0.25)',
+                boxShadow: '0 2px 4px rgba(15, 173, 137, 0.25)',
                 whiteSpace: 'nowrap',
               }}
             >

@@ -585,13 +585,13 @@ export default function DeliveryPointsView({
             style={{
               padding: '9px 16px',
               borderRadius: '10px',
-              background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)',
+              background: 'linear-gradient(135deg, #0fba90 0%, #0fad89 100%)',
               color: '#ffffff',
               border: 'none',
               fontSize: '13.5px',
               fontWeight: '700',
               cursor: 'pointer',
-              boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)',
+              boxShadow: '0 4px 12px rgba(15, 186, 144, 0.25)',
               display: 'inline-flex',
               alignItems: 'center',
               gap: '8px',
@@ -855,7 +855,7 @@ export default function DeliveryPointsView({
                 style={{
                   padding: '9px 18px',
                   borderRadius: '10px',
-                  background: '#2563eb',
+                  background: '#0fad89',
                   color: '#ffffff',
                   border: 'none',
                   fontSize: '13.5px',
@@ -864,11 +864,11 @@ export default function DeliveryPointsView({
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: '7px',
-                  boxShadow: '0 2px 8px rgba(37, 99, 235, 0.25)',
+                  boxShadow: '0 2px 8px rgba(15, 173, 137, 0.25)',
                   transition: 'all 0.15s ease',
                 }}
-                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#1d4ed8')}
-                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#2563eb')}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#0a8f70')}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#0fad89')}
               >
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M9 11l3 3L22 4" />
@@ -1407,7 +1407,7 @@ export default function DeliveryPointsView({
                 style={{
                   padding: '9px 16px',
                   borderRadius: '9px',
-                  background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)',
+                  background: 'linear-gradient(135deg, #0fba90 0%, #0fad89 100%)',
                   color: '#ffffff',
                   border: 'none',
                   fontSize: '13.5px',
@@ -1416,7 +1416,7 @@ export default function DeliveryPointsView({
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: '6px',
-                  boxShadow: '0 2px 8px rgba(16, 185, 129, 0.25)',
+                  boxShadow: '0 2px 8px rgba(15, 186, 144, 0.25)',
                   whiteSpace: 'nowrap',
                 }}
               >
@@ -1839,7 +1839,7 @@ export default function DeliveryPointsView({
                     style={{
                       padding: '8px 16px',
                       borderRadius: '8px',
-                      background: '#2563eb',
+                      background: '#0fad89',
                       color: '#ffffff',
                       border: 'none',
                       fontSize: '13px',
@@ -1988,7 +1988,7 @@ export default function DeliveryPointsView({
                                 style={{
                                   padding: '6px 16px',
                                   borderRadius: '8px',
-                                  background: '#2563eb',
+                                  background: '#0fad89',
                                   color: '#ffffff',
                                   border: 'none',
                                   fontSize: '12.5px',
@@ -1997,15 +1997,15 @@ export default function DeliveryPointsView({
                                   display: 'inline-flex',
                                   alignItems: 'center',
                                   gap: '5px',
-                                  boxShadow: '0 2px 6px rgba(37, 99, 235, 0.2)',
+                                  boxShadow: '0 2px 6px rgba(15, 173, 137, 0.2)',
                                   transition: 'all 0.15s ease',
                                   whiteSpace: 'nowrap',
                                 }}
                                 onMouseEnter={(e) => {
-                                  if (!isSelecting) e.currentTarget.style.backgroundColor = '#1d4ed8';
+                                  if (!isSelecting) e.currentTarget.style.backgroundColor = '#0a8f70';
                                 }}
                                 onMouseLeave={(e) => {
-                                  if (!isSelecting) e.currentTarget.style.backgroundColor = '#2563eb';
+                                  if (!isSelecting) e.currentTarget.style.backgroundColor = '#0fad89';
                                 }}
                               >
                                 {isSelecting ? (
@@ -2051,8 +2051,8 @@ export default function DeliveryPointsView({
                 style={{
                   padding: '8px 18px',
                   borderRadius: '9px',
-                  border: '1px solid #2563eb',
-                  background: '#2563eb',
+                  border: '1px solid #0fad89',
+                  background: '#0fad89',
                   color: '#ffffff',
                   fontSize: '13.5px',
                   fontWeight: '600',
@@ -2388,12 +2388,12 @@ export default function DeliveryPointsView({
                   padding: '8px 20px',
                   borderRadius: '8px',
                   border: 'none',
-                  background: '#2563eb',
+                  background: '#0fad89',
                   color: '#ffffff',
                   fontSize: '13.5px',
                   fontWeight: '700',
                   cursor: formSubmitting ? 'not-allowed' : 'pointer',
-                  boxShadow: '0 2px 8px rgba(37, 99, 235, 0.25)',
+                  boxShadow: '0 2px 8px rgba(15, 173, 137, 0.25)',
                 }}
               >
                 {formSubmitting ? 'Đang lưu...' : editingPoint ? 'Cập nhật' : 'Thêm mới'}

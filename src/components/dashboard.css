@@ -45,7 +45,7 @@
   left: 0;
   bottom: 0;
   width: 285px;
-  background: linear-gradient(180deg, #1e3a8a 0%, #1e40af 50%, #172554 100%);
+  background: linear-gradient(180deg, #064e3b 0%, #047857 50%, #065f46 100%);
   border-right: 1px solid rgba(255, 255, 255, 0.15);
   box-shadow: 8px 0 32px rgba(15, 23, 42, 0.35);
   z-index: 9999;
@@ -205,7 +205,7 @@
 }
 
 .hamburger-left-btn:focus-visible {
-  outline: 2px solid #2563eb;
+  outline: 2px solid #0fad89;
   outline-offset: 2px;
 }
 
@@ -327,9 +327,9 @@
   font-size: 12.5px !important;
   font-weight: 600 !important;
   font-family: 'Inter', system-ui, sans-serif !important;
-  color: #0369a1 !important;
-  background: #f0f9ff !important;
-  border: 1px solid #bae6fd !important;
+  color: #065f46 !important;
+  background: #ecfdf5 !important;
+  border: 1px solid #a7f3d0 !important;
   box-shadow: none !important;
   transform: none !important;
   cursor: pointer !important;
@@ -342,10 +342,10 @@
 }
 
 .btn-inventory-history:hover {
-  background: #0284c7 !important;
-  border-color: #0284c7 !important;
+  background: #0fad89 !important;
+  border-color: #0fad89 !important;
   color: #ffffff !important;
-  box-shadow: 0 2px 6px rgba(2, 132, 199, 0.25) !important;
+  box-shadow: 0 2px 6px rgba(15, 173, 137, 0.25) !important;
   transform: translateY(-1px) !important;
 }
 
@@ -354,7 +354,7 @@
 }
 
 .btn-inventory-history svg {
-  stroke: #0284c7 !important;
+  stroke: #0fad89 !important;
   transition: stroke 0.18s ease !important;
 }
 
