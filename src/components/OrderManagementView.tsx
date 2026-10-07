@@ -877,8 +877,15 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                 <div>
                   <span style={{ color: '#64748b' }}>Người lên đơn:</span>
                   <div style={{ fontWeight: '600', color: '#0f172a', marginTop: '2px' }}>
-                    {selectedOrderDetail.assigned_sale_name || selectedOrderDetail.created_by}
+                    {selectedOrderDetail.created_by || selectedOrderDetail.assigned_sale_name || '—'}
                   </div>
+                  {selectedOrderDetail.assigned_sale_name &&
+                    selectedOrderDetail.created_by &&
+                    selectedOrderDetail.assigned_sale_name.toLowerCase() !== selectedOrderDetail.created_by.toLowerCase() && (
+                      <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
+                        Phụ trách: {selectedOrderDetail.assigned_sale_name}
+                      </div>
+                    )}
                 </div>
                 <div>
                   <span style={{ color: '#64748b' }}>Thời gian tạo:</span>
@@ -897,7 +904,16 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
             </div>
 
             {/* Bảng sản phẩm chi tiết */}
-            <div style={{ marginBottom: '16px', maxHeight: '300px', overflowY: 'auto' }}>
+            <div
+              style={{
+                flexShrink: 0,
+                maxHeight: '360px',
+                overflowY: 'auto',
+                border: '1px solid #e2e8f0',
+                borderRadius: '8px',
+                background: '#ffffff',
+              }}
+            >
               {isLoadingDetail ? (
                 <div style={{ padding: '30px', textAlign: 'center', color: '#64748b' }}>
                   <div style={{ fontSize: '14px', fontWeight: '600' }}>Đang tải thông tin chi tiết các mặt hàng...</div>
