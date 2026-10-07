@@ -646,6 +646,18 @@ export default function DealerSearchView({
         handleSearch();
     }, []);
 
+    // Phân trang danh sách đại lý
+    const [currentPage, setCurrentPage] = useState<number>(1);
+    const pageSize = 5;
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [dealers.length, keyword, region, customerGroup, assignedSaleId, status, onlyMyDealers]);
+
+    const totalPages = Math.max(1, Math.ceil(dealers.length / pageSize));
+    const safePage = Math.min(Math.max(1, currentPage), totalPages);
+    const paginatedDealers = dealers.slice((safePage - 1) * pageSize, safePage * pageSize);
+
     return (
         <div className="dealer-search-page">
             <div className="dealer-search-header">
@@ -890,7 +902,7 @@ export default function DealerSearchView({
                                     </td>
                                 </tr>
                             ) : (
-                                dealers.map((dealer) => (
+                                paginatedDealers.map((dealer) => (
                                     <tr key={dealer.id}>
                                         {canAssignDealer && (
                                             <td style={{ width: 36, textAlign: 'center', verticalAlign: 'middle' }}>
@@ -1122,7 +1134,7 @@ export default function DealerSearchView({
                             Không tìm thấy đại lý phù hợp với điều kiện lọc
                         </div>
                     ) : (
-                        dealers.map((dealer) => (
+                        paginatedDealers.map((dealer) => (
                             <div key={dealer.id} className="dealer-card-item">
                                 <div className="dealer-card-header">
                                     <div>
@@ -1250,6 +1262,164 @@ export default function DealerSearchView({
                         ))
                     )}
                 </div>
+
+                {/* FOOTER PHÂN TRANG */}
+                {!loading && dealers.length > 0 && (
+                    <div
+                        style={{
+                            padding: '12px 20px',
+                            display: 'flex',
+                            justifyContent: 'flex-end',
+                            alignItems: 'center',
+                            borderTop: '1px solid #e2e8f0',
+                            background: '#f8fafc',
+                            fontSize: '13px',
+                            color: '#64748b',
+                            flexShrink: 0,
+                        }}
+                    >
+                        {/* Khối phân trang liền thanh chuẩn theo thiết kế */}
+                        <div
+                            style={{
+                                display: 'inline-flex',
+                                alignItems: 'stretch',
+                                border: '1px solid #d1d5db',
+                                borderRadius: '8px',
+                                overflow: 'hidden',
+                                background: '#ffffff',
+                                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
+                                height: '32px',
+                            }}
+                        >
+                            {/* Nút trang trước (<) - hiển thị khi trang > 1 */}
+                            {safePage > 1 && (
+                                <button
+                                    type="button"
+                                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                                    style={{
+                                        minWidth: '32px',
+                                        height: '100%',
+                                        padding: '0 8px',
+                                        border: 'none',
+                                        borderRight: '1px solid #e5e7eb',
+                                        background: '#ffffff',
+                                        color: '#4b5563',
+                                        cursor: 'pointer',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        transition: 'background-color 0.15s ease',
+                                    }}
+                                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f9fafb')}
+                                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#ffffff')}
+                                    title="Trang trước"
+                                >
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
+                                        <polyline points="15 18 9 12 15 6" />
+                                    </svg>
+                                </button>
+                            )}
+
+                            {/* Danh sách các số trang */}
+                            {Array.from({ length: totalPages }, (_, i) => i + 1)
+                                .filter((p) => p === 1 || p === totalPages || Math.abs(p - safePage) <= 1)
+                                .reduce<(number | string)[]>((acc, p, idx, arr) => {
+                                    if (idx > 0 && typeof arr[idx - 1] === 'number' && (p as number) - (arr[idx - 1] as number) > 1) {
+                                        acc.push('...');
+                                    }
+                                    acc.push(p);
+                                    return acc;
+                                }, [])
+                                .map((p, idx, arr) => {
+                                    const hasNext = safePage < totalPages;
+                                    const isLastItem = idx === arr.length - 1 && !hasNext;
+                                    if (typeof p === 'string') {
+                                        return (
+                                            <span
+                                                key={`ellipsis-${idx}`}
+                                                style={{
+                                                    minWidth: '32px',
+                                                    height: '100%',
+                                                    padding: '0 8px',
+                                                    borderRight: isLastItem ? 'none' : '1px solid #e5e7eb',
+                                                    background: '#ffffff',
+                                                    color: '#6b7280',
+                                                    display: 'inline-flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    fontSize: '13px',
+                                                    userSelect: 'none',
+                                                }}
+                                            >
+                                                ...
+                                            </span>
+                                        );
+                                    }
+
+                                    const isActive = p === safePage;
+                                    return (
+                                        <button
+                                            key={p}
+                                            type="button"
+                                            onClick={() => setCurrentPage(p)}
+                                            style={{
+                                                minWidth: '32px',
+                                                height: '100%',
+                                                padding: '0 10px',
+                                                border: 'none',
+                                                borderRight: isLastItem ? 'none' : '1px solid #e5e7eb',
+                                                background: isActive ? '#2ba1f4' : '#ffffff',
+                                                color: isActive ? '#ffffff' : '#374151',
+                                                cursor: isActive ? 'default' : 'pointer',
+                                                fontSize: '13px',
+                                                fontWeight: isActive ? '700' : '500',
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                transition: 'background-color 0.15s ease',
+                                            }}
+                                            onMouseEnter={(e) => {
+                                                if (!isActive) e.currentTarget.style.backgroundColor = '#f9fafb';
+                                            }}
+                                            onMouseLeave={(e) => {
+                                                if (!isActive) e.currentTarget.style.backgroundColor = '#ffffff';
+                                            }}
+                                        >
+                                            {p}
+                                        </button>
+                                    );
+                                })}
+
+                            {/* Nút trang sau (>) - hiển thị khi chưa tới trang cuối */}
+                            {safePage < totalPages && (
+                                <button
+                                    type="button"
+                                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                                    style={{
+                                        minWidth: '32px',
+                                        height: '100%',
+                                        padding: '0 8px',
+                                        border: 'none',
+                                        background: '#ffffff',
+                                        color: '#4b5563',
+                                        cursor: 'pointer',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        transition: 'background-color 0.15s ease',
+                                    }}
+                                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f9fafb')}
+                                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#ffffff')}
+                                    title="Trang sau"
+                                >
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
+                                        <polyline points="9 18 15 12 9 6" />
+                                    </svg>
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                )}
             </div>
 
             {isAddModalOpen && (

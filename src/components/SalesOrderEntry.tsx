@@ -408,15 +408,7 @@ export default function SalesOrderEntry({ token, username, products, onClose: _o
   };
 
   return (
-    <main className="sales-order-page">
-      <div className="sales-order-heading">
-        <div>
-          <p className="sales-order-eyebrow">BÁN HÀNG</p>
-          <h1>Tạo đơn hàng</h1>
-          <p className="sales-order-subtitle">Nhập đơn trực tiếp tại cửa hàng của đại lý.</p>
-        </div>
-      </div>
-
+    <div className="sales-order-page">
       {error && <div className="sales-order-alert error" role="alert">{error}</div>}
 
       <div className="sales-order-layout">
@@ -518,7 +510,7 @@ export default function SalesOrderEntry({ token, username, products, onClose: _o
                   const pt = deliveryPoints.find((p) => p.id === deliveryPointId);
                   if (!pt) return null;
                   return (
-                    <div style={{ fontSize: '12px', color: '#047857', marginTop: '6px', background: '#ecfdf5', padding: '6px 10px', borderRadius: '6px', border: '1px solid #a7f3d0' }}>
+                    <div style={{ fontSize: '11px', color: '#047857', marginTop: '4px', background: '#ecfdf5', padding: '3px 8px', borderRadius: '6px', border: '1px solid #a7f3d0', lineHeight: 1.35 }}>
                       <strong>Người nhận:</strong> {pt.receiver_name || selectedDealer?.name || 'Đại lý'}
                       {pt.receiver_phone ? ` • SĐT: ${pt.receiver_phone}` : ''}
                       {pt.route_note ? ` • Tuyến: ${pt.route_note}` : ''}
@@ -635,7 +627,6 @@ export default function SalesOrderEntry({ token, username, products, onClose: _o
                 ))}
               </div>
             )}
-            <p className="sales-order-hint">Giá niêm yết được áp dụng cho mỗi đơn vị tính đã chọn.</p>
           </section>
         </section>
 
@@ -681,30 +672,32 @@ export default function SalesOrderEntry({ token, username, products, onClose: _o
               <h2>Bản nháp đã lưu</h2>
               <button type="button" className="sales-order-new-button" onClick={resetForm}>Đơn mới</button>
             </div>
-            {drafts.length === 0 ? (
-              <p className="sales-order-empty compact">Chưa có bản nháp.</p>
-            ) : drafts.map((draft) => {
-              const dealerName = dealers.find((dealer) => String(dealer.id) === draft.dealerId)?.name || 'Chưa chọn đại lý';
-              return (
-                <div className={`sales-order-draft ${draft.id === activeDraftId ? 'active' : ''}`} key={draft.id}>
-                  <button type="button" className="sales-order-draft-open" onClick={() => handleOpenDraft(draft)}>
-                    <strong>{dealerName}</strong>
-                    <span>{draft.lines.length} dòng hàng · {new Date(draft.updatedAt).toLocaleString('vi-VN')}</span>
-                  </button>
-                  <button
-                    type="button"
-                    className="sales-order-remove-button"
-                    aria-label={`Xóa bản nháp của ${dealerName}`}
-                    onClick={() => handleDeleteDraft(draft.id)}
-                  >
-                    Xóa
-                  </button>
-                </div>
-              );
-            })}
+            <div className="sales-order-drafts-list">
+              {drafts.length === 0 ? (
+                <p className="sales-order-empty compact">Chưa có bản nháp.</p>
+              ) : drafts.map((draft) => {
+                const dealerName = dealers.find((dealer) => String(dealer.id) === draft.dealerId)?.name || 'Chưa chọn đại lý';
+                return (
+                  <div className={`sales-order-draft ${draft.id === activeDraftId ? 'active' : ''}`} key={draft.id}>
+                    <button type="button" className="sales-order-draft-open" onClick={() => handleOpenDraft(draft)}>
+                      <strong>{dealerName}</strong>
+                      <span>{draft.lines.length} dòng hàng · {new Date(draft.updatedAt).toLocaleString('vi-VN')}</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="sales-order-remove-button"
+                      aria-label={`Xóa bản nháp của ${dealerName}`}
+                      onClick={() => handleDeleteDraft(draft.id)}
+                    >
+                      Xóa
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
           </section>
         </aside>
       </div>
-    </main>
+    </div>
   );
 }

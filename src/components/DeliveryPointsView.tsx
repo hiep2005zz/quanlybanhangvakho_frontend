@@ -530,7 +530,19 @@ export default function DeliveryPointsView({
   };
 
   return (
-    <div style={{ maxWidth: '1440px', margin: '0 auto', padding: '24px 20px', fontFamily: 'inherit' }}>
+    <div
+      style={{
+        width: '100%',
+        maxWidth: '1680px',
+        margin: '0 auto',
+        padding: 0,
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+        fontFamily: 'inherit',
+      }}
+    >
       {/* 1. Header Bar */}
       <div
         style={{
@@ -539,7 +551,8 @@ export default function DeliveryPointsView({
           alignItems: 'center',
           gap: '16px',
           flexWrap: 'wrap',
-          marginBottom: '24px',
+          marginBottom: '16px',
+          flexShrink: 0,
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
@@ -624,7 +637,8 @@ export default function DeliveryPointsView({
           overflow: 'hidden',
           display: 'grid',
           gridTemplateColumns: 'minmax(300px, 360px) 1fr',
-          minHeight: 'calc(100vh - 210px)',
+          flex: 1,
+          minHeight: 0,
           alignItems: 'stretch',
         }}
       >
@@ -636,10 +650,12 @@ export default function DeliveryPointsView({
             display: 'flex',
             flexDirection: 'column',
             minHeight: 0,
+            height: '100%',
+            overflow: 'hidden',
           }}
         >
           {/* Header of dealer list */}
-          <div style={{ padding: '16px 18px', borderBottom: '1px solid #f1f5f9', background: '#f8fafc' }}>
+          <div style={{ padding: '16px 18px', borderBottom: '1px solid #f1f5f9', background: '#f8fafc', flexShrink: 0 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -701,7 +717,7 @@ export default function DeliveryPointsView({
           </div>
 
           {/* Dealer cards scrollable list */}
-          <div style={{ flex: 1, maxHeight: 'calc(100vh - 280px)', overflowY: 'auto', padding: '10px 8px' }}>
+          <div className="roles-grid-scroll" style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '10px 8px' }}>
             {loadingDealers ? (
               <div style={{ padding: '32px 16px', textAlign: 'center', color: '#94a3b8', fontSize: '13.5px' }}>
                 Đang tải danh sách đại lý...
@@ -790,19 +806,20 @@ export default function DeliveryPointsView({
         </div>
 
         {/* RIGHT COLUMN: Delivery Points of Selected Dealer */}
-        <div style={{ display: 'flex', flexDirection: 'column', background: '#ffffff', minWidth: 0 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', background: '#ffffff', minWidth: 0, minHeight: 0, height: '100%', overflow: 'hidden' }}>
           {/* Dealer Info Banner Header with 'Chọn điểm giao' button */}
           {selectedDealer ? (
             <div
               style={{
                 background: '#ffffff',
                 borderBottom: '1px solid #e2e8f0',
-                padding: '18px 24px',
+                padding: '16px 24px',
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
                 flexWrap: 'wrap',
                 gap: '16px',
+                flexShrink: 0,
               }}
             >
               <div>
@@ -886,6 +903,7 @@ export default function DeliveryPointsView({
                 textAlign: 'center',
                 color: '#64748b',
                 fontSize: '13.5px',
+                flexShrink: 0,
               }}
             >
               Vui lòng chọn một đại lý ở danh sách bên trái.
@@ -896,10 +914,11 @@ export default function DeliveryPointsView({
           <div
             style={{
               flex: 1,
+              minHeight: 0,
               display: 'flex',
               flexDirection: 'column',
-              padding: '20px 24px',
-              overflowY: 'auto',
+              padding: '16px 20px',
+              overflow: 'hidden',
             }}
           >
             <div
@@ -907,9 +926,10 @@ export default function DeliveryPointsView({
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
-                marginBottom: '18px',
-                paddingBottom: '14px',
+                marginBottom: '12px',
+                paddingBottom: '10px',
                 borderBottom: '1px solid #f1f5f9',
+                flexShrink: 0,
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -994,233 +1014,251 @@ export default function DeliveryPointsView({
               </div>
             ) : (
               /* Points List */
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '16px' }}>
-                {points.map((p) => {
-                  const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.address)}`;
-                  return (
-                    <div
-                      key={p.id}
-                      style={{
-                        borderRadius: '14px',
-                        border: p.is_default ? '2px solid #6366f1' : '1px solid #e2e8f0',
-                        background: p.is_default ? '#fbfcfe' : '#ffffff',
-                        boxShadow: p.is_default ? '0 4px 14px rgba(99, 102, 241, 0.12)' : '0 1px 3px rgba(0, 0, 0, 0.03)',
-                        padding: '18px',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        justifyContent: 'space-between',
-                        gap: '14px',
-                        position: 'relative',
-                        transition: 'transform 0.15s ease, box-shadow 0.15s ease',
-                      }}
-                    >
-                      {/* Top Header */}
-                      <div>
-                        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <div
-                              style={{
-                                width: '32px',
-                                height: '32px',
-                                borderRadius: '8px',
-                                background: p.is_default ? '#e0e7ff' : '#f1f5f9',
-                                color: p.is_default ? '#4f46e5' : '#64748b',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                flexShrink: 0,
-                              }}
-                            >
-                              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
-                                <circle cx="12" cy="10" r="3" />
-                              </svg>
+              <div
+                className={points.length > 2 ? 'roles-grid-scroll' : ''}
+                style={{
+                  flex: 1,
+                  minHeight: 0,
+                  overflowY: points.length > 2 ? 'auto' : 'visible',
+                  paddingRight: points.length > 2 ? '6px' : '0',
+                }}
+              >
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+                    gap: '12px',
+                    alignContent: 'start',
+                  }}
+                >
+                  {points.map((p) => {
+                    const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.address)}`;
+                    return (
+                      <div
+                        key={p.id}
+                        style={{
+                          borderRadius: '12px',
+                          border: p.is_default ? '2px solid #6366f1' : '1px solid #e2e8f0',
+                          background: p.is_default ? '#fbfcfe' : '#ffffff',
+                          boxShadow: p.is_default ? '0 3px 10px rgba(99, 102, 241, 0.10)' : '0 1px 3px rgba(0, 0, 0, 0.03)',
+                          padding: '12px 14px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          justifyContent: 'space-between',
+                          gap: '8px',
+                          position: 'relative',
+                          transition: 'transform 0.15s ease, box-shadow 0.15s ease',
+                        }}
+                      >
+                        {/* Top Header */}
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
+                              <div
+                                style={{
+                                  width: '26px',
+                                  height: '26px',
+                                  borderRadius: '6px',
+                                  background: p.is_default ? '#e0e7ff' : '#f1f5f9',
+                                  color: p.is_default ? '#4f46e5' : '#64748b',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  flexShrink: 0,
+                                }}
+                              >
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+                                  <circle cx="12" cy="10" r="3" />
+                                </svg>
+                              </div>
+                              <span style={{ fontSize: '14.5px', fontWeight: '700', color: '#0f172a' }}>
+                                {p.label}
+                              </span>
                             </div>
-                            <span style={{ fontSize: '16px', fontWeight: '700', color: '#0f172a' }}>
-                              {p.label}
-                            </span>
+
+                            {p.is_default ? (
+                              <span
+                                style={{
+                                  background: '#e0e7ff',
+                                  color: '#4338ca',
+                                  border: '1px solid #c7d2fe',
+                                  fontSize: '10.5px',
+                                  fontWeight: '700',
+                                  padding: '2px 7px',
+                                  borderRadius: '999px',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '3px',
+                                }}
+                              >
+                                ★ Mặc định
+                              </span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => handleSetDefault(p)}
+                                style={{
+                                  background: 'transparent',
+                                  border: '1px solid #cbd5e1',
+                                  color: '#64748b',
+                                  fontSize: '10.5px',
+                                  fontWeight: '600',
+                                  padding: '2px 7px',
+                                  borderRadius: '999px',
+                                  cursor: 'pointer',
+                                }}
+                                title="Đặt làm điểm giao hàng mặc định"
+                              >
+                                Đặt mặc định
+                              </button>
+                            )}
                           </div>
 
-                          {p.is_default ? (
-                            <span
+                          {/* Address */}
+                          <div style={{ marginTop: '8px', fontSize: '12.5px', color: '#334155', lineHeight: '1.4' }}>
+                            <span style={{ fontWeight: '600', color: '#64748b' }}>Địa chỉ: </span>
+                            {p.address}
+                          </div>
+
+                          {/* Map Directions link */}
+                          <div style={{ marginTop: '4px' }}>
+                            <a
+                              href={mapUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
                               style={{
-                                background: '#e0e7ff',
-                                color: '#4338ca',
-                                border: '1px solid #c7d2fe',
-                                fontSize: '11px',
-                                fontWeight: '700',
-                                padding: '3px 8px',
-                                borderRadius: '999px',
                                 display: 'inline-flex',
                                 alignItems: 'center',
                                 gap: '4px',
-                              }}
-                            >
-                              ★ Mặc định
-                            </span>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => handleSetDefault(p)}
-                              style={{
-                                background: 'transparent',
-                                border: '1px solid #cbd5e1',
-                                color: '#64748b',
-                                fontSize: '11px',
+                                fontSize: '11.5px',
                                 fontWeight: '600',
-                                padding: '3px 8px',
-                                borderRadius: '999px',
-                                cursor: 'pointer',
+                                color: '#2563eb',
+                                textDecoration: 'none',
                               }}
-                              title="Đặt làm điểm giao hàng mặc định"
                             >
-                              Đặt mặc định
-                            </button>
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                <polygon points="3 11 22 2 13 21 11 13 3 11" />
+                              </svg>
+                              <span>Mở bản đồ / Chỉ đường</span>
+                            </a>
+                          </div>
+
+                          {/* Receiver Info */}
+                          {(p.receiver_name || p.receiver_phone) && (
+                            <div
+                              style={{
+                                marginTop: '7px',
+                                padding: '6px 10px',
+                                background: '#f8fafc',
+                                borderRadius: '7px',
+                                border: '1px solid #e2e8f0',
+                                fontSize: '12px',
+                                color: '#475569',
+                              }}
+                            >
+                              {p.receiver_name && (
+                                <div>
+                                  <strong>Người nhận:</strong> {p.receiver_name}
+                                </div>
+                              )}
+                              {p.receiver_phone && (
+                                <div style={{ marginTop: '2px' }}>
+                                  <strong>SĐT:</strong>{' '}
+                                  <a
+                                    href={`tel:${p.receiver_phone}`}
+                                    style={{ color: '#0284c7', textDecoration: 'none', fontWeight: '600' }}
+                                  >
+                                    {p.receiver_phone}
+                                  </a>
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Route Note */}
+                          {p.route_note && (
+                            <div
+                              style={{
+                                marginTop: '6px',
+                                fontSize: '11.5px',
+                                color: '#64748b',
+                                fontStyle: 'italic',
+                                display: 'flex',
+                                alignItems: 'flex-start',
+                                gap: '4px',
+                              }}
+                            >
+                              <span>📝</span>
+                              <span>{p.route_note}</span>
+                            </div>
                           )}
                         </div>
 
-                        {/* Address */}
-                        <div style={{ marginTop: '12px', fontSize: '13.5px', color: '#334155', lineHeight: '1.45' }}>
-                          <span style={{ fontWeight: '600', color: '#64748b' }}>Địa chỉ: </span>
-                          {p.address}
-                        </div>
-
-                        {/* Map Directions link */}
-                        <div style={{ marginTop: '6px' }}>
-                          <a
-                            href={mapUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
+                        {/* Card Footer Actions */}
+                        <div
+                          style={{
+                            display: 'flex',
+                            justifyContent: 'flex-end',
+                            alignItems: 'center',
+                            gap: '6px',
+                            paddingTop: '8px',
+                            marginTop: '2px',
+                            borderTop: '1px solid #f1f5f9',
+                          }}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEditModal(p)}
                             style={{
+                              padding: '4px 10px',
+                              borderRadius: '7px',
+                              background: '#f8fafc',
+                              border: '1px solid #cbd5e1',
+                              color: '#334155',
+                              fontSize: '11.5px',
+                              fontWeight: '600',
+                              cursor: 'pointer',
                               display: 'inline-flex',
                               alignItems: 'center',
                               gap: '4px',
-                              fontSize: '12px',
-                              fontWeight: '600',
-                              color: '#2563eb',
-                              textDecoration: 'none',
                             }}
                           >
-                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                              <polygon points="3 11 22 2 13 21 11 13 3 11" />
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M12 20h9" />
+                              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
                             </svg>
-                            <span>Mở bản đồ / Chỉ đường</span>
-                          </a>
+                            <span>Sửa</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setDeletingPoint(p)}
+                            style={{
+                              padding: '4px 10px',
+                              borderRadius: '7px',
+                              background: '#fef2f2',
+                              border: '1px solid #fecaca',
+                              color: '#dc2626',
+                              fontSize: '11.5px',
+                              fontWeight: '600',
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                            }}
+                          >
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <polyline points="3 6 5 6 21 6" />
+                              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                            </svg>
+                            <span>Xóa</span>
+                          </button>
                         </div>
-
-                        {/* Receiver Info */}
-                        {(p.receiver_name || p.receiver_phone) && (
-                          <div
-                            style={{
-                              marginTop: '10px',
-                              padding: '8px 12px',
-                              background: '#f8fafc',
-                              borderRadius: '8px',
-                              border: '1px solid #e2e8f0',
-                              fontSize: '13px',
-                              color: '#475569',
-                            }}
-                          >
-                            {p.receiver_name && (
-                              <div>
-                                <strong>Người nhận:</strong> {p.receiver_name}
-                              </div>
-                            )}
-                            {p.receiver_phone && (
-                              <div style={{ marginTop: '2px' }}>
-                                <strong>SĐT:</strong>{' '}
-                                <a
-                                  href={`tel:${p.receiver_phone}`}
-                                  style={{ color: '#0284c7', textDecoration: 'none', fontWeight: '600' }}
-                                >
-                                  {p.receiver_phone}
-                                </a>
-                              </div>
-                            )}
-                          </div>
-                        )}
-
-                        {/* Route Note */}
-                        {p.route_note && (
-                          <div
-                            style={{
-                              marginTop: '8px',
-                              fontSize: '12px',
-                              color: '#64748b',
-                              fontStyle: 'italic',
-                              display: 'flex',
-                              alignItems: 'flex-start',
-                              gap: '5px',
-                            }}
-                          >
-                            <span>📝</span>
-                            <span>{p.route_note}</span>
-                          </div>
-                        )}
                       </div>
-
-                      {/* Card Footer Actions */}
-                      <div
-                        style={{
-                          display: 'flex',
-                          justifyContent: 'flex-end',
-                          alignItems: 'center',
-                          gap: '8px',
-                          paddingTop: '12px',
-                          borderTop: '1px solid #f1f5f9',
-                        }}
-                      >
-                        <button
-                          type="button"
-                          onClick={() => handleOpenEditModal(p)}
-                          style={{
-                            padding: '6px 12px',
-                            borderRadius: '8px',
-                            background: '#f8fafc',
-                            border: '1px solid #cbd5e1',
-                            color: '#334155',
-                            fontSize: '12.5px',
-                            fontWeight: '600',
-                            cursor: 'pointer',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '5px',
-                          }}
-                        >
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M12 20h9" />
-                            <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
-                          </svg>
-                          <span>Sửa</span>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => setDeletingPoint(p)}
-                          style={{
-                            padding: '6px 12px',
-                            borderRadius: '8px',
-                            background: '#fef2f2',
-                            border: '1px solid #fecaca',
-                            color: '#dc2626',
-                            fontSize: '12.5px',
-                            fontWeight: '600',
-                            cursor: 'pointer',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '5px',
-                          }}
-                        >
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <polyline points="3 6 5 6 21 6" />
-                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                          </svg>
-                          <span>Xóa</span>
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
             )}
           </div>
