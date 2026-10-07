@@ -1331,43 +1331,6 @@ export const ProductFormView: React.FC<ProductFormViewProps> = ({
                       >
                         <span>Không thể xóa sản phẩm</span>
                       </button>
-
-                      <p style={{ margin: 0, fontSize: '11.5px', color: '#dc2626', textAlign: 'center', lineHeight: '1.4', fontWeight: '500' }}>
-                        Đã phát sinh {product?.transaction_count} giao dịch &rarr; Khóa xóa, chỉ cho phép Ngừng kinh doanh
-                      </p>
-
-                      {status === 'active' && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setStatus('inactive');
-                            emitStatusToast({
-                              message: 'Đã chuyển trạng thái sang "Ngừng kinh doanh". Hãy bấm "Lưu thay đổi" để áp dụng.',
-                              title: 'Thông báo',
-                            });
-                          }}
-                          style={{
-                            width: '100%',
-                            padding: '8px 12px',
-                            background: '#eff6ff',
-                            border: '1px solid #bfdbfe',
-                            borderRadius: '8px',
-                            color: '#1d4ed8',
-                            fontSize: '12.5px',
-                            fontWeight: '600',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '6px',
-                            transition: 'all 0.15s ease',
-                          }}
-                          onMouseEnter={(e) => (e.currentTarget.style.background = '#dbeafe')}
-                          onMouseLeave={(e) => (e.currentTarget.style.background = '#eff6ff')}
-                        >
-                          <span>Chuyển sang Ngừng kinh doanh</span>
-                        </button>
-                      )}
                     </div>
                   ) : (
                     <button
