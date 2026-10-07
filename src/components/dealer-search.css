@@ -950,12 +950,12 @@
 }
 
 .dealer-modal-field input,
-.dealer-modal-field select {
-    height: 40px;
-    padding: 0 12px;
+.dealer-modal-field select,
+.dealer-modal-field textarea {
     border: 1px solid #cbd5e1;
     border-radius: 8px;
     font-size: 14px;
+    font-family: inherit;
     color: #0f172a;
     background: #ffffff;
     outline: none;
@@ -963,8 +963,22 @@
     box-sizing: border-box;
 }
 
+.dealer-modal-field input,
+.dealer-modal-field select {
+    height: 40px;
+    padding: 0 12px;
+}
+
+.dealer-modal-field textarea {
+    min-height: 80px;
+    padding: 10px 12px;
+    line-height: 1.5;
+    resize: vertical;
+}
+
 .dealer-modal-field input:focus,
-.dealer-modal-field select:focus {
+.dealer-modal-field select:focus,
+.dealer-modal-field textarea:focus {
     border-color: #10b981;
     box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
 }
