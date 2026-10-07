@@ -343,16 +343,16 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
               overflowX: 'auto',
             }}
           >
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13.5px' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
               <thead style={{ position: 'sticky', top: 0, zIndex: 10, background: '#f8fafc' }}>
-                <tr style={{ background: '#f8fafc', color: '#64748b', borderBottom: '1px solid #e2e8f0', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                  <th style={{ padding: '12px 18px', fontWeight: '700', background: '#f8fafc' }}>Mã Đơn</th>
-                  <th style={{ padding: '12px 18px', fontWeight: '700', background: '#f8fafc' }}>Khách Hàng / Đại Lý</th>
-                  <th style={{ padding: '12px 18px', fontWeight: '700', background: '#f8fafc' }}>Người Lên Đơn</th>
-                  <th style={{ padding: '12px 18px', fontWeight: '700', textAlign: 'right', background: '#f8fafc' }}>Tổng Giá Trị</th>
-                  <th style={{ padding: '12px 18px', fontWeight: '700', textAlign: 'center', background: '#f8fafc' }}>Trạng Thái Duyệt</th>
-                  <th style={{ padding: '12px 18px', fontWeight: '700', background: '#f8fafc' }}>Lý Do Cảnh Báo</th>
-                  <th style={{ padding: '12px 18px', fontWeight: '700', textAlign: 'right', background: '#f8fafc', whiteSpace: 'nowrap', minWidth: '220px' }}>Thao Tác</th>
+                <tr style={{ background: '#f8fafc', color: '#64748b', borderBottom: '1px solid #e2e8f0', fontSize: '11.5px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  <th style={{ padding: '9px 12px', fontWeight: '700', background: '#f8fafc', whiteSpace: 'nowrap' }}>Mã Đơn</th>
+                  <th style={{ padding: '9px 12px', fontWeight: '700', background: '#f8fafc' }}>Khách Hàng / Đại Lý</th>
+                  <th style={{ padding: '9px 12px', fontWeight: '700', background: '#f8fafc', whiteSpace: 'nowrap' }}>Người Lên Đơn</th>
+                  <th style={{ padding: '9px 12px', fontWeight: '700', textAlign: 'right', background: '#f8fafc', whiteSpace: 'nowrap' }}>Tổng Giá Trị</th>
+                  <th style={{ padding: '9px 12px', fontWeight: '700', textAlign: 'center', background: '#f8fafc', whiteSpace: 'nowrap', minWidth: '155px' }}>Trạng Thái Duyệt</th>
+                  <th style={{ padding: '9px 12px', fontWeight: '700', background: '#f8fafc' }}>Lý Do Cảnh Báo</th>
+                  <th style={{ padding: '9px 14px', fontWeight: '700', textAlign: 'right', background: '#f8fafc', whiteSpace: 'nowrap', minWidth: '220px' }}>Thao Tác</th>
                 </tr>
               </thead>
               <tbody>
@@ -371,28 +371,28 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                         transition: 'background 0.15s ease',
                       }}
                     >
-                      <td style={{ padding: '14px 18px', fontFamily: 'monospace', fontWeight: '700', color: '#1e293b' }}>
+                      <td style={{ padding: '9px 12px', fontFamily: 'monospace', fontWeight: '700', color: '#1e293b', fontSize: '12px', whiteSpace: 'nowrap' }}>
                         {order.order_code}
                       </td>
 
-                      <td style={{ padding: '14px 18px' }}>
-                        <div style={{ fontWeight: '600', color: '#0f172a' }}>{order.dealer_name}</div>
-                        <div style={{ fontSize: '11.5px', color: '#64748b', marginTop: '2px' }}>
+                      <td style={{ padding: '9px 12px' }}>
+                        <div style={{ fontWeight: '600', color: '#0f172a', fontSize: '12.5px', lineHeight: '1.3' }}>{order.dealer_name}</div>
+                        <div style={{ fontSize: '11px', color: '#64748b', marginTop: '1px' }}>
                           Mã khách hàng: #{order.dealer_id}
                         </div>
                       </td>
 
-                      <td style={{ padding: '14px 18px' }}>
-                        <div style={{ fontWeight: '500', color: '#334155' }}>
+                      <td style={{ padding: '9px 12px', whiteSpace: 'nowrap' }}>
+                        <div style={{ fontWeight: '500', color: '#334155', fontSize: '12px' }}>
                           {order.assigned_sale_name || order.created_by}
                         </div>
                       </td>
 
-                      <td style={{ padding: '14px 18px', textAlign: 'right', fontWeight: '700', color: '#0f172a' }}>
+                      <td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: '700', color: '#0f172a', fontSize: '12.5px', whiteSpace: 'nowrap' }}>
                         {order.total_amount.toLocaleString('vi-VN')} đồng
                       </td>
 
-                      <td style={{ padding: '14px 18px', textAlign: 'center' }}>
+                      <td style={{ padding: '9px 12px', textAlign: 'center', whiteSpace: 'nowrap' }}>
                         {isPending ? (
                           <span
                             style={{
@@ -401,9 +401,10 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                               color: '#92400e',
                               border: '1px solid #fde68a',
                               borderRadius: '999px',
-                              padding: '3px 12px',
-                              fontSize: '12px',
-                              fontWeight: '700',
+                              padding: '2.5px 10px',
+                              fontSize: '11.5px',
+                              fontWeight: '600',
+                              whiteSpace: 'nowrap',
                             }}
                           >
                             Chờ quản lý duyệt
@@ -416,9 +417,10 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                               color: '#15803d',
                               border: '1px solid #bbf7d0',
                               borderRadius: '999px',
-                              padding: '3px 12px',
-                              fontSize: '12px',
-                              fontWeight: '700',
+                              padding: '2.5px 10px',
+                              fontSize: '11.5px',
+                              fontWeight: '600',
+                              whiteSpace: 'nowrap',
                             }}
                           >
                             Đã xác nhận
@@ -431,9 +433,10 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                               color: '#b91c1c',
                               border: '1px solid #fecaca',
                               borderRadius: '999px',
-                              padding: '3px 12px',
-                              fontSize: '12px',
-                              fontWeight: '700',
+                              padding: '2.5px 10px',
+                              fontSize: '11.5px',
+                              fontWeight: '600',
+                              whiteSpace: 'nowrap',
                             }}
                           >
                             Bị từ chối
@@ -446,9 +449,10 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                               color: '#64748b',
                               border: '1px solid #cbd5e1',
                               borderRadius: '999px',
-                              padding: '3px 12px',
-                              fontSize: '12px',
-                              fontWeight: '700',
+                              padding: '2.5px 10px',
+                              fontSize: '11.5px',
+                              fontWeight: '600',
+                              whiteSpace: 'nowrap',
                             }}
                           >
                             Đã hủy
@@ -459,9 +463,10 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                               background: '#f1f5f9',
                               color: '#64748b',
                               borderRadius: '999px',
-                              padding: '3px 12px',
-                              fontSize: '12px',
+                              padding: '2.5px 10px',
+                              fontSize: '11.5px',
                               fontWeight: '600',
+                              whiteSpace: 'nowrap',
                             }}
                           >
                             {order.status === 'CANCELLED' ? 'Đã hủy' : order.status}
@@ -469,21 +474,21 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                         )}
                       </td>
 
-                      <td style={{ padding: '14px 18px', maxWidth: '280px' }}>
+                      <td style={{ padding: '9px 12px', maxWidth: '240px' }}>
                         {order.approval_reason ? (
-                          <div style={{ fontSize: '12px', color: isRejected ? '#dc2626' : '#b45309', fontWeight: '500', lineHeight: '1.4' }}>
+                          <div style={{ fontSize: '11.5px', color: isRejected ? '#dc2626' : '#b45309', fontWeight: '500', lineHeight: '1.35' }}>
                             {order.approval_reason}
                           </div>
                         ) : order.approved_by ? (
-                          <div style={{ fontSize: '12px', color: '#16a34a', fontWeight: '500' }}>
+                          <div style={{ fontSize: '11.5px', color: '#16a34a', fontWeight: '500' }}>
                             Duyệt bởi @{order.approved_by}
                           </div>
                         ) : (
-                          <span style={{ color: '#94a3b8', fontSize: '12px' }}>Đơn giá chuẩn bảng giá</span>
+                          <span style={{ color: '#94a3b8', fontSize: '11.5px' }}>Đơn giá chuẩn bảng giá</span>
                         )}
                       </td>
 
-                      <td style={{ padding: '10px 18px', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                      <td style={{ padding: '9px 14px', textAlign: 'right', whiteSpace: 'nowrap' }}>
                         <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px', whiteSpace: 'nowrap' }}>
                           {/* Nút Duyệt đơn & Từ chối cho sales_manager và admin khi đơn Chờ quản lý duyệt */}
                           {isPending && canApprove && (
