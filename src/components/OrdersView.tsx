@@ -339,11 +339,20 @@ export default function OrdersView({ token, username, products, canCreateOrders,
 
   const filteredOrders = useMemo(() => {
     const query = searchTerm.trim().toLocaleLowerCase('vi');
-    if (!query) return orders;
-    return orders.filter((order) =>
-      [order.order_code, order.dealer_name, order.created_by, getStatusLabel(order.status)]
-        .some((value) => value.toLocaleLowerCase('vi').includes(query))
-    );
+    const matched = !query
+      ? orders
+      : orders.filter((order) =>
+          [order.order_code, order.dealer_name, order.created_by, getStatusLabel(order.status)]
+            .some((value) => value.toLocaleLowerCase('vi').includes(query))
+        );
+    return [...matched].sort((a, b) => {
+      const isAPending = a.status === 'PENDING_APPROVAL' || a.status === 'PENDING';
+      const isBPending = b.status === 'PENDING_APPROVAL' || b.status === 'PENDING';
+      if (isAPending !== isBPending) {
+        return isBPending ? 1 : -1;
+      }
+      return (b.id || 0) - (a.id || 0);
+    });
   }, [orders, searchTerm]);
   const pageSize = 10;
   const totalPages = Math.max(1, Math.ceil(filteredOrders.length / pageSize));
