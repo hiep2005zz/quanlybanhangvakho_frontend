@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { CategoryTreeResponse, getCategoryTreeApi, moveProductCategoryApi } from '../services/api';
 import { emitStatusToast } from './StatusToast';
+import { ModalPortal } from './ModalPortal';
 
 interface MoveCategoryModalProps {
   isOpen: boolean;
@@ -55,11 +56,13 @@ export default function MoveCategoryModal({ isOpen, onClose, token, productId, p
   };
 
   return (
-    <div style={{
-      position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-      background: 'rgba(15, 23, 42, 0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999
-    }}>
-      <div style={{ background: '#fff', padding: '24px', borderRadius: '16px', width: '400px', boxShadow: '0 10px 25px rgba(0,0,0,0.1)' }}>
+    <ModalPortal>
+      <div style={{
+        position: 'fixed', inset: 0,
+        background: 'rgba(15, 23, 42, 0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999,
+        padding: '16px', boxSizing: 'border-box'
+      }}>
+        <div style={{ background: '#fff', padding: '24px', borderRadius: '16px', width: '100%', maxWidth: '420px', maxHeight: 'calc(100vh - 32px)', overflowY: 'auto', boxShadow: '0 10px 25px rgba(0,0,0,0.1)' }}>
         <h3 style={{ marginTop: 0, marginBottom: '20px', fontSize: '18px', color: '#0f172a' }}>Chuyển Nhóm Hàng</h3>
         <p style={{ fontSize: '14px', color: '#64748b', marginBottom: '16px' }}>
           Sản phẩm: <strong>{productName}</strong>
@@ -114,22 +117,22 @@ export default function MoveCategoryModal({ isOpen, onClose, token, productId, p
                 padding: '9px 18px',
                 borderRadius: '8px',
                 border: 'none',
-                backgroundColor: (isLoading || selectedCategoryId === '' || selectedCategoryId === currentCategoryId) ? '#94a3b8' : '#2563eb',
+                backgroundColor: (isLoading || selectedCategoryId === '' || selectedCategoryId === currentCategoryId) ? '#94a3b8' : '#0fad89',
                 color: '#ffffff',
                 fontSize: '14px',
                 fontWeight: '600',
                 cursor: (isLoading || selectedCategoryId === '' || selectedCategoryId === currentCategoryId) ? 'not-allowed' : 'pointer',
-                boxShadow: (isLoading || selectedCategoryId === '' || selectedCategoryId === currentCategoryId) ? 'none' : '0 2px 8px rgba(37, 99, 235, 0.3)',
+                boxShadow: (isLoading || selectedCategoryId === '' || selectedCategoryId === currentCategoryId) ? 'none' : '0 2px 8px rgba(15, 173, 137, 0.3)',
                 transition: 'all 0.15s ease'
               }}
               onMouseEnter={(e) => {
                 if (!(isLoading || selectedCategoryId === '' || selectedCategoryId === currentCategoryId)) {
-                  e.currentTarget.style.backgroundColor = '#1d4ed8';
+                  e.currentTarget.style.backgroundColor = '#0a8f70';
                 }
               }}
               onMouseLeave={(e) => {
                 if (!(isLoading || selectedCategoryId === '' || selectedCategoryId === currentCategoryId)) {
-                  e.currentTarget.style.backgroundColor = '#2563eb';
+                  e.currentTarget.style.backgroundColor = '#0fad89';
                 }
               }}
             >
@@ -139,5 +142,6 @@ export default function MoveCategoryModal({ isOpen, onClose, token, productId, p
         </form>
       </div>
     </div>
+    </ModalPortal>
   );
 }

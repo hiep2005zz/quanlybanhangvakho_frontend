@@ -12,6 +12,7 @@ import {
   moveProductCategoryApi
 } from '../services/api';
 import { emitStatusToast } from './StatusToast';
+import { ModalPortal } from './ModalPortal';
 
 interface CategoryManagementViewProps {
   token: string;
@@ -341,7 +342,7 @@ export function CategoryManagementView({ token, onBackToHome: _onBackToHome }: C
             </div>
 
             {/* Actions */}
-            <div style={{ display: 'flex', gap: '4px', flexShrink: 0, marginLeft: '6px' }} className="category-actions" onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', gap: '4px', flexShrink: 0, marginLeft: '6px' }} className="category-actions flex-shrink-0" onClick={e => e.stopPropagation()}>
               <button
                 onClick={() => {
                   setEditingId(null);
@@ -349,10 +350,10 @@ export function CategoryManagementView({ token, onBackToHome: _onBackToHome }: C
                   setIsModalOpen(true);
                 }}
                 title="Thêm phân loại"
-                className="action-btn-add"
-                style={{ height: '26px', padding: '0 7px', fontSize: '11.5px', borderRadius: '6px' }}
+                className="action-btn-add flex-shrink-0 whitespace-nowrap w-fit px-2"
+                style={{ height: '26px', padding: '0 8px', fontSize: '11.5px', borderRadius: '6px', whiteSpace: 'nowrap', flexShrink: 0 }}
               >
-                <PlusIcon /> Con
+                <PlusIcon /> Thêm phân loại
               </button>
               <button
                 onClick={() => {
@@ -361,16 +362,16 @@ export function CategoryManagementView({ token, onBackToHome: _onBackToHome }: C
                   setIsModalOpen(true);
                 }}
                 title="Sửa nhóm"
-                className="action-btn-edit"
-                style={{ height: '26px', padding: '0 7px', fontSize: '11.5px', borderRadius: '6px' }}
+                className="action-btn-edit flex-shrink-0"
+                style={{ height: '26px', padding: '0 7px', fontSize: '11.5px', borderRadius: '6px', flexShrink: 0 }}
               >
                 <EditIcon />
               </button>
               <button
                 onClick={(e) => handleDelete(node.id, e)}
                 title="Xóa nhóm"
-                className="action-btn-del"
-                style={{ height: '26px', padding: '0 7px', fontSize: '11.5px', borderRadius: '6px' }}
+                className="action-btn-del flex-shrink-0"
+                style={{ height: '26px', padding: '0 7px', fontSize: '11.5px', borderRadius: '6px', flexShrink: 0 }}
               >
                 <TrashIcon />
               </button>
@@ -840,7 +841,7 @@ export function CategoryManagementView({ token, onBackToHome: _onBackToHome }: C
         .category-tree-card:hover { transform: translateX(2px); box-shadow: 0 4px 12px rgba(0,0,0,0.05) !important; }
         .product-drag-card:hover { transform: translateY(-2px); box-shadow: 0 6px 12px rgba(0,0,0,0.08) !important; border-color: #cbd5e1 !important; }
         .product-drag-card:active { cursor: grabbing !important; transform: scale(0.98); }
-        .action-btn-add { display: flex; align-items: center; justify-content: center; gap: 4px; padding: 0 10px; height: 32px; border-radius: 8px; border: none; cursor: pointer; transition: all 0.2s; background: #dcfce7; color: #16a34a; font-weight: 600; font-size: 13px; }
+        .action-btn-add { display: flex; align-items: center; justify-content: center; gap: 4px; padding: 0 10px; height: 32px; border-radius: 8px; border: none; cursor: pointer; transition: all 0.2s; background: #dcfce7; color: #16a34a; font-weight: 600; font-size: 13px; white-space: nowrap; flex-shrink: 0; }
         .action-btn-add:hover { background: #bbf7d0; transform: scale(1.05); }
         .action-btn-edit { display: flex; align-items: center; justify-content: center; gap: 4px; padding: 0 10px; height: 32px; border-radius: 8px; border: none; cursor: pointer; transition: all 0.2s; background: #fef3c7; color: #d97706; font-weight: 600; font-size: 13px; }
         .action-btn-edit:hover { background: #fde68a; transform: scale(1.05); }
@@ -870,11 +871,11 @@ export function CategoryManagementView({ token, onBackToHome: _onBackToHome }: C
           style={{
             display: 'flex', alignItems: 'center', gap: '10px',
             padding: '12px 28px', borderRadius: '16px', fontWeight: '700', fontSize: '15px',
-            background: activeTab === 'manage' ? '#2563eb' : '#fff',
+            background: activeTab === 'manage' ? '#0fad89' : '#fff',
             color: activeTab === 'manage' ? '#fff' : '#64748b',
             border: activeTab === 'manage' ? 'none' : '1px solid #e2e8f0',
             cursor: 'pointer', transition: 'all 0.2s ease',
-            boxShadow: activeTab === 'manage' ? '0 8px 20px -6px rgba(37,99,235,0.4)' : '0 1px 3px rgba(0,0,0,0.05)'
+            boxShadow: activeTab === 'manage' ? '0 8px 20px -6px rgba(15,173,137,0.4)' : '0 1px 3px rgba(0,0,0,0.05)'
           }}
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -892,11 +893,11 @@ export function CategoryManagementView({ token, onBackToHome: _onBackToHome }: C
           style={{
             display: 'flex', alignItems: 'center', gap: '10px',
             padding: '12px 28px', borderRadius: '16px', fontWeight: '700', fontSize: '15px',
-            background: activeTab === 'report' ? '#2563eb' : '#fff',
+            background: activeTab === 'report' ? '#0fad89' : '#fff',
             color: activeTab === 'report' ? '#fff' : '#64748b',
             border: activeTab === 'report' ? 'none' : '1px solid #e2e8f0',
             cursor: 'pointer', transition: 'all 0.2s ease',
-            boxShadow: activeTab === 'report' ? '0 8px 20px -6px rgba(37,99,235,0.4)' : '0 1px 3px rgba(0,0,0,0.05)'
+            boxShadow: activeTab === 'report' ? '0 8px 20px -6px rgba(15,173,137,0.4)' : '0 1px 3px rgba(0,0,0,0.05)'
           }}
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -956,11 +957,11 @@ export function CategoryManagementView({ token, onBackToHome: _onBackToHome }: C
                     style={{
                       display: 'inline-flex', alignItems: 'center', gap: '6px',
                       padding: '7px 14px', borderRadius: '8px', fontWeight: '700', fontSize: '12.5px',
-                      background: '#10b981', color: '#fff', border: 'none', cursor: 'pointer',
-                      boxShadow: '0 2px 6px rgba(16, 185, 129, 0.25)', transition: 'all 0.15s'
+                      background: 'linear-gradient(135deg, #0fba90 0%, #0fad89 100%)', color: '#fff', border: 'none', cursor: 'pointer',
+                      boxShadow: '0 2px 6px rgba(15, 186, 144, 0.25)', transition: 'all 0.15s'
                     }}
-                    onMouseEnter={e => e.currentTarget.style.backgroundColor = '#059669'}
-                    onMouseLeave={e => e.currentTarget.style.backgroundColor = '#10b981'}
+                    onMouseEnter={e => e.currentTarget.style.background = 'linear-gradient(135deg, #0fad89 0%, #0a8f70 100%)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'linear-gradient(135deg, #0fba90 0%, #0fad89 100%)'}
                   >
                     <PlusIcon /> Thêm Ngành Hàng
                   </button>
@@ -1034,13 +1035,15 @@ export function CategoryManagementView({ token, onBackToHome: _onBackToHome }: C
 
       {/* Modal - Premium Design */}
       {isModalOpen && (
+        <ModalPortal>
         <div style={{
           position: 'fixed', inset: 0,
           background: 'rgba(15, 23, 42, 0.65)', backdropFilter: 'blur(8px)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999,
+          padding: '16px', boxSizing: 'border-box',
           animation: 'fadeIn 0.2s ease'
         }}>
-          <div style={{ background: '#fff', padding: '40px', borderRadius: '24px', width: '480px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.3)' }}>
+          <div style={{ background: '#fff', padding: '36px', borderRadius: '24px', width: '480px', maxWidth: '100%', maxHeight: 'calc(100vh - 32px)', overflowY: 'auto', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.3)' }}>
             <h3 style={{ marginTop: 0, marginBottom: '8px', fontSize: '24px', fontWeight: '800', color: '#0f172a', letterSpacing: '-0.02em' }}>
               {editingId ? 'Cập nhật thông tin' : (formData.parent_id ? 'Thêm mới Phân Loại' : 'Thêm mới Nhóm Hàng')}
             </h3>
@@ -1089,19 +1092,22 @@ export function CategoryManagementView({ token, onBackToHome: _onBackToHome }: C
               
               <div style={{ display: 'flex', gap: '16px', justifyContent: 'flex-end' }}>
                 <button type="button" onClick={() => setIsModalOpen(false)} style={{ padding: '14px 24px', borderRadius: '12px', border: '1px solid #cbd5e1', background: '#fff', fontWeight: '700', color: '#475569', cursor: 'pointer', flex: 1, fontSize: '15px' }}>Hủy Bỏ</button>
-                <button type="submit" style={{ padding: '14px 24px', borderRadius: '12px', border: 'none', background: '#2563eb', color: '#fff', fontWeight: '800', cursor: 'pointer', flex: 1, boxShadow: '0 4px 12px rgba(37,99,235,0.3)', fontSize: '15px' }}>Lưu Thông Tin</button>
+                <button type="submit" style={{ padding: '14px 24px', borderRadius: '12px', border: 'none', background: '#0fad89', color: '#fff', fontWeight: '800', cursor: 'pointer', flex: 1, boxShadow: '0 4px 12px rgba(15,173,137,0.3)', fontSize: '15px' }}>Lưu Thông Tin</button>
               </div>
             </form>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {/* Delete Confirmation Modal */}
       {deleteConfirmId && (
+        <ModalPortal>
         <div style={{
           position: 'fixed', inset: 0,
           background: 'rgba(15, 23, 42, 0.65)', backdropFilter: 'blur(8px)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999,
+          padding: '16px', boxSizing: 'border-box',
           animation: 'fadeIn 0.2s ease'
         }}>
           <div style={{ background: '#fff', padding: '32px', borderRadius: '24px', width: '400px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.3)', textAlign: 'center' }}>
@@ -1122,6 +1128,7 @@ export function CategoryManagementView({ token, onBackToHome: _onBackToHome }: C
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
     </div>
   );

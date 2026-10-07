@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import {
   ProductItem,
   User,
@@ -481,7 +482,7 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
     }
   };
 
-  return (
+  return createPortal(
     <div
       style={{
         position: 'fixed',
@@ -493,34 +494,47 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
         justifyContent: 'center',
         zIndex: 99999,
         padding: '16px',
+        boxSizing: 'border-box',
+      }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget && !isSubmitting) onClose();
       }}
     >
       <div
         style={{
           backgroundColor: '#ffffff',
           borderRadius: '16px',
-          padding: '24px 28px',
-          maxWidth: '820px',
+          maxWidth: '840px',
           width: '100%',
+          maxHeight: 'calc(100vh - 32px)',
           boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
           border: '1px solid #e2e8f0',
-          maxHeight: '94vh',
-          overflowY: 'auto',
           boxSizing: 'border-box',
           position: 'relative',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
         }}
+        onClick={(e) => e.stopPropagation()}
       >
-        {/* Header Modal */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
+        {/* Header Modal (Cố định ở trên) */}
+        <div
+          style={{
+            padding: '20px 24px 16px 24px',
+            borderBottom: '1px solid #f1f5f9',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'flex-start',
+            flexShrink: 0,
+            background: '#ffffff',
+          }}
+        >
           <div>
             <h3 style={{ margin: 0, fontSize: '19px', fontWeight: '800', color: '#0f172a' }}>
               Tạo Đơn Hàng Mới
             </h3>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginTop: '6px', flexWrap: 'wrap' }}>
-              <p style={{ fontSize: '12.5px', color: '#64748b', margin: 0 }}>
-                Hỗ trợ thêm nhiều sản phẩm vào đơn hàng · Tự động áp giá theo nhóm khách hàng và kiểm soát giá sàn
-              </p>
-              {currentUser && (
+            {currentUser && (
+              <div style={{ marginTop: '6px' }}>
                 <div
                   style={{
                     display: 'inline-flex',
@@ -563,44 +577,65 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
                     Người tạo: <strong>{currentUser.full_name || currentUser.username}</strong>
                   </span>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
           <button
             type="button"
             onClick={onClose}
             style={{
-              background: '#f1f5f9',
-              border: '1px solid #cbd5e1',
-              borderRadius: '6px',
-              fontSize: '12px',
-              color: '#475569',
+              background: 'transparent',
+              border: 'none',
+              fontSize: '22px',
+              color: '#94a3b8',
               cursor: 'pointer',
-              padding: '5px 12px',
-              fontWeight: '600',
+              padding: '4px',
+              lineHeight: 1,
+              borderRadius: '6px',
+              flexShrink: 0,
             }}
+            title="Đóng"
           >
-            Đóng
+            ✕
           </button>
         </div>
 
-        {errorMsg && (
+        {/* Form Body: Container flex column để phần giữa cuộn, Footer cố định */}
+        <form
+          onSubmit={handleSubmit}
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            flex: 1,
+            minHeight: 0,
+            overflow: 'hidden',
+          }}
+        >
+          {/* Vùng nội dung cuộn mượt mà */}
           <div
             style={{
-              padding: '10px 14px',
-              borderRadius: '8px',
-              background: '#fef2f2',
-              border: '1px solid #fecaca',
-              color: '#dc2626',
-              fontSize: '13px',
-              marginBottom: '16px',
+              flex: 1,
+              overflowY: 'auto',
+              padding: '20px 24px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '16px',
             }}
           >
-            {errorMsg}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit}>
+            {errorMsg && (
+              <div
+                style={{
+                  padding: '10px 14px',
+                  borderRadius: '8px',
+                  background: '#fef2f2',
+                  border: '1px solid #fecaca',
+                  color: '#dc2626',
+                  fontSize: '13px',
+                }}
+              >
+                {errorMsg}
+              </div>
+            )}
           {/* 1. KHÁCH HÀNG & NHÓM KHÁCH HÀNG */}
           <div
             style={{
@@ -708,20 +743,6 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
                 </span>
               </div>
             )}
-
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                marginTop: '6px',
-                fontSize: '11.5px',
-                color: '#64748b',
-              }}
-            >
-              <span>Địa chỉ: {selectedDealer?.address || 'Toàn quốc'}</span>
-              {selectedDealer?.phone && <span>SĐT: {selectedDealer.phone}</span>}
-            </div>
           </div>
 
           {/* 2. CHỌN SẢN PHẨM (DROPDOWN TỰ ĐỘNG RESET SAU KHI CHỌN ĐỂ THÊM TIẾP) */}
@@ -757,9 +778,6 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
                 );
               })}
             </select>
-            <p style={{ fontSize: '12px', color: '#64748b', margin: '4px 0 0 2px' }}>
-              💡 Chọn một sản phẩm sẽ tự động thêm vào danh sách bên dưới. Bạn có thể chọn nhiều sản phẩm liên tiếp.
-            </p>
           </div>
 
           {/* 3. DANH SÁCH CÁC SẢN PHẨM ĐÃ CHỌN */}
@@ -801,9 +819,6 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
               >
                 <div style={{ fontSize: '24px', marginBottom: '6px' }}>📦</div>
                 Chưa có sản phẩm nào trong đơn hàng.
-                <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '2px' }}>
-                  Vui lòng chọn sản phẩm ở ô Dropdown phía trên để thêm vào danh sách.
-                </div>
               </div>
             ) : (
               <div
@@ -1279,8 +1294,21 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
             />
           </div>
 
-          {/* 7. ACTIONS */}
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+          </div>
+
+          {/* 7. ACTIONS (Cố định ở chân modal, LUÔN HIỂN THỊ) */}
+          <div
+            style={{
+              padding: '14px 24px',
+              borderTop: '1px solid #e2e8f0',
+              display: 'flex',
+              justifyContent: 'flex-end',
+              gap: '10px',
+              background: '#f8fafc',
+              flexShrink: 0,
+              boxShadow: '0 -2px 10px rgba(0, 0, 0, 0.03)',
+            }}
+          >
             <button
               type="button"
               onClick={onClose}
@@ -1306,7 +1334,7 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
                 padding: '9px 22px',
                 borderRadius: '8px',
                 border: 'none',
-                background: orderItems.length === 0 || isLockedDealer ? '#94a3b8' : isAnyBelowFloorPrice ? '#ea580c' : '#2563eb',
+                background: orderItems.length === 0 || isLockedDealer ? '#94a3b8' : isAnyBelowFloorPrice ? '#ea580c' : '#0fad89',
                 fontSize: '13.5px',
                 fontWeight: '700',
                 color: '#fff',
@@ -1317,7 +1345,7 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
                     ? 'none'
                     : isAnyBelowFloorPrice
                     ? '0 4px 6px -1px rgba(234, 88, 12, 0.3)'
-                    : '0 4px 6px -1px rgba(37, 99, 235, 0.3)',
+                    : '0 4px 6px -1px rgba(15, 173, 137, 0.3)',
               }}
               title={isLockedDealer ? `Đại lý "${selectedDealer?.name}" hiện đang bị khóa giao dịch, không thể tạo đơn hàng` : undefined}
             >
@@ -1332,7 +1360,8 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 

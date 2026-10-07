@@ -164,19 +164,19 @@ export const AccessDeniedView: React.FC<AccessDeniedViewProps> = ({
               style={{
                 padding: '14px 18px',
                 borderRadius: '12px',
-                background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+                background: 'linear-gradient(135deg, #0fba90 0%, #0fad89 100%)',
                 border: 'none',
                 color: '#ffffff',
                 fontSize: '14px',
                 fontWeight: '700',
                 cursor: 'pointer',
                 textAlign: 'center',
-                boxShadow: '0 4px 12px rgba(37, 99, 235, 0.25)',
+                boxShadow: '0 4px 12px rgba(15, 173, 137, 0.25)',
                 transition: 'all 0.15s ease',
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.transform = 'translateY(-1px)';
-                e.currentTarget.style.boxShadow = '0 6px 16px rgba(37, 99, 235, 0.35)';
+                e.currentTarget.style.boxShadow = '0 6px 16px rgba(15, 173, 137, 0.35)';
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.transform = 'translateY(0)';

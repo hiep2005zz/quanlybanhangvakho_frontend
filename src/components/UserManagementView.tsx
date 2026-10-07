@@ -15,6 +15,7 @@ import {
 import { sessionManager } from '../services/sessionManager';
 import { emitStatusToast } from './StatusToast';
 import { UserBulkImportModal } from './UserBulkImportModal';
+import { ModalPortal } from './ModalPortal';
 
 interface UserManagementViewProps {
   currentUser: User;
@@ -646,7 +647,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                 background: '#ffffff',
                 border: '1px solid #cbd5e1',
                 borderRadius: '9px',
-                color: '#2563eb',
+                color: '#0fad89',
                 padding: '9px 16px',
                 fontSize: '13.5px',
                 fontWeight: '600',
@@ -658,8 +659,8 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                 transition: 'all 0.18s ease',
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = '#2563eb';
-                e.currentTarget.style.background = '#eff6ff';
+                e.currentTarget.style.borderColor = '#0fad89';
+                e.currentTarget.style.background = '#ecfdf5';
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.borderColor = '#cbd5e1';
@@ -679,7 +680,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
               onClick={onCreateAccount}
               id="btn-userview-create-account"
               style={{
-                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                background: 'linear-gradient(135deg, #0fba90 0%, #0fad89 100%)',
                 border: 'none',
                 borderRadius: '9px',
                 color: '#ffffff',
@@ -690,12 +691,12 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '7px',
-                boxShadow: '0 2px 8px rgba(16, 185, 129, 0.35)',
+                boxShadow: '0 2px 8px rgba(15, 186, 144, 0.35)',
                 transition: 'all 0.18s ease',
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.transform = 'translateY(-1.5px)';
-                e.currentTarget.style.boxShadow = '0 4px 14px rgba(16, 185, 129, 0.45)';
+                e.currentTarget.style.boxShadow = '0 4px 14px rgba(15, 186, 144, 0.45)';
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.transform = 'translateY(0)';
@@ -1546,20 +1547,20 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
 
       {/* POPUP 2 (Giữa màn hình): Chỉnh sửa thông tin nhân viên */}
       {userToEdit && (
+        <ModalPortal>
         <div style={{
           position: 'fixed',
-          top: 0,
-          left: 0,
-          width: '100vw',
-          height: '100vh',
-          background: 'rgba(15, 23, 42, 0.45)',
+          inset: 0,
+          background: 'rgba(15, 23, 42, 0.55)',
           backdropFilter: 'blur(6px)',
           WebkitBackdropFilter: 'blur(6px)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          zIndex: 9999,
-          padding: '20px'
+          zIndex: 99999,
+          padding: '24px 16px',
+          boxSizing: 'border-box',
+          overflowY: 'auto',
         }}>
           <div style={{
             background: '#ffffff',
@@ -1568,6 +1569,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
             width: '100%',
             maxWidth: '560px',
             maxHeight: 'calc(100vh - 48px)',
+            margin: 'auto',
             display: 'flex',
             flexDirection: 'column',
             boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
@@ -2197,7 +2199,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                   style={{
                     background: (!editFormData.is_active && !editFormData.lock_reason.trim())
                       ? '#94a3b8'
-                      : 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+                      : 'linear-gradient(135deg, #0fba90 0%, #0fad89 100%)',
                     border: 'none',
                     borderRadius: '8px',
                     color: '#ffffff',
@@ -2209,7 +2211,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                       : 'pointer',
                     boxShadow: (!editFormData.is_active && !editFormData.lock_reason.trim())
                       ? 'none'
-                      : '0 2px 6px rgba(37, 99, 235, 0.35)',
+                      : '0 2px 6px rgba(15, 173, 137, 0.35)',
                     transition: 'all 0.15s ease',
                   }}
                 >
@@ -2219,24 +2221,25 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
             </form>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {/* POPUP 3 (Giữa màn hình): Xác Nhận Xóa Người Dùng (Thay cho window.confirm) */}
       {userToDelete && (
+        <ModalPortal>
         <div style={{
           position: 'fixed',
-          top: 0,
-          left: 0,
-          width: '100vw',
-          height: '100vh',
-          background: 'rgba(15, 23, 42, 0.45)',
+          inset: 0,
+          background: 'rgba(15, 23, 42, 0.55)',
           backdropFilter: 'blur(6px)',
           WebkitBackdropFilter: 'blur(6px)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          zIndex: 9999,
-          padding: '20px'
+          zIndex: 99999,
+          padding: '24px 16px',
+          boxSizing: 'border-box',
+          overflowY: 'auto',
         }}>
           <div style={{
             background: '#ffffff',
@@ -2244,6 +2247,8 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
             borderRadius: '16px',
             width: '100%',
             maxWidth: '480px',
+            maxHeight: 'calc(100vh - 48px)',
+            margin: 'auto',
             boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
             overflow: 'hidden',
             color: '#0f172a',
@@ -2350,24 +2355,25 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {/* POPUP 4 (Giữa màn hình): Quản lý & Bàn Giao Đại Lý Cần Chuyển Giao (AC 3) */}
       {handoverUser && (
+        <ModalPortal>
         <div style={{
           position: 'fixed',
-          top: 0,
-          left: 0,
-          width: '100vw',
-          height: '100vh',
-          background: 'rgba(15, 23, 42, 0.45)',
+          inset: 0,
+          background: 'rgba(15, 23, 42, 0.55)',
           backdropFilter: 'blur(6px)',
           WebkitBackdropFilter: 'blur(6px)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          zIndex: 10000,
-          padding: '20px'
+          zIndex: 99999,
+          padding: '24px 16px',
+          boxSizing: 'border-box',
+          overflowY: 'auto',
         }}>
           <div style={{
             background: '#ffffff',
@@ -2375,6 +2381,10 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
             borderRadius: '16px',
             width: '100%',
             maxWidth: '640px',
+            maxHeight: 'calc(100vh - 48px)',
+            margin: 'auto',
+            display: 'flex',
+            flexDirection: 'column',
             boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
             overflow: 'hidden',
             animation: 'fadeInCard 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
@@ -2633,6 +2643,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
 
     </div>

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { AuditLogItem, getAvatarUrl } from '../services/api';
 import { formatLocalDateTime } from '../utils/dateUtils';
+import { ModalPortal } from './ModalPortal';
 
 interface AuditDetailModalProps {
   log: AuditLogItem | null;
@@ -153,30 +154,22 @@ export const ACTION_LABELS: Record<string, string> = {
   INVENTORY_ADJUST: 'Điều chỉnh tồn kho',
   PRICE_CHANGE: 'Thay đổi giá',
   DEBT_LIMIT_CHANGE: 'Đổi hạn mức công nợ',
+  INVOICE_CREATE: 'Tạo mới hóa đơn',
   INVOICE_EDIT: 'Sửa hóa đơn',
   INVOICE_CANCEL: 'Hủy hóa đơn',
+  ORDER_CREATE: 'Tạo đơn hàng',
+  ORDER_APPROVE: 'Duyệt đơn hàng',
+  ORDER_REJECT: 'Từ chối đơn hàng',
+  ORDER_EDIT: 'Sửa đơn hàng',
+  ORDER_CANCEL: 'Hủy đơn hàng',
+  ORDER_UPDATE: 'Cập nhật đơn hàng',
   STOCK_RECEIPT: 'Nhập kho',
   STOCK_ISSUE: 'Xuất kho',
   STOCK_COUNT: 'Kiểm kê kho',
   STOCK_ADJUST: 'Điều chỉnh kho',
-  ORDER_CREATE: 'Tạo đơn hàng',
-  ORDER_EDIT: 'Sửa đơn hàng',
-  ORDER_CANCEL: 'Hủy đơn hàng',
-  ORDER_UPDATE: 'Cập nhật đơn hàng',
   PRODUCT_CREATE: 'Thêm mới sản phẩm',
   PRODUCT_UPDATE: 'Cập nhật sản phẩm',
   PRODUCT_DELETE: 'Xóa sản phẩm',
-  PRODUCT_BULK_IMPORT: 'Nhập sản phẩm hàng loạt (Excel)',
-  USER_BULK_IMPORT: 'Nhập người dùng hàng loạt (Excel)',
-  USER_CREATE: 'Tạo tài khoản',
-  USER_UPDATE: 'Cập nhật tài khoản',
-  USER_DELETE: 'Xóa tài khoản',
-  USER_LOCK: 'Khóa tài khoản',
-  USER_UNLOCK: 'Mở khóa tài khoản',
-  DEALER_STATUS_CHANGE: 'Đổi trạng thái đại lý',
-  DEALER_CREATE: 'Thêm đại lý mới',
-  DEALER_UPDATE: 'Cập nhật đại lý',
-  DEALER_DELETE: 'Xóa đại lý',
   LOGIN: 'Đăng nhập hệ thống',
   LOGOUT: 'Đăng xuất',
   CREATE: 'Thêm mới',
@@ -188,8 +181,10 @@ export const ACTION_LABELS: Record<string, string> = {
 export const ENTITY_LABELS: Record<string, string> = {
   Inventory: 'Tồn kho',
   ProductPrice: 'Giá sản phẩm',
+  PriceBook: 'Bảng giá sản phẩm',
   Product: 'Sản phẩm / Kho',
   CustomerDebt: 'Hạn mức công nợ',
+  DealerDebtLimit: 'Hạn mức công nợ',
   Invoice: 'Hóa đơn',
   Order: 'Đơn hàng',
   Dealer: 'Đại lý / Khách hàng',
@@ -423,30 +418,32 @@ export const AuditDetailModal: React.FC<AuditDetailModalProps> = ({ log, onClose
   const diffRows = getFieldDiffList();
 
   return (
-    <div style={{
-      position: 'fixed',
-      inset: 0,
-      zIndex: 10000,
-      background: 'rgba(15, 23, 42, 0.65)',
-      backdropFilter: 'blur(6px)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: '20px',
-      animation: 'fadeInCard 0.2s ease',
-    }}>
+    <ModalPortal>
       <div style={{
-        background: '#ffffff',
-        borderRadius: '20px',
-        width: '100%',
-        maxWidth: '740px',
-        maxHeight: '90vh',
+        position: 'fixed',
+        inset: 0,
+        zIndex: 99999,
+        background: 'rgba(15, 23, 42, 0.65)',
+        backdropFilter: 'blur(6px)',
         display: 'flex',
-        flexDirection: 'column',
-        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-        border: '1px solid #e2e8f0',
-        overflow: 'hidden',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '20px',
+        boxSizing: 'border-box',
+        animation: 'fadeInCard 0.2s ease',
       }}>
+        <div style={{
+          background: '#ffffff',
+          borderRadius: '20px',
+          width: '100%',
+          maxWidth: '740px',
+          maxHeight: 'calc(100vh - 32px)',
+          display: 'flex',
+          flexDirection: 'column',
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+          border: '1px solid #e2e8f0',
+          overflow: 'hidden',
+        }}>
         {/* Tiêu đề modal */}
         <div style={{
           padding: '20px 24px',
@@ -843,5 +840,6 @@ export const AuditDetailModal: React.FC<AuditDetailModalProps> = ({ log, onClose
         </div>
       </div>
     </div>
+    </ModalPortal>
   );
 };

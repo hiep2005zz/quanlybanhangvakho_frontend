@@ -1,5 +1,4 @@
-// frontend/src/components/SupplierManagementView.tsx
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 import {
   Supplier,
@@ -10,6 +9,7 @@ import {
 } from '../services/api';
 import SupplierModal from './SupplierModal';
 import { emitStatusToast } from './StatusToast';
+import { ModalPortal } from './ModalPortal';
 
 interface SupplierManagementViewProps {
   token: string;
@@ -69,6 +69,64 @@ export const SupplierManagementView: React.FC<SupplierManagementViewProps> = ({ 
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 20;
+
+  const paginationContainerRef = useRef<HTMLDivElement>(null);
+  const scrollOffsetRef = useRef<{ page: number; top: number; bottom: number } | null>(null);
+
+  const handlePageChange = (newPage: number) => {
+    if (newPage === currentPage) return;
+    if (paginationContainerRef.current) {
+      const rect = paginationContainerRef.current.getBoundingClientRect();
+      scrollOffsetRef.current = { page: newPage, top: rect.top, bottom: rect.bottom };
+    }
+    setCurrentPage(newPage);
+  };
+
+  useLayoutEffect(() => {
+    if (!scrollOffsetRef.current || scrollOffsetRef.current.page !== currentPage) return;
+    const { top: targetTop } = scrollOffsetRef.current;
+    scrollOffsetRef.current = null;
+
+    if (!paginationContainerRef.current) return;
+
+    // Tìm đúng container cuộn thực sự (chứa overflow-y và scrollHeight > clientHeight)
+    let scrollParent: HTMLElement | null = paginationContainerRef.current.closest('main');
+    if (!scrollParent || scrollParent.scrollHeight <= scrollParent.clientHeight) {
+      let p = paginationContainerRef.current.parentElement;
+      while (p) {
+        if (p.scrollHeight > p.clientHeight) {
+          const s = window.getComputedStyle(p);
+          if (s.overflowY === 'auto' || s.overflowY === 'scroll') {
+            scrollParent = p;
+            break;
+          }
+        }
+        p = p.parentElement;
+      }
+    }
+
+    const currentTop = paginationContainerRef.current.getBoundingClientRect().top;
+    const delta = currentTop - targetTop;
+
+    if (Math.abs(delta) > 0.5) {
+      if (scrollParent) {
+        scrollParent.scrollTop += delta;
+      } else {
+        window.scrollBy({ top: delta, behavior: 'instant' });
+      }
+    }
+
+    // Đảm bảo khối phân trang luôn nằm trọn vẹn trong tầm nhìn, không bị tràn mất xuống dưới
+    const finalRect = paginationContainerRef.current.getBoundingClientRect();
+    if (finalRect.bottom > window.innerHeight) {
+      const overflowDown = finalRect.bottom - window.innerHeight;
+      if (scrollParent) {
+        scrollParent.scrollTop += overflowDown;
+      } else {
+        window.scrollBy({ top: overflowDown, behavior: 'instant' });
+      }
+    }
+  }, [currentPage]);
 
   // Modal thêm / sửa
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -187,7 +245,19 @@ export const SupplierManagementView: React.FC<SupplierManagementViewProps> = ({ 
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+    <div
+      style={{
+        width: '100%',
+        maxWidth: '1680px',
+        margin: '0 auto',
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+        gap: '12px',
+        fontFamily: 'inherit',
+      }}
+    >
       {/* Tiêu đề + nút thêm */}
       <div
         style={{
@@ -198,6 +268,7 @@ export const SupplierManagementView: React.FC<SupplierManagementViewProps> = ({ 
           justifyContent: 'space-between',
           alignItems: 'center',
           gap: '16px',
+          flexShrink: 0,
         }}
       >
         <div>
@@ -212,7 +283,7 @@ export const SupplierManagementView: React.FC<SupplierManagementViewProps> = ({ 
           type="button"
           onClick={openCreate}
           style={{
-            background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+            background: 'linear-gradient(135deg, #0fba90 0%, #0fad89 100%)',
             border: 'none',
             borderRadius: '9px',
             color: '#ffffff',
@@ -220,7 +291,7 @@ export const SupplierManagementView: React.FC<SupplierManagementViewProps> = ({ 
             fontSize: '13.5px',
             fontWeight: '600',
             cursor: 'pointer',
-            boxShadow: '0 2px 8px rgba(37, 99, 235, 0.3)',
+            boxShadow: '0 2px 8px rgba(15, 173, 137, 0.3)',
           }}
         >
           + Thêm nhà cung cấp
@@ -237,6 +308,7 @@ export const SupplierManagementView: React.FC<SupplierManagementViewProps> = ({ 
             padding: '12px 16px',
             borderRadius: '10px',
             fontSize: '14px',
+            flexShrink: 0,
           }}
         >
           ⚠️ {error}
@@ -247,12 +319,13 @@ export const SupplierManagementView: React.FC<SupplierManagementViewProps> = ({ 
       <div
         style={{
           ...cardStyle,
-          padding: '14px 18px',
+          padding: '12px 18px',
           display: 'flex',
           flexWrap: 'wrap',
           alignItems: 'center',
           justifyContent: 'space-between',
           gap: '12px',
+          flexShrink: 0,
         }}
       >
         <input
@@ -299,7 +372,16 @@ export const SupplierManagementView: React.FC<SupplierManagementViewProps> = ({ 
       </div>
 
       {/* Bảng danh sách */}
-      <div style={{ ...cardStyle, overflowX: 'auto' }}>
+      <div
+        style={{
+          ...cardStyle,
+          flex: 1,
+          minHeight: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+        }}
+      >
         {isLoading ? (
           <div style={{ padding: '60px 20px', textAlign: 'center', color: '#64748b', fontSize: '14px' }}>
             ⏳ Đang tải danh sách nhà cung cấp...
@@ -317,28 +399,37 @@ export const SupplierManagementView: React.FC<SupplierManagementViewProps> = ({ 
           </div>
         ) : (
           <>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13.5px' }}>
-              <thead>
-                <tr
-                  style={{
-                    color: '#64748b',
-                    background: '#f8fafc',
-                    fontSize: '11px',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.08em',
-                    borderBottom: '1px solid #e2e8f0',
-                  }}
-                >
-                  <th style={{ ...thStyle, width: '56px', textAlign: 'center' }}>STT</th>
-                  <th style={thStyle}>Mã NCC</th>
-                  <th style={thStyle}>Tên nhà cung cấp</th>
-                  <th style={thStyle}>Mã số thuế</th>
-                  <th style={thStyle}>Người liên hệ</th>
-                  <th style={thStyle}>Điều khoản thanh toán</th>
-                  <th style={{ ...thStyle, textAlign: 'center', width: '150px', minWidth: '150px', whiteSpace: 'nowrap' }}>Trạng thái</th>
-                  <th style={{ ...thStyle, textAlign: 'center', width: '330px', minWidth: '330px' }}>Thao tác</th>
-                </tr>
-              </thead>
+            <div
+              className="roles-grid-scroll"
+              style={{
+                flex: 1,
+                minHeight: 0,
+                overflowY: 'auto',
+                overflowX: 'auto',
+              }}
+            >
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13.5px' }}>
+                <thead style={{ position: 'sticky', top: 0, zIndex: 10, background: '#f8fafc' }}>
+                  <tr
+                    style={{
+                      color: '#64748b',
+                      background: '#f8fafc',
+                      fontSize: '11px',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.08em',
+                      borderBottom: '1px solid #e2e8f0',
+                    }}
+                  >
+                    <th style={{ ...thStyle, width: '56px', textAlign: 'center', background: '#f8fafc' }}>STT</th>
+                    <th style={{ ...thStyle, background: '#f8fafc' }}>Mã NCC</th>
+                    <th style={{ ...thStyle, background: '#f8fafc' }}>Tên nhà cung cấp</th>
+                    <th style={{ ...thStyle, background: '#f8fafc' }}>Mã số thuế</th>
+                    <th style={{ ...thStyle, background: '#f8fafc' }}>Người liên hệ</th>
+                    <th style={{ ...thStyle, background: '#f8fafc' }}>Điều khoản thanh toán</th>
+                    <th style={{ ...thStyle, textAlign: 'center', width: '150px', minWidth: '150px', whiteSpace: 'nowrap', background: '#f8fafc' }}>Trạng thái</th>
+                    <th style={{ ...thStyle, textAlign: 'center', width: '330px', minWidth: '330px', background: '#f8fafc' }}>Thao tác</th>
+                  </tr>
+                </thead>
               <tbody>
                 {pageItems.map((s, idx) => (
                   <tr
@@ -497,40 +588,166 @@ export const SupplierManagementView: React.FC<SupplierManagementViewProps> = ({ 
                 ))}
               </tbody>
             </table>
+          </div>
 
-            {/* Phân trang: chỉ hiện khi có từ 2 trang */}
-            {totalPages > 1 && (
+            {/* Khối phân trang chuẩn giao diện liền thanh */}
+            {filteredSuppliers.length > 0 && (
               <div
+                ref={paginationContainerRef}
                 style={{
+                  padding: '8px 18px',
                   display: 'flex',
                   justifyContent: 'flex-end',
                   alignItems: 'center',
-                  gap: '10px',
-                  padding: '14px 18px',
                   borderTop: '1px solid #e2e8f0',
-                  fontSize: '13px',
-                  color: '#334155',
+                  background: '#f8fafc',
+                  fontSize: '12px',
+                  color: '#64748b',
+                  flexShrink: 0,
+                  marginTop: 'auto',
                 }}
               >
-                <button
-                  type="button"
-                  disabled={safePage <= 1}
-                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                  style={{ ...controlStyle, cursor: safePage <= 1 ? 'not-allowed' : 'pointer' }}
+
+                {/* Khối phân trang liền thanh */}
+                <div
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'stretch',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '5px',
+                    overflow: 'hidden',
+                    background: '#ffffff',
+                    boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
+                    height: '24px',
+                  }}
                 >
-                  ← Trước
-                </button>
-                <span style={{ fontWeight: '600' }}>
-                  Trang {safePage} / {totalPages}
-                </span>
-                <button
-                  type="button"
-                  disabled={safePage >= totalPages}
-                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                  style={{ ...controlStyle, cursor: safePage >= totalPages ? 'not-allowed' : 'pointer' }}
-                >
-                  Sau →
-                </button>
+                  {/* Nút trang trước (<) - hiển thị khi trang > 1 */}
+                  {safePage > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => handlePageChange(Math.max(1, safePage - 1))}
+                      style={{
+                        minWidth: '24px',
+                        height: '100%',
+                        padding: '0 6px',
+                        border: 'none',
+                        borderRight: '1px solid #e5e7eb',
+                        background: '#ffffff',
+                        color: '#4b5563',
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        transition: 'background-color 0.15s ease',
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f9fafb')}
+                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#ffffff')}
+                      title="Trang trước"
+                    >
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="15 18 9 12 15 6" />
+                      </svg>
+                    </button>
+                  )}
+
+                  {/* Danh sách các số trang */}
+                  {Array.from({ length: totalPages }, (_, i) => i + 1)
+                    .filter((p) => p === 1 || p === totalPages || Math.abs(p - safePage) <= 1)
+                    .reduce<(number | string)[]>((acc, p, idx, arr) => {
+                      if (idx > 0 && typeof arr[idx - 1] === 'number' && (p as number) - (arr[idx - 1] as number) > 1) {
+                        acc.push('...');
+                      }
+                      acc.push(p);
+                      return acc;
+                    }, [])
+                    .map((p, idx, arr) => {
+                      const hasNext = safePage < totalPages;
+                      const isLastItem = idx === arr.length - 1 && !hasNext;
+                      if (typeof p === 'string') {
+                        return (
+                          <span
+                            key={`ellipsis-${idx}`}
+                            style={{
+                              minWidth: '22px',
+                              height: '100%',
+                              padding: '0 4px',
+                              borderRight: isLastItem ? 'none' : '1px solid #e5e7eb',
+                              background: '#ffffff',
+                              color: '#6b7280',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: '11px',
+                              userSelect: 'none',
+                            }}
+                          >
+                            ...
+                          </span>
+                        );
+                      }
+
+                      const isActive = p === safePage;
+                      return (
+                        <button
+                          key={p}
+                          type="button"
+                          onClick={() => handlePageChange(p)}
+                          style={{
+                            minWidth: '24px',
+                            height: '100%',
+                            padding: '0 7px',
+                            border: 'none',
+                            borderRight: isLastItem ? 'none' : '1px solid #e5e7eb',
+                            background: isActive ? '#2ba1f4' : '#ffffff',
+                            color: isActive ? '#ffffff' : '#374151',
+                            cursor: isActive ? 'default' : 'pointer',
+                            fontSize: '11.5px',
+                            fontWeight: isActive ? '700' : '500',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            transition: 'background-color 0.15s ease',
+                          }}
+                          onMouseEnter={(e) => {
+                            if (!isActive) e.currentTarget.style.backgroundColor = '#f9fafb';
+                          }}
+                          onMouseLeave={(e) => {
+                            if (!isActive) e.currentTarget.style.backgroundColor = '#ffffff';
+                          }}
+                        >
+                          {p}
+                        </button>
+                      );
+                    })}
+
+                  {/* Nút trang sau (>) - hiển thị khi chưa tới trang cuối */}
+                  {safePage < totalPages && (
+                    <button
+                      type="button"
+                      onClick={() => handlePageChange(Math.min(totalPages, safePage + 1))}
+                      style={{
+                        minWidth: '24px',
+                        height: '100%',
+                        padding: '0 6px',
+                        border: 'none',
+                        background: '#ffffff',
+                        color: '#4b5563',
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        transition: 'background-color 0.15s ease',
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f9fafb')}
+                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#ffffff')}
+                      title="Trang sau"
+                    >
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="9 18 15 12 9 6" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
               </div>
             )}
           </>
@@ -548,6 +765,7 @@ export const SupplierManagementView: React.FC<SupplierManagementViewProps> = ({ 
 
       {/* Popup xác nhận ngừng giao dịch */}
       {supplierToDeactivate && (
+        <ModalPortal>
         <div
           style={{
             position: 'fixed',
@@ -555,14 +773,14 @@ export const SupplierManagementView: React.FC<SupplierManagementViewProps> = ({ 
             left: 0,
             width: '100vw',
             height: '100vh',
-            background: 'rgba(15, 23, 42, 0.45)',
+            background: 'rgba(15, 23, 42, 0.55)',
             backdropFilter: 'blur(6px)',
             WebkitBackdropFilter: 'blur(6px)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            zIndex: 9999,
-            padding: '20px',
+            zIndex: 99999,
+            padding: '16px',
             boxSizing: 'border-box',
           }}
         >
@@ -660,19 +878,23 @@ export const SupplierManagementView: React.FC<SupplierManagementViewProps> = ({ 
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {/* Modal xác nhận xóa nhà cung cấp */}
       {supplierToDelete && (
+        <ModalPortal>
         <div
           style={{
             position: 'fixed',
             inset: 0,
-            background: 'rgba(15, 23, 42, 0.6)',
+            background: 'rgba(15, 23, 42, 0.55)',
+            backdropFilter: 'blur(6px)',
+            WebkitBackdropFilter: 'blur(6px)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            zIndex: 1000,
+            zIndex: 99999,
             padding: '16px',
             boxSizing: 'border-box',
           }}
@@ -782,6 +1004,7 @@ export const SupplierManagementView: React.FC<SupplierManagementViewProps> = ({ 
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
     </div>
   );
