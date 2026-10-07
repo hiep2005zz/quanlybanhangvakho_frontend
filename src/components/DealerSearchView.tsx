@@ -710,15 +710,27 @@ export default function DealerSearchView({
     useEffect(() => {
         loadFilters();
         handleSearch();
+
+        const handleDataSync = () => {
+            loadFilters();
+            handleSearch();
+        };
+
+        window.addEventListener('DEALER_DATA_CHANGED', handleDataSync);
+        window.addEventListener('USER_ACCOUNTS_CHANGED', handleDataSync);
+        return () => {
+            window.removeEventListener('DEALER_DATA_CHANGED', handleDataSync);
+            window.removeEventListener('USER_ACCOUNTS_CHANGED', handleDataSync);
+        };
     }, []);
 
-    // Phân trang danh sách đại lý
+    // Phân trang danh sách đại lý (Mặc định 10 hoặc 20 đại lý/trang)
     const [currentPage, setCurrentPage] = useState<number>(1);
-    const pageSize = 5;
+    const [pageSize, setPageSize] = useState<number>(10);
 
     useEffect(() => {
         setCurrentPage(1);
-    }, [dealers.length, keyword, region, customerGroup, assignedSaleId, status, onlyMyDealers]);
+    }, [dealers.length, keyword, region, customerGroup, assignedSaleId, status, onlyMyDealers, pageSize]);
 
     const totalPages = Math.max(1, Math.ceil(dealers.length / pageSize));
     const safePage = Math.min(Math.max(1, currentPage), totalPages);
@@ -1484,18 +1496,48 @@ export default function DealerSearchView({
                 {!loading && dealers.length > 0 && (
                     <div
                         style={{
-                            padding: '8px 18px',
+                            padding: '10px 18px',
                             display: 'flex',
-                            justifyContent: 'flex-end',
+                            justifyContent: 'space-between',
                             alignItems: 'center',
+                            flexWrap: 'wrap',
+                            gap: '12px',
                             borderTop: '1px solid #e2e8f0',
                             background: '#f8fafc',
-                            fontSize: '12px',
+                            fontSize: '12.5px',
                             color: '#64748b',
                             flexShrink: 0,
                         }}
                     >
-                        {/* Khối phân trang liền thanh chuẩn theo thiết kế */}
+                        {/* Bên trái: Chọn số lượng dòng / trang */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span>Hiển thị</span>
+                            <select
+                                value={pageSize}
+                                onChange={(e) => {
+                                    setPageSize(Number(e.target.value));
+                                    setCurrentPage(1);
+                                }}
+                                style={{
+                                    padding: '3px 8px',
+                                    borderRadius: '6px',
+                                    border: '1px solid #cbd5e1',
+                                    background: '#ffffff',
+                                    color: '#0f172a',
+                                    fontSize: '12px',
+                                    cursor: 'pointer',
+                                    outline: 'none',
+                                }}
+                            >
+                                <option value={5}>5 đại lý/trang</option>
+                                <option value={10}>10 đại lý/trang</option>
+                                <option value={20}>20 đại lý/trang</option>
+                                <option value={50}>50 đại lý/trang</option>
+                            </select>
+                            <span>(Tổng {dealers.length} đại lý)</span>
+                        </div>
+
+                        {/* Bên phải: Điều hướng phân trang */}
                         <div
                             style={{
                                 display: 'inline-flex',

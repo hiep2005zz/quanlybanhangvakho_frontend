@@ -394,8 +394,10 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
           title: 'Cập nhật thông tin nhân viên',
         });
       }
-      // Phát tín hiệu đồng bộ vai trò tức thì cho các tab/cửa sổ đang mở
+      // Phát tín hiệu đồng bộ vai trò và dữ liệu đại lý tức thì cho các component/tab đang mở
       sessionManager.broadcastUserUpdate(userToEdit.username);
+      window.dispatchEvent(new CustomEvent('DEALER_DATA_CHANGED'));
+      window.dispatchEvent(new CustomEvent('USER_ACCOUNTS_CHANGED', { detail: { username: updated.username } }));
       if (userToEdit.username.toLowerCase() === currentUser.username.toLowerCase()) {
         sessionManager.syncCurrentProfile();
       }
