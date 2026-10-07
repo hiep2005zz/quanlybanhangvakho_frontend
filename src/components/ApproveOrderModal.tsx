@@ -111,7 +111,6 @@ export const ApproveOrderModal: React.FC<ApproveOrderModalProps> = ({
             <span style={{ color: '#64748b' }}>Người lên đơn:</span>
             <span style={{ fontWeight: '700', color: '#0f172a' }}>
               {order.created_by || order.assigned_sale_name || '—'}
-              {order.assigned_sale_name && order.created_by && order.assigned_sale_name.toLowerCase() !== order.created_by.toLowerCase() ? ` (Phụ trách: ${order.assigned_sale_name})` : ''}
             </span>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>

@@ -398,11 +398,6 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                         <div style={{ fontWeight: '600', color: '#0f172a', fontSize: '12px' }}>
                           {order.created_by}
                         </div>
-                        {order.assigned_sale_name && order.assigned_sale_name.toLowerCase() !== order.created_by.toLowerCase() && (
-                          <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
-                            Phụ trách: {order.assigned_sale_name}
-                          </div>
-                        )}
                       </td>
 
                       <td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: '700', color: '#0f172a', fontSize: '12.5px', whiteSpace: 'nowrap' }}>
@@ -879,13 +874,6 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                   <div style={{ fontWeight: '600', color: '#0f172a', marginTop: '2px' }}>
                     {selectedOrderDetail.created_by || selectedOrderDetail.assigned_sale_name || '—'}
                   </div>
-                  {selectedOrderDetail.assigned_sale_name &&
-                    selectedOrderDetail.created_by &&
-                    selectedOrderDetail.assigned_sale_name.toLowerCase() !== selectedOrderDetail.created_by.toLowerCase() && (
-                      <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
-                        Phụ trách: {selectedOrderDetail.assigned_sale_name}
-                      </div>
-                    )}
                 </div>
                 <div>
                   <span style={{ color: '#64748b' }}>Thời gian tạo:</span>
