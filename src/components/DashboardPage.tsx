@@ -769,7 +769,9 @@ export default function DashboardPage({
   const primaryRole = officialRoles[0] || user.role;
   const currentBadgeColor = roleBadgeColorMap[primaryRole] || '#64748b';
 
-  const isLockedScrollTab = (activeTab === 'inventory' || activeTab === 'dealers' || activeTab === 'delivery-points' || activeTab === 'suppliers' || activeTab === 'price-books' || activeTab === 'categories' || activeTab === 'orders' || activeTab === 'product-history' || activeTab === 'create-order' || isSalesOrderEntryOpen) && !isPendingCustomer;
+  const isProductFormOpen = productDrawerState.isOpen && activeTab === 'inventory';
+  const isSalesOrderOpen = activeTab === 'create-order' || isSalesOrderEntryOpen;
+  const isLockedScrollTab = !isProductFormOpen && !isSalesOrderOpen && (activeTab === 'inventory' || activeTab === 'dealers' || activeTab === 'delivery-points' || activeTab === 'suppliers' || activeTab === 'price-books' || activeTab === 'categories' || activeTab === 'orders' || activeTab === 'product-history') && !isPendingCustomer;
 
   return (
     <DashboardLayout

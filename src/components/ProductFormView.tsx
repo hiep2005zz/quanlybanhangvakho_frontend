@@ -406,7 +406,7 @@ export const ProductFormView: React.FC<ProductFormViewProps> = ({
       : null;
 
   return (
-    <main className="sales-order-page" style={{ paddingBottom: '40px' }}>
+    <div className="sales-order-page" style={{ paddingBottom: '60px' }}>
       {/* Tiêu đề trang khớp với thiết kế Ảnh 2 */}
       <div className="sales-order-heading" style={{ borderBottom: '1px solid #e2e8f0', paddingBottom: '16px', marginBottom: '24px' }}>
         <div>
@@ -1561,6 +1561,6 @@ export const ProductFormView: React.FC<ProductFormViewProps> = ({
           </div>
         </div>
       )}
-    </main>
+    </div>
   );
 };
