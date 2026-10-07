@@ -342,7 +342,7 @@ export function CategoryManagementView({ token, onBackToHome: _onBackToHome }: C
             </div>
 
             {/* Actions */}
-            <div style={{ display: 'flex', gap: '4px', flexShrink: 0, marginLeft: '6px' }} className="category-actions" onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', gap: '4px', flexShrink: 0, marginLeft: '6px' }} className="category-actions flex-shrink-0" onClick={e => e.stopPropagation()}>
               <button
                 onClick={() => {
                   setEditingId(null);
@@ -350,10 +350,10 @@ export function CategoryManagementView({ token, onBackToHome: _onBackToHome }: C
                   setIsModalOpen(true);
                 }}
                 title="Thêm phân loại"
-                className="action-btn-add"
-                style={{ height: '26px', padding: '0 7px', fontSize: '11.5px', borderRadius: '6px' }}
+                className="action-btn-add flex-shrink-0 whitespace-nowrap w-fit px-2"
+                style={{ height: '26px', padding: '0 8px', fontSize: '11.5px', borderRadius: '6px', whiteSpace: 'nowrap', flexShrink: 0 }}
               >
-                <PlusIcon /> Con
+                <PlusIcon /> Thêm phân loại
               </button>
               <button
                 onClick={() => {
@@ -362,16 +362,16 @@ export function CategoryManagementView({ token, onBackToHome: _onBackToHome }: C
                   setIsModalOpen(true);
                 }}
                 title="Sửa nhóm"
-                className="action-btn-edit"
-                style={{ height: '26px', padding: '0 7px', fontSize: '11.5px', borderRadius: '6px' }}
+                className="action-btn-edit flex-shrink-0"
+                style={{ height: '26px', padding: '0 7px', fontSize: '11.5px', borderRadius: '6px', flexShrink: 0 }}
               >
                 <EditIcon />
               </button>
               <button
                 onClick={(e) => handleDelete(node.id, e)}
                 title="Xóa nhóm"
-                className="action-btn-del"
-                style={{ height: '26px', padding: '0 7px', fontSize: '11.5px', borderRadius: '6px' }}
+                className="action-btn-del flex-shrink-0"
+                style={{ height: '26px', padding: '0 7px', fontSize: '11.5px', borderRadius: '6px', flexShrink: 0 }}
               >
                 <TrashIcon />
               </button>
@@ -841,7 +841,7 @@ export function CategoryManagementView({ token, onBackToHome: _onBackToHome }: C
         .category-tree-card:hover { transform: translateX(2px); box-shadow: 0 4px 12px rgba(0,0,0,0.05) !important; }
         .product-drag-card:hover { transform: translateY(-2px); box-shadow: 0 6px 12px rgba(0,0,0,0.08) !important; border-color: #cbd5e1 !important; }
         .product-drag-card:active { cursor: grabbing !important; transform: scale(0.98); }
-        .action-btn-add { display: flex; align-items: center; justify-content: center; gap: 4px; padding: 0 10px; height: 32px; border-radius: 8px; border: none; cursor: pointer; transition: all 0.2s; background: #dcfce7; color: #16a34a; font-weight: 600; font-size: 13px; }
+        .action-btn-add { display: flex; align-items: center; justify-content: center; gap: 4px; padding: 0 10px; height: 32px; border-radius: 8px; border: none; cursor: pointer; transition: all 0.2s; background: #dcfce7; color: #16a34a; font-weight: 600; font-size: 13px; white-space: nowrap; flex-shrink: 0; }
         .action-btn-add:hover { background: #bbf7d0; transform: scale(1.05); }
         .action-btn-edit { display: flex; align-items: center; justify-content: center; gap: 4px; padding: 0 10px; height: 32px; border-radius: 8px; border: none; cursor: pointer; transition: all 0.2s; background: #fef3c7; color: #d97706; font-weight: 600; font-size: 13px; }
         .action-btn-edit:hover { background: #fde68a; transform: scale(1.05); }

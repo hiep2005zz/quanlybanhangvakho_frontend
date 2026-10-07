@@ -512,11 +512,8 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
             <h3 style={{ margin: 0, fontSize: '19px', fontWeight: '800', color: '#0f172a' }}>
               Tạo Đơn Hàng Mới
             </h3>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginTop: '6px', flexWrap: 'wrap' }}>
-              <p style={{ fontSize: '12.5px', color: '#64748b', margin: 0 }}>
-                Hỗ trợ thêm nhiều sản phẩm vào đơn hàng · Tự động áp giá theo nhóm khách hàng và kiểm soát giá sàn
-              </p>
-              {currentUser && (
+            {currentUser && (
+              <div style={{ marginTop: '6px' }}>
                 <div
                   style={{
                     display: 'inline-flex',
@@ -559,8 +556,8 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
                     Người tạo: <strong>{currentUser.full_name || currentUser.username}</strong>
                   </span>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
           <button
             type="button"
@@ -699,20 +696,6 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
                 </span>
               </div>
             )}
-
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                marginTop: '6px',
-                fontSize: '11.5px',
-                color: '#64748b',
-              }}
-            >
-              <span>Địa chỉ: {selectedDealer?.address || 'Toàn quốc'}</span>
-              {selectedDealer?.phone && <span>SĐT: {selectedDealer.phone}</span>}
-            </div>
           </div>
 
           {/* 2. CHỌN SẢN PHẨM (DROPDOWN TỰ ĐỘNG RESET SAU KHI CHỌN ĐỂ THÊM TIẾP) */}
@@ -748,9 +731,6 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
                 );
               })}
             </select>
-            <p style={{ fontSize: '12px', color: '#64748b', margin: '4px 0 0 2px' }}>
-              💡 Chọn một sản phẩm sẽ tự động thêm vào danh sách bên dưới. Bạn có thể chọn nhiều sản phẩm liên tiếp.
-            </p>
           </div>
 
           {/* 3. DANH SÁCH CÁC SẢN PHẨM ĐÃ CHỌN */}
@@ -792,9 +772,6 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
               >
                 <div style={{ fontSize: '24px', marginBottom: '6px' }}>📦</div>
                 Chưa có sản phẩm nào trong đơn hàng.
-                <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '2px' }}>
-                  Vui lòng chọn sản phẩm ở ô Dropdown phía trên để thêm vào danh sách.
-                </div>
               </div>
             ) : (
               <div
