@@ -1533,6 +1533,9 @@ export interface OrderResponseData {
   approved_at?: string | null;
   delivery_point_id?: number | null;
   note?: string | null;
+  discount_rate?: number;
+  discount_percent?: number;
+  discount_amount?: number;
 }
 
 export async function approveOrderApi(token: string, orderIdOrCode: number | string): Promise<OrderResponseData> {

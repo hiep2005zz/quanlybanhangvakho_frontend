@@ -494,6 +494,12 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                           <div style={{ fontSize: '11.5px', color: '#16a34a', fontWeight: '500' }}>
                             Duyệt bởi @{order.approved_by}
                           </div>
+                        ) : isPending ? (
+                          <div style={{ fontSize: '11.5px', color: '#b45309', fontWeight: '500' }}>
+                            {order.discount_rate && order.discount_rate > 0
+                              ? `Chiết khấu (${order.discount_rate}%) vượt hạn mức cần duyệt`
+                              : 'Bán dưới giá sàn cần quản lý duyệt'}
+                          </div>
                         ) : (
                           <span style={{ color: '#94a3b8', fontSize: '11.5px' }}>Đơn giá chuẩn bảng giá</span>
                         )}
