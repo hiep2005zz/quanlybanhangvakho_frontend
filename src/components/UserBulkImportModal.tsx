@@ -7,6 +7,7 @@ import {
   downloadBulkImportTemplateApi,
   downloadBulkImportErrorsApi
 } from '../services/importApi';
+import { ModalPortal } from './ModalPortal';
 
 interface UserBulkImportModalProps {
   token: string;
@@ -98,18 +99,19 @@ export const UserBulkImportModal: React.FC<UserBulkImportModalProps> = ({ token,
   };
 
   return (
-    <div style={{
-      position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-      backgroundColor: 'rgba(15, 23, 42, 0.75)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      zIndex: 9999, padding: '20px'
-    }}>
+    <ModalPortal>
       <div style={{
-        backgroundColor: '#ffffff', borderRadius: '16px',
-        width: '100%', maxWidth: '900px', maxHeight: '90vh',
-        display: 'flex', flexDirection: 'column',
-        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
+        position: 'fixed', inset: 0,
+        backgroundColor: 'rgba(15, 23, 42, 0.75)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        zIndex: 99999, padding: '20px', boxSizing: 'border-box'
       }}>
+        <div style={{
+          backgroundColor: '#ffffff', borderRadius: '16px',
+          width: '100%', maxWidth: '900px', maxHeight: 'calc(100vh - 32px)',
+          display: 'flex', flexDirection: 'column',
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
+        }}>
         {/* Header */}
         <div style={{ padding: '20px 24px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <h2 style={{ margin: 0, fontSize: '20px', fontWeight: '700', color: '#0f172a' }}>Nhập người dùng hàng loạt</h2>
@@ -299,18 +301,18 @@ export const UserBulkImportModal: React.FC<UserBulkImportModalProps> = ({ token,
                 onClick={handleExecuteImport}
                 disabled={!preview || preview.valid_count === 0 || loading}
                 style={{
-                  padding: '10px 18px', background: '#2563eb', border: 'none', borderRadius: '8px',
+                  padding: '10px 18px', background: '#0fad89', border: 'none', borderRadius: '8px',
                   color: '#ffffff', fontWeight: '600', cursor: (!preview || preview.valid_count === 0 || loading) ? 'not-allowed' : 'pointer',
                   opacity: (!preview || preview.valid_count === 0 || loading) ? 0.6 : 1
                 }}
               >
-                Xác nhận Import ({preview?.valid_count || 0})
+                Xác nhận
               </button>
             </>
           ) : (
             <button
               onClick={onClose}
-              style={{ padding: '10px 18px', background: '#2563eb', border: 'none', borderRadius: '8px', color: '#ffffff', fontWeight: '600', cursor: 'pointer' }}
+              style={{ padding: '10px 18px', background: '#0fad89', border: 'none', borderRadius: '8px', color: '#ffffff', fontWeight: '600', cursor: 'pointer' }}
             >
               Đóng
             </button>
@@ -318,5 +320,6 @@ export const UserBulkImportModal: React.FC<UserBulkImportModalProps> = ({ token,
         </div>
       </div>
     </div>
+    </ModalPortal>
   );
 };

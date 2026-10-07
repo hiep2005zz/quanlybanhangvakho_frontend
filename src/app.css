@@ -5,11 +5,11 @@
   /* Core Typography */
   font-family: 'Outfit', 'Inter', system-ui, -apple-system, sans-serif;
 
-  /* Modern HSL Palette - Elegant Emerald & Teal Theme */
-  --hue-primary: 165;
-  --primary: hsl(var(--hue-primary), 85%, 40%);
-  --primary-hover: hsl(var(--hue-primary), 85%, 30%);
-  --primary-glow: hsla(var(--hue-primary), 85%, 45%, 0.35);
+  /* Modern HSL Palette - Harmonized with Image 2 (#0fad89) */
+  --hue-primary: 166;
+  --primary: #0fad89;
+  --primary-hover: #0a8f70;
+  --primary-glow: rgba(15, 173, 137, 0.35);
 
   --success: hsl(142, 70%, 40%);
   --success-bg: hsl(142, 70%, 94%);

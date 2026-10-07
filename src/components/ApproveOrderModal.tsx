@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { OrderResponseData, approveOrderApi } from '../services/api';
 import { emitStatusToast } from './StatusToast';
+import { ModalPortal } from './ModalPortal';
 
 interface ApproveOrderModalProps {
   isOpen: boolean;
@@ -42,35 +43,39 @@ export const ApproveOrderModal: React.FC<ApproveOrderModalProps> = ({
   };
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        backgroundColor: 'rgba(15, 23, 42, 0.65)',
-        backdropFilter: 'blur(4px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 99999,
-        padding: '16px',
-      }}
-      onClick={(e) => {
-        if (e.target === e.currentTarget && !isSubmitting) {
-          onClose();
-        }
-      }}
-    >
+    <ModalPortal>
       <div
         style={{
-          backgroundColor: '#ffffff',
-          borderRadius: '16px',
-          padding: '24px 28px',
-          maxWidth: '500px',
-          width: '100%',
-          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-          border: '1px solid #e2e8f0',
+          position: 'fixed',
+          inset: 0,
+          backgroundColor: 'rgba(15, 23, 42, 0.65)',
+          backdropFilter: 'blur(4px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 99999,
+          padding: '16px',
+          boxSizing: 'border-box',
+        }}
+        onClick={(e) => {
+          if (e.target === e.currentTarget && !isSubmitting) {
+            onClose();
+          }
         }}
       >
+        <div
+          style={{
+            backgroundColor: '#ffffff',
+            borderRadius: '16px',
+            padding: '24px 28px',
+            maxWidth: '500px',
+            width: '100%',
+            maxHeight: 'calc(100vh - 32px)',
+            overflowY: 'auto',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+            border: '1px solid #e2e8f0',
+          }}
+        >
         <div style={{ marginBottom: '16px' }}>
           <h3
             style={{
@@ -173,6 +178,7 @@ export const ApproveOrderModal: React.FC<ApproveOrderModalProps> = ({
         </div>
       </div>
     </div>
+    </ModalPortal>
   );
 };
 

@@ -262,13 +262,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 }}
                 className={`group w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm transition-colors text-left border-0 cursor-pointer ${
                   isActive
-                    ? 'bg-blue-50 text-blue-600 font-semibold'
+                    ? 'bg-emerald-50 text-emerald-800 font-semibold'
                     : 'bg-transparent text-gray-700 hover:bg-gray-100 hover:text-gray-900 font-medium'
                 }`}
               >
                 <span
                   className={`flex-shrink-0 transition-colors ${
-                    isActive ? 'text-blue-600' : 'text-gray-500 group-hover:text-gray-700'
+                    isActive ? 'text-[#0fad89]' : 'text-gray-500 group-hover:text-gray-700'
                   }`}
                 >
                   {item.icon}
