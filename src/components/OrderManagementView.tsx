@@ -90,7 +90,8 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
           !q ||
           o.order_code.toLowerCase().includes(q) ||
           o.dealer_name.toLowerCase().includes(q) ||
-          o.created_by.toLowerCase().includes(q);
+          o.created_by.toLowerCase().includes(q) ||
+          (Boolean(o.assigned_sale_name) && String(o.assigned_sale_name).toLowerCase().includes(q));
 
         const matchStatus =
           statusFilter === 'ALL' ||
@@ -394,9 +395,14 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                       </td>
 
                       <td style={{ padding: '9px 12px', whiteSpace: 'nowrap' }}>
-                        <div style={{ fontWeight: '500', color: '#334155', fontSize: '12px' }}>
-                          {order.assigned_sale_name || order.created_by}
+                        <div style={{ fontWeight: '600', color: '#0f172a', fontSize: '12px' }}>
+                          {order.created_by}
                         </div>
+                        {order.assigned_sale_name && order.assigned_sale_name.toLowerCase() !== order.created_by.toLowerCase() && (
+                          <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
+                            Phụ trách: {order.assigned_sale_name}
+                          </div>
+                        )}
                       </td>
 
                       <td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: '700', color: '#0f172a', fontSize: '12.5px', whiteSpace: 'nowrap' }}>
