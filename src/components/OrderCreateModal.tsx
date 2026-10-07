@@ -76,7 +76,6 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
   const [policies, setPolicies] = useState<DiscountPolicy[]>([]);
   const [discountPercent, setDiscountPercent] = useState<string>('0');
   const [isManualDiscount, setIsManualDiscount] = useState<boolean>(false);
-
   const [note, setNote] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -404,7 +403,6 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
   const safeDiscount = Number.isFinite(parsedDiscount) ? Math.min(100, Math.max(0, parsedDiscount)) : 0;
   const discountAmount = Math.round((subtotalAmount * safeDiscount) / 100);
   const totalAmount = subtotalAmount - discountAmount;
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
@@ -1166,7 +1164,6 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
                 ⚠️ Chiết khấu bạn nhập ({safeDiscount}%) cao hơn mức chính sách ({discountEvaluation.discountPercent}%). Đơn hàng sẽ cần Quản lý duyệt.
               </div>
             )}
-
             <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px dashed #cbd5e1', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: '13px', fontWeight: '700', color: '#0f172a' }}>Tổng thanh toán thực tế:</span>
               <strong id="text-order-total-amount" style={{ fontSize: '16px', color: '#059669', fontWeight: '800' }}>
