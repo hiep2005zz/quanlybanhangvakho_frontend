@@ -1987,6 +1987,19 @@ export default function DealerSearchView({
                                             onChange={(e) => setCreditLimitData({ ...creditLimitData, reason: e.target.value })}
                                             placeholder="Nhập lý do thay đổi hạn mức/ngày nợ..."
                                             rows={3}
+                                            style={{
+                                                width: '100%',
+                                                padding: '10px 12px',
+                                                border: '1px solid #cbd5e1',
+                                                borderRadius: '8px',
+                                                fontSize: '14px',
+                                                fontFamily: 'inherit',
+                                                color: '#0f172a',
+                                                backgroundColor: '#ffffff',
+                                                boxSizing: 'border-box',
+                                                resize: 'vertical',
+                                                minHeight: '80px',
+                                            }}
                                         />
                                     </div>
                                 </div>
