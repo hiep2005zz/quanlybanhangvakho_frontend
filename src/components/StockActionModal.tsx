@@ -86,7 +86,7 @@ export const StockActionModal: React.FC<StockActionModalProps> = ({
       case 'issue':
         return '#ea580c';
       case 'adjust':
-        return '#2563eb';
+        return '#0fad89';
     }
   };
 

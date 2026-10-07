@@ -576,9 +576,9 @@ export const ProductHistoryView: React.FC<ProductHistoryViewProps> = ({
               style={{
                 padding: '8px 14px',
                 borderRadius: '8px',
-                border: filterType === 'ALL' ? '1px solid #2563eb' : '1px solid #cbd5e1',
-                background: filterType === 'ALL' ? '#eff6ff' : '#ffffff',
-                color: filterType === 'ALL' ? '#1d4ed8' : '#475569',
+                border: filterType === 'ALL' ? '1px solid #0fad89' : '1px solid #cbd5e1',
+                background: filterType === 'ALL' ? '#ecfdf5' : '#ffffff',
+                color: filterType === 'ALL' ? '#065f46' : '#475569',
                 fontWeight: filterType === 'ALL' ? '700' : '600',
                 fontSize: '13px',
                 cursor: 'pointer',

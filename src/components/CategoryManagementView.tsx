@@ -871,11 +871,11 @@ export function CategoryManagementView({ token, onBackToHome: _onBackToHome }: C
           style={{
             display: 'flex', alignItems: 'center', gap: '10px',
             padding: '12px 28px', borderRadius: '16px', fontWeight: '700', fontSize: '15px',
-            background: activeTab === 'manage' ? '#2563eb' : '#fff',
+            background: activeTab === 'manage' ? '#0fad89' : '#fff',
             color: activeTab === 'manage' ? '#fff' : '#64748b',
             border: activeTab === 'manage' ? 'none' : '1px solid #e2e8f0',
             cursor: 'pointer', transition: 'all 0.2s ease',
-            boxShadow: activeTab === 'manage' ? '0 8px 20px -6px rgba(37,99,235,0.4)' : '0 1px 3px rgba(0,0,0,0.05)'
+            boxShadow: activeTab === 'manage' ? '0 8px 20px -6px rgba(15,173,137,0.4)' : '0 1px 3px rgba(0,0,0,0.05)'
           }}
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -893,11 +893,11 @@ export function CategoryManagementView({ token, onBackToHome: _onBackToHome }: C
           style={{
             display: 'flex', alignItems: 'center', gap: '10px',
             padding: '12px 28px', borderRadius: '16px', fontWeight: '700', fontSize: '15px',
-            background: activeTab === 'report' ? '#2563eb' : '#fff',
+            background: activeTab === 'report' ? '#0fad89' : '#fff',
             color: activeTab === 'report' ? '#fff' : '#64748b',
             border: activeTab === 'report' ? 'none' : '1px solid #e2e8f0',
             cursor: 'pointer', transition: 'all 0.2s ease',
-            boxShadow: activeTab === 'report' ? '0 8px 20px -6px rgba(37,99,235,0.4)' : '0 1px 3px rgba(0,0,0,0.05)'
+            boxShadow: activeTab === 'report' ? '0 8px 20px -6px rgba(15,173,137,0.4)' : '0 1px 3px rgba(0,0,0,0.05)'
           }}
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -957,11 +957,11 @@ export function CategoryManagementView({ token, onBackToHome: _onBackToHome }: C
                     style={{
                       display: 'inline-flex', alignItems: 'center', gap: '6px',
                       padding: '7px 14px', borderRadius: '8px', fontWeight: '700', fontSize: '12.5px',
-                      background: '#10b981', color: '#fff', border: 'none', cursor: 'pointer',
-                      boxShadow: '0 2px 6px rgba(16, 185, 129, 0.25)', transition: 'all 0.15s'
+                      background: 'linear-gradient(135deg, #0fba90 0%, #0fad89 100%)', color: '#fff', border: 'none', cursor: 'pointer',
+                      boxShadow: '0 2px 6px rgba(15, 186, 144, 0.25)', transition: 'all 0.15s'
                     }}
-                    onMouseEnter={e => e.currentTarget.style.backgroundColor = '#059669'}
-                    onMouseLeave={e => e.currentTarget.style.backgroundColor = '#10b981'}
+                    onMouseEnter={e => e.currentTarget.style.background = 'linear-gradient(135deg, #0fad89 0%, #0a8f70 100%)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'linear-gradient(135deg, #0fba90 0%, #0fad89 100%)'}
                   >
                     <PlusIcon /> Thêm Ngành Hàng
                   </button>
@@ -1092,7 +1092,7 @@ export function CategoryManagementView({ token, onBackToHome: _onBackToHome }: C
               
               <div style={{ display: 'flex', gap: '16px', justifyContent: 'flex-end' }}>
                 <button type="button" onClick={() => setIsModalOpen(false)} style={{ padding: '14px 24px', borderRadius: '12px', border: '1px solid #cbd5e1', background: '#fff', fontWeight: '700', color: '#475569', cursor: 'pointer', flex: 1, fontSize: '15px' }}>Hủy Bỏ</button>
-                <button type="submit" style={{ padding: '14px 24px', borderRadius: '12px', border: 'none', background: '#2563eb', color: '#fff', fontWeight: '800', cursor: 'pointer', flex: 1, boxShadow: '0 4px 12px rgba(37,99,235,0.3)', fontSize: '15px' }}>Lưu Thông Tin</button>
+                <button type="submit" style={{ padding: '14px 24px', borderRadius: '12px', border: 'none', background: '#0fad89', color: '#fff', fontWeight: '800', cursor: 'pointer', flex: 1, boxShadow: '0 4px 12px rgba(15,173,137,0.3)', fontSize: '15px' }}>Lưu Thông Tin</button>
               </div>
             </form>
           </div>

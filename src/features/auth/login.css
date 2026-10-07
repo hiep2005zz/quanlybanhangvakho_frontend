@@ -375,7 +375,7 @@
 .login-submit-btn {
   width: 100%;
   padding: 16px;
-  background: linear-gradient(135deg, var(--primary, #059669) 0%, #0f766e 100%);
+  background: linear-gradient(135deg, var(--primary, #0fad89) 0%, #0a8f70 100%);
   border: none;
   border-radius: 12px;
   color: #fff;
@@ -383,7 +383,7 @@
   font-weight: 700;
   cursor: pointer;
   transition: all 0.2s;
-  box-shadow: 0 10px 25px rgba(5, 150, 105, 0.25);
+  box-shadow: 0 10px 25px rgba(15, 173, 137, 0.25);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -393,7 +393,7 @@
 
 .login-submit-btn:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 14px 30px rgba(5, 150, 105, 0.35);
+  box-shadow: 0 14px 30px rgba(15, 173, 137, 0.35);
 }
 
 .login-submit-btn:active:not(:disabled) {

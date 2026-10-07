@@ -270,14 +270,14 @@ export const ProductBulkImportModal: React.FC<ProductBulkImportModalProps> = ({
                 onClick={onClose}
                 style={{
                   padding: '10px 24px',
-                  background: '#2563eb',
+                  background: '#0fad89',
                   border: 'none',
                   borderRadius: '8px',
                   color: '#ffffff',
                   fontWeight: '600',
                   fontSize: '14px',
                   cursor: 'pointer',
-                  boxShadow: '0 2px 8px rgba(37, 99, 235, 0.25)',
+                  boxShadow: '0 2px 8px rgba(15, 173, 137, 0.25)',
                 }}
               >
                 Hoàn tất & Xem danh sách
@@ -791,7 +791,7 @@ export const ProductBulkImportModal: React.FC<ProductBulkImportModalProps> = ({
                   disabled={!canConfirm || loading}
                   style={{
                     padding: '9px 20px',
-                    background: '#2563eb',
+                    background: '#0fad89',
                     border: 'none',
                     borderRadius: '8px',
                     color: '#ffffff',
@@ -802,7 +802,7 @@ export const ProductBulkImportModal: React.FC<ProductBulkImportModalProps> = ({
                     display: 'flex',
                     alignItems: 'center',
                     gap: '8px',
-                    boxShadow: '0 2px 8px rgba(37, 99, 235, 0.25)',
+                    boxShadow: '0 2px 8px rgba(15, 173, 137, 0.25)',
                   }}
                 >
                   {loading ? 'Đang lưu vào CSDL...' : 'Xác nhận'}
@@ -814,7 +814,7 @@ export const ProductBulkImportModal: React.FC<ProductBulkImportModalProps> = ({
                 onClick={onClose}
                 style={{
                   padding: '9px 20px',
-                  background: '#2563eb',
+                  background: '#0fad89',
                   border: 'none',
                   borderRadius: '8px',
                   color: '#ffffff',

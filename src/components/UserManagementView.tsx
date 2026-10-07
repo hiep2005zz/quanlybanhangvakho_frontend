@@ -595,7 +595,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                 background: '#ffffff',
                 border: '1px solid #cbd5e1',
                 borderRadius: '9px',
-                color: '#2563eb',
+                color: '#0fad89',
                 padding: '9px 16px',
                 fontSize: '13.5px',
                 fontWeight: '600',
@@ -607,8 +607,8 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                 transition: 'all 0.18s ease',
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = '#2563eb';
-                e.currentTarget.style.background = '#eff6ff';
+                e.currentTarget.style.borderColor = '#0fad89';
+                e.currentTarget.style.background = '#ecfdf5';
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.borderColor = '#cbd5e1';
@@ -628,7 +628,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
               onClick={onCreateAccount}
               id="btn-userview-create-account"
               style={{
-                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                background: 'linear-gradient(135deg, #0fba90 0%, #0fad89 100%)',
                 border: 'none',
                 borderRadius: '9px',
                 color: '#ffffff',
@@ -639,12 +639,12 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '7px',
-                boxShadow: '0 2px 8px rgba(16, 185, 129, 0.35)',
+                boxShadow: '0 2px 8px rgba(15, 186, 144, 0.35)',
                 transition: 'all 0.18s ease',
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.transform = 'translateY(-1.5px)';
-                e.currentTarget.style.boxShadow = '0 4px 14px rgba(16, 185, 129, 0.45)';
+                e.currentTarget.style.boxShadow = '0 4px 14px rgba(15, 186, 144, 0.45)';
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.transform = 'translateY(0)';
@@ -2147,7 +2147,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                   style={{
                     background: (!editFormData.is_active && !editFormData.lock_reason.trim())
                       ? '#94a3b8'
-                      : 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+                      : 'linear-gradient(135deg, #0fba90 0%, #0fad89 100%)',
                     border: 'none',
                     borderRadius: '8px',
                     color: '#ffffff',
@@ -2159,7 +2159,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                       : 'pointer',
                     boxShadow: (!editFormData.is_active && !editFormData.lock_reason.trim())
                       ? 'none'
-                      : '0 2px 6px rgba(37, 99, 235, 0.35)',
+                      : '0 2px 6px rgba(15, 173, 137, 0.35)',
                     transition: 'all 0.15s ease',
                   }}
                 >
