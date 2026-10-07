@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ProductItem } from '../services/api';
 import { updateProductPriceApi } from '../services/productApi';
+import { ModalPortal } from './ModalPortal';
 
 interface PriceUpdateModalProps {
   product: ProductItem | null;
@@ -93,26 +94,29 @@ export const PriceUpdateModal: React.FC<PriceUpdateModalProps> = ({
   };
 
   return (
-    <div style={{
-      position: 'fixed',
-      inset: 0,
-      background: 'rgba(15, 23, 42, 0.5)',
-      backdropFilter: 'blur(4px)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 9999,
-      padding: '16px',
-    }}>
+    <ModalPortal>
       <div style={{
-        background: '#ffffff',
-        borderRadius: '16px',
-        width: '100%',
-        maxWidth: '520px',
-        boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
-        overflow: 'hidden',
-        border: '1px solid #e2e8f0',
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(15, 23, 42, 0.5)',
+        backdropFilter: 'blur(4px)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 99999,
+        padding: '16px',
+        boxSizing: 'border-box',
       }}>
+        <div style={{
+          background: '#ffffff',
+          borderRadius: '16px',
+          width: '100%',
+          maxWidth: '520px',
+          maxHeight: 'calc(100vh - 32px)',
+          boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+          overflowY: 'auto',
+          border: '1px solid #e2e8f0',
+        }}>
         {/* Header */}
         <div style={{
           padding: '18px 24px',
@@ -331,7 +335,7 @@ export const PriceUpdateModal: React.FC<PriceUpdateModalProps> = ({
                 padding: '9px 20px',
                 borderRadius: '8px',
                 border: 'none',
-                background: loading ? '#93c5fd' : '#2563eb',
+                background: loading ? '#a7f3d0' : '#0fad89',
                 color: '#ffffff',
                 fontSize: '13.5px',
                 fontWeight: '600',
@@ -348,5 +352,6 @@ export const PriceUpdateModal: React.FC<PriceUpdateModalProps> = ({
         </form>
       </div>
     </div>
+    </ModalPortal>
   );
 };

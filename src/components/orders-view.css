@@ -57,10 +57,10 @@
 .orders-create-submit {
   min-height: 40px;
   padding: 9px 14px;
-  border: 1px solid #059669;
+  border: 1px solid #0fba90;
   border-radius: 9px;
-  background: linear-gradient(135deg, #10b981, #059669);
-  box-shadow: 0 3px 8px rgba(5, 150, 105, 0.2);
+  background: linear-gradient(135deg, #0fba90, #0fad89);
+  box-shadow: 0 3px 8px rgba(15, 186, 144, 0.25);
   color: #fff;
   cursor: pointer;
   font: inherit;
@@ -70,7 +70,8 @@
 }
 
 .orders-create-submit:hover:not(:disabled) {
-  background: linear-gradient(135deg, #059669, #047857);
+  background: linear-gradient(135deg, #0fad89, #0a8f70);
+  box-shadow: 0 4px 12px rgba(15, 186, 144, 0.35);
 }
 
 .orders-create-submit:disabled {
@@ -205,8 +206,8 @@
 }
 
 .orders-page-button.active {
-  border-color: #059669;
-  background: #059669;
+  border-color: #0fba90;
+  background: #0fba90;
   color: #fff;
 }
 

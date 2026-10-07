@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { User, UserProfile, getMyProfileApi, updateMyProfileApi, uploadProfileAvatarApi, getAvatarUrl } from '../services/api';
 import { emitStatusToast } from './StatusToast';
+import { ModalPortal } from './ModalPortal';
 
 interface ProfileViewProps {
   currentUser: User;
@@ -650,7 +651,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                   maxHeight: '26px',
                   padding: 0,
                   borderRadius: '50%',
-                  background: '#2563eb',
+                  background: '#0fad89',
                   border: '2px solid #ffffff',
                   color: '#ffffff',
                   display: 'flex',
@@ -663,8 +664,8 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                 }}
                 title="Tải lên ảnh đại diện mới (Chấp nhận JPG/PNG tối đa 2MB)"
                 aria-label="Tải lên ảnh đại diện"
-                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#1d4ed8')}
-                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#2563eb')}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#0a8f70')}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#0fad89')}
               >
                 <svg
                   width="13"
@@ -974,21 +975,21 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                 padding: '9px 24px',
                 borderRadius: '9px',
                 border: 'none',
-                background: saving ? '#93c5fd' : '#2563eb',
+                background: saving ? '#a7f3d0' : '#0fad89',
                 color: '#ffffff',
                 fontSize: '13.5px',
                 fontWeight: '700',
                 cursor: saving || loading ? 'not-allowed' : 'pointer',
                 display: 'inline-flex',
                 alignItems: 'center',
-                boxShadow: '0 3px 10px rgba(37, 99, 235, 0.25)',
+                boxShadow: '0 3px 10px rgba(15, 173, 137, 0.25)',
                 transition: 'all 0.15s ease',
               }}
               onMouseEnter={(e) => {
-                if (!saving && !loading) e.currentTarget.style.backgroundColor = '#1d4ed8';
+                if (!saving && !loading) e.currentTarget.style.backgroundColor = '#0a8f70';
               }}
               onMouseLeave={(e) => {
-                if (!saving && !loading) e.currentTarget.style.backgroundColor = '#2563eb';
+                if (!saving && !loading) e.currentTarget.style.backgroundColor = '#0fad89';
               }}
             >
               {saving ? 'Đang lưu...' : 'Lưu thay đổi'}
@@ -999,18 +1000,20 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
 
       {/* Modal Cắt ảnh vuông tự chọn (Interactive Square Cropper) */}
       {cropModalOpen && rawImageSrc && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(15, 23, 42, 0.75)',
-            backdropFilter: 'blur(5px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 9999,
-            padding: '16px',
-          }}
+        <ModalPortal>
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(15, 23, 42, 0.75)',
+              backdropFilter: 'blur(5px)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 99999,
+              padding: '16px',
+              boxSizing: 'border-box',
+            }}
           onMouseMove={(e) => {
             if (!dragAction) return;
             const dx = e.clientX - dragInfoRef.current.startX;
@@ -1479,7 +1482,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                   padding: '9px 24px',
                   borderRadius: '10px',
                   border: 'none',
-                  background: uploadingAvatar ? '#93c5fd' : '#2563eb',
+                  background: uploadingAvatar ? '#a7f3d0' : '#0fad89',
                   color: '#ffffff',
                   fontSize: '13.5px',
                   fontWeight: '700',
@@ -1487,7 +1490,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: '8px',
-                  boxShadow: '0 4px 12px rgba(37, 99, 235, 0.25)',
+                  boxShadow: '0 4px 12px rgba(15, 173, 137, 0.25)',
                 }}
               >
                 {uploadingAvatar ? 'Đang xử lý...' : 'Chọn ảnh này'}
@@ -1495,6 +1498,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
     </main>
   );

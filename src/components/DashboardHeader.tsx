@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import { User, getAvatarUrl } from '../services/api';
 import { TabType } from './Sidebar';
 
@@ -37,18 +37,35 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   primaryRole,
   currentBadgeColor,
 }) => {
+  const userMenuRef = useRef<HTMLDivElement>(null);
+
+  // Đóng popover user khi click ra ngoài mà KHÔNG dùng fixed overlay chặn cuộn trang
+  useEffect(() => {
+    if (!isUserMenuOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setIsUserMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isUserMenuOpen, setIsUserMenuOpen]);
+
   return (
     <header
       style={{
         height: '52px',
-        backgroundColor: '#272882',
+        background: 'linear-gradient(90deg, #0fba90 0%, #0fa786 100%)',
+        backgroundColor: '#0fad89',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
         padding: '0 20px',
         boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
         position: 'relative',
-        zIndex: 1000,
+        zIndex: 40,
         flexShrink: 0,
         width: '100%',
       }}
@@ -98,7 +115,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
       </div>
 
       {/* Khối bên phải: Avatar Người dùng + Tên + Nút mở Menu */}
-      <div style={{ position: 'relative', zIndex: 501 }}>
+      <div ref={userMenuRef} style={{ position: 'relative', zIndex: 501 }}>
         <button
           onClick={() => setIsUserMenuOpen((prev) => !prev)}
           style={{
@@ -151,7 +168,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
                 height: '9px',
                 borderRadius: '50%',
                 background: '#16a34a',
-                border: '1.5px solid #272882',
+                border: '1.5px solid #0fad89',
               }}
               title="Đang hoạt động"
             />
@@ -292,9 +309,9 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
                   width: '100%',
                   padding: '10px 14px',
                   borderRadius: '10px',
-                  background: activeTab === 'profile' ? '#eff6ff' : '#f8fafc',
-                  border: activeTab === 'profile' ? '1px solid #bfdbfe' : '1px solid #e2e8f0',
-                  color: activeTab === 'profile' ? '#1d4ed8' : '#1e293b',
+                  background: activeTab === 'profile' ? '#ecfdf5' : '#f8fafc',
+                  border: activeTab === 'profile' ? '1px solid #a7f3d0' : '1px solid #e2e8f0',
+                  color: activeTab === 'profile' ? '#065f46' : '#1e293b',
                   fontSize: '13.5px',
                   fontWeight: '600',
                   cursor: 'pointer',
@@ -302,14 +319,14 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
                   boxShadow: 'none',
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.background = '#eff6ff';
-                  e.currentTarget.style.borderColor = '#93c5fd';
-                  e.currentTarget.style.color = '#1d4ed8';
+                  e.currentTarget.style.background = '#ecfdf5';
+                  e.currentTarget.style.borderColor = '#6ee7b7';
+                  e.currentTarget.style.color = '#065f46';
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.background = activeTab === 'profile' ? '#eff6ff' : '#f8fafc';
-                  e.currentTarget.style.borderColor = activeTab === 'profile' ? '#bfdbfe' : '#e2e8f0';
-                  e.currentTarget.style.color = activeTab === 'profile' ? '#1d4ed8' : '#1e293b';
+                  e.currentTarget.style.background = activeTab === 'profile' ? '#ecfdf5' : '#f8fafc';
+                  e.currentTarget.style.borderColor = activeTab === 'profile' ? '#a7f3d0' : '#e2e8f0';
+                  e.currentTarget.style.color = activeTab === 'profile' ? '#065f46' : '#1e293b';
                 }}
                 title="Xem và cập nhật hồ sơ cá nhân"
               >
@@ -318,11 +335,11 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
                     width: '28px',
                     height: '28px',
                     borderRadius: '8px',
-                    background: '#dbeafe',
+                    background: '#ccfbf1',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    color: '#2563eb',
+                    color: '#0fad89',
                   }}
                 >
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
@@ -348,9 +365,9 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
                     width: '100%',
                     padding: '10px 14px',
                     borderRadius: '10px',
-                    background: activeTab === 'dealers' ? '#eff6ff' : '#f8fafc',
-                    border: activeTab === 'dealers' ? '1px solid #bfdbfe' : '1px solid #e2e8f0',
-                    color: activeTab === 'dealers' ? '#1d4ed8' : '#1e293b',
+                    background: activeTab === 'dealers' ? '#ecfdf5' : '#f8fafc',
+                    border: activeTab === 'dealers' ? '1px solid #a7f3d0' : '1px solid #e2e8f0',
+                    color: activeTab === 'dealers' ? '#065f46' : '#1e293b',
                     fontSize: '13.5px',
                     fontWeight: '600',
                     cursor: 'pointer',
@@ -358,14 +375,14 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
                     boxShadow: 'none',
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.background = '#eff6ff';
-                    e.currentTarget.style.borderColor = '#93c5fd';
-                    e.currentTarget.style.color = '#1d4ed8';
+                    e.currentTarget.style.background = '#ecfdf5';
+                    e.currentTarget.style.borderColor = '#6ee7b7';
+                    e.currentTarget.style.color = '#065f46';
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.background = activeTab === 'dealers' ? '#eff6ff' : '#f8fafc';
-                    e.currentTarget.style.borderColor = activeTab === 'dealers' ? '#bfdbfe' : '#e2e8f0';
-                    e.currentTarget.style.color = activeTab === 'dealers' ? '#1d4ed8' : '#1e293b';
+                    e.currentTarget.style.background = activeTab === 'dealers' ? '#ecfdf5' : '#f8fafc';
+                    e.currentTarget.style.borderColor = activeTab === 'dealers' ? '#a7f3d0' : '#e2e8f0';
+                    e.currentTarget.style.color = activeTab === 'dealers' ? '#065f46' : '#1e293b';
                   }}
                   title="Tìm kiếm và tra cứu đại lý trong tuyến"
                 >
@@ -404,9 +421,9 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
                     width: '100%',
                     padding: '10px 14px',
                     borderRadius: '10px',
-                    background: activeTab === 'users' ? '#eff6ff' : '#f8fafc',
-                    border: activeTab === 'users' ? '1px solid #bfdbfe' : '1px solid #e2e8f0',
-                    color: activeTab === 'users' ? '#1d4ed8' : '#1e293b',
+                    background: activeTab === 'users' ? '#ecfdf5' : '#f8fafc',
+                    border: activeTab === 'users' ? '1px solid #a7f3d0' : '1px solid #e2e8f0',
+                    color: activeTab === 'users' ? '#065f46' : '#1e293b',
                     fontSize: '13.5px',
                     fontWeight: '600',
                     cursor: 'pointer',
@@ -414,14 +431,14 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
                     boxShadow: 'none',
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.background = '#eff6ff';
-                    e.currentTarget.style.borderColor = '#93c5fd';
-                    e.currentTarget.style.color = '#1d4ed8';
+                    e.currentTarget.style.background = '#ecfdf5';
+                    e.currentTarget.style.borderColor = '#6ee7b7';
+                    e.currentTarget.style.color = '#065f46';
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.background = activeTab === 'users' ? '#eff6ff' : '#f8fafc';
-                    e.currentTarget.style.borderColor = activeTab === 'users' ? '#bfdbfe' : '#e2e8f0';
-                    e.currentTarget.style.color = activeTab === 'users' ? '#1d4ed8' : '#1e293b';
+                    e.currentTarget.style.background = activeTab === 'users' ? '#ecfdf5' : '#f8fafc';
+                    e.currentTarget.style.borderColor = activeTab === 'users' ? '#a7f3d0' : '#e2e8f0';
+                    e.currentTarget.style.color = activeTab === 'users' ? '#065f46' : '#1e293b';
                   }}
                   title="Truy cập trang Phân quyền & Quản lý người dùng"
                 >
@@ -430,11 +447,11 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
                       width: '28px',
                       height: '28px',
                       borderRadius: '8px',
-                      background: '#dbeafe',
+                      background: '#ccfbf1',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      color: '#2563eb',
+                      color: '#0fad89',
                     }}
                   >
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
@@ -462,9 +479,9 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
                     width: '100%',
                     padding: '10px 14px',
                     borderRadius: '10px',
-                    background: activeTab === 'audit-logs' ? '#eff6ff' : '#f8fafc',
-                    border: activeTab === 'audit-logs' ? '1px solid #bfdbfe' : '1px solid #e2e8f0',
-                    color: activeTab === 'audit-logs' ? '#1d4ed8' : '#1e293b',
+                    background: activeTab === 'audit-logs' ? '#ecfdf5' : '#f8fafc',
+                    border: activeTab === 'audit-logs' ? '1px solid #a7f3d0' : '1px solid #e2e8f0',
+                    color: activeTab === 'audit-logs' ? '#065f46' : '#1e293b',
                     fontSize: '13.5px',
                     fontWeight: '600',
                     cursor: 'pointer',
@@ -472,14 +489,14 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
                     boxShadow: 'none',
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.background = '#eff6ff';
-                    e.currentTarget.style.borderColor = '#93c5fd';
-                    e.currentTarget.style.color = '#1d4ed8';
+                    e.currentTarget.style.background = '#ecfdf5';
+                    e.currentTarget.style.borderColor = '#6ee7b7';
+                    e.currentTarget.style.color = '#065f46';
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.background = activeTab === 'audit-logs' ? '#eff6ff' : '#f8fafc';
-                    e.currentTarget.style.borderColor = activeTab === 'audit-logs' ? '#bfdbfe' : '#e2e8f0';
-                    e.currentTarget.style.color = activeTab === 'audit-logs' ? '#1d4ed8' : '#1e293b';
+                    e.currentTarget.style.background = activeTab === 'audit-logs' ? '#ecfdf5' : '#f8fafc';
+                    e.currentTarget.style.borderColor = activeTab === 'audit-logs' ? '#a7f3d0' : '#e2e8f0';
+                    e.currentTarget.style.color = activeTab === 'audit-logs' ? '#065f46' : '#1e293b';
                   }}
                   title="Truy cập Nhật ký thao tác hệ thống"
                 >
@@ -615,19 +632,6 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
           </div>
         )}
       </div>
-
-      {/* Backdrop đóng popover user khi click ra ngoài */}
-      {isUserMenuOpen && (
-        <div
-          onClick={() => setIsUserMenuOpen(false)}
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 499,
-            background: 'transparent',
-          }}
-        />
-      )}
     </header>
   );
 };

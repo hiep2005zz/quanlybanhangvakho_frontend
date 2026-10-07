@@ -23,6 +23,7 @@ import { StockActionModal } from './StockActionModal';
 import { OrderManagementView } from './OrderManagementView';
 import SalesOrderEntry from './SalesOrderEntry';
 import { ProductHistoryView } from './ProductHistoryView';
+import { ModalPortal } from './ModalPortal';
 
 import './dashboard.css';
 import { Sidebar, type TabType } from './Sidebar';
@@ -537,7 +538,7 @@ export default function DashboardPage({
 
   // Phân trang danh sách sản phẩm (mặc định 20 cái/trang)
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
+  const pageSize = 20;
 
   const [isCostVisible, setIsCostVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -686,6 +687,8 @@ export default function DashboardPage({
   const primaryRole = officialRoles[0] || user.role;
   const currentBadgeColor = roleBadgeColorMap[primaryRole] || '#64748b';
 
+  const isLockedScrollTab = (activeTab === 'inventory' || activeTab === 'dealers' || activeTab === 'delivery-points' || activeTab === 'suppliers' || activeTab === 'price-books' || activeTab === 'categories' || activeTab === 'orders' || activeTab === 'product-history' || activeTab === 'create-order' || isSalesOrderEntryOpen) && !isPendingCustomer;
+
   return (
     <DashboardLayout
       header={
@@ -710,6 +713,7 @@ export default function DashboardPage({
           currentBadgeColor={currentBadgeColor}
         />
       }
+      noScroll={isLockedScrollTab}
       sidebar={
         <Sidebar
           activeTab={activeTab}
@@ -732,7 +736,17 @@ export default function DashboardPage({
         />
       }
     >
-      <div className="dashboard-main-container">
+      <div
+        className="dashboard-main-container"
+        style={isLockedScrollTab ? {
+          height: '100%',
+          maxHeight: '100%',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+          width: '100%',
+        } : undefined}
+      >
       {/* Main Content: Switch between Create Order, Order Management, User Management, Audit Logs, Inventory and Pending Authorization */}
       {activeTab === 'create-order' || (isSalesOrderEntryOpen && canCreateOrders) ? (
         canCreateOrders ? (
@@ -1010,14 +1024,14 @@ export default function DashboardPage({
                 style={{
                   width: '100%',
                   padding: '12px',
-                  background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+                  background: 'linear-gradient(135deg, #0fba90, #0fad89)',
                   border: 'none',
                   borderRadius: '10px',
                   color: '#ffffff',
                   fontSize: '14px',
                   fontWeight: '700',
                   cursor: 'pointer',
-                  boxShadow: '0 4px 14px rgba(59, 130, 246, 0.35)',
+                  boxShadow: '0 4px 14px rgba(15, 173, 137, 0.35)',
                   transition: 'all 0.2s ease',
                 }}
                 onMouseEnter={(e) => (e.currentTarget.style.transform = 'translateY(-1px)')}
@@ -1070,8 +1084,9 @@ export default function DashboardPage({
           <div style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-            gap: '16px',
-            marginBottom: '24px'
+            gap: '14px',
+            marginBottom: '14px',
+            flexShrink: 0,
           }}>
             <div className="kpi-stat-card">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
@@ -1334,14 +1349,25 @@ export default function DashboardPage({
           })()}
 
           {/* Clean Enterprise Data Table Container */}
-          <div className="premium-table-card" style={{ padding: '0', borderRadius: '12px', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+          <div
+            className="premium-table-card"
+            style={{
+              padding: '0',
+              borderRadius: '12px',
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column',
+              flex: 1,
+              minHeight: 0,
+            }}
+          >
             {/* Thanh công cụ tìm kiếm và tác vụ (Cố định ở trên) */}
             <div style={{
               display: 'flex',
               flexWrap: 'wrap',
               justifyContent: 'space-between',
               alignItems: 'center',
-              padding: '16px 20px',
+              padding: '12px 20px',
               borderBottom: '1px solid #e2e8f0',
               gap: '12px',
               background: '#ffffff',
@@ -1414,23 +1440,23 @@ export default function DashboardPage({
                       display: 'inline-flex',
                       alignItems: 'center',
                       gap: '6px',
-                      background: '#eff6ff',
-                      border: '1px solid #bfdbfe',
+                      background: '#ecfdf5',
+                      border: '1px solid #a7f3d0',
                       padding: '7px 12px',
                       borderRadius: '8px',
                       fontSize: '12.5px',
                       fontWeight: '600',
-                      color: '#2563eb',
+                      color: '#0fad89',
                       cursor: 'pointer',
                       transition: 'all 0.15s ease'
                     }}
                     onMouseEnter={(e) => {
-                      e.currentTarget.style.background = '#dbeafe';
-                      e.currentTarget.style.borderColor = '#93c5fd';
+                      e.currentTarget.style.background = '#d1fae5';
+                      e.currentTarget.style.borderColor = '#6ee7b7';
                     }}
                     onMouseLeave={(e) => {
-                      e.currentTarget.style.background = '#eff6ff';
-                      e.currentTarget.style.borderColor = '#bfdbfe';
+                      e.currentTarget.style.background = '#ecfdf5';
+                      e.currentTarget.style.borderColor = '#a7f3d0';
                     }}
                     title="Nhập danh mục sản phẩm hàng loạt từ file Excel"
                   >
@@ -1543,13 +1569,14 @@ export default function DashboardPage({
               </div>
             </div>
 
-            {/* Vùng cuộn riêng cho bảng hàng hóa (Ẩn thanh cuộn, cố định thead) */}
+            {/* Vùng cuộn riêng cho bảng hàng hóa (cố định thead) */}
             <div
-              className="table-hidden-scrollbar"
+              className="roles-grid-scroll"
               style={{
                 overflowX: 'auto',
                 overflowY: 'auto',
-                maxHeight: 'calc(100vh - 350px)',
+                flex: 1,
+                minHeight: 0,
                 scrollBehavior: 'smooth'
               }}
             >
@@ -1657,11 +1684,11 @@ export default function DashboardPage({
                                     key={uIdx}
                                     style={{
                                       fontSize: '11px',
-                                      background: '#eff6ff',
-                                      color: '#1d4ed8',
+                                      background: '#ecfdf5',
+                                      color: '#065f46',
                                       padding: '1px 6px',
                                       borderRadius: '4px',
-                                      border: '1px solid #bfdbfe',
+                                      border: '1px solid #a7f3d0',
                                     }}
                                     title={`1 ${u.unit_name} = ${u.conversion_rate} ${item.base_unit || 'Cái'}`}
                                   >
@@ -1931,7 +1958,7 @@ export default function DashboardPage({
               <div style={{
                 display: 'flex',
                 flexWrap: 'wrap',
-                justifyContent: 'space-between',
+                justifyContent: 'flex-end',
                 alignItems: 'center',
                 padding: '12px 20px',
                 borderTop: '1px solid #e2e8f0',
@@ -1941,150 +1968,145 @@ export default function DashboardPage({
                 color: '#64748b',
                 flexShrink: 0
               }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span>Hiển thị</span>
-                  <select
-                    value={pageSize}
-                    onChange={(e) => {
-                      setPageSize(Number(e.target.value));
-                      setCurrentPage(1);
-                    }}
-                    style={{
-                      padding: '4px 8px',
-                      borderRadius: '6px',
-                      border: '1px solid #cbd5e1',
-                      fontSize: '12.5px',
-                      color: '#0f172a',
-                      background: '#ffffff',
-                      outline: 'none',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    <option value={10}>10 / trang</option>
-                    <option value={20}>20 / trang (mặc định)</option>
-                    <option value={50}>50 / trang</option>
-                    <option value={100}>100 / trang</option>
-                  </select>
-                  <span>
-                    (Từ <strong>{Math.min(filteredProducts.length, startIndex + 1)}</strong> đến <strong>{Math.min(filteredProducts.length, startIndex + pageSize)}</strong> trong tổng số <strong>{filteredProducts.length}</strong> sản phẩm)
-                  </span>
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  {/* Nút về trang đầu */}
-                  <button
-                    type="button"
-                    disabled={safeCurrentPage <= 1}
-                    onClick={() => setCurrentPage(1)}
-                    style={{
-                      padding: '5px 9px',
-                      borderRadius: '6px',
-                      border: '1px solid #cbd5e1',
-                      background: safeCurrentPage <= 1 ? '#f8fafc' : '#ffffff',
-                      color: safeCurrentPage <= 1 ? '#94a3b8' : '#334155',
-                      cursor: safeCurrentPage <= 1 ? 'not-allowed' : 'pointer',
-                      fontSize: '12px',
-                      fontWeight: '600'
-                    }}
-                    title="Về trang đầu"
-                  >
-                    «
-                  </button>
-
-                  {/* Nút trang trước */}
-                  <button
-                    type="button"
-                    disabled={safeCurrentPage <= 1}
-                    onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
-                    style={{
-                      padding: '5px 11px',
-                      borderRadius: '6px',
-                      border: '1px solid #cbd5e1',
-                      background: safeCurrentPage <= 1 ? '#f8fafc' : '#ffffff',
-                      color: safeCurrentPage <= 1 ? '#94a3b8' : '#334155',
-                      cursor: safeCurrentPage <= 1 ? 'not-allowed' : 'pointer',
-                      fontSize: '12px',
-                      fontWeight: '600'
-                    }}
-                  >
-                    ‹ Trước
-                  </button>
+                {/* Khối phân trang liền thanh chuẩn theo thiết kế (Hình 2) */}
+                <div
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'stretch',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '8px',
+                    overflow: 'hidden',
+                    background: '#ffffff',
+                    boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
+                    height: '32px',
+                  }}
+                >
+                  {/* Nút trang trước (<) - hiển thị khi trang > 1 */}
+                  {safeCurrentPage > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                      style={{
+                        minWidth: '32px',
+                        height: '100%',
+                        padding: '0 8px',
+                        border: 'none',
+                        borderRight: '1px solid #e5e7eb',
+                        background: '#ffffff',
+                        color: '#4b5563',
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        transition: 'background-color 0.15s ease',
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f9fafb')}
+                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#ffffff')}
+                      title="Trang trước"
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="15 18 9 12 15 6" />
+                      </svg>
+                    </button>
+                  )}
 
                   {/* Danh sách các số trang */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    {Array.from({ length: totalPages }, (_, i) => i + 1)
-                      .filter((p) => p === 1 || p === totalPages || Math.abs(p - safeCurrentPage) <= 1)
-                      .reduce<(number | string)[]>((acc, p, idx, arr) => {
-                        if (idx > 0 && typeof arr[idx - 1] === 'number' && (p as number) - (arr[idx - 1] as number) > 1) {
-                          acc.push('...');
-                        }
-                        acc.push(p);
-                        return acc;
-                      }, [])
-                      .map((p, idx) => (
-                        typeof p === 'string' ? (
-                          <span key={`ellipsis-${idx}`} style={{ padding: '0 4px', color: '#94a3b8' }}>...</span>
-                        ) : (
-                          <button
-                            key={p}
-                            type="button"
-                            onClick={() => setCurrentPage(p)}
+                  {Array.from({ length: totalPages }, (_, i) => i + 1)
+                    .filter((p) => p === 1 || p === totalPages || Math.abs(p - safeCurrentPage) <= 1)
+                    .reduce<(number | string)[]>((acc, p, idx, arr) => {
+                      if (idx > 0 && typeof arr[idx - 1] === 'number' && (p as number) - (arr[idx - 1] as number) > 1) {
+                        acc.push('...');
+                      }
+                      acc.push(p);
+                      return acc;
+                    }, [])
+                    .map((p, idx, arr) => {
+                      const hasNext = safeCurrentPage < totalPages;
+                      const isLastItem = idx === arr.length - 1 && !hasNext;
+                      if (typeof p === 'string') {
+                        return (
+                          <span
+                            key={`ellipsis-${idx}`}
                             style={{
-                              padding: '5px 10px',
-                              borderRadius: '6px',
-                              border: p === safeCurrentPage ? '1px solid #2563eb' : '1px solid #cbd5e1',
-                              background: p === safeCurrentPage ? '#2563eb' : '#ffffff',
-                              color: p === safeCurrentPage ? '#ffffff' : '#334155',
-                              cursor: 'pointer',
-                              fontSize: '12px',
-                              fontWeight: p === safeCurrentPage ? '700' : '500',
-                              minWidth: '28px'
+                              minWidth: '32px',
+                              height: '100%',
+                              padding: '0 8px',
+                              borderRight: isLastItem ? 'none' : '1px solid #e5e7eb',
+                              background: '#ffffff',
+                              color: '#6b7280',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: '13px',
+                              userSelect: 'none',
                             }}
                           >
-                            {p}
-                          </button>
-                        )
-                      ))}
-                  </div>
+                            ...
+                          </span>
+                        );
+                      }
 
-                  {/* Nút trang sau */}
-                  <button
-                    type="button"
-                    disabled={safeCurrentPage >= totalPages}
-                    onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
-                    style={{
-                      padding: '5px 11px',
-                      borderRadius: '6px',
-                      border: '1px solid #cbd5e1',
-                      background: safeCurrentPage >= totalPages ? '#f8fafc' : '#ffffff',
-                      color: safeCurrentPage >= totalPages ? '#94a3b8' : '#334155',
-                      cursor: safeCurrentPage >= totalPages ? 'not-allowed' : 'pointer',
-                      fontSize: '12px',
-                      fontWeight: '600'
-                    }}
-                  >
-                    Sau ›
-                  </button>
+                      const isActive = p === safeCurrentPage;
+                      return (
+                        <button
+                          key={p}
+                          type="button"
+                          onClick={() => setCurrentPage(p)}
+                          style={{
+                            minWidth: '32px',
+                            height: '100%',
+                            padding: '0 10px',
+                            border: 'none',
+                            borderRight: isLastItem ? 'none' : '1px solid #e5e7eb',
+                            background: isActive ? '#0fad89' : '#ffffff',
+                            color: isActive ? '#ffffff' : '#374151',
+                            cursor: isActive ? 'default' : 'pointer',
+                            fontSize: '13px',
+                            fontWeight: isActive ? '700' : '500',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            transition: 'background-color 0.15s ease',
+                          }}
+                          onMouseEnter={(e) => {
+                            if (!isActive) e.currentTarget.style.backgroundColor = '#f9fafb';
+                          }}
+                          onMouseLeave={(e) => {
+                            if (!isActive) e.currentTarget.style.backgroundColor = '#ffffff';
+                          }}
+                        >
+                          {p}
+                        </button>
+                      );
+                    })}
 
-                  {/* Nút về trang cuối */}
-                  <button
-                    type="button"
-                    disabled={safeCurrentPage >= totalPages}
-                    onClick={() => setCurrentPage(totalPages)}
-                    style={{
-                      padding: '5px 9px',
-                      borderRadius: '6px',
-                      border: '1px solid #cbd5e1',
-                      background: safeCurrentPage >= totalPages ? '#f8fafc' : '#ffffff',
-                      color: safeCurrentPage >= totalPages ? '#94a3b8' : '#334155',
-                      cursor: safeCurrentPage >= totalPages ? 'not-allowed' : 'pointer',
-                      fontSize: '12px',
-                      fontWeight: '600'
-                    }}
-                    title="Đến trang cuối"
-                  >
-                    »
-                  </button>
+                  {/* Nút trang sau (>) - hiển thị khi chưa tới trang cuối */}
+                  {safeCurrentPage < totalPages && (
+                    <button
+                      type="button"
+                      onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                      style={{
+                        minWidth: '32px',
+                        height: '100%',
+                        padding: '0 8px',
+                        border: 'none',
+                        background: '#ffffff',
+                        color: '#4b5563',
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        transition: 'background-color 0.15s ease',
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f9fafb')}
+                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#ffffff')}
+                      title="Trang sau"
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="9 18 15 12 9 6" />
+                      </svg>
+                    </button>
+                  )}
                 </div>
               </div>
             )}
@@ -2094,39 +2116,38 @@ export default function DashboardPage({
 
       {/* Cảnh báo phiên sắp hết hạn */}
       {isWarningZone && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          width: '100vw',
-          height: '100vh',
-          background: 'rgba(15, 23, 42, 0.7)',
-          backdropFilter: 'blur(6px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 9999,
-          padding: '20px'
-        }}>
+        <ModalPortal>
           <div style={{
-            width: '100%',
-            maxWidth: '440px',
-            background: '#1e293b',
-            border: '1px solid rgba(245, 158, 11, 0.5)',
-            borderRadius: '18px',
-            padding: '28px 24px',
-            boxShadow: '0 20px 50px rgba(0, 0, 0, 0.6), 0 0 25px rgba(245, 158, 11, 0.2)',
-            textAlign: 'center',
-            color: '#f8fafc'
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(15, 23, 42, 0.7)',
+            backdropFilter: 'blur(6px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 99999,
+            padding: '20px'
           }}>
-            <h3 style={{ fontSize: '19px', fontWeight: '700', margin: '0 0 10px', color: '#fde68a' }}>
-              Phiên Làm Việc Sắp Hết Hạn
-            </h3>
-            <p style={{ fontSize: '14px', color: '#cbd5e1', lineHeight: '1.6', margin: '0 0 14px' }}>
-              Hệ thống phát hiện bạn không thao tác trong một khoảng thời gian.
-            </p>
+            <div style={{
+              width: '100%',
+              maxWidth: '440px',
+              background: '#1e293b',
+              border: '1px solid rgba(245, 158, 11, 0.5)',
+              borderRadius: '18px',
+              padding: '28px 24px',
+              boxShadow: '0 20px 50px rgba(0, 0, 0, 0.6), 0 0 25px rgba(245, 158, 11, 0.2)',
+              textAlign: 'center',
+              color: '#f8fafc'
+            }}>
+              <h3 style={{ fontSize: '19px', fontWeight: '700', margin: '0 0 10px', color: '#fde68a' }}>
+                Phiên Làm Việc Sắp Hết Hạn
+              </h3>
+              <p style={{ fontSize: '14px', color: '#cbd5e1', lineHeight: '1.6', margin: '0 0 14px' }}>
+                Hệ thống phát hiện bạn không thao tác trong một khoảng thời gian.
+              </p>
+            </div>
           </div>
-        </div>
+        </ModalPortal>
       )}
 
       {/* Modals */}
@@ -2164,114 +2185,116 @@ export default function DashboardPage({
 
       {/* Xác nhận đăng xuất */}
       {showLogoutConfirm && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            backgroundColor: 'rgba(15, 23, 42, 0.65)',
-            backdropFilter: 'blur(4px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 99999,
-            padding: '16px',
-            animation: 'fadeInCard 0.15s ease-out'
-          }}
-        >
+        <ModalPortal>
           <div
             style={{
-              backgroundColor: '#ffffff',
-              borderRadius: '16px',
-              padding: '24px',
-              maxWidth: '380px',
-              width: '100%',
-              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-              textAlign: 'center',
-              border: '1px solid #e2e8f0'
+              position: 'fixed',
+              inset: 0,
+              backgroundColor: 'rgba(15, 23, 42, 0.65)',
+              backdropFilter: 'blur(4px)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 99999,
+              padding: '16px',
+              animation: 'fadeInCard 0.15s ease-out'
             }}
           >
             <div
               style={{
-                width: '52px',
-                height: '52px',
-                borderRadius: '50%',
-                backgroundColor: '#fef2f2',
-                color: '#dc2626',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                margin: '0 auto 16px auto',
-                border: '1px solid #fee2e2'
+                backgroundColor: '#ffffff',
+                borderRadius: '16px',
+                padding: '24px',
+                maxWidth: '380px',
+                width: '100%',
+                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+                textAlign: 'center',
+                border: '1px solid #e2e8f0'
               }}
             >
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                <polyline points="16 17 21 12 16 7" />
-                <line x1="21" y1="12" x2="9" y2="12" />
-              </svg>
-            </div>
-
-            <h3 style={{ fontSize: '18px', fontWeight: '700', color: '#0f172a', margin: '0 0 8px 0' }}>
-              Xác nhận đăng xuất
-            </h3>
-            <p style={{ fontSize: '14px', color: '#64748b', lineHeight: '1.5', margin: '0 0 24px 0' }}>
-              Bạn có chắc chắn muốn đăng xuất khỏi hệ thống không?
-            </p>
-
-            <div style={{ display: 'flex', justifyContent: 'center', gap: '10px' }}>
-              <button
-                type="button"
-                onClick={() => setShowLogoutConfirm(false)}
+              <div
                 style={{
-                  flex: 1,
-                  padding: '9px 16px',
-                  borderRadius: '10px',
-                  border: '1px solid #cbd5e1',
-                  backgroundColor: '#ffffff',
-                  color: '#334155',
-                  fontSize: '14px',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  transition: 'background 0.15s ease'
+                  width: '52px',
+                  height: '52px',
+                  borderRadius: '50%',
+                  backgroundColor: '#fef2f2',
+                  color: '#dc2626',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  margin: '0 auto 16px auto',
+                  border: '1px solid #fee2e2'
                 }}
-                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f1f5f9')}
-                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#ffffff')}
               >
-                Hủy bỏ
-              </button>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                  <polyline points="16 17 21 12 16 7" />
+                  <line x1="21" y1="12" x2="9" y2="12" />
+                </svg>
+              </div>
 
-              <button
-                type="button"
-                onClick={async () => {
-                  setShowLogoutConfirm(false);
-                  setIsLoggingOut(true);
-                  try {
-                    await onLogout();
-                  } finally {
-                    setIsLoggingOut(false);
-                  }
-                }}
-                style={{
-                  flex: 1,
-                  padding: '9px 16px',
-                  borderRadius: '10px',
-                  border: 'none',
-                  backgroundColor: '#dc2626',
-                  color: '#ffffff',
-                  fontSize: '14px',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  boxShadow: '0 2px 8px rgba(220, 38, 38, 0.25)',
-                  transition: 'background 0.15s ease'
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#b91c1c')}
-                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#dc2626')}
-              >
-                Đăng xuất
-              </button>
+              <h3 style={{ fontSize: '18px', fontWeight: '700', color: '#0f172a', margin: '0 0 8px 0' }}>
+                Xác nhận đăng xuất
+              </h3>
+              <p style={{ fontSize: '14px', color: '#64748b', lineHeight: '1.5', margin: '0 0 24px 0' }}>
+                Bạn có chắc chắn muốn đăng xuất khỏi hệ thống không?
+              </p>
+
+              <div style={{ display: 'flex', justifyContent: 'center', gap: '10px' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowLogoutConfirm(false)}
+                  style={{
+                    flex: 1,
+                    padding: '9px 16px',
+                    borderRadius: '10px',
+                    border: '1px solid #cbd5e1',
+                    backgroundColor: '#ffffff',
+                    color: '#334155',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    transition: 'background 0.15s ease'
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f1f5f9')}
+                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#ffffff')}
+                >
+                  Hủy bỏ
+                </button>
+
+                <button
+                  type="button"
+                  onClick={async () => {
+                    setShowLogoutConfirm(false);
+                    setIsLoggingOut(true);
+                    try {
+                      await onLogout();
+                    } finally {
+                      setIsLoggingOut(false);
+                    }
+                  }}
+                  style={{
+                    flex: 1,
+                    padding: '9px 16px',
+                    borderRadius: '10px',
+                    border: 'none',
+                    backgroundColor: '#dc2626',
+                    color: '#ffffff',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    boxShadow: '0 2px 8px rgba(220, 38, 38, 0.25)',
+                    transition: 'background 0.15s ease'
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#b91c1c')}
+                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#dc2626')}
+                >
+                  Đăng xuất
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        </ModalPortal>
       )}
 
       <ProductAuditDrawer

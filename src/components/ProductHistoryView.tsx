@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   AuditLogItem,
   getEntityAuditLogsApi,
@@ -45,6 +45,21 @@ export const ProductHistoryView: React.FC<ProductHistoryViewProps> = ({
   // Bộ tìm kiếm sản phẩm trong dropdown
   const [productSearchTerm, setProductSearchTerm] = useState('');
   const [isProductPickerOpen, setIsProductPickerOpen] = useState(false);
+  const productPickerRef = useRef<HTMLDivElement>(null);
+
+  // Đóng dropdown khi click ra ngoài mà KHÔNG dùng fixed overlay chặn thao tác cuộn trang
+  useEffect(() => {
+    if (!isProductPickerOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (productPickerRef.current && !productPickerRef.current.contains(e.target as Node)) {
+        setIsProductPickerOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isProductPickerOpen]);
 
   // 2. Trạng thái tải nhật ký lịch sử
   const [logs, setLogs] = useState<AuditLogItem[]>([]);
@@ -56,6 +71,28 @@ export const ProductHistoryView: React.FC<ProductHistoryViewProps> = ({
   const [textSearch, setTextSearch] = useState('');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+
+  const formatDisplayDate = (dStr: string) => {
+    if (!dStr) return '';
+    const parts = dStr.split('-');
+    if (parts.length === 3) return `${parts[2]}/${parts[1]}`;
+    return dStr;
+  };
+
+  const dateRangeLabel = useMemo(() => {
+    if (fromDate && toDate) {
+      const fromParts = fromDate.split('-');
+      const toParts = toDate.split('-');
+      if (fromParts.length === 3 && toParts.length === 3) {
+        return `${fromParts[2]}/${fromParts[1]} – ${toParts[2]}/${toParts[1]}/${toParts[0]}`;
+      }
+      return `${fromDate} – ${toDate}`;
+    }
+    if (fromDate) return `Từ ${formatDisplayDate(fromDate)}`;
+    if (toDate) return `Đến ${formatDisplayDate(toDate)}`;
+    return '01/10 – 07/10/2026';
+  }, [fromDate, toDate]);
 
   // 4. Modal chi tiết Diff
   const [selectedDetailLog, setSelectedDetailLog] = useState<AuditLogItem | null>(null);
@@ -172,22 +209,49 @@ export const ProductHistoryView: React.FC<ProductHistoryViewProps> = ({
     });
   }, [logs, filterType, textSearch, fromDate, toDate]);
 
+  // 5. Phân trang danh sách lịch sử
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const pageSize = 5;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedProductCode, filterType, textSearch, fromDate, toDate]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredLogs.length / pageSize));
+  const safePage = Math.min(Math.max(1, currentPage), totalPages);
+  const paginatedLogs = useMemo(() => {
+    const start = (safePage - 1) * pageSize;
+    return filteredLogs.slice(start, start + pageSize);
+  }, [filteredLogs, safePage, pageSize]);
+
   return (
-    <div style={{ padding: '0 0 40px 0', width: '100%' }}>
+    <div
+      style={{
+        width: '100%',
+        maxWidth: '1680px',
+        margin: '0 auto',
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+        boxSizing: 'border-box',
+      }}
+    >
       {/* HEADER BAR CỦA TRANG */}
       <div
         style={{
           background: '#ffffff',
           border: '1px solid #e2e8f0',
           borderRadius: '16px',
-          padding: '20px 24px',
+          padding: '16px 20px',
           boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
-          marginBottom: '20px',
+          marginBottom: '14px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
           flexWrap: 'wrap',
           gap: '16px',
+          flexShrink: 0,
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
@@ -222,7 +286,7 @@ export const ProductHistoryView: React.FC<ProductHistoryViewProps> = ({
           <div>
             <h1
               style={{
-                margin: '0 0 4px 0',
+                margin: 0,
                 fontSize: '20px',
                 fontWeight: '800',
                 color: '#0f172a',
@@ -231,9 +295,6 @@ export const ProductHistoryView: React.FC<ProductHistoryViewProps> = ({
             >
               Lịch Sử Thay Đổi Sản Phẩm
             </h1>
-            <p style={{ margin: 0, fontSize: '13.5px', color: '#64748b' }}>
-              Theo dõi chi tiết các lần điều chỉnh tồn kho, biến động giá bán và giá vốn theo từng sản phẩm
-            </p>
           </div>
         </div>
 
@@ -258,50 +319,35 @@ export const ProductHistoryView: React.FC<ProductHistoryViewProps> = ({
             }}
             title="Làm mới lịch sử"
           >
-            <span>{loading ? 'Đang tải...' : 'Làm mới 🔄'}</span>
+            <span>{loading ? 'Đang tải...' : 'Làm mới'}</span>
           </button>
         </div>
       </div>
 
-      {/* 3. THẺ THÔNG TIN SẢN PHẨM & DROPDOWN CHỌN SẢN PHẨM */}
+      {/* 3. THẺ THÔNG TIN SẢN PHẨM & THANH CÔNG CỤ LỌC (LAYOUT THEO ẢNH 3) */}
       <div
         style={{
           background: '#ffffff',
           border: '1px solid #e2e8f0',
-          borderRadius: '16px',
-          padding: '20px 24px',
-          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
-          marginBottom: '20px',
+          borderRadius: '12px',
+          padding: '12px 18px',
+          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
+          marginBottom: '14px',
+          flexShrink: 0,
         }}
       >
+        {/* HÀNG 1: CHỌN SẢN PHẨM & 3 CHỈ SỐ (TỒN KHO, GIÁ BÁN, GIÁ VỐN) */}
         <div
           style={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            flexWrap: 'wrap',
             gap: '16px',
-            borderBottom: '1px solid #f1f5f9',
-            paddingBottom: '16px',
-            marginBottom: '16px',
+            flexWrap: 'wrap',
           }}
         >
           {/* Chọn sản phẩm */}
-          <div style={{ position: 'relative', minWidth: '320px', flex: '1 1 320px' }}>
-            <label
-              style={{
-                display: 'block',
-                fontSize: '12.5px',
-                fontWeight: '700',
-                color: '#475569',
-                marginBottom: '6px',
-                textTransform: 'uppercase',
-                letterSpacing: '0.03em',
-              }}
-            >
-              Chọn sản phẩm xem lịch sử:
-            </label>
-
+          <div ref={productPickerRef} style={{ position: 'relative', flex: '1 1 340px', minWidth: '280px' }}>
             <button
               type="button"
               onClick={() => setIsProductPickerOpen((prev) => !prev)}
@@ -310,321 +356,349 @@ export const ProductHistoryView: React.FC<ProductHistoryViewProps> = ({
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                padding: '10px 14px',
-                borderRadius: '10px',
-                border: isProductPickerOpen ? '2px solid #2563eb' : '1px solid #cbd5e1',
-                background: '#f8fafc',
+                padding: '9px 14px',
+                borderRadius: '8px',
+                border: isProductPickerOpen ? '1px solid #2563eb' : '1px solid #cbd5e1',
+                background: '#ffffff',
                 cursor: 'pointer',
                 textAlign: 'left',
+                boxSizing: 'border-box',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', overflow: 'hidden' }}>
-                <span
-                  style={{
-                    background: '#e0e7ff',
-                    color: '#4338ca',
-                    fontFamily: 'monospace',
-                    fontWeight: '700',
-                    padding: '3px 8px',
-                    borderRadius: '6px',
-                    fontSize: '12.5px',
-                    flexShrink: 0,
-                  }}
-                >
-                  {selectedProductCode || 'Chưa chọn'}
-                </span>
-                <span
-                  style={{
-                    fontSize: '14px',
-                    fontWeight: '700',
-                    color: '#0f172a',
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                  }}
-                >
-                  {selectedProduct?.name || 'Vui lòng chọn sản phẩm'}
-                </span>
-              </div>
-              <span style={{ color: '#64748b', fontSize: '13px', marginLeft: '8px' }}>▼</span>
+              <span
+                style={{
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  color: '#0f172a',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                }}
+              >
+                {selectedProductCode
+                  ? `${selectedProductCode} · ${selectedProduct?.name || 'Sản phẩm'}`
+                  : 'Vui lòng chọn sản phẩm'}
+              </span>
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="#64748b"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                style={{ flexShrink: 0, marginLeft: '8px' }}
+              >
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
             </button>
 
             {/* Menu Dropdown danh sách sản phẩm */}
             {isProductPickerOpen && (
-              <>
-                <div
-                  onClick={() => setIsProductPickerOpen(false)}
-                  style={{ position: 'fixed', inset: 0, zIndex: 100 }}
+              <div
+                style={{
+                  position: 'absolute',
+                  top: 'calc(100% + 6px)',
+                  left: 0,
+                  right: 0,
+                  background: '#ffffff',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: '12px',
+                  boxShadow: '0 12px 28px rgba(0, 0, 0, 0.15)',
+                  zIndex: 101,
+                  padding: '10px',
+                  maxHeight: '380px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  boxSizing: 'border-box',
+                }}
+              >
+                <input
+                  type="text"
+                  value={productSearchTerm}
+                  onChange={(e) => setProductSearchTerm(e.target.value)}
+                  placeholder="Tìm theo mã hoặc tên sản phẩm..."
+                  autoFocus
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    borderRadius: '8px',
+                    border: '1px solid #cbd5e1',
+                    fontSize: '13px',
+                    marginBottom: '8px',
+                    boxSizing: 'border-box',
+                    outline: 'none',
+                  }}
                 />
                 <div
                   style={{
-                    position: 'absolute',
-                    top: 'calc(100% + 6px)',
-                    left: 0,
-                    right: 0,
-                    background: '#ffffff',
-                    border: '1px solid #cbd5e1',
-                    borderRadius: '12px',
-                    boxShadow: '0 12px 28px rgba(0, 0, 0, 0.15)',
-                    zIndex: 101,
-                    padding: '10px',
-                    maxHeight: '360px',
+                    flex: 1,
+                    minHeight: 0,
+                    maxHeight: '280px',
+                    overflowY: 'auto',
                     display: 'flex',
                     flexDirection: 'column',
+                    gap: '3px',
+                    overscrollBehavior: 'contain',
                   }}
                 >
-                  <input
-                    type="text"
-                    value={productSearchTerm}
-                    onChange={(e) => setProductSearchTerm(e.target.value)}
-                    placeholder="Tìm theo mã hoặc tên sản phẩm..."
-                    autoFocus
-                    style={{
-                      width: '100%',
-                      padding: '8px 12px',
-                      borderRadius: '8px',
-                      border: '1px solid #cbd5e1',
-                      fontSize: '13px',
-                      marginBottom: '8px',
-                      boxSizing: 'border-box',
-                      outline: 'none',
-                    }}
-                  />
-                  <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                    {filteredProductOptions.length === 0 ? (
-                      <div style={{ padding: '12px', textAlign: 'center', color: '#94a3b8', fontSize: '13px' }}>
-                        Không tìm thấy sản phẩm nào
-                      </div>
-                    ) : (
-                      filteredProductOptions.map((p) => {
-                        const isSelected = p.code === selectedProductCode;
-                        return (
-                          <div
-                            key={p.code}
-                            onClick={() => handleSelectProduct(p.code)}
-                            style={{
-                              padding: '8px 10px',
-                              borderRadius: '8px',
-                              cursor: 'pointer',
-                              background: isSelected ? '#eff6ff' : 'transparent',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'space-between',
-                              transition: 'background 0.12s ease',
-                            }}
-                            onMouseEnter={(e) => {
-                              if (!isSelected) e.currentTarget.style.background = '#f8fafc';
-                            }}
-                            onMouseLeave={(e) => {
-                              if (!isSelected) e.currentTarget.style.background = 'transparent';
-                            }}
-                          >
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
-                              <span
-                                style={{
-                                  background: isSelected ? '#bfdbfe' : '#f1f5f9',
-                                  color: isSelected ? '#1e40af' : '#475569',
-                                  fontFamily: 'monospace',
-                                  fontWeight: '700',
-                                  padding: '2px 6px',
-                                  borderRadius: '5px',
-                                  fontSize: '12px',
-                                  flexShrink: 0,
-                                }}
-                              >
-                                {p.code}
-                              </span>
-                              <span
-                                style={{
-                                  fontSize: '13.5px',
-                                  fontWeight: isSelected ? '700' : '500',
-                                  color: '#0f172a',
-                                  overflow: 'hidden',
-                                  textOverflow: 'ellipsis',
-                                  whiteSpace: 'nowrap',
-                                }}
-                              >
-                                {p.name}
-                              </span>
-                            </div>
-                            <span style={{ fontSize: '12px', color: '#64748b', flexShrink: 0, marginLeft: '8px' }}>
-                              Tồn: <strong>{p.stock}</strong>
+                  {filteredProductOptions.length === 0 ? (
+                    <div style={{ padding: '12px', textAlign: 'center', color: '#94a3b8', fontSize: '13px' }}>
+                      Không tìm thấy sản phẩm nào
+                    </div>
+                  ) : (
+                    filteredProductOptions.map((p) => {
+                      const isSelected = p.code === selectedProductCode;
+                      return (
+                        <div
+                          key={p.code}
+                          onClick={() => handleSelectProduct(p.code)}
+                          style={{
+                            padding: '8px 10px',
+                            borderRadius: '8px',
+                            cursor: 'pointer',
+                            background: isSelected ? '#eff6ff' : 'transparent',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            transition: 'background 0.12s ease',
+                          }}
+                          onMouseEnter={(e) => {
+                            if (!isSelected) e.currentTarget.style.background = '#f8fafc';
+                          }}
+                          onMouseLeave={(e) => {
+                            if (!isSelected) e.currentTarget.style.background = 'transparent';
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
+                            <span
+                              style={{
+                                background: isSelected ? '#bfdbfe' : '#f1f5f9',
+                                color: isSelected ? '#1e40af' : '#475569',
+                                fontFamily: 'monospace',
+                                fontWeight: '700',
+                                padding: '2px 6px',
+                                borderRadius: '5px',
+                                fontSize: '12px',
+                                flexShrink: 0,
+                              }}
+                            >
+                              {p.code}
+                            </span>
+                            <span
+                              style={{
+                                fontSize: '13.5px',
+                                fontWeight: isSelected ? '700' : '500',
+                                color: '#0f172a',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
+                              {p.name}
                             </span>
                           </div>
-                        );
-                      })
-                    )}
-                  </div>
+                          <span style={{ fontSize: '12px', color: '#64748b', flexShrink: 0, marginLeft: '8px' }}>
+                            Tồn: <strong>{p.stock}</strong>
+                          </span>
+                        </div>
+                      );
+                    })
+                  )}
                 </div>
-              </>
+              </div>
             )}
           </div>
 
-          {/* Các chỉ số tổng quan của sản phẩm */}
-          {selectedProduct && (
+          {/* 3 Thẻ chỉ số: Tồn kho, Giá bán, Giá vốn */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
+            {/* Tồn kho */}
             <div
               style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px',
-                flexWrap: 'wrap',
+                background: '#ffffff',
+                border: '1px solid #e2e8f0',
+                borderRadius: '8px',
+                padding: '6px 14px',
+                textAlign: 'center',
+                minWidth: '85px',
               }}
             >
-              <div
-                style={{
-                  background: '#f8fafc',
-                  border: '1px solid #e2e8f0',
-                  borderRadius: '10px',
-                  padding: '8px 14px',
-                  textAlign: 'center',
-                }}
-              >
-                <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600' }}>TỒN KHO HIỆN TẠI</div>
-                <div style={{ fontSize: '16px', fontWeight: '800', color: '#0f172a', marginTop: '2px' }}>
-                  {selectedProduct.stock} {selectedProduct.base_unit || 'đơn vị'}
-                </div>
+              <div style={{ fontSize: '12px', color: '#64748b', fontWeight: '500' }}>Tồn kho</div>
+              <div style={{ fontSize: '15px', fontWeight: '700', color: '#0f172a', marginTop: '2px' }}>
+                {selectedProduct ? `${selectedProduct.stock} ${selectedProduct.base_unit || 'Cái'}` : '0 Cái'}
               </div>
-
-              <div
-                style={{
-                  background: '#f8fafc',
-                  border: '1px solid #e2e8f0',
-                  borderRadius: '10px',
-                  padding: '8px 14px',
-                  textAlign: 'center',
-                }}
-              >
-                <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600' }}>GIÁ BÁN HIỆN TẠI</div>
-                <div style={{ fontSize: '16px', fontWeight: '800', color: '#0284c7', marginTop: '2px' }}>
-                  {selectedProduct.sell_price.toLocaleString('vi-VN')} đ
-                </div>
-              </div>
-
-              {isCostVisible && selectedProduct.cost_price !== undefined && selectedProduct.cost_price !== null && (
-                <div
-                  style={{
-                    background: '#fffbeb',
-                    border: '1px solid #fde68a',
-                    borderRadius: '10px',
-                    padding: '8px 14px',
-                    textAlign: 'center',
-                  }}
-                >
-                  <div style={{ fontSize: '11px', color: '#92400e', fontWeight: '600' }}>GIÁ VỐN HIỆN TẠI</div>
-                  <div style={{ fontSize: '16px', fontWeight: '800', color: '#b45309', marginTop: '2px' }}>
-                    {selectedProduct.cost_price.toLocaleString('vi-VN')} đ
-                  </div>
-                </div>
-              )}
-
-              {selectedProduct.category && (
-                <div
-                  style={{
-                    background: '#f8fafc',
-                    border: '1px solid #e2e8f0',
-                    borderRadius: '10px',
-                    padding: '8px 14px',
-                    textAlign: 'center',
-                  }}
-                >
-                  <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600' }}>DANH MỤC</div>
-                  <div style={{ fontSize: '14px', fontWeight: '700', color: '#334155', marginTop: '2px' }}>
-                    {selectedProduct.category}
-                  </div>
-                </div>
-              )}
             </div>
-          )}
+
+            {/* Giá bán */}
+            <div
+              style={{
+                background: '#ffffff',
+                border: '1px solid #e2e8f0',
+                borderRadius: '8px',
+                padding: '6px 14px',
+                textAlign: 'center',
+                minWidth: '95px',
+              }}
+            >
+              <div style={{ fontSize: '12px', color: '#64748b', fontWeight: '500' }}>Giá bán</div>
+              <div style={{ fontSize: '15px', fontWeight: '700', color: '#1d4ed8', marginTop: '2px' }}>
+                {selectedProduct ? `${selectedProduct.sell_price.toLocaleString('vi-VN')} đ` : '0 đ'}
+              </div>
+            </div>
+
+            {/* Giá vốn */}
+            {isCostVisible && (
+              <div
+                style={{
+                  background: '#ffffff',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '8px',
+                  padding: '6px 14px',
+                  textAlign: 'center',
+                  minWidth: '95px',
+                }}
+              >
+                <div style={{ fontSize: '12px', color: '#64748b', fontWeight: '500' }}>Giá vốn</div>
+                <div style={{ fontSize: '15px', fontWeight: '700', color: '#b45309', marginTop: '2px' }}>
+                  {selectedProduct && selectedProduct.cost_price !== undefined && selectedProduct.cost_price !== null
+                    ? `${selectedProduct.cost_price.toLocaleString('vi-VN')} đ`
+                    : '0 đ'}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* 4. THANH CÔNG CỤ LỌC & TAB PHÂN LOẠI */}
+        {/* ĐƯỜNG PHÂN CÁCH NGANG */}
+        <div style={{ height: '1px', background: '#e2e8f0', margin: '14px 0' }} />
+
+        {/* HÀNG 2: TABS PHÂN LOẠI & TÌM KIẾM + LỌC NGÀY */}
+        <style>{`
+          .history-search-input,
+          .history-search-input:hover,
+          .history-search-input:focus {
+            border: none !important;
+            outline: none !important;
+            box-shadow: none !important;
+            background: transparent !important;
+            padding: 0 !important;
+            border-radius: 0 !important;
+          }
+        `}</style>
         <div
           style={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            flexWrap: 'wrap',
             gap: '12px',
+            flexWrap: 'wrap',
           }}
         >
-          {/* Tab Phân loại */}
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          {/* Tabs phân loại */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            {/* Tab Tất cả */}
             <button
               type="button"
               onClick={() => setFilterType('ALL')}
               style={{
-                padding: '8px 14px',
+                height: '38px',
+                boxSizing: 'border-box',
+                padding: '0 12px',
                 borderRadius: '8px',
-                border: filterType === 'ALL' ? '1px solid #2563eb' : '1px solid #cbd5e1',
-                background: filterType === 'ALL' ? '#eff6ff' : '#ffffff',
-                color: filterType === 'ALL' ? '#1d4ed8' : '#475569',
+                border: filterType === 'ALL' ? '1px solid #0fad89' : '1px solid #cbd5e1',
+                background: filterType === 'ALL' ? '#ecfdf5' : '#ffffff',
+                color: filterType === 'ALL' ? '#065f46' : '#475569',
                 fontWeight: filterType === 'ALL' ? '700' : '600',
-                fontSize: '13px',
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-              }}
-            >
-              Tất cả ({logs.length})
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setFilterType('PRICE_CHANGE')}
-              style={{
-                padding: '8px 14px',
-                borderRadius: '8px',
-                border: filterType === 'PRICE_CHANGE' ? '1px solid #f59e0b' : '1px solid #cbd5e1',
-                background: filterType === 'PRICE_CHANGE' ? '#fef3c7' : '#ffffff',
-                color: filterType === 'PRICE_CHANGE' ? '#b45309' : '#475569',
-                fontWeight: filterType === 'PRICE_CHANGE' ? '700' : '600',
                 fontSize: '13px',
                 cursor: 'pointer',
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: '6px',
+                gap: '8px',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              <span>Tất cả</span>
+              <span
+                style={{
+                  background: filterType === 'ALL' ? '#ffffff' : '#f1f5f9',
+                  color: filterType === 'ALL' ? '#1d4ed8' : '#64748b',
+                  padding: '1px 7px',
+                  borderRadius: '9999px',
+                  fontSize: '12px',
+                  fontWeight: '700',
+                }}
+              >
+                {logs.length}
+              </span>
+            </button>
+
+            {/* Tab Thay đổi giá */}
+            <button
+              type="button"
+              onClick={() => setFilterType('PRICE_CHANGE')}
+              style={{
+                height: '38px',
+                boxSizing: 'border-box',
+                padding: '0 12px',
+                borderRadius: '8px',
+                border: filterType === 'PRICE_CHANGE' ? '1px solid #bfdbfe' : '1px solid #e2e8f0',
+                background: filterType === 'PRICE_CHANGE' ? '#dbeafe' : '#ffffff',
+                color: filterType === 'PRICE_CHANGE' ? '#1d4ed8' : '#475569',
+                fontWeight: filterType === 'PRICE_CHANGE' ? '700' : '500',
+                fontSize: '13.5px',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
                 transition: 'all 0.15s ease',
               }}
             >
               <span>Thay đổi giá</span>
               <span
                 style={{
-                  background: filterType === 'PRICE_CHANGE' ? '#fde68a' : '#f1f5f9',
-                  padding: '2px 7px',
-                  borderRadius: '10px',
-                  fontSize: '11px',
-                  fontWeight: '700',
+                  background: filterType === 'PRICE_CHANGE' ? '#ffffff' : '#f1f5f9',
+                  color: filterType === 'PRICE_CHANGE' ? '#1d4ed8' : '#64748b',
+                  padding: '1px 6px',
+                  borderRadius: '9999px',
+                  fontSize: '12px',
+                  fontWeight: '600',
                 }}
               >
                 {priceLogsCount}
               </span>
             </button>
 
+            {/* Tab Điều chỉnh kho */}
             <button
               type="button"
               onClick={() => setFilterType('INVENTORY_ADJUST')}
               style={{
-                padding: '8px 14px',
+                height: '38px',
+                boxSizing: 'border-box',
+                padding: '0 12px',
                 borderRadius: '8px',
-                border: filterType === 'INVENTORY_ADJUST' ? '1px solid #3b82f6' : '1px solid #cbd5e1',
+                border: filterType === 'INVENTORY_ADJUST' ? '1px solid #bfdbfe' : '1px solid #e2e8f0',
                 background: filterType === 'INVENTORY_ADJUST' ? '#dbeafe' : '#ffffff',
-                color: filterType === 'INVENTORY_ADJUST' ? '#1e40af' : '#475569',
-                fontWeight: filterType === 'INVENTORY_ADJUST' ? '700' : '600',
-                fontSize: '13px',
+                color: filterType === 'INVENTORY_ADJUST' ? '#1d4ed8' : '#475569',
+                fontWeight: filterType === 'INVENTORY_ADJUST' ? '700' : '500',
+                fontSize: '13.5px',
                 cursor: 'pointer',
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: '6px',
+                gap: '8px',
                 transition: 'all 0.15s ease',
               }}
             >
               <span>Điều chỉnh kho</span>
               <span
                 style={{
-                  background: filterType === 'INVENTORY_ADJUST' ? '#bfdbfe' : '#f1f5f9',
-                  padding: '2px 7px',
-                  borderRadius: '10px',
-                  fontSize: '11px',
-                  fontWeight: '700',
+                  background: filterType === 'INVENTORY_ADJUST' ? '#ffffff' : '#f1f5f9',
+                  color: filterType === 'INVENTORY_ADJUST' ? '#1d4ed8' : '#64748b',
+                  padding: '1px 6px',
+                  borderRadius: '9999px',
+                  fontSize: '12px',
+                  fontWeight: '600',
                 }}
               >
                 {inventoryLogsCount}
@@ -632,85 +706,247 @@ export const ProductHistoryView: React.FC<ProductHistoryViewProps> = ({
             </button>
           </div>
 
-          {/* Ô tìm kiếm người sửa / lý do & lọc ngày */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-            <input
-              type="text"
-              value={textSearch}
-              onChange={(e) => setTextSearch(e.target.value)}
-              placeholder="Tìm theo người sửa, lý do..."
+          {/* Tìm kiếm & Khoảng ngày */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+            {/* Tìm kiếm người sửa, lý do */}
+            <div
               style={{
-                padding: '7px 12px',
-                borderRadius: '8px',
+                height: '38px',
+                boxSizing: 'border-box',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
                 border: '1px solid #cbd5e1',
-                fontSize: '13px',
-                minWidth: '200px',
-                outline: 'none',
-              }}
-            />
-
-            <input
-              type="date"
-              value={fromDate}
-              onChange={(e) => setFromDate(e.target.value)}
-              title="Từ ngày"
-              style={{
-                padding: '7px 10px',
                 borderRadius: '8px',
-                border: '1px solid #cbd5e1',
-                fontSize: '13px',
-                outline: 'none',
+                padding: '0 12px',
+                background: '#ffffff',
+                minWidth: '220px',
               }}
-            />
+            >
+              <svg
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="#64748b"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                style={{ flexShrink: 0 }}
+              >
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
+              <input
+                type="text"
+                className="history-search-input"
+                value={textSearch}
+                onChange={(e) => setTextSearch(e.target.value)}
+                placeholder="Tìm người sửa, lý do"
+                style={{
+                  border: 'none',
+                  outline: 'none',
+                  boxShadow: 'none',
+                  borderRadius: 0,
+                  padding: 0,
+                  height: '100%',
+                  fontSize: '13.5px',
+                  color: '#1e293b',
+                  width: '100%',
+                  background: 'transparent',
+                }}
+              />
+              {textSearch && (
+                <button
+                  type="button"
+                  onClick={() => setTextSearch('')}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#94a3b8',
+                    cursor: 'pointer',
+                    fontSize: '13px',
+                    padding: 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                  }}
+                  title="Xóa tìm kiếm"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
 
-            <input
-              type="date"
-              value={toDate}
-              onChange={(e) => setToDate(e.target.value)}
-              title="Đến ngày"
-              style={{
-                padding: '7px 10px',
-                borderRadius: '8px',
-                border: '1px solid #cbd5e1',
-                fontSize: '13px',
-                outline: 'none',
-              }}
-            />
-
-            {(textSearch || fromDate || toDate) && (
+            {/* Nút lọc ngày (mở popover) */}
+            <div style={{ position: 'relative' }}>
               <button
                 type="button"
-                onClick={() => {
-                  setTextSearch('');
-                  setFromDate('');
-                  setToDate('');
-                }}
+                onClick={() => setIsDatePickerOpen((prev) => !prev)}
                 style={{
-                  background: '#f1f5f9',
-                  border: '1px solid #cbd5e1',
+                  height: '38px',
+                  boxSizing: 'border-box',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  border: isDatePickerOpen ? '1px solid #2563eb' : '1px solid #cbd5e1',
                   borderRadius: '8px',
-                  padding: '7px 10px',
-                  fontSize: '12px',
-                  color: '#475569',
+                  padding: '0 12px',
+                  background: '#ffffff',
                   cursor: 'pointer',
-                  fontWeight: '600',
+                  fontSize: '13.5px',
+                  color: '#334155',
+                  fontWeight: '500',
+                  lineHeight: '1',
                 }}
               >
-                Xóa lọc
+                <svg
+                  width="15"
+                  height="15"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="#475569"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  style={{ flexShrink: 0 }}
+                >
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                  <line x1="16" y1="2" x2="16" y2="6"></line>
+                  <line x1="8" y1="2" x2="8" y2="6"></line>
+                  <line x1="3" y1="10" x2="21" y2="10"></line>
+                </svg>
+                <span>{dateRangeLabel}</span>
               </button>
-            )}
+
+              {/* Popover chọn ngày */}
+              {isDatePickerOpen && (
+                <>
+                  <div
+                    onClick={() => setIsDatePickerOpen(false)}
+                    style={{ position: 'fixed', inset: 0, zIndex: 100 }}
+                  />
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: 'calc(100% + 6px)',
+                      right: 0,
+                      background: '#ffffff',
+                      border: '1px solid #cbd5e1',
+                      borderRadius: '10px',
+                      boxShadow: '0 10px 25px rgba(0,0,0,0.12)',
+                      zIndex: 101,
+                      padding: '14px',
+                      minWidth: '260px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '10px',
+                    }}
+                  >
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12px', color: '#64748b', marginBottom: '4px', fontWeight: '600' }}>
+                        Từ ngày:
+                      </label>
+                      <input
+                        type="date"
+                        value={fromDate}
+                        onChange={(e) => setFromDate(e.target.value)}
+                        style={{
+                          width: '100%',
+                          padding: '6px 10px',
+                          borderRadius: '6px',
+                          border: '1px solid #cbd5e1',
+                          fontSize: '13px',
+                          boxSizing: 'border-box',
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12px', color: '#64748b', marginBottom: '4px', fontWeight: '600' }}>
+                        Đến ngày:
+                      </label>
+                      <input
+                        type="date"
+                        value={toDate}
+                        onChange={(e) => setToDate(e.target.value)}
+                        style={{
+                          width: '100%',
+                          padding: '6px 10px',
+                          borderRadius: '6px',
+                          border: '1px solid #cbd5e1',
+                          fontSize: '13px',
+                          boxSizing: 'border-box',
+                        }}
+                      />
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '4px' }}>
+                      {(fromDate || toDate) && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setFromDate('');
+                            setToDate('');
+                          }}
+                          style={{
+                            background: '#f1f5f9',
+                            border: '1px solid #cbd5e1',
+                            borderRadius: '6px',
+                            padding: '5px 10px',
+                            fontSize: '12px',
+                            cursor: 'pointer',
+                            color: '#475569',
+                          }}
+                        >
+                          Xóa ngày
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setIsDatePickerOpen(false)}
+                        style={{
+                          background: '#2563eb',
+                          border: 'none',
+                          borderRadius: '6px',
+                          padding: '5px 12px',
+                          fontSize: '12px',
+                          cursor: 'pointer',
+                          color: '#ffffff',
+                          fontWeight: '600',
+                        }}
+                      >
+                        Áp dụng
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </div>
       </div>
 
-      {/* 5. DANH SÁCH THẺ NHẬT KÝ LỊCH SỬ THAY ĐỔI */}
-      <div style={{ width: '100%' }}>
+      {/* 5. DANH SÁCH THẺ NHẬT KÝ LỊCH SỬ THAY ĐỔI (TRONG 1 Ô VUÔNG DUY NHẤT & PHÂN TRANG NHƯ ẢNH 2) */}
+      <div
+        style={{
+          width: '100%',
+          flex: 1,
+          minHeight: 0,
+          background: '#ffffff',
+          borderRadius: '16px',
+          border: '1px solid #e2e8f0',
+          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+        }}
+      >
         {loading ? (
           <div
             style={{
-              background: '#ffffff',
-              borderRadius: '16px',
-              border: '1px solid #e2e8f0',
+              flex: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+              alignItems: 'center',
               padding: '60px 20px',
               textAlign: 'center',
               color: '#64748b',
@@ -724,10 +960,13 @@ export const ProductHistoryView: React.FC<ProductHistoryViewProps> = ({
         ) : error ? (
           <div
             style={{
+              flex: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+              alignItems: 'center',
               background: '#fef2f2',
-              border: '1px solid #fecaca',
               color: '#dc2626',
-              borderRadius: '16px',
               padding: '24px',
               textAlign: 'center',
             }}
@@ -737,9 +976,11 @@ export const ProductHistoryView: React.FC<ProductHistoryViewProps> = ({
         ) : filteredLogs.length === 0 ? (
           <div
             style={{
-              background: '#ffffff',
-              borderRadius: '16px',
-              border: '1px solid #e2e8f0',
+              flex: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+              alignItems: 'center',
               padding: '60px 20px',
               textAlign: 'center',
             }}
@@ -757,8 +998,24 @@ export const ProductHistoryView: React.FC<ProductHistoryViewProps> = ({
             </p>
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            {filteredLogs.map((log) => {
+          <div
+            style={{
+              flex: 1,
+              minHeight: 0,
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden',
+            }}
+          >
+            <div
+              style={{
+                flex: 1,
+                minHeight: 0,
+                overflowY: 'auto',
+              }}
+            >
+              {paginatedLogs.map((log, index) => {
+              const isLast = index === paginatedLogs.length - 1;
               const oldObj = parseJSON(log.old_values);
               const newObj = parseJSON(log.new_values);
 
@@ -798,13 +1055,13 @@ export const ProductHistoryView: React.FC<ProductHistoryViewProps> = ({
                 <div
                   key={log.id}
                   style={{
-                    border: '1px solid #e2e8f0',
-                    borderRadius: '14px',
                     padding: '18px 22px',
+                    borderBottom: isLast ? 'none' : '1px solid #e2e8f0',
                     background: '#ffffff',
-                    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
-                    transition: 'all 0.15s ease',
+                    transition: 'background 0.15s ease',
                   }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = '#fcfdfe')}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = '#ffffff')}
                 >
                   {/* Header thẻ: Loại thao tác & Thời điểm */}
                   <div
@@ -1105,42 +1362,50 @@ export const ProductHistoryView: React.FC<ProductHistoryViewProps> = ({
                     </div>
                   </div>
 
-                  {/* Lý do điều chỉnh */}
-                  {log.reason && (
-                    <div
-                      style={{
-                        fontSize: '13px',
-                        color: '#334155',
-                        background: '#f8fafc',
-                        padding: '10px 14px',
-                        borderRadius: '10px',
-                        marginBottom: '12px',
-                        border: '1px dashed #cbd5e1',
-                        lineHeight: '1.5',
-                      }}
-                    >
-                      <strong style={{ color: '#0f172a' }}>Lý do:</strong> {log.reason}
-                    </div>
-                  )}
+                  {/* Hàng chứa Lý do và Nút Xem chi tiết */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: log.reason ? 'space-between' : 'flex-end', gap: '12px', marginTop: '6px' }}>
+                    {log.reason ? (
+                      <div
+                        style={{
+                          flex: 1,
+                          minWidth: 0,
+                          fontSize: '13px',
+                          color: '#334155',
+                          background: '#f8fafc',
+                          padding: '8px 14px',
+                          borderRadius: '10px',
+                          border: '1px dashed #cbd5e1',
+                          lineHeight: '1.5',
+                        }}
+                      >
+                        <strong style={{ color: '#0f172a' }}>Lý do:</strong> {log.reason}
+                      </div>
+                    ) : null}
 
-                  {/* Footer thẻ: Nút xem chi tiết */}
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '6px' }}>
                     <button
                       type="button"
                       onClick={() => setSelectedDetailLog(log)}
                       style={{
+                        flexShrink: 0,
                         background: '#f1f5f9',
-                        border: 'none',
-                        padding: '6px 14px',
+                        border: '1px solid #cbd5e1',
+                        padding: '8px 14px',
                         borderRadius: '8px',
                         fontSize: '12.5px',
                         fontWeight: '600',
                         color: '#2563eb',
                         cursor: 'pointer',
-                        transition: 'background 0.15s ease',
+                        transition: 'all 0.15s ease',
+                        whiteSpace: 'nowrap',
                       }}
-                      onMouseEnter={(e) => (e.currentTarget.style.background = '#e2e8f0')}
-                      onMouseLeave={(e) => (e.currentTarget.style.background = '#f1f5f9')}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = '#eff6ff';
+                        e.currentTarget.style.borderColor = '#93c5fd';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = '#f1f5f9';
+                        e.currentTarget.style.borderColor = '#cbd5e1';
+                      }}
                     >
                       Xem chi tiết →
                     </button>
@@ -1149,8 +1414,168 @@ export const ProductHistoryView: React.FC<ProductHistoryViewProps> = ({
               );
             })}
           </div>
-        )}
-      </div>
+
+          {/* KHỐI PHÂN TRANG NHƯ ẢNH 2 */}
+          {filteredLogs.length > 0 && (
+            <div
+              style={{
+                padding: '12px 20px',
+                display: 'flex',
+                justifyContent: 'flex-end',
+                alignItems: 'center',
+                borderTop: '1px solid #e2e8f0',
+                background: '#f8fafc',
+                fontSize: '13px',
+                color: '#64748b',
+                flexShrink: 0,
+                marginTop: 'auto',
+              }}
+            >
+              {/* Khối phân trang liền thanh */}
+              <div
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'stretch',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '8px',
+                  overflow: 'hidden',
+                  background: '#ffffff',
+                  boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
+                  height: '32px',
+                }}
+              >
+                {/* Nút trang trước (<) */}
+                {safePage > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    style={{
+                      minWidth: '32px',
+                      height: '100%',
+                      padding: '0 8px',
+                      border: 'none',
+                      borderRight: '1px solid #e5e7eb',
+                      background: '#ffffff',
+                      color: '#4b5563',
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      transition: 'background-color 0.15s ease',
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f9fafb')}
+                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#ffffff')}
+                    title="Trang trước"
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="15 18 9 12 15 6" />
+                    </svg>
+                  </button>
+                )}
+
+                {/* Danh sách các số trang */}
+                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                  .filter((p) => p === 1 || p === totalPages || Math.abs(p - safePage) <= 1)
+                  .reduce<(number | string)[]>((acc, p, idx, arr) => {
+                    if (idx > 0 && typeof arr[idx - 1] === 'number' && (p as number) - (arr[idx - 1] as number) > 1) {
+                      acc.push('...');
+                    }
+                    acc.push(p);
+                    return acc;
+                  }, [])
+                  .map((p, idx, arr) => {
+                    const hasNext = safePage < totalPages;
+                    const isLastItem = idx === arr.length - 1 && !hasNext;
+                    if (typeof p === 'string') {
+                      return (
+                        <span
+                          key={`ellipsis-${idx}`}
+                          style={{
+                            minWidth: '32px',
+                            height: '100%',
+                            padding: '0 8px',
+                            borderRight: isLastItem ? 'none' : '1px solid #e5e7eb',
+                            background: '#ffffff',
+                            color: '#6b7280',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '13px',
+                            userSelect: 'none',
+                          }}
+                        >
+                          ...
+                        </span>
+                      );
+                    }
+
+                    const isActive = p === safePage;
+                    return (
+                      <button
+                        key={p}
+                        type="button"
+                        onClick={() => setCurrentPage(p)}
+                        style={{
+                          minWidth: '32px',
+                          height: '100%',
+                          padding: '0 10px',
+                          border: 'none',
+                          borderRight: isLastItem ? 'none' : '1px solid #e5e7eb',
+                          background: isActive ? '#2ba1f4' : '#ffffff',
+                          color: isActive ? '#ffffff' : '#374151',
+                          cursor: isActive ? 'default' : 'pointer',
+                          fontSize: '13px',
+                          fontWeight: isActive ? '700' : '500',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          transition: 'background-color 0.15s ease',
+                        }}
+                        onMouseEnter={(e) => {
+                          if (!isActive) e.currentTarget.style.backgroundColor = '#f9fafb';
+                        }}
+                        onMouseLeave={(e) => {
+                          if (!isActive) e.currentTarget.style.backgroundColor = '#ffffff';
+                        }}
+                      >
+                        {p}
+                      </button>
+                    );
+                  })}
+
+                {/* Nút trang sau (>) */}
+                {safePage < totalPages && (
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    style={{
+                      minWidth: '32px',
+                      height: '100%',
+                      padding: '0 8px',
+                      border: 'none',
+                      background: '#ffffff',
+                      color: '#4b5563',
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      transition: 'background-color 0.15s ease',
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f9fafb')}
+                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#ffffff')}
+                    title="Trang sau"
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="9 18 15 12 9 6" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
 
       {/* 6. MODAL CHI TIẾT DIFF NGUYÊN BẢN */}
       <AuditDetailModal

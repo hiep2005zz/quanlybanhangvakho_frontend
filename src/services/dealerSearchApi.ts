@@ -475,7 +475,7 @@ export interface BulkAssignPayload {
 export async function bulkAssignDealers(
     payload: BulkAssignPayload,
     token?: string
-): Promise<{ message: string; errors?: string[] }> {
+): Promise<{ message: string; assigned_count: number; errors?: string[] }> {
     const authToken = getAuthToken(token);
     const headers: Record<string, string> = {
         'Content-Type': 'application/json',
