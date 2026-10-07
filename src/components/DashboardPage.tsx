@@ -180,15 +180,7 @@ export default function DashboardPage({
       return 'users';
     }
     if (isCategoriesPath) {
-      if (canManageCategories) {
-        return 'categories';
-      }
-      try {
-        window.history.replaceState({}, '', '/');
-      } catch {
-        // ignore
-      }
-      return 'users';
+      return 'categories';
     }
     return 'inventory';
   });
@@ -239,15 +231,6 @@ export default function DashboardPage({
         // ignore
       }
     } else if (tab === 'delivery-points') {
-      if (!canManageDeliveryPoints) {
-        setActiveTabState('inventory');
-        try {
-          window.history.replaceState({}, '', '/');
-        } catch {
-          // ignore
-        }
-        return;
-      }
       setActiveTabState('delivery-points');
       try {
         window.history.pushState({}, '', '/delivery-points');
@@ -255,15 +238,6 @@ export default function DashboardPage({
         // ignore
       }
     } else if (tab === 'dealers') {
-      if (!canViewDealers) {
-        setActiveTabState('inventory');
-        try {
-          window.history.replaceState({}, '', '/');
-        } catch {
-          // ignore
-        }
-        return;
-      }
       setActiveTabState('dealers');
       try {
         window.history.pushState({}, '', '/dealers');
@@ -271,15 +245,6 @@ export default function DashboardPage({
         // ignore
       }
     } else if (tab === 'users') {
-      if (!isAdmin) {
-        setActiveTabState('inventory');
-        try {
-          window.history.replaceState({}, '', '/');
-        } catch {
-          // ignore
-        }
-        return;
-      }
       setActiveTabState('users');
       try {
         window.history.pushState({}, '', '/users');
@@ -287,15 +252,6 @@ export default function DashboardPage({
         // ignore
       }
     } else if (tab === 'categories') {
-      if (!canManageCategories) {
-        setActiveTabState('inventory');
-        try {
-          window.history.replaceState({}, '', '/');
-        } catch {
-          // ignore
-        }
-        return;
-      }
       setActiveTabState('categories');
       try {
         window.history.pushState({}, '', '/categories');
@@ -328,37 +284,6 @@ export default function DashboardPage({
     }
   };
 
-  useEffect(() => {
-    const tabRequiresAdmin = activeTab === 'users' || activeTab === 'audit-logs';
-    const isAllowed =
-      tabRequiresAdmin ? isAdmin
-        : activeTab === 'categories' ? canManageCategories
-          : activeTab === 'orders' ? canReadOrders
-            : activeTab === 'create-order' ? canCreateOrders
-              : activeTab === 'suppliers' ? canManageSuppliers
-                : activeTab === 'product-history' ? (isAdmin || isSalesManager || canWriteInventory)
-                  : true;
-    if (!isAllowed) {
-      setActiveTabState('inventory');
-      window.history.replaceState({}, '', '/');
-    }
-    if (activeTab === 'dealers' && !canViewDealers) {
-      setActiveTabState('inventory');
-      try {
-        window.history.replaceState({}, '', '/');
-      } catch {
-        // ignore
-      }
-    }
-    if (activeTab === 'delivery-points' && !canManageDeliveryPoints) {
-      setActiveTabState('inventory');
-      try {
-        window.history.replaceState({}, '', '/');
-      } catch {
-        // ignore
-      }
-    }
-  }, [activeTab, canManageCategories, canViewDealers, canManageDeliveryPoints, user.username]);
 
   useEffect(() => {
     const syncFromUrl = () => {
@@ -464,13 +389,7 @@ export default function DashboardPage({
         }
         setActiveTabState('users');
       } else if (pathname === '/categories') {
-        if (canManageCategories) {
-          setActiveTabState('categories');
-        } else {
-          setActiveTabState('inventory');
-          window.history.replaceState({}, '', '/');
-          return;
-        }
+        setActiveTabState('categories');
       } else {
         setActiveTabState('inventory');
         if (pathname !== '/' || params.size) window.history.replaceState({}, '', '/');
@@ -764,10 +683,19 @@ export default function DashboardPage({
           />
         )
       ) : activeTab === 'categories' ? (
-        <CategoryManagementView
-          token={token}
-          onBackToHome={() => setActiveTab('inventory')}
-        />
+        canManageCategories ? (
+          <CategoryManagementView
+            token={token}
+            onBackToHome={() => setActiveTab('inventory')}
+          />
+        ) : (
+          <AccessDeniedView
+            currentUser={user}
+            requiredPermission="Quản lý ngành hàng (Quản lý kinh doanh / Quản trị viên)"
+            onBackToWorkflow={() => setActiveTab('inventory')}
+            onLogout={onLogout}
+          />
+        )
       ) : activeTab === 'audit-logs' ? (
         isAdmin ? (
           <AuditLogView
