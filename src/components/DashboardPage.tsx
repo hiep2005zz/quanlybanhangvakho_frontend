@@ -975,14 +975,14 @@ export default function DashboardPage({
                 style={{
                   width: '100%',
                   padding: '12px',
-                  background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+                  background: 'linear-gradient(135deg, #0fba90, #0fad89)',
                   border: 'none',
                   borderRadius: '10px',
                   color: '#ffffff',
                   fontSize: '14px',
                   fontWeight: '700',
                   cursor: 'pointer',
-                  boxShadow: '0 4px 14px rgba(59, 130, 246, 0.35)',
+                  boxShadow: '0 4px 14px rgba(15, 173, 137, 0.35)',
                   transition: 'all 0.2s ease',
                 }}
                 onMouseEnter={(e) => (e.currentTarget.style.transform = 'translateY(-1px)')}
@@ -1337,23 +1337,23 @@ export default function DashboardPage({
                       display: 'inline-flex',
                       alignItems: 'center',
                       gap: '6px',
-                      background: '#eff6ff',
-                      border: '1px solid #bfdbfe',
+                      background: '#ecfdf5',
+                      border: '1px solid #a7f3d0',
                       padding: '7px 12px',
                       borderRadius: '8px',
                       fontSize: '12.5px',
                       fontWeight: '600',
-                      color: '#2563eb',
+                      color: '#0fad89',
                       cursor: 'pointer',
                       transition: 'all 0.15s ease'
                     }}
                     onMouseEnter={(e) => {
-                      e.currentTarget.style.background = '#dbeafe';
-                      e.currentTarget.style.borderColor = '#93c5fd';
+                      e.currentTarget.style.background = '#d1fae5';
+                      e.currentTarget.style.borderColor = '#6ee7b7';
                     }}
                     onMouseLeave={(e) => {
-                      e.currentTarget.style.background = '#eff6ff';
-                      e.currentTarget.style.borderColor = '#bfdbfe';
+                      e.currentTarget.style.background = '#ecfdf5';
+                      e.currentTarget.style.borderColor = '#a7f3d0';
                     }}
                     title="Nhập danh mục sản phẩm hàng loạt từ file Excel"
                   >
@@ -1581,11 +1581,11 @@ export default function DashboardPage({
                                     key={uIdx}
                                     style={{
                                       fontSize: '11px',
-                                      background: '#eff6ff',
-                                      color: '#1d4ed8',
+                                      background: '#ecfdf5',
+                                      color: '#065f46',
                                       padding: '1px 6px',
                                       borderRadius: '4px',
-                                      border: '1px solid #bfdbfe',
+                                      border: '1px solid #a7f3d0',
                                     }}
                                     title={`1 ${u.unit_name} = ${u.conversion_rate} ${item.base_unit || 'Cái'}`}
                                   >
@@ -1955,7 +1955,7 @@ export default function DashboardPage({
                             padding: '0 10px',
                             border: 'none',
                             borderRight: isLastItem ? 'none' : '1px solid #e5e7eb',
-                            background: isActive ? '#2ba1f4' : '#ffffff',
+                            background: isActive ? '#0fad89' : '#ffffff',
                             color: isActive ? '#ffffff' : '#374151',
                             cursor: isActive ? 'default' : 'pointer',
                             fontSize: '13px',

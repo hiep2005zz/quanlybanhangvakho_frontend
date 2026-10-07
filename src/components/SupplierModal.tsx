@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Supplier, createSupplierApi, updateSupplierApi } from '../services/api';
 
@@ -33,6 +33,7 @@ const inputStyle: React.CSSProperties = {
   fontSize: '14px',
   boxSizing: 'border-box',
   outline: 'none',
+  transition: 'border-color 0.2s, box-shadow 0.2s, background-color 0.2s',
 };
 
 const hintStyle: React.CSSProperties = {
@@ -59,12 +60,22 @@ export const SupplierModal: React.FC<SupplierModalProps> = ({
     payment_terms: '',
   });
   const [error, setError] = useState<string | null>(null);
+  const [invalidField, setInvalidField] = useState<'code' | 'name' | 'tax_code' | 'contact_person' | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Refs để điều khiển cuộn trang và tự động focus vào trường lỗi
+  const formRef = useRef<HTMLFormElement>(null);
+  const errorRef = useRef<HTMLDivElement>(null);
+  const codeRef = useRef<HTMLInputElement>(null);
+  const nameRef = useRef<HTMLInputElement>(null);
+  const taxCodeRef = useRef<HTMLInputElement>(null);
+  const contactPersonRef = useRef<HTMLInputElement>(null);
 
   // Mỗi lần mở modal: nạp lại dữ liệu (sửa) hoặc làm trống (thêm mới)
   useEffect(() => {
     if (!isOpen) return;
     setError(null);
+    setInvalidField(null);
     setIsSubmitting(false);
     setForm({
       code: supplier?.code || '',
@@ -77,34 +88,67 @@ export const SupplierModal: React.FC<SupplierModalProps> = ({
 
   if (!isOpen) return null;
 
+  // Hàm kích hoạt nhảy lên đầu form khi có thông tin không hợp lệ
+  const triggerValidationError = (
+    msg: string,
+    field?: 'code' | 'name' | 'tax_code' | 'contact_person'
+  ) => {
+    setError(msg);
+    setInvalidField(field || null);
+
+    // 1. Tự động nhảy / cuộn mượt mà lên đỉnh modal/form
+    if (formRef.current) {
+      formRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // 2. Đảm bảo khung thông báo lỗi lọt vào tầm nhìn
+    setTimeout(() => {
+      if (errorRef.current) {
+        errorRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+      // 3. Tự động focus vào trường chưa hợp lệ
+      if (field === 'code' && codeRef.current) codeRef.current.focus();
+      else if (field === 'name' && nameRef.current) nameRef.current.focus();
+      else if (field === 'tax_code' && taxCodeRef.current) taxCodeRef.current.focus();
+      else if (field === 'contact_person' && contactPersonRef.current) contactPersonRef.current.focus();
+    }, 80);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setInvalidField(null);
 
     const code = form.code.trim().toUpperCase();
     const name = form.name.trim();
     const taxCode = form.tax_code.trim().replace(/\s/g, '');
 
     if (!isEdit && !CODE_REGEX.test(code)) {
-      setError('Mã nhà cung cấp chỉ gồm chữ cái, chữ số, dấu gạch ngang hoặc gạch dưới, dài 2 đến 30 ký tự (ví dụ: NCC001).');
+      triggerValidationError(
+        'Mã nhà cung cấp chỉ gồm chữ cái, chữ số, dấu gạch ngang hoặc gạch dưới, dài 2 đến 30 ký tự (ví dụ: NCC001).',
+        'code'
+      );
       return;
     }
     if (name.length < 2) {
-      setError('Tên nhà cung cấp phải có ít nhất 2 ký tự.');
+      triggerValidationError('Tên nhà cung cấp phải có ít nhất 2 ký tự.', 'name');
       return;
     }
     if (!taxCode) {
-      setError('Vui lòng nhập mã số thuế.');
+      triggerValidationError('Vui lòng nhập mã số thuế.', 'tax_code');
       return;
     }
     if (taxCode && !TAX_REGEX.test(taxCode)) {
-      setError('Mã số thuế không hợp lệ. Nhập 10 chữ số, hoặc 13 chữ số cho đơn vị phụ thuộc (ví dụ: 0123456789 hoặc 0123456789-001).');
+      triggerValidationError(
+        `Mã số thuế không hợp lệ (hiện có ${taxCode.length} ký tự). Nhập 10 chữ số (doanh nghiệp) hoặc 13 chữ số (chi nhánh, ví dụ: 0123456789 hoặc 0123456789-001).`,
+        'tax_code'
+      );
       return;
     }
 
     const contactPerson = form.contact_person.trim();
     if (!isEdit && !contactPerson) {
-      setError('Vui lòng nhập người liên hệ.');
+      triggerValidationError('Vui lòng nhập người liên hệ.', 'contact_person');
       return;
     }
 
@@ -126,7 +170,7 @@ export const SupplierModal: React.FC<SupplierModalProps> = ({
       }
       onClose();
     } catch (err: any) {
-      setError(err.message || 'Có lỗi xảy ra. Vui lòng thử lại.');
+      triggerValidationError(err.message || 'Có lỗi xảy ra. Vui lòng thử lại.');
     } finally {
       setIsSubmitting(false);
     }
@@ -202,20 +246,32 @@ export const SupplierModal: React.FC<SupplierModalProps> = ({
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} style={{ padding: '22px 24px', overflowY: 'auto' }}>
+        <form ref={formRef} onSubmit={handleSubmit} style={{ padding: '22px 24px', overflowY: 'auto' }}>
           {error && (
             <div
+              ref={errorRef}
               style={{
-                background: '#fee2e2',
-                border: '1px solid #fecaca',
-                color: '#b91c1c',
-                padding: '10px 14px',
-                borderRadius: '10px',
-                fontSize: '13px',
-                marginBottom: '16px',
+                background: '#fef2f2',
+                border: '1.5px solid #f87171',
+                color: '#991b1b',
+                padding: '12px 16px',
+                borderRadius: '12px',
+                fontSize: '13.5px',
+                marginBottom: '18px',
+                boxShadow: '0 4px 12px rgba(239, 68, 68, 0.15)',
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '10px',
+                lineHeight: 1.5,
               }}
             >
-              ⚠️ {error}
+              <span style={{ fontSize: '18px', flexShrink: 0, marginTop: '1px' }}>⚠️</span>
+              <div style={{ flex: 1 }}>
+                <strong style={{ display: 'block', fontSize: '13.5px', marginBottom: '2px', color: '#b91c1c' }}>
+                  Thông tin chưa hợp lệ:
+                </strong>
+                <div>{error}</div>
+              </div>
             </div>
           )}
 
@@ -226,20 +282,37 @@ export const SupplierModal: React.FC<SupplierModalProps> = ({
                 Mã nhà cung cấp {!isEdit && <span style={{ color: '#ef4444' }}>*</span>}
               </label>
               <input
+                ref={codeRef}
                 type="text"
                 value={form.code}
                 disabled={isEdit || isSubmitting}
                 maxLength={30}
                 placeholder="Ví dụ: NCC001"
-                onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })}
+                onChange={(e) => {
+                  setForm({ ...form, code: e.target.value.toUpperCase() });
+                  if (invalidField === 'code') setInvalidField(null);
+                }}
+                onClick={() => {
+                  if (invalidField === 'code') formRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
                 style={{
                   ...inputStyle,
                   fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
-                  background: isEdit ? '#f8fafc' : '#ffffff',
+                  borderColor: invalidField === 'code' ? '#ef4444' : '#cbd5e1',
+                  background: isEdit ? '#f8fafc' : invalidField === 'code' ? '#fff5f5' : '#ffffff',
+                  boxShadow: invalidField === 'code' ? '0 0 0 3px rgba(239, 68, 68, 0.15)' : 'none',
                   color: isEdit ? '#64748b' : '#0f172a',
                   cursor: isEdit ? 'not-allowed' : 'text',
                 }}
               />
+              {invalidField === 'code' && (
+                <span
+                  onClick={() => formRef.current?.scrollTo({ top: 0, behavior: 'smooth' })}
+                  style={{ display: 'block', fontSize: '12px', color: '#ef4444', fontWeight: '600', marginTop: '4px', cursor: 'pointer' }}
+                >
+                  ⚠️ Mã nhà cung cấp không hợp lệ (bấm để xem thông báo trên đầu)
+                </span>
+              )}
               <span style={hintStyle}>
                 {isEdit ? 'Mã nhà cung cấp cố định, không thể thay đổi.' : 'Duy nhất trong hệ thống, tự chuyển thành chữ hoa.'}
               </span>
@@ -251,14 +324,34 @@ export const SupplierModal: React.FC<SupplierModalProps> = ({
                 Tên nhà cung cấp <span style={{ color: '#ef4444' }}>*</span>
               </label>
               <input
+                ref={nameRef}
                 type="text"
                 value={form.name}
                 disabled={isSubmitting}
                 maxLength={255}
                 placeholder="Ví dụ: Công ty TNHH May Mặc Á Châu"
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-                style={inputStyle}
+                onChange={(e) => {
+                  setForm({ ...form, name: e.target.value });
+                  if (invalidField === 'name') setInvalidField(null);
+                }}
+                onClick={() => {
+                  if (invalidField === 'name') formRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                style={{
+                  ...inputStyle,
+                  borderColor: invalidField === 'name' ? '#ef4444' : '#cbd5e1',
+                  background: invalidField === 'name' ? '#fff5f5' : '#ffffff',
+                  boxShadow: invalidField === 'name' ? '0 0 0 3px rgba(239, 68, 68, 0.15)' : 'none',
+                }}
               />
+              {invalidField === 'name' && (
+                <span
+                  onClick={() => formRef.current?.scrollTo({ top: 0, behavior: 'smooth' })}
+                  style={{ display: 'block', fontSize: '12px', color: '#ef4444', fontWeight: '600', marginTop: '4px', cursor: 'pointer' }}
+                >
+                  ⚠️ Tên nhà cung cấp quá ngắn (bấm để xem thông báo trên đầu)
+                </span>
+              )}
             </div>
 
             {/* Mã số thuế */}
@@ -267,14 +360,34 @@ export const SupplierModal: React.FC<SupplierModalProps> = ({
                 Mã số thuế <span style={{ color: '#ef4444' }}>*</span>
               </label>
               <input
+                ref={taxCodeRef}
                 type="text"
                 value={form.tax_code}
                 disabled={isSubmitting}
                 maxLength={20}
                 placeholder="10 hoặc 13 chữ số"
-                onChange={(e) => setForm({ ...form, tax_code: e.target.value })}
-                style={inputStyle}
+                onChange={(e) => {
+                  setForm({ ...form, tax_code: e.target.value });
+                  if (invalidField === 'tax_code') setInvalidField(null);
+                }}
+                onClick={() => {
+                  if (invalidField === 'tax_code') formRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                style={{
+                  ...inputStyle,
+                  borderColor: invalidField === 'tax_code' ? '#ef4444' : '#cbd5e1',
+                  background: invalidField === 'tax_code' ? '#fff5f5' : '#ffffff',
+                  boxShadow: invalidField === 'tax_code' ? '0 0 0 3px rgba(239, 68, 68, 0.15)' : 'none',
+                }}
               />
+              {invalidField === 'tax_code' && (
+                <span
+                  onClick={() => formRef.current?.scrollTo({ top: 0, behavior: 'smooth' })}
+                  style={{ display: 'block', fontSize: '12px', color: '#ef4444', fontWeight: '600', marginTop: '4px', cursor: 'pointer' }}
+                >
+                  ⚠️ Mã số thuế chưa đúng định dạng (bấm để xem hướng dẫn trên đầu)
+                </span>
+              )}
               <span style={hintStyle}>Bắt buộc. Không được trùng với nhà cung cấp khác.</span>
             </div>
 
@@ -284,14 +397,34 @@ export const SupplierModal: React.FC<SupplierModalProps> = ({
                 Người liên hệ {!isEdit && <span style={{ color: '#ef4444' }}>*</span>}
               </label>
               <input
+                ref={contactPersonRef}
                 type="text"
                 value={form.contact_person}
                 disabled={isSubmitting}
                 maxLength={255}
                 placeholder="Họ tên người phụ trách bên nhà cung cấp"
-                onChange={(e) => setForm({ ...form, contact_person: e.target.value })}
-                style={inputStyle}
+                onChange={(e) => {
+                  setForm({ ...form, contact_person: e.target.value });
+                  if (invalidField === 'contact_person') setInvalidField(null);
+                }}
+                onClick={() => {
+                  if (invalidField === 'contact_person') formRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                style={{
+                  ...inputStyle,
+                  borderColor: invalidField === 'contact_person' ? '#ef4444' : '#cbd5e1',
+                  background: invalidField === 'contact_person' ? '#fff5f5' : '#ffffff',
+                  boxShadow: invalidField === 'contact_person' ? '0 0 0 3px rgba(239, 68, 68, 0.15)' : 'none',
+                }}
               />
+              {invalidField === 'contact_person' && (
+                <span
+                  onClick={() => formRef.current?.scrollTo({ top: 0, behavior: 'smooth' })}
+                  style={{ display: 'block', fontSize: '12px', color: '#ef4444', fontWeight: '600', marginTop: '4px', cursor: 'pointer' }}
+                >
+                  ⚠️ Vui lòng nhập người liên hệ (bấm để xem thông báo trên đầu)
+                </span>
+              )}
               {!isEdit && <span style={hintStyle}>Bắt buộc khi thêm mới nhà cung cấp.</span>}
             </div>
 
@@ -333,7 +466,7 @@ export const SupplierModal: React.FC<SupplierModalProps> = ({
               type="submit"
               disabled={isSubmitting}
               style={{
-                background: 'linear-gradient(135deg, #2563eb, #1d4ed8)',
+                background: 'linear-gradient(135deg, #0fba90, #0fad89)',
                 border: 'none',
                 borderRadius: '8px',
                 color: '#ffffff',
@@ -341,7 +474,7 @@ export const SupplierModal: React.FC<SupplierModalProps> = ({
                 fontSize: '13.5px',
                 fontWeight: '700',
                 cursor: isSubmitting ? 'not-allowed' : 'pointer',
-                boxShadow: '0 2px 6px rgba(37, 99, 235, 0.3)',
+                boxShadow: '0 2px 6px rgba(15, 173, 137, 0.3)',
               }}
             >
               {isSubmitting ? 'Đang lưu...' : isEdit ? 'Lưu thay đổi' : 'Thêm nhà cung cấp'}

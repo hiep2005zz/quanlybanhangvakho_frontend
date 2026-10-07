@@ -1111,7 +1111,7 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
                 padding: '9px 22px',
                 borderRadius: '8px',
                 border: 'none',
-                background: orderItems.length === 0 ? '#94a3b8' : isAnyBelowFloorPrice ? '#ea580c' : '#2563eb',
+                background: orderItems.length === 0 ? '#94a3b8' : isAnyBelowFloorPrice ? '#ea580c' : '#0fad89',
                 fontSize: '13.5px',
                 fontWeight: '700',
                 color: '#fff',
@@ -1122,7 +1122,7 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
                     ? 'none'
                     : isAnyBelowFloorPrice
                     ? '0 4px 6px -1px rgba(234, 88, 12, 0.3)'
-                    : '0 4px 6px -1px rgba(37, 99, 235, 0.3)',
+                    : '0 4px 6px -1px rgba(15, 173, 137, 0.3)',
               }}
             >
               {isSubmitting

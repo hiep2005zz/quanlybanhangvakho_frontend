@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { CustomerCreatePayload, createCustomerApi } from '../services/api';
 import { ModalPortal } from './ModalPortal';
 
@@ -24,8 +24,16 @@ export const CreateCustomerModal: React.FC<CreateCustomerModalProps> = ({
   });
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const modalRef = useRef<HTMLDivElement>(null);
 
   if (!isOpen) return null;
+
+  const triggerError = (msg: string) => {
+    setError(msg);
+    if (modalRef.current) {
+      modalRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,28 +41,28 @@ export const CreateCustomerModal: React.FC<CreateCustomerModalProps> = ({
 
     const trimmedName = formData.full_name.trim();
     if (!trimmedName) {
-      setError('Vui lòng nhập Họ và tên nhân viên.');
+      triggerError('Vui lòng nhập Họ và tên nhân viên.');
       return;
     }
 
     // Ràng buộc họ và tên phải bằng chữ cái, không được chứa số
     if (/\d/.test(trimmedName)) {
-      setError('Họ và tên không hợp lệ! Vui lòng chỉ nhập chữ cái, không được chứa chữ số.');
+      triggerError('Họ và tên không hợp lệ! Vui lòng chỉ nhập chữ cái, không được chứa chữ số.');
       return;
     }
 
     const vietnameseNameRegex = /^[a-zA-ZÀÁÂÃÈÉÊÌÍÒÓÔÕÙÚĂĐĨŨƠàáâãèéêìíòóôõùúăđĩũơƯĂẠẢẤẦẨẪẬẮẰẲẴẶẸẺẼỀỀỂưăạảấầẩẫậắằẳẵặẹẻẽềềểỄỆỈỊỌỎỐỒỔỖỘỚỜỞỠỢỤỦỨỪễệỉịọỏốồổỗộớờởỡợụủứừỬỮỰỲỴÝỶỸửữựỳỵỷỹ\s\.\'\-]+$/;
     if (!vietnameseNameRegex.test(trimmedName)) {
-      setError('Họ và tên không hợp lệ! Vui lòng chỉ nhập các chữ cái tiếng Việt hoặc tiếng Anh, không nhập số hay ký tự đặc biệt.');
+      triggerError('Họ và tên không hợp lệ! Vui lòng chỉ nhập các chữ cái tiếng Việt hoặc tiếng Anh, không nhập số hay ký tự đặc biệt.');
       return;
     }
 
     if (!formData.email.trim()) {
-      setError('Vui lòng nhập địa chỉ Email.');
+      triggerError('Vui lòng nhập địa chỉ Email.');
       return;
     }
     if (!formData.phone.trim()) {
-      setError('Vui lòng nhập số điện thoại liên hệ.');
+      triggerError('Vui lòng nhập số điện thoại liên hệ.');
       return;
     }
 
@@ -69,7 +77,7 @@ export const CreateCustomerModal: React.FC<CreateCustomerModalProps> = ({
     // Định dạng: 10 chữ số bắt đầu bằng 03, 05, 07, 08, 09 (hoặc máy bàn 11 số bắt đầu 02)
     const vnPhoneRegex = /^(0[3|5|7|8|9][0-9]{8}|02[0-9]{9})$/;
     if (!vnPhoneRegex.test(cleanPhone)) {
-      setError('Số điện thoại không hợp lệ! Vui lòng nhập đúng số điện thoại (10 chữ số, bắt đầu bằng 03, 05, 07, 08, 09. Ví dụ: 0987654321 hoặc +84987654321).');
+      triggerError('Số điện thoại không hợp lệ! Vui lòng nhập đúng số điện thoại (10 chữ số, bắt đầu bằng 03, 05, 07, 08, 09. Ví dụ: 0987654321 hoặc +84987654321).');
       return;
     }
 
@@ -102,7 +110,7 @@ export const CreateCustomerModal: React.FC<CreateCustomerModalProps> = ({
       });
       onClose();
     } catch (err: any) {
-      setError(err.message || 'Lỗi khi tạo tài khoản.');
+      triggerError(err.message || 'Lỗi khi tạo tài khoản.');
     } finally {
       setIsSubmitting(false);
     }
@@ -132,6 +140,7 @@ export const CreateCustomerModal: React.FC<CreateCustomerModalProps> = ({
         }}
       >
         <div
+          ref={modalRef}
           style={{
             background: '#ffffff',
             border: '1px solid #e2e8f0',
@@ -393,7 +402,7 @@ export const CreateCustomerModal: React.FC<CreateCustomerModalProps> = ({
               disabled={isSubmitting}
               id="btn-submit-customer"
               style={{
-                background: 'linear-gradient(135deg, #10b981, #059669)',
+                background: 'linear-gradient(135deg, #0fba90, #0fad89)',
                 border: 'none',
                 borderRadius: '8px',
                 color: '#ffffff',
@@ -401,7 +410,7 @@ export const CreateCustomerModal: React.FC<CreateCustomerModalProps> = ({
                 fontSize: '13.5px',
                 fontWeight: '700',
                 cursor: isSubmitting ? 'not-allowed' : 'pointer',
-                boxShadow: '0 2px 6px rgba(16, 185, 129, 0.3)',
+                boxShadow: '0 2px 6px rgba(15, 186, 144, 0.3)',
               }}
             >
               {isSubmitting ? 'Đang tạo & gửi mail...' : 'Tạo tài khoản & Gửi Email'}

@@ -514,7 +514,7 @@ export default function SecurityModal({
               style={{
                 padding: '10px 22px',
                 background: isFormValid && !isLoading
-                  ? 'linear-gradient(135deg, #2563eb, #1d4ed8)'
+                  ? 'linear-gradient(135deg, #0fba90, #0fad89)'
                   : '#cbd5e1',
                 border: 'none',
                 color: isFormValid && !isLoading ? '#ffffff' : '#94a3b8',
@@ -525,7 +525,7 @@ export default function SecurityModal({
                 display: 'flex',
                 alignItems: 'center',
                 gap: '8px',
-                boxShadow: isFormValid && !isLoading ? '0 2px 6px rgba(37, 99, 235, 0.3)' : 'none',
+                boxShadow: isFormValid && !isLoading ? '0 2px 6px rgba(15, 173, 137, 0.3)' : 'none',
                 transition: 'all 0.2s',
               }}
             >

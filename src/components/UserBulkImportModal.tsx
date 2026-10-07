@@ -301,18 +301,18 @@ export const UserBulkImportModal: React.FC<UserBulkImportModalProps> = ({ token,
                 onClick={handleExecuteImport}
                 disabled={!preview || preview.valid_count === 0 || loading}
                 style={{
-                  padding: '10px 18px', background: '#2563eb', border: 'none', borderRadius: '8px',
+                  padding: '10px 18px', background: '#0fad89', border: 'none', borderRadius: '8px',
                   color: '#ffffff', fontWeight: '600', cursor: (!preview || preview.valid_count === 0 || loading) ? 'not-allowed' : 'pointer',
                   opacity: (!preview || preview.valid_count === 0 || loading) ? 0.6 : 1
                 }}
               >
-                Xác nhận Import ({preview?.valid_count || 0})
+                Xác nhận
               </button>
             </>
           ) : (
             <button
               onClick={onClose}
-              style={{ padding: '10px 18px', background: '#2563eb', border: 'none', borderRadius: '8px', color: '#ffffff', fontWeight: '600', cursor: 'pointer' }}
+              style={{ padding: '10px 18px', background: '#0fad89', border: 'none', borderRadius: '8px', color: '#ffffff', fontWeight: '600', cursor: 'pointer' }}
             >
               Đóng
             </button>

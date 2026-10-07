@@ -134,10 +134,12 @@ export default function DealerSearchView({
     const [historyTargetDealer, setHistoryTargetDealer] = useState<DealerSearchItem | null>(null);
     const [historyLogs, setHistoryLogs] = useState<any[]>([]);
     const [loadingHistory, setLoadingHistory] = useState(false);
+    const [historyFilterTab, setHistoryFilterTab] = useState<'ALL' | 'ASSIGNMENT' | 'STATUS' | 'DEBT'>('ALL');
 
     const handleViewHistory = async (dealer: DealerSearchItem) => {
         if (!dealer.code) return;
         setHistoryTargetDealer(dealer);
+        setHistoryFilterTab('ALL');
         setIsHistoryModalOpen(true);
         setLoadingHistory(true);
         setHistoryLogs([]);
@@ -258,7 +260,11 @@ export default function DealerSearchView({
                     new_sale_id: Number(newSaleIdForAssign),
                     reason: assignReason
                 }, token);
-                emitStatusToast({ title: 'Thành công', message: res.message, type: 'success' });
+                if (res.assigned_count === 0) {
+                    emitStatusToast({ title: 'Không có thay đổi', message: res.message, type: 'warning' });
+                } else {
+                    emitStatusToast({ title: 'Thành công', message: res.message, type: 'success' });
+                }
                 setSelectedDealerIds([]);
                 setIsBulkAssignModalOpen(false);
             } else if (assignTargetDealer) {
@@ -834,7 +840,7 @@ export default function DealerSearchView({
                                 padding: '0 16px',
                                 borderRadius: '8px',
                                 border: 'none',
-                                background: '#2563eb',
+                                background: '#0fad89',
                                 color: '#ffffff',
                                 cursor: 'pointer',
                                 display: 'inline-flex',
@@ -1662,6 +1668,28 @@ export default function DealerSearchView({
                                             <option key={s.id} value={s.id}>{s.name}</option>
                                         ))}
                                     </select>
+                                    {(() => {
+                                        if (!newSaleIdForAssign) return null;
+                                        const alreadyCount = selectedDealerIds.filter(id => {
+                                            const d = dealers.find(item => item.id === id);
+                                            return d && d.assigned_sale_id === Number(newSaleIdForAssign);
+                                        }).length;
+                                        if (alreadyCount === selectedDealerIds.length) {
+                                            return (
+                                                <div style={{ marginTop: '8px', padding: '8px 12px', background: '#fef3c7', borderRadius: '6px', color: '#92400e', fontSize: '0.85rem' }}>
+                                                    ⚠️ Tất cả {selectedDealerIds.length} đại lý được chọn đều đang do nhân viên này phụ trách. Vui lòng chọn nhân viên khác.
+                                                </div>
+                                            );
+                                        }
+                                        if (alreadyCount > 0) {
+                                            return (
+                                                <div style={{ marginTop: '8px', padding: '8px 12px', background: '#eff6ff', borderRadius: '6px', color: '#1e40af', fontSize: '0.85rem' }}>
+                                                    ℹ️ Có {alreadyCount} đại lý đã do nhân viên này phụ trách, hệ thống sẽ chuyển giao {selectedDealerIds.length - alreadyCount} đại lý còn lại.
+                                                </div>
+                                            );
+                                        }
+                                        return null;
+                                    })()}
                                 </div>
                                 <div className="dealer-modal-field dealer-form-full">
                                     <label>Lý do chuyển giao (tuỳ chọn)</label>
@@ -1677,81 +1705,221 @@ export default function DealerSearchView({
                         </div>
                         <div className="dealer-modal-footer">
                             <button type="button" className="dealer-btn-cancel" onClick={() => setIsBulkAssignModalOpen(false)} disabled={isSubmitting}>Hủy bỏ</button>
-                            <button type="button" className="dealer-btn-save" onClick={handleAssignSubmit} disabled={isSubmitting}>
-                                {isSubmitting ? 'Đang xử lý...' : 'Xác nhận chuyển giao'}
-                            </button>
+                            {(() => {
+                                const alreadyCount = newSaleIdForAssign ? selectedDealerIds.filter(id => {
+                                    const d = dealers.find(item => item.id === id);
+                                    return d && d.assigned_sale_id === Number(newSaleIdForAssign);
+                                }).length : 0;
+                                const isAllAlreadyAssigned = Boolean(newSaleIdForAssign) && alreadyCount === selectedDealerIds.length;
+                                return (
+                                    <button 
+                                        type="button" 
+                                        className="dealer-btn-save" 
+                                        onClick={handleAssignSubmit} 
+                                        disabled={isSubmitting || isAllAlreadyAssigned}
+                                        style={isAllAlreadyAssigned ? { opacity: 0.6, cursor: 'not-allowed' } : {}}
+                                    >
+                                        {isSubmitting ? 'Đang xử lý...' : 'Xác nhận chuyển giao'}
+                                    </button>
+                                );
+                            })()}
                         </div>
                     </div>
                 </div>
                 </ModalPortal>
             )}
-            {/* Modal Lịch sử phân công */}
-            {isHistoryModalOpen && historyTargetDealer && (
+            {/* Modal Lịch sử phân công & biến động */}
+            {isHistoryModalOpen && historyTargetDealer && (() => {
+                const assignmentCount = historyLogs.filter((l: any) => l.action_type === 'DEALER_ASSIGNMENT').length;
+                const statusCount = historyLogs.filter((l: any) => l.action_type === 'DEALER_STATUS_CHANGE').length;
+                const debtCount = historyLogs.filter((l: any) => l.action_type === 'DEBT_LIMIT_CHANGE').length;
+
+                const displayedLogs = historyLogs.filter((l: any) => {
+                    if (historyFilterTab === 'ASSIGNMENT') return l.action_type === 'DEALER_ASSIGNMENT';
+                    if (historyFilterTab === 'STATUS') return l.action_type === 'DEALER_STATUS_CHANGE';
+                    if (historyFilterTab === 'DEBT') return l.action_type === 'DEBT_LIMIT_CHANGE';
+                    return true;
+                });
+
+                return (
                 <ModalPortal>
                 <div className="dealer-modal-overlay" onClick={() => setIsHistoryModalOpen(false)}>
-                    <div className="dealer-modal-box" style={{ maxWidth: '650px' }} onClick={(e) => e.stopPropagation()}>
+                    <div className="dealer-modal-box" style={{ maxWidth: '750px' }} onClick={(e) => e.stopPropagation()}>
                         <div className="dealer-modal-header">
                             <div className="dealer-modal-title-wrap">
                                 <div>
-                                    <h3>Lịch sử chuyển giao</h3>
-                                    <p>Đại lý: {historyTargetDealer.name}</p>
+                                    <h3>Lịch sử chuyển giao &amp; biến động</h3>
+                                    <p style={{ margin: '4px 0 0 0', color: '#475569', fontSize: '0.88rem' }}>
+                                        Đại lý: <strong>{historyTargetDealer.name}</strong> ({historyTargetDealer.code}) &bull; NV phụ trách hiện tại: <strong>{historyTargetDealer.assigned_sale_name || 'Chưa phân công'}</strong>
+                                    </p>
                                 </div>
                             </div>
                             <button type="button" className="dealer-modal-close-btn" onClick={() => setIsHistoryModalOpen(false)} title="Đóng">✕</button>
                         </div>
                         <div className="dealer-modal-body">
+                            {/* Bộ lọc Tabs */}
+                            <div style={{ display: 'flex', gap: '8px', marginBottom: '14px', borderBottom: '1px solid #e2e8f0', paddingBottom: '10px', flexWrap: 'wrap' }}>
+                                <button
+                                    type="button"
+                                    style={{
+                                        padding: '6px 14px',
+                                        borderRadius: '6px',
+                                        border: historyFilterTab === 'ALL' ? '1px solid #0f766e' : '1px solid #cbd5e1',
+                                        fontSize: '0.85rem',
+                                        fontWeight: historyFilterTab === 'ALL' ? '600' : '500',
+                                        background: historyFilterTab === 'ALL' ? '#0f766e' : '#ffffff',
+                                        color: historyFilterTab === 'ALL' ? '#ffffff' : '#334155',
+                                        cursor: 'pointer',
+                                        transition: 'all 0.15s ease'
+                                    }}
+                                    onClick={() => setHistoryFilterTab('ALL')}
+                                >
+                                    Tất cả ({historyLogs.length})
+                                </button>
+                                <button
+                                    type="button"
+                                    style={{
+                                        padding: '6px 14px',
+                                        borderRadius: '6px',
+                                        border: historyFilterTab === 'ASSIGNMENT' ? '1px solid #0f766e' : '1px solid #cbd5e1',
+                                        fontSize: '0.85rem',
+                                        fontWeight: historyFilterTab === 'ASSIGNMENT' ? '600' : '500',
+                                        background: historyFilterTab === 'ASSIGNMENT' ? '#0f766e' : '#ffffff',
+                                        color: historyFilterTab === 'ASSIGNMENT' ? '#ffffff' : '#334155',
+                                        cursor: 'pointer',
+                                        transition: 'all 0.15s ease'
+                                    }}
+                                    onClick={() => setHistoryFilterTab('ASSIGNMENT')}
+                                >
+                                    Chuyển giao NV ({assignmentCount})
+                                </button>
+                                <button
+                                    type="button"
+                                    style={{
+                                        padding: '6px 14px',
+                                        borderRadius: '6px',
+                                        border: historyFilterTab === 'STATUS' ? '1px solid #0f766e' : '1px solid #cbd5e1',
+                                        fontSize: '0.85rem',
+                                        fontWeight: historyFilterTab === 'STATUS' ? '600' : '500',
+                                        background: historyFilterTab === 'STATUS' ? '#0f766e' : '#ffffff',
+                                        color: historyFilterTab === 'STATUS' ? '#ffffff' : '#334155',
+                                        cursor: 'pointer',
+                                        transition: 'all 0.15s ease'
+                                    }}
+                                    onClick={() => setHistoryFilterTab('STATUS')}
+                                >
+                                    Đổi trạng thái ({statusCount})
+                                </button>
+                                <button
+                                    type="button"
+                                    style={{
+                                        padding: '6px 14px',
+                                        borderRadius: '6px',
+                                        border: historyFilterTab === 'DEBT' ? '1px solid #0f766e' : '1px solid #cbd5e1',
+                                        fontSize: '0.85rem',
+                                        fontWeight: historyFilterTab === 'DEBT' ? '600' : '500',
+                                        background: historyFilterTab === 'DEBT' ? '#0f766e' : '#ffffff',
+                                        color: historyFilterTab === 'DEBT' ? '#ffffff' : '#334155',
+                                        cursor: 'pointer',
+                                        transition: 'all 0.15s ease'
+                                    }}
+                                    onClick={() => setHistoryFilterTab('DEBT')}
+                                >
+                                    Hạn mức nợ ({debtCount})
+                                </button>
+                            </div>
+
                             {loadingHistory ? (
-                                <p style={{ textAlign: 'center', padding: '20px' }}>Đang tải dữ liệu...</p>
-                            ) : historyLogs.length === 0 ? (
-                                <p style={{ textAlign: 'center', padding: '20px', color: '#64748b' }}>Đại lý này chưa từng được chuyển giao.</p>
+                                <p style={{ textAlign: 'center', padding: '24px', color: '#64748b' }}>Đang tải dữ liệu...</p>
+                            ) : displayedLogs.length === 0 ? (
+                                <p style={{ textAlign: 'center', padding: '24px', color: '#64748b', fontStyle: 'italic' }}>
+                                    {historyFilterTab === 'ASSIGNMENT'
+                                        ? 'Đại lý này chưa từng có lịch sử chuyển giao nhân viên phụ trách.'
+                                        : historyFilterTab === 'STATUS'
+                                        ? 'Chưa có lịch sử thay đổi trạng thái hoạt động.'
+                                        : historyFilterTab === 'DEBT'
+                                        ? 'Chưa có lịch sử thay đổi hạn mức công nợ.'
+                                        : 'Đại lý này chưa có lịch sử biến động nào.'}
+                                </p>
                             ) : (
-                                <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
-                                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.9rem' }}>
+                                <div style={{ maxHeight: '420px', overflowY: 'auto' }}>
+                                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.88rem' }}>
                                         <thead>
-                                            <tr style={{ borderBottom: '2px solid #e2e8f0' }}>
-                                                <th style={{ padding: '8px' }}>Thời gian</th>
-                                                <th style={{ padding: '8px' }}>Người thực hiện</th>
-                                                <th style={{ padding: '8px' }}>Hành động</th>
-                                                <th style={{ padding: '8px' }}>Chi tiết (Cũ &rarr; Mới)</th>
-                                                <th style={{ padding: '8px' }}>Lý do</th>
+                                            <tr style={{ borderBottom: '2px solid #cbd5e1', background: '#f8fafc' }}>
+                                                <th style={{ padding: '10px 8px', color: '#334155', fontWeight: '600' }}>Thời gian</th>
+                                                <th style={{ padding: '10px 8px', color: '#334155', fontWeight: '600' }}>Người thực hiện</th>
+                                                <th style={{ padding: '10px 8px', color: '#334155', fontWeight: '600' }}>Hành động</th>
+                                                <th style={{ padding: '10px 8px', color: '#334155', fontWeight: '600' }}>Chi tiết (Cũ &rarr; Mới)</th>
+                                                <th style={{ padding: '10px 8px', color: '#334155', fontWeight: '600' }}>Lý do</th>
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {historyLogs.map(log => {
+                                            {displayedLogs.map(log => {
                                                 let oldObj: any = {};
                                                 let newObj: any = {};
                                                 try { if (log.old_values) oldObj = typeof log.old_values === 'string' ? JSON.parse(log.old_values) : log.old_values; } catch {}
                                                 try { if (log.new_values) newObj = typeof log.new_values === 'string' ? JSON.parse(log.new_values) : log.new_values; } catch {}
                                                 
                                                 let actionName = 'Khác';
+                                                let badgeBg = '#f1f5f9';
+                                                let badgeColor = '#334155';
+                                                let badgeBorder = '#cbd5e1';
                                                 let detail = '';
                                                 
                                                 if (log.action_type === 'DEALER_ASSIGNMENT') {
                                                     actionName = 'Chuyển giao NV';
-                                                    detail = `${oldObj.assigned_sale_name || 'Trống'} ➔ ${newObj.assigned_sale_name || 'Trống'}`;
+                                                    badgeBg = '#dcfce7';
+                                                    badgeColor = '#15803d';
+                                                    badgeBorder = '#bbf7d0';
+                                                    const oldSale = oldObj.assigned_sale_name || 'Chưa phân công';
+                                                    const newSale = newObj.assigned_sale_name || 'Chưa phân công';
+                                                    detail = `${oldSale} ➔ ${newSale}`;
                                                 } else if (log.action_type === 'DEBT_LIMIT_CHANGE') {
                                                     actionName = 'Đổi hạn mức';
-                                                    const oldL = oldObj.credit_limit != null ? new Intl.NumberFormat('vi-VN').format(oldObj.credit_limit) : '-';
-                                                    const newL = newObj.credit_limit != null ? new Intl.NumberFormat('vi-VN').format(newObj.credit_limit) : '-';
-                                                    const oldD = oldObj.max_debt_days ?? '-';
-                                                    const newD = newObj.max_debt_days ?? '-';
-                                                    detail = `Hạn mức: ${oldL} ➔ ${newL} | Ngày: ${oldD} ➔ ${newD}`;
+                                                    badgeBg = '#e0f2fe';
+                                                    badgeColor = '#0369a1';
+                                                    badgeBorder = '#bae6fd';
+                                                    const oldL = oldObj.credit_limit != null ? `${new Intl.NumberFormat('vi-VN').format(oldObj.credit_limit)} đ` : '-';
+                                                    const newL = newObj.credit_limit != null ? `${new Intl.NumberFormat('vi-VN').format(newObj.credit_limit)} đ` : '-';
+                                                    const oldD = oldObj.max_debt_days != null ? `${oldObj.max_debt_days} ngày` : '-';
+                                                    const newD = newObj.max_debt_days != null ? `${newObj.max_debt_days} ngày` : '-';
+                                                    detail = `Hạn mức: ${oldL} ➔ ${newL} | Thời hạn: ${oldD} ➔ ${newD}`;
                                                 } else if (log.action_type === 'DEALER_STATUS_CHANGE') {
                                                     actionName = 'Đổi trạng thái';
+                                                    badgeBg = '#fef3c7';
+                                                    badgeColor = '#b45309';
+                                                    badgeBorder = '#fde68a';
                                                     detail = `${oldObj.status || '-'} ➔ ${newObj.status || '-'}`;
                                                 }
 
                                                 return (
                                                 <tr key={log.id} style={{ borderBottom: '1px solid #e2e8f0' }}>
-                                                    <td style={{ padding: '8px' }}>{new Date(log.created_at).toLocaleString('vi-VN')}</td>
-                                                    <td style={{ padding: '8px', color: '#0f172a', fontWeight: 'bold' }}>{log.user_name}</td>
-                                                    <td style={{ padding: '8px' }}>
-                                                        <span className="dealer-group-tag" style={{ background: '#e2e8f0', color: '#334155', padding: '2px 6px', fontSize: '0.8rem' }}>
+                                                    <td style={{ padding: '10px 8px', whiteSpace: 'nowrap', color: '#475569' }}>
+                                                        {new Date(log.created_at).toLocaleString('vi-VN')}
+                                                    </td>
+                                                    <td style={{ padding: '10px 8px', color: '#0f172a', fontWeight: '600' }}>
+                                                        {log.user_name || 'Hệ thống'}
+                                                    </td>
+                                                    <td style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}>
+                                                        <span style={{
+                                                            background: badgeBg,
+                                                            color: badgeColor,
+                                                            border: `1px solid ${badgeBorder}`,
+                                                            padding: '3px 8px',
+                                                            borderRadius: '4px',
+                                                            fontSize: '0.8rem',
+                                                            fontWeight: '600',
+                                                            display: 'inline-block'
+                                                        }}>
                                                             {actionName}
                                                         </span>
                                                     </td>
-                                                    <td style={{ padding: '8px' }}>{detail}</td>
-                                                    <td style={{ padding: '8px', color: '#64748b', fontStyle: 'italic' }}>{log.reason || '-'}</td>
+                                                    <td style={{ padding: '10px 8px', color: '#1e293b', fontWeight: log.action_type === 'DEALER_ASSIGNMENT' ? '600' : 'normal' }}>
+                                                        {detail}
+                                                    </td>
+                                                    <td style={{ padding: '10px 8px', color: '#64748b', fontStyle: 'italic' }}>
+                                                        {log.reason || '-'}
+                                                    </td>
                                                 </tr>
                                                 );
                                             })}
@@ -1763,7 +1931,8 @@ export default function DealerSearchView({
                     </div>
                 </div>
                 </ModalPortal>
-            )}
+                );
+            })()}
 
             {/* Modal Cập nhật hạn mức công nợ */}
             {isCreditModalOpen && creditTargetDealer && (

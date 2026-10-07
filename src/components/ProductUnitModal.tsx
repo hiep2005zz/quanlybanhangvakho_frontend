@@ -352,7 +352,7 @@ export const ProductUnitModal: React.FC<ProductUnitModalProps> = ({
                 type="button"
                 onClick={handleAddUnit}
                 style={{
-                  background: '#2563eb',
+                  background: '#0fad89',
                   border: 'none',
                   color: '#ffffff',
                   padding: '7px 14px',
@@ -394,12 +394,12 @@ export const ProductUnitModal: React.FC<ProductUnitModalProps> = ({
                 padding: '9px 18px',
                 borderRadius: '8px',
                 border: 'none',
-                background: '#2563eb',
+                background: '#0fad89',
                 color: '#ffffff',
                 fontSize: '13.5px',
                 fontWeight: '600',
                 cursor: isSubmitting ? 'not-allowed' : 'pointer',
-                boxShadow: '0 2px 6px rgba(37, 99, 235, 0.3)',
+                boxShadow: '0 2px 6px rgba(15, 173, 137, 0.3)',
               }}
             >
               {isSubmitting ? 'Đang lưu...' : 'Lưu cấu hình'}

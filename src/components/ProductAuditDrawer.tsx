@@ -158,9 +158,9 @@ export const ProductAuditDrawer: React.FC<ProductAuditDrawerProps> = ({
               style={{
                 padding: '6px 12px',
                 borderRadius: '6px',
-                border: filterType === 'ALL' ? '1px solid #3b82f6' : '1px solid #e2e8f0',
-                background: filterType === 'ALL' ? '#eff6ff' : '#ffffff',
-                color: filterType === 'ALL' ? '#1d4ed8' : '#64748b',
+                border: filterType === 'ALL' ? '1px solid #0fad89' : '1px solid #e2e8f0',
+                background: filterType === 'ALL' ? '#ecfdf5' : '#ffffff',
+                color: filterType === 'ALL' ? '#065f46' : '#64748b',
                 fontWeight: filterType === 'ALL' ? '600' : '500',
                 fontSize: '12px',
                 cursor: 'pointer',

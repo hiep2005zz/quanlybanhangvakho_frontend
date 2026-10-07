@@ -283,7 +283,7 @@ export const SupplierManagementView: React.FC<SupplierManagementViewProps> = ({ 
           type="button"
           onClick={openCreate}
           style={{
-            background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+            background: 'linear-gradient(135deg, #0fba90 0%, #0fad89 100%)',
             border: 'none',
             borderRadius: '9px',
             color: '#ffffff',
@@ -291,7 +291,7 @@ export const SupplierManagementView: React.FC<SupplierManagementViewProps> = ({ 
             fontSize: '13.5px',
             fontWeight: '600',
             cursor: 'pointer',
-            boxShadow: '0 2px 8px rgba(37, 99, 235, 0.3)',
+            boxShadow: '0 2px 8px rgba(15, 173, 137, 0.3)',
           }}
         >
           + Thêm nhà cung cấp

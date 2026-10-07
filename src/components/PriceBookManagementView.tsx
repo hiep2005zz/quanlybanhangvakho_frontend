@@ -27,7 +27,7 @@ export function PriceBookManagementView({
   currentUser, 
   products: initialProducts,
   onBackToHome: _onBackToHome,
-  onNavigateToOrders,
+  onNavigateToOrders: _onNavigateToOrders,
 }: PriceBookManagementViewProps) {
   // Xác định vai trò người dùng (RBAC Matrix)
   const userRoles = useMemo(() => {
@@ -429,27 +429,6 @@ export function PriceBookManagementView({
       {/* Thanh công cụ và tiêu đề */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '16px', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-          {/* Nút chữ: Sang trang Quản lý Đơn hàng (Yêu cầu đề bài) */}
-          {onNavigateToOrders && (
-            <button
-              type="button"
-              id="btn-nav-to-orders"
-              onClick={onNavigateToOrders}
-              style={{
-                background: '#eff6ff',
-                color: '#1d4ed8',
-                border: '1px solid #93c5fd',
-                padding: '9px 16px',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                fontWeight: '700',
-                fontSize: '13.5px',
-              }}
-            >
-              Sang trang Quản lý Đơn hàng
-            </button>
-          )}
-
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <h1 style={{ fontSize: '24px', fontWeight: '800', color: '#0f172a', margin: 0, letterSpacing: '-0.02em' }}>
@@ -468,34 +447,6 @@ export function PriceBookManagementView({
         </div>
 
         <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-          {onNavigateToOrders && (
-            <button
-              type="button"
-              id="btn-nav-orders"
-              onClick={onNavigateToOrders}
-              style={{
-                background: '#059669',
-                color: '#ffffff',
-                border: 'none',
-                padding: '10px 18px',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                fontWeight: '700',
-                fontSize: '13.5px',
-                boxShadow: '0 2px 4px rgba(5, 150, 105, 0.25)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px'
-              }}
-              title="Chuyển đến trang Quản lý đơn hàng"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M3 3h18v18H3z" />
-                <path d="M8 8h8M8 12h8M8 16h4" />
-              </svg>
-              Quản lý đơn hàng
-            </button>
-          )}
 
           {canManagePriceBooks && (
             <button 
@@ -503,7 +454,7 @@ export function PriceBookManagementView({
               onClick={handleOpenCreate}
               id="btn-add-price-book"
               style={{ 
-                background: '#2563eb', 
+                background: '#0fad89', 
                 color: 'white', 
                 border: 'none', 
                 padding: '10px 20px', 
@@ -511,7 +462,7 @@ export function PriceBookManagementView({
                 cursor: 'pointer', 
                 fontWeight: '700', 
                 fontSize: '13.5px',
-                boxShadow: '0 2px 4px rgba(37, 99, 235, 0.2)'
+                boxShadow: '0 2px 4px rgba(15, 173, 137, 0.2)'
               }}
             >
               Thêm Bảng giá
@@ -1121,7 +1072,7 @@ export function PriceBookManagementView({
                           type="button" 
                           onClick={addFormItem} 
                           style={{ 
-                            background: '#2563eb', 
+                            background: '#0fad89', 
                             color: '#fff', 
                             border: 'none', 
                             padding: '10px 24px', 
@@ -1245,7 +1196,7 @@ export function PriceBookManagementView({
                 </button>
                 <button 
                   type="submit" 
-                  style={{ padding: '10px 24px', borderRadius: '8px', border: 'none', background: '#2563eb', color: 'white', cursor: 'pointer', fontWeight: '700', fontSize: '14px', boxShadow: '0 2px 4px rgba(37, 99, 235, 0.2)' }}
+                  style={{ padding: '10px 24px', borderRadius: '8px', border: 'none', background: '#0fad89', color: 'white', cursor: 'pointer', fontWeight: '700', fontSize: '14px', boxShadow: '0 2px 4px rgba(15, 173, 137, 0.2)' }}
                 >
                   {selectedBook ? 'Lưu cập nhật' : 'Lưu Bảng Giá'}
                 </button>

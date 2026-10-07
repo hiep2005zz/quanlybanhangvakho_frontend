@@ -1,13 +1,7 @@
 .sales-order-page {
   width: 100%;
   max-width: 1440px;
-  height: 100%;
-  max-height: 100%;
   margin: 0 auto;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  box-sizing: border-box;
   color: #0f172a;
 }
 
@@ -16,19 +10,18 @@
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  margin: 0 0 10px;
-  flex-shrink: 0;
+  margin: 4px 0 20px;
 }
 
 .sales-order-heading h1 {
   margin: 0;
   color: #0f172a;
-  font-size: 22px;
+  font-size: 26px;
   letter-spacing: -0.03em;
 }
 
 .sales-order-eyebrow {
-  margin: 0 0 3px;
+  margin: 0 0 5px;
   color: #2563eb;
   font-size: 11px;
   font-weight: 800;
@@ -36,90 +29,59 @@
 }
 
 .sales-order-subtitle {
-  margin: 4px 0 0;
+  margin: 6px 0 0;
   color: #64748b;
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .sales-order-layout {
-  flex: 1;
-  min-height: 0;
-  height: 100%;
-  max-height: 100%;
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
-  gap: 12px;
-  overflow: hidden;
+  align-items: start;
+  gap: 18px;
 }
 
-.sales-order-main {
-  height: 100%;
-  max-height: 100%;
-  min-height: 0;
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  gap: 10px;
-  overflow: hidden;
-}
-
+.sales-order-main,
 .sales-order-sidebar {
-  height: 100%;
-  max-height: 100%;
-  min-height: 0;
   display: flex;
   min-width: 0;
   flex-direction: column;
-  gap: 10px;
-  overflow: hidden;
+  gap: 16px;
 }
 
 .sales-order-card {
   min-width: 0;
-  padding: 12px 16px;
+  padding: 20px;
   border: 1px solid #e2e8f0;
-  border-radius: 12px;
+  border-radius: 14px;
   background: #fff;
-  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.04);
-}
-
-.sales-order-main > .sales-order-card:first-child {
-  flex-shrink: 0;
-}
-
-.sales-order-main > .sales-order-card:last-child {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
 }
 
 .sales-order-card h2 {
-  margin: 0 0 8px;
+  margin: 0 0 16px;
   color: #0f172a;
-  font-size: 14.5px;
+  font-size: 16px;
   font-weight: 750;
-  flex-shrink: 0;
 }
 
 .sales-order-fields {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px 12px;
+  gap: 14px;
 }
 
 .sales-order-field {
   display: flex;
   min-width: 0;
   flex-direction: column;
-  gap: 4px;
+  gap: 7px;
   color: #334155;
-  font-size: 11.5px;
+  font-size: 12px;
   font-weight: 650;
 }
 
-.sales-order-field > span b {
+.sales-order-field>span b {
   color: #dc2626;
 }
 
@@ -129,15 +91,15 @@
   box-sizing: border-box;
   width: 100%;
   min-width: 0;
-  height: 34px;
-  padding: 5px 9px;
+  height: 42px;
+  padding: 9px 11px;
   border: 1px solid #cbd5e1;
-  border-radius: 8px;
+  border-radius: 9px;
   outline: none;
   background: #fff;
   color: #0f172a;
   font: inherit;
-  font-size: 12.5px;
+  font-size: 13px;
 }
 
 .sales-order-field input:focus,
@@ -149,9 +111,9 @@
 
 .sales-order-field-error {
   color: #b91c1c;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
-  line-height: 1.4;
+  line-height: 1.5;
 }
 
 .sales-order-field-error button {
@@ -167,21 +129,19 @@
 .sales-order-search-results {
   display: flex;
   flex-direction: column;
-  margin-top: 6px;
-  max-height: 150px;
-  overflow-y: auto;
+  margin-top: 8px;
+  overflow: hidden;
   border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  flex-shrink: 0;
+  border-radius: 10px;
 }
 
 .sales-order-search-results button {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: 12px;
   min-width: 0;
-  padding: 8px 10px;
+  padding: 12px;
   border: 0;
   border-bottom: 1px solid #f1f5f9;
   background: #fff;
@@ -199,7 +159,7 @@
   background: #f8fafc;
 }
 
-.sales-order-search-results button > span {
+.sales-order-search-results button>span {
   min-width: 0;
   overflow-wrap: anywhere;
 }
@@ -211,7 +171,7 @@
 
 .sales-order-search-results p {
   margin: 0;
-  padding: 10px;
+  padding: 12px;
   color: #64748b;
   font-size: 12px;
 }
@@ -219,20 +179,15 @@
 .sales-order-lines {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  margin-top: 8px;
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  padding-right: 4px;
+  gap: 10px;
+  margin-top: 14px;
 }
 
 .sales-order-line {
   min-width: 0;
-  flex-shrink: 0;
-  padding: 8px 12px;
+  padding: 14px;
   border: 1px solid #e2e8f0;
-  border-radius: 9px;
+  border-radius: 11px;
   background: #fbfdff;
 }
 
@@ -240,24 +195,24 @@
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  gap: 10px;
+  gap: 12px;
 }
 
-.sales-order-line-heading > div {
+.sales-order-line-heading>div {
   min-width: 0;
 }
 
 .sales-order-product-code {
   color: #2563eb;
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 750;
 }
 
 .sales-order-line h3 {
-  margin: 2px 0 3px;
+  margin: 3px 0 5px;
   color: #0f172a;
-  font-size: 12.5px;
-  line-height: 1.35;
+  font-size: 13px;
+  line-height: 1.4;
   overflow-wrap: anywhere;
 }
 
@@ -268,41 +223,34 @@
 
 .sales-order-line-controls {
   display: grid;
-  grid-template-columns: minmax(105px, 1fr) minmax(80px, 0.7fr) minmax(110px, 1.1fr);
+  grid-template-columns: minmax(110px, 1fr) minmax(90px, 0.7fr) minmax(120px, 1.1fr);
   align-items: end;
-  gap: 10px;
-  margin-top: 6px;
-}
-
-.sales-order-line-controls .sales-order-field input,
-.sales-order-line-controls .sales-order-field select {
-  height: 32px;
-  padding: 4px 8px;
-  font-size: 12px;
+  gap: 12px;
+  margin-top: 12px;
 }
 
 .sales-order-line-total {
   display: flex;
   min-width: 0;
-  min-height: 32px;
+  min-height: 42px;
   flex-direction: column;
   justify-content: center;
-  gap: 2px;
+  gap: 4px;
   color: #64748b;
-  font-size: 10.5px;
+  font-size: 11px;
 }
 
 .sales-order-line-total strong {
   color: #0f172a;
-  font-size: 12.5px;
+  font-size: 13px;
   overflow-wrap: anywhere;
 }
 
 .sales-order-remove-button {
   flex-shrink: 0;
-  padding: 4px 8px;
+  padding: 6px 8px;
   border: 1px solid #fecaca;
-  border-radius: 6px;
+  border-radius: 7px;
   background: #fff;
   color: #b91c1c;
   cursor: pointer;
@@ -316,36 +264,30 @@
 }
 
 .sales-order-empty {
-  margin-top: 8px;
-  padding: 16px 12px;
+  margin-top: 12px;
+  padding: 20px 12px;
   border: 1px dashed #cbd5e1;
-  border-radius: 8px;
+  border-radius: 10px;
   color: #64748b;
   text-align: center;
   font-size: 12px;
-  line-height: 1.4;
+  line-height: 1.5;
 }
 
 .sales-order-empty.compact {
   margin-top: 0;
-  padding: 10px;
 }
 
 .sales-order-hint {
-  margin: 6px 0 0;
+  margin: 10px 0 0;
   color: #64748b;
   font-size: 11px;
-  line-height: 1.4;
-  flex-shrink: 0;
+  line-height: 1.5;
 }
 
-.sales-order-summary {
-  flex-shrink: 0;
-  padding: 12px 14px;
-}
-
-.sales-order-summary h2 {
-  margin: 0 0 6px;
+.sales-order-sidebar {
+  position: sticky;
+  top: 16px;
 }
 
 .sales-order-summary-row,
@@ -353,20 +295,20 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: 12px;
   color: #334155;
   font-size: 12px;
 }
 
 .sales-order-summary-row {
-  padding: 5px 0;
+  padding: 11px 0;
   border-bottom: 1px solid #f1f5f9;
 }
 
 .sales-order-summary-row strong {
   flex-shrink: 0;
   color: #0f172a;
-  font-size: 12.5px;
+  font-size: 13px;
   text-align: right;
 }
 
@@ -376,21 +318,19 @@
 }
 
 .sales-order-discount {
-  padding: 5px 0;
+  padding: 11px 0;
   border-bottom: 1px solid #f1f5f9;
 }
 
 .sales-order-discount input {
-  width: 76px;
-  height: 30px;
-  padding: 4px 6px;
+  width: 88px;
+  height: 36px;
   text-align: right;
-  font-size: 12px;
 }
 
 .sales-order-summary-row.total {
   align-items: flex-start;
-  margin: 4px 0 8px;
+  margin: 4px 0 12px;
   border-bottom: 0;
   color: #0f172a;
   font-weight: 750;
@@ -398,18 +338,18 @@
 
 .sales-order-summary-row.total strong {
   color: #047857;
-  font-size: 16px;
+  font-size: 18px;
 }
 
 .sales-order-primary-button,
 .sales-order-secondary-button {
   display: inline-flex;
-  min-height: 34px;
+  min-height: 42px;
   align-items: center;
   justify-content: center;
-  padding: 7px 12px;
+  padding: 9px 13px;
   border: 1px solid transparent;
-  border-radius: 8px;
+  border-radius: 9px;
   cursor: pointer;
   font: inherit;
   font-size: 12px;
@@ -419,12 +359,15 @@
 
 .sales-order-primary-button {
   width: 100%;
-  background: #059669;
+  background: linear-gradient(135deg, #0fba90, #0fad89);
   color: #fff;
+  box-shadow: 0 2px 8px rgba(15, 186, 144, 0.25);
+  transition: all 0.2s ease;
 }
 
 .sales-order-primary-button:hover:not(:disabled) {
-  background: #047857;
+  background: linear-gradient(135deg, #0fad89, #0a8f70);
+  box-shadow: 0 4px 12px rgba(15, 186, 144, 0.35);
 }
 
 .sales-order-primary-button:disabled {
@@ -444,54 +387,41 @@
 
 .sales-order-secondary-button.full {
   width: 100%;
-  margin-top: 6px;
+  margin-top: 8px;
 }
 
 .sales-order-drafts {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  padding: 10px 14px;
+  padding: 16px;
 }
 
 .sales-order-drafts h2 {
   margin: 0;
-  font-size: 13.5px;
+  font-size: 14px;
 }
 
 .sales-order-drafts-heading {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 6px;
-  flex-shrink: 0;
-}
-
-.sales-order-drafts-list {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  padding-right: 2px;
+  gap: 10px;
+  margin-bottom: 12px;
 }
 
 .sales-order-new-button {
   display: inline-flex;
-  min-height: 28px;
+  min-height: 36px;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  padding: 4px 9px;
-  border: 1px solid #059669;
-  border-radius: 8px;
-  background: linear-gradient(135deg, #10b981, #059669);
-  box-shadow: 0 2px 6px rgba(5, 150, 105, 0.2);
+  gap: 6px;
+  padding: 7px 12px;
+  border: 1px solid #0fba90;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #0fba90, #0fad89);
+  box-shadow: 0 3px 8px rgba(15, 186, 144, 0.25);
   color: #fff;
   cursor: pointer;
   font: inherit;
-  font-size: 11.5px;
+  font-size: 12px;
   font-weight: 750;
   white-space: nowrap;
   transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease;
@@ -499,30 +429,35 @@
 
 .sales-order-new-button::before {
   content: '+';
-  font-size: 15px;
+  font-size: 17px;
   font-weight: 500;
   line-height: 0.8;
 }
 
 .sales-order-new-button:hover {
   transform: translateY(-1px);
-  background: linear-gradient(135deg, #059669, #047857);
-  box-shadow: 0 4px 10px rgba(5, 150, 105, 0.28);
+  background: linear-gradient(135deg, #0fad89, #0a8f70);
+  box-shadow: 0 5px 12px rgba(15, 186, 144, 0.35);
+}
+
+.sales-order-new-button:focus-visible {
+  outline: 3px solid rgba(15, 186, 144, 0.3);
+  outline-offset: 2px;
 }
 
 .sales-order-draft {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 0;
+  padding: 9px 0;
   border-top: 1px solid #f1f5f9;
 }
 
 .sales-order-draft.active {
-  margin: 0 -6px;
-  padding-right: 6px;
-  padding-left: 6px;
-  border-radius: 6px;
+  margin: 0 -8px;
+  padding-right: 8px;
+  padding-left: 8px;
+  border-radius: 8px;
   background: #eff6ff;
 }
 
@@ -531,7 +466,7 @@
   min-width: 0;
   flex: 1;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
   padding: 0;
   border: 0;
   background: none;
@@ -554,17 +489,16 @@
 
 .sales-order-draft-open span {
   color: #64748b;
-  font-size: 9.5px;
+  font-size: 10px;
 }
 
 .sales-order-alert {
-  flex-shrink: 0;
-  margin-bottom: 8px;
-  padding: 8px 12px;
+  margin-bottom: 14px;
+  padding: 12px 14px;
   border: 1px solid;
-  border-radius: 8px;
-  font-size: 12px;
-  line-height: 1.4;
+  border-radius: 10px;
+  font-size: 13px;
+  line-height: 1.5;
   overflow-wrap: anywhere;
 }
 
@@ -600,7 +534,7 @@
   }
 
   .sales-order-heading h1 {
-    font-size: 20px;
+    font-size: 22px;
   }
 
   .sales-order-heading .sales-order-secondary-button {
@@ -608,8 +542,8 @@
   }
 
   .sales-order-card {
-    padding: 10px 12px;
-    border-radius: 10px;
+    padding: 15px;
+    border-radius: 12px;
   }
 
   .sales-order-fields,
@@ -618,12 +552,12 @@
   }
 
   .sales-order-line {
-    padding: 8px 10px;
+    padding: 12px;
   }
 
   .sales-order-line-controls {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    gap: 8px;
+    gap: 10px;
   }
 
   .sales-order-line-total {
@@ -632,12 +566,12 @@
     flex-direction: row;
     align-items: center;
     justify-content: space-between;
-    padding-top: 2px;
+    padding-top: 3px;
   }
 
   .sales-order-search-results button {
     align-items: flex-start;
     flex-direction: column;
-    gap: 4px;
+    gap: 5px;
   }
 }
