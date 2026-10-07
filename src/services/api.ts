@@ -843,6 +843,9 @@ export interface CustomerCreatePayload {
   email: string;
   phone: string;
   username?: string;
+  role?: string;
+  roles?: string[];
+  branch?: string;
 }
 
 export interface CustomerCreateResponse {
