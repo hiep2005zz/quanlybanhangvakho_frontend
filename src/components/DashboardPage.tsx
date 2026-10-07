@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { getProductsApi, ProductItem, User } from '../services/api';
 import { sessionManager, SessionState } from '../services/sessionManager';
 import SecurityModal from './SecurityModal';
@@ -17,12 +17,14 @@ import { ProfileView } from './ProfileView';
 import DiscountPolicyView from './DiscountPolicyView';
 import { ProductBulkImportModal } from './ProductBulkImportModal';
 import DealerSearchView from './DealerSearchView';
+import DealerProfileManagementView from './DealerProfileManagementView';
 import DeliveryPointsView from './DeliveryPointsView';
 import { ProductUnitModal } from './ProductUnitModal';
 import { StockActionModal } from './StockActionModal';
 import { OrderManagementView } from './OrderManagementView';
 import SalesOrderEntry from './SalesOrderEntry';
 import { ProductHistoryView } from './ProductHistoryView';
+import { ProductFormView } from './ProductFormView';
 import { ModalPortal } from './ModalPortal';
 
 import './dashboard.css';
@@ -73,12 +75,21 @@ export default function DashboardPage({
   const SUPPLIER_ROLES = ['admin', 'warehouse', 'warehouse_manager'];
   const canManageSuppliers = officialRoles.some((r) => SUPPLIER_ROLES.includes(r));
 
-  // Quyền quản lý ngành hàng
+  // Quyền quản lý ngành hàng & sản phẩm
   const canManageCategories = isAdmin || isSalesManager;
+  const canManageProducts = isAdmin || isSalesManager;
   const canAccessPriceBooks = isAdmin || isSalesManager || isAccountant;
   // Quyền tra cứu đại lý: Nhân viên kinh doanh (sales), Quản lý kinh doanh (sales_manager), Quản trị viên (admin), Kế toán (accountant)
   const DEALER_ROLES = ['admin', 'sales_manager', 'sales', 'accountant'];
   const canViewDealers = officialRoles.some((r) => DEALER_ROLES.includes(r));
+  // Quyền quản lý hồ sơ đại lý: Kế toán công nợ (accountant), Quản lý kinh doanh (sales_manager), Quản trị viên (admin), Nhân viên kinh doanh (sales)
+  const canManageDealerProfiles = Boolean(
+    isAdmin ||
+    isSalesManager ||
+    isAccountant ||
+    user.role === 'sales' ||
+    officialRoles.some((r) => DEALER_ROLES.includes(r))
+  );
 
   // Quyền quản lý điểm giao hàng: Chỉ hiển thị với 3 vai trò admin, sales, sales_manager
   const DELIVERY_ROLES = ['admin', 'sales_manager', 'sales'];
@@ -109,6 +120,7 @@ export default function DashboardPage({
     const isOrdersPath = pathname === '/orders' || pathname.startsWith('/orders/');
     const isProfilePath = pathname === '/profile' || pathname.startsWith('/profile/');
     const isDiscountsPath = pathname === '/discounts' || pathname.startsWith('/discounts/');
+    const isDealerProfilesPath = pathname === '/dealer-profiles' || pathname.startsWith('/dealer-profiles/');
     const isDealersPath = pathname === '/dealers' || pathname.startsWith('/dealers/');
     const isDeliveryPointsPath = pathname === '/delivery-points' || pathname.startsWith('/delivery-points/');
     const isProductHistoryPath = pathname === '/product-history' || pathname.startsWith('/product-history/');
@@ -155,6 +167,12 @@ export default function DashboardPage({
         }
       }
       return 'delivery-points';
+    }
+    if (isDealerProfilesPath || oldTabVal === 'dealer-profiles') {
+      if (hasOldTabParam || pathname !== '/dealer-profiles') {
+        try { window.history.replaceState({}, '', '/dealer-profiles'); } catch {}
+      }
+      return 'dealer-profiles';
     }
     if (isDealersPath || oldTabVal === 'dealers') {
       if (hasOldTabParam || pathname !== '/dealers') {
@@ -209,6 +227,11 @@ export default function DashboardPage({
   });
   // 3. Chuyển đổi Route Clean URL
   const setActiveTab = (tab: TabType) => {
+    // Luôn đóng màn hình Thêm/Sửa sản phẩm khi chuyển sang bất kỳ tab/nhánh nào
+    if (tab !== 'add-product') {
+      setProductDrawerState({ isOpen: false, product: null });
+    }
+
     if (tab === 'product-history') {
       setActiveTabState('product-history');
       try {
@@ -223,6 +246,17 @@ export default function DashboardPage({
       }
       return;
     }
+    if (tab === 'add-product') {
+      setActiveTabState('inventory');
+      setProductDrawerState({ isOpen: true, product: null });
+      try {
+        window.history.pushState({}, '', '/');
+      } catch {
+        // ignore
+      }
+      return;
+    }
+
     if (tab === 'create-order') {
       setActiveTabState('create-order');
       try {
@@ -266,6 +300,22 @@ export default function DashboardPage({
       setActiveTabState('delivery-points');
       try {
         window.history.pushState({}, '', '/delivery-points');
+      } catch {
+        // ignore
+      }
+    } else if (tab === 'dealer-profiles') {
+      if (!canManageDealerProfiles) {
+        setActiveTabState('inventory');
+        try {
+          window.history.replaceState({}, '', '/');
+        } catch {
+          // ignore
+        }
+        return;
+      }
+      setActiveTabState('dealer-profiles');
+      try {
+        window.history.pushState({}, '', '/dealer-profiles');
       } catch {
         // ignore
       }
@@ -374,6 +424,12 @@ export default function DashboardPage({
       setActiveTabState('inventory');
       window.history.replaceState({}, '', '/');
     }
+    if (activeTab === 'dealer-profiles' && !canManageDealerProfiles) {
+      setActiveTabState('inventory');
+      try {
+        window.history.replaceState({}, '', '/');
+      } catch {}
+    }
     if (activeTab === 'dealers' && !canViewDealers) {
       setActiveTabState('inventory');
       try {
@@ -390,7 +446,7 @@ export default function DashboardPage({
         // ignore
       }
     }
-  }, [activeTab, canManageCategories, canViewDealers, canManageDeliveryPoints, canAccessDiscounts, user.username]);
+  }, [activeTab, canManageCategories, canViewDealers, canManageDealerProfiles, canManageDeliveryPoints, canAccessDiscounts, user.username]);
 
   useEffect(() => {
     const syncFromUrl = () => {
@@ -398,6 +454,11 @@ export default function DashboardPage({
       const isPriceBooksPath = pathname === '/price-books';
       const params = new URLSearchParams(window.location.search);
       const tabParam = (params.get('tab') || params.get('view') || '').toLowerCase();
+
+      const isAddProduct = pathname === '/add-product' || pathname.startsWith('/add-product/') || tabParam === 'add-product';
+      if (!isAddProduct) {
+        setProductDrawerState({ isOpen: false, product: null });
+      }
 
       const isUsersPath = pathname === '/users' || pathname.startsWith('/users/') || pathname === '/admin' || pathname.startsWith('/admin/');
       const isAuditPath = pathname === '/audit-logs' || pathname.startsWith('/audit-logs/');
@@ -465,6 +526,16 @@ export default function DashboardPage({
         return;
       }
 
+      const isDealerProfilesPath = pathname === '/dealer-profiles' || pathname.startsWith('/dealer-profiles/');
+      if (isDealerProfilesPath || tabParam === 'dealer-profiles') {
+        if (pathname !== '/dealer-profiles' || tabParam) {
+          try {
+            window.history.replaceState({}, '', '/dealer-profiles');
+          } catch {}
+        }
+        setActiveTabState('dealer-profiles');
+        return;
+      }
       const isDealersPath = pathname === '/dealers' || pathname.startsWith('/dealers/');
       if (isDealersPath || tabParam === 'dealers') {
         if (pathname !== '/dealers' || tabParam) {
@@ -564,6 +635,13 @@ export default function DashboardPage({
 
   // Bulk Import Product Modal State
   const [isProductBulkImportOpen, setIsProductBulkImportOpen] = useState(false);
+  const [productDrawerState, setProductDrawerState] = useState<{ isOpen: boolean; product: ProductItem | null }>(() => {
+    const pathname = window.location.pathname.toLowerCase();
+    const params = new URLSearchParams(window.location.search);
+    const oldTabVal = (params.get('tab') || params.get('view') || '').toLowerCase();
+    const isAddProduct = pathname === '/add-product' || pathname.startsWith('/add-product/') || oldTabVal === 'add-product';
+    return { isOpen: isAddProduct, product: null };
+  });
 
   // Quản lý sản phẩm được chọn để xem lịch sử (/product-history)
   const [historyProductTarget, setHistoryProductTarget] = useState<{ code: string; name: string } | null>(() => {
@@ -581,6 +659,10 @@ export default function DashboardPage({
     product: ProductItem | null;
   }>({ isOpen: false, actionType: 'receipt', product: null });
   const [isSalesOrderEntryOpen, setIsSalesOrderEntryOpen] = useState(false);
+  const availableCategories = useMemo(
+    () => Array.from(new Set(['Thời trang', 'Giày dép', 'Phụ kiện', ...products.map((p) => p.category).filter(Boolean)])),
+    [products]
+  );
 
   // Dropdown menu 3 chấm trên dòng sản phẩm kho hàng
   const [openProductMenuId, setOpenProductMenuId] = useState<number | null>(null);
@@ -687,7 +769,9 @@ export default function DashboardPage({
   const primaryRole = officialRoles[0] || user.role;
   const currentBadgeColor = roleBadgeColorMap[primaryRole] || '#64748b';
 
-  const isLockedScrollTab = (activeTab === 'inventory' || activeTab === 'dealers' || activeTab === 'delivery-points' || activeTab === 'suppliers' || activeTab === 'price-books' || activeTab === 'categories' || activeTab === 'orders' || activeTab === 'product-history' || activeTab === 'create-order' || isSalesOrderEntryOpen) && !isPendingCustomer;
+  const isProductFormOpen = productDrawerState.isOpen && activeTab === 'inventory';
+  const isSalesOrderOpen = activeTab === 'create-order' || isSalesOrderEntryOpen;
+  const isLockedScrollTab = !isProductFormOpen && !isSalesOrderOpen && (activeTab === 'inventory' || activeTab === 'dealers' || activeTab === 'delivery-points' || activeTab === 'suppliers' || activeTab === 'price-books' || activeTab === 'categories' || activeTab === 'orders' || activeTab === 'product-history') && !isPendingCustomer;
 
   return (
     <DashboardLayout
@@ -718,9 +802,11 @@ export default function DashboardPage({
         <Sidebar
           activeTab={activeTab}
           onSelectTab={setActiveTab}
+          canManageProducts={canManageProducts}
           canCreateOrders={canCreateOrders}
           canReadOrders={canReadOrders}
           canViewDealers={canViewDealers}
+          canManageDealerProfiles={canManageDealerProfiles}
           canManageDeliveryPoints={canManageDeliveryPoints}
           canManageSuppliers={canManageSuppliers}
           canAccessPriceBooks={canAccessPriceBooks}
@@ -747,8 +833,54 @@ export default function DashboardPage({
           width: '100%',
         } : undefined}
       >
-      {/* Main Content: Switch between Create Order, Order Management, User Management, Audit Logs, Inventory and Pending Authorization */}
-      {activeTab === 'create-order' || (isSalesOrderEntryOpen && canCreateOrders) ? (
+      {/* Main Content: Switch between Product Form, Create Order, Order Management, User Management, Audit Logs, Inventory and Pending Authorization */}
+      {productDrawerState.isOpen && activeTab === 'inventory' ? (
+        canManageProducts ? (
+          <ProductFormView
+            product={productDrawerState.product}
+            token={token}
+            isCostVisible={isCostVisible}
+            categories={availableCategories}
+            onBack={() => {
+              setProductDrawerState({ isOpen: false, product: null });
+              try {
+                window.history.pushState({}, '', '/');
+              } catch {
+                // ignore
+              }
+            }}
+            onSuccess={(updatedProduct, isDeleted) => {
+              if (isDeleted) {
+                setProducts((prev) => prev.filter((p) => p.id !== productDrawerState.product?.id));
+              } else if (updatedProduct) {
+                setProducts((prev) => {
+                  const idx = prev.findIndex((p) => p.id === updatedProduct.id);
+                  if (idx >= 0) {
+                    const copy = [...prev];
+                    copy[idx] = updatedProduct;
+                    return copy;
+                  }
+                  return [updatedProduct, ...prev];
+                });
+              }
+              setProductDrawerState({ isOpen: false, product: null });
+              try {
+                window.history.pushState({}, '', '/');
+              } catch {
+                // ignore
+              }
+              fetchProducts();
+            }}
+          />
+        ) : (
+          <AccessDeniedView
+            currentUser={user}
+            requiredPermission="Quyền quản lý sản phẩm (Thủ kho / Quản lý kho / Quản lý kinh doanh / Quản trị viên)"
+            onBackToWorkflow={() => setProductDrawerState({ isOpen: false, product: null })}
+            onLogout={onLogout}
+          />
+        )
+      ) : activeTab === 'create-order' || (isSalesOrderEntryOpen && canCreateOrders) ? (
         canCreateOrders ? (
           <SalesOrderEntry
             token={token}
@@ -868,6 +1000,21 @@ export default function DashboardPage({
           <AccessDeniedView
             currentUser={user}
             requiredPermission="Quản lý nhà cung cấp (Thủ kho / Quản lý kho / Quản trị)"
+            onBackToWorkflow={() => setActiveTab('inventory')}
+            onLogout={onLogout}
+          />
+        )
+      ) : activeTab === 'dealer-profiles' ? (
+        canManageDealerProfiles ? (
+          <DealerProfileManagementView
+            currentUser={user}
+            token={token}
+            onBackToHome={() => setActiveTab('inventory')}
+          />
+        ) : (
+          <AccessDeniedView
+            currentUser={user}
+            requiredPermission="Quản lý hồ sơ đại lý (Kế toán công nợ / Quản lý kinh doanh / Quản trị viên)"
             onBackToWorkflow={() => setActiveTab('inventory')}
             onLogout={onLogout}
           />
@@ -1431,9 +1578,54 @@ export default function DashboardPage({
                 </span>
 
 
+                {/* Nút Thêm sản phẩm (Chỉ hiển thị cho admin và quản lý kinh doanh) */}
+                {canManageProducts && (
+                  <button
+                    type="button"
+                    id="btn-add-product"
+                    onClick={() => {
+                      setProductDrawerState({ isOpen: true, product: null });
+                      try {
+                        window.history.pushState({}, '', '/add-product');
+                      } catch {
+                        // ignore
+                      }
+                    }}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      background: '#2563eb',
+                      border: '1px solid #1d4ed8',
+                      padding: '7px 14px',
+                      borderRadius: '8px',
+                      fontSize: '12.5px',
+                      fontWeight: '600',
+                      color: '#ffffff',
+                      cursor: 'pointer',
+                      boxShadow: '0 2px 6px rgba(37, 99, 235, 0.25)',
+                      transition: 'all 0.15s ease',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = '#1d4ed8';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = '#2563eb';
+                    }}
+                    title="Thêm mới sản phẩm vào hệ thống kho"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="12" y1="5" x2="12" y2="19" />
+                      <line x1="5" y1="12" x2="19" y2="12" />
+                    </svg>
+                    <span>Thêm sản phẩm</span>
+                  </button>
+                )}
+
                 {/* Nút Nhập file Excel danh mục hàng loạt (Chỉ hiển thị cho admin và quản lý kinh doanh) */}
                 {(isAdmin || isSalesManager) && (
-                  <button
+                  <>
+                    <button
                     type="button"
                     onClick={() => setIsProductBulkImportOpen(true)}
                     style={{
@@ -1467,6 +1659,7 @@ export default function DashboardPage({
                     </svg>
                     <span>Nhập file</span>
                   </button>
+                  </>
                 )}
 
                 {/* Nút Xuất file Excel danh mục */}
@@ -1639,7 +1832,28 @@ export default function DashboardPage({
                         </td>
 
                         <td style={{ padding: '13px 18px', fontWeight: '500', color: '#0f172a', fontSize: '13.5px', textAlign: 'left' }}>
-                          {item.name}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            {item.images && item.images.length > 0 ? (
+                              <img src={item.images[0]} alt="" style={{ width: '32px', height: '32px', borderRadius: '4px', objectFit: 'cover', border: '1px solid #cbd5e1' }} />
+                            ) : (
+                              <div style={{ width: '32px', height: '32px', borderRadius: '4px', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', border: '1px solid #e2e8f0' }}>
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                              </div>
+                            )}
+                            <div style={{ display: 'flex', flexDirection: 'column' }}>
+                              <span>{item.name}</span>
+                              {item.status === 'inactive' && (
+                                <span style={{ fontSize: '10px', background: '#fef2f2', color: '#ef4444', border: '1px solid #fecaca', padding: '1px 4px', borderRadius: '4px', width: 'fit-content', marginTop: '2px' }}>
+                                  Ngừng kinh doanh
+                                </span>
+                              )}
+                              {item.status === 'active' && (
+                                <span style={{ fontSize: '10px', background: '#f0fdf4', color: '#16a34a', border: '1px solid #bbf7d0', padding: '1px 4px', borderRadius: '4px', width: 'fit-content', marginTop: '2px' }}>
+                                  Đang kinh doanh
+                                </span>
+                              )}
+                            </div>
+                          </div>
                         </td>
 
                         <td style={{ padding: '13px 18px', textAlign: 'left', color: '#64748b', fontSize: '12.5px' }}>
@@ -1829,6 +2043,43 @@ export default function DashboardPage({
                                   }}
                                   onClick={(e) => e.stopPropagation()}
                                 >
+                                  {(isAdmin || isSalesManager) && (
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setProductDrawerState({ isOpen: true, product: item });
+                                        setOpenProductMenuId(null);
+                                      }}
+                                      style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '8px',
+                                        width: '100%',
+                                        padding: '8px 12px',
+                                        background: 'transparent',
+                                        border: 'none',
+                                        borderRadius: '6px',
+                                        fontSize: '13px',
+                                        fontWeight: '600',
+                                        color: '#0f172a',
+                                        cursor: 'pointer',
+                                        boxShadow: 'none',
+                                        margin: 0,
+                                        transition: 'background 0.15s ease',
+                                        textAlign: 'left',
+                                      }}
+                                      onMouseEnter={(e) => (e.currentTarget.style.background = '#f1f5f9')}
+                                      onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                                    >
+                                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M12 20h9" />
+                                        <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                                      </svg>
+                                      <span>Chỉnh sửa sản phẩm</span>
+                                    </button>
+                                  )}
+
                                   {canConfigUnit && (
                                     <button
                                       type="button"

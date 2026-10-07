@@ -196,7 +196,7 @@ export const ProductUnitModal: React.FC<ProductUnitModalProps> = ({
               marginBottom: '16px',
             }}
           >
-            ⚠️ {errorMsg}
+            {errorMsg}
           </div>
         )}
 
