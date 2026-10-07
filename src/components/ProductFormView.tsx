@@ -790,7 +790,7 @@ export const ProductFormView: React.FC<ProductFormViewProps> = ({
                 )}
                 {unitError && (
                   <span style={{ fontSize: '12px', color: '#ef4444', marginTop: '2px' }}>
-                    ⚠️ {unitError}
+                    {unitError}
                   </span>
                 )}
                 <span style={{ fontSize: '11.5px', color: '#64748b' }}>
@@ -915,9 +915,12 @@ export const ProductFormView: React.FC<ProductFormViewProps> = ({
                         margin: 0,
                         cursor: 'pointer',
                         accentColor: '#10b981',
+                        boxShadow: 'none',
+                        outline: 'none',
+                        background: 'transparent',
                       }}
                     />
-                    <span>✓ Đang kinh doanh</span>
+                    <span>Đang kinh doanh</span>
                   </label>
 
                   <label
@@ -950,9 +953,12 @@ export const ProductFormView: React.FC<ProductFormViewProps> = ({
                         margin: 0,
                         cursor: 'pointer',
                         accentColor: '#ef4444',
+                        boxShadow: 'none',
+                        outline: 'none',
+                        background: 'transparent',
                       }}
                     />
-                    <span>✕ Ngừng kinh doanh</span>
+                    <span>Ngừng kinh doanh</span>
                   </label>
                 </div>
               </div>
@@ -1226,46 +1232,6 @@ export const ProductFormView: React.FC<ProductFormViewProps> = ({
               )}
             </div>
 
-            {/* Khối Trạng thái kinh doanh */}
-            <div
-              style={{
-                background: '#f8fafc',
-                border: '1px solid #e2e8f0',
-                borderRadius: '10px',
-                padding: '12px 14px',
-                marginBottom: '18px',
-              }}
-            >
-              <label style={{ fontSize: '13px', fontWeight: '700', color: '#1e293b', marginBottom: '8px', display: 'block' }}>
-                Trạng thái kinh doanh
-              </label>
-              <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '13px' }}>
-                  <input
-                    type="radio"
-                    name="product_status"
-                    value="active"
-                    checked={status === 'active'}
-                    onChange={() => setStatus('active')}
-                  />
-                  <span style={{ fontWeight: '600', color: '#16a34a' }}>
-                    Đang kinh doanh
-                  </span>
-                </label>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '13px' }}>
-                  <input
-                    type="radio"
-                    name="product_status"
-                    value="inactive"
-                    checked={status === 'inactive'}
-                    onChange={() => setStatus('inactive')}
-                  />
-                  <span style={{ fontWeight: '600', color: '#dc2626' }}>
-                    Ngừng kinh doanh
-                  </span>
-                </label>
-              </div>
-            </div>
 
             {/* Các nút bấm thao tác */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -1298,7 +1264,7 @@ export const ProductFormView: React.FC<ProductFormViewProps> = ({
                 }}
               >
                 {isSubmitting ? (
-                  <span>⏳ Đang lưu dữ liệu...</span>
+                  <span>Đang lưu dữ liệu...</span>
                 ) : (
                   <>
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -1481,7 +1447,7 @@ export const ProductFormView: React.FC<ProductFormViewProps> = ({
               <>
                 <div style={{ marginBottom: '12px' }}>
                   <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '750', color: '#b91c1c' }}>
-                    🔒 Không thể xóa sản phẩm
+                    Không thể xóa sản phẩm
                   </h3>
                 </div>
 

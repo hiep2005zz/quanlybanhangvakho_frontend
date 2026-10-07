@@ -214,7 +214,7 @@ label {
   letter-spacing: -0.01em;
 }
 
-input {
+input:not([type="radio"]):not([type="checkbox"]) {
   width: 100%;
   padding: 14px 16px;
   background: rgba(255, 255, 255, 0.85);
@@ -228,20 +228,33 @@ input {
   box-shadow: inset 0 2px 4px rgba(4, 47, 46, 0.02);
 }
 
-input::placeholder {
+input:not([type="radio"]):not([type="checkbox"])::placeholder {
   color: var(--text-dim);
 }
 
-input:hover {
+input:not([type="radio"]):not([type="checkbox"]):hover {
   border-color: #5eead4;
   background: rgba(255, 255, 255, 0.95);
 }
 
-input:focus {
+input:not([type="radio"]):not([type="checkbox"]):focus {
   outline: none;
   border-color: var(--primary);
   background: #ffffff;
   box-shadow: 0 0 0 4px var(--primary-glow), inset 0 2px 4px rgba(4, 47, 46, 0.02);
+}
+
+input[type="radio"],
+input[type="checkbox"] {
+  box-shadow: none !important;
+  outline: none !important;
+  background: transparent !important;
+}
+
+input[type="radio"]:focus,
+input[type="checkbox"]:focus {
+  box-shadow: none !important;
+  outline: none !important;
 }
 
 .pwd-input-wrapper {

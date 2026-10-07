@@ -468,7 +468,6 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
                 fontWeight: '700',
               }}
             >
-              📦
             </div>
             <div>
               <h3 style={{ margin: 0, fontSize: '17px', fontWeight: '700', color: '#0f172a' }}>
@@ -529,7 +528,6 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
                 gap: '8px',
               }}
             >
-              <span>⚠️</span>
               <span>{generalError}</span>
             </div>
           )}
@@ -588,13 +586,13 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
                   />
                   {skuChecking && (
                     <span style={{ position: 'absolute', right: '10px', top: '9px', fontSize: '12px', color: '#64748b' }}>
-                      ⏳
+                      Đang kiểm tra...
                     </span>
                   )}
                 </div>
                 {hasTransactions && (
                   <div style={{ fontSize: '11.5px', color: '#94a3b8', marginTop: '4px' }}>
-                    🔒 Đã phát sinh giao dịch &rarr; Khóa chỉnh sửa mã SKU.
+                    Đã phát sinh giao dịch &rarr; Khóa chỉnh sửa mã SKU.
                   </div>
                 )}
                 {skuError && <div style={{ fontSize: '12px', color: '#ef4444', marginTop: '3px' }}>{skuError}</div>}
@@ -802,7 +800,6 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
                     transition: 'border-color 0.2s',
                   }}
                 >
-                  <div style={{ fontSize: '24px', marginBottom: '4px' }}>🖼️</div>
                   <div style={{ fontSize: '13px', fontWeight: '600', color: '#334155' }}>
                     Kéo thả ảnh vào đây hoặc <span style={{ color: '#2563eb' }}>bấm để chọn ảnh</span>
                   </div>
@@ -1053,7 +1050,7 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
                 )}
                 {unitError && (
                   <div style={{ fontSize: '12px', color: '#ef4444', marginTop: '4px', fontWeight: '500' }}>
-                    ⚠️ {unitError}
+                    {unitError}
                   </div>
                 )}
               </div>
@@ -1222,6 +1219,7 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
                     value="active"
                     checked={status === 'active'}
                     onChange={() => setStatus('active')}
+                    style={{ accentColor: '#22c55e', cursor: 'pointer', outline: 'none', boxShadow: 'none' }}
                   />
                   <span style={{ fontWeight: '600', color: '#15803d', fontSize: '13.5px' }}>
                     Đang kinh doanh
@@ -1246,6 +1244,7 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
                     value="inactive"
                     checked={status === 'inactive'}
                     onChange={() => setStatus('inactive')}
+                    style={{ accentColor: '#ef4444', cursor: 'pointer', outline: 'none', boxShadow: 'none' }}
                   />
                   <span style={{ fontWeight: '600', color: '#b91c1c', fontSize: '13.5px' }}>
                     Ngừng kinh doanh
@@ -1313,7 +1312,6 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
                   }}
                   title="Xóa vĩnh viễn sản phẩm khỏi danh mục"
                 >
-                  <span>🗑️</span>
                   <span>{isDeleting ? 'Đang xóa...' : 'Xóa sản phẩm'}</span>
                 </button>
               )
