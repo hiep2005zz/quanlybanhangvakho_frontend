@@ -108,6 +108,12 @@ export const ApproveOrderModal: React.FC<ApproveOrderModalProps> = ({
             <span style={{ fontWeight: '700', color: '#0f172a' }}>{order.dealer_name}</span>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+            <span style={{ color: '#64748b' }}>Người lên đơn:</span>
+            <span style={{ fontWeight: '700', color: '#0f172a' }}>
+              {order.created_by || order.assigned_sale_name || '—'}
+            </span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
             <span style={{ color: '#64748b' }}>Tổng giá trị:</span>
             <span style={{ fontWeight: '800', color: '#2563eb' }}>{order.total_amount.toLocaleString('vi-VN')} đồng</span>
           </div>
