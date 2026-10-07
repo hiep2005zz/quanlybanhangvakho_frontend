@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
   getOrdersApi,
@@ -81,23 +81,34 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
   const rejectedOrdersCount = orders.filter((o) => o.status === 'REJECTED').length;
   const totalRevenue = orders.reduce((sum, o) => sum + (o.total_amount || 0), 0);
 
-  // Bộ lọc đơn hàng
-  const filteredOrders = orders.filter((o) => {
-    const q = searchTerm.trim().toLowerCase();
-    const matchSearch =
-      !q ||
-      o.order_code.toLowerCase().includes(q) ||
-      o.dealer_name.toLowerCase().includes(q) ||
-      o.created_by.toLowerCase().includes(q);
+  // Bộ lọc và sắp xếp đơn hàng: Ưu tiên đơn chưa duyệt (PENDING_APPROVAL) lên đầu trang
+  const filteredOrders = useMemo(() => {
+    return orders
+      .filter((o) => {
+        const q = searchTerm.trim().toLowerCase();
+        const matchSearch =
+          !q ||
+          o.order_code.toLowerCase().includes(q) ||
+          o.dealer_name.toLowerCase().includes(q) ||
+          o.created_by.toLowerCase().includes(q);
 
-    const matchStatus =
-      statusFilter === 'ALL' ||
-      (statusFilter === 'PENDING_APPROVAL' && o.status === 'PENDING_APPROVAL') ||
-      (statusFilter === 'CONFIRMED' && o.status === 'CONFIRMED') ||
-      (statusFilter === 'REJECTED' && o.status === 'REJECTED');
+        const matchStatus =
+          statusFilter === 'ALL' ||
+          (statusFilter === 'PENDING_APPROVAL' && (o.status === 'PENDING_APPROVAL' || o.status === 'PENDING')) ||
+          (statusFilter === 'CONFIRMED' && o.status === 'CONFIRMED') ||
+          (statusFilter === 'REJECTED' && o.status === 'REJECTED');
 
-    return matchSearch && matchStatus;
-  });
+        return matchSearch && matchStatus;
+      })
+      .sort((a, b) => {
+        const isAPending = a.status === 'PENDING_APPROVAL' || a.status === 'PENDING';
+        const isBPending = b.status === 'PENDING_APPROVAL' || b.status === 'PENDING';
+        if (isAPending !== isBPending) {
+          return isBPending ? 1 : -1; // Đơn chờ duyệt luôn luôn lên đầu danh sách
+        }
+        return (b.id || 0) - (a.id || 0); // Cùng trạng thái thì đơn mới nhất xếp trước
+      });
+  }, [orders, searchTerm, statusFilter]);
 
   // Phân trang danh sách đơn hàng
   const [currentPage, setCurrentPage] = useState<number>(1);
