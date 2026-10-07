@@ -51,10 +51,12 @@ export default function DashboardPage({
 }: DashboardProps) {
   // 1. Xác định vai trò & Kiểm tra quyền Admin tối cao
   const rawRoles = user.roles && user.roles.length > 0 ? user.roles : [user.role];
-  const officialRoles = rawRoles.filter((r) => r && r !== 'customer');
+  const officialRoles: string[] = rawRoles.filter(Boolean) as string[];
+  const isCustomer = user.role === 'customer' || Boolean(user.roles && user.roles.includes('customer'));
 
-  // Tài khoản bị khóa màn hình chờ chỉ khi chưa được phân công kho/địa bàn VÀ chưa có vai trò hợp lệ
+  // Tài khoản bị khóa màn hình chờ chỉ khi chưa được phân công kho/địa bàn VÀ chưa có vai trò hợp lệ (không áp dụng cho tài khoản đại lý)
   const isPendingCustomer =
+    !isCustomer &&
     officialRoles.length === 0 &&
     (!user.branch || user.branch === 'Chưa phân công');
   const isAdmin = user.role === 'admin' || Boolean(user.roles && user.roles.includes('admin'));
@@ -79,9 +81,9 @@ export default function DashboardPage({
   const canManageCategories = isAdmin || isSalesManager;
   const canManageProducts = isAdmin || isSalesManager;
   const canAccessPriceBooks = isAdmin || isSalesManager || isAccountant;
-  // Quyền tra cứu đại lý: Nhân viên kinh doanh (sales), Quản lý kinh doanh (sales_manager), Quản trị viên (admin), Kế toán (accountant)
+  // Quyền tra cứu đại lý: Nhân viên kinh doanh (sales), Quản lý kinh doanh (sales_manager), Quản trị viên (admin), Kế toán (accountant), Đại lý (customer)
   const DEALER_ROLES = ['admin', 'sales_manager', 'sales', 'accountant'];
-  const canViewDealers = officialRoles.some((r) => DEALER_ROLES.includes(r));
+  const canViewDealers = isCustomer || officialRoles.some((r) => DEALER_ROLES.includes(r));
   // Quyền quản lý hồ sơ đại lý: Kế toán công nợ (accountant), Quản lý kinh doanh (sales_manager), Quản trị viên (admin), Nhân viên kinh doanh (sales)
   const canManageDealerProfiles = Boolean(
     isAdmin ||

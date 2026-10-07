@@ -30,6 +30,9 @@ export interface DealerSearchItem {
     max_debt_days?: number;
     current_debt?: number;
     debt_status?: string;
+    lock_reason?: string | null;
+    locked_at?: string | null;
+    locked_by?: string | null;
     transaction_count?: number;
     has_transactions?: boolean;
     applied_price_book?: AppliedPriceBookInfo | null;
@@ -500,6 +503,7 @@ export async function createDealer(
 export async function updateDealerStatus(
     dealerId: number,
     status: string,
+    reason?: string,
     token?: string
 ): Promise<DealerSearchItem> {
     const authToken = getAuthToken(token);
@@ -511,10 +515,15 @@ export async function updateDealerStatus(
         headers['Authorization'] = `Bearer ${authToken}`;
     }
 
+    const payload: { status: string; reason?: string } = { status };
+    if (reason && reason.trim()) {
+        payload.reason = reason.trim();
+    }
+
     const response = await fetch(`${API_BASE_URL}/api/v1/dealers/${dealerId}/status`, {
         method: 'PATCH',
         headers,
-        body: JSON.stringify({ status }),
+        body: JSON.stringify(payload),
     });
 
     if (!response.ok) {
