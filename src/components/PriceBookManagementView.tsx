@@ -694,13 +694,13 @@ export function PriceBookManagementView({
         {!loading && filteredBooks.length > 0 && (
           <div
             style={{
-              padding: '12px 20px',
+              padding: '8px 18px',
               display: 'flex',
               justifyContent: 'flex-end',
               alignItems: 'center',
               borderTop: '1px solid #e2e8f0',
               background: '#f8fafc',
-              fontSize: '13px',
+              fontSize: '12px',
               color: '#64748b',
               flexShrink: 0,
             }}
@@ -711,11 +711,11 @@ export function PriceBookManagementView({
                 display: 'inline-flex',
                 alignItems: 'stretch',
                 border: '1px solid #d1d5db',
-                borderRadius: '8px',
+                borderRadius: '5px',
                 overflow: 'hidden',
                 background: '#ffffff',
                 boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
-                height: '32px',
+                height: '24px',
               }}
             >
               {/* Nút trang trước (<) - hiển thị khi trang > 1 */}
@@ -724,9 +724,9 @@ export function PriceBookManagementView({
                   type="button"
                   onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                   style={{
-                    minWidth: '32px',
+                    minWidth: '24px',
                     height: '100%',
-                    padding: '0 8px',
+                    padding: '0 6px',
                     border: 'none',
                     borderRight: '1px solid #e5e7eb',
                     background: '#ffffff',
@@ -741,7 +741,7 @@ export function PriceBookManagementView({
                   onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#ffffff')}
                   title="Trang trước"
                 >
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
                     <polyline points="15 18 9 12 15 6" />
                   </svg>
                 </button>
@@ -765,16 +765,16 @@ export function PriceBookManagementView({
                       <span
                         key={`ellipsis-${idx}`}
                         style={{
-                          minWidth: '32px',
+                          minWidth: '22px',
                           height: '100%',
-                          padding: '0 8px',
+                          padding: '0 4px',
                           borderRight: isLastItem ? 'none' : '1px solid #e5e7eb',
                           background: '#ffffff',
                           color: '#6b7280',
                           display: 'inline-flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          fontSize: '13px',
+                          fontSize: '11px',
                           userSelect: 'none',
                         }}
                       >
@@ -790,15 +790,15 @@ export function PriceBookManagementView({
                       type="button"
                       onClick={() => setCurrentPage(p)}
                       style={{
-                        minWidth: '32px',
+                        minWidth: '24px',
                         height: '100%',
-                        padding: '0 10px',
+                        padding: '0 7px',
                         border: 'none',
                         borderRight: isLastItem ? 'none' : '1px solid #e5e7eb',
                         background: isActive ? '#2ba1f4' : '#ffffff',
                         color: isActive ? '#ffffff' : '#374151',
                         cursor: isActive ? 'default' : 'pointer',
-                        fontSize: '13px',
+                        fontSize: '11.5px',
                         fontWeight: isActive ? '700' : '500',
                         display: 'inline-flex',
                         alignItems: 'center',
@@ -823,9 +823,9 @@ export function PriceBookManagementView({
                   type="button"
                   onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                   style={{
-                    minWidth: '32px',
+                    minWidth: '24px',
                     height: '100%',
-                    padding: '0 8px',
+                    padding: '0 6px',
                     border: 'none',
                     background: '#ffffff',
                     color: '#4b5563',
@@ -839,7 +839,7 @@ export function PriceBookManagementView({
                   onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#ffffff')}
                   title="Trang sau"
                 >
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
                     <polyline points="9 18 15 12 9 6" />
                   </svg>
                 </button>

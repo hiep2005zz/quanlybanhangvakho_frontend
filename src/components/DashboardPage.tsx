@@ -2021,11 +2021,11 @@ export default function DashboardPage({
                 flexWrap: 'wrap',
                 justifyContent: 'space-between',
                 alignItems: 'center',
-                padding: '12px 20px',
+                padding: '8px 18px',
                 borderTop: '1px solid #e2e8f0',
                 background: '#ffffff',
                 gap: '12px',
-                fontSize: '13px',
+                fontSize: '12px',
                 color: '#64748b',
                 flexShrink: 0
               }}>
