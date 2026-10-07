@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { CustomerCreatePayload, createCustomerApi } from '../services/api';
+import { ModalPortal } from './ModalPortal';
+
 
 interface CreateCustomerModalProps {
   isOpen: boolean;
@@ -22,8 +24,16 @@ export const CreateCustomerModal: React.FC<CreateCustomerModalProps> = ({
   });
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const modalRef = useRef<HTMLDivElement>(null);
 
   if (!isOpen) return null;
+
+  const triggerError = (msg: string) => {
+    setError(msg);
+    if (modalRef.current) {
+      modalRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,28 +41,28 @@ export const CreateCustomerModal: React.FC<CreateCustomerModalProps> = ({
 
     const trimmedName = formData.full_name.trim();
     if (!trimmedName) {
-      setError('Vui lòng nhập Họ và tên nhân viên.');
+      triggerError('Vui lòng nhập Họ và tên nhân viên.');
       return;
     }
 
     // Ràng buộc họ và tên phải bằng chữ cái, không được chứa số
     if (/\d/.test(trimmedName)) {
-      setError('Họ và tên không hợp lệ! Vui lòng chỉ nhập chữ cái, không được chứa chữ số.');
+      triggerError('Họ và tên không hợp lệ! Vui lòng chỉ nhập chữ cái, không được chứa chữ số.');
       return;
     }
 
     const vietnameseNameRegex = /^[a-zA-ZÀÁÂÃÈÉÊÌÍÒÓÔÕÙÚĂĐĨŨƠàáâãèéêìíòóôõùúăđĩũơƯĂẠẢẤẦẨẪẬẮẰẲẴẶẸẺẼỀỀỂưăạảấầẩẫậắằẳẵặẹẻẽềềểỄỆỈỊỌỎỐỒỔỖỘỚỜỞỠỢỤỦỨỪễệỉịọỏốồổỗộớờởỡợụủứừỬỮỰỲỴÝỶỸửữựỳỵỷỹ\s\.\'\-]+$/;
     if (!vietnameseNameRegex.test(trimmedName)) {
-      setError('Họ và tên không hợp lệ! Vui lòng chỉ nhập các chữ cái tiếng Việt hoặc tiếng Anh, không nhập số hay ký tự đặc biệt.');
+      triggerError('Họ và tên không hợp lệ! Vui lòng chỉ nhập các chữ cái tiếng Việt hoặc tiếng Anh, không nhập số hay ký tự đặc biệt.');
       return;
     }
 
     if (!formData.email.trim()) {
-      setError('Vui lòng nhập địa chỉ Email.');
+      triggerError('Vui lòng nhập địa chỉ Email.');
       return;
     }
     if (!formData.phone.trim()) {
-      setError('Vui lòng nhập số điện thoại liên hệ.');
+      triggerError('Vui lòng nhập số điện thoại liên hệ.');
       return;
     }
 
@@ -67,7 +77,7 @@ export const CreateCustomerModal: React.FC<CreateCustomerModalProps> = ({
     // Định dạng: 10 chữ số bắt đầu bằng 03, 05, 07, 08, 09 (hoặc máy bàn 11 số bắt đầu 02)
     const vnPhoneRegex = /^(0[3|5|7|8|9][0-9]{8}|02[0-9]{9})$/;
     if (!vnPhoneRegex.test(cleanPhone)) {
-      setError('Số điện thoại không hợp lệ! Vui lòng nhập đúng số điện thoại (10 chữ số, bắt đầu bằng 03, 05, 07, 08, 09. Ví dụ: 0987654321 hoặc +84987654321).');
+      triggerError('Số điện thoại không hợp lệ! Vui lòng nhập đúng số điện thoại (10 chữ số, bắt đầu bằng 03, 05, 07, 08, 09. Ví dụ: 0987654321 hoặc +84987654321).');
       return;
     }
 
@@ -100,50 +110,52 @@ export const CreateCustomerModal: React.FC<CreateCustomerModalProps> = ({
       });
       onClose();
     } catch (err: any) {
-      setError(err.message || 'Lỗi khi tạo tài khoản.');
+      triggerError(err.message || 'Lỗi khi tạo tài khoản.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        width: '100vw',
-        height: '100vh',
-        background: 'rgba(15, 23, 42, 0.45)',
-        backdropFilter: 'blur(6px)',
-        WebkitBackdropFilter: 'blur(6px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 9999,
-        padding: '20px',
-        boxSizing: 'border-box',
-      }}
-      onClick={(e) => {
-        if (e.target === e.currentTarget) {
-          onClose();
-        }
-      }}
-    >
+    <ModalPortal>
       <div
         style={{
-          background: '#ffffff',
-          border: '1px solid #e2e8f0',
-          borderRadius: '16px',
-          width: '100%',
-          maxWidth: '540px',
-          boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
-          overflow: 'hidden',
-          color: '#0f172a',
-          animation: 'fadeInCard 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(15, 23, 42, 0.45)',
+          backdropFilter: 'blur(6px)',
+          WebkitBackdropFilter: 'blur(6px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 99999,
+          padding: '24px 16px',
+          boxSizing: 'border-box',
+          overflowY: 'auto',
         }}
-        onClick={(e) => e.stopPropagation()}
+        onClick={(e) => {
+          if (e.target === e.currentTarget) {
+            onClose();
+          }
+        }}
       >
+        <div
+          ref={modalRef}
+          style={{
+            background: '#ffffff',
+            border: '1px solid #e2e8f0',
+            borderRadius: '16px',
+            width: '100%',
+            maxWidth: '540px',
+            maxHeight: 'min(620px, calc(100vh - 48px))',
+            margin: 'auto',
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+            overflowY: 'auto',
+            color: '#0f172a',
+            animation: 'fadeInCard 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
         {/* Header Modal */}
         <div
           style={{
@@ -390,7 +402,7 @@ export const CreateCustomerModal: React.FC<CreateCustomerModalProps> = ({
               disabled={isSubmitting}
               id="btn-submit-customer"
               style={{
-                background: 'linear-gradient(135deg, #10b981, #059669)',
+                background: 'linear-gradient(135deg, #0fba90, #0fad89)',
                 border: 'none',
                 borderRadius: '8px',
                 color: '#ffffff',
@@ -398,7 +410,7 @@ export const CreateCustomerModal: React.FC<CreateCustomerModalProps> = ({
                 fontSize: '13.5px',
                 fontWeight: '700',
                 cursor: isSubmitting ? 'not-allowed' : 'pointer',
-                boxShadow: '0 2px 6px rgba(16, 185, 129, 0.3)',
+                boxShadow: '0 2px 6px rgba(15, 186, 144, 0.3)',
               }}
             >
               {isSubmitting ? 'Đang tạo & gửi mail...' : 'Tạo tài khoản & Gửi Email'}
@@ -407,6 +419,7 @@ export const CreateCustomerModal: React.FC<CreateCustomerModalProps> = ({
         </form>
       </div>
     </div>
+    </ModalPortal>
   );
 };
 export default CreateCustomerModal;

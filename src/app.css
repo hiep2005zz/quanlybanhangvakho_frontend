@@ -1,52 +1,57 @@
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap');
+@import "tailwindcss";
 
 :root {
   /* Core Typography */
   font-family: 'Outfit', 'Inter', system-ui, -apple-system, sans-serif;
-  
-  /* Modern HSL Palette - Elegant Emerald & Teal Theme */
-  --hue-primary: 165;
-  --primary: hsl(var(--hue-primary), 85%, 40%);
-  --primary-hover: hsl(var(--hue-primary), 85%, 30%);
-  --primary-glow: hsla(var(--hue-primary), 85%, 45%, 0.35);
-  
+
+  /* Modern HSL Palette - Harmonized with Image 2 (#0fad89) */
+  --hue-primary: 166;
+  --primary: #0fad89;
+  --primary-hover: #0a8f70;
+  --primary-glow: rgba(15, 173, 137, 0.35);
+
   --success: hsl(142, 70%, 40%);
   --success-bg: hsl(142, 70%, 94%);
   --success-border: hsl(142, 70%, 82%);
-  
+
   --warning: hsl(38, 92%, 45%);
   --warning-bg: hsl(38, 92%, 94%);
   --warning-border: hsl(38, 92%, 82%);
-  
+
   --danger: hsl(348, 83%, 45%);
   --danger-bg: hsl(348, 83%, 94%);
   --danger-border: hsl(348, 83%, 85%);
-  
+
   --info: hsl(199, 89%, 45%);
   --info-bg: hsl(199, 89%, 94%);
   --info-border: hsl(199, 89%, 82%);
 
   /* Backgrounds & Glassmorphism */
-  --bg-app: #f2fcf9; /* Extremely subtle mint/teal tint */
+  --bg-app: #f2fcf9;
+  /* Extremely subtle mint/teal tint */
   --bg-slate-50: #f8fafc;
   --bg-slate-100: #f1f5f9;
   --bg-slate-200: #e2e8f0;
-  
+
   --bg-card: rgba(255, 255, 255, 0.7);
   --bg-card-hover: rgba(255, 255, 255, 0.9);
-  
+
   --glass-border: rgba(255, 255, 255, 0.6);
   --glass-shadow: 0 8px 32px 0 rgba(10, 80, 60, 0.08);
 
   /* Typography Colors */
-  --text-primary: #064e3b; /* Deep emerald */
-  --text-secondary: #0f766e; /* Teal */
+  --text-primary: #064e3b;
+  /* Deep emerald */
+  --text-secondary: #0f766e;
+  /* Teal */
   --text-muted: #64748b;
   --text-dim: #94a3b8;
 
   /* Subtle border & outline */
   --border-subtle: rgba(255, 255, 255, 0.7);
-  --border-medium: rgba(20, 184, 166, 0.2); /* Soft teal border */
+  --border-medium: rgba(20, 184, 166, 0.2);
+  /* Soft teal border */
   --border-strong: #99f6e4;
   --border-focus: var(--primary);
 
@@ -79,9 +84,9 @@ body {
   min-width: 320px;
   background-color: var(--bg-app);
   /* Elegant Emerald/Teal Mesh Gradient */
-  background-image: 
-    radial-gradient(at 0% 0%, hsla(160, 70%, 85%, 0.4) 0, transparent 50%), 
-    radial-gradient(at 50% 0%, hsla(180, 60%, 85%, 0.4) 0, transparent 50%), 
+  background-image:
+    radial-gradient(at 0% 0%, hsla(160, 70%, 85%, 0.4) 0, transparent 50%),
+    radial-gradient(at 50% 0%, hsla(180, 60%, 85%, 0.4) 0, transparent 50%),
     radial-gradient(at 100% 0%, hsla(140, 50%, 80%, 0.4) 0, transparent 50%);
   background-attachment: fixed;
   background-size: cover;
@@ -97,13 +102,16 @@ body {
   width: 8px;
   height: 8px;
 }
+
 ::-webkit-scrollbar-track {
   background: transparent;
 }
+
 ::-webkit-scrollbar-thumb {
   background: rgba(20, 184, 166, 0.4);
   border-radius: var(--radius-pill);
 }
+
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(15, 118, 110, 0.7);
 }
@@ -120,7 +128,7 @@ body {
   align-items: center;
   justify-content: center;
   /* Dynamic abstract teal background */
-  background: 
+  background:
     radial-gradient(circle at 15% 50%, rgba(16, 185, 129, 0.15), transparent 30%),
     radial-gradient(circle at 85% 30%, rgba(14, 165, 233, 0.15), transparent 30%),
     radial-gradient(circle at 50% 80%, rgba(20, 184, 166, 0.15), transparent 30%),
@@ -140,7 +148,7 @@ body {
   -webkit-backdrop-filter: blur(25px);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-xl);
-  box-shadow: 
+  box-shadow:
     var(--shadow-xl),
     inset 0 0 0 1px rgba(255, 255, 255, 0.6);
   animation: floatIn 0.6s var(--ease-spring) forwards;
@@ -157,7 +165,7 @@ body {
   left: -50%;
   width: 200%;
   height: 200%;
-  background: radial-gradient(circle, rgba(255,255,255,0.9) 0%, transparent 60%);
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.9) 0%, transparent 60%);
   opacity: 0.6;
   pointer-events: none;
   z-index: -1;
@@ -270,8 +278,10 @@ input:focus {
   transform: translateY(-50%) scale(1.05) !important;
 }
 
-/* Buttons */
-button {
+/* Buttons - Giới hạn phạm vi trong các màn hình Auth/Login, tránh xung đột toàn cục */
+.auth-page button,
+.auth-card button,
+.submit-btn {
   margin-top: 8px;
   padding: 14px 24px;
   border: 0;
@@ -290,39 +300,51 @@ button {
 }
 
 /* Button Shine Effect */
-button::after {
+.auth-page button::after,
+.auth-card button::after,
+.submit-btn::after {
   content: '';
   position: absolute;
   top: 0;
   left: -100%;
   width: 50%;
   height: 100%;
-  background: linear-gradient(to right, rgba(255,255,255,0) 0%, rgba(255,255,255,0.3) 50%, rgba(255,255,255,0) 100%);
+  background: linear-gradient(to right, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.3) 50%, rgba(255, 255, 255, 0) 100%);
   transform: skewX(-25deg);
   transition: all 0.5s ease;
 }
 
-button:hover:not(:disabled) {
+.auth-page button:hover:not(:disabled),
+.auth-card button:hover:not(:disabled),
+.submit-btn:hover:not(:disabled) {
   transform: translateY(-2px);
   box-shadow: 0 8px 25px rgba(13, 148, 136, 0.45);
 }
 
-button:hover:not(:disabled)::after {
+.auth-page button:hover:not(:disabled)::after,
+.auth-card button:hover:not(:disabled)::after,
+.submit-btn:hover:not(:disabled)::after {
   left: 150%;
 }
 
-button:active:not(:disabled) {
+.auth-page button:active:not(:disabled),
+.auth-card button:active:not(:disabled),
+.submit-btn:active:not(:disabled) {
   transform: translateY(1px);
 }
 
-button:disabled {
+.auth-page button:disabled,
+.auth-card button:disabled,
+.submit-btn:disabled {
   background: var(--text-dim);
   cursor: not-allowed;
   box-shadow: none;
   opacity: 0.7;
 }
 
-button.secondary {
+.auth-page button.secondary,
+.auth-card button.secondary,
+.submit-btn.secondary {
   background: rgba(255, 255, 255, 0.6);
   color: var(--text-secondary);
   border: 1px solid rgba(255, 255, 255, 0.9);
@@ -330,7 +352,9 @@ button.secondary {
   backdrop-filter: blur(10px);
 }
 
-button.secondary:hover {
+.auth-page button.secondary:hover,
+.auth-card button.secondary:hover,
+.submit-btn.secondary:hover {
   background: rgba(255, 255, 255, 0.95);
   color: var(--text-primary);
   border-color: #5eead4;
@@ -365,34 +389,77 @@ button.secondary:hover {
 
 /* Animations */
 @keyframes floatIn {
-  0% { opacity: 0; transform: translateY(20px) scale(0.95); }
-  100% { opacity: 1; transform: translateY(0) scale(1); }
+  0% {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 /* Thông báo trạng thái tài khoản (khóa/mở khóa):
    trượt ra từ mép phải màn hình -> dừng lại -> trượt ngược vào lại mép phải */
 @keyframes accountStatusToastEnter {
-  0%   { opacity: 0; transform: translate3d(120%, -16px, 0) scale(0.94); }
-  66%  { opacity: 1; transform: translate3d(-8px, 0, 0) scale(1.01); }
-  84%  { opacity: 1; transform: translate3d(3px, 0, 0) scale(1); }
-  100% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+  0% {
+    opacity: 0;
+    transform: translate3d(120%, -16px, 0) scale(0.94);
+  }
+
+  66% {
+    opacity: 1;
+    transform: translate3d(-8px, 0, 0) scale(1.01);
+  }
+
+  84% {
+    opacity: 1;
+    transform: translate3d(3px, 0, 0) scale(1);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
 }
 
 @keyframes accountStatusToastExit {
-  0%   { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
-  30%  { opacity: 1; transform: translate3d(-5px, 0, 0) scale(1); }
-  100% { opacity: 0; transform: translate3d(120%, -16px, 0) scale(0.96); }
+  0% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+
+  30% {
+    opacity: 1;
+    transform: translate3d(-5px, 0, 0) scale(1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate3d(120%, -16px, 0) scale(0.96);
+  }
 }
 
 /* Thanh tiến trình đếm ngược thời gian tự ẩn của thông báo */
 @keyframes accountStatusToastProgress {
-  from { transform: scaleX(1); }
-  to   { transform: scaleX(0); }
+  from {
+    transform: scaleX(1);
+  }
+
+  to {
+    transform: scaleX(0);
+  }
 }
 
 @keyframes slowRotate {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 /* Utilities for Dashboard */
@@ -406,7 +473,9 @@ button.secondary:hover {
 }
 
 @keyframes shimmer {
-  to { background-position: 200% center; }
+  to {
+    background-position: 200% center;
+  }
 }
 
 .brand-logo-animated {
@@ -427,7 +496,10 @@ button.secondary:hover {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
+
+  *,
+  *::before,
+  *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
   }
@@ -441,9 +513,11 @@ button.secondary:hover {
   .status-toast {
     animation-duration: 620ms !important;
   }
+
   .status-toast.status-toast--exiting {
     animation-duration: 460ms !important;
   }
+
   .status-toast-progress {
     animation-duration: 5000ms !important;
   }

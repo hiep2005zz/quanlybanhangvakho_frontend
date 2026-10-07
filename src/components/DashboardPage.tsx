@@ -1,12 +1,34 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { getProductsApi, ProductItem, User } from '../services/api';
 import { sessionManager, SessionState } from '../services/sessionManager';
 import SecurityModal from './SecurityModal';
 import { UserManagementView } from './UserManagementView';
+import { CategoryManagementView } from './CategoryManagementView';
 import CreateCustomerModal from './CreateCustomerModal';
+import MoveCategoryModal from './MoveCategoryModal';
 import { StatusToastHost, emitStatusToast } from './StatusToast';
 import { AccessDeniedView } from './AccessDeniedView';
+import SupplierManagementView from './SupplierManagementView';
+import { PriceBookManagementView } from './PriceBookManagementView';
+import { AuditLogView } from './AuditLogView';
+import { ProductAuditDrawer } from './ProductAuditDrawer';
+import { PriceUpdateModal } from './PriceUpdateModal';
+import { ProfileView } from './ProfileView';
+import { ProductBulkImportModal } from './ProductBulkImportModal';
+import DealerSearchView from './DealerSearchView';
+import DeliveryPointsView from './DeliveryPointsView';
+import { ProductUnitModal } from './ProductUnitModal';
+import { StockActionModal } from './StockActionModal';
+import { OrderManagementView } from './OrderManagementView';
+import SalesOrderEntry from './SalesOrderEntry';
+import { ProductHistoryView } from './ProductHistoryView';
+import { ModalPortal } from './ModalPortal';
+
 import './dashboard.css';
+import { Sidebar, type TabType } from './Sidebar';
+import { DashboardHeader } from './DashboardHeader';
+import { DashboardLayout } from '../layouts/DashboardLayout';
+import { hasPermission, Permissions } from '../hooks/usePermission';
 
 interface DashboardProps {
   user: User;
@@ -14,6 +36,7 @@ interface DashboardProps {
   onLogout: () => void | Promise<void>;
   onTokenUpdated?: (newToken: string) => void;
   onSwitchUser?: (newUser: User, newToken: string) => void;
+  onUserUpdated?: (updatedUser: User) => void;
 }
 
 export default function DashboardPage({
@@ -21,110 +44,525 @@ export default function DashboardPage({
   token,
   onLogout,
   onTokenUpdated,
+  onUserUpdated,
 }: DashboardProps) {
-  const [activeTab, setActiveTabState] = useState<'inventory' | 'users'>(() => {
+  // 1. Xác định vai trò & Kiểm tra quyền Admin tối cao
+  const rawRoles = user.roles && user.roles.length > 0 ? user.roles : [user.role];
+  const officialRoles = rawRoles.filter((r) => r && r !== 'customer');
+
+  // Tài khoản bị khóa màn hình chờ chỉ khi chưa được phân công kho/địa bàn VÀ chưa có vai trò hợp lệ
+  const isPendingCustomer =
+    officialRoles.length === 0 &&
+    (!user.branch || user.branch === 'Chưa phân công');
+  const isAdmin = user.role === 'admin' || Boolean(user.roles && user.roles.includes('admin'));
+  const canReadOrders = hasPermission(user, Permissions.ORDER_READ) || user.role === 'sales' || Boolean(user.roles && user.roles.includes('sales'));
+  const canCreateOrders = hasPermission(user, Permissions.ORDER_WRITE) || user.role === 'sales' || Boolean(user.roles && user.roles.includes('sales'));
+
+
+  // Quyền quản lý nhà cung cấp
+  const SUPPLIER_ROLES = ['admin', 'warehouse', 'warehouse_manager'];
+  const canManageSuppliers = officialRoles.some((r) => SUPPLIER_ROLES.includes(r));
+
+  // Quyền quản lý ngành hàng
+  const isSalesManager = user.role === 'sales_manager' || Boolean(user.roles && user.roles.includes('sales_manager'));
+  const isAccountant = user.role === 'accountant' || Boolean(user.roles && user.roles.includes('accountant'));
+  const canManageCategories = isAdmin || isSalesManager;
+  const canAccessPriceBooks = isAdmin || isSalesManager || isAccountant;
+  // Quyền tra cứu đại lý: Nhân viên kinh doanh (sales), Quản lý kinh doanh (sales_manager), Quản trị viên (admin), Kế toán (accountant)
+  const DEALER_ROLES = ['admin', 'sales_manager', 'sales', 'accountant'];
+  const canViewDealers = officialRoles.some((r) => DEALER_ROLES.includes(r));
+
+  // Quyền quản lý điểm giao hàng: Chỉ hiển thị với 3 vai trò admin, sales, sales_manager
+  const DELIVERY_ROLES = ['admin', 'sales_manager', 'sales'];
+  const canManageDeliveryPoints = Boolean(
+    isAdmin ||
+    isSalesManager ||
+    user.role === 'sales' ||
+    officialRoles.some((r) => DELIVERY_ROLES.includes(r))
+  );
+
+  // Quyền thao tác kho (Nhập/xuất/sửa kho: Admin, Quản lý kho, Thủ kho)
+  const canWriteInventory = user.can_write_inventory ?? (isAdmin || officialRoles.some((r) => ['admin', 'warehouse', 'warehouse_manager'].includes(r)));
+
+  // Quyền Cấu hình ĐVT quy đổi (Chỉ Quản trị hệ thống và Quản lý kho)
+  const canConfigUnit = isAdmin || officialRoles.some((r) => ['admin', 'warehouse_manager'].includes(r));
+
+
+  // Quyền thao tác các nút trên dòng sản phẩm (Cấu hình ĐVT, Nhập/Xuất kho, Lịch sử)
+  const canPerformProductAction = Boolean(canConfigUnit || canWriteInventory || isAdmin || isSalesManager);
+
+  // 2. Khởi tạo State với Clean URL (/users, /audit-logs, /categories, /suppliers, /profile, /dealers, /orders, /delivery-points, /price-books, /product-history)
+  const [activeTab, setActiveTabState] = useState<TabType>(() => {
     const pathname = window.location.pathname.toLowerCase();
+    const isCreateOrderPath = pathname === '/create-order' || pathname.startsWith('/create-order/');
+    const isPriceBooksPath = pathname === '/price-books';
+    const isUsersPath = pathname === '/users' || pathname.startsWith('/users/') || pathname === '/admin' || pathname.startsWith('/admin/');
+    const isCategoriesPath = pathname === '/categories';
+    const isAuditPath = pathname === '/audit-logs' || pathname.startsWith('/audit-logs/');
+    const isOrdersPath = pathname === '/orders' || pathname.startsWith('/orders/');
+    const isProfilePath = pathname === '/profile' || pathname.startsWith('/profile/');
+    const isDealersPath = pathname === '/dealers' || pathname.startsWith('/dealers/');
+    const isDeliveryPointsPath = pathname === '/delivery-points' || pathname.startsWith('/delivery-points/');
+    const isProductHistoryPath = pathname === '/product-history' || pathname.startsWith('/product-history/');
+
+    // Dọn sạch tàn dư query parameter cũ (?tab=users, ?tab=audit-logs, ?tab=profile, ?tab=dealers, ?tab=orders, ?tab=delivery-points)
     const params = new URLSearchParams(window.location.search);
-    const viewParam = (params.get('view') || params.get('tab') || '').toLowerCase();
-    const hash = window.location.hash.replace('#', '').toLowerCase();
-    const isAdminOrUsersPath = pathname === '/admin' || pathname.startsWith('/admin/') || pathname === '/users' || pathname.startsWith('/users/');
-    if (viewParam === 'users' || viewParam === 'admin' || hash === 'users' || hash === 'admin' || isAdminOrUsersPath) {
+    const hasOldTabParam = params.has('tab') || params.has('view');
+    const oldTabVal = (params.get('tab') || params.get('view') || '').toLowerCase();
+
+    if (isProductHistoryPath || oldTabVal === 'product-history') {
+      return 'product-history';
+    }
+
+    if (isCreateOrderPath || oldTabVal === 'create-order') {
+      return 'create-order';
+    }
+    if (isOrdersPath || oldTabVal === 'orders') {
+      return 'orders';
+    }
+    if (isPriceBooksPath) {
+      return 'price-books';
+    }
+    if (pathname === '/suppliers' || pathname.startsWith('/suppliers/')) {
+      return 'suppliers';
+    }
+    if (isOrdersPath || oldTabVal === 'orders') {
+      if (canReadOrders) return 'orders';
+      window.history.replaceState({}, '', '/');
+      return 'inventory';
+    }
+    if (isDeliveryPointsPath || oldTabVal === 'delivery-points') {
+      if (hasOldTabParam || pathname !== '/delivery-points') {
+        try {
+          window.history.replaceState({}, '', '/delivery-points');
+        } catch {
+          // ignore
+        }
+      }
+      return 'delivery-points';
+    }
+    if (isDealersPath || oldTabVal === 'dealers') {
+      if (hasOldTabParam || pathname !== '/dealers') {
+        try {
+          window.history.replaceState({}, '', '/dealers');
+        } catch {
+          // ignore
+        }
+      }
+      return 'dealers';
+    }
+    if (isProfilePath || oldTabVal === 'profile') {
+      if (hasOldTabParam || pathname !== '/profile') {
+        try {
+          window.history.replaceState({}, '', '/profile');
+        } catch {
+          // ignore
+        }
+      }
+      return 'profile';
+    } else if (isAuditPath || oldTabVal === 'audit-logs' || oldTabVal === 'audit') {
+      if (hasOldTabParam || pathname !== '/audit-logs') {
+        try {
+          window.history.replaceState({}, '', '/audit-logs');
+        } catch {
+          // ignore
+        }
+      }
+      return 'audit-logs';
+    } else if (isUsersPath || hasOldTabParam) {
+      if (hasOldTabParam || pathname !== '/users') {
+        try {
+          window.history.replaceState({}, '', '/users');
+        } catch {
+          // ignore
+        }
+      }
+      return 'users';
+    }
+    if (isCategoriesPath) {
+      if (canManageCategories) {
+        return 'categories';
+      }
+      try {
+        window.history.replaceState({}, '', '/');
+      } catch {
+        // ignore
+      }
       return 'users';
     }
     return 'inventory';
   });
-
-  const setActiveTab = (tab: 'inventory' | 'users') => {
-    setActiveTabState(tab);
-    try {
-      if (tab === 'users') {
-        window.history.pushState({}, '', '/?tab=users');
-      } else {
-        // Đưa đường dẫn về sạch gốc trang chủ (/), xóa bỏ /admin hoặc param thừa trên URL
-        window.history.pushState({}, '', '/');
+  const setActiveTab = (tab: TabType) => {
+    if (tab === 'product-history') {
+      setActiveTabState('product-history');
+      try {
+        const url = new URL(window.location.href);
+        url.pathname = '/product-history';
+        if (historyProductTarget?.code) {
+          url.searchParams.set('code', historyProductTarget.code);
+        }
+        window.history.pushState({}, '', url.toString());
+      } catch {
+        // ignore
       }
-    } catch {
-      // ignore
+      return;
+    }
+
+    if (tab === 'create-order') {
+      setActiveTabState('create-order');
+      try {
+        window.history.pushState({}, '', '/create-order');
+      } catch {
+        // ignore
+      }
+      return;
+    }
+
+    if (tab === 'orders' && !canReadOrders) {
+      setActiveTabState('inventory');
+      window.history.replaceState({}, '', '/');
+      return;
+    }
+
+    if (tab === 'orders') {
+      setActiveTabState('orders');
+      try {
+        window.history.pushState({}, '', '/orders');
+      } catch {
+        // ignore
+      }
+    } else if (tab === 'profile') {
+      setActiveTabState('profile');
+      try {
+        window.history.pushState({}, '', '/profile');
+      } catch {
+        // ignore
+      }
+    } else if (tab === 'delivery-points') {
+      if (!canManageDeliveryPoints) {
+        setActiveTabState('inventory');
+        try {
+          window.history.replaceState({}, '', '/');
+        } catch {
+          // ignore
+        }
+        return;
+      }
+      setActiveTabState('delivery-points');
+      try {
+        window.history.pushState({}, '', '/delivery-points');
+      } catch {
+        // ignore
+      }
+    } else if (tab === 'dealers') {
+      if (!canViewDealers) {
+        setActiveTabState('inventory');
+        try {
+          window.history.replaceState({}, '', '/');
+        } catch {
+          // ignore
+        }
+        return;
+      }
+      setActiveTabState('dealers');
+      try {
+        window.history.pushState({}, '', '/dealers');
+      } catch {
+        // ignore
+      }
+    } else if (tab === 'users') {
+      if (!isAdmin) {
+        setActiveTabState('inventory');
+        try {
+          window.history.replaceState({}, '', '/');
+        } catch {
+          // ignore
+        }
+        return;
+      }
+      setActiveTabState('users');
+      try {
+        window.history.pushState({}, '', '/users');
+      } catch {
+        // ignore
+      }
+    } else if (tab === 'categories') {
+      if (!canManageCategories) {
+        setActiveTabState('inventory');
+        try {
+          window.history.replaceState({}, '', '/');
+        } catch {
+          // ignore
+        }
+        return;
+      }
+      setActiveTabState('categories');
+      try {
+        window.history.pushState({}, '', '/categories');
+      } catch {
+        // ignore
+      }
+    } else if (tab === 'audit-logs') {
+      setActiveTabState('audit-logs');
+      try {
+        window.history.pushState({}, '', '/audit-logs');
+      } catch {
+        // ignore
+      }
+    } else if (tab === 'price-books') {
+      setActiveTabState('price-books');
+      try {
+        window.history.pushState({}, '', '/price-books');
+      } catch {}
+    } else if (tab === 'suppliers') {
+      setActiveTabState('suppliers');
+      try {
+        window.history.pushState({}, '', '/suppliers');
+      } catch {
+        // ignore
+      }
+    } else {
+      setActiveTabState('inventory');
+      window.history.replaceState({}, '', '/');
+      return;
     }
   };
 
   useEffect(() => {
+    const tabRequiresAdmin = activeTab === 'users' || activeTab === 'audit-logs';
+    const isAllowed =
+      tabRequiresAdmin ? isAdmin
+        : activeTab === 'categories' ? canManageCategories
+          : activeTab === 'orders' ? canReadOrders
+            : activeTab === 'create-order' ? canCreateOrders
+              : activeTab === 'suppliers' ? canManageSuppliers
+                : activeTab === 'product-history' ? (isAdmin || isSalesManager || canWriteInventory)
+                  : true;
+    if (!isAllowed) {
+      setActiveTabState('inventory');
+      window.history.replaceState({}, '', '/');
+    }
+    if (activeTab === 'dealers' && !canViewDealers) {
+      setActiveTabState('inventory');
+      try {
+        window.history.replaceState({}, '', '/');
+      } catch {
+        // ignore
+      }
+    }
+    if (activeTab === 'delivery-points' && !canManageDeliveryPoints) {
+      setActiveTabState('inventory');
+      try {
+        window.history.replaceState({}, '', '/');
+      } catch {
+        // ignore
+      }
+    }
+  }, [activeTab, canManageCategories, canViewDealers, canManageDeliveryPoints, user.username]);
+
+  useEffect(() => {
     const syncFromUrl = () => {
       const pathname = window.location.pathname.toLowerCase();
+      const isPriceBooksPath = pathname === '/price-books';
       const params = new URLSearchParams(window.location.search);
-      const viewParam = (params.get('view') || params.get('tab') || '').toLowerCase();
-      const hash = window.location.hash.replace('#', '').toLowerCase();
-      const isAdminOrUsersPath = pathname === '/admin' || pathname.startsWith('/admin/') || pathname === '/users' || pathname.startsWith('/users/');
-      if (viewParam === 'users' || viewParam === 'admin' || hash === 'users' || hash === 'admin' || isAdminOrUsersPath) {
+
+      const isUsersPath = pathname === '/users' || pathname.startsWith('/users/') || pathname === '/admin' || pathname.startsWith('/admin/');
+      const isAuditPath = pathname === '/audit-logs' || pathname.startsWith('/audit-logs/');
+      const isOrdersPath = pathname === '/orders' || pathname.startsWith('/orders/');
+      const isProfilePath = pathname === '/profile' || pathname.startsWith('/profile/');
+      const tabParam = (params.get('tab') || params.get('view') || '').toLowerCase();
+
+      const isProductHistoryPath = pathname === '/product-history' || pathname.startsWith('/product-history/');
+      if (isProductHistoryPath || tabParam === 'product-history') {
+        const code = params.get('code') || params.get('productCode');
+        if (code) {
+          setHistoryProductTarget((prev) => ({ code, name: prev?.code === code ? prev.name : '' }));
+        }
+        if (pathname !== '/product-history' || tabParam) {
+          try {
+            window.history.replaceState({}, '', '/product-history');
+          } catch {
+            // ignore
+          }
+        }
+        setActiveTabState('product-history');
+        return;
+      }
+
+      if (isOrdersPath || tabParam === 'orders') {
+        setActiveTabState('orders');
+        return;
+      }
+      if (pathname === '/suppliers' || pathname.startsWith('/suppliers/')) {
+        setActiveTabState('suppliers');
+        return;
+      }
+      if (isPriceBooksPath) { setActiveTabState('price-books'); return; }
+
+      if (isOrdersPath || tabParam === 'orders') {
+        if (canReadOrders) {
+          if (pathname !== '/orders' || tabParam) window.history.replaceState({}, '', '/orders');
+          setActiveTabState('orders');
+        } else {
+          setActiveTabState('inventory');
+          window.history.replaceState({}, '', '/');
+        }
+        return;
+      }
+
+      const isDeliveryPointsPath = pathname === '/delivery-points' || pathname.startsWith('/delivery-points/');
+      if (isDeliveryPointsPath || tabParam === 'delivery-points') {
+        if (pathname !== '/delivery-points' || tabParam) {
+          try {
+            window.history.replaceState({}, '', '/delivery-points');
+          } catch {
+            // ignore
+          }
+        }
+        setActiveTabState('delivery-points');
+        return;
+      }
+
+      const isDealersPath = pathname === '/dealers' || pathname.startsWith('/dealers/');
+      if (isDealersPath || tabParam === 'dealers') {
+        if (pathname !== '/dealers' || tabParam) {
+          try {
+            window.history.replaceState({}, '', '/dealers');
+          } catch {
+            // ignore
+          }
+        }
+        setActiveTabState('dealers');
+        return;
+      }
+
+      if (isProfilePath || tabParam === 'profile') {
+        if (pathname !== '/profile' || tabParam) {
+          try {
+            window.history.replaceState({}, '', '/profile');
+          } catch {
+            // ignore
+          }
+        }
+        setActiveTabState('profile');
+      } else if (isAuditPath || tabParam === 'audit-logs' || tabParam === 'audit') {
+        if (pathname !== '/audit-logs' || tabParam) {
+          try {
+            window.history.replaceState({}, '', '/audit-logs');
+          } catch {
+            // ignore
+          }
+        }
+        setActiveTabState('audit-logs');
+      } else if (isUsersPath || tabParam === 'users') {
+        if (pathname !== '/users' || tabParam) {
+          try {
+            window.history.replaceState({}, '', '/users');
+          } catch {
+            // ignore
+          }
+        }
         setActiveTabState('users');
+      } else if (pathname === '/categories') {
+        if (canManageCategories) {
+          setActiveTabState('categories');
+        } else {
+          setActiveTabState('inventory');
+          window.history.replaceState({}, '', '/');
+          return;
+        }
       } else {
         setActiveTabState('inventory');
+        if (pathname !== '/' || params.size) window.history.replaceState({}, '', '/');
       }
     };
+
     window.addEventListener('popstate', syncFromUrl);
-    window.addEventListener('hashchange', syncFromUrl);
-    return () => {
-      window.removeEventListener('popstate', syncFromUrl);
-      window.removeEventListener('hashchange', syncFromUrl);
-    };
-  }, []);
+    return () => window.removeEventListener('popstate', syncFromUrl);
+  }, [canManageCategories, canManageSuppliers, canReadOrders, isAdmin]);
   const [products, setProducts] = useState<ProductItem[]>([]);
+  const [productSearchInput, setProductSearchInput] = useState('');
   const [productSearchTerm, setProductSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
+
+  // Debounce tìm kiếm sản phẩm: Chỉ lọc khi người dùng ngừng nhập 350ms
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setProductSearchTerm(productSearchInput);
+      setCurrentPage(1);
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [productSearchInput]);
+
+  // Phân trang danh sách sản phẩm (mặc định 20 cái/trang)
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 20;
+
   const [isCostVisible, setIsCostVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [sessionInfo, setSessionInfo] = useState<SessionState>(() => sessionManager.getSessionState());
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isSecurityModalOpen, setIsSecurityModalOpen] = useState(false);
   const [isCreateAccountModalOpen, setIsCreateAccountModalOpen] = useState(false);
+  const [productAuditDrawerState, setProductAuditDrawerState] = useState<{
+    isOpen: boolean;
+    productCode: string;
+    productName: string;
+    initialFilter?: 'ALL' | 'PRICE_CHANGE' | 'INVENTORY_ADJUST';
+  }>({ isOpen: false, productCode: '', productName: '', initialFilter: 'ALL' });
 
-  // Timer điều khiển di chuột vào mở rộng, di chuột ra tự động đóng
-  const menuTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Price Update Modal State
+  const [priceUpdateModalProduct, setPriceUpdateModalProduct] = useState<ProductItem | null>(null);
 
-  const handleMouseEnterMenu = () => {
-    if (menuTimerRef.current) {
-      clearTimeout(menuTimerRef.current);
-      menuTimerRef.current = null;
-    }
-    setIsMenuOpen(true);
-  };
+  // Move Category Modal State
+  const [movingProduct, setMovingProduct] = useState<{ id: number; name: string; category_id?: number | null } | null>(null);
 
-  const handleMouseLeaveMenu = () => {
-    if (menuTimerRef.current) {
-      clearTimeout(menuTimerRef.current);
-    }
-    menuTimerRef.current = setTimeout(() => {
-      setIsMenuOpen(false);
-    }, 250);
-  };
+  // Bulk Import Product Modal State
+  const [isProductBulkImportOpen, setIsProductBulkImportOpen] = useState(false);
 
-  const handleCloseMenu = () => {
-    if (menuTimerRef.current) {
-      clearTimeout(menuTimerRef.current);
-      menuTimerRef.current = null;
-    }
-    setIsMenuOpen(false);
-  };
+  // Quản lý sản phẩm được chọn để xem lịch sử (/product-history)
+  const [historyProductTarget, setHistoryProductTarget] = useState<{ code: string; name: string } | null>(() => {
+    const params = new URLSearchParams(window.location.search);
+    const c = params.get('code') || params.get('productCode') || '';
+    const n = params.get('name') || params.get('productName') || '';
+    return c ? { code: c, name: n } : null;
+  });
 
-  // Tự động đóng menu khi người dùng bấm phím Esc
+  // SCRUM Unit Conversion Modals State
+  const [unitConfigProduct, setUnitConfigProduct] = useState<ProductItem | null>(null);
+  const [stockActionState, setStockActionState] = useState<{
+    isOpen: boolean;
+    actionType: 'receipt' | 'issue' | 'adjust';
+    product: ProductItem | null;
+  }>({ isOpen: false, actionType: 'receipt', product: null });
+  const [isSalesOrderEntryOpen, setIsSalesOrderEntryOpen] = useState(false);
+
+  // Dropdown menu 3 chấm trên dòng sản phẩm kho hàng
+  const [openProductMenuId, setOpenProductMenuId] = useState<number | null>(null);
+
+  useEffect(() => {
+    const handleGlobalClick = () => setOpenProductMenuId(null);
+    window.addEventListener('click', handleGlobalClick);
+    return () => window.removeEventListener('click', handleGlobalClick);
+  }, []);
+
+  // Tự động đóng popover user khi bấm phím Esc
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        setIsMenuOpen(false);
         setIsUserMenuOpen(false);
       }
     };
-    if (isMenuOpen || isUserMenuOpen) {
+    if (isUserMenuOpen) {
       window.addEventListener('keydown', handleKeyDown);
     }
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [isMenuOpen, isUserMenuOpen]);
+  }, [isUserMenuOpen]);
 
   // Lắng nghe cập nhật trạng thái phiên
   useEffect(() => {
@@ -137,58 +575,50 @@ export default function DashboardPage({
   const remainingSeconds = sessionInfo.remainingSeconds;
   const isWarningZone = remainingSeconds > 0 && remainingSeconds <= 120;
 
-  // Xác định các vai trò chính thức (lọc bỏ 'customer' nếu đã có vai trò chính thức)
-  const officialRoles = (user.roles && user.roles.length > 0 ? user.roles : [user.role]).filter(
-    (r) => r && r !== 'customer'
-  );
-  // Tài khoản chỉ bị xem là 'Chờ cấp quyền' khi CHƯA có bất kỳ vai trò nghiệp vụ chính thức nào
-  const isPendingCustomer = officialRoles.length === 0;
-  const isAdmin = user.role === 'admin' || (user.roles && user.roles.includes('admin'));
-
-  useEffect(() => {
+  const fetchProducts = () => {
     if (isPendingCustomer) {
       setIsLoading(false);
       return;
     }
-
-    let isMounted = true;
     setIsLoading(true);
     getProductsApi(token)
       .then((data) => {
-        if (isMounted) {
-          setProducts(data.items);
-          setIsCostVisible(data.is_cost_price_visible);
-          setIsLoading(false);
-        }
+        setProducts(data.items);
+        setIsCostVisible(data.is_cost_price_visible);
+        setIsLoading(false);
       })
       .catch((err) => {
-        if (isMounted) {
-          setError(err.message || 'Lỗi khi tải dữ liệu sản phẩm từ Backend.');
-          setIsLoading(false);
-        }
+        setError(err.message || 'Lỗi khi tải dữ liệu sản phẩm từ Backend.');
+        setIsLoading(false);
       });
+  };
 
-    return () => {
-      isMounted = false;
-    };
+  useEffect(() => {
+    fetchProducts();
   }, [token, isPendingCustomer]);
 
   // Tính toán số liệu thống kê
   const totalStock = products.reduce((acc, p) => acc + p.stock, 0);
   const totalSellValue = products.reduce((acc, p) => acc + p.sell_price * p.stock, 0);
 
-  // Tính giá vốn và lợi nhuận (chỉ khả dụng khi Backend trả về cho Quản lý kinh doanh / Admin)
+  // Tính giá vốn và lợi nhuận
   const isCostAvailable = isCostVisible && products.length > 0 && products.every((p) => p.cost_price !== null && p.cost_price !== undefined);
   const totalCostValue = isCostAvailable ? products.reduce((acc, p) => acc + (p.cost_price || 0) * p.stock, 0) : 0;
   const totalProfit = totalSellValue - totalCostValue;
 
-  // Lọc sản phẩm theo Toolbar (Search và Category)
+  // Lọc sản phẩm
   const filteredProducts = products.filter((p) => {
     const q = productSearchTerm.trim().toLowerCase();
     const matchQuery = !q || p.name.toLowerCase().includes(q) || p.code.toLowerCase().includes(q);
     const matchCat = selectedCategory === 'all' || p.category === selectedCategory;
     return matchQuery && matchCat;
   });
+
+  // Phân trang sản phẩm (mặc định 20 cái)
+  const totalPages = Math.max(1, Math.ceil(filteredProducts.length / pageSize));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const startIndex = (safeCurrentPage - 1) * pageSize;
+  const paginatedProducts = filteredProducts.slice(startIndex, startIndex + pageSize);
 
   const roleLabelMap: Record<string, string> = {
     admin: 'Quản Trị Hệ Thống',
@@ -198,7 +628,7 @@ export default function DashboardPage({
     warehouse_manager: 'Quản Lý Kho',
     accountant: 'Kế Toán',
     purchasing: 'Nhân Viên Mua Hàng',
-    customer: 'Chờ Cấp Quyền',
+    customer: (!user.branch || user.branch === 'Chưa phân công') ? 'Chưa Phân Quyền' : 'Đại Lý',
   };
 
   const roleBadgeColorMap: Record<string, string> = {
@@ -209,559 +639,115 @@ export default function DashboardPage({
     warehouse_manager: '#059669',
     accountant: '#f59e0b',
     purchasing: '#06b6d4',
-    customer: '#94a3b8',
+    customer: (!user.branch || user.branch === 'Chưa phân công') ? '#94a3b8' : '#0284c7',
   };
 
   const primaryRole = officialRoles[0] || user.role;
   const currentBadgeColor = roleBadgeColorMap[primaryRole] || '#64748b';
 
+  const isLockedScrollTab = (activeTab === 'inventory' || activeTab === 'dealers' || activeTab === 'delivery-points' || activeTab === 'suppliers' || activeTab === 'price-books' || activeTab === 'categories' || activeTab === 'orders' || activeTab === 'product-history' || activeTab === 'create-order' || isSalesOrderEntryOpen) && !isPendingCustomer;
+
   return (
-    <div className="dashboard-main-container">
-      {/* Top Navbar */}
-      <header className="dashboard-header-bar">
-        {/* Khối bên trái: Nút 3 gạch (chỉ ở trang chủ và không phải tài khoản chờ duyệt) + Logo + Tên hệ thống */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          {activeTab === 'inventory' && !isPendingCustomer && (
-            <button
-              onMouseEnter={handleMouseEnterMenu}
-              onMouseLeave={handleMouseLeaveMenu}
-              onClick={() => setIsMenuOpen((prev) => !prev)}
-              aria-label="Mở rộng menu"
-              title="Mở rộng menu"
-              className="hamburger-left-btn"
-              style={{
-                width: '40px',
-                height: '40px',
-                padding: 0,
-                margin: 0,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0,
-                transform: 'none',
-              }}
-            >
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
-                <span style={{ width: '18px', height: '2px', background: '#334155', borderRadius: '2px' }}></span>
-                <span style={{ width: '18px', height: '2px', background: '#334155', borderRadius: '2px' }}></span>
-                <span style={{ width: '18px', height: '2px', background: '#334155', borderRadius: '2px' }}></span>
-              </div>
-            </button>
-          )}
-
-          <div
-            className="brand-logo-animated"
-            style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: '10px',
-              background: 'linear-gradient(135deg, #2563eb 0%, #4f46e5 100%)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#fff',
-              boxShadow: '0 2px 8px rgba(37, 99, 235, 0.25)',
-              cursor: 'default',
-              userSelect: 'none',
-              flexShrink: 0
-            }}
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
-              <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
-              <line x1="12" y1="22.08" x2="12" y2="12" />
-            </svg>
-          </div>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <h1 className="brand-title-shimmer" style={{ fontSize: '17px', fontWeight: '700', margin: 0, color: '#0f172a', letterSpacing: '-0.02em' }}>
-                Hệ Thống Quản Lý Kho & Bán Hàng
-              </h1>
-              <span
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  fontSize: '11px',
-                  background: '#eff6ff',
-                  border: '1px solid #bfdbfe',
-                  padding: '1.5px 7px',
-                  borderRadius: '999px',
-                  color: '#1d4ed8',
-                  fontWeight: '700',
-                }}
-              >
-                PRO
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Khối bên phải: Header User pill (Avatar chữ cái đầu + Tên + Badge vai trò + Kho) */}
-        <div style={{ position: 'relative', zIndex: 501 }}>
-          <button
-            onClick={() => setIsUserMenuOpen((prev) => !prev)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: '2px',
-              borderRadius: '50%',
-              background: 'transparent',
-              border: isUserMenuOpen ? '2px solid #2563eb' : '2px solid transparent',
-              cursor: 'pointer',
-              transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
-              boxShadow: isUserMenuOpen ? '0 0 0 3px rgba(37, 99, 235, 0.2)' : 'none',
-            }}
-            title={`${user.full_name || user.username} (${roleLabelMap[primaryRole] || primaryRole}) - Nhấp để mở menu`}
-            aria-label="Tài khoản người dùng"
-          >
-            {/* Avatar tròn với chữ cái đầu & Online status indicator */}
-            <div style={{ position: 'relative', width: '36px', height: '36px', flexShrink: 0 }}>
-              <div style={{
-                width: '100%',
-                height: '100%',
-                borderRadius: '50%',
-                background: `linear-gradient(135deg, ${currentBadgeColor} 0%, #2563eb 100%)`,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#ffffff',
-                fontWeight: '700',
-                fontSize: '15px',
-                boxShadow: '0 2px 5px rgba(0, 0, 0, 0.15)',
-              }}>
-                {(user.full_name || user.username).charAt(0).toUpperCase()}
-              </div>
-              <span
-                style={{
-                  position: 'absolute',
-                  bottom: '-1px',
-                  right: '-1px',
-                  width: '10px',
-                  height: '10px',
-                  borderRadius: '50%',
-                  background: '#16a34a',
-                  border: '2px solid #ffffff',
-                }}
-                title="Đang hoạt động"
-              />
-            </div>
-          </button>
-
-          {/* Popover thông tin người dùng (Clean Light Theme) */}
-          {isUserMenuOpen && (
-            <div
-              className="header-popover-menu"
-              style={{
-                position: 'absolute',
-                top: 'calc(100% + 10px)',
-                right: 0,
-                width: '330px',
-                background: '#ffffff',
-                color: '#0f172a',
-                borderRadius: '16px',
-                padding: '20px',
-                boxShadow: '0 10px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.04)',
-                border: '1px solid #e2e8f0',
-                zIndex: 1000,
-                animation: 'fadeInCard 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
-              }}
-            >
-              {/* Phần trên: Avatar + Tên + Role Badge */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '18px' }}>
-                <div style={{
-                  width: '54px',
-                  height: '54px',
-                  borderRadius: '16px',
-                  background: `linear-gradient(135deg, ${currentBadgeColor} 0%, #6366f1 100%)`,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: '#ffffff',
-                  fontWeight: '800',
-                  fontSize: '22px',
-                  flexShrink: 0,
-                  boxShadow: `0 8px 20px ${currentBadgeColor}55, inset 0 1px 0 rgba(255, 255, 255, 0.4)`,
-                  border: '1px solid rgba(255, 255, 255, 0.25)',
-                }}>
-                  {user.username.charAt(0).toUpperCase()}
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <h4 style={{
-                    margin: '0 0 6px 0',
-                    fontSize: '16.5px',
-                    fontWeight: '700',
-                    color: '#ffffff',
-                    letterSpacing: '-0.01em',
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis'
-                  }}>
-                    {user.full_name}
-                  </h4>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                    {(officialRoles.length > 0 ? officialRoles : ['customer']).map((rCode) => {
-                      const color = roleBadgeColorMap[rCode] || '#64748b';
-                      const label = roleLabelMap[rCode] || rCode;
-                      return (
-                        <span
-                          key={rCode}
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '5px',
-                            padding: '3px 9px',
-                            borderRadius: '999px',
-                            background: `${color}18`,
-                            color: color,
-                            fontSize: '11px',
-                            fontWeight: '700',
-                            border: `1px solid ${color}35`,
-                          }}
-                        >
-                          <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: color }} />
-                          {label}
-                        </span>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-
-              {/* Thông tin tài khoản Light Card */}
-              <div style={{
-                background: '#f8fafc',
-                border: '1px solid #e2e8f0',
-                borderRadius: '12px',
-                padding: '12px 14px',
-                marginBottom: '16px',
-                fontSize: '13px',
-                color: '#64748b',
-                lineHeight: '1.6',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '4px',
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span>Tài khoản:</span>
-                  <strong style={{ color: '#0f172a', fontFamily: 'monospace', fontSize: '13px' }}>{user.username}</strong>
-                </div>
-                {user.branch && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span>Kho / Địa bàn:</span>
-                    <strong style={{ color: '#334155' }}>{user.branch}</strong>
-                  </div>
-                )}
-              </div>
-
-              {/* Danh sách hành động (Interactive Buttons for Light Theme) */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {(user.role === 'admin' || (user.roles && user.roles.includes('admin'))) && (
-                  <button
-                    onClick={() => {
-                      setIsUserMenuOpen(false);
-                      setActiveTab('users');
-                    }}
-                    id="btn-popover-roles-and-create"
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '12px',
-                      width: '100%',
-                      padding: '10px 14px',
-                      borderRadius: '10px',
-                      background: activeTab === 'users' ? '#eff6ff' : '#f8fafc',
-                      border: activeTab === 'users' ? '1px solid #bfdbfe' : '1px solid #e2e8f0',
-                      color: activeTab === 'users' ? '#1d4ed8' : '#1e293b',
-                      fontSize: '13.5px',
-                      fontWeight: '600',
-                      cursor: 'pointer',
-                      transition: 'all 0.18s ease',
-                      boxShadow: 'none',
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = '#eff6ff';
-                      e.currentTarget.style.borderColor = '#93c5fd';
-                      e.currentTarget.style.color = '#1d4ed8';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = activeTab === 'users' ? '#eff6ff' : '#f8fafc';
-                      e.currentTarget.style.borderColor = activeTab === 'users' ? '#bfdbfe' : '#e2e8f0';
-                      e.currentTarget.style.color = activeTab === 'users' ? '#1d4ed8' : '#1e293b';
-                    }}
-                    title="Truy cập trang Phân quyền & Quản lý người dùng"
-                  >
-                    <div style={{
-                      width: '28px',
-                      height: '28px',
-                      borderRadius: '8px',
-                      background: '#dbeafe',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: '#2563eb',
-                    }}>
-                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                        <circle cx="9" cy="7" r="4" />
-                        <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-                        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-                      </svg>
-                    </div>
-                    <span>Phân quyền & Tạo tài khoản</span>
-                  </button>
-                )}
-
-                <button
-                  onClick={() => {
-                    setIsUserMenuOpen(false);
-                    setIsSecurityModalOpen(true);
-                  }}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '12px',
-                    width: '100%',
-                    padding: '10px 14px',
-                    borderRadius: '10px',
-                    background: '#f8fafc',
-                    border: '1px solid #e2e8f0',
-                    color: '#1e293b',
-                    fontSize: '13.5px',
-                    fontWeight: '600',
-                    cursor: 'pointer',
-                    transition: 'all 0.18s ease',
-                    boxShadow: 'none',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = '#f0f9ff';
-                    e.currentTarget.style.borderColor = '#bae6fd';
-                    e.currentTarget.style.color = '#0284c7';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = '#f8fafc';
-                    e.currentTarget.style.borderColor = '#e2e8f0';
-                    e.currentTarget.style.color = '#1e293b';
-                  }}
-                >
-                  <div style={{
-                    width: '28px',
-                    height: '28px',
-                    borderRadius: '8px',
-                    background: '#e0f2fe',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: '#0284c7',
-                  }}>
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                    </svg>
-                  </div>
-                  <span>Đổi mật khẩu & Bảo mật</span>
-                </button>
-
-                <button
-                  onClick={() => {
-                    if (isLoggingOut) return;
-                    setIsUserMenuOpen(false);
-                    setShowLogoutConfirm(true);
-                  }}
-                  disabled={isLoggingOut}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '12px',
-                    width: '100%',
-                    padding: '10px 14px',
-                    borderRadius: '10px',
-                    background: '#fef2f2',
-                    border: '1px solid #fecaca',
-                    color: '#dc2626',
-                    fontSize: '13.5px',
-                    fontWeight: '600',
-                    cursor: isLoggingOut ? 'not-allowed' : 'pointer',
-                    transition: 'all 0.18s ease',
-                    boxShadow: 'none',
-                    marginTop: '2px',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = '#fee2e2';
-                    e.currentTarget.style.borderColor = '#fca5a5';
-                    e.currentTarget.style.color = '#b91c1c';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = '#fef2f2';
-                    e.currentTarget.style.borderColor = '#fecaca';
-                    e.currentTarget.style.color = '#dc2626';
-                  }}
-                >
-                  <div style={{
-                    width: '28px',
-                    height: '28px',
-                    borderRadius: '8px',
-                    background: '#fee2e2',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: '#dc2626',
-                  }}>
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                      <polyline points="16 17 21 12 16 7" />
-                      <line x1="21" y1="12" x2="9" y2="12" />
-                    </svg>
-                  </div>
-                  <span>{isLoggingOut ? 'Đang đăng xuất...' : 'Đăng xuất'}</span>
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-      </header>
-
-      {/* Backdrop đóng popover user khi click ra ngoài (đặt ở root level ngoài header) */}
-      {isUserMenuOpen && (
-        <div
-          onClick={() => setIsUserMenuOpen(false)}
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 499,
-            background: 'transparent',
+    <DashboardLayout
+      header={
+        <DashboardHeader
+          user={user}
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          isAdmin={isAdmin}
+          canViewDealers={canViewDealers}
+          isUserMenuOpen={isUserMenuOpen}
+          setIsUserMenuOpen={setIsUserMenuOpen}
+          onOpenSecurityModal={() => setIsSecurityModalOpen(true)}
+          onLogout={() => {
+            if (isLoggingOut) return;
+            setShowLogoutConfirm(true);
           }}
+          isLoggingOut={isLoggingOut}
+          officialRoles={officialRoles}
+          roleLabelMap={roleLabelMap}
+          roleBadgeColorMap={roleBadgeColorMap}
+          primaryRole={primaryRole}
+          currentBadgeColor={currentBadgeColor}
         />
-      )}
-
-      {/* Backdrop mờ khi mở Drawer */}
+      }
+      noScroll={isLockedScrollTab}
+      sidebar={
+        <Sidebar
+          activeTab={activeTab}
+          onSelectTab={setActiveTab}
+          canCreateOrders={canCreateOrders}
+          canReadOrders={canReadOrders}
+          canViewDealers={canViewDealers}
+          canManageDeliveryPoints={canManageDeliveryPoints}
+          canManageSuppliers={canManageSuppliers}
+          canAccessPriceBooks={canAccessPriceBooks}
+          canManageCategories={canManageCategories}
+          canViewProductHistory={isAdmin || isSalesManager || canWriteInventory}
+          isAdmin={isAdmin}
+          onLogout={() => {
+            if (isLoggingOut) return;
+            setShowLogoutConfirm(true);
+          }}
+          isLoggingOut={isLoggingOut}
+        />
+      }
+    >
       <div
-        className={`sidebar-drawer-overlay ${isMenuOpen ? 'open' : ''}`}
-        onClick={handleCloseMenu}
-      />
-
-      {/* Drawer menu mở rộng từ bên trái (13 mục nguyên bản, không thêm chức năng thừa) */}
-      <aside
-        className={`sidebar-drawer ${isMenuOpen ? 'open' : ''}`}
-        onMouseEnter={handleMouseEnterMenu}
-        onMouseLeave={handleMouseLeaveMenu}
-      >
-        {/* Header Drawer */}
-        <div style={{
+        className="dashboard-main-container"
+        style={isLockedScrollTab ? {
+          height: '100%',
+          maxHeight: '100%',
           display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '16px 18px',
-          borderBottom: '1px solid rgba(255, 255, 255, 0.12)',
-          background: 'rgba(255, 255, 255, 0.05)'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: '#ffffff', fontWeight: '600', fontSize: '15px' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <span style={{ width: '18px', height: '2px', background: '#93c5fd', borderRadius: '2px' }}></span>
-              <span style={{ width: '18px', height: '2px', background: '#93c5fd', borderRadius: '2px' }}></span>
-              <span style={{ width: '18px', height: '2px', background: '#93c5fd', borderRadius: '2px' }}></span>
-            </div>
-            <span>Mở rộng menu</span>
-          </div>
-          <button
-            onClick={handleCloseMenu}
-            style={{
-              background: 'rgba(255, 255, 255, 0.1)',
-              border: '1px solid rgba(255, 255, 255, 0.15)',
-              color: '#ffffff',
-              cursor: 'pointer',
-              fontSize: '14px',
-              width: '28px',
-              height: '28px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              borderRadius: '8px',
-              transition: 'all 0.15s ease'
+          flexDirection: 'column',
+          overflow: 'hidden',
+          width: '100%',
+        } : undefined}
+      >
+      {/* Main Content: Switch between Create Order, Order Management, User Management, Audit Logs, Inventory and Pending Authorization */}
+      {activeTab === 'create-order' || (isSalesOrderEntryOpen && canCreateOrders) ? (
+        canCreateOrders ? (
+          <SalesOrderEntry
+            token={token}
+            username={user.username}
+            products={products}
+            onClose={() => {
+              setIsSalesOrderEntryOpen(false);
+              setActiveTab('orders');
             }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
+            onCreated={() => {
+              setIsSalesOrderEntryOpen(false);
+              setActiveTab('orders');
+              fetchProducts();
             }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
-            }}
-            title="Đóng menu"
-          >
-            ✕
-          </button>
-        </div>
-
-        {/* Danh sách mục menu: Hiển thị đúng theo quyền của người dùng */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '12px 0' }}>
-          {/* Quản lý kho hàng - Tất cả nhân viên đều truy cập trang kho */}
-          <div
-            className={`sidebar-menu-item ${activeTab === 'inventory' ? 'active' : ''}`}
-            onClick={() => {
-              setActiveTab('inventory');
-              handleCloseMenu();
-            }}
-          >
-            <div className="sidebar-icon-box">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
-                <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
-                <line x1="12" y1="22.08" x2="12" y2="12" />
-              </svg>
-            </div>
-            <span style={{ fontWeight: activeTab === 'inventory' ? '700' : '500', fontSize: '14.5px' }}>Quản lý kho hàng</span>
-          </div>
-
-          {/* Mục Phân quyền & Tạo tài khoản - CHỈ hiển thị nếu là Admin */}
-          {(user.role === 'admin' || (user.roles && user.roles.includes('admin'))) && (
-            <div
-              className={`sidebar-menu-item ${activeTab === 'users' ? 'active' : ''}`}
-              id="btn-sidebar-roles-and-create"
-              onClick={() => {
-                setActiveTab('users');
-                handleCloseMenu();
-              }}
-            >
-              <div className="sidebar-icon-box">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                  <path d="M12 8v4" />
-                  <path d="M12 16h.01" />
-                </svg>
-              </div>
-              <span style={{ fontWeight: activeTab === 'users' ? '700' : '500', fontSize: '14.5px' }}>Phân quyền & Tạo tài khoản</span>
-            </div>
-          )}
-        </div>
-
-        {/* Nút Đăng xuất ở cuối sidebar */}
-        <div style={{
-          padding: '16px',
-          borderTop: '1px solid rgba(255, 255, 255, 0.12)',
-          background: 'rgba(0, 0, 0, 0.15)'
-        }}>
-          <button
-            className="sidebar-logout-btn"
-            onClick={() => {
-              if (isLoggingOut) return;
-              setIsMenuOpen(false);
-              setShowLogoutConfirm(true);
-            }}
-            disabled={isLoggingOut}
-          >
-            <div className="sidebar-logout-icon-box">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                <polyline points="16 17 21 12 16 7" />
-                <line x1="21" y1="12" x2="9" y2="12" />
-              </svg>
-            </div>
-            <span>{isLoggingOut ? 'Đang đăng xuất...' : 'Đăng xuất'}</span>
-          </button>
-        </div>
-      </aside>
-
-      {/* Main Content: Switch between User Management, Inventory and Pending Authorization */}
-      {activeTab === 'users' ? (
+          />
+        ) : (
+          <AccessDeniedView
+            currentUser={user}
+            requiredPermission="Quyền tạo đơn hàng (order:write)"
+            onBackToWorkflow={() => setActiveTab('inventory')}
+            onLogout={onLogout}
+          />
+        )
+      ) : activeTab === 'orders' ? (
+        canReadOrders ? (
+          <OrderManagementView
+            currentUser={user}
+            token={token}
+            products={products}
+            onBackToHome={() => setActiveTab('inventory')}
+            onRefreshProducts={fetchProducts}
+            onNavigateToPriceBooks={canAccessPriceBooks ? () => setActiveTab('price-books') : undefined}
+          />
+        ) : (
+          <AccessDeniedView
+            currentUser={user}
+            requiredPermission="Quyền xem đơn hàng (order:read)"
+            onBackToWorkflow={() => setActiveTab('inventory')}
+            onLogout={onLogout}
+          />
+        )
+      ) : activeTab === 'users' ? (
         isAdmin ? (
           <UserManagementView
             currentUser={user}
@@ -777,8 +763,115 @@ export default function DashboardPage({
             onLogout={onLogout}
           />
         )
+      ) : activeTab === 'categories' ? (
+        <CategoryManagementView
+          token={token}
+          onBackToHome={() => setActiveTab('inventory')}
+        />
+      ) : activeTab === 'audit-logs' ? (
+        isAdmin ? (
+          <AuditLogView
+            currentUser={user}
+            token={token}
+            onBackToHome={() => setActiveTab('inventory')}
+          />
+        ) : (
+          <AccessDeniedView
+            currentUser={user}
+            requiredPermission="Quản trị hệ thống (Admin)"
+            onBackToWorkflow={() => setActiveTab('inventory')}
+            onLogout={onLogout}
+          />
+        )
+      ) : activeTab === 'profile' ? (
+        <ProfileView
+          currentUser={user}
+          token={token}
+          onBackToHome={() => setActiveTab('inventory')}
+          onUserUpdated={onUserUpdated}
+        />
+      ) : activeTab === 'product-history' ? (
+        (isAdmin || isSalesManager || canWriteInventory) ? (
+          <ProductHistoryView
+            currentUser={user}
+            token={token}
+            products={products}
+            initialProductCode={historyProductTarget?.code}
+            initialProductName={historyProductTarget?.name}
+            isCostVisible={isCostVisible}
+            onBackToInventory={() => setActiveTab('inventory')}
+          />
+        ) : (
+          <AccessDeniedView
+            currentUser={user}
+            requiredPermission="Xem lịch sử thay đổi sản phẩm (Thủ kho / Quản lý kho / Quản lý kinh doanh / Quản trị viên)"
+            onBackToWorkflow={() => setActiveTab('inventory')}
+            onLogout={onLogout}
+          />
+        )
+      ) : activeTab === 'suppliers' ? (
+        canManageSuppliers ? (
+          <SupplierManagementView
+            token={token}
+            onBackToHome={() => setActiveTab('inventory')}
+          />
+        ) : (
+          <AccessDeniedView
+            currentUser={user}
+            requiredPermission="Quản lý nhà cung cấp (Thủ kho / Quản lý kho / Quản trị)"
+            onBackToWorkflow={() => setActiveTab('inventory')}
+            onLogout={onLogout}
+          />
+        )
+      ) : activeTab === 'dealers' ? (
+        canViewDealers ? (
+          <DealerSearchView
+            currentUser={user}
+            token={token}
+            onBackToHome={() => setActiveTab('inventory')}
+          />
+        ) : (
+          <AccessDeniedView
+            currentUser={user}
+            requiredPermission="Tra cứu đại lý & khách hàng (Nhân viên kinh doanh / Quản lý kinh doanh / Quản trị viên)"
+            onBackToWorkflow={() => setActiveTab('inventory')}
+            onLogout={onLogout}
+          />
+        )
+      ) : activeTab === 'price-books' ? (
+        canAccessPriceBooks ? (
+          <PriceBookManagementView
+            token={token}
+            currentUser={user}
+            products={products}
+            onBackToHome={() => setActiveTab('inventory')}
+            onNavigateToOrders={() => setActiveTab('orders')}
+          />
+        ) : (
+          <AccessDeniedView
+            currentUser={user}
+            requiredPermission="Quản lý Bảng giá theo nhóm khách hàng (Quản trị hệ thống / Quản lý kinh doanh / Kế toán)"
+            onBackToWorkflow={() => setActiveTab('inventory')}
+            onLogout={onLogout}
+          />
+        )
+      ) : activeTab === 'delivery-points' ? (
+        canManageDeliveryPoints ? (
+          <DeliveryPointsView
+            currentUser={user}
+            token={token}
+            onBackToHome={() => setActiveTab('inventory')}
+          />
+        ) : (
+          <AccessDeniedView
+            currentUser={user}
+            requiredPermission="Quản lý điểm giao hàng"
+            onBackToWorkflow={() => setActiveTab('inventory')}
+            onLogout={onLogout}
+          />
+        )
+
       ) : isPendingCustomer ? (
-        /* GIAO DIỆN THÔNG BÁO CHO TÀI KHOẢN CHƯA ĐƯỢC ADMIN CẤP QUYỀN */
         <div style={{
           display: 'flex',
           justifyContent: 'center',
@@ -797,7 +890,6 @@ export default function DashboardPage({
             boxShadow: '0 20px 50px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1)',
             backdropFilter: 'blur(16px)',
           }}>
-            {/* Icon Trạng Thái Chờ */}
             <div style={{
               width: '72px',
               height: '72px',
@@ -834,7 +926,6 @@ export default function DashboardPage({
               Hiện tại tài khoản chưa được Quản trị viên phân bổ vai trò nghiệp vụ (Bán hàng, Kho, Mua hàng...) và phân công chi nhánh.
             </p>
 
-            {/* Khung Thông Tin Tài Khoản */}
             <div style={{
               background: 'rgba(15, 23, 42, 0.6)',
               border: '1px solid rgba(255, 255, 255, 0.08)',
@@ -863,11 +954,10 @@ export default function DashboardPage({
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0' }}>
                 <span style={{ color: '#64748b' }}>Chi nhánh / Kho:</span>
-                <span style={{ color: '#94a3b8' }}>Chưa phân công</span>
+                <span style={{ color: '#94a3b8' }}>{user.branch || 'Chưa phân công'}</span>
               </div>
             </div>
 
-            {/* Gợi ý hành động */}
             <div style={{
               display: 'flex',
               flexDirection: 'column',
@@ -876,10 +966,8 @@ export default function DashboardPage({
               <button
                 onClick={async () => {
                   try {
-                    const fresh = await sessionManager.syncCurrentProfile();
-                    if (!fresh || (fresh.role === 'customer' && (!fresh.roles || fresh.roles.every(r => r === 'customer')))) {
-                      window.location.reload();
-                    }
+                    await sessionManager.syncCurrentProfile();
+                    window.location.reload();
                   } catch {
                     window.location.reload();
                   }
@@ -887,14 +975,14 @@ export default function DashboardPage({
                 style={{
                   width: '100%',
                   padding: '12px',
-                  background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+                  background: 'linear-gradient(135deg, #0fba90, #0fad89)',
                   border: 'none',
                   borderRadius: '10px',
                   color: '#ffffff',
                   fontSize: '14px',
                   fontWeight: '700',
                   cursor: 'pointer',
-                  boxShadow: '0 4px 14px rgba(59, 130, 246, 0.35)',
+                  boxShadow: '0 4px 14px rgba(15, 173, 137, 0.35)',
                   transition: 'all 0.2s ease',
                 }}
                 onMouseEnter={(e) => (e.currentTarget.style.transform = 'translateY(-1px)')}
@@ -930,8 +1018,6 @@ export default function DashboardPage({
         </div>
       ) : (
         <>
-          {/* Main Dashboard Content */}
-
           {error && (
             <div style={{
               background: 'rgba(239, 68, 68, 0.2)',
@@ -945,14 +1031,14 @@ export default function DashboardPage({
             </div>
           )}
 
-          {/* 4 Thẻ KPI Dashboard (Metric Card chuẩn Stripe / Linear Enterprise Minimalist) */}
+          {/* 4 Thẻ KPI Dashboard */}
           <div style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-            gap: '16px',
-            marginBottom: '24px'
+            gap: '14px',
+            marginBottom: '14px',
+            flexShrink: 0,
           }}>
-            {/* Thẻ 1: Mặt hàng trong kho */}
             <div className="kpi-stat-card">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
                 <div>
@@ -1004,7 +1090,6 @@ export default function DashboardPage({
               </div>
             </div>
 
-            {/* Thẻ 2: Giá trị bán niêm yết */}
             <div className="kpi-stat-card">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
                 <div>
@@ -1056,7 +1141,6 @@ export default function DashboardPage({
               </div>
             </div>
 
-            {/* Thẻ 3: Tổng Giá Vốn (Chỉ Quản lý kinh doanh & Admin) */}
             {isCostVisible && isCostAvailable && (
               <div className="kpi-stat-card">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
@@ -1107,7 +1191,6 @@ export default function DashboardPage({
               </div>
             )}
 
-            {/* Thẻ 4: Lợi Nhuận Dự Kiến (Chỉ Quản lý kinh doanh & Admin) */}
             {isCostVisible && isCostAvailable && (
               <div className="kpi-stat-card">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
@@ -1163,20 +1246,31 @@ export default function DashboardPage({
           </div>
 
           {/* Clean Enterprise Data Table Container */}
-          <div className="premium-table-card roles-grid-scroll" style={{ overflowX: 'auto', padding: '0', borderRadius: '12px' }}>
-            {/* Toolbar trên bảng theo chuẩn Stripe / Linear Enterprise */}
+          <div
+            className="premium-table-card"
+            style={{
+              padding: '0',
+              borderRadius: '12px',
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column',
+              flex: 1,
+              minHeight: 0,
+            }}
+          >
+            {/* Thanh công cụ tìm kiếm và tác vụ (Cố định ở trên) */}
             <div style={{
               display: 'flex',
               flexWrap: 'wrap',
               justifyContent: 'space-between',
               alignItems: 'center',
-              padding: '16px 20px',
+              padding: '12px 20px',
               borderBottom: '1px solid #e2e8f0',
               gap: '12px',
-              background: '#ffffff'
+              background: '#ffffff',
+              flexShrink: 0
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', flex: 1 }}>
-                {/* Search Input với icon kính lúp */}
                 <div style={{ position: 'relative', width: '280px', maxWidth: '100%' }}>
                   <span style={{ position: 'absolute', left: '10px', top: '9px', color: '#94a3b8', display: 'flex', alignItems: 'center' }}>
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -1187,8 +1281,8 @@ export default function DashboardPage({
                   <input
                     type="text"
                     placeholder="Tìm theo mã hoặc tên sản phẩm..."
-                    value={productSearchTerm}
-                    onChange={(e) => setProductSearchTerm(e.target.value)}
+                    value={productSearchInput}
+                    onChange={(e) => setProductSearchInput(e.target.value)}
                     style={{
                       width: '100%',
                       padding: '7px 12px 7px 32px',
@@ -1202,10 +1296,12 @@ export default function DashboardPage({
                   />
                 </div>
 
-                {/* Dropdown Lọc danh mục */}
                 <select
                   value={selectedCategory}
-                  onChange={(e) => setSelectedCategory(e.target.value)}
+                  onChange={(e) => {
+                    setSelectedCategory(e.target.value);
+                    setCurrentPage(1);
+                  }}
                   style={{
                     padding: '7px 12px',
                     borderRadius: '8px',
@@ -1217,7 +1313,7 @@ export default function DashboardPage({
                     cursor: 'pointer'
                   }}
                 >
-                  <option value="all">Tất cả danh mục ({products.length})</option>
+                  <option value="all">Tất cả ngành hàng</option>
                   {Array.from(new Set(products.map((p) => p.category).filter(Boolean))).map((cat) => (
                     <option key={cat} value={cat}>
                       {cat}
@@ -1226,19 +1322,54 @@ export default function DashboardPage({
                 </select>
               </div>
 
-              {/* Nút Xuất file & Làm mới chuyên nghiệp */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span style={{ fontSize: '12.5px', color: '#64748b', marginRight: '4px' }}>
                   Hiển thị <strong style={{ color: '#0f172a' }}>{filteredProducts.length}</strong> / {products.length} SP
                 </span>
+
+
+                {/* Nút Nhập file Excel danh mục hàng loạt (Chỉ hiển thị cho admin và quản lý kinh doanh) */}
+                {(isAdmin || isSalesManager) && (
+                  <button
+                    type="button"
+                    onClick={() => setIsProductBulkImportOpen(true)}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      background: '#ecfdf5',
+                      border: '1px solid #a7f3d0',
+                      padding: '7px 12px',
+                      borderRadius: '8px',
+                      fontSize: '12.5px',
+                      fontWeight: '600',
+                      color: '#0fad89',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = '#d1fae5';
+                      e.currentTarget.style.borderColor = '#6ee7b7';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = '#ecfdf5';
+                      e.currentTarget.style.borderColor = '#a7f3d0';
+                    }}
+                    title="Nhập danh mục sản phẩm hàng loạt từ file Excel"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                      <polyline points="17 8 12 3 7 8" />
+                      <line x1="12" y1="3" x2="12" y2="15" />
+                    </svg>
+                    <span>Nhập file</span>
+                  </button>
+                )}
+
+                {/* Nút Xuất file Excel danh mục */}
                 <button
                   type="button"
                   onClick={() => {
-                    // Xuất file chuẩn định dạng Excel (.xls - HTML XML Spreadsheet)
-                    // Cách này đảm bảo:
-                    // 1. Phân chia đúng 100% từng cột ô trong Excel mà không phụ thuộc vào Regional Settings (dấu phẩy hay chấm phẩy).
-                    // 2. Không bao giờ bị lỗi phông chữ tiếng Việt có dấu.
-                    // 3. Có định dạng tiêu đề, canh lề số và viền bảng chỉn chu.
                     const excelTemplate = `
                       <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
                       <head>
@@ -1271,7 +1402,7 @@ export default function DashboardPage({
                             <tr>
                               <th style="width: 100px;">Mã SP</th>
                               <th style="width: 250px;">Tên sản phẩm</th>
-                              <th style="width: 140px;" class="text-center">Danh mục</th>
+                              <th style="width: 140px;" class="text-center">Ngành hàng</th>
                               <th style="width: 110px;" class="text-right">Số lượng tồn</th>
                               <th style="width: 150px;" class="text-right">Giá niêm yết (VNĐ)</th>
                             </tr>
@@ -1323,7 +1454,7 @@ export default function DashboardPage({
                     e.currentTarget.style.background = '#ffffff';
                     e.currentTarget.style.borderColor = '#cbd5e1';
                   }}
-                  title="Xuất danh sách sản phẩm dạng CSV"
+                  title="Xuất danh sách sản phẩm dạng Excel"
                 >
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
@@ -1335,184 +1466,588 @@ export default function DashboardPage({
               </div>
             </div>
 
-            {isLoading ? (
-              <div style={{ padding: '60px', textAlign: 'center', color: '#64748b' }}>
-                <div style={{ fontSize: '32px', marginBottom: '12px' }}>⏳</div>
-                <div style={{ fontSize: '14px', fontWeight: '500' }}>Đang tải dữ liệu từ máy chủ Backend...</div>
-              </div>
-            ) : filteredProducts.length === 0 ? (
-              <div style={{ padding: '48px', textAlign: 'center', color: '#64748b', fontSize: '13.5px' }}>
-                Không tìm thấy sản phẩm nào phù hợp với điều kiện tìm kiếm.
-              </div>
-            ) : (
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13.5px' }}>
-                <thead>
-                  <tr style={{
-                    color: '#64748b',
-                    background: '#f8fafc',
-                    fontSize: '11px',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.06em',
-                    borderBottom: '1px solid #e2e8f0',
-                  }}>
-                    <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'left' }}>Mã SP</th>
-                    <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'left' }}>Tên Sản Phẩm</th>
-                    <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'left' }}>Danh Mục</th>
-                    <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'right' }}>Số Lượng Tồn</th>
-                    <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'right' }}>Giá Niêm Yết (Bán)</th>
-                    {/* CỘT GIÁ VỐN & BIÊN LỢI NHUẬN - CHỈ HIỆN KHI SERVER CHO PHÉP (QUẢN LÝ KINH DOANH / ADMIN) */}
-                    {isCostVisible && (
-                      <>
-                        <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'right' }}>Giá Vốn Nhập Kho</th>
-                        <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'right' }}>Biên Lợi Nhuận</th>
-                      </>
-                    )}
-                    {!isCostVisible && (
-                      <th style={{ width: '16px' }} />
-                    )}
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredProducts.map((item, idx) => (
-                    <tr
-                      key={item.id}
-                      className="inventory-row"
-                      style={{
-                        background: idx % 2 === 0 ? '#ffffff' : '#fcfdfd',
-                        borderBottom: '1px solid #f1f5f9',
-                      }}
-                    >
-                      {/* Mã SP: font monospace thanh mảnh, Slate đậm, không bọc khung giả nút bấm */}
-                      <td style={{
-                        padding: '13px 18px',
-                        textAlign: 'left',
-                        fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-                        fontSize: '12px',
-                        fontWeight: '600',
-                        color: '#334155',
-                      }}>
-                        {item.code}
-                      </td>
-
-                      {/* Tên Sản Phẩm */}
-                      <td style={{ padding: '13px 18px', fontWeight: '500', color: '#0f172a', fontSize: '13.5px', textAlign: 'left' }}>
-                        {item.name}
-                      </td>
-
-                      {/* Danh Mục: Text gọn gàng */}
-                      <td style={{ padding: '13px 18px', textAlign: 'left', color: '#64748b', fontSize: '12.5px' }}>
-                        {item.category}
-                      </td>
-
-                      {/* Số Lượng Tồn: Số kèm đơn vị bình thường, màu chữ tối chuẩn đồng nhất */}
-                      <td style={{ padding: '13px 18px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-                        <span style={{
-                          fontWeight: '600',
-                          color: '#0f172a',
-                        }}>
-                          {item.stock.toLocaleString()} cái
-                        </span>
-                      </td>
-
-                      {/* Giá Niêm Yết: Màu chữ tối chuẩn #0f172a, tabular-nums */}
-                      <td style={{ padding: '13px 18px', color: '#0f172a', fontWeight: '600', fontSize: '13.5px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-                        {item.sell_price.toLocaleString('vi-VN')} đ
-                      </td>
-
-                      {/* GIÁ VỐN & BIÊN LỢI NHUẬN TỪ SERVER: Chuyển từ đỏ tươi sang màu tối bình thường kèm tag bảo mật nhỏ */}
+            {/* Vùng cuộn riêng cho bảng hàng hóa (cố định thead) */}
+            <div
+              className="roles-grid-scroll"
+              style={{
+                overflowX: 'auto',
+                overflowY: 'auto',
+                flex: 1,
+                minHeight: 0,
+                scrollBehavior: 'smooth'
+              }}
+            >
+              {isLoading ? (
+                <div style={{ padding: '60px', textAlign: 'center', color: '#64748b' }}>
+                  <div style={{ fontSize: '32px', marginBottom: '12px' }}>⏳</div>
+                  <div style={{ fontSize: '14px', fontWeight: '500' }}>Đang tải dữ liệu từ máy chủ Backend...</div>
+                </div>
+              ) : filteredProducts.length === 0 ? (
+                <div style={{ padding: '48px', textAlign: 'center', color: '#64748b', fontSize: '13.5px' }}>
+                  Không tìm thấy sản phẩm nào phù hợp với điều kiện tìm kiếm.
+                </div>
+              ) : (
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13.5px' }}>
+                  <thead style={{ position: 'sticky', top: 0, zIndex: 10, background: '#f8fafc', boxShadow: '0 1px 0 #e2e8f0' }}>
+                    <tr style={{
+                      color: '#64748b',
+                      background: '#f8fafc',
+                      fontSize: '11px',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.06em',
+                      borderBottom: '1px solid #e2e8f0',
+                    }}>
+                      <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'left', background: '#f8fafc' }}>Mã SP</th>
+                      <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'left', background: '#f8fafc' }}>Tên Sản Phẩm</th>
+                      <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'left', background: '#f8fafc' }}>Ngành Hàng</th>
+                      <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'left', background: '#f8fafc' }}>Đơn Vị Tính</th>
+                      <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'right', background: '#f8fafc' }}>Số Lượng Tồn</th>
+                      <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'right', background: '#f8fafc' }}>Giá Niêm Yết (Bán)</th>
                       {isCostVisible && (
                         <>
-                          <td style={{ padding: '13px 18px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '2px' }}>
-                              <span style={{ color: '#0f172a', fontWeight: '600', fontSize: '13.5px' }}>
-                                {item.cost_price ? `${item.cost_price.toLocaleString('vi-VN')} đ` : '—'}
-                              </span>
-                              <span style={{ fontSize: '10.5px', color: '#94a3b8', letterSpacing: '-0.01em' }}>
-                                Chỉ Quản lý
-                              </span>
-                            </div>
-                          </td>
-                          <td style={{ padding: '13px 18px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-                            {item.profit_margin !== undefined && item.profit_margin !== null ? (
-                              <span style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '3px',
-                                color: item.profit_margin >= 0 ? '#15803d' : '#dc2626',
-                                fontWeight: '600',
-                                fontSize: '13px',
-                              }}>
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                  {item.profit_margin >= 0 ? (
-                                    <>
-                                      <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
-                                      <polyline points="17 6 23 6 23 12" />
-                                    </>
-                                  ) : (
-                                    <>
-                                      <polyline points="23 18 13.5 8.5 8.5 13.5 1 6" />
-                                      <polyline points="17 18 23 18 23 12" />
-                                    </>
-                                  )}
-                                </svg>
-                                <span>{item.profit_margin >= 0 ? '+' : ''}{item.profit_margin}%</span>
-                              </span>
-                            ) : (
-                              <span style={{ color: '#94a3b8' }}>—</span>
-                            )}
-                          </td>
+                          <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'right', background: '#f8fafc' }}>Giá Vốn Nhập Kho</th>
+                          <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'right', background: '#f8fafc' }}>Biên Lợi Nhuận</th>
                         </>
                       )}
-                      {!isCostVisible && (
-                        <td />
+                      {canPerformProductAction && (
+                        <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'center', width: '80px', background: '#f8fafc' }}>Thao Tác</th>
                       )}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {paginatedProducts.map((item, idx) => (
+                      <tr
+                        key={item.id}
+                        className="inventory-row"
+                        style={{
+                          background: idx % 2 === 0 ? '#ffffff' : '#fcfdfd',
+                          borderBottom: '1px solid #f1f5f9',
+                        }}
+                      >
+                        <td style={{
+                          padding: '13px 18px',
+                          textAlign: 'left',
+                          fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+                          fontSize: '12px',
+                          fontWeight: '600',
+                          color: '#334155',
+                        }}>
+                          {item.code}
+                        </td>
+
+                        <td style={{ padding: '13px 18px', fontWeight: '500', color: '#0f172a', fontSize: '13.5px', textAlign: 'left' }}>
+                          {item.name}
+                        </td>
+
+                        <td style={{ padding: '13px 18px', textAlign: 'left', color: '#64748b', fontSize: '12.5px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span>{item.category}</span>
+                            {canManageCategories && (
+                              <button
+                                onClick={() => setMovingProduct({ id: item.id, name: item.name, category_id: item.category_id })}
+                                style={{
+                                  background: 'transparent',
+                                  border: 'none',
+                                  cursor: 'pointer',
+                                  padding: '2px',
+                                  color: '#94a3b8',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center'
+                                }}
+                                title="Chuyển ngành hàng"
+                                onMouseEnter={e => e.currentTarget.style.color = '#3b82f6'}
+                                onMouseLeave={e => e.currentTarget.style.color = '#94a3b8'}
+                              >
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                                </svg>
+                              </button>
+                            )}
+                          </div>
+                        </td>
+
+                        {/* Cột Đơn vị tính cơ sở & quy đổi */}
+                        <td style={{ padding: '13px 18px', textAlign: 'left', fontSize: '12.5px' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                            <span style={{ fontWeight: '600', color: '#0f172a' }}>
+                              {item.base_unit || 'Cái'} <span style={{ fontSize: '10.5px', color: '#64748b', fontWeight: '400' }}>(cơ sở)</span>
+                            </span>
+                            {item.units && item.units.length > 0 ? (
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                                {item.units.map((u, uIdx) => (
+                                  <span
+                                    key={uIdx}
+                                    style={{
+                                      fontSize: '11px',
+                                      background: '#ecfdf5',
+                                      color: '#065f46',
+                                      padding: '1px 6px',
+                                      borderRadius: '4px',
+                                      border: '1px solid #a7f3d0',
+                                    }}
+                                    title={`1 ${u.unit_name} = ${u.conversion_rate} ${item.base_unit || 'Cái'}`}
+                                  >
+                                    {u.unit_name} (×{u.conversion_rate})
+                                  </span>
+                                ))}
+                              </div>
+                            ) : (
+                              <span style={{ fontSize: '11px', color: '#94a3b8' }}>Chưa có ĐVT quy đổi</span>
+                            )}
+                          </div>
+                        </td>
+
+                        <td style={{ padding: '13px 18px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                          <span style={{
+                            fontWeight: '600',
+                            color: '#0f172a',
+                          }}>
+                            {item.stock.toLocaleString()} {item.base_unit || 'cái'}
+                          </span>
+                        </td>
+
+                        <td style={{ padding: '13px 18px', color: '#0f172a', fontWeight: '600', fontSize: '13.5px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                          {item.sell_price.toLocaleString('vi-VN')} đ
+                        </td>
+
+                        {isCostVisible && (
+                          <>
+                            <td style={{ padding: '13px 18px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '2px' }}>
+                                <span style={{ color: '#0f172a', fontWeight: '600', fontSize: '13.5px' }}>
+                                  {item.cost_price ? `${item.cost_price.toLocaleString('vi-VN')} đ` : '—'}
+                                </span>
+                                <span style={{ fontSize: '10.5px', color: '#94a3b8', letterSpacing: '-0.01em' }}>
+                                  Chỉ Quản lý
+                                </span>
+                              </div>
+                            </td>
+                            <td style={{ padding: '13px 18px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                              {item.profit_margin !== undefined && item.profit_margin !== null ? (
+                                <span style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '3px',
+                                  color: item.profit_margin >= 0 ? '#15803d' : '#dc2626',
+                                  fontWeight: '600',
+                                  fontSize: '13px',
+                                }}>
+                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                    {item.profit_margin >= 0 ? (
+                                      <>
+                                        <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
+                                        <polyline points="17 6 23 6 23 12" />
+                                      </>
+                                    ) : (
+                                      <>
+                                        <polyline points="23 18 13.5 8.5 8.5 13.5 1 6" />
+                                        <polyline points="17 18 23 18 23 12" />
+                                      </>
+                                    )}
+                                  </svg>
+                                  <span>{item.profit_margin >= 0 ? '+' : ''}{item.profit_margin}%</span>
+                                </span>
+                              ) : (
+                                <span style={{ color: '#94a3b8' }}>—</span>
+                              )}
+                            </td>
+                          </>
+                        )}
+                        {canPerformProductAction && (
+                          <td style={{ padding: '10px 18px', textAlign: 'center' }}>
+                            <div style={{ position: 'relative', display: 'inline-block' }}>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setOpenProductMenuId(openProductMenuId === item.id ? null : item.id);
+                                }}
+                                style={{
+                                  width: '32px',
+                                  height: '32px',
+                                  padding: 0,
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  background: openProductMenuId === item.id ? '#e2e8f0' : '#ffffff',
+                                  color: openProductMenuId === item.id ? '#0f172a' : '#64748b',
+                                  border: '1px solid #cbd5e1',
+                                  borderRadius: '8px',
+                                  cursor: 'pointer',
+                                  transition: 'all 0.15s ease',
+                                  boxShadow: 'none',
+                                  margin: 0,
+                                }}
+                                onMouseEnter={(e) => {
+                                  if (openProductMenuId !== item.id) {
+                                    e.currentTarget.style.background = '#f8fafc';
+                                    e.currentTarget.style.color = '#0f172a';
+                                    e.currentTarget.style.borderColor = '#94a3b8';
+                                  }
+                                }}
+                                onMouseLeave={(e) => {
+                                  if (openProductMenuId !== item.id) {
+                                    e.currentTarget.style.background = '#ffffff';
+                                    e.currentTarget.style.color = '#64748b';
+                                    e.currentTarget.style.borderColor = '#cbd5e1';
+                                  }
+                                }}
+                                title="Thao tác sản phẩm"
+                                aria-label="Thao tác sản phẩm"
+                              >
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                  <circle cx="12" cy="12" r="1.5" />
+                                  <circle cx="12" cy="5" r="1.5" />
+                                  <circle cx="12" cy="19" r="1.5" />
+                                </svg>
+                              </button>
+
+                              {openProductMenuId === item.id && (
+                                <div
+                                  style={{
+                                    position: 'absolute',
+                                    right: 0,
+                                    ...(idx >= paginatedProducts.length - 2 && paginatedProducts.length > 2
+                                      ? { bottom: 'calc(100% + 4px)' }
+                                      : { top: 'calc(100% + 4px)' }),
+                                    background: '#ffffff',
+                                    border: '1px solid #e2e8f0',
+                                    borderRadius: '10px',
+                                    boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.04)',
+                                    padding: '5px',
+                                    minWidth: '150px',
+                                    zIndex: 50,
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: '2px',
+                                    textAlign: 'left',
+                                  }}
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  {canConfigUnit && (
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setUnitConfigProduct(item);
+                                        setOpenProductMenuId(null);
+                                      }}
+                                      style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '8px',
+                                        width: '100%',
+                                        padding: '8px 12px',
+                                        background: 'transparent',
+                                        border: 'none',
+                                        borderRadius: '6px',
+                                        fontSize: '13px',
+                                        fontWeight: '600',
+                                        color: '#334155',
+                                        cursor: 'pointer',
+                                        boxShadow: 'none',
+                                        margin: 0,
+                                        transition: 'background 0.15s ease',
+                                        textAlign: 'left',
+                                      }}
+                                      onMouseEnter={(e) => (e.currentTarget.style.background = '#f8fafc')}
+                                      onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                                      title="Cấu hình ĐVT cơ sở & danh sách ĐVT quy đổi (Lốc, Thùng...)"
+                                    >
+                                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                        <circle cx="12" cy="12" r="3" />
+                                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                                      </svg>
+                                      <span>Cấu hình ĐVT</span>
+                                    </button>
+                                  )}
+
+                                  {canWriteInventory && (
+                                    <>
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setStockActionState({ isOpen: true, actionType: 'receipt', product: item });
+                                          setOpenProductMenuId(null);
+                                        }}
+                                        style={{
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          gap: '8px',
+                                          width: '100%',
+                                          padding: '8px 12px',
+                                          background: 'transparent',
+                                          border: 'none',
+                                          borderRadius: '6px',
+                                          fontSize: '13px',
+                                          fontWeight: '600',
+                                          color: '#065f46',
+                                          cursor: 'pointer',
+                                          boxShadow: 'none',
+                                          margin: 0,
+                                          transition: 'background 0.15s ease',
+                                          textAlign: 'left',
+                                        }}
+                                        onMouseEnter={(e) => (e.currentTarget.style.background = '#ecfdf5')}
+                                        onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                                        title="Tạo phiếu nhập kho (cho phép chọn ĐVT quy đổi)"
+                                      >
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                          <line x1="12" y1="5" x2="12" y2="19" />
+                                          <line x1="5" y1="12" x2="19" y2="12" />
+                                        </svg>
+                                        <span>Nhập kho</span>
+                                      </button>
+
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setStockActionState({ isOpen: true, actionType: 'issue', product: item });
+                                          setOpenProductMenuId(null);
+                                        }}
+                                        style={{
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          gap: '8px',
+                                          width: '100%',
+                                          padding: '8px 12px',
+                                          background: 'transparent',
+                                          border: 'none',
+                                          borderRadius: '6px',
+                                          fontSize: '13px',
+                                          fontWeight: '600',
+                                          color: '#9a3412',
+                                          cursor: 'pointer',
+                                          boxShadow: 'none',
+                                          margin: 0,
+                                          transition: 'background 0.15s ease',
+                                          textAlign: 'left',
+                                        }}
+                                        onMouseEnter={(e) => (e.currentTarget.style.background = '#fff7ed')}
+                                        onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                                        title="Tạo phiếu xuất kho (cho phép chọn ĐVT quy đổi)"
+                                      >
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                          <line x1="5" y1="12" x2="19" y2="12" />
+                                        </svg>
+                                        <span>Xuất kho</span>
+                                      </button>
+                                    </>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </td>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+
+            {/* Thanh điều khiển Phân Trang Cố Định Ở Đáy Bảng */}
+            {filteredProducts.length > 0 && (
+              <div style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                justifyContent: 'flex-end',
+                alignItems: 'center',
+                padding: '12px 20px',
+                borderTop: '1px solid #e2e8f0',
+                background: '#ffffff',
+                gap: '12px',
+                fontSize: '13px',
+                color: '#64748b',
+                flexShrink: 0
+              }}>
+                {/* Khối phân trang liền thanh chuẩn theo thiết kế (Hình 2) */}
+                <div
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'stretch',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '8px',
+                    overflow: 'hidden',
+                    background: '#ffffff',
+                    boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
+                    height: '32px',
+                  }}
+                >
+                  {/* Nút trang trước (<) - hiển thị khi trang > 1 */}
+                  {safeCurrentPage > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                      style={{
+                        minWidth: '32px',
+                        height: '100%',
+                        padding: '0 8px',
+                        border: 'none',
+                        borderRight: '1px solid #e5e7eb',
+                        background: '#ffffff',
+                        color: '#4b5563',
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        transition: 'background-color 0.15s ease',
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f9fafb')}
+                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#ffffff')}
+                      title="Trang trước"
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="15 18 9 12 15 6" />
+                      </svg>
+                    </button>
+                  )}
+
+                  {/* Danh sách các số trang */}
+                  {Array.from({ length: totalPages }, (_, i) => i + 1)
+                    .filter((p) => p === 1 || p === totalPages || Math.abs(p - safeCurrentPage) <= 1)
+                    .reduce<(number | string)[]>((acc, p, idx, arr) => {
+                      if (idx > 0 && typeof arr[idx - 1] === 'number' && (p as number) - (arr[idx - 1] as number) > 1) {
+                        acc.push('...');
+                      }
+                      acc.push(p);
+                      return acc;
+                    }, [])
+                    .map((p, idx, arr) => {
+                      const hasNext = safeCurrentPage < totalPages;
+                      const isLastItem = idx === arr.length - 1 && !hasNext;
+                      if (typeof p === 'string') {
+                        return (
+                          <span
+                            key={`ellipsis-${idx}`}
+                            style={{
+                              minWidth: '32px',
+                              height: '100%',
+                              padding: '0 8px',
+                              borderRight: isLastItem ? 'none' : '1px solid #e5e7eb',
+                              background: '#ffffff',
+                              color: '#6b7280',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: '13px',
+                              userSelect: 'none',
+                            }}
+                          >
+                            ...
+                          </span>
+                        );
+                      }
+
+                      const isActive = p === safeCurrentPage;
+                      return (
+                        <button
+                          key={p}
+                          type="button"
+                          onClick={() => setCurrentPage(p)}
+                          style={{
+                            minWidth: '32px',
+                            height: '100%',
+                            padding: '0 10px',
+                            border: 'none',
+                            borderRight: isLastItem ? 'none' : '1px solid #e5e7eb',
+                            background: isActive ? '#0fad89' : '#ffffff',
+                            color: isActive ? '#ffffff' : '#374151',
+                            cursor: isActive ? 'default' : 'pointer',
+                            fontSize: '13px',
+                            fontWeight: isActive ? '700' : '500',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            transition: 'background-color 0.15s ease',
+                          }}
+                          onMouseEnter={(e) => {
+                            if (!isActive) e.currentTarget.style.backgroundColor = '#f9fafb';
+                          }}
+                          onMouseLeave={(e) => {
+                            if (!isActive) e.currentTarget.style.backgroundColor = '#ffffff';
+                          }}
+                        >
+                          {p}
+                        </button>
+                      );
+                    })}
+
+                  {/* Nút trang sau (>) - hiển thị khi chưa tới trang cuối */}
+                  {safeCurrentPage < totalPages && (
+                    <button
+                      type="button"
+                      onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                      style={{
+                        minWidth: '32px',
+                        height: '100%',
+                        padding: '0 8px',
+                        border: 'none',
+                        background: '#ffffff',
+                        color: '#4b5563',
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        transition: 'background-color 0.15s ease',
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f9fafb')}
+                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#ffffff')}
+                      title="Trang sau"
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="9 18 15 12 9 6" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
+              </div>
             )}
           </div>
         </>
       )}
 
-      {/* Cảnh báo phiên sắp hết hạn khi < 2p */}
+      {/* Cảnh báo phiên sắp hết hạn */}
       {isWarningZone && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          width: '100vw',
-          height: '100vh',
-          background: 'rgba(15, 23, 42, 0.7)',
-          backdropFilter: 'blur(6px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 9999,
-          padding: '20px'
-        }}>
+        <ModalPortal>
           <div style={{
-            width: '100%',
-            maxWidth: '440px',
-            background: '#1e293b',
-            border: '1px solid rgba(245, 158, 11, 0.5)',
-            borderRadius: '18px',
-            padding: '28px 24px',
-            boxShadow: '0 20px 50px rgba(0, 0, 0, 0.6), 0 0 25px rgba(245, 158, 11, 0.2)',
-            textAlign: 'center',
-            color: '#f8fafc'
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(15, 23, 42, 0.7)',
+            backdropFilter: 'blur(6px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 99999,
+            padding: '20px'
           }}>
-            <h3 style={{ fontSize: '19px', fontWeight: '700', margin: '0 0 10px', color: '#fde68a' }}>
-              Phiên Làm Việc Sắp Hết Hạn
-            </h3>
-            <p style={{ fontSize: '14px', color: '#cbd5e1', lineHeight: '1.6', margin: '0 0 14px' }}>
-              Hệ thống phát hiện bạn không thao tác trong một khoảng thời gian.
-            </p>
+            <div style={{
+              width: '100%',
+              maxWidth: '440px',
+              background: '#1e293b',
+              border: '1px solid rgba(245, 158, 11, 0.5)',
+              borderRadius: '18px',
+              padding: '28px 24px',
+              boxShadow: '0 20px 50px rgba(0, 0, 0, 0.6), 0 0 25px rgba(245, 158, 11, 0.2)',
+              textAlign: 'center',
+              color: '#f8fafc'
+            }}>
+              <h3 style={{ fontSize: '19px', fontWeight: '700', margin: '0 0 10px', color: '#fde68a' }}>
+                Phiên Làm Việc Sắp Hết Hạn
+              </h3>
+              <p style={{ fontSize: '14px', color: '#cbd5e1', lineHeight: '1.6', margin: '0 0 14px' }}>
+                Hệ thống phát hiện bạn không thao tác trong một khoảng thời gian.
+              </p>
+            </div>
           </div>
-        </div>
+        </ModalPortal>
       )}
 
-      {/* Modal Bảo Mật & Đổi Mật Khẩu */}
+      {/* Modals */}
       <SecurityModal
         isOpen={isSecurityModalOpen}
         onClose={() => setIsSecurityModalOpen(false)}
@@ -1521,135 +2056,226 @@ export default function DashboardPage({
         onTokenUpdated={onTokenUpdated}
       />
 
-      {/* Modal Tạo Tài Khoản (Kích hoạt từ Popover Avatar hoặc Sidebar Drawer) */}
       <CreateCustomerModal
         isOpen={isCreateAccountModalOpen}
         onClose={() => setIsCreateAccountModalOpen(false)}
         token={token}
         onSuccess={(msg) => {
-          // Bắn sự kiện cập nhật để trang phân quyền tải lại ngay tức thì
           window.dispatchEvent(new CustomEvent('USER_ACCOUNTS_CHANGED', { detail: { message: msg } }));
-          // Thông báo nổi góc phải màn hình: hiển thị ở MỌI tab (kể cả khi tạo từ Popover Avatar / Sidebar Drawer)
           emitStatusToast({ message: msg.replace(/^✅\s*/, ''), title: 'Tạo tài khoản thành công' });
         }}
       />
 
-      {/* Modal Popup Xác nhận đăng xuất ở giữa màn hình */}
+      <MoveCategoryModal
+        isOpen={movingProduct !== null}
+        onClose={() => setMovingProduct(null)}
+        token={token}
+        productId={movingProduct?.id || 0}
+        productName={movingProduct?.name || ''}
+        currentCategoryId={movingProduct?.category_id}
+        onSuccess={() => {
+          getProductsApi(token).then(data => {
+            setProducts(data.items);
+          }).catch(console.error);
+        }}
+      />
+
+      {/* Xác nhận đăng xuất */}
       {showLogoutConfirm && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            backgroundColor: 'rgba(15, 23, 42, 0.65)',
-            backdropFilter: 'blur(4px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 99999,
-            padding: '16px',
-            animation: 'fadeInCard 0.15s ease-out'
-          }}
-        >
+        <ModalPortal>
           <div
             style={{
-              backgroundColor: '#ffffff',
-              borderRadius: '16px',
-              padding: '24px',
-              maxWidth: '380px',
-              width: '100%',
-              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-              textAlign: 'center',
-              border: '1px solid #e2e8f0'
+              position: 'fixed',
+              inset: 0,
+              backgroundColor: 'rgba(15, 23, 42, 0.65)',
+              backdropFilter: 'blur(4px)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 99999,
+              padding: '16px',
+              animation: 'fadeInCard 0.15s ease-out'
             }}
           >
-            {/* Icon cảnh báo tròn */}
             <div
               style={{
-                width: '52px',
-                height: '52px',
-                borderRadius: '50%',
-                backgroundColor: '#fef2f2',
-                color: '#dc2626',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                margin: '0 auto 16px auto',
-                border: '1px solid #fee2e2'
+                backgroundColor: '#ffffff',
+                borderRadius: '16px',
+                padding: '24px',
+                maxWidth: '380px',
+                width: '100%',
+                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+                textAlign: 'center',
+                border: '1px solid #e2e8f0'
               }}
             >
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                <polyline points="16 17 21 12 16 7" />
-                <line x1="21" y1="12" x2="9" y2="12" />
-              </svg>
-            </div>
-
-            <h3 style={{ fontSize: '18px', fontWeight: '700', color: '#0f172a', margin: '0 0 8px 0' }}>
-              Xác nhận đăng xuất
-            </h3>
-            <p style={{ fontSize: '14px', color: '#64748b', lineHeight: '1.5', margin: '0 0 24px 0' }}>
-              Bạn có chắc chắn muốn đăng xuất khỏi hệ thống không?
-            </p>
-
-            <div style={{ display: 'flex', justifyContent: 'center', gap: '10px' }}>
-              <button
-                type="button"
-                onClick={() => setShowLogoutConfirm(false)}
+              <div
                 style={{
-                  flex: 1,
-                  padding: '9px 16px',
-                  borderRadius: '10px',
-                  border: '1px solid #cbd5e1',
-                  backgroundColor: '#ffffff',
-                  color: '#334155',
-                  fontSize: '14px',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  transition: 'background 0.15s ease'
+                  width: '52px',
+                  height: '52px',
+                  borderRadius: '50%',
+                  backgroundColor: '#fef2f2',
+                  color: '#dc2626',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  margin: '0 auto 16px auto',
+                  border: '1px solid #fee2e2'
                 }}
-                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f1f5f9')}
-                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#ffffff')}
               >
-                Hủy bỏ
-              </button>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                  <polyline points="16 17 21 12 16 7" />
+                  <line x1="21" y1="12" x2="9" y2="12" />
+                </svg>
+              </div>
 
-              <button
-                type="button"
-                onClick={async () => {
-                  setShowLogoutConfirm(false);
-                  setIsLoggingOut(true);
-                  try {
-                    await onLogout();
-                  } finally {
-                    setIsLoggingOut(false);
-                  }
-                }}
-                style={{
-                  flex: 1,
-                  padding: '9px 16px',
-                  borderRadius: '10px',
-                  border: 'none',
-                  backgroundColor: '#dc2626',
-                  color: '#ffffff',
-                  fontSize: '14px',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  boxShadow: '0 2px 8px rgba(220, 38, 38, 0.25)',
-                  transition: 'background 0.15s ease'
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#b91c1c')}
-                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#dc2626')}
-              >
-                Đăng xuất
-              </button>
+              <h3 style={{ fontSize: '18px', fontWeight: '700', color: '#0f172a', margin: '0 0 8px 0' }}>
+                Xác nhận đăng xuất
+              </h3>
+              <p style={{ fontSize: '14px', color: '#64748b', lineHeight: '1.5', margin: '0 0 24px 0' }}>
+                Bạn có chắc chắn muốn đăng xuất khỏi hệ thống không?
+              </p>
+
+              <div style={{ display: 'flex', justifyContent: 'center', gap: '10px' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowLogoutConfirm(false)}
+                  style={{
+                    flex: 1,
+                    padding: '9px 16px',
+                    borderRadius: '10px',
+                    border: '1px solid #cbd5e1',
+                    backgroundColor: '#ffffff',
+                    color: '#334155',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    transition: 'background 0.15s ease'
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f1f5f9')}
+                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#ffffff')}
+                >
+                  Hủy bỏ
+                </button>
+
+                <button
+                  type="button"
+                  onClick={async () => {
+                    setShowLogoutConfirm(false);
+                    setIsLoggingOut(true);
+                    try {
+                      await onLogout();
+                    } finally {
+                      setIsLoggingOut(false);
+                    }
+                  }}
+                  style={{
+                    flex: 1,
+                    padding: '9px 16px',
+                    borderRadius: '10px',
+                    border: 'none',
+                    backgroundColor: '#dc2626',
+                    color: '#ffffff',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    boxShadow: '0 2px 8px rgba(220, 38, 38, 0.25)',
+                    transition: 'background 0.15s ease'
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#b91c1c')}
+                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#dc2626')}
+                >
+                  Đăng xuất
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        </ModalPortal>
+      )}
+
+      <ProductAuditDrawer
+        isOpen={productAuditDrawerState.isOpen}
+        onClose={() => setProductAuditDrawerState((prev) => ({ ...prev, isOpen: false }))}
+        productCode={productAuditDrawerState.productCode}
+        productName={productAuditDrawerState.productName}
+        token={token}
+        initialFilter={productAuditDrawerState.initialFilter || 'ALL'}
+        isCostVisible={isCostVisible}
+      />
+
+      <PriceUpdateModal
+        isOpen={Boolean(priceUpdateModalProduct)}
+        product={priceUpdateModalProduct}
+        onClose={() => setPriceUpdateModalProduct(null)}
+        token={token}
+        isCostVisible={isCostVisible}
+        onSuccess={() => {
+          emitStatusToast({
+            title: 'Cập nhật giá thành công',
+            message: 'Đã lưu giá mới thành công.',
+          });
+          fetchProducts();
+        }}
+      />
+
+      {isProductBulkImportOpen && (
+        <ProductBulkImportModal
+          token={token}
+          onClose={() => setIsProductBulkImportOpen(false)}
+          onSuccess={() => {
+            setIsProductBulkImportOpen(false);
+            fetchProducts();
+          }}
+        />
+      )}
+
+      {/* SCRUM Unit Conversion Modals */}
+      {unitConfigProduct && (
+        <ProductUnitModal
+          isOpen={Boolean(unitConfigProduct)}
+          token={token}
+          product={unitConfigProduct}
+          onClose={() => setUnitConfigProduct(null)}
+          onSuccess={() => {
+            setUnitConfigProduct(null);
+            fetchProducts();
+          }}
+        />
+      )}
+
+      {stockActionState.isOpen && (
+        <StockActionModal
+          isOpen={stockActionState.isOpen}
+          token={token}
+          actionType={stockActionState.actionType}
+          product={stockActionState.product}
+          onClose={() => setStockActionState({ isOpen: false, actionType: 'receipt', product: null })}
+          onSuccess={() => {
+            setStockActionState({ isOpen: false, actionType: 'receipt', product: null });
+            fetchProducts();
+          }}
+        />
       )}
 
 
-      {/* Ổ thông báo nổi góc phải màn hình (dùng chung cho mọi thao tác tài khoản) */}
+
+      {movingProduct && (
+        <MoveCategoryModal
+          isOpen={Boolean(movingProduct)}
+          token={token}
+          productId={movingProduct.id}
+          productName={movingProduct.name}
+          currentCategoryId={movingProduct.category_id}
+          onClose={() => setMovingProduct(null)}
+          onSuccess={() => {
+            setMovingProduct(null);
+            fetchProducts();
+          }}
+        />
+      )}
       <StatusToastHost />
     </div>
+    </DashboardLayout>
   );
 }
