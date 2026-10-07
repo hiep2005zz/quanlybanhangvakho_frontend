@@ -248,7 +248,7 @@ export default function SalesOrderEntry({ token, username, products, onClose: _o
   const isLockedDealer = Boolean(
     selectedDealer?.status &&
     (selectedDealer.status.toLowerCase().includes('khóa') ||
-     selectedDealer.status.toLowerCase().includes('lock'))
+      selectedDealer.status.toLowerCase().includes('lock'))
   );
   const deliveryPointSelectValue = useMemo(() => {
     if (deliveryPointId && deliveryPoints.some((p) => p.id === deliveryPointId)) {
@@ -289,10 +289,10 @@ export default function SalesOrderEntry({ token, username, products, onClose: _o
       })),
       selectedDealer
         ? {
-            id: selectedDealer.id,
-            customer_group: (selectedDealer as any).customer_group || '',
-            name: selectedDealer.name,
-          }
+          id: selectedDealer.id,
+          customer_group: (selectedDealer as any).customer_group || '',
+          name: selectedDealer.name,
+        }
         : null,
       totalQuantity,
       subtotal
@@ -426,7 +426,7 @@ export default function SalesOrderEntry({ token, username, products, onClose: _o
     const isLocked = Boolean(
       selectedDealer?.status &&
       (selectedDealer.status.toLowerCase().includes('khóa') ||
-       selectedDealer.status.toLowerCase().includes('lock'))
+        selectedDealer.status.toLowerCase().includes('lock'))
     );
     if (isLocked) {
       setError(`Đại lý "${selectedDealer.name}" hiện đang bị KHÓA giao dịch. Không thể tạo đơn hàng.`);
@@ -518,7 +518,7 @@ export default function SalesOrderEntry({ token, username, products, onClose: _o
             fontWeight: 600,
           }}
         >
-          ⛔ Tài khoản đại lý &quot;{selectedDealer?.name}&quot; hiện đang bị KHÓA giao dịch. Bạn không thể tạo đơn hàng mới. Vui lòng liên hệ quản trị viên.
+          Tài khoản đại lý &quot;{selectedDealer?.name}&quot; hiện đang bị KHÓA giao dịch. Bạn không thể tạo đơn hàng mới. Vui lòng liên hệ quản trị viên.
         </div>
       )}
 
@@ -542,7 +542,7 @@ export default function SalesOrderEntry({ token, username, products, onClose: _o
                     const isLocked = Boolean(
                       dealer.status &&
                       (dealer.status.toLowerCase().includes('khóa') ||
-                       dealer.status.toLowerCase().includes('lock'))
+                        dealer.status.toLowerCase().includes('lock'))
                     );
                     return (
                       <option key={dealer.id} value={dealer.id} disabled={isLocked}>
@@ -605,8 +605,8 @@ export default function SalesOrderEntry({ token, username, products, onClose: _o
                     {!selectedDealer
                       ? 'Chọn đại lý trước'
                       : isLoadingDeliveryPoints
-                      ? 'Đang tải điểm giao hàng...'
-                      : 'Chọn điểm giao hàng'}
+                        ? 'Đang tải điểm giao hàng...'
+                        : 'Chọn điểm giao hàng'}
                   </option>
                   {deliveryPoints
                     .filter((p) => p.is_active)
