@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   getOrdersApi,
+  getOrderDetailApi,
   OrderResponseData,
   User,
   ProductItem,
@@ -24,7 +26,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
   products,
   onBackToHome: _onBackToHome,
   onRefreshProducts,
-  onNavigateToPriceBooks,
+  onNavigateToPriceBooks: _onNavigateToPriceBooks,
 }) => {
   const [orders, setOrders] = useState<OrderResponseData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -32,7 +34,8 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'PENDING_APPROVAL' | 'CONFIRMED' | 'REJECTED'>('ALL');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [selectedOrderDetail, setSelectedOrderDetail] = useState<OrderResponseData | null>(null);
+  const [selectedOrderDetail, setSelectedOrderDetail] = useState<any | null>(null);
+  const [isLoadingDetail, setIsLoadingDetail] = useState(false);
   const [approvingOrder, setApprovingOrder] = useState<OrderResponseData | null>(null);
   const [rejectingOrder, setRejectingOrder] = useState<OrderResponseData | null>(null);
 
@@ -40,6 +43,19 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
   const isAdmin = currentUser.role === 'admin' || rawRoles.includes('admin');
   const isSalesManager = currentUser.role === 'sales_manager' || rawRoles.includes('sales_manager');
   const canApprove = isAdmin || isSalesManager;
+
+  const handleOpenOrderDetail = async (order: OrderResponseData) => {
+    setSelectedOrderDetail(order);
+    setIsLoadingDetail(true);
+    try {
+      const detail = await getOrderDetailApi(token, order.order_code);
+      setSelectedOrderDetail(detail);
+    } catch (err: any) {
+      console.error('Không thể tải chi tiết đơn hàng:', err);
+    } finally {
+      setIsLoadingDetail(false);
+    }
+  };
 
   const fetchOrders = async () => {
     setLoading(true);
@@ -85,74 +101,15 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
 
   return (
     <div style={{ padding: '24px 32px', maxWidth: '1440px', margin: '0 auto' }}>
-      {/* Thanh điều hướng và tiêu đề */}
+      {/* Thanh tiêu đề */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            {/* Nút điều hướng sang Bảng giá (Chỉ hiển thị cho sales_manager và admin) */}
-            {canApprove && onNavigateToPriceBooks && (
-              <button
-                type="button"
-                id="btn-nav-to-price-books"
-                onClick={onNavigateToPriceBooks}
-                style={{
-                  background: '#eff6ff',
-                  border: '1px solid #93c5fd',
-                  borderRadius: '8px',
-                  padding: '7px 14px',
-                  fontSize: '13px',
-                  fontWeight: '700',
-                  color: '#1d4ed8',
-                  cursor: 'pointer',
-                }}
-              >
-                Sang trang Quản lý Bảng giá
-              </button>
-            )}
-
-            <h2 style={{ fontSize: '24px', fontWeight: '800', color: '#0f172a', margin: 0, letterSpacing: '-0.02em' }}>
-              Quản Lý Đơn Hàng & Bán Hàng
-            </h2>
-          </div>
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <button
-            type="button"
-            onClick={fetchOrders}
-            style={{
-              padding: '9px 16px',
-              background: '#ffffff',
-              border: '1px solid #cbd5e1',
-              borderRadius: '8px',
-              fontSize: '13.5px',
-              fontWeight: '600',
-              color: '#334155',
-              cursor: 'pointer',
-            }}
-            title="Tải lại danh sách đơn hàng"
-          >
-            Làm mới
-          </button>
-
-          <button
-            type="button"
-            id="btn-create-order-view"
-            onClick={() => setIsCreateModalOpen(true)}
-            style={{
-              padding: '9px 20px',
-              background: '#2563eb',
-              border: 'none',
-              borderRadius: '8px',
-              fontSize: '13.5px',
-              fontWeight: '700',
-              color: '#ffffff',
-              cursor: 'pointer',
-              boxShadow: '0 2px 4px rgba(37, 99, 235, 0.25)',
-            }}
-          >
-            Tạo Đơn Hàng Mới
-          </button>
+          <h2 style={{ fontSize: '24px', fontWeight: '800', color: '#0f172a', margin: 0, letterSpacing: '-0.02em' }}>
+            Quản Lý Đơn Hàng & Bán Hàng
+          </h2>
+          <p style={{ margin: '4px 0 0', fontSize: '13.5px', color: '#64748b' }}>
+            Theo dõi trạng thái đơn bán, kiểm soát biên lợi nhuận và phê duyệt đơn hàng
+          </p>
         </div>
       </div>
 
@@ -278,9 +235,49 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                 </button>
               )}
             </div>
+
+            {/* Nút Tạo Đơn Hàng Mới và nút Làm mới ở khoảng trắng */}
+            <button
+              type="button"
+              id="btn-create-order-view"
+              onClick={() => setIsCreateModalOpen(true)}
+              style={{
+                padding: '8px 16px',
+                background: '#2563eb',
+                border: 'none',
+                borderRadius: '8px',
+                fontSize: '13px',
+                fontWeight: '700',
+                color: '#ffffff',
+                cursor: 'pointer',
+                boxShadow: '0 2px 4px rgba(37, 99, 235, 0.25)',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              Tạo Đơn Hàng Mới
+            </button>
+
+            <button
+              type="button"
+              onClick={fetchOrders}
+              style={{
+                padding: '8px 14px',
+                background: '#ffffff',
+                border: '1px solid #cbd5e1',
+                borderRadius: '8px',
+                fontSize: '13px',
+                fontWeight: '600',
+                color: '#334155',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+              }}
+              title="Tải lại danh sách đơn hàng"
+            >
+              Làm mới
+            </button>
           </div>
 
-          <div style={{ fontSize: '13px', color: '#64748b' }}>
+          <div style={{ fontSize: '13px', color: '#64748b', whiteSpace: 'nowrap' }}>
             Hiển thị <strong>{filteredOrders.length}</strong> / {totalOrdersCount} đơn hàng
           </div>
         </div>
@@ -489,7 +486,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
 
                         <button
                           type="button"
-                          onClick={() => setSelectedOrderDetail(order)}
+                          onClick={() => handleOpenOrderDetail(order)}
                           style={{
                             padding: '5px 10px',
                             background: '#f1f5f9',
@@ -515,57 +512,92 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
       </div>
 
       {/* Modal Xem Chi Tiết Đơn Hàng */}
-      {selectedOrderDetail && (
+      {selectedOrderDetail && createPortal(
         <div
           style={{
             position: 'fixed',
             inset: 0,
-            background: 'rgba(15, 23, 42, 0.6)',
+            background: 'rgba(15, 23, 42, 0.65)',
             backdropFilter: 'blur(4px)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             zIndex: 99999,
             padding: '16px',
+            boxSizing: 'border-box',
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setSelectedOrderDetail(null);
           }}
         >
           <div
             style={{
               background: '#ffffff',
               borderRadius: '16px',
-              padding: '24px',
-              maxWidth: '600px',
+              maxWidth: '740px',
               width: '100%',
-              boxShadow: '0 20px 40px rgba(0,0,0,0.2)',
+              maxHeight: 'calc(100vh - 32px)',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
               border: '1px solid #e2e8f0',
+              boxSizing: 'border-box',
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden',
             }}
+            onClick={(e) => e.stopPropagation()}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            {/* Header Modal Cố Định */}
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '20px 24px 16px 24px',
+                borderBottom: '1px solid #f1f5f9',
+                flexShrink: 0,
+                background: '#ffffff',
+              }}
+            >
               <div>
                 <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '800', color: '#0f172a' }}>
                   Chi Tiết Đơn Hàng #{selectedOrderDetail.order_code}
                 </h3>
                 <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: '#64748b' }}>
-                  Khách hàng: <strong>{selectedOrderDetail.dealer_name}</strong>
+                  Khách hàng: <strong>{selectedOrderDetail.dealer_name}</strong> (Mã: #{selectedOrderDetail.dealer_id})
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setSelectedOrderDetail(null)}
                 style={{
-                  background: '#f1f5f9',
-                  border: '1px solid #cbd5e1',
-                  borderRadius: '6px',
-                  padding: '4px 10px',
-                  fontSize: '12px',
-                  color: '#475569',
+                  background: 'transparent',
+                  border: 'none',
+                  fontSize: '22px',
+                  color: '#94a3b8',
                   cursor: 'pointer',
-                  fontWeight: '600',
+                  padding: '4px',
+                  lineHeight: 1,
+                  borderRadius: '6px',
+                  flexShrink: 0,
                 }}
+                title="Đóng"
               >
-                Đóng
+                ✕
               </button>
             </div>
+
+            {/* Thân Modal Cuộn Mượt Mà */}
+            <div
+              style={{
+                flex: 1,
+                overflowY: 'auto',
+                padding: '20px 24px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '16px',
+              }}
+            >
+
 
             {selectedOrderDetail.approval_reason && (
               <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '8px', padding: '12px 14px', marginBottom: '16px', fontSize: '13px', color: '#b45309' }}>
@@ -573,34 +605,148 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
               </div>
             )}
 
-            <div style={{ marginBottom: '16px' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-                <thead>
-                  <tr style={{ background: '#f8fafc', color: '#64748b', borderBottom: '1px solid #e2e8f0' }}>
-                    <th style={{ padding: '8px 12px', textAlign: 'left' }}>Sản phẩm</th>
-                    <th style={{ padding: '8px 12px', textAlign: 'center' }}>Đơn vị tính</th>
-                    <th style={{ padding: '8px 12px', textAlign: 'right' }}>Số lượng</th>
-                    <th style={{ padding: '8px 12px', textAlign: 'right' }}>Đơn giá</th>
-                    <th style={{ padding: '8px 12px', textAlign: 'right' }}>Thành tiền</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(selectedOrderDetail.items || []).map((item, idx) => (
-                    <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                      <td style={{ padding: '10px 12px', fontWeight: '500' }}>{item.product_name || `Sản phẩm #${item.product_id}`}</td>
-                      <td style={{ padding: '10px 12px', textAlign: 'center' }}>{item.unit_name || 'Cái'}</td>
-                      <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: '600' }}>{item.quantity}</td>
-                      <td style={{ padding: '10px 12px', textAlign: 'right' }}>{(item.price || 0).toLocaleString('vi-VN')} đồng</td>
-                      <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: '700' }}>
-                        {((item.quantity || 1) * (item.price || 0)).toLocaleString('vi-VN')} đồng
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            {/* Thông tin giao hàng & người lên đơn */}
+            <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '14px 16px', marginBottom: '16px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', fontSize: '13px' }}>
+                <div>
+                  <span style={{ color: '#64748b' }}>Điểm giao hàng:</span>
+                  <div style={{ fontWeight: '600', color: '#0f172a', marginTop: '2px' }}>
+                    {selectedOrderDetail.delivery_point || 'Địa chỉ đại lý'}
+                  </div>
+                </div>
+                <div>
+                  <span style={{ color: '#64748b' }}>Ngày giao mong muốn:</span>
+                  <div style={{ fontWeight: '600', color: '#0f172a', marginTop: '2px' }}>
+                    {selectedOrderDetail.desired_delivery_date
+                      ? new Date(selectedOrderDetail.desired_delivery_date).toLocaleDateString('vi-VN')
+                      : 'Tiêu chuẩn'}
+                  </div>
+                </div>
+                <div>
+                  <span style={{ color: '#64748b' }}>Người lên đơn:</span>
+                  <div style={{ fontWeight: '600', color: '#0f172a', marginTop: '2px' }}>
+                    {selectedOrderDetail.assigned_sale_name || selectedOrderDetail.created_by}
+                  </div>
+                </div>
+                <div>
+                  <span style={{ color: '#64748b' }}>Thời gian tạo:</span>
+                  <div style={{ fontWeight: '600', color: '#0f172a', marginTop: '2px' }}>
+                    {selectedOrderDetail.created_at
+                      ? new Date(selectedOrderDetail.created_at).toLocaleString('vi-VN')
+                      : '—'}
+                  </div>
+                </div>
+              </div>
+              {selectedOrderDetail.note && (
+                <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: '1px dashed #cbd5e1', fontSize: '13px', color: '#334155' }}>
+                  <span style={{ color: '#64748b' }}>Ghi chú:</span> <em>{selectedOrderDetail.note}</em>
+                </div>
+              )}
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '12px', borderTop: '1px solid #e2e8f0' }}>
+            {/* Bảng sản phẩm chi tiết */}
+            <div style={{ marginBottom: '16px', maxHeight: '300px', overflowY: 'auto' }}>
+              {isLoadingDetail ? (
+                <div style={{ padding: '30px', textAlign: 'center', color: '#64748b' }}>
+                  <div style={{ fontSize: '14px', fontWeight: '600' }}>Đang tải thông tin chi tiết các mặt hàng...</div>
+                </div>
+              ) : (!selectedOrderDetail.items || selectedOrderDetail.items.length === 0) ? (
+                <div style={{ padding: '24px', textAlign: 'center', color: '#64748b', background: '#f8fafc', borderRadius: '8px' }}>
+                  Chưa có thông tin danh sách sản phẩm.
+                </div>
+              ) : (
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                  <thead>
+                    <tr style={{ background: '#f8fafc', color: '#64748b', borderBottom: '1px solid #e2e8f0', position: 'sticky', top: 0 }}>
+                      <th style={{ padding: '8px 12px', textAlign: 'left' }}>Sản phẩm</th>
+                      <th style={{ padding: '8px 12px', textAlign: 'center' }}>ĐVT</th>
+                      <th style={{ padding: '8px 12px', textAlign: 'right' }}>Số lượng</th>
+                      <th style={{ padding: '8px 12px', textAlign: 'right' }}>Đơn giá</th>
+                      <th style={{ padding: '8px 12px', textAlign: 'right' }}>Thành tiền</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {selectedOrderDetail.items.map((item: any, idx: number) => {
+                      const unitName = item.unit || item.unit_name || 'Cái';
+                      const qty = item.quantity || 1;
+                      const price = item.price || 0;
+                      const lineTotal = qty * price;
+                      return (
+                        <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                          <td style={{ padding: '10px 12px', fontWeight: '500', color: '#0f172a' }}>
+                            {item.product_name || `Sản phẩm #${item.product_id}`}
+                            {item.product_code && (
+                              <span style={{ display: 'block', fontSize: '11px', color: '#64748b' }}>
+                                Mã: {item.product_code}
+                              </span>
+                            )}
+                          </td>
+                          <td style={{ padding: '10px 12px', textAlign: 'center', color: '#334155' }}>
+                            {unitName}
+                            {item.conversion_rate && item.conversion_rate > 1 && (
+                              <span style={{ display: 'block', fontSize: '11px', color: '#64748b' }}>
+                                (x{item.conversion_rate})
+                              </span>
+                            )}
+                          </td>
+                          <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: '600', color: '#0f172a' }}>
+                            {qty.toLocaleString('vi-VN')}
+                          </td>
+                          <td style={{ padding: '10px 12px', textAlign: 'right', color: '#334155' }}>
+                            {price.toLocaleString('vi-VN')} đ
+                          </td>
+                          <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: '700', color: '#0f172a' }}>
+                            {lineTotal.toLocaleString('vi-VN')} đ
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </div>
+
+            {/* Bảng tổng kết tiền */}
+            {(() => {
+              const subtotal = selectedOrderDetail.subtotal_amount ??
+                (selectedOrderDetail.items || []).reduce((acc: number, it: any) => acc + (it.quantity || 0) * (it.price || 0), 0);
+              const discountPercent = selectedOrderDetail.discount_percent || 0;
+              const discountAmount = selectedOrderDetail.discount_amount ?? Math.round(subtotal * discountPercent / 100);
+              return (
+                <div style={{ background: '#f8fafc', padding: '12px 16px', borderRadius: '8px', border: '1px solid #e2e8f0', marginBottom: '12px', fontSize: '13px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', color: '#64748b' }}>
+                    <span>Tổng tiền hàng:</span>
+                    <span style={{ fontWeight: '600', color: '#0f172a' }}>{subtotal.toLocaleString('vi-VN')} đ</span>
+                  </div>
+                  {discountPercent > 0 && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', color: '#dc2626' }}>
+                      <span>Chiết khấu ({discountPercent}%):</span>
+                      <span style={{ fontWeight: '600' }}>-{discountAmount.toLocaleString('vi-VN')} đ</span>
+                    </div>
+                  )}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '8px', borderTop: '1px solid #e2e8f0', fontSize: '15px' }}>
+                    <strong style={{ color: '#0f172a' }}>Tổng thanh toán:</strong>
+                    <strong style={{ color: '#16a34a', fontSize: '16px' }}>{selectedOrderDetail.total_amount.toLocaleString('vi-VN')} đ</strong>
+                  </div>
+                </div>
+              );
+            })()}
+
+            </div>
+
+            {/* Footer Modal Cố Định ở Đáy */}
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '14px 24px',
+                borderTop: '1px solid #e2e8f0',
+                background: '#f8fafc',
+                flexShrink: 0,
+                boxShadow: '0 -2px 10px rgba(0, 0, 0, 0.03)',
+              }}
+            >
               <div style={{ fontSize: '13px', color: '#64748b' }}>
                 Trạng thái:{' '}
                 <strong
@@ -624,75 +770,73 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                     : selectedOrderDetail.status}
                 </strong>
               </div>
-              <div style={{ fontSize: '16px', fontWeight: '800', color: '#0f172a' }}>
-                Tổng cộng: {selectedOrderDetail.total_amount.toLocaleString('vi-VN')} đồng
+
+              <div style={{ display: 'flex', gap: '10px' }}>
+                {selectedOrderDetail.status === 'PENDING_APPROVAL' && canApprove && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const order = selectedOrderDetail;
+                        setSelectedOrderDetail(null);
+                        setApprovingOrder(order);
+                      }}
+                      style={{
+                        padding: '8px 16px',
+                        background: '#16a34a',
+                        border: 'none',
+                        borderRadius: '8px',
+                        color: '#ffffff',
+                        fontSize: '13px',
+                        fontWeight: '700',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Duyệt đơn
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const order = selectedOrderDetail;
+                        setSelectedOrderDetail(null);
+                        setRejectingOrder(order);
+                      }}
+                      style={{
+                        padding: '8px 16px',
+                        background: '#dc2626',
+                        border: 'none',
+                        borderRadius: '8px',
+                        color: '#ffffff',
+                        fontSize: '13px',
+                        fontWeight: '700',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Từ chối
+                    </button>
+                  </>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setSelectedOrderDetail(null)}
+                  style={{
+                    padding: '8px 18px',
+                    background: '#f1f5f9',
+                    border: '1px solid #cbd5e1',
+                    borderRadius: '8px',
+                    color: '#334155',
+                    fontSize: '13px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Đóng
+                </button>
               </div>
             </div>
-
-            <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-              {selectedOrderDetail.status === 'PENDING_APPROVAL' && canApprove && (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const order = selectedOrderDetail;
-                      setSelectedOrderDetail(null);
-                      setApprovingOrder(order);
-                    }}
-                    style={{
-                      padding: '8px 16px',
-                      background: '#16a34a',
-                      border: 'none',
-                      borderRadius: '8px',
-                      color: '#ffffff',
-                      fontSize: '13px',
-                      fontWeight: '700',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    Duyệt đơn
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const order = selectedOrderDetail;
-                      setSelectedOrderDetail(null);
-                      setRejectingOrder(order);
-                    }}
-                    style={{
-                      padding: '8px 16px',
-                      background: '#dc2626',
-                      border: 'none',
-                      borderRadius: '8px',
-                      color: '#ffffff',
-                      fontSize: '13px',
-                      fontWeight: '700',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    Từ chối
-                  </button>
-                </>
-              )}
-              <button
-                type="button"
-                onClick={() => setSelectedOrderDetail(null)}
-                style={{
-                  padding: '8px 16px',
-                  background: '#f1f5f9',
-                  border: '1px solid #cbd5e1',
-                  borderRadius: '8px',
-                  color: '#334155',
-                  fontSize: '13px',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                }}
-              >
-                Đóng
-              </button>
-            </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Modal Tạo Đơn Hàng */}

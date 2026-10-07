@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { AuditLogItem, getAvatarUrl } from '../services/api';
 import { formatLocalDateTime } from '../utils/dateUtils';
+import { ModalPortal } from './ModalPortal';
 
 interface AuditDetailModalProps {
   log: AuditLogItem | null;
@@ -423,30 +424,32 @@ export const AuditDetailModal: React.FC<AuditDetailModalProps> = ({ log, onClose
   const diffRows = getFieldDiffList();
 
   return (
-    <div style={{
-      position: 'fixed',
-      inset: 0,
-      zIndex: 10000,
-      background: 'rgba(15, 23, 42, 0.65)',
-      backdropFilter: 'blur(6px)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: '20px',
-      animation: 'fadeInCard 0.2s ease',
-    }}>
+    <ModalPortal>
       <div style={{
-        background: '#ffffff',
-        borderRadius: '20px',
-        width: '100%',
-        maxWidth: '740px',
-        maxHeight: '90vh',
+        position: 'fixed',
+        inset: 0,
+        zIndex: 99999,
+        background: 'rgba(15, 23, 42, 0.65)',
+        backdropFilter: 'blur(6px)',
         display: 'flex',
-        flexDirection: 'column',
-        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-        border: '1px solid #e2e8f0',
-        overflow: 'hidden',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '20px',
+        boxSizing: 'border-box',
+        animation: 'fadeInCard 0.2s ease',
       }}>
+        <div style={{
+          background: '#ffffff',
+          borderRadius: '20px',
+          width: '100%',
+          maxWidth: '740px',
+          maxHeight: 'calc(100vh - 32px)',
+          display: 'flex',
+          flexDirection: 'column',
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+          border: '1px solid #e2e8f0',
+          overflow: 'hidden',
+        }}>
         {/* Tiêu đề modal */}
         <div style={{
           padding: '20px 24px',
@@ -843,5 +846,6 @@ export const AuditDetailModal: React.FC<AuditDetailModalProps> = ({ log, onClose
         </div>
       </div>
     </div>
+    </ModalPortal>
   );
 };

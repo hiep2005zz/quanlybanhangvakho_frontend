@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { AuditLogItem, getEntityAuditLogsApi, getUsersApi, UserAccount, getAvatarUrl } from '../services/api';
 import { AuditDetailModal } from './AuditDetailModal';
 import { formatLocalDateTime } from '../utils/dateUtils';
+import { ModalPortal } from './ModalPortal';
 
 interface ProductAuditDrawerProps {
   isOpen: boolean;
@@ -83,7 +84,7 @@ export const ProductAuditDrawer: React.FC<ProductAuditDrawerProps> = ({
   });
 
   return (
-    <>
+    <ModalPortal>
       {/* Backdrop */}
       <div
         onClick={onClose}
@@ -92,7 +93,7 @@ export const ProductAuditDrawer: React.FC<ProductAuditDrawerProps> = ({
           inset: 0,
           background: 'rgba(15, 23, 42, 0.45)',
           backdropFilter: 'blur(4px)',
-          zIndex: 9998,
+          zIndex: 99998,
         }}
       />
 
@@ -105,7 +106,7 @@ export const ProductAuditDrawer: React.FC<ProductAuditDrawerProps> = ({
         width: '540px',
         maxWidth: '94vw',
         background: '#ffffff',
-        zIndex: 9999,
+        zIndex: 99999,
         display: 'flex',
         flexDirection: 'column',
         boxShadow: '-8px 0 32px rgba(15, 23, 42, 0.2)',
@@ -539,6 +540,6 @@ export const ProductAuditDrawer: React.FC<ProductAuditDrawerProps> = ({
 
       {/* Modal chi tiết Diff */}
       <AuditDetailModal log={selectedDetailLog} onClose={() => setSelectedDetailLog(null)} />
-    </>
+    </ModalPortal>
   );
 };

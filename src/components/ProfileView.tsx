@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { User, UserProfile, getMyProfileApi, updateMyProfileApi, uploadProfileAvatarApi, getAvatarUrl } from '../services/api';
 import { emitStatusToast } from './StatusToast';
+import { ModalPortal } from './ModalPortal';
 
 interface ProfileViewProps {
   currentUser: User;
@@ -126,7 +127,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
       const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
       const err = file.size <= 0
         ? 'Tệp hình ảnh rỗng hoặc không có dữ liệu.'
-        : `Dung lượng tệp (${sizeMB}MB) vượt quá mức cho phép tối đa 2MB (size <= 2 * 1024 * 1024).`;
+        : `Dung lượng tệp (${sizeMB}MB) vượt quá mức cho phép tối đa 2MB.`;
       setAvatarError(err);
       emitStatusToast({ message: err, title: 'Ảnh đại diện' });
       return;
@@ -999,18 +1000,20 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
 
       {/* Modal Cắt ảnh vuông tự chọn (Interactive Square Cropper) */}
       {cropModalOpen && rawImageSrc && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(15, 23, 42, 0.75)',
-            backdropFilter: 'blur(5px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 9999,
-            padding: '16px',
-          }}
+        <ModalPortal>
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(15, 23, 42, 0.75)',
+              backdropFilter: 'blur(5px)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 99999,
+              padding: '16px',
+              boxSizing: 'border-box',
+            }}
           onMouseMove={(e) => {
             if (!dragAction) return;
             const dx = e.clientX - dragInfoRef.current.startX;
@@ -1495,6 +1498,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
     </main>
   );

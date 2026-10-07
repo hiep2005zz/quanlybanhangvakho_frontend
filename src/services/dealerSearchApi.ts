@@ -458,8 +458,12 @@ export async function createDealer(
             let errorDetail = `Lỗi tạo đại lý (HTTP ${response.status})`;
             try {
                 const errData = await response.json();
-                if (errData && errData.detail) errorDetail = typeof errData.detail === 'string' ? errData.detail : JSON.stringify(errData.detail);
-            } catch {}
+                if (errData && errData.detail) {
+                    errorDetail = typeof errData.detail === 'string' ? errData.detail : JSON.stringify(errData.detail);
+                }
+            } catch {
+                // ignore
+            }
             throw new Error(errorDetail);
         }
 
@@ -697,4 +701,4 @@ export async function deleteDealer(dealerId: number, token?: string): Promise<an
     }
     return response.json();
 }
-
+

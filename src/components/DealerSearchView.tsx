@@ -14,21 +14,38 @@ import {
 } from '../services/dealerSearchApi';
 import { User } from '../services/api';
 import { emitStatusToast } from './StatusToast';
+import { ModalPortal } from './ModalPortal';
 import './dealer-search.css';
 
 const DEFAULT_CUSTOMER_GROUPS = [
-    'dai_ly_cap_1',
-    'dai_ly_cap_2',
-    'khach_si',
-    'khach_le',
+    'Đại lý cấp 1',
+    'Đại lý cấp 2',
+    'Khách sỉ',
+    'Khách lẻ',
 ];
 
 const formatGroupName = (grp: string) => {
-    if (grp === 'dai_ly_cap_1' || grp === 'CAP_1' || grp === 'Dai_ly_cap_1' || grp === 'Đại lý cấp 1') return 'Đại lý cấp 1';
-    if (grp === 'dai_ly_cap_2' || grp === 'CAP_2' || grp === 'Dai_ly_cap_2' || grp === 'Đại lý cấp 2') return 'Đại lý cấp 2';
-    if (grp === 'khach_si' || grp === 'Khach_si' || grp === 'Khách sỉ') return 'Khách sỉ';
-    if (grp === 'khach_le' || grp === 'RETAIL' || grp === 'Khach_le' || grp === 'Khách lẻ') return 'Khách lẻ';
-    return grp;
+    if (!grp) return '';
+    const clean = grp.trim();
+    if (clean === 'dai_ly_cap_1' || clean === 'CAP_1' || clean === 'Dai_ly_cap_1' || clean === 'Đại lý cấp 1') return 'Đại lý cấp 1';
+    if (clean === 'dai_ly_cap_2' || clean === 'CAP_2' || clean === 'Dai_ly_cap_2' || clean === 'Đại lý cấp 2') return 'Đại lý cấp 2';
+    if (clean === 'khach_si' || clean === 'Khach_si' || clean === 'Khách sỉ') return 'Khách sỉ';
+    if (clean === 'khach_le' || clean === 'RETAIL' || clean === 'Khach_le' || clean === 'Khách lẻ') return 'Khách lẻ';
+    return clean;
+};
+
+const getUniqueFormattedGroups = (groups: string[]): string[] => {
+    const formattedList = (groups || []).map(formatGroupName).filter(Boolean);
+    const unique = Array.from(new Set(formattedList));
+    const order = ['Đại lý cấp 1', 'Đại lý cấp 2', 'Khách sỉ', 'Khách lẻ'];
+    return unique.sort((a, b) => {
+        const ia = order.indexOf(a);
+        const ib = order.indexOf(b);
+        if (ia !== -1 && ib !== -1) return ia - ib;
+        if (ia !== -1) return -1;
+        if (ib !== -1) return 1;
+        return a.localeCompare(b, 'vi');
+    });
 };
 
 const DEFAULT_STATUSES = [
@@ -74,7 +91,7 @@ export default function DealerSearchView({
         address: '',
         region: '',
         assigned_sale_id: '',
-        customer_group: 'dai_ly_cap_1',
+        customer_group: 'Đại lý cấp 1',
         status: 'Đang hoạt động',
     });
     const [addError, setAddError] = useState('');
@@ -139,16 +156,29 @@ export default function DealerSearchView({
         }
     };
 
-    const handleDeleteDealer = async (dealer: DealerSearchItem) => {
-        if (!window.confirm(`Bạn có chắc chắn muốn xóa đại lý "${dealer.name}" (${dealer.code}) không?`)) {
-            return;
-        }
+    // Modal Xác nhận xóa Đại lý (thay thế window.confirm bằng modal hệ thống)
+    const [dealerToDelete, setDealerToDelete] = useState<DealerSearchItem | null>(null);
+    const [isDeletingDealer, setIsDeletingDealer] = useState<boolean>(false);
+    const [deleteDealerError, setDeleteDealerError] = useState<string | null>(null);
+
+    const openDeleteDealerModal = (dealer: DealerSearchItem) => {
+        setDealerToDelete(dealer);
+        setDeleteDealerError(null);
+    };
+
+    const handleConfirmDeleteDealer = async () => {
+        if (!dealerToDelete) return;
+        setIsDeletingDealer(true);
+        setDeleteDealerError(null);
         try {
-            await deleteDealer(dealer.id, token);
-            emitStatusToast({ title: 'Thành công', message: `Đã xóa đại lý "${dealer.name}"`, type: 'success' });
+            await deleteDealer(dealerToDelete.id, token);
+            emitStatusToast({ title: 'Thành công', message: `Đã xóa đại lý "${dealerToDelete.name}" thành công`, type: 'success' });
+            setDealerToDelete(null);
             handleSearch();
         } catch (err) {
-            emitStatusToast({ title: 'Lỗi', message: err instanceof Error ? err.message : 'Có lỗi khi xóa đại lý', type: 'error' });
+            setDeleteDealerError(err instanceof Error ? err.message : 'Có lỗi khi xóa đại lý');
+        } finally {
+            setIsDeletingDealer(false);
         }
     };
 
@@ -329,7 +359,7 @@ export default function DealerSearchView({
             address: '',
             region: regions[0] || 'Hà Nội',
             assigned_sale_id: defaultSaleId,
-            customer_group: customerGroups.length > 0 ? customerGroups[0] : 'dai_ly_cap_1',
+            customer_group: 'Đại lý cấp 1',
             status: 'Đang hoạt động',
         });
         setAddError('');
@@ -358,6 +388,13 @@ export default function DealerSearchView({
         }
         if (/^\d+$/.test(trimmedName)) {
             setAddError('Tên không hợp lệ! Tên đại lý / khách hàng không được chỉ bao gồm chữ số.');
+            return;
+        }
+        const isDuplicateName = dealers.some(
+            (d) => d.name && d.name.trim().toLowerCase() === trimmedName.toLowerCase()
+        );
+        if (isDuplicateName) {
+            setAddError(`Tên đại lý / khách hàng "${trimmedName}" đã tồn tại trên hệ thống! Vui lòng đặt tên khác.`);
             return;
         }
 
@@ -444,7 +481,7 @@ export default function DealerSearchView({
                 region: trimmedRegion,
                 assigned_sale_id: addFormData.assigned_sale_id ? Number(addFormData.assigned_sale_id) : undefined,
                 assigned_sale_name: saleName,
-                customer_group: addFormData.customer_group || 'dai_ly_cap_1',
+                customer_group: formatGroupName(addFormData.customer_group) || 'Đại lý cấp 1',
                 status: addFormData.status || 'Đang hoạt động',
             };
 
@@ -476,7 +513,7 @@ export default function DealerSearchView({
                 setSales(data.sales);
             }
             if (data.customer_groups && data.customer_groups.length > 0) {
-                setCustomerGroups(data.customer_groups);
+                setCustomerGroups(getUniqueFormattedGroups(data.customer_groups));
             }
             if (data.statuses && data.statuses.length > 0) {
                 setStatuses(data.statuses);
@@ -535,7 +572,7 @@ export default function DealerSearchView({
             // Lọc client-side bổ trợ nếu backend chưa filter một số trường
             if (searchGroup) {
                 items = items.filter(
-                    (d) => Boolean(d.customer_group && d.customer_group.toLowerCase() === searchGroup.toLowerCase())
+                    (d) => Boolean(d.customer_group && formatGroupName(d.customer_group) === formatGroupName(searchGroup))
                 );
             }
             if (searchStatus) {
@@ -590,7 +627,6 @@ export default function DealerSearchView({
 
     const handleClearKeyword = () => {
         setKeyword('');
-        handleSearch({ keyword: '' });
     };
 
     const toggleOnlyMyDealers = () => {
@@ -680,11 +716,7 @@ export default function DealerSearchView({
                     <label>Khu vực</label>
                     <select
                         value={region}
-                        onChange={(e) => {
-                            const val = e.target.value;
-                            setRegion(val);
-                            handleSearch({ region: val });
-                        }}
+                        onChange={(e) => setRegion(e.target.value)}
                     >
                         <option value="">Tất cả khu vực</option>
                         {regions.map((item) => (
@@ -699,16 +731,12 @@ export default function DealerSearchView({
                     <label>Nhóm khách hàng</label>
                     <select
                         value={customerGroup}
-                        onChange={(e) => {
-                            const val = e.target.value;
-                            setCustomerGroup(val);
-                            handleSearch({ customerGroup: val });
-                        }}
+                        onChange={(e) => setCustomerGroup(e.target.value)}
                     >
                         <option value="">Tất cả nhóm</option>
-                        {customerGroups.map((group) => (
+                        {getUniqueFormattedGroups(customerGroups).map((group) => (
                             <option key={group} value={group}>
-                                {formatGroupName(group)}
+                                {group}
                             </option>
                         ))}
                     </select>
@@ -718,11 +746,7 @@ export default function DealerSearchView({
                     <label>Người phụ trách</label>
                     <select
                         value={assignedSaleId}
-                        onChange={(e) => {
-                            const val = e.target.value;
-                            setAssignedSaleId(val);
-                            handleSearch({ assignedSaleId: val });
-                        }}
+                        onChange={(e) => setAssignedSaleId(e.target.value)}
                     >
                         <option value="">Tất cả nhân viên</option>
                         {sales.map((sale) => (
@@ -737,11 +761,7 @@ export default function DealerSearchView({
                     <label>Trạng thái</label>
                     <select
                         value={status}
-                        onChange={(e) => {
-                            const val = e.target.value;
-                            setStatus(val);
-                            handleSearch({ status: val });
-                        }}
+                        onChange={(e) => setStatus(e.target.value)}
                     >
                         <option value="">Tất cả trạng thái</option>
                         {statuses.map((st) => (
@@ -793,14 +813,37 @@ export default function DealerSearchView({
                     {canAssignDealer && selectedDealerIds.length > 0 && (
                         <button
                             type="button"
-                            className="btn-search-primary"
+                            className="btn-bulk-assign"
+                            style={{
+                                fontFamily: 'inherit',
+                                fontSize: '13.5px',
+                                fontWeight: 600,
+                                height: '36px',
+                                padding: '0 16px',
+                                borderRadius: '8px',
+                                border: 'none',
+                                background: '#2563eb',
+                                color: '#ffffff',
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
+                                whiteSpace: 'nowrap',
+                            }}
                             onClick={() => {
                                 setNewSaleIdForAssign('');
                                 setAssignReason('');
                                 setIsBulkAssignModalOpen(true);
                             }}
                         >
-                            Chuyển giao hàng loạt
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                                <circle cx="9" cy="7" r="4" />
+                                <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                            </svg>
+                            <span>Chuyển giao hàng loạt</span>
                         </button>
                     )}
                 </div>
@@ -811,7 +854,7 @@ export default function DealerSearchView({
                         <thead>
                             <tr>
                                 {canAssignDealer && (
-                                    <th style={{ width: 44, textAlign: 'center', verticalAlign: 'middle' }}>
+                                    <th style={{ width: 36, textAlign: 'center', verticalAlign: 'middle' }}>
                                         <input
                                             type="checkbox"
                                             checked={dealers.length > 0 && selectedDealerIds.length === dealers.length}
@@ -829,7 +872,7 @@ export default function DealerSearchView({
                                 <th style={{ whiteSpace: 'nowrap' }}>Trạng thái công nợ</th>
                                 <th style={{ whiteSpace: 'nowrap' }}>Người phụ trách</th>
                                 <th style={{ whiteSpace: 'nowrap' }}>Trạng thái</th>
-                                <th style={{ whiteSpace: 'nowrap', textAlign: 'center' }}>Thao tác</th>
+                                <th style={{ whiteSpace: 'nowrap', textAlign: 'center', width: 56 }}>Thao tác</th>
                             </tr>
                         </thead>
 
@@ -844,7 +887,7 @@ export default function DealerSearchView({
                                 dealers.map((dealer) => (
                                     <tr key={dealer.id}>
                                         {canAssignDealer && (
-                                            <td style={{ width: 44, textAlign: 'center', verticalAlign: 'middle' }}>
+                                            <td style={{ width: 36, textAlign: 'center', verticalAlign: 'middle' }}>
                                                 <input
                                                     type="checkbox"
                                                     checked={selectedDealerIds.includes(dealer.id)}
@@ -975,7 +1018,7 @@ export default function DealerSearchView({
                                                 )}
                                             </div>
                                         </td>
-                                        <td style={{ textAlign: 'center', verticalAlign: 'middle' }}>
+                                        <td style={{ textAlign: 'center', verticalAlign: 'middle', width: 56 }}>
                                             <div className="dealer-dropdown-container" style={{ display: 'inline-flex', justifyContent: 'center' }}>
                                                 <button
                                                     type="button"
@@ -1049,7 +1092,7 @@ export default function DealerSearchView({
                                                             <button 
                                                                 type="button" 
                                                                 className="dealer-dropdown-item" 
-                                                                onClick={(e) => { e.stopPropagation(); handleDeleteDealer(dealer); setOpenDropdownId(null); }}
+                                                                onClick={(e) => { e.stopPropagation(); openDeleteDealerModal(dealer); setOpenDropdownId(null); }}
                                                                 style={{ color: '#ef4444' }}
                                                             >
                                                                 Xóa đại lý
@@ -1124,7 +1167,7 @@ export default function DealerSearchView({
                                     {dealer.customer_group && (
                                         <div className="dealer-card-meta">
                                             <span className="meta-label">Nhóm:</span>
-                                            <span className="dealer-group-tag">{dealer.customer_group}</span>
+                                            <span className="dealer-group-tag">{formatGroupName(dealer.customer_group)}</span>
                                         </div>
                                     )}
 
@@ -1204,6 +1247,7 @@ export default function DealerSearchView({
             </div>
 
             {isAddModalOpen && (
+                <ModalPortal>
                 <div className="dealer-modal-overlay" onClick={() => setIsAddModalOpen(false)}>
                     <div className="dealer-modal-box" onClick={(e) => e.stopPropagation()}>
                         <div className="dealer-modal-header">
@@ -1240,7 +1284,7 @@ export default function DealerSearchView({
                                             value={addFormData.customer_group}
                                             onChange={(e) => setAddFormData({ ...addFormData, customer_group: e.target.value })}
                                         >
-                                            {customerGroups.map((group) => (
+                                            {getUniqueFormattedGroups(customerGroups).map((group) => (
                                                 <option key={group} value={group}>
                                                     {group}
                                                 </option>
@@ -1356,10 +1400,12 @@ export default function DealerSearchView({
                         </form>
                     </div>
                 </div>
+                </ModalPortal>
             )}
 
             {/* Modal Phân công lẻ */}
             {isAssignModalOpen && assignTargetDealer && (
+                <ModalPortal>
                 <div className="dealer-modal-overlay" onClick={() => setIsAssignModalOpen(false)}>
                     <div className="dealer-modal-box" style={{ maxWidth: '500px' }} onClick={(e) => e.stopPropagation()}>
                         <div className="dealer-modal-header">
@@ -1411,10 +1457,12 @@ export default function DealerSearchView({
                         </div>
                     </div>
                 </div>
+                </ModalPortal>
             )}
 
             {/* Modal Phân công hàng loạt */}
             {isBulkAssignModalOpen && (
+                <ModalPortal>
                 <div className="dealer-modal-overlay" onClick={() => setIsBulkAssignModalOpen(false)}>
                     <div className="dealer-modal-box" style={{ maxWidth: '500px' }} onClick={(e) => e.stopPropagation()}>
                         <div className="dealer-modal-header">
@@ -1465,9 +1513,11 @@ export default function DealerSearchView({
                         </div>
                     </div>
                 </div>
+                </ModalPortal>
             )}
             {/* Modal Lịch sử phân công */}
             {isHistoryModalOpen && historyTargetDealer && (
+                <ModalPortal>
                 <div className="dealer-modal-overlay" onClick={() => setIsHistoryModalOpen(false)}>
                     <div className="dealer-modal-box" style={{ maxWidth: '650px' }} onClick={(e) => e.stopPropagation()}>
                         <div className="dealer-modal-header">
@@ -1542,10 +1592,12 @@ export default function DealerSearchView({
                         </div>
                     </div>
                 </div>
+                </ModalPortal>
             )}
 
             {/* Modal Cập nhật hạn mức công nợ */}
             {isCreditModalOpen && creditTargetDealer && (
+                <ModalPortal>
                 <div className="dealer-modal-overlay" onClick={() => setIsCreditModalOpen(false)}>
                     <div className="dealer-modal-box" onClick={(e) => e.stopPropagation()}>
                         <div className="dealer-modal-header">
@@ -1621,6 +1673,142 @@ export default function DealerSearchView({
                         </form>
                     </div>
                 </div>
+                </ModalPortal>
+            )}
+            {/* Modal Xác Nhận Xóa Đại Lý (Thay cho window.confirm) */}
+            {dealerToDelete && (
+                <ModalPortal>
+                <div 
+                    style={{
+                        position: 'fixed',
+                        inset: 0,
+                        background: 'rgba(15, 23, 42, 0.45)',
+                        backdropFilter: 'blur(6px)',
+                        WebkitBackdropFilter: 'blur(6px)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        zIndex: 9999,
+                        padding: '20px'
+                    }}
+                    onClick={() => {
+                        if (!isDeletingDealer) setDealerToDelete(null);
+                    }}
+                >
+                    <div 
+                        style={{
+                            background: '#ffffff',
+                            border: '1px solid #fee2e2',
+                            borderRadius: '16px',
+                            width: '100%',
+                            maxWidth: '480px',
+                            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+                            overflow: 'hidden',
+                            color: '#0f172a',
+                            textAlign: 'center',
+                            padding: '32px 28px',
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {/* Warning Icon */}
+                        <div style={{
+                            width: '64px',
+                            height: '64px',
+                            borderRadius: '50%',
+                            background: '#fee2e2',
+                            border: '2px solid #fecaca',
+                            color: '#dc2626',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '28px',
+                            margin: '0 auto 18px',
+                        }}>
+                            ⚠️
+                        </div>
+
+                        <h3 style={{ fontSize: '20px', fontWeight: '800', margin: '0 0 10px', color: '#0f172a' }}>
+                            Xác Nhận Xóa Đại Lý?
+                        </h3>
+
+                        <p style={{ fontSize: '14px', color: '#475569', lineHeight: '1.6', margin: '0 0 18px' }}>
+                            Bạn có chắc chắn muốn xóa đại lý <strong style={{ color: '#b91c1c' }}>"{dealerToDelete.name}"</strong> ({dealerToDelete.code}) không?
+                        </p>
+
+                        <div style={{
+                            background: '#f8fafc',
+                            border: '1px solid #e2e8f0',
+                            borderRadius: '10px',
+                            padding: '12px 16px',
+                            marginBottom: '20px',
+                            fontSize: '13px',
+                            color: '#64748b',
+                            textAlign: 'left',
+                            lineHeight: '1.6'
+                        }}>
+                            <div>• Mã đại lý: <strong style={{ color: '#0f172a' }}>{dealerToDelete.code}</strong></div>
+                            <div>• Tên đại lý: <strong style={{ color: '#0f172a' }}>{dealerToDelete.name}</strong></div>
+                            <div>• Khu vực: <strong style={{ color: '#0f172a' }}>{dealerToDelete.region || 'Chưa cập nhật'}</strong></div>
+                            <div>• Người phụ trách: <strong style={{ color: '#0f172a' }}>{dealerToDelete.assigned_sale_name || 'Chưa phân công'}</strong></div>
+                        </div>
+
+                        {deleteDealerError && (
+                            <div style={{
+                                background: '#fee2e2',
+                                border: '1px solid #fecaca',
+                                color: '#b91c1c',
+                                padding: '10px 14px',
+                                borderRadius: '8px',
+                                fontSize: '13px',
+                                marginBottom: '16px'
+                            }}>
+                                ⚠️ {deleteDealerError}
+                            </div>
+                        )}
+
+                        {/* Actions */}
+                        <div style={{ display: 'flex', justifyContent: 'center', gap: '12px' }}>
+                            <button
+                                type="button"
+                                onClick={() => setDealerToDelete(null)}
+                                disabled={isDeletingDealer}
+                                style={{
+                                    background: '#f1f5f9',
+                                    border: '1px solid #cbd5e1',
+                                    borderRadius: '8px',
+                                    color: '#475569',
+                                    padding: '10px 22px',
+                                    fontSize: '14px',
+                                    fontWeight: '600',
+                                    cursor: isDeletingDealer ? 'not-allowed' : 'pointer'
+                                }}
+                            >
+                                Hủy bỏ
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleConfirmDeleteDealer}
+                                disabled={isDeletingDealer}
+                                style={{
+                                    background: isDeletingDealer ? '#f87171' : '#dc2626',
+                                    border: 'none',
+                                    borderRadius: '8px',
+                                    color: '#ffffff',
+                                    padding: '10px 22px',
+                                    fontSize: '14px',
+                                    fontWeight: '600',
+                                    cursor: isDeletingDealer ? 'not-allowed' : 'pointer',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '6px'
+                                }}
+                            >
+                                {isDeletingDealer ? 'Đang xóa...' : 'Xác nhận xóa'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                </ModalPortal>
             )}
         </div>
     );

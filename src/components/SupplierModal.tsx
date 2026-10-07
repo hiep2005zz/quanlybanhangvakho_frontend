@@ -1,5 +1,5 @@
-// frontend/src/components/SupplierModal.tsx
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Supplier, createSupplierApi, updateSupplierApi } from '../services/api';
 
 interface SupplierModalProps {
@@ -132,7 +132,7 @@ export const SupplierModal: React.FC<SupplierModalProps> = ({
     }
   };
 
-  return (
+  return createPortal(
     <div
       style={{
         position: 'fixed',
@@ -140,14 +140,14 @@ export const SupplierModal: React.FC<SupplierModalProps> = ({
         left: 0,
         width: '100vw',
         height: '100vh',
-        background: 'rgba(15, 23, 42, 0.45)',
+        background: 'rgba(15, 23, 42, 0.55)',
         backdropFilter: 'blur(6px)',
         WebkitBackdropFilter: 'blur(6px)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: 9999,
-        padding: '20px',
+        zIndex: 99999,
+        padding: '16px',
         boxSizing: 'border-box',
       }}
       onClick={(e) => {
@@ -161,7 +161,7 @@ export const SupplierModal: React.FC<SupplierModalProps> = ({
           borderRadius: '16px',
           width: '100%',
           maxWidth: '560px',
-          maxHeight: 'calc(100vh - 48px)',
+          maxHeight: 'calc(100vh - 32px)',
           display: 'flex',
           flexDirection: 'column',
           boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
@@ -349,7 +349,8 @@ export const SupplierModal: React.FC<SupplierModalProps> = ({
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 

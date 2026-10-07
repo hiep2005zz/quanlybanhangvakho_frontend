@@ -29,6 +29,16 @@ const CUSTOMER_GROUP_OPTIONS = [
   { value: 'Khách lẻ', label: 'Khách lẻ' },
 ];
 
+export const formatCustomerGroup = (grp?: string | null): string => {
+  if (!grp) return 'Khách lẻ';
+  const g = grp.toLowerCase().replace(/_/g, ' ').trim();
+  if (g.includes('cấp 1') || g.includes('cap 1')) return 'Đại lý cấp 1';
+  if (g.includes('cấp 2') || g.includes('cap 2')) return 'Đại lý cấp 2';
+  if (g.includes('sỉ') || g.includes('si')) return 'Khách sỉ';
+  if (g.includes('lẻ') || g.includes('le')) return 'Khách lẻ';
+  return grp;
+};
+
 const DEFAULT_REGIONS = [
   'Hà Nội',
   'TP. HCM',
@@ -176,7 +186,7 @@ export default function DealerProfileManagementView({
   const stats = useMemo(() => {
     const total = dealers.length;
     const active = dealers.filter((d) => d.status === 'Đang hoạt động').length;
-    const stopped = dealers.filter((d) => d.status === 'Ngừng giao dịch' || d.status === 'Tạm ngừng').length;
+    const stopped = dealers.filter((d) => d.status === 'Ngừng giao dịch').length;
     const withTx = dealers.filter((d) => (d.transaction_count ?? 0) > 0).length;
     return { total, active, stopped, withTx };
   }, [dealers]);
@@ -211,7 +221,7 @@ export default function DealerProfileManagementView({
       code: dealer.code,
       name: dealer.name,
       tax_code: dealer.tax_code || '',
-      customer_group: dealer.customer_group || 'Đại lý cấp 1',
+      customer_group: formatCustomerGroup(dealer.customer_group),
       region: dealer.region || 'Hà Nội',
       assigned_sale_id: dealer.assigned_sale_id ? String(dealer.assigned_sale_id) : '',
       phone: dealer.phone || '',
@@ -395,9 +405,9 @@ export default function DealerProfileManagementView({
 
   const getGroupBadgeClass = (grp?: string | null) => {
     if (!grp) return 'badge-group-le';
-    const g = grp.toLowerCase();
-    if (g.includes('cấp 1') || g.includes('cap_1')) return 'badge-group-cap1';
-    if (g.includes('cấp 2') || g.includes('cap_2')) return 'badge-group-cap2';
+    const g = grp.toLowerCase().replace(/_/g, ' ').trim();
+    if (g.includes('cấp 1') || g.includes('cap 1')) return 'badge-group-cap1';
+    if (g.includes('cấp 2') || g.includes('cap 2')) return 'badge-group-cap2';
     if (g.includes('sỉ') || g.includes('si')) return 'badge-group-si';
     return 'badge-group-le';
   };
@@ -481,7 +491,7 @@ export default function DealerProfileManagementView({
           </div>
           <div>
             <div className="stat-number">{stats.stopped}</div>
-            <div className="stat-label">Ngừng giao dịch / Tạm dừng</div>
+            <div className="stat-label">Ngừng giao dịch</div>
           </div>
         </div>
 
@@ -568,7 +578,6 @@ export default function DealerProfileManagementView({
             <option value="">-- Tất cả trạng thái --</option>
             <option value="Đang hoạt động">Đang hoạt động</option>
             <option value="Ngừng giao dịch">Ngừng giao dịch</option>
-            <option value="Tạm ngừng">Tạm ngừng</option>
           </select>
         </div>
       </div>
@@ -619,7 +628,7 @@ export default function DealerProfileManagementView({
               <tbody>
                 {dealers.map((dealer) => {
                   const hasTx = (dealer.transaction_count ?? 0) > 0 || Boolean(dealer.has_transactions);
-                  const isStopped = dealer.status === 'Ngừng giao dịch' || dealer.status === 'Tạm ngừng';
+                  const isStopped = dealer.status === 'Ngừng giao dịch';
 
                   return (
                     <tr key={dealer.id}>
@@ -657,7 +666,7 @@ export default function DealerProfileManagementView({
                       {/* 4. Nhóm khách hàng */}
                       <td>
                         <span className={`badge-group ${getGroupBadgeClass(dealer.customer_group)}`}>
-                          {dealer.customer_group || 'Đại lý cấp 1'}
+                          {formatCustomerGroup(dealer.customer_group)}
                         </span>
                       </td>
 
