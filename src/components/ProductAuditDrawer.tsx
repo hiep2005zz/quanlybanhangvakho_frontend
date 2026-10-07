@@ -478,34 +478,46 @@ export const ProductAuditDrawer: React.FC<ProductAuditDrawerProps> = ({
                     </div>
 
                     {/* Lý do điều chỉnh */}
-                    {log.reason && (
-                      <div style={{
-                        fontSize: '12px',
-                        color: '#475569',
-                        background: '#f8fafc',
-                        padding: '8px 10px',
-                        borderRadius: '8px',
-                        marginBottom: '10px',
-                        border: '1px dashed #cbd5e1',
-                      }}>
-                        <strong style={{ color: '#334155' }}>Lý do:</strong> {log.reason}
-                      </div>
-                    )}
+                    {/* Hàng chứa Lý do và Nút Xem chi tiết */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: log.reason ? 'space-between' : 'flex-end', gap: '8px', marginTop: '6px' }}>
+                      {log.reason ? (
+                        <div style={{
+                          flex: 1,
+                          minWidth: 0,
+                          fontSize: '12px',
+                          color: '#475569',
+                          background: '#f8fafc',
+                          padding: '7px 10px',
+                          borderRadius: '8px',
+                          border: '1px dashed #cbd5e1',
+                        }}>
+                          <strong style={{ color: '#334155' }}>Lý do:</strong> {log.reason}
+                        </div>
+                      ) : null}
 
-                    {/* Footer thẻ: Nút xem chi tiết */}
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '6px' }}>
                       <button
                         type="button"
                         onClick={() => setSelectedDetailLog(log)}
                         style={{
+                          flexShrink: 0,
                           background: '#f1f5f9',
-                          border: 'none',
-                          padding: '5px 10px',
-                          borderRadius: '6px',
+                          border: '1px solid #cbd5e1',
+                          padding: '7px 11px',
+                          borderRadius: '8px',
                           fontSize: '11.5px',
                           fontWeight: '600',
                           color: '#2563eb',
                           cursor: 'pointer',
+                          whiteSpace: 'nowrap',
+                          transition: 'all 0.15s ease',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = '#eff6ff';
+                          e.currentTarget.style.borderColor = '#93c5fd';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = '#f1f5f9';
+                          e.currentTarget.style.borderColor = '#cbd5e1';
                         }}
                       >
                         Xem chi tiết →

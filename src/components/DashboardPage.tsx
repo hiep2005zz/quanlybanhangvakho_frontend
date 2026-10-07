@@ -496,7 +496,7 @@ export default function DashboardPage({
 
   // Phân trang danh sách sản phẩm (mặc định 20 cái/trang)
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
+  const pageSize = 20;
 
   const [isCostVisible, setIsCostVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -645,6 +645,8 @@ export default function DashboardPage({
   const primaryRole = officialRoles[0] || user.role;
   const currentBadgeColor = roleBadgeColorMap[primaryRole] || '#64748b';
 
+  const isLockedScrollTab = (activeTab === 'inventory' || activeTab === 'dealers' || activeTab === 'delivery-points' || activeTab === 'suppliers' || activeTab === 'price-books' || activeTab === 'categories' || activeTab === 'orders' || activeTab === 'product-history' || activeTab === 'create-order' || isSalesOrderEntryOpen) && !isPendingCustomer;
+
   return (
     <DashboardLayout
       header={
@@ -669,6 +671,7 @@ export default function DashboardPage({
           currentBadgeColor={currentBadgeColor}
         />
       }
+      noScroll={isLockedScrollTab}
       sidebar={
         <Sidebar
           activeTab={activeTab}
@@ -690,7 +693,17 @@ export default function DashboardPage({
         />
       }
     >
-      <div className="dashboard-main-container">
+      <div
+        className="dashboard-main-container"
+        style={isLockedScrollTab ? {
+          height: '100%',
+          maxHeight: '100%',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+          width: '100%',
+        } : undefined}
+      >
       {/* Main Content: Switch between Create Order, Order Management, User Management, Audit Logs, Inventory and Pending Authorization */}
       {activeTab === 'create-order' || (isSalesOrderEntryOpen && canCreateOrders) ? (
         canCreateOrders ? (
@@ -1022,8 +1035,9 @@ export default function DashboardPage({
           <div style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-            gap: '16px',
-            marginBottom: '24px'
+            gap: '14px',
+            marginBottom: '14px',
+            flexShrink: 0,
           }}>
             <div className="kpi-stat-card">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
@@ -1232,14 +1246,25 @@ export default function DashboardPage({
           </div>
 
           {/* Clean Enterprise Data Table Container */}
-          <div className="premium-table-card" style={{ padding: '0', borderRadius: '12px', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+          <div
+            className="premium-table-card"
+            style={{
+              padding: '0',
+              borderRadius: '12px',
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column',
+              flex: 1,
+              minHeight: 0,
+            }}
+          >
             {/* Thanh công cụ tìm kiếm và tác vụ (Cố định ở trên) */}
             <div style={{
               display: 'flex',
               flexWrap: 'wrap',
               justifyContent: 'space-between',
               alignItems: 'center',
-              padding: '16px 20px',
+              padding: '12px 20px',
               borderBottom: '1px solid #e2e8f0',
               gap: '12px',
               background: '#ffffff',
@@ -1441,13 +1466,14 @@ export default function DashboardPage({
               </div>
             </div>
 
-            {/* Vùng cuộn riêng cho bảng hàng hóa (Ẩn thanh cuộn, cố định thead) */}
+            {/* Vùng cuộn riêng cho bảng hàng hóa (cố định thead) */}
             <div
-              className="table-hidden-scrollbar"
+              className="roles-grid-scroll"
               style={{
                 overflowX: 'auto',
                 overflowY: 'auto',
-                maxHeight: 'calc(100vh - 350px)',
+                flex: 1,
+                minHeight: 0,
                 scrollBehavior: 'smooth'
               }}
             >
@@ -1829,7 +1855,7 @@ export default function DashboardPage({
               <div style={{
                 display: 'flex',
                 flexWrap: 'wrap',
-                justifyContent: 'space-between',
+                justifyContent: 'flex-end',
                 alignItems: 'center',
                 padding: '12px 20px',
                 borderTop: '1px solid #e2e8f0',
@@ -1839,150 +1865,145 @@ export default function DashboardPage({
                 color: '#64748b',
                 flexShrink: 0
               }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span>Hiển thị</span>
-                  <select
-                    value={pageSize}
-                    onChange={(e) => {
-                      setPageSize(Number(e.target.value));
-                      setCurrentPage(1);
-                    }}
-                    style={{
-                      padding: '4px 8px',
-                      borderRadius: '6px',
-                      border: '1px solid #cbd5e1',
-                      fontSize: '12.5px',
-                      color: '#0f172a',
-                      background: '#ffffff',
-                      outline: 'none',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    <option value={10}>10 / trang</option>
-                    <option value={20}>20 / trang (mặc định)</option>
-                    <option value={50}>50 / trang</option>
-                    <option value={100}>100 / trang</option>
-                  </select>
-                  <span>
-                    (Từ <strong>{Math.min(filteredProducts.length, startIndex + 1)}</strong> đến <strong>{Math.min(filteredProducts.length, startIndex + pageSize)}</strong> trong tổng số <strong>{filteredProducts.length}</strong> sản phẩm)
-                  </span>
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  {/* Nút về trang đầu */}
-                  <button
-                    type="button"
-                    disabled={safeCurrentPage <= 1}
-                    onClick={() => setCurrentPage(1)}
-                    style={{
-                      padding: '5px 9px',
-                      borderRadius: '6px',
-                      border: '1px solid #cbd5e1',
-                      background: safeCurrentPage <= 1 ? '#f8fafc' : '#ffffff',
-                      color: safeCurrentPage <= 1 ? '#94a3b8' : '#334155',
-                      cursor: safeCurrentPage <= 1 ? 'not-allowed' : 'pointer',
-                      fontSize: '12px',
-                      fontWeight: '600'
-                    }}
-                    title="Về trang đầu"
-                  >
-                    «
-                  </button>
-
-                  {/* Nút trang trước */}
-                  <button
-                    type="button"
-                    disabled={safeCurrentPage <= 1}
-                    onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
-                    style={{
-                      padding: '5px 11px',
-                      borderRadius: '6px',
-                      border: '1px solid #cbd5e1',
-                      background: safeCurrentPage <= 1 ? '#f8fafc' : '#ffffff',
-                      color: safeCurrentPage <= 1 ? '#94a3b8' : '#334155',
-                      cursor: safeCurrentPage <= 1 ? 'not-allowed' : 'pointer',
-                      fontSize: '12px',
-                      fontWeight: '600'
-                    }}
-                  >
-                    ‹ Trước
-                  </button>
+                {/* Khối phân trang liền thanh chuẩn theo thiết kế (Hình 2) */}
+                <div
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'stretch',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '8px',
+                    overflow: 'hidden',
+                    background: '#ffffff',
+                    boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
+                    height: '32px',
+                  }}
+                >
+                  {/* Nút trang trước (<) - hiển thị khi trang > 1 */}
+                  {safeCurrentPage > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                      style={{
+                        minWidth: '32px',
+                        height: '100%',
+                        padding: '0 8px',
+                        border: 'none',
+                        borderRight: '1px solid #e5e7eb',
+                        background: '#ffffff',
+                        color: '#4b5563',
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        transition: 'background-color 0.15s ease',
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f9fafb')}
+                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#ffffff')}
+                      title="Trang trước"
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="15 18 9 12 15 6" />
+                      </svg>
+                    </button>
+                  )}
 
                   {/* Danh sách các số trang */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    {Array.from({ length: totalPages }, (_, i) => i + 1)
-                      .filter((p) => p === 1 || p === totalPages || Math.abs(p - safeCurrentPage) <= 1)
-                      .reduce<(number | string)[]>((acc, p, idx, arr) => {
-                        if (idx > 0 && typeof arr[idx - 1] === 'number' && (p as number) - (arr[idx - 1] as number) > 1) {
-                          acc.push('...');
-                        }
-                        acc.push(p);
-                        return acc;
-                      }, [])
-                      .map((p, idx) => (
-                        typeof p === 'string' ? (
-                          <span key={`ellipsis-${idx}`} style={{ padding: '0 4px', color: '#94a3b8' }}>...</span>
-                        ) : (
-                          <button
-                            key={p}
-                            type="button"
-                            onClick={() => setCurrentPage(p)}
+                  {Array.from({ length: totalPages }, (_, i) => i + 1)
+                    .filter((p) => p === 1 || p === totalPages || Math.abs(p - safeCurrentPage) <= 1)
+                    .reduce<(number | string)[]>((acc, p, idx, arr) => {
+                      if (idx > 0 && typeof arr[idx - 1] === 'number' && (p as number) - (arr[idx - 1] as number) > 1) {
+                        acc.push('...');
+                      }
+                      acc.push(p);
+                      return acc;
+                    }, [])
+                    .map((p, idx, arr) => {
+                      const hasNext = safeCurrentPage < totalPages;
+                      const isLastItem = idx === arr.length - 1 && !hasNext;
+                      if (typeof p === 'string') {
+                        return (
+                          <span
+                            key={`ellipsis-${idx}`}
                             style={{
-                              padding: '5px 10px',
-                              borderRadius: '6px',
-                              border: p === safeCurrentPage ? '1px solid #0fad89' : '1px solid #cbd5e1',
-                              background: p === safeCurrentPage ? '#0fad89' : '#ffffff',
-                              color: p === safeCurrentPage ? '#ffffff' : '#334155',
-                              cursor: 'pointer',
-                              fontSize: '12px',
-                              fontWeight: p === safeCurrentPage ? '700' : '500',
-                              minWidth: '28px'
+                              minWidth: '32px',
+                              height: '100%',
+                              padding: '0 8px',
+                              borderRight: isLastItem ? 'none' : '1px solid #e5e7eb',
+                              background: '#ffffff',
+                              color: '#6b7280',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: '13px',
+                              userSelect: 'none',
                             }}
                           >
-                            {p}
-                          </button>
-                        )
-                      ))}
-                  </div>
+                            ...
+                          </span>
+                        );
+                      }
 
-                  {/* Nút trang sau */}
-                  <button
-                    type="button"
-                    disabled={safeCurrentPage >= totalPages}
-                    onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
-                    style={{
-                      padding: '5px 11px',
-                      borderRadius: '6px',
-                      border: '1px solid #cbd5e1',
-                      background: safeCurrentPage >= totalPages ? '#f8fafc' : '#ffffff',
-                      color: safeCurrentPage >= totalPages ? '#94a3b8' : '#334155',
-                      cursor: safeCurrentPage >= totalPages ? 'not-allowed' : 'pointer',
-                      fontSize: '12px',
-                      fontWeight: '600'
-                    }}
-                  >
-                    Sau ›
-                  </button>
+                      const isActive = p === safeCurrentPage;
+                      return (
+                        <button
+                          key={p}
+                          type="button"
+                          onClick={() => setCurrentPage(p)}
+                          style={{
+                            minWidth: '32px',
+                            height: '100%',
+                            padding: '0 10px',
+                            border: 'none',
+                            borderRight: isLastItem ? 'none' : '1px solid #e5e7eb',
+                            background: isActive ? '#0fad89' : '#ffffff',
+                            color: isActive ? '#ffffff' : '#374151',
+                            cursor: isActive ? 'default' : 'pointer',
+                            fontSize: '13px',
+                            fontWeight: isActive ? '700' : '500',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            transition: 'background-color 0.15s ease',
+                          }}
+                          onMouseEnter={(e) => {
+                            if (!isActive) e.currentTarget.style.backgroundColor = '#f9fafb';
+                          }}
+                          onMouseLeave={(e) => {
+                            if (!isActive) e.currentTarget.style.backgroundColor = '#ffffff';
+                          }}
+                        >
+                          {p}
+                        </button>
+                      );
+                    })}
 
-                  {/* Nút về trang cuối */}
-                  <button
-                    type="button"
-                    disabled={safeCurrentPage >= totalPages}
-                    onClick={() => setCurrentPage(totalPages)}
-                    style={{
-                      padding: '5px 9px',
-                      borderRadius: '6px',
-                      border: '1px solid #cbd5e1',
-                      background: safeCurrentPage >= totalPages ? '#f8fafc' : '#ffffff',
-                      color: safeCurrentPage >= totalPages ? '#94a3b8' : '#334155',
-                      cursor: safeCurrentPage >= totalPages ? 'not-allowed' : 'pointer',
-                      fontSize: '12px',
-                      fontWeight: '600'
-                    }}
-                    title="Đến trang cuối"
-                  >
-                    »
-                  </button>
+                  {/* Nút trang sau (>) - hiển thị khi chưa tới trang cuối */}
+                  {safeCurrentPage < totalPages && (
+                    <button
+                      type="button"
+                      onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                      style={{
+                        minWidth: '32px',
+                        height: '100%',
+                        padding: '0 8px',
+                        border: 'none',
+                        background: '#ffffff',
+                        color: '#4b5563',
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        transition: 'background-color 0.15s ease',
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f9fafb')}
+                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#ffffff')}
+                      title="Trang sau"
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="9 18 15 12 9 6" />
+                      </svg>
+                    </button>
+                  )}
                 </div>
               </div>
             )}

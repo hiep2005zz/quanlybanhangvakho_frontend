@@ -361,13 +361,6 @@ export default function OrdersView({ token, username, products, canCreateOrders,
   if (isCreating) {
     return (
       <main className="orders-page">
-        <header className="orders-page-heading">
-          <div>
-            <p className="orders-page-eyebrow">BÁN HÀNG</p>
-            <h1>Tạo đơn hàng</h1>
-            <p className="orders-page-subtitle">Nhập đơn trực tiếp tại cửa hàng của đại lý.</p>
-          </div>
-        </header>
         {createError && <div className="orders-create-error" role="alert">{createError}</div>}
         {isDraftPickerOpen && (
           <section className="orders-draft-picker" aria-label="Chọn bản nháp">
