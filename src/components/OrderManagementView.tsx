@@ -27,7 +27,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
   products,
   onBackToHome: _onBackToHome,
   onRefreshProducts,
-  onNavigateToPriceBooks,
+  onNavigateToPriceBooks: _onNavigateToPriceBooks,
 }) => {
   const [orders, setOrders] = useState<OrderResponseData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -168,35 +168,13 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
       {/* Thanh tiêu đề */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '16px', flexShrink: 0 }}>
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-            {canApprove && onNavigateToPriceBooks && (
-              <button
-                type="button"
-                id="btn-nav-to-price-books"
-                onClick={onNavigateToPriceBooks}
-                style={{
-                  background: '#eff6ff',
-                  border: '1px solid #93c5fd',
-                  borderRadius: '8px',
-                  padding: '7px 14px',
-                  fontSize: '13px',
-                  fontWeight: '700',
-                  color: '#1d4ed8',
-                  cursor: 'pointer',
-                }}
-              >
-                Sang trang Quản lý Bảng giá
-              </button>
-            )}
-
-            <div>
-              <h2 style={{ fontSize: '24px', fontWeight: '800', color: '#0f172a', margin: 0, letterSpacing: '-0.02em' }}>
-                Quản Lý Đơn Hàng & Bán Hàng
-              </h2>
-              <p style={{ margin: '4px 0 0', fontSize: '13.5px', color: '#64748b' }}>
-                Theo dõi trạng thái đơn bán, kiểm soát biên lợi nhuận và phê duyệt đơn hàng
-              </p>
-            </div>
+          <div>
+            <h2 style={{ fontSize: '24px', fontWeight: '800', color: '#0f172a', margin: 0, letterSpacing: '-0.02em' }}>
+              Quản Lý Đơn Hàng & Bán Hàng
+            </h2>
+            <p style={{ margin: '4px 0 0', fontSize: '13.5px', color: '#64748b' }}>
+              Theo dõi trạng thái đơn bán, kiểm soát biên lợi nhuận và phê duyệt đơn hàng
+            </p>
           </div>
         </div>
 
@@ -226,14 +204,27 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
             disabled={isCustomerLocked}
             style={{
               padding: '9px 20px',
-              background: isCustomerLocked ? '#94a3b8' : '#2563eb',
+              background: isCustomerLocked ? '#94a3b8' : 'linear-gradient(135deg, #0fba90 0%, #0fad89 100%)',
               border: 'none',
               borderRadius: '8px',
               fontSize: '13.5px',
               fontWeight: '700',
               color: '#ffffff',
               cursor: isCustomerLocked ? 'not-allowed' : 'pointer',
-              boxShadow: isCustomerLocked ? 'none' : '0 2px 4px rgba(37, 99, 235, 0.25)',
+              boxShadow: isCustomerLocked ? 'none' : '0 2px 8px rgba(15, 186, 144, 0.35)',
+              transition: 'all 0.18s ease',
+            }}
+            onMouseEnter={(e) => {
+              if (!isCustomerLocked) {
+                e.currentTarget.style.background = 'linear-gradient(135deg, #0fad89 0%, #0a8f70 100%)';
+                e.currentTarget.style.boxShadow = '0 4px 14px rgba(15, 186, 144, 0.45)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!isCustomerLocked) {
+                e.currentTarget.style.background = 'linear-gradient(135deg, #0fba90 0%, #0fad89 100%)';
+                e.currentTarget.style.boxShadow = '0 2px 8px rgba(15, 186, 144, 0.35)';
+              }
             }}
             title={isCustomerLocked ? 'Đại lý hiện đang bị khóa giao dịch, không thể tạo đơn hàng mới' : undefined}
           >

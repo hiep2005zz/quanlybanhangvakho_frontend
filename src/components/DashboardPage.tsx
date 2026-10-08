@@ -1565,22 +1565,24 @@ export default function DashboardPage({
                       display: 'inline-flex',
                       alignItems: 'center',
                       gap: '6px',
-                      background: '#2563eb',
-                      border: '1px solid #1d4ed8',
+                      background: 'linear-gradient(135deg, #0fba90 0%, #0fad89 100%)',
+                      border: 'none',
                       padding: '7px 14px',
                       borderRadius: '8px',
                       fontSize: '12.5px',
                       fontWeight: '600',
                       color: '#ffffff',
                       cursor: 'pointer',
-                      boxShadow: '0 2px 6px rgba(37, 99, 235, 0.25)',
+                      boxShadow: '0 2px 8px rgba(15, 186, 144, 0.35)',
                       transition: 'all 0.15s ease',
                     }}
                     onMouseEnter={(e) => {
-                      e.currentTarget.style.background = '#1d4ed8';
+                      e.currentTarget.style.background = 'linear-gradient(135deg, #0fad89 0%, #0a8f70 100%)';
+                      e.currentTarget.style.boxShadow = '0 4px 14px rgba(15, 186, 144, 0.45)';
                     }}
                     onMouseLeave={(e) => {
-                      e.currentTarget.style.background = '#2563eb';
+                      e.currentTarget.style.background = 'linear-gradient(135deg, #0fba90 0%, #0fad89 100%)';
+                      e.currentTarget.style.boxShadow = '0 2px 8px rgba(15, 186, 144, 0.35)';
                     }}
                     title="Thêm mới sản phẩm vào hệ thống kho"
                   >
