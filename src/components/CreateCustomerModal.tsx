@@ -10,6 +10,27 @@ interface CreateCustomerModalProps {
   onSuccess?: (message: string) => void;
 }
 
+const AVAILABLE_ROLES = [
+  { role: 'sales_manager', title: 'Quản lý kinh doanh', badgeColor: '#8b5cf6', desc: 'Quản lý bán hàng, báo cáo, giá vốn & biên lợi nhuận' },
+  { role: 'warehouse_manager', title: 'Quản lý kho', badgeColor: '#059669', desc: 'Giám sát điều phối hàng hóa kho vận, duyệt phiếu kho' },
+  { role: 'sales', title: 'Nhân viên kinh doanh', badgeColor: '#3b82f6', desc: 'Tạo đơn hàng, tra cứu tồn kho' },
+  { role: 'warehouse', title: 'Thủ kho', badgeColor: '#10b981', desc: 'Thực hiện nhập, xuất, kiểm đếm kho' },
+  { role: 'accountant', title: 'Kế toán công nợ', badgeColor: '#f59e0b', desc: 'Quản lý công nợ, hóa đơn, sổ quỹ' },
+  { role: 'purchasing', title: 'Nhân viên mua hàng', badgeColor: '#06b6d4', desc: 'Lập đơn mua hàng từ nhà cung cấp' },
+  { role: 'customer', title: 'Đại lý', badgeColor: '#0284c7', desc: 'Khách hàng đại lý sỉ đặt hàng qua hệ thống' },
+];
+
+const BRANCH_LIST = [
+  'Kho Tổng Hà Nội',
+  'Kho Chi Nhánh Đà Nẵng',
+  'Kho Chi Nhánh TP. Hồ Chí Minh',
+  'Toàn quốc',
+  'Khu vực Miền Bắc',
+  'Khu vực Miền Trung',
+  'Khu vực Miền Nam',
+  'Trụ sở chính',
+];
+
 export const CreateCustomerModal: React.FC<CreateCustomerModalProps> = ({
   isOpen,
   onClose,
@@ -21,7 +42,10 @@ export const CreateCustomerModal: React.FC<CreateCustomerModalProps> = ({
     email: '',
     phone: '',
     username: '',
+    branch: 'Toàn quốc',
   });
+  const [selectedRoles, setSelectedRoles] = useState<string[]>(['sales_manager']);
+  const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const modalRef = useRef<HTMLDivElement>(null);
@@ -33,6 +57,12 @@ export const CreateCustomerModal: React.FC<CreateCustomerModalProps> = ({
     if (modalRef.current) {
       modalRef.current.scrollTo({ top: 0, behavior: 'smooth' });
     }
+  };
+
+  const isWarehouseRole = (roles: string[]) => roles.some((r) => r === 'warehouse' || r === 'warehouse_manager');
+  const isSpecificWarehouse = (branch: string) => {
+    const b = (branch || '').toLowerCase();
+    return b.includes('kho') && (b.includes('hà nội') || b.includes('đà nẵng') || b.includes('hồ chí minh'));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -81,6 +111,18 @@ export const CreateCustomerModal: React.FC<CreateCustomerModalProps> = ({
       return;
     }
 
+    if (selectedRoles.length === 0) {
+      triggerError('Vui lòng chọn ít nhất một vai trò hệ thống cho tài khoản.');
+      return;
+    }
+
+    // Ràng buộc vai trò kho
+    const chosenBranch = (formData.branch || 'Toàn quốc').trim();
+    if (isWarehouseRole(selectedRoles) && !isSpecificWarehouse(chosenBranch)) {
+      triggerError('Người dùng có vai trò Kho (Quản lý kho / Thủ kho) bắt buộc phải gắn với ít nhất 1 kho cụ thể (Ví dụ: Kho Tổng Hà Nội, Kho Chi Nhánh Đà Nẵng, Kho Chi Nhánh TP. Hồ Chí Minh).');
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const res = await createCustomerApi(token, {
@@ -88,6 +130,9 @@ export const CreateCustomerModal: React.FC<CreateCustomerModalProps> = ({
         email: formData.email.trim(),
         phone: cleanPhone,
         username: formData.username?.trim() || undefined,
+        role: selectedRoles[0],
+        roles: selectedRoles,
+        branch: chosenBranch,
       });
 
       const successMsg = `✅ ${res.message} Tài khoản: "${res.user.username}" (${res.user.full_name})`;
@@ -107,7 +152,9 @@ export const CreateCustomerModal: React.FC<CreateCustomerModalProps> = ({
         email: '',
         phone: '',
         username: '',
+        branch: 'Toàn quốc',
       });
+      setSelectedRoles(['sales_manager']);
       onClose();
     } catch (err: any) {
       triggerError(err.message || 'Lỗi khi tạo tài khoản.');
@@ -146,8 +193,8 @@ export const CreateCustomerModal: React.FC<CreateCustomerModalProps> = ({
             border: '1px solid #e2e8f0',
             borderRadius: '16px',
             width: '100%',
-            maxWidth: '540px',
-            maxHeight: 'min(620px, calc(100vh - 48px))',
+            maxWidth: '560px',
+            maxHeight: 'min(680px, calc(100vh - 48px))',
             margin: 'auto',
             boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
             overflowY: 'auto',
@@ -185,10 +232,10 @@ export const CreateCustomerModal: React.FC<CreateCustomerModalProps> = ({
             </div>
             <div>
               <h3 style={{ fontSize: '17px', fontWeight: '700', margin: 0, color: '#0f172a' }}>
-                Tạo Tài Khoản
+                Tạo Tài Khoản & Phân Vai Trò
               </h3>
               <span style={{ fontSize: '12px', color: '#64748b' }}>
-                Tự sinh mật khẩu bảo mật và gửi thông tin qua Email
+                Gán vai trò quản lý / nhân viên và tự sinh mật khẩu gửi qua Email
               </span>
             </div>
           </div>
@@ -262,39 +309,237 @@ export const CreateCustomerModal: React.FC<CreateCustomerModalProps> = ({
               </span>
             </div>
 
-            {/* Email */}
-            <div>
-              <label
-                style={{
-                  display: 'block',
-                  fontSize: '13px',
-                  fontWeight: '600',
-                  color: '#334155',
-                  marginBottom: '6px',
-                }}
-              >
-                Email nhận thông tin tài khoản <span style={{ color: '#ef4444' }}>*</span>
-              </label>
-              <input
-                type="email"
-                required
-                placeholder="mai.tran@company.com"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                style={{
-                  width: '100%',
-                  padding: '10px 14px',
-                  borderRadius: '8px',
-                  border: '1px solid #cbd5e1',
-                  background: '#ffffff',
-                  color: '#0f172a',
-                  fontSize: '14px',
-                  boxSizing: 'border-box',
-                }}
-              />
+            {/* Email & Số điện thoại */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div>
+                <label
+                  style={{
+                    display: 'block',
+                    fontSize: '13px',
+                    fontWeight: '600',
+                    color: '#334155',
+                    marginBottom: '6px',
+                  }}
+                >
+                  Email nhận tài khoản <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+                <input
+                  type="email"
+                  required
+                  placeholder="mai.tran@company.com"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px',
+                    borderRadius: '8px',
+                    border: '1px solid #cbd5e1',
+                    background: '#ffffff',
+                    color: '#0f172a',
+                    fontSize: '14px',
+                    boxSizing: 'border-box',
+                  }}
+                />
+              </div>
+
+              <div>
+                <label
+                  style={{
+                    display: 'block',
+                    fontSize: '13px',
+                    fontWeight: '600',
+                    color: '#334155',
+                    marginBottom: '6px',
+                  }}
+                >
+                  Số điện thoại <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+                <input
+                  type="tel"
+                  required
+                  placeholder="0987654321"
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px',
+                    borderRadius: '8px',
+                    border: '1px solid #cbd5e1',
+                    background: '#ffffff',
+                    color: '#0f172a',
+                    fontSize: '14px',
+                    boxSizing: 'border-box',
+                  }}
+                />
+              </div>
             </div>
 
-            {/* Số điện thoại */}
+            {/* Chọn Vai trò hệ thống */}
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                <label style={{ fontSize: '13px', fontWeight: '600', color: '#334155' }}>
+                  Vai trò quản lý / hệ thống <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+                <span style={{ fontSize: '12px', color: '#64748b' }}>
+                  Đã chọn: <strong style={{ color: '#2563eb' }}>{selectedRoles.length}</strong> vai trò
+                </span>
+              </div>
+
+              {/* Tag hiển thị các vai trò đang chọn */}
+              <div
+                onClick={() => setIsRoleDropdownOpen((prev) => !prev)}
+                style={{
+                  width: '100%',
+                  minHeight: '42px',
+                  padding: '6px 12px',
+                  borderRadius: '8px',
+                  border: `1.5px solid ${isRoleDropdownOpen ? '#2563eb' : '#cbd5e1'}`,
+                  background: '#ffffff',
+                  color: '#0f172a',
+                  boxSizing: 'border-box',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '8px',
+                  boxShadow: isRoleDropdownOpen ? '0 0 0 3px rgba(37, 99, 235, 0.12)' : 'none',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center', flex: 1 }}>
+                  {selectedRoles.length > 0 ? (
+                    selectedRoles.map((rCode) => {
+                      const rObj = AVAILABLE_ROLES.find((item) => item.role === rCode);
+                      const color = rObj?.badgeColor || '#2563eb';
+                      const title = rObj?.title || rCode;
+                      return (
+                        <span
+                          key={rCode}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '5px',
+                            background: `${color}15`,
+                            border: `1px solid ${color}40`,
+                            color: color,
+                            fontSize: '12px',
+                            fontWeight: '600',
+                            padding: '2px 8px',
+                            borderRadius: '6px',
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: color }} />
+                          {title}
+                          <span
+                            title="Bỏ chọn"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedRoles((prev) => prev.filter((code) => code !== rCode));
+                            }}
+                            style={{ cursor: 'pointer', marginLeft: '3px', fontWeight: 'bold', fontSize: '13px' }}
+                          >
+                            ×
+                          </span>
+                        </span>
+                      );
+                    })
+                  ) : (
+                    <span style={{ color: '#94a3b8', fontSize: '13.5px' }}>
+                      Bấm để chọn vai trò cho tài khoản...
+                    </span>
+                  )}
+                </div>
+
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="#64748b"
+                  strokeWidth="2.2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  style={{
+                    transform: isRoleDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                    transition: 'transform 0.2s ease',
+                    flexShrink: 0,
+                  }}
+                >
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </div>
+
+              {/* Danh sách Dropdown vai trò */}
+              {isRoleDropdownOpen && (
+                <div
+                  style={{
+                    marginTop: '6px',
+                    borderRadius: '8px',
+                    border: '1px solid #cbd5e1',
+                    background: '#ffffff',
+                    boxShadow: '0 10px 20px rgba(0,0,0,0.08)',
+                    maxHeight: '210px',
+                    overflowY: 'auto',
+                    padding: '6px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '4px',
+                    zIndex: 10,
+                  }}
+                >
+                  {AVAILABLE_ROLES.map((r) => {
+                    const isChecked = selectedRoles.includes(r.role);
+                    return (
+                      <label
+                        key={r.role}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '10px',
+                          padding: '7px 10px',
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                          background: isChecked ? `${r.badgeColor}10` : 'transparent',
+                          transition: 'background 0.15s ease',
+                        }}
+                        onMouseEnter={(e) => {
+                          if (!isChecked) e.currentTarget.style.background = '#f8fafc';
+                        }}
+                        onMouseLeave={(e) => {
+                          if (!isChecked) e.currentTarget.style.background = 'transparent';
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => {
+                            if (isChecked) {
+                              setSelectedRoles((prev) => prev.filter((x) => x !== r.role));
+                            } else {
+                              setSelectedRoles((prev) => [...prev, r.role]);
+                            }
+                          }}
+                          style={{ width: '16px', height: '16px', accentColor: r.badgeColor, cursor: 'pointer' }}
+                        />
+                        <div style={{ flex: 1 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span style={{ fontSize: '13px', fontWeight: '700', color: r.badgeColor }}>
+                              {r.title}
+                            </span>
+                          </div>
+                          <div style={{ fontSize: '11px', color: '#64748b', marginTop: '1px' }}>
+                            {r.desc}
+                          </div>
+                        </div>
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Chi nhánh / Kho / Địa bàn */}
             <div>
               <label
                 style={{
@@ -305,14 +550,11 @@ export const CreateCustomerModal: React.FC<CreateCustomerModalProps> = ({
                   marginBottom: '6px',
                 }}
               >
-                Số điện thoại liên hệ <span style={{ color: '#ef4444' }}>*</span>
+                Chi nhánh / Kho / Địa bàn phụ trách <span style={{ color: '#ef4444' }}>*</span>
               </label>
-              <input
-                type="tel"
-                required
-                placeholder="Ví dụ: 0987654321 hoặc +84987654321"
-                value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+              <select
+                value={formData.branch || 'Toàn quốc'}
+                onChange={(e) => setFormData({ ...formData, branch: e.target.value })}
                 style={{
                   width: '100%',
                   padding: '10px 14px',
@@ -323,9 +565,15 @@ export const CreateCustomerModal: React.FC<CreateCustomerModalProps> = ({
                   fontSize: '14px',
                   boxSizing: 'border-box',
                 }}
-              />
+              >
+                {BRANCH_LIST.map((b) => (
+                  <option key={b} value={b}>
+                    {b}
+                  </option>
+                ))}
+              </select>
               <span style={{ fontSize: '11.5px', color: '#64748b', marginTop: '4px', display: 'block' }}>
-                Định dạng: 10 chữ số bắt đầu bằng 03, 05, 07, 08, 09 (hoặc đầu số bàn 02).
+                Lưu ý: Nếu phân vai trò Quản lý kho / Thủ kho, bắt buộc chọn 1 kho cụ thể (Hà Nội, Đà Nẵng hoặc TP.HCM).
               </span>
             </div>
 
@@ -375,7 +623,7 @@ export const CreateCustomerModal: React.FC<CreateCustomerModalProps> = ({
                 lineHeight: '1.5',
               }}
             >
-              ℹ️ Hệ thống sẽ cấp một mật khẩu tạm thời ngẫu nhiên (14 ký tự) và kích hoạt tài khoản. Thông tin chi tiết sẽ được tự động gửi vào email nhân viên.
+              ℹ️ Hệ thống sẽ cấp một mật khẩu tạm thời ngẫu nhiên (14 ký tự), gán đúng vai trò đã chọn và kích hoạt tài khoản ngay. Mật khẩu và thông tin đăng nhập sẽ được tự động gửi vào email nhân viên.
             </div>
           </div>
 

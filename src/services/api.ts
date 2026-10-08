@@ -1,5 +1,5 @@
 import type { DeliveryPoint, DeliveryPointInput } from '../types/deliveryPoint';
-export const API_BASE_URL = 'http://localhost:8000/api/v1';
+export const API_BASE_URL = typeof window !== 'undefined' && window.location.origin ? '/api/v1' : 'http://127.0.0.1:8000/api/v1';
 
 /**
  * Trả về URL tuyệt đối để tải ảnh đại diện từ backend nếu là đường dẫn tĩnh /uploads/...
@@ -99,6 +99,8 @@ export interface OrderItem {
   total_amount: number;
   status: string;
   created_at: string;
+  dealer_status?: string;
+  dealer_lock_reason?: string;
 }
 
 export interface OrderDetail extends OrderItem {
@@ -128,6 +130,8 @@ export interface OrderDealer {
   name: string;
   phone?: string | null;
   address?: string | null;
+  status?: string;
+  lock_reason?: string;
 }
 
 export interface CreateOrderPayload {
@@ -839,6 +843,9 @@ export interface CustomerCreatePayload {
   email: string;
   phone: string;
   username?: string;
+  role?: string;
+  roles?: string[];
+  branch?: string;
 }
 
 export interface CustomerCreateResponse {
@@ -1711,6 +1718,8 @@ export interface OrderResponseData {
   discount_rate?: number;
   discount_percent?: number;
   discount_amount?: number;
+  dealer_status?: string;
+  dealer_lock_reason?: string;
 }
 
 export async function approveOrderApi(token: string, orderIdOrCode: number | string): Promise<OrderResponseData> {
