@@ -919,6 +919,7 @@ export default function DashboardPage({
           <SalesOrderEntry
             token={token}
             username={user.username}
+            user={user}
             products={products}
             onClose={() => {
               setIsSalesOrderEntryOpen(false);
