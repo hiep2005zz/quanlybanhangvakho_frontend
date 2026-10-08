@@ -1,190 +1,304 @@
-/* frontend/src/components/dealer-profile-management.css */
+/* frontend/src/components/dealer-profile-management.css
+   Modern, Enterprise-grade E-Commerce UI System
+   Pixel-perfect, high-contrast typography, harmonious colors & responsive layout
+*/
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
 .dealer-profiles-container {
-  padding: 24px;
-  max-width: 1600px;
+  padding: 16px 22px;
+  max-width: 100%;
   margin: 0 auto;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   color: #1e293b;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* Header Section */
+.dealer-profiles-container button,
+.dealer-profiles-container input,
+.dealer-profiles-container select,
+.dealer-profiles-container textarea,
+.modal-overlay,
+.modal-overlay button,
+.modal-overlay input,
+.modal-overlay select,
+.modal-overlay textarea {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+@media (max-width: 1440px) {
+  .dealer-profiles-container {
+    padding: 14px 18px;
+  }
+}
+
+@media (max-width: 768px) {
+  .dealer-profiles-container {
+    padding: 12px;
+  }
+}
+
+/* ==========================================================================
+   1. Header Section
+   ========================================================================== */
 .dealer-profiles-header {
   background: #ffffff;
-  border-radius: 16px;
-  padding: 24px 28px;
-  margin-bottom: 24px;
-  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05), 0 2px 6px -1px rgba(0, 0, 0, 0.02);
+  border-radius: 12px;
+  padding: 16px 20px;
+  margin-bottom: 14px;
+  box-shadow: 0 2px 12px -2px rgba(15, 23, 42, 0.04), 0 1px 3px rgba(15, 23, 42, 0.02);
   border: 1px solid #e2e8f0;
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
   flex-wrap: wrap;
-  gap: 20px;
+  gap: 16px;
 }
 
 .dealer-header-title-wrap {
   flex: 1;
-  min-width: 320px;
+  min-width: 280px;
 }
 
 .dealer-header-badge {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 12px;
+  padding: 3px 10px;
   border-radius: 999px;
-  background: #eff6ff;
-  color: #2563eb;
-  font-size: 12.5px;
+  background: #ecfdf5;
+  color: #047857;
+  font-size: 11.5px;
   font-weight: 700;
-  border: 1px solid #bfdbfe;
-  margin-bottom: 10px;
+  letter-spacing: 0.02em;
+  border: 1px solid #a7f3d0;
+  margin-bottom: 6px;
 }
 
 .dealer-header-title {
-  font-size: 26px;
+  font-size: 21px;
   font-weight: 800;
   color: #0f172a;
   letter-spacing: -0.02em;
-  margin: 0 0 8px 0;
-  display: flex;
-  align-items: center;
-  gap: 12px;
+  margin: 0 0 4px 0;
+  line-height: 1.25;
 }
 
 .dealer-header-desc {
-  font-size: 14.5px;
+  font-size: 13px;
   color: #64748b;
   margin: 0;
-  line-height: 1.5;
-  max-width: 780px;
+  line-height: 1.45;
+  font-weight: 450;
+  max-width: 760px;
 }
 
 .dealer-header-actions {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   flex-wrap: wrap;
 }
 
-/* Primary Button */
+/* ==========================================================================
+   Buttons System (Consistent 38px Height & Proportions)
+   ========================================================================== */
 .btn-primary-gradient {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
-  padding: 11px 20px;
-  border-radius: 10px;
+  height: 38px;
+  padding: 0 18px;
+  border-radius: 9px;
   background: linear-gradient(135deg, #0fba90 0%, #0fad89 100%);
   color: #ffffff;
-  font-size: 14.5px;
+  font-size: 13.5px;
   font-weight: 600;
   border: none;
   cursor: pointer;
-  box-shadow: 0 4px 12px rgba(15, 186, 144, 0.3);
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 2px 8px rgba(15, 186, 144, 0.28);
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  white-space: nowrap;
 }
 
-.btn-primary-gradient:hover {
+.btn-primary-gradient:hover:not(:disabled) {
   background: linear-gradient(135deg, #0fad89 0%, #0a8f70 100%);
-  box-shadow: 0 6px 16px rgba(15, 186, 144, 0.4);
+  box-shadow: 0 4px 14px rgba(15, 186, 144, 0.38);
   transform: translateY(-1px);
+}
+
+.btn-primary-gradient:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 2px 6px rgba(15, 186, 144, 0.2);
+}
+
+.btn-primary-gradient:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
 .btn-secondary-white {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
-  padding: 10px 18px;
-  border-radius: 10px;
+  height: 38px;
+  padding: 0 14px;
+  border-radius: 9px;
   background: #ffffff;
   color: #334155;
-  font-size: 14px;
-  font-weight: 600;
-  border: 1px solid #cbd5e1;
-  cursor: pointer;
-  transition: all 0.18s ease;
-}
-
-.btn-secondary-white:hover {
-  background: #f8fafc;
-  border-color: #94a3b8;
-  color: #0f172a;
-}
-
-/* Stat Cards */
-.dealer-stats-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 16px;
-  margin-bottom: 24px;
-}
-
-.dealer-stat-card {
-  background: #ffffff;
-  border-radius: 14px;
-  padding: 18px 20px;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.dealer-stat-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
-}
-
-.stat-icon-box {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.stat-number {
-  font-size: 24px;
-  font-weight: 800;
-  color: #0f172a;
-  line-height: 1.2;
-}
-
-.stat-label {
   font-size: 13px;
   font-weight: 600;
-  color: #64748b;
-  margin-top: 2px;
+  border: 1.5px solid #e2e8f0;
+  cursor: pointer;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  white-space: nowrap;
 }
 
-/* Filter Card */
-.dealer-filter-card {
-  background: #ffffff;
-  border-radius: 16px;
-  padding: 20px 24px;
-  margin-bottom: 24px;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+.btn-secondary-white:hover:not(:disabled) {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  color: #0f172a;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
 }
 
-.dealer-filter-grid {
+.btn-secondary-white:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.btn-secondary-white:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* ==========================================================================
+   2. 4 Stat Cards Grid (Interactive, backend-driven)
+   ========================================================================== */
+.dealer-stats-grid {
   display: grid;
-  grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
-  gap: 14px;
-  align-items: center;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 14px;
 }
 
 @media (max-width: 1200px) {
-  .dealer-filter-grid {
-    grid-template-columns: 1fr 1fr;
+  .dealer-stats-grid {
+    grid-template-columns: repeat(2, 1fr);
   }
 }
 
 @media (max-width: 640px) {
+  .dealer-stats-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.dealer-stat-card {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 14px 16px;
+  border: 1.5px solid #e2e8f0;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.02);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  cursor: pointer;
+  position: relative;
+  user-select: none;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.dealer-stat-card:hover {
+  transform: translateY(-2px);
+  border-color: #cbd5e1;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
+}
+
+.dealer-stat-card.stat-card-active {
+  border-color: #0fba90;
+  background: #f0fdf9;
+  box-shadow: 0 0 0 3px rgba(15, 186, 144, 0.16), 0 6px 18px rgba(15, 186, 144, 0.08);
+}
+
+.stat-filter-tag {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10.5px;
+  font-weight: 700;
+  background: #ecfdf5;
+  color: #047857;
+  border: 1px solid #a7f3d0;
+  padding: 2px 7px;
+  border-radius: 999px;
+  animation: fadeIn 0.2s ease;
+}
+
+.stat-icon-box {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+
+.dealer-stat-card:hover .stat-icon-box {
+  transform: scale(1.05);
+}
+
+.stat-number {
+  font-size: 22px;
+  font-weight: 800;
+  color: #0f172a;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+
+.stat-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+  margin-top: 3px;
+}
+
+/* ==========================================================================
+   3. Filter Card Section
+   ========================================================================== */
+.dealer-filter-card {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 20px 24px;
+  margin-bottom: 22px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.03);
+}
+
+.dealer-filter-grid {
+  display: grid;
+  grid-template-columns: 2.2fr 1fr 1fr 1fr 1fr;
+  gap: 14px;
+  align-items: center;
+}
+
+@media (max-width: 1280px) {
+  .dealer-filter-grid {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+}
+
+@media (max-width: 768px) {
   .dealer-filter-grid {
     grid-template-columns: 1fr;
   }
@@ -196,7 +310,7 @@
   align-items: center;
 }
 
-.search-input-wrapper svg {
+.search-input-wrapper svg.search-icon {
   position: absolute;
   left: 14px;
   color: #94a3b8;
@@ -205,14 +319,21 @@
 
 .search-input {
   width: 100%;
-  padding: 10px 14px 10px 42px;
+  height: 40px;
+  padding: 0 38px 0 42px;
   border-radius: 10px;
   border: 1.5px solid #e2e8f0;
-  font-size: 14px;
+  font-size: 13.5px;
   color: #0f172a;
   outline: none;
   background: #f8fafc;
   transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.search-input::placeholder {
+  color: #94a3b8;
+  font-size: 13px;
 }
 
 .search-input:focus {
@@ -221,17 +342,41 @@
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
 }
 
+.btn-clear-search {
+  position: absolute;
+  right: 10px;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #e2e8f0;
+  color: #64748b;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-clear-search:hover {
+  background: #cbd5e1;
+  color: #0f172a;
+}
+
 .filter-select {
   width: 100%;
-  padding: 10px 14px;
+  height: 40px;
+  padding: 0 14px;
   border-radius: 10px;
   border: 1.5px solid #e2e8f0;
   font-size: 13.5px;
+  font-weight: 500;
   color: #0f172a;
   background: #f8fafc;
   outline: none;
   cursor: pointer;
   transition: all 0.2s ease;
+  font-family: inherit;
 }
 
 .filter-select:focus {
@@ -240,70 +385,167 @@
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
 }
 
-/* Table Section */
+/* Results Summary Bar */
+.dealer-results-summary-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 16px;
+  background: #f8fafc;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  margin-top: 14px;
+  font-size: 13.5px;
+  color: #475569;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.results-count-text strong {
+  color: #0f172a;
+  font-weight: 700;
+}
+
+.btn-reset-filters {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 8px;
+  border: 1.5px solid #cbd5e1;
+  background: #ffffff;
+  color: #475569;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.btn-reset-filters:hover {
+  background: #fee2e2;
+  border-color: #fca5a5;
+  color: #b91c1c;
+  transform: translateY(-1px);
+}
+
+/* ==========================================================================
+   4. Table Section (Responsive, Scrollable, Crisp Layout)
+   ========================================================================== */
 .dealer-table-card {
   background: #ffffff;
   border-radius: 16px;
   border: 1px solid #e2e8f0;
-  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.05);
   overflow: hidden;
 }
 
 .table-responsive {
   width: 100%;
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Custom Scrollbar for sleek e-commerce feel */
+.table-responsive::-webkit-scrollbar {
+  height: 8px;
+}
+.table-responsive::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 4px;
+}
+.table-responsive::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+.table-responsive::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
 }
 
 .dealer-table {
   width: 100%;
   border-collapse: separate;
   border-spacing: 0;
-  font-size: 13.5px;
+  font-size: 13px;
 }
 
 .dealer-table th {
   background: #f8fafc;
   color: #475569;
   font-weight: 700;
+  font-size: 11.5px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
   text-align: left;
-  padding: 14px 16px;
+  padding: 11px 14px;
   border-bottom: 1.5px solid #e2e8f0;
   white-space: nowrap;
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
 
 .dealer-table td {
-  padding: 14px 16px;
+  padding: 10px 14px;
   border-bottom: 1px solid #f1f5f9;
   vertical-align: middle;
   color: #334155;
+  transition: background-color 0.15s ease;
 }
 
-.dealer-table tr:hover td {
-  background: #f8fafc;
+.dealer-table tbody tr {
+  transition: background-color 0.15s ease;
 }
 
-/* Dealer Code Badge */
+.dealer-table tbody tr:hover td {
+  background-color: #f8fafc;
+}
+
+/* Cell Elements */
 .dealer-code-pill {
   display: inline-block;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 12.5px;
   font-weight: 700;
   color: #1e40af;
-  background: #dbeafe;
-  padding: 4px 10px;
+  background: #eff6ff;
+  padding: 4px 9px;
   border-radius: 6px;
   border: 1px solid #bfdbfe;
+  white-space: nowrap;
 }
 
-/* Tax Code Badge */
+.dealer-name-title {
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1.4;
+  font-size: 14px;
+}
+
+.dealer-phone-sub {
+  font-size: 12px;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 3px;
+  white-space: nowrap;
+}
+
 .tax-code-text {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 12.5px;
   font-weight: 600;
-  color: #475569;
+  color: #334155;
+  background: #f1f5f9;
+  padding: 3px 8px;
+  border-radius: 5px;
+  border: 1px solid #e2e8f0;
+  display: inline-block;
+  white-space: nowrap;
 }
 
-/* Customer Group Badge */
+/* Customer Group Badges */
 .badge-group {
   display: inline-flex;
   align-items: center;
@@ -312,6 +554,7 @@
   border-radius: 999px;
   font-size: 12px;
   font-weight: 700;
+  white-space: nowrap;
 }
 
 .badge-group-cap1 {
@@ -338,143 +581,183 @@
   border: 1px solid #e2e8f0;
 }
 
-/* Price Book Card in Table */
-.price-book-cell-card {
+/* Sleek Price Book Pill Button */
+.price-book-pill-btn {
   display: inline-flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 6px 10px;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
   border-radius: 8px;
   background: #f0fdf4;
   border: 1px solid #bbf7d0;
+  color: #15803d;
+  font-size: 12px;
+  font-weight: 600;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  max-width: 175px;
+  text-align: left;
+  outline: none;
+  font-family: inherit;
 }
 
-.price-book-cell-card:hover {
+.price-book-pill-btn:hover {
   background: #dcfce7;
   border-color: #86efac;
   transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(22, 163, 74, 0.16);
 }
 
-.price-book-cell-name {
+.price-book-pill-btn:active {
+  transform: translateY(0);
+}
+
+.price-book-text-truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 95px;
+}
+
+.price-book-tag-code {
+  font-size: 10.5px;
+  background: #dcfce7;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-family: ui-monospace, SFMono-Regular, monospace;
   font-weight: 700;
-  color: #15803d;
-  font-size: 12px;
+  color: #166534;
+  flex-shrink: 0;
+}
+
+/* Sales Staff Cell (Never wraps) */
+.sale-staff-cell {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 8px;
+  white-space: nowrap;
 }
 
-.price-book-cell-sub {
+.sale-avatar-mini {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #e0e7ff;
+  color: #4338ca;
   font-size: 11px;
-  color: #166534;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: 1px solid #c7d2fe;
 }
 
-/* Status Badges */
-.status-pill-active {
+.sale-staff-name {
+  font-weight: 600;
+  color: #1e293b;
+  font-size: 13.5px;
+}
+
+/* Unified Empty State Indicator */
+.empty-subtext {
   display: inline-flex;
   align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: #94a3b8;
+  font-style: italic;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* Transaction Counter Badge Button */
+.tx-badge-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   gap: 6px;
-  padding: 4px 12px;
-  border-radius: 999px;
-  background: #dcfce7;
-  color: #15803d;
+  padding: 5px 11px;
+  border-radius: 8px;
+  border: 1px solid transparent;
   font-size: 12px;
   font-weight: 700;
-  border: 1px solid #bbf7d0;
+  cursor: pointer;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  outline: none;
+  font-family: inherit;
+  user-select: none;
+  white-space: nowrap;
 }
 
-.status-pill-stopped {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 12px;
-  border-radius: 999px;
-  background: #fee2e2;
-  color: #b91c1c;
-  font-size: 12px;
-  font-weight: 700;
-  border: 1px solid #fecaca;
+.tx-badge-btn.has-tx {
+  background: #ecfdf5;
+  color: #047857;
+  border-color: #a7f3d0;
 }
 
-/* Nút Trạng thái có thể click trực tiếp để chuyển đổi */
-.status-pill-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 5px 14px;
+.tx-badge-btn.has-tx:hover {
+  background: #d1fae5;
+  border-color: #6ee7b7;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(16, 185, 129, 0.22);
+}
+
+.tx-badge-btn.no-tx {
+  background: #f8fafc;
+  color: #64748b;
+  border-color: #e2e8f0;
+}
+
+.tx-badge-btn.no-tx:hover {
+  background: #f1f5f9;
+  color: #334155;
+  transform: translateY(-1px);
+}
+
+/* Status Pill Select */
+.status-select-wrap {
+  position: relative;
+  display: inline-block;
+}
+
+.status-select-input {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  padding: 5px 14px 5px 22px;
   border-radius: 999px;
   font-size: 12px;
   font-weight: 700;
   cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   outline: none;
   font-family: inherit;
-  user-select: none;
+  border: 1.5px solid transparent;
+  transition: all 0.18s ease;
+  white-space: nowrap;
 }
 
-.status-pill-btn:hover {
+.status-select-input:hover {
   transform: translateY(-1px);
-  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.09);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
 }
 
-.status-pill-btn:active {
-  transform: translateY(0);
+.status-select-dot {
+  position: absolute;
+  left: 9px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  pointer-events: none;
 }
 
-.status-pill-btn.status-pill-active {
-  background: #dcfce7;
-  color: #15803d;
-  border: 1px solid #86efac;
-}
-
-.status-pill-btn.status-pill-active:hover {
-  background: #bbf7d0;
-  border-color: #4ade80;
-  color: #14532d;
-}
-
-.status-pill-btn.status-pill-stopped {
-  background: #fee2e2;
-  color: #b91c1c;
-  border: 1px solid #fca5a5;
-}
-
-.status-pill-btn.status-pill-stopped:hover {
-  background: #fecaca;
-  border-color: #f87171;
-  color: #991b1b;
-}
-
-/* Transactions Badge */
-.tx-badge-has {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 3px 8px;
-  border-radius: 6px;
-  background: #ecfdf5;
-  color: #047857;
-  font-weight: 700;
-  font-size: 11.5px;
-  border: 1px solid #a7f3d0;
-}
-
-.tx-badge-none {
-  display: inline-flex;
-  align-items: center;
-  padding: 3px 8px;
-  border-radius: 6px;
-  background: #f1f5f9;
-  color: #64748b;
-  font-size: 11.5px;
-}
-
-/* Action Buttons */
+/* Action Icon Buttons & Custom Tooltip System */
 .action-btn-group {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
 }
 
@@ -489,19 +772,15 @@
   background: #ffffff;
   color: #475569;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all 0.16s ease;
+  position: relative;
 }
 
 .btn-icon-action:hover:not(:disabled) {
   background: #f1f5f9;
   color: #0f172a;
   border-color: #cbd5e1;
-}
-
-.btn-icon-action:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-  background: #f8fafc;
+  transform: translateY(-1px);
 }
 
 .btn-icon-action.edit:hover {
@@ -510,19 +789,7 @@
   border-color: #bfdbfe;
 }
 
-.btn-icon-action.toggle-active:hover {
-  background: #fef2f2;
-  color: #dc2626;
-  border-color: #fecaca;
-}
-
-.btn-icon-action.toggle-inactive:hover {
-  background: #ecfdf5;
-  color: #16a34a;
-  border-color: #bbf7d0;
-}
-
-.btn-icon-action.delete:hover:not(:disabled) {
+.btn-icon-action.delete:hover {
   background: #fef2f2;
   color: #dc2626;
   border-color: #fecaca;
@@ -540,66 +807,142 @@
   border-color: #fcd34d;
 }
 
-/* Nút Thao tác có tên (Sửa / Xóa) hiển thị chữ rõ ràng */
-.btn-action-named {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 6px 12px;
-  border-radius: 7px;
-  font-size: 12.5px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.16s ease;
-  font-family: inherit;
-  border: 1px solid transparent;
-  outline: none;
+/* Sleek Tooltips on Hover */
+.has-tooltip {
+  position: relative;
+}
+
+.has-tooltip:hover::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #0f172a;
+  color: #ffffff;
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-size: 11.5px;
+  font-weight: 500;
   white-space: nowrap;
+  pointer-events: none;
+  z-index: 100;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.22);
+  animation: fadeIn 0.15s ease-out;
 }
 
-.btn-action-named svg {
-  flex-shrink: 0;
+.has-tooltip:hover::before {
+  content: '';
+  position: absolute;
+  bottom: calc(100% + 2px);
+  left: 50%;
+  transform: translateX(-50%);
+  border: 4px solid transparent;
+  border-top-color: #0f172a;
+  pointer-events: none;
+  z-index: 100;
+  animation: fadeIn 0.15s ease-out;
 }
 
-.btn-action-named.edit {
-  background: #eff6ff;
-  color: #1d4ed8;
-  border-color: #bfdbfe;
+/* ==========================================================================
+   5. Pagination Bar Section
+   ========================================================================== */
+.dealer-pagination-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 24px;
+  border-top: 1.5px solid #f1f5f9;
+  background: #ffffff;
+  flex-wrap: wrap;
+  gap: 14px;
 }
 
-.btn-action-named.edit:hover {
-  background: #dbeafe;
-  border-color: #93c5fd;
-  color: #1e40af;
-  box-shadow: 0 2px 4px rgba(37, 99, 235, 0.15);
-}
-
-.btn-action-named.delete {
-  background: #fef2f2;
-  color: #dc2626;
-  border-color: #fecaca;
-}
-
-.btn-action-named.delete:hover {
-  background: #fee2e2;
-  border-color: #fca5a5;
-  color: #b91c1c;
-  box-shadow: 0 2px 4px rgba(220, 38, 38, 0.15);
-}
-
-.btn-action-named.delete.has-tx-locked {
-  background: #f8fafc;
+.pagination-info {
+  font-size: 13.5px;
   color: #64748b;
-  border-color: #e2e8f0;
 }
 
-.btn-action-named.delete.has-tx-locked:hover {
+.pagination-info strong {
+  color: #0f172a;
+  font-weight: 700;
+}
+
+.pagination-controls-wrap {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.pagination-size-select-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #64748b;
+}
+
+.pagination-size-select {
+  height: 32px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+  outline: none;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.pagination-buttons {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.btn-page {
+  min-width: 32px;
+  height: 32px;
+  padding: 0 8px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  color: #334155;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  font-family: inherit;
+}
+
+.btn-page:hover:not(:disabled) {
   background: #f1f5f9;
-  color: #475569;
+  color: #0f172a;
   border-color: #cbd5e1;
 }
 
-/* Modal Overlay & Card */
+.btn-page:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  background: #f8fafc;
+}
+
+.btn-page.active {
+  background: #2563eb;
+  color: #ffffff;
+  border-color: #2563eb;
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.3);
+}
+
+/* ==========================================================================
+   6. Modals System
+   ========================================================================== */
 .modal-overlay {
   position: fixed;
   inset: 0;
@@ -636,7 +979,7 @@
 
 .modal-header h3 {
   margin: 0;
-  font-size: 19px;
+  font-size: 18px;
   font-weight: 800;
   color: #0f172a;
 }
@@ -674,7 +1017,6 @@
   border-radius: 0 0 20px 20px;
 }
 
-/* Form Layout */
 .form-grid-2 {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -707,14 +1049,16 @@
 
 .form-input {
   width: 100%;
-  padding: 10px 14px;
+  height: 40px;
+  padding: 0 14px;
   border-radius: 10px;
   border: 1.5px solid #cbd5e1;
-  font-size: 14px;
+  font-size: 13.5px;
   color: #0f172a;
   outline: none;
   background: #ffffff;
   transition: all 0.2s ease;
+  font-family: inherit;
 }
 
 .form-input:focus {
@@ -722,7 +1066,7 @@
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
 }
 
-/* Price Book Decision Card */
+/* Price Book Decision Card in Form */
 .price-book-decision-card {
   margin-top: 8px;
   margin-bottom: 16px;
@@ -749,7 +1093,7 @@
 
 .decision-card-content h5 {
   margin: 0 0 4px 0;
-  font-size: 14.5px;
+  font-size: 14px;
   font-weight: 800;
   color: #14532d;
 }
@@ -763,21 +1107,109 @@
 
 /* Empty State */
 .empty-state-box {
-  padding: 64px 20px;
+  padding: 60px 24px;
   text-align: center;
   color: #64748b;
 }
 
 .empty-state-icon {
-  width: 64px;
-  height: 64px;
-  border-radius: 16px;
+  width: 68px;
+  height: 68px;
+  border-radius: 18px;
   background: #f1f5f9;
   display: flex;
   align-items: center;
   justify-content: center;
   margin: 0 auto 16px auto;
   color: #94a3b8;
+}
+
+.empty-state-box h4 {
+  margin: 0 0 8px 0;
+  font-size: 17px;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.empty-state-box p {
+  margin: 0 0 16px 0;
+  font-size: 14px;
+  color: #64748b;
+  max-width: 500px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Error State */
+.error-state-box {
+  padding: 48px 24px;
+  text-align: center;
+  color: #ef4444;
+}
+
+.error-state-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
+  background: #fef2f2;
+  color: #dc2626;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 16px auto;
+}
+
+.error-state-box h4 {
+  margin: 0 0 8px 0;
+  font-size: 17px;
+  font-weight: 700;
+  color: #991b1b;
+}
+
+/* Transaction History Table Modal */
+.tx-modal-table-wrap {
+  max-height: 420px;
+  overflow-y: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+}
+
+.tx-modal-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.tx-modal-table th {
+  background: #f8fafc;
+  padding: 11px 14px;
+  text-align: left;
+  font-weight: 700;
+  color: #475569;
+  border-bottom: 1.5px solid #e2e8f0;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.tx-modal-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid #f1f5f9;
+  color: #334155;
+}
+
+.tx-modal-table tr:hover td {
+  background: #f8fafc;
+}
+
+/* Animations */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.icon-spin {
+  animation: spin 1s linear infinite;
 }
 
 @keyframes fadeIn {

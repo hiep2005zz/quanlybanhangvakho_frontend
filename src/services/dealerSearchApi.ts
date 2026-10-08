@@ -38,9 +38,42 @@ export interface DealerSearchItem {
     applied_price_book?: AppliedPriceBookInfo | null;
 }
 
+export interface DealerStats {
+    total: number;
+    active: number;
+    stopped: number;
+    paused: number;
+    pending_activation: number;
+    with_transactions: number;
+    without_transactions?: number;
+}
+
+export interface DealerTransactionItem {
+    id: number;
+    order_code: string;
+    created_at?: string | null;
+    total_amount: number;
+    status: string;
+    created_by?: string;
+    items_count?: number;
+    assigned_sale_name?: string;
+}
+
+export interface DealerTransactionsResponse {
+    dealer_id: number;
+    dealer_code: string;
+    dealer_name: string;
+    total: number;
+    items: DealerTransactionItem[];
+}
+
 export interface DealerSearchResponse {
     items: DealerSearchItem[];
     total: number;
+    page?: number;
+    page_size?: number;
+    total_pages?: number;
+    stats?: DealerStats;
 }
 
 export interface DealerFiltersResponse {
@@ -59,114 +92,10 @@ export interface DealerSearchParams {
     assigned_sale_id?: number;
     customer_group?: string;
     status?: string;
+    has_transactions?: boolean;
+    page?: number;
+    page_size?: number;
 }
-
-const MOCK_DEALERS: DealerSearchItem[] = [
-    {
-        id: 1,
-        code: 'DL-HN01',
-        name: 'Đại lý Tuấn Phát',
-        phone: '0987654321',
-        email: 'tuanphat.dealer@gmail.com',
-        address: 'Số 123 Cầu Giấy, Phường Dịch Vọng, Cầu Giấy, Hà Nội',
-        region: 'Hà Nội',
-        assigned_sale_id: 1,
-        assigned_sale_name: 'Nguyễn Văn An',
-        customer_group: 'dai_ly_cap_1',
-        status: 'Đang hoạt động',
-    },
-    {
-        id: 2,
-        code: 'DL-HN02',
-        name: 'Đại lý Minh Khang',
-        phone: '0912345678',
-        email: 'minhkhang.store@gmail.com',
-        address: '45 Hoàng Hoa Thám, Phường Thụy Khuê, Tây Hồ, Hà Nội',
-        region: 'Hà Nội',
-        assigned_sale_id: 2,
-        assigned_sale_name: 'Trần Thị Bình',
-        customer_group: 'dai_ly_cap_2',
-        status: 'Đang hoạt động',
-    },
-    {
-        id: 3,
-        code: 'DL-HCM01',
-        name: 'Tổng kho Phân phối Thăng Long',
-        phone: '0903123456',
-        email: 'thanglong.dist@yahoo.com',
-        address: '88 Nguyễn Văn Cừ, Phường 2, Quận 5, TP. Hồ Chí Minh',
-        region: 'TP.HCM',
-        assigned_sale_id: 1,
-        assigned_sale_name: 'Nguyễn Văn An',
-        customer_group: 'dai_ly_cap_1',
-        status: 'Đang hoạt động',
-    },
-    {
-        id: 4,
-        code: 'DL-HCM02',
-        name: 'Cửa hàng Bách Hóa Miền Nam',
-        phone: '0938456789',
-        email: 'miennam.bachhoa@gmail.com',
-        address: '210 Lê Văn Sỹ, Phường 14, Quận 3, TP. Hồ Chí Minh',
-        region: 'TP.HCM',
-        assigned_sale_id: 3,
-        assigned_sale_name: 'Lê Hoàng Nam',
-        customer_group: 'dai_ly_cap_2',
-        status: 'Tạm ngừng',
-    },
-    {
-        id: 5,
-        code: 'DL-DN01',
-        name: 'Đại lý Điện máy Hải Châu',
-        phone: '0977889900',
-        email: 'dienmay.haichau@gmail.com',
-        address: '76 Nguyễn Văn Linh, Phường Nam Dương, Hải Châu, Đà Nẵng',
-        region: 'Đà Nẵng',
-        assigned_sale_id: 2,
-        assigned_sale_name: 'Trần Thị Bình',
-        customer_group: 'dai_ly_cap_1',
-        status: 'Đang hoạt động',
-    },
-    {
-        id: 6,
-        code: 'DL-HP01',
-        name: 'Đại lý Bách Hóa Cảng',
-        phone: '0966554433',
-        email: 'bachhoa.hp@gmail.com',
-        address: '15 Lạch Tray, Quận Ngô Quyền, Hải Phòng',
-        region: 'Hải Phòng',
-        assigned_sale_id: 3,
-        assigned_sale_name: 'Lê Hoàng Nam',
-        customer_group: 'khach_le',
-        status: 'Đang hoạt động',
-    },
-    {
-        id: 7,
-        code: 'DL-CT01',
-        name: 'Tạp hóa Hương Sen Miền Tây',
-        phone: '0944112233',
-        email: 'huongsen.cantho@gmail.com',
-        address: '54 Đường 30 Tháng 4, Phường An Phú, Ninh Kiều, Cần Thơ',
-        region: 'Cần Thơ',
-        assigned_sale_id: 1,
-        assigned_sale_name: 'Nguyễn Văn An',
-        customer_group: 'dai_ly_cap_2',
-        status: 'Đang hoạt động',
-    },
-    {
-        id: 8,
-        code: 'DL-HN03',
-        name: 'Đại lý Hoàng Gia Tràng Tiền',
-        phone: '0988776655',
-        email: 'hoanggia.dealer@gmail.com',
-        address: '12 Tràng Thi, Phường Hàng Trống, Hoàn Kiếm, Hà Nội',
-        region: 'Hà Nội',
-        assigned_sale_id: 2,
-        assigned_sale_name: 'Trần Thị Bình',
-        customer_group: 'dai_ly_cap_2',
-        status: 'Tạm ngừng',
-    },
-];
 
 function getAuthToken(token?: string): string {
     if (token) return token;
@@ -179,47 +108,6 @@ function getAuthToken(token?: string): string {
     } catch {
         return '';
     }
-}
-
-function filterMockDealers(params?: DealerSearchParams): DealerSearchResponse {
-    let list = [...MOCK_DEALERS];
-
-    if (params?.keyword?.trim()) {
-        const q = params.keyword.trim().toLowerCase();
-        const qDigits = q.replace(/\D/g, '');
-        list = list.filter((item) => {
-            const codeMatch = item.code.toLowerCase().includes(q);
-            const nameMatch = item.name.toLowerCase().includes(q);
-            const phoneMatch = item.phone
-                ? item.phone.toLowerCase().includes(q) || (qDigits.length >= 3 && item.phone.replace(/\D/g, '').includes(qDigits))
-                : false;
-            return codeMatch || nameMatch || phoneMatch;
-        });
-    }
-
-    if (params?.region?.trim()) {
-        const r = params.region.trim().toLowerCase();
-        list = list.filter((item) => item.region.toLowerCase() === r);
-    }
-
-    if (params?.assigned_sale_id) {
-        list = list.filter((item) => item.assigned_sale_id === params.assigned_sale_id);
-    }
-
-    if (params?.customer_group?.trim()) {
-        const g = params.customer_group.trim().toLowerCase();
-        list = list.filter((item) => item.customer_group?.toLowerCase() === g);
-    }
-
-    if (params?.status?.trim()) {
-        const s = params.status.trim().toLowerCase();
-        list = list.filter((item) => item.status?.toLowerCase() === s);
-    }
-
-    return {
-        items: list,
-        total: list.length,
-    };
 }
 
 export async function searchDealers(
@@ -272,6 +160,18 @@ export async function searchDealers(
         query.set('status', params.status.trim());
     }
 
+    if (params?.has_transactions !== undefined) {
+        query.set('has_transactions', String(params.has_transactions));
+    }
+
+    if (params?.page) {
+        query.set('page', String(params.page));
+    }
+
+    if (params?.page_size) {
+        query.set('page_size', String(params.page_size));
+    }
+
     const headers: Record<string, string> = {
         Accept: 'application/json',
     };
@@ -288,15 +188,102 @@ export async function searchDealers(
             }
         );
 
-        if (response.ok) {
-            return await response.json();
+        if (!response.ok) {
+            let errorDetail = `Lỗi tải danh sách đại lý (Mã lỗi ${response.status})`;
+            try {
+                const errData = await response.json();
+                if (errData && errData.detail) {
+                    errorDetail = typeof errData.detail === 'string' ? errData.detail : JSON.stringify(errData.detail);
+                }
+            } catch {
+                // ignore
+            }
+            throw new Error(errorDetail);
         }
-    } catch {
-        // Backend không khả dụng hoặc trả về lỗi, chuyển sang fallback dữ liệu mẫu
+
+        return await response.json();
+    } catch (err) {
+        if (err instanceof Error) {
+            throw err;
+        }
+        throw new Error('Lỗi kết nối máy chủ. Vui lòng kiểm tra đường truyền và thử lại.');
+    }
+}
+
+export async function getDealerStats(
+    token?: string
+): Promise<DealerStats> {
+    const authToken = getAuthToken(token);
+    const headers: Record<string, string> = {
+        Accept: 'application/json',
+    };
+    if (authToken) {
+        headers.Authorization = `Bearer ${authToken}`;
     }
 
-    // Dự phòng fallback dữ liệu mẫu khi backend chưa sẵn sàng
-    return filterMockDealers(params);
+    try {
+        const response = await fetch(
+            `${API_BASE_URL}/api/v1/dealers/stats`,
+            {
+                method: 'GET',
+                headers,
+            }
+        );
+
+        if (!response.ok) {
+            throw new Error(`Lỗi tải số liệu thống kê (Mã lỗi ${response.status})`);
+        }
+
+        return await response.json();
+    } catch (err) {
+        if (err instanceof Error) {
+            throw err;
+        }
+        throw new Error('Không thể kết nối đến máy chủ để lấy số liệu thống kê.');
+    }
+}
+
+export async function getDealerTransactions(
+    dealerId: number,
+    token?: string
+): Promise<DealerTransactionsResponse> {
+    const authToken = getAuthToken(token);
+    const headers: Record<string, string> = {
+        Accept: 'application/json',
+    };
+    if (authToken) {
+        headers.Authorization = `Bearer ${authToken}`;
+    }
+
+    try {
+        const response = await fetch(
+            `${API_BASE_URL}/api/v1/dealers/${dealerId}/transactions`,
+            {
+                method: 'GET',
+                headers,
+            }
+        );
+
+        if (!response.ok) {
+            let errorDetail = `Lỗi tải lịch sử giao dịch (Mã lỗi ${response.status})`;
+            try {
+                const errData = await response.json();
+                if (errData && errData.detail) {
+                    errorDetail = typeof errData.detail === 'string' ? errData.detail : JSON.stringify(errData.detail);
+                }
+            } catch {
+                // ignore
+            }
+            throw new Error(errorDetail);
+        }
+
+        return await response.json();
+    } catch (err) {
+        if (err instanceof Error) {
+            throw err;
+        }
+        throw new Error('Không thể kết nối đến máy chủ để tải lịch sử giao dịch.');
+    }
 }
 
 export async function getDealerFilters(
@@ -320,29 +307,17 @@ export async function getDealerFilters(
             }
         );
 
-        if (response.ok) {
-            return await response.json();
+        if (!response.ok) {
+            throw new Error(`Lỗi tải danh mục bộ lọc (Mã lỗi ${response.status})`);
         }
-    } catch {
-        // Backend không khả dụng
+
+        return await response.json();
+    } catch (err) {
+        if (err instanceof Error) {
+            throw err;
+        }
+        throw new Error('Không thể kết nối máy chủ để tải danh mục bộ lọc.');
     }
-
-    // Fallback dữ liệu bộ lọc từ danh sách mẫu
-    const uniqueRegions = Array.from(new Set(MOCK_DEALERS.map((d) => d.region))).filter(Boolean);
-    const uniqueSalesMap = new Map<number, string>();
-    MOCK_DEALERS.forEach((d) => {
-        if (d.assigned_sale_id && d.assigned_sale_name) {
-            uniqueSalesMap.set(d.assigned_sale_id, d.assigned_sale_name);
-        }
-    });
-    const uniqueSales = Array.from(uniqueSalesMap.entries()).map(([id, name]) => ({ id, name }));
-
-    return {
-        regions: uniqueRegions,
-        sales: uniqueSales,
-        customer_groups: ['dai_ly_cap_1', 'dai_ly_cap_2', 'khach_le'],
-        statuses: ['Đang hoạt động', 'Tạm ngừng'],
-    };
 }
 
 export interface CreateDealerPayload {
@@ -450,54 +425,26 @@ export async function createDealer(
         headers.Authorization = `Bearer ${authToken}`;
     }
 
-    try {
-        const response = await fetch(`${API_BASE_URL}/api/v1/dealers`, {
-            method: 'POST',
-            headers,
-            body: JSON.stringify(payload),
-        });
+    const response = await fetch(`${API_BASE_URL}/api/v1/dealers`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(payload),
+    });
 
-        if (!response.ok) {
-            let errorDetail = `Lỗi tạo đại lý (HTTP ${response.status})`;
-            try {
-                const errData = await response.json();
-                if (errData && errData.detail) {
-                    errorDetail = typeof errData.detail === 'string' ? errData.detail : JSON.stringify(errData.detail);
-                }
-            } catch {
-                // ignore
+    if (!response.ok) {
+        let errorDetail = `Lỗi tạo đại lý (HTTP ${response.status})`;
+        try {
+            const errData = await response.json();
+            if (errData && errData.detail) {
+                errorDetail = typeof errData.detail === 'string' ? errData.detail : JSON.stringify(errData.detail);
             }
-            throw new Error(errorDetail);
+        } catch {
+            // ignore
         }
-
-        const result = await response.json();
-        if (result && result.id) {
-            MOCK_DEALERS.unshift(result);
-            return result;
-        }
-    } catch (err) {
-        if (err instanceof Error && !err.message.includes('Failed to fetch')) {
-            throw err;
-        }
+        throw new Error(errorDetail);
     }
 
-    const newItem: DealerSearchItem = {
-        id: Date.now(),
-        code: payload.code?.trim() || `DL-${Math.floor(1000 + Math.random() * 9000)}`,
-        name: payload.name.trim(),
-        tax_code: payload.tax_code?.trim() || null,
-        phone: payload.phone?.trim() || null,
-        email: payload.email?.trim() || null,
-        address: payload.address?.trim() || null,
-        region: payload.region.trim(),
-        assigned_sale_id: payload.assigned_sale_id || null,
-        assigned_sale_name: payload.assigned_sale_name || null,
-        customer_group: payload.customer_group || 'dai_ly_cap_1',
-        status: payload.status || 'Đang hoạt động',
-    };
-
-    MOCK_DEALERS.unshift(newItem);
-    return newItem;
+    return await response.json();
 }
 
 export async function updateDealerStatus(
