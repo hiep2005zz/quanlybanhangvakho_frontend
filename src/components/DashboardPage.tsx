@@ -1450,7 +1450,7 @@ export default function DashboardPage({
                               {activePolicies.map((p: any) => (
                                 <tr key={p.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
                                   <td style={{ padding: '6px 10px', fontWeight: '600', color: '#2563eb' }}>{p.code}</td>
-                                  <td style={{ padding: '6px 10px', color: '#334155' }}>{p.title}</td>
+                                  <td style={{ padding: '6px 10px', color: '#334155' }}>{p.title === 'Tất cả sản phẩm' ? <span style={{ background: '#dbeafe', color: '#1e40af', padding: '1px 6px', borderRadius: '10px', fontSize: '11px' }}>Tất cả SP</span> : p.title}</td>
                                   <td style={{ padding: '6px 10px', color: '#475569' }}>{p.target_group === 'all' ? 'Tất cả đại lý' : p.target_group === 'agent_tier_1' ? 'Đại lý Cấp 1' : 'Đại lý Cấp 2'}</td>
                                   <td style={{ padding: '6px 10px', color: '#64748b' }}>{p.start_date} - {p.end_date || 'Vô thời hạn'}</td>
                                   <td style={{ padding: '6px 10px' }}>

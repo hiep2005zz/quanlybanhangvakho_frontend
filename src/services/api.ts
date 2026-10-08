@@ -1449,10 +1449,16 @@ export interface DiscountListResponse {
 
 export interface DiscountPolicyCreatePayload {
   name: string;
+  title?: string;
+  code?: string;
   category?: string;
   target_dealer_type?: string;
+  target_group?: string;
   description?: string;
+  start_date?: string;
+  end_date?: string;
   is_active?: boolean;
+  status?: string;
   tiers: {
     min_quantity: number;
     max_quantity?: number | null;
