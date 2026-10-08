@@ -328,17 +328,9 @@
   align-items: center;
 }
 
-.input-icon {
-  position: absolute;
-  left: 18px;
-  color: #94a3b8;
-  display: flex;
-  transition: color 0.2s;
-}
-
 .input-box input {
   width: 100%;
-  padding: 16px 18px 16px 52px;
+  padding: 14px 16px;
   background: #f8fafc;
   border: 1.5px solid #e2e8f0;
   border-radius: 12px;
@@ -347,15 +339,15 @@
   transition: all 0.2s;
 }
 
+.input-box input#password {
+  padding-right: 46px;
+}
+
 .input-box input:focus {
   background: #ffffff;
   border-color: var(--primary, #059669);
   box-shadow: 0 0 0 4px rgba(5, 150, 105, 0.15);
   outline: none;
-}
-
-.input-box:focus-within .input-icon {
-  color: var(--primary, #059669);
 }
 
 .toggle-pwd-btn {
