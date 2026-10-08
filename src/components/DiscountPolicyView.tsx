@@ -327,14 +327,14 @@ export default function DiscountPolicyView({ token, user, onBackToHome }: Discou
             setIsModalOpen(true);
           }}
           style={{
-            background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+            background: 'linear-gradient(135deg, #0fba90 0%, #0fad89 100%)',
             color: '#fff',
             border: 'none',
             padding: '10px 18px',
             borderRadius: '8px',
             fontWeight: '600',
             cursor: 'pointer',
-            boxShadow: '0 2px 8px rgba(37, 99, 235, 0.25)',
+            boxShadow: '0 2px 8px rgba(15, 186, 144, 0.35)',
           }}
         >
           + Khai Báo Chính Sách Mới
@@ -686,10 +686,11 @@ export default function DiscountPolicyView({ token, user, onBackToHome }: Discou
                     padding: '8px 20px',
                     borderRadius: '8px',
                     border: 'none',
-                    background: '#2563eb',
+                    background: 'linear-gradient(135deg, #0fba90 0%, #0fad89 100%)',
                     color: '#fff',
                     fontWeight: '600',
                     cursor: 'pointer',
+                    boxShadow: '0 2px 8px rgba(15, 186, 144, 0.35)',
                   }}
                 >
                   Lưu & Áp Dụng

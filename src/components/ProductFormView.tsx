@@ -633,7 +633,7 @@ export const ProductFormView: React.FC<ProductFormViewProps> = ({
                             type="button"
                             onClick={handleAddNewCategory}
                             style={{
-                              background: '#2563eb',
+                              background: '#0fad89',
                               color: '#fff',
                               border: 'none',
                               borderRadius: '4px',
@@ -724,7 +724,7 @@ export const ProductFormView: React.FC<ProductFormViewProps> = ({
                       onClick={handleAddNewUnit}
                       style={{
                         padding: '0 14px',
-                        background: '#2563eb',
+                        background: '#0fad89',
                         color: '#fff',
                         border: 'none',
                         borderRadius: '9px',
@@ -1076,7 +1076,7 @@ export const ProductFormView: React.FC<ProductFormViewProps> = ({
                           position: 'absolute',
                           top: '6px',
                           left: '6px',
-                          background: '#2563eb',
+                          background: '#0fad89',
                           color: '#ffffff',
                           fontSize: '10px',
                           fontWeight: '700',

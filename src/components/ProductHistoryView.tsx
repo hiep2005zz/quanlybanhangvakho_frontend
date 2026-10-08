@@ -903,7 +903,7 @@ export const ProductHistoryView: React.FC<ProductHistoryViewProps> = ({
                         type="button"
                         onClick={() => setIsDatePickerOpen(false)}
                         style={{
-                          background: '#2563eb',
+                          background: 'linear-gradient(135deg, #0fba90 0%, #0fad89 100%)',
                           border: 'none',
                           borderRadius: '6px',
                           padding: '5px 12px',
@@ -911,6 +911,7 @@ export const ProductHistoryView: React.FC<ProductHistoryViewProps> = ({
                           cursor: 'pointer',
                           color: '#ffffff',
                           fontWeight: '600',
+                          boxShadow: '0 2px 6px rgba(15, 186, 144, 0.25)',
                         }}
                       >
                         Áp dụng

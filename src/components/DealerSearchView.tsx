@@ -1038,11 +1038,13 @@ export default function DealerSearchView({
                                                 type="button"
                                                 className="btn-search-primary"
                                                 style={{
-                                                    background: '#2563eb',
+                                                    background: 'linear-gradient(135deg, #0fba90 0%, #0fad89 100%)',
                                                     color: '#fff',
+                                                    border: 'none',
                                                     display: 'inline-flex',
                                                     alignItems: 'center',
                                                     gap: '6px',
+                                                    boxShadow: '0 2px 6px rgba(15, 186, 144, 0.3)',
                                                 }}
                                                 onClick={() => handleCustomerCreateOrder(dealer)}
                                             >
