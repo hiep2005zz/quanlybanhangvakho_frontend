@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import {
   getOrdersApi,
   getOrderDetailApi,
+  getOrderDealersApi,
   OrderResponseData,
   User,
   ProductItem,
@@ -26,7 +27,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
   products,
   onBackToHome: _onBackToHome,
   onRefreshProducts,
-  onNavigateToPriceBooks: _onNavigateToPriceBooks,
+  onNavigateToPriceBooks,
 }) => {
   const [orders, setOrders] = useState<OrderResponseData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -43,6 +44,28 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
   const isAdmin = currentUser.role === 'admin' || rawRoles.includes('admin');
   const isSalesManager = currentUser.role === 'sales_manager' || rawRoles.includes('sales_manager');
   const canApprove = isAdmin || isSalesManager;
+  const isCustomer = currentUser.role === 'customer' || Boolean(currentUser.roles && currentUser.roles.includes('customer'));
+  const [customerDealer, setCustomerDealer] = useState<any | null>(null);
+
+  const isCustomerLocked = isCustomer && Boolean(
+    customerDealer?.status &&
+    (customerDealer.status.toLowerCase().includes('khóa') ||
+     customerDealer.status.toLowerCase().includes('lock'))
+  );
+
+  const fetchCustomerDealer = async () => {
+    if (!isCustomer || !token) return;
+    try {
+      const dealersList = await getOrderDealersApi(token);
+      if (dealersList && dealersList.length > 0) {
+        setCustomerDealer(dealersList[0]);
+      } else {
+        setCustomerDealer(null);
+      }
+    } catch (e) {
+      console.warn('Lỗi lấy thông tin đại lý:', e);
+    }
+  };
 
   const handleOpenOrderDetail = async (order: OrderResponseData) => {
     setSelectedOrderDetail(order);
@@ -63,6 +86,9 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
     try {
       const data = await getOrdersApi(token);
       setOrders(data);
+      if (isCustomer) {
+        await fetchCustomerDealer();
+      }
     } catch (err: any) {
       setError(err.message || 'Không thể tải danh sách đơn hàng.');
     } finally {
@@ -72,7 +98,10 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
 
   useEffect(() => {
     fetchOrders();
-  }, [token]);
+    if (isCustomer) {
+      fetchCustomerDealer();
+    }
+  }, [token, isCustomer]);
 
   // Tính toán số liệu thống kê
   const totalOrdersCount = orders.length;
@@ -138,12 +167,77 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
       {/* Thanh tiêu đề */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '16px', flexShrink: 0 }}>
         <div>
-          <h2 style={{ fontSize: '24px', fontWeight: '800', color: '#0f172a', margin: 0, letterSpacing: '-0.02em' }}>
-            Quản Lý Đơn Hàng & Bán Hàng
-          </h2>
-          <p style={{ margin: '4px 0 0', fontSize: '13.5px', color: '#64748b' }}>
-            Theo dõi trạng thái đơn bán, kiểm soát biên lợi nhuận và phê duyệt đơn hàng
-          </p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+            {canApprove && onNavigateToPriceBooks && (
+              <button
+                type="button"
+                id="btn-nav-to-price-books"
+                onClick={onNavigateToPriceBooks}
+                style={{
+                  background: '#eff6ff',
+                  border: '1px solid #93c5fd',
+                  borderRadius: '8px',
+                  padding: '7px 14px',
+                  fontSize: '13px',
+                  fontWeight: '700',
+                  color: '#1d4ed8',
+                  cursor: 'pointer',
+                }}
+              >
+                Sang trang Quản lý Bảng giá
+              </button>
+            )}
+
+            <div>
+              <h2 style={{ fontSize: '24px', fontWeight: '800', color: '#0f172a', margin: 0, letterSpacing: '-0.02em' }}>
+                Quản Lý Đơn Hàng & Bán Hàng
+              </h2>
+              <p style={{ margin: '4px 0 0', fontSize: '13.5px', color: '#64748b' }}>
+                Theo dõi trạng thái đơn bán, kiểm soát biên lợi nhuận và phê duyệt đơn hàng
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <button
+            type="button"
+            onClick={fetchOrders}
+            style={{
+              padding: '9px 16px',
+              background: '#ffffff',
+              border: '1px solid #cbd5e1',
+              borderRadius: '8px',
+              fontSize: '13.5px',
+              fontWeight: '600',
+              color: '#334155',
+              cursor: 'pointer',
+            }}
+            title="Tải lại danh sách đơn hàng"
+          >
+            Làm mới
+          </button>
+
+          <button
+            type="button"
+            id="btn-create-order-view"
+            onClick={() => !isCustomerLocked && setIsCreateModalOpen(true)}
+            disabled={isCustomerLocked}
+            style={{
+              padding: '9px 20px',
+              background: isCustomerLocked ? '#94a3b8' : '#2563eb',
+              border: 'none',
+              borderRadius: '8px',
+              fontSize: '13.5px',
+              fontWeight: '700',
+              color: '#ffffff',
+              cursor: isCustomerLocked ? 'not-allowed' : 'pointer',
+              boxShadow: isCustomerLocked ? 'none' : '0 2px 4px rgba(37, 99, 235, 0.25)',
+            }}
+            title={isCustomerLocked ? 'Đại lý hiện đang bị khóa giao dịch, không thể tạo đơn hàng mới' : undefined}
+          >
+            {isCustomerLocked ? 'Tạo Đơn Hàng Mới (Đã khóa)' : 'Tạo Đơn Hàng Mới'}
+          </button>
         </div>
       </div>
 
@@ -387,7 +481,30 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                       </td>
 
                       <td style={{ padding: '9px 12px' }}>
-                        <div style={{ fontWeight: '600', color: '#0f172a', fontSize: '12.5px', lineHeight: '1.3' }}>{order.dealer_name}</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                          <span style={{ fontWeight: '600', color: '#0f172a', fontSize: '12.5px', lineHeight: '1.3' }}>{order.dealer_name}</span>
+                          {Boolean(
+                            order.dealer_status &&
+                            (order.dealer_status.toLowerCase().includes('khóa') ||
+                             order.dealer_status.toLowerCase().includes('lock') ||
+                             order.dealer_status.toLowerCase().includes('ngừng'))
+                          ) && (
+                            <span
+                              style={{
+                                background: '#fee2e2',
+                                color: '#b91c1c',
+                                border: '1px solid #fca5a5',
+                                borderRadius: '4px',
+                                padding: '1px 6px',
+                                fontSize: '11px',
+                                fontWeight: 750,
+                              }}
+                              title={order.dealer_lock_reason ? `Lý do: ${order.dealer_lock_reason}` : 'Đại lý bị khóa giao dịch'}
+                            >
+                              Đã khóa
+                            </span>
+                          )}
+                        </div>
                         <div style={{ fontSize: '11px', color: '#64748b', marginTop: '1px' }}>
                           Mã khách hàng: #{order.dealer_id}
                         </div>
@@ -486,6 +603,15 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                       </td>
 
                       <td style={{ padding: '9px 12px', maxWidth: '240px' }}>
+                        {Boolean(
+                          order.dealer_status &&
+                          (order.dealer_status.toLowerCase().includes('khóa') ||
+                           order.dealer_status.toLowerCase().includes('lock'))
+                        ) && (
+                          <div style={{ fontSize: '11.5px', color: '#dc2626', fontWeight: '600', marginBottom: order.approval_reason ? '3px' : '0' }}>
+                            Đại lý bị khóa giao dịch (Cần kiểm tra công nợ)
+                          </div>
+                        )}
                         {order.approval_reason ? (
                           <div style={{ fontSize: '11.5px', color: isRejected ? '#dc2626' : '#b45309', fontWeight: '500', lineHeight: '1.35' }}>
                             {order.approval_reason}
@@ -494,9 +620,13 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                           <div style={{ fontSize: '11.5px', color: '#16a34a', fontWeight: '500' }}>
                             Duyệt bởi @{order.approved_by}
                           </div>
-                        ) : (
+                        ) : !Boolean(
+                          order.dealer_status &&
+                          (order.dealer_status.toLowerCase().includes('khóa') ||
+                           order.dealer_status.toLowerCase().includes('lock'))
+                        ) ? (
                           <span style={{ color: '#94a3b8', fontSize: '11.5px' }}>Đơn giá chuẩn bảng giá</span>
-                        )}
+                        ) : null}
                       </td>
 
                       <td style={{ padding: '9px 14px', textAlign: 'right', whiteSpace: 'nowrap' }}>
@@ -837,8 +967,36 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                 gap: '16px',
               }}
             >
-
-
+              {Boolean(
+                selectedOrderDetail?.dealer_status &&
+                (selectedOrderDetail.dealer_status.toLowerCase().includes('khóa') ||
+                 selectedOrderDetail.dealer_status.toLowerCase().includes('lock') ||
+                 selectedOrderDetail.dealer_status.toLowerCase().includes('ngừng'))
+              ) && (
+                <div
+                  style={{
+                    background: '#fef2f2',
+                    border: '1.5px solid #ef4444',
+                    borderRadius: '8px',
+                    padding: '12px 16px',
+                    color: '#991b1b',
+                    fontSize: '13.5px',
+                    lineHeight: '1.5',
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: '10px',
+                    boxShadow: '0 2px 4px rgba(239, 68, 68, 0.08)',
+                  }}
+                >
+                  <div>
+                    <strong style={{ display: 'block', marginBottom: '2px', color: '#b91c1c' }}>
+                      CẢNH BÁO CÔNG NỢ: Đại lý &apos;{selectedOrderDetail.dealer_name}&apos; hiện đang bị KHÓA giao dịch
+                      {selectedOrderDetail.dealer_lock_reason ? ` (Lý do: ${selectedOrderDetail.dealer_lock_reason})` : ''}.
+                    </strong>
+                    <span>Đơn dở dang này vẫn được phép xử lý nhưng vui lòng kiểm tra kỹ công nợ trước khi xuất hàng!</span>
+                  </div>
+                </div>
+              )}
             {selectedOrderDetail.approval_reason && (
               <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '8px', padding: '12px 14px', marginBottom: '16px', fontSize: '13px', color: '#b45309' }}>
                 <strong>Lý do yêu cầu phê duyệt:</strong> {selectedOrderDetail.approval_reason}

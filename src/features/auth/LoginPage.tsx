@@ -334,12 +334,6 @@ export default function LoginPage({
               <div className="field-group">
                 <label htmlFor="username">Tên đăng nhập</label>
                 <div className="input-box">
-                  <span className="input-icon">
-                    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                      <circle cx="12" cy="7" r="4" />
-                    </svg>
-                  </span>
                   <input
                     id="username"
                     type="text"
@@ -357,12 +351,6 @@ export default function LoginPage({
               <div className="field-group">
                 <label htmlFor="password">Mật khẩu</label>
                 <div className="input-box">
-                  <span className="input-icon">
-                    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                    </svg>
-                  </span>
                   <input
                     id="password"
                     type={showPassword ? 'text' : 'password'}
