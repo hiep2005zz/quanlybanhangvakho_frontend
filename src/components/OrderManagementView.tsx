@@ -90,7 +90,8 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
           !q ||
           o.order_code.toLowerCase().includes(q) ||
           o.dealer_name.toLowerCase().includes(q) ||
-          o.created_by.toLowerCase().includes(q);
+          o.created_by.toLowerCase().includes(q) ||
+          (Boolean(o.assigned_sale_name) && String(o.assigned_sale_name).toLowerCase().includes(q));
 
         const matchStatus =
           statusFilter === 'ALL' ||
@@ -394,8 +395,8 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                       </td>
 
                       <td style={{ padding: '9px 12px', whiteSpace: 'nowrap' }}>
-                        <div style={{ fontWeight: '500', color: '#334155', fontSize: '12px' }}>
-                          {order.assigned_sale_name || order.created_by}
+                        <div style={{ fontWeight: '600', color: '#0f172a', fontSize: '12px' }}>
+                          {order.created_by}
                         </div>
                       </td>
 
@@ -493,6 +494,12 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                         ) : order.approved_by ? (
                           <div style={{ fontSize: '11.5px', color: '#16a34a', fontWeight: '500' }}>
                             Duyệt bởi @{order.approved_by}
+                          </div>
+                        ) : isPending ? (
+                          <div style={{ fontSize: '11.5px', color: '#b45309', fontWeight: '500' }}>
+                            {order.discount_rate && order.discount_rate > 0
+                              ? `Chiết khấu (${order.discount_rate}%) vượt hạn mức cần duyệt`
+                              : 'Bán dưới giá sàn cần quản lý duyệt'}
                           </div>
                         ) : (
                           <span style={{ color: '#94a3b8', fontSize: '11.5px' }}>Đơn giá chuẩn bảng giá</span>
@@ -865,7 +872,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                 <div>
                   <span style={{ color: '#64748b' }}>Người lên đơn:</span>
                   <div style={{ fontWeight: '600', color: '#0f172a', marginTop: '2px' }}>
-                    {selectedOrderDetail.assigned_sale_name || selectedOrderDetail.created_by}
+                    {selectedOrderDetail.created_by || selectedOrderDetail.assigned_sale_name || '—'}
                   </div>
                 </div>
                 <div>
@@ -885,7 +892,16 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
             </div>
 
             {/* Bảng sản phẩm chi tiết */}
-            <div style={{ marginBottom: '16px', maxHeight: '300px', overflowY: 'auto' }}>
+            <div
+              style={{
+                flexShrink: 0,
+                maxHeight: '360px',
+                overflowY: 'auto',
+                border: '1px solid #e2e8f0',
+                borderRadius: '8px',
+                background: '#ffffff',
+              }}
+            >
               {isLoadingDetail ? (
                 <div style={{ padding: '30px', textAlign: 'center', color: '#64748b' }}>
                   <div style={{ fontSize: '14px', fontWeight: '600' }}>Đang tải thông tin chi tiết các mặt hàng...</div>
