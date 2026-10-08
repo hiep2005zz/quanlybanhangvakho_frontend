@@ -251,7 +251,7 @@ export const PriceUpdateModal: React.FC<PriceUpdateModalProps> = ({
           {isCostVisible && (
             <div style={{ marginBottom: '18px' }}>
               <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '6px' }}>
-                Giá vốn nhập kho (VNĐ) <span style={{ fontSize: '11.5px', color: '#94a3b8', fontWeight: 'normal' }}>(Chỉ Quản lý)</span>
+                Giá vốn nhập kho (VNĐ)
               </label>
               <input
                 type="number"

@@ -85,6 +85,7 @@ export interface ProductItem {
   packaging_specification?: string;
   images?: string[];
   status?: 'active' | 'inactive';
+  is_batch_managed?: boolean;
   transaction_count?: number; // Số giao dịch đã phát sinh (đơn hàng, nhập/xuất kho)
 }
 
@@ -559,8 +560,9 @@ export interface ProductPayload {
   name: string;
   category: string;
   base_unit: string;
+  units?: UnitConversionItem[];
   packaging_specification?: string;
-  sell_price: number;
+  sell_price?: number;
   cost_price?: number | null;
   images?: string[];
   status?: 'active' | 'inactive';
@@ -1902,3 +1904,187 @@ export async function resolvePriceApi(token: string, customerId: number, product
   }
   return response.json();
 }
+
+// ==========================================
+// QUẢN LÝ PHIẾU NHẬP KHO TỪ NCC (GOODS RECEIPT NOTE - GRN)
+// ==========================================
+
+export interface Warehouse {
+  id: number;
+  code: string;
+  name: string;
+  address?: string | null;
+  is_active: boolean;
+}
+
+export interface UnitOfMeasure {
+  id: number;
+  code: string;
+  name: string;
+  description?: string | null;
+}
+
+export interface GoodsReceiptItemCreatePayload {
+  product_id: number;
+  uom_id?: number | null;
+  unit_name?: string | null;
+  quantity: number;
+  conversion_rate?: number | null;
+  unit_price?: number;
+  batch_number?: string | null;
+  expiry_date?: string | null;
+  note?: string | null;
+}
+
+export interface GoodsReceiptCreatePayload {
+  supplier_id: number;
+  reference_number?: string | null;
+  receipt_date?: string | null;
+  warehouse_id: number;
+  note?: string | null;
+  items: GoodsReceiptItemCreatePayload[];
+}
+
+export interface GoodsReceiptItemResponse {
+  id: number;
+  receipt_note_id: number;
+  product_id: number;
+  product_code?: string | null;
+  product_name?: string | null;
+  uom_id?: number | null;
+  unit_name: string;
+  quantity: number;
+  conversion_rate: number;
+  base_quantity: number;
+  unit_price: number;
+  batch_number?: string | null;
+  expiry_date?: string | null;
+  note?: string | null;
+}
+
+export interface GoodsReceiptResponse {
+  id: number;
+  code: string;
+  supplier_id: number;
+  supplier_code?: string | null;
+  supplier_name?: string | null;
+  reference_number?: string | null;
+  receipt_date: string;
+  warehouse_id: number;
+  warehouse_code?: string | null;
+  warehouse_name?: string | null;
+  status: 'DRAFT' | 'CONFIRMED' | 'CANCELLED';
+  note?: string | null;
+  total_items: number;
+  total_quantity: number;
+  total_amount: number;
+  created_by?: string | null;
+  confirmed_by?: string | null;
+  confirmed_at?: string | null;
+  created_at: string;
+  updated_at?: string | null;
+  items: GoodsReceiptItemResponse[];
+}
+
+export interface GoodsReceiptListResponse {
+  items: GoodsReceiptResponse[];
+  total: number;
+}
+
+export async function getWarehousesApi(token: string): Promise<Warehouse[]> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/goods-receipts/meta/warehouses`, { method: 'GET' }, token);
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Lỗi tải danh sách kho nhận hàng');
+  }
+  return response.json();
+}
+
+export async function getUnitsOfMeasureApi(token: string): Promise<UnitOfMeasure[]> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/goods-receipts/meta/uoms`, { method: 'GET' }, token);
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Lỗi tải danh mục đơn vị tính');
+  }
+  return response.json();
+}
+
+export async function createGoodsReceiptApi(token: string, payload: GoodsReceiptCreatePayload): Promise<GoodsReceiptResponse> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/goods-receipts`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  }, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi tạo phiếu nhập kho (${response.status})`);
+  }
+  return data;
+}
+
+export async function getGoodsReceiptsApi(
+  token: string,
+  params: { supplier_id?: number; warehouse_id?: number; status?: string; search?: string; limit?: number; offset?: number } = {}
+): Promise<GoodsReceiptListResponse> {
+  const q = new URLSearchParams();
+  if (params.supplier_id) q.set('supplier_id', String(params.supplier_id));
+  if (params.warehouse_id) q.set('warehouse_id', String(params.warehouse_id));
+  if (params.status) q.set('status', params.status);
+  if (params.search) q.set('search', params.search);
+  if (params.limit) q.set('limit', String(params.limit));
+  if (params.offset) q.set('offset', String(params.offset));
+  const qs = q.toString();
+
+  const response = await authenticatedFetch(`${API_BASE_URL}/goods-receipts${qs ? `?${qs}` : ''}`, { method: 'GET' }, token);
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Lỗi tải danh sách phiếu nhập kho');
+  }
+  return response.json();
+}
+
+export async function getGoodsReceiptDetailApi(token: string, id: number): Promise<GoodsReceiptResponse> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/goods-receipts/${id}`, { method: 'GET' }, token);
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Lỗi tải chi tiết phiếu nhập kho');
+  }
+  return response.json();
+}
+
+export async function confirmGoodsReceiptApi(token: string, id: number): Promise<GoodsReceiptResponse> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/goods-receipts/${id}/confirm`, {
+    method: 'POST',
+  }, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi xác nhận phiếu nhập kho (${response.status})`);
+  }
+  return data;
+}
+
+export async function updateGoodsReceiptApi(
+  token: string,
+  id: number,
+  payload: Partial<GoodsReceiptCreatePayload>
+): Promise<GoodsReceiptResponse> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/goods-receipts/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  }, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi cập nhật phiếu nhập kho (${response.status})`);
+  }
+  return data;
+}
+
+export async function deleteGoodsReceiptApi(token: string, id: number): Promise<void> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/goods-receipts/${id}`, {
+    method: 'DELETE',
+  }, token);
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || `Lỗi xóa phiếu nhập kho (${response.status})`);
+  }
+}
+

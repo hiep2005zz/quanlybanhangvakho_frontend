@@ -126,7 +126,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       id: 'btn-sidebar-dealer-profiles',
       tab: 'dealer-profiles',
       path: '/dealer-profiles',
-      label: 'Quản lý hồ sơ đại lý',
+      label: 'Hồ sơ & Công nợ đại lý',
       visible: canManageDealerProfiles,
       icon: (
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -141,7 +141,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       id: 'btn-sidebar-dealers',
       tab: 'dealers',
       path: '/dealers',
-      label: 'Tra cứu đại lý',
+      label: 'Danh bạ đại lý & Khách hàng',
       visible: canViewDealers,
       icon: (
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
