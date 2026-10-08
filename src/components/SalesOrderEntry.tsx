@@ -793,7 +793,6 @@ export default function SalesOrderEntry({ token, username, products, onClose: _o
               <div className="sales-order-history-header">
                 <div className="sales-order-history-title-group">
                   <div className="sales-order-history-badge">
-                    <span className="history-badge-icon">💡</span>
                     <span>Gợi ý theo lịch sử mua hàng</span>
                   </div>
                   <h2 className="sales-order-history-title">
@@ -825,7 +824,6 @@ export default function SalesOrderEntry({ token, username, products, onClose: _o
                       onClick={handleAddAllPreviousItems}
                       title="Thêm toàn bộ nhóm hàng đã mua ở đơn gần nhất vào đơn mới"
                     >
-                      <span className="btn-icon">⚡</span>
                       <span>Thêm nhanh cả nhóm hàng đã mua lần trước vào đơn mới</span>
                       <span className="batch-count-badge">
                         {purchaseHistory.last_order_items?.length || purchaseHistory.items.length} món

@@ -972,7 +972,6 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
               >
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
-                    <span style={{ fontSize: '15px' }}>💡</span>
                     <span style={{ fontSize: '13px', fontWeight: '700', color: '#1e293b' }}>
                       Mặt hàng đại lý thường lấy (3 tháng gần nhất)
                     </span>
@@ -1015,7 +1014,6 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
                     }}
                     title="Thêm nhanh cả nhóm hàng đã mua lần trước vào đơn mới"
                   >
-                    <span>⚡</span>
                     <span>Thêm nhanh cả nhóm hàng đã mua lần trước vào đơn mới</span>
                     <span
                       style={{
