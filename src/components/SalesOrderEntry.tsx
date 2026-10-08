@@ -7,16 +7,22 @@ import {
   listDeliveryPointsApi,
   OrderDealer,
   ProductItem,
+  getDealerStockSummaryApi,
+  DealerStockSummaryResponse,
+  ProductStockSummaryItem,
+  User,
 } from '../services/api';
 import type { DeliveryPoint } from '../types/deliveryPoint';
 import { evaluateBestDiscountPolicy, parseStoredPolicies } from '../utils/discountEngine';
 import { emitStatusToast } from './StatusToast';
+import { AccessDeniedView } from './AccessDeniedView';
 import './sales-order-entry.css';
 
 interface SalesOrderEntryProps {
   token: string;
   username: string;
   products: ProductItem[];
+  user?: User;
   onClose?: () => void;
   onCreated: () => void;
 }
@@ -98,11 +104,17 @@ const formatCurrency = (amount: number) =>
   new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(amount);
 const draftStorageKey = (username: string) => `sales-order-drafts:${encodeURIComponent(username.toLowerCase())}`;
 
-export default function SalesOrderEntry({ token, username, products, onClose: _onClose, onCreated }: SalesOrderEntryProps) {
+export default function SalesOrderEntry({ token, username, products, user, onClose: _onClose, onCreated }: SalesOrderEntryProps) {
+  // AC 5: Phân quyền - Chỉ cho phép Nhân viên kinh doanh (Role: sales, sales_manager, admin)
+  const userRoles = user ? (user.roles && user.roles.length > 0 ? user.roles : [user.role]) : [];
+  const isSalesRole = !user || userRoles.some((r) => ['sales', 'sales_manager', 'admin'].includes(r));
+
   const [dealers, setDealers] = useState<OrderDealer[]>([]);
   const [isLoadingDealers, setIsLoadingDealers] = useState(true);
   const [dealerLoadError, setDealerLoadError] = useState<string | null>(null);
   const [dealerId, setDealerId] = useState('');
+  const [stockSummary, setStockSummary] = useState<DealerStockSummaryResponse | null>(null);
+  const [isLoadingStock, setIsLoadingStock] = useState(false);
   const [deliveryPoint, setDeliveryPoint] = useState('');
   const [deliveryPoints, setDeliveryPoints] = useState<DeliveryPoint[]>([]);
   const [isLoadingDeliveryPoints, setIsLoadingDeliveryPoints] = useState(false);
@@ -118,6 +130,39 @@ export default function SalesOrderEntry({ token, username, products, onClose: _o
   const [activeDraftId, setActiveDraftId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+
+  // Tự động tải tồn kho khả dụng của kho phục vụ riêng cho đại lý được chọn
+  useEffect(() => {
+    if (!dealerId) {
+      setStockSummary(null);
+      return;
+    }
+    let isMounted = true;
+    setIsLoadingStock(true);
+    getDealerStockSummaryApi(token, Number(dealerId))
+      .then((res) => {
+        if (isMounted) {
+          setStockSummary(res);
+        }
+      })
+      .catch((err) => {
+        console.warn('Lỗi tải tồn khả dụng:', err);
+      })
+      .finally(() => {
+        if (isMounted) setIsLoadingStock(false);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, [dealerId, token]);
+
+  const stockMap = useMemo(() => {
+    const map = new Map<number, ProductStockSummaryItem>();
+    stockSummary?.items?.forEach((item) => {
+      map.set(item.product_id, item);
+    });
+    return map;
+  }, [stockSummary]);
 
   useEffect(() => {
     let isMounted = true;
@@ -155,6 +200,9 @@ export default function SalesOrderEntry({ token, username, products, onClose: _o
         if (isMounted) {
           setDealers(result);
           setDealerLoadError(null);
+          if (result.length === 1) {
+            setDealerId(String(result[0].id));
+          }
         }
       })
       .catch((loadError: unknown) => {
@@ -242,6 +290,11 @@ export default function SalesOrderEntry({ token, username, products, onClose: _o
   }, [username]);
 
   const selectedDealer = dealers.find((dealer) => String(dealer.id) === dealerId);
+  const isLockedDealer = Boolean(
+    selectedDealer?.status &&
+    (selectedDealer.status.toLowerCase().includes('khóa') ||
+      selectedDealer.status.toLowerCase().includes('lock'))
+  );
   const deliveryPointSelectValue = useMemo(() => {
     if (deliveryPointId && deliveryPoints.some((p) => p.id === deliveryPointId)) {
       return `point_${deliveryPointId}`;
@@ -281,10 +334,10 @@ export default function SalesOrderEntry({ token, username, products, onClose: _o
       })),
       selectedDealer
         ? {
-            id: selectedDealer.id,
-            customer_group: (selectedDealer as any).customer_group || '',
-            name: selectedDealer.name,
-          }
+          id: selectedDealer.id,
+          customer_group: (selectedDealer as any).customer_group || '',
+          name: selectedDealer.name,
+        }
         : null,
       totalQuantity,
       subtotal
@@ -415,6 +468,20 @@ export default function SalesOrderEntry({ token, username, products, onClose: _o
       setError('Vui lòng chọn đại lý.');
       return;
     }
+    const isLocked = Boolean(
+      selectedDealer?.status &&
+      (selectedDealer.status.toLowerCase().includes('khóa') ||
+        selectedDealer.status.toLowerCase().includes('lock'))
+    );
+    if (isLocked) {
+      setError(`Đại lý "${selectedDealer.name}" hiện đang bị KHÓA giao dịch. Không thể tạo đơn hàng.`);
+      emitStatusToast({
+        title: 'Đại lý bị khóa giao dịch',
+        message: `Đại lý "${selectedDealer.name}" hiện đang bị KHÓA giao dịch. Vui lòng liên hệ quản trị viên.`,
+        type: 'error',
+      });
+      return;
+    }
     if (!deliveryPoint.trim()) {
       setError('Vui lòng nhập hoặc chọn điểm giao hàng.');
       return;
@@ -434,6 +501,25 @@ export default function SalesOrderEntry({ token, username, products, onClose: _o
     if (!discountPercent.trim() || !Number.isFinite(parsedDiscount) || parsedDiscount < 0 || parsedDiscount > 100) {
       setError('Chiết khấu phải từ 0% đến 100%.');
       return;
+    }
+
+    // AC 3: Chặn đặt hàng khi vượt tồn khả dụng tại kho phục vụ
+    for (const line of lines) {
+      const stockItem = stockMap.get(line.productId);
+      if (stockItem) {
+        const rate = line.conversionRate || 1;
+        const maxOrderable = Math.max(0, Math.floor(stockItem.available_stock / rate));
+        if (line.quantity > maxOrderable) {
+          const warehouseName = stockSummary?.warehouse_name || 'kho';
+          setError(`Không thể đặt hàng: Sản phẩm "${line.name}" (${line.code}) vượt quá tồn khả dụng tại ${warehouseName}. Số lượng tối đa có thể đặt là: ${maxOrderable} ${line.unit}.`);
+          emitStatusToast({
+            title: 'Vượt tồn khả dụng',
+            message: `Sản phẩm "${line.name}" vượt quá tồn khả dụng (${maxOrderable} ${line.unit}). Vui lòng điều chỉnh số lượng.`,
+            type: 'error',
+          });
+          return;
+        }
+      }
     }
 
     setIsSaving(true);
@@ -478,14 +564,65 @@ export default function SalesOrderEntry({ token, username, products, onClose: _o
     }
   };
 
+  const hasStockErrors = useMemo(() => {
+    if (!dealerId) return false;
+    return lines.some((line) => {
+      const stockItem = stockMap.get(line.productId);
+      if (!stockItem) return false;
+      const rate = line.conversionRate || 1;
+      const maxOrderable = Math.max(0, Math.floor(stockItem.available_stock / rate));
+      return line.quantity > maxOrderable;
+    });
+  }, [dealerId, lines, stockMap]);
+
+  // AC 5: Chặn và hiển thị AccessDeniedView nếu người dùng không phải vai trò Sales
+  if (!isSalesRole && user) {
+    return (
+      <AccessDeniedView
+        currentUser={user}
+        requiredPermission="Quyền Nhân viên kinh doanh (Sales / Sale Executive)"
+        onBackToWorkflow={_onClose || (() => {})}
+      />
+    );
+  }
+
   return (
     <div className="sales-order-page">
       {error && <div className="sales-order-alert error" role="alert">{error}</div>}
+
+      {isLockedDealer && (
+        <div
+          className="sales-order-alert error"
+          role="alert"
+          style={{
+            background: '#fef2f2',
+            color: '#991b1b',
+            border: '1px solid #f87171',
+            padding: '12px 16px',
+            borderRadius: '8px',
+            marginBottom: '16px',
+            fontWeight: 600,
+          }}
+        >
+          Tài khoản đại lý &quot;{selectedDealer?.name}&quot; hiện đang bị KHÓA giao dịch. Bạn không thể tạo đơn hàng mới. Vui lòng liên hệ quản trị viên.
+        </div>
+      )}
 
       <div className="sales-order-layout">
         <section className="sales-order-main">
           <section className="sales-order-card">
             <h2>Thông tin giao hàng</h2>
+            {stockSummary && (
+              <div className="serving-warehouse-badge" id="serving-warehouse-badge">
+                <span className="warehouse-icon">🏢</span>
+                <span>Kho phục vụ đại lý: <strong>{stockSummary.warehouse_name} ({stockSummary.warehouse_id})</strong></span>
+              </div>
+            )}
+            {isLoadingStock && (
+              <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '10px' }}>
+                Đang nạp tồn kho khả dụng...
+              </div>
+            )}
             <div className="sales-order-fields">
               <label className="sales-order-field">
                 <span>Đại lý <b aria-hidden="true">*</b></span>
@@ -495,13 +632,27 @@ export default function SalesOrderEntry({ token, username, products, onClose: _o
                     const nextId = event.target.value;
                     setDealerId(nextId);
                   }}
-                  disabled={isLoadingDealers || !!dealerLoadError}
+                  disabled={isLoadingDealers || !!dealerLoadError || (dealers.length === 1)}
                 >
                   <option value="">{isLoadingDealers ? 'Đang tải đại lý...' : 'Chọn đại lý'}</option>
-                  {dealers.map((dealer) => (
-                    <option key={dealer.id} value={dealer.id}>{dealer.code} — {dealer.name}</option>
-                  ))}
+                  {dealers.map((dealer) => {
+                    const isLocked = Boolean(
+                      dealer.status &&
+                      (dealer.status.toLowerCase().includes('khóa') ||
+                        dealer.status.toLowerCase().includes('lock'))
+                    );
+                    return (
+                      <option key={dealer.id} value={dealer.id} disabled={isLocked}>
+                        {dealer.code} — {dealer.name}{isLocked ? ' [Đã khóa]' : ''}
+                      </option>
+                    );
+                  })}
                 </select>
+                {isLockedDealer && (
+                  <span className="sales-order-field-error" style={{ color: '#dc2626', background: '#fef2f2', border: '1px solid #fecaca', padding: '8px 12px', borderRadius: '6px', display: 'block', marginTop: '6px' }}>
+                    <strong>Đại lý bị khóa giao dịch:</strong> Đại lý này hiện đang bị <strong>KHÓA giao dịch</strong>. Không thể tạo đơn hàng mới.
+                  </span>
+                )}
                 {!isLoadingDealers && !dealerLoadError && dealers.length === 0 && (
                   <span className="sales-order-field-error">
                     Tài khoản chưa được phân công đại lý. Vui lòng liên hệ quản lý để được hỗ trợ.
@@ -551,8 +702,8 @@ export default function SalesOrderEntry({ token, username, products, onClose: _o
                     {!selectedDealer
                       ? 'Chọn đại lý trước'
                       : isLoadingDeliveryPoints
-                      ? 'Đang tải điểm giao hàng...'
-                      : 'Chọn điểm giao hàng'}
+                        ? 'Đang tải điểm giao hàng...'
+                        : 'Chọn điểm giao hàng'}
                   </option>
                   {deliveryPoints
                     .filter((p) => p.is_active)
@@ -637,65 +788,123 @@ export default function SalesOrderEntry({ token, username, products, onClose: _o
               <div className="sales-order-empty">Chưa có sản phẩm. Tìm theo mã hoặc tên để thêm hàng.</div>
             ) : (
               <div className="sales-order-lines">
-                {lines.map((line, index) => (
-                  <article className="sales-order-line" key={`${line.productId}-${index}`}>
-                    <div className="sales-order-line-heading">
-                      <div>
-                        <span className="sales-order-product-code">{line.code}</span>
-                        <h3>{line.name}</h3>
-                        <span className="sales-order-unit-price">{formatCurrency(line.price)} / đơn vị</span>
-                      </div>
-                      <button
-                        type="button"
-                        className="sales-order-remove-button"
-                        aria-label={`Xóa ${line.name}`}
-                        onClick={() => setLines((current) => current.filter((_, lineIndex) => lineIndex !== index))}
-                      >
-                        Xóa
-                      </button>
-                    </div>
-                    <div className="sales-order-line-controls">
-                      <label className="sales-order-field">
-                        <span>Đơn vị tính</span>
-                        <select
-                          value={line.unit}
-                          onChange={(event) => {
-                            const product = products.find((item) => item.id === line.productId);
-                            const selectedUnit = getAvailableUnits(product, line.unit)
-                              .find((unit) => unit.unit_name === event.target.value);
-                            if (selectedUnit) {
-                              updateLine(index, {
-                                unit: selectedUnit.unit_name,
-                                conversionRate: selectedUnit.conversion_rate,
-                              });
-                            }
-                          }}
+                {lines.map((line, index) => {
+                  const stockItem = stockMap.get(line.productId);
+                  const convRate = line.conversionRate || 1;
+                  const maxOrderable = stockItem ? Math.max(0, Math.floor(stockItem.available_stock / convRate)) : undefined;
+                  const actualInUnit = stockItem ? Math.floor(stockItem.actual_stock / convRate) : undefined;
+                  const reservedInUnit = stockItem ? Math.floor(stockItem.reserved_stock / convRate) : undefined;
+                  const isExceeded = stockItem !== undefined && maxOrderable !== undefined && line.quantity > maxOrderable;
+
+                  return (
+                    <article className={`sales-order-line ${isExceeded ? 'has-stock-error' : ''}`} key={`${line.productId}-${index}`}>
+                      <div className="sales-order-line-heading">
+                        <div>
+                          <span className="sales-order-product-code">{line.code}</span>
+                          <h3>{line.name}</h3>
+                          <span className="sales-order-unit-price">{formatCurrency(line.price)} / đơn vị</span>
+
+                          {/* AC 1 & AC 2: Hiển thị Tồn khả dụng theo kho của đại lý và công thức Thực tế - Giữ chỗ */}
+                          {selectedDealer && (
+                            <div className="sales-order-stock-info">
+                              {isLoadingStock ? (
+                                <span className="sales-order-stock-badge stock-badge-loading">Đang tải tồn kho...</span>
+                              ) : stockItem ? (
+                                <>
+                                  <span
+                                    className={`sales-order-stock-badge ${
+                                      isExceeded
+                                        ? 'stock-badge-danger'
+                                        : maxOrderable === 0
+                                        ? 'stock-badge-out'
+                                        : 'stock-badge-ok'
+                                    }`}
+                                    title={`Tồn thực tế: ${actualInUnit} ${line.unit} - Giữ chỗ: ${reservedInUnit} ${line.unit}`}
+                                  >
+                                    Tồn khả dụng: <strong>{maxOrderable}</strong> {line.unit}
+                                  </span>
+                                  <span className="sales-order-stock-detail">
+                                    (Thực tế: {actualInUnit} | Giữ chỗ: {reservedInUnit})
+                                  </span>
+                                </>
+                              ) : (
+                                <span className="sales-order-stock-badge stock-badge-loading">Chưa có dữ liệu kho</span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          className="sales-order-remove-button"
+                          aria-label={`Xóa ${line.name}`}
+                          onClick={() => setLines((current) => current.filter((_, lineIndex) => lineIndex !== index))}
                         >
-                          {getAvailableUnits(
-                            products.find((item) => item.id === line.productId),
-                            line.unit,
-                          ).map((unit) => (
-                            <option key={unit.unit_name} value={unit.unit_name}>{unit.unit_name}</option>
-                          ))}
-                        </select>
-                      </label>
-                      <label className="sales-order-field">
-                        <span>Số lượng</span>
-                        <input
-                          type="number"
-                          min={1}
-                          step={1}
-                          value={line.quantity}
-                          onChange={(event) => updateLine(index, { quantity: Math.max(1, Math.floor(Number(event.target.value) || 1)) })}
-                        />
-                      </label>
-                      <div className="sales-order-line-total">
-                        <span>Thành tiền</span>
-                        <strong>{formatCurrency(line.price * line.quantity)}</strong>
+                          Xóa
+                        </button>
                       </div>
-                    </div>
-                  </article>
-                ))}
+
+                      <div className="sales-order-line-controls">
+                        <label className="sales-order-field">
+                          <span>Đơn vị tính</span>
+                          <select
+                            value={line.unit}
+                            onChange={(event) => {
+                              const product = products.find((item) => item.id === line.productId);
+                              const selectedUnit = getAvailableUnits(product, line.unit)
+                                .find((unit) => unit.unit_name === event.target.value);
+                              if (selectedUnit) {
+                                updateLine(index, {
+                                  unit: selectedUnit.unit_name,
+                                  conversionRate: selectedUnit.conversion_rate,
+                                });
+                              }
+                            }}
+                          >
+                            {getAvailableUnits(
+                              products.find((item) => item.id === line.productId),
+                              line.unit,
+                            ).map((unit) => (
+                              <option key={unit.unit_name} value={unit.unit_name}>{unit.unit_name}</option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="sales-order-field">
+                          <span>Số lượng</span>
+                          <input
+                            type="number"
+                            min={1}
+                            step={1}
+                            className={isExceeded ? 'input-stock-error' : ''}
+                            value={line.quantity}
+                            onChange={(event) => updateLine(index, { quantity: Math.max(1, Math.floor(Number(event.target.value) || 1)) })}
+                          />
+                        </label>
+                        <div className="sales-order-line-total">
+                          <span>Thành tiền</span>
+                          <strong>{formatCurrency(line.price * line.quantity)}</strong>
+                        </div>
+                      </div>
+
+                      {/* AC 3: Cảnh báo vượt tồn khả dụng và nút gợi ý đặt tối đa */}
+                      {isExceeded && maxOrderable !== undefined && (
+                        <div className="sales-order-stock-error">
+                          <span>
+                            ⚠️ Vượt tồn khả dụng tại {stockSummary?.warehouse_name || 'kho'}! Kho chỉ còn tối đa{' '}
+                            <strong>{maxOrderable} {line.unit}</strong>.
+                          </span>
+                          <button
+                            type="button"
+                            className="btn-fill-max"
+                            onClick={() => updateLine(index, { quantity: maxOrderable })}
+                            title="Điều chỉnh số lượng về mức tồn khả dụng tối đa"
+                          >
+                            Đặt tối đa ({maxOrderable} {line.unit})
+                          </button>
+                        </div>
+                      )}
+                    </article>
+                  );
+                })}
               </div>
             )}
           </section>
@@ -768,9 +977,23 @@ export default function SalesOrderEntry({ token, username, products, onClose: _o
               type="button"
               className="sales-order-primary-button"
               onClick={handleCreateOrder}
-              disabled={isSaving || isLoadingDealers || !!dealerLoadError || dealers.length === 0}
+              disabled={isSaving || isLoadingDealers || !selectedDealer || !dealerId || !!dealerLoadError || dealers.length === 0 || isLockedDealer || hasStockErrors}
+              style={isLockedDealer || hasStockErrors ? { background: '#94a3b8', cursor: 'not-allowed', borderColor: '#94a3b8' } : undefined}
+              title={
+                isLockedDealer
+                  ? `Đại lý "${selectedDealer?.name}" hiện đang bị khóa giao dịch, không thể tạo đơn hàng`
+                  : hasStockErrors
+                  ? 'Có sản phẩm vượt quá tồn khả dụng. Vui lòng điều chỉnh lại số lượng trước khi đặt hàng'
+                  : undefined
+              }
             >
-              {isSaving ? 'Đang tạo đơn...' : 'Tạo đơn hàng'}
+              {isLockedDealer
+                ? 'Đại lý bị khóa (Không thể tạo đơn)'
+                : hasStockErrors
+                ? 'Vượt tồn khả dụng (Không thể tạo đơn)'
+                : isSaving
+                ? 'Đang tạo đơn...'
+                : 'Tạo đơn hàng'}
             </button>
             <button type="button" className="sales-order-secondary-button full" onClick={handleSaveDraft}>
               Lưu nháp

@@ -284,9 +284,15 @@ export const BulkImportUsersModal: React.FC<BulkImportUsersModalProps> = ({ toke
                 onClick={handleExecute}
                 disabled={preview.valid_rows === 0 || isExecuting}
                 style={{
-                  padding: '10px 16px', background: '#2563eb', color: '#fff', border: 'none',
-                  borderRadius: '8px', cursor: (preview.valid_rows === 0 || isExecuting) ? 'not-allowed' : 'pointer',
-                  opacity: (preview.valid_rows === 0 || isExecuting) ? 0.6 : 1
+                  padding: '10px 16px',
+                  background: 'linear-gradient(135deg, #0fba90 0%, #0fad89 100%)',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: (preview.valid_rows === 0 || isExecuting) ? 'not-allowed' : 'pointer',
+                  opacity: (preview.valid_rows === 0 || isExecuting) ? 0.6 : 1,
+                  boxShadow: '0 2px 8px rgba(15, 186, 144, 0.35)',
+                  fontWeight: '600',
                 }}
               >
                 {isExecuting ? 'Đang xử lý...' : `Xác nhận nhập ${preview.valid_rows} dòng`}

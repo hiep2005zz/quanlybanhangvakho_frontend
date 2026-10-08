@@ -468,14 +468,13 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
                 fontWeight: '700',
               }}
             >
-              📦
             </div>
             <div>
               <h3 style={{ margin: 0, fontSize: '17px', fontWeight: '700', color: '#0f172a' }}>
                 {isEditing ? `Chỉnh Sửa Sản Phẩm: ${product?.code}` : 'Khai Báo Sản Phẩm Mới'}
               </h3>
               <p style={{ margin: '2px 0 0', fontSize: '12.5px', color: '#64748b' }}>
-                {isEditing ? 'Cập nhật thông tin chi tiết và trạng thái kinh doanh' : 'Nhập đầy đủ thông tin chuẩn hóa theo 4 khối nghiệp vụ'}
+                {isEditing ? 'Cập nhật thông tin chi tiết và trạng thái kinh doanh' : 'Nhập đầy đủ thông tin chuẩn hóa'}
               </p>
             </div>
           </div>
@@ -529,7 +528,6 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
                 gap: '8px',
               }}
             >
-              <span>⚠️</span>
               <span>{generalError}</span>
             </div>
           )}
@@ -555,7 +553,7 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
               }}
             >
               <span style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b' }}>
-                Khối 1: Thông tin cơ bản
+                Thông tin cơ bản
               </span>
             </div>
 
@@ -588,13 +586,13 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
                   />
                   {skuChecking && (
                     <span style={{ position: 'absolute', right: '10px', top: '9px', fontSize: '12px', color: '#64748b' }}>
-                      ⏳
+                      Đang kiểm tra...
                     </span>
                   )}
                 </div>
                 {hasTransactions && (
                   <div style={{ fontSize: '11.5px', color: '#94a3b8', marginTop: '4px' }}>
-                    🔒 Đã phát sinh giao dịch &rarr; Khóa chỉnh sửa mã SKU.
+                    Đã phát sinh giao dịch &rarr; Khóa chỉnh sửa mã SKU.
                   </div>
                 )}
                 {skuError && <div style={{ fontSize: '12px', color: '#ef4444', marginTop: '3px' }}>{skuError}</div>}
@@ -704,7 +702,7 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
                               type="button"
                               onClick={handleAddNewCategory}
                               style={{
-                                background: '#2563eb',
+                                background: '#0fad89',
                                 color: '#fff',
                                 border: 'none',
                                 borderRadius: '4px',
@@ -802,7 +800,6 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
                     transition: 'border-color 0.2s',
                   }}
                 >
-                  <div style={{ fontSize: '24px', marginBottom: '4px' }}>🖼️</div>
                   <div style={{ fontSize: '13px', fontWeight: '600', color: '#334155' }}>
                     Kéo thả ảnh vào đây hoặc <span style={{ color: '#2563eb' }}>bấm để chọn ảnh</span>
                   </div>
@@ -833,7 +830,7 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
                               position: 'absolute',
                               top: 2,
                               left: 2,
-                              background: '#2563eb',
+                              background: '#0fad89',
                               color: '#ffffff',
                               fontSize: '9px',
                               fontWeight: '700',
@@ -933,7 +930,7 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
               }}
             >
               <span style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b' }}>
-                Khối 2: Quy cách & Đơn vị tính
+                Quy cách & Đơn vị tính
               </span>
             </div>
 
@@ -973,7 +970,7 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
                       type="button"
                       onClick={handleAddNewUnit}
                       style={{
-                        background: '#2563eb',
+                        background: '#0fad89',
                         color: '#fff',
                         border: 'none',
                         borderRadius: '8px',
@@ -1053,9 +1050,12 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
                 )}
                 {unitError && (
                   <div style={{ fontSize: '12px', color: '#ef4444', marginTop: '4px', fontWeight: '500' }}>
-                    ⚠️ {unitError}
+                    {unitError}
                   </div>
                 )}
+                <div style={{ fontSize: '11.5px', color: '#64748b', marginTop: '4px' }}>
+                  Đơn vị cơ sở là đơn vị nhỏ nhất để kiểm kê và lưu kho.
+                </div>
               </div>
 
               <div>
@@ -1066,7 +1066,7 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
                   type="text"
                   value={packagingSpec}
                   onChange={(e) => setPackagingSpec(e.target.value)}
-                  placeholder="Ví dụ: 1 Thùng = 24 Hộp"
+                  placeholder="VD: Lon 330ml, Hộp 500g, Túi zip..."
                   style={{
                     width: '100%',
                     padding: '8px 12px',
@@ -1078,6 +1078,9 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
                     boxSizing: 'border-box',
                   }}
                 />
+                <div style={{ fontSize: '11.5px', color: '#64748b', marginTop: '4px' }}>
+                  Mô tả định lượng, thể tích hoặc đóng gói bao bì của sản phẩm.
+                </div>
               </div>
             </div>
           </div>
@@ -1102,7 +1105,7 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
               }}
             >
               <span style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b' }}>
-                Khối 3: Giá & Phân quyền dữ liệu
+                Giá & Phân quyền dữ liệu
               </span>
             </div>
 
@@ -1195,7 +1198,7 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
               }}
             >
               <span style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b' }}>
-                Khối 4: Trạng thái & Vòng đời sản phẩm
+                Trạng thái & Vòng đời sản phẩm
               </span>
             </div>
 
@@ -1222,6 +1225,7 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
                     value="active"
                     checked={status === 'active'}
                     onChange={() => setStatus('active')}
+                    style={{ accentColor: '#22c55e', cursor: 'pointer', outline: 'none', boxShadow: 'none' }}
                   />
                   <span style={{ fontWeight: '600', color: '#15803d', fontSize: '13.5px' }}>
                     Đang kinh doanh
@@ -1246,30 +1250,13 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
                     value="inactive"
                     checked={status === 'inactive'}
                     onChange={() => setStatus('inactive')}
+                    style={{ accentColor: '#ef4444', cursor: 'pointer', outline: 'none', boxShadow: 'none' }}
                   />
                   <span style={{ fontWeight: '600', color: '#b91c1c', fontSize: '13.5px' }}>
                     Ngừng kinh doanh
                   </span>
                 </label>
               </div>
-
-              {hasTransactions && (
-                <div
-                  style={{
-                    marginTop: '14px',
-                    padding: '10px 14px',
-                    borderRadius: '8px',
-                    background: '#f8fafc',
-                    border: '1px solid #e2e8f0',
-                    fontSize: '12px',
-                    color: '#475569',
-                    lineHeight: '1.5',
-                  }}
-                >
-                  ⚠️ <strong>Đã phát sinh giao dịch ({product?.transaction_count} đơn hàng/phiếu kho):</strong>{' '}
-                  Hệ thống ẩn nút Xóa. Bắt buộc chỉ cho phép chuyển trạng thái sang <em>Ngừng kinh doanh</em> để bảo toàn lịch sử sổ sách.
-                </div>
-              )}
             </div>
           </div>
         </form>
@@ -1308,8 +1295,7 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
                     }}
                     title="Sản phẩm đã có giao dịch phát sinh, chỉ có thể chọn Ngừng kinh doanh"
                   >
-                    <span>🔒</span>
-                    <span>Xóa sản phẩm</span>
+                    <span>Không thể xóa sản phẩm</span>
                   </button>
                 </div>
               ) : (
@@ -1332,7 +1318,6 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
                   }}
                   title="Xóa vĩnh viễn sản phẩm khỏi danh mục"
                 >
-                  <span>🗑️</span>
                   <span>{isDeleting ? 'Đang xóa...' : 'Xóa sản phẩm'}</span>
                 </button>
               )
@@ -1362,15 +1347,26 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
               onClick={handleSubmit}
               disabled={isSubmitting || isDeleting}
               style={{
-                background: '#2563eb',
+                background: 'linear-gradient(135deg, #0fba90 0%, #0fad89 100%)',
                 border: 'none',
                 color: '#ffffff',
                 borderRadius: '8px',
                 padding: '9px 24px',
                 fontSize: '13.5px',
                 fontWeight: '700',
-                cursor: 'pointer',
-                boxShadow: '0 2px 6px rgba(37, 99, 235, 0.3)',
+                cursor: isSubmitting || isDeleting ? 'not-allowed' : 'pointer',
+                boxShadow: '0 2px 8px rgba(15, 186, 144, 0.35)',
+                transition: 'all 0.18s ease',
+              }}
+              onMouseEnter={(e) => {
+                if (!isSubmitting && !isDeleting) {
+                  e.currentTarget.style.background = 'linear-gradient(135deg, #0fad89 0%, #0a8f70 100%)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!isSubmitting && !isDeleting) {
+                  e.currentTarget.style.background = 'linear-gradient(135deg, #0fba90 0%, #0fad89 100%)';
+                }
               }}
             >
               {isSubmitting ? 'Đang lưu...' : isEditing ? 'Lưu thay đổi' : 'Thêm sản phẩm'}
