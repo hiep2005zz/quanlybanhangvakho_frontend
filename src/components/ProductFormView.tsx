@@ -20,6 +20,7 @@ interface ProductFormViewProps {
 }
 
 const DEFAULT_UNITS = ['Cái', 'Chiếc', 'Hộp', 'Kg', 'Thùng', 'Bộ', 'Gói', 'Chai', 'Đôi', 'Lon'];
+const CUSTOM_UNITS_STORAGE_KEY = 'ttcs_custom_product_units';
 
 export const ProductFormView: React.FC<ProductFormViewProps> = ({
   product,
@@ -44,8 +45,19 @@ export const ProductFormView: React.FC<ProductFormViewProps> = ({
   // 3. Nhóm hàng
   const [category, setCategory] = useState('');
 
-  // 4. Đơn vị tính cơ sở
+  // 4. Đơn vị tính cơ sở & Custom units
   const [baseUnit, setBaseUnit] = useState('Cái');
+  const [customUnits, setCustomUnits] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem(CUSTOM_UNITS_STORAGE_KEY);
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [isAddingUnit, setIsAddingUnit] = useState(false);
+  const [newUnitInput, setNewUnitInput] = useState('');
+  const [unitError, setUnitError] = useState<string | null>(null);
 
   // 5. Quy cách đóng gói
   const [packagingSpec, setPackagingSpec] = useState('');
@@ -91,6 +103,9 @@ export const ProductFormView: React.FC<ProductFormViewProps> = ({
     setSkuError(null);
     setNameError(null);
     setGeneralError(null);
+    setIsAddingUnit(false);
+    setNewUnitInput('');
+    setUnitError(null);
   }, [product, categories]);
 
   // Cuộn trang lên đầu khi mount
@@ -209,6 +224,45 @@ export const ProductFormView: React.FC<ProductFormViewProps> = ({
   const handleCurrencyChange = (valStr: string, setter: (n: number) => void) => {
     const cleanNum = parseInt(valStr.replace(/\D/g, ''), 10) || 0;
     setter(cleanNum);
+  };
+
+  // Danh sách hợp nhất tất cả các đơn vị tính
+  const allUnits = Array.from(new Set([...DEFAULT_UNITS, ...customUnits, baseUnit].filter(Boolean)));
+
+  // Thêm Đơn vị tính cơ sở mới
+  const handleAddNewUnit = () => {
+    const trimmed = newUnitInput.trim();
+    if (!trimmed) {
+      setUnitError('Vui lòng nhập tên đơn vị tính.');
+      return;
+    }
+
+    const isDuplicate = allUnits.some(
+      (u) => u.trim().toLowerCase() === trimmed.toLowerCase()
+    );
+
+    if (isDuplicate) {
+      const existing = allUnits.find((u) => u.trim().toLowerCase() === trimmed.toLowerCase()) || trimmed;
+      setBaseUnit(existing);
+      setIsAddingUnit(false);
+      setNewUnitInput('');
+      setUnitError(null);
+      emitStatusToast({ message: `Đã chọn đơn vị tính "${existing}".`, title: 'Đơn vị tính' });
+      return;
+    }
+
+    const updated = [...customUnits, trimmed];
+    setCustomUnits(updated);
+    try {
+      localStorage.setItem(CUSTOM_UNITS_STORAGE_KEY, JSON.stringify(updated));
+    } catch {
+      // ignore
+    }
+    setBaseUnit(trimmed);
+    setNewUnitInput('');
+    setUnitError(null);
+    setIsAddingUnit(false);
+    emitStatusToast({ message: `Đã thêm đơn vị tính "${trimmed}".`, title: 'Thêm đơn vị tính thành công' });
   };
 
   // Submit form
@@ -500,49 +554,169 @@ export const ProductFormView: React.FC<ProductFormViewProps> = ({
 
             <div className="sales-order-fields">
               {/* Đơn vị tính cơ sở */}
-              <label className="sales-order-field">
-                <span>
-                  Đơn vị tính cơ sở <b aria-hidden="true">*</b>
+              <div className="sales-order-field">
+                <span style={{ fontSize: '13px', fontWeight: '600', color: '#334155', display: 'block', marginBottom: '8px' }}>
+                  Đơn vị tính cơ sở <b aria-hidden="true" style={{ color: '#ef4444' }}>*</b>
                 </span>
-                <select
-                  value={baseUnit}
-                  onChange={(e) => setBaseUnit(e.target.value)}
-                  style={{
-                    height: '42px',
-                    padding: '9px 12px',
-                    borderRadius: '9px',
-                    border: '1px solid #cbd5e1',
-                    background: '#ffffff',
-                    fontSize: '13.5px',
-                    fontWeight: '600',
-                    color: '#0f172a',
-                    outline: 'none',
-                    width: '100%',
-                    boxSizing: 'border-box',
-                  }}
-                >
-                  {DEFAULT_UNITS.map((u) => (
-                    <option key={u} value={u}>
-                      {u}
-                    </option>
-                  ))}
-                </select>
-                <span style={{ fontSize: '11.5px', color: '#64748b' }}>
+
+                {isAddingUnit ? (
+                  <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                    <input
+                      type="text"
+                      autoFocus
+                      placeholder="VD: Cuộn, Mét, Bao, Lon..."
+                      value={newUnitInput}
+                      onChange={(e) => {
+                        setNewUnitInput(e.target.value);
+                        if (unitError) setUnitError(null);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleAddNewUnit();
+                        } else if (e.key === 'Escape') {
+                          setIsAddingUnit(false);
+                          setUnitError(null);
+                          setNewUnitInput('');
+                        }
+                      }}
+                      style={{
+                        flex: 1,
+                        height: '42px',
+                        padding: '9px 12px',
+                        borderRadius: '9px',
+                        border: unitError ? '1px solid #ef4444' : '1px solid #cbd5e1',
+                        fontSize: '13.5px',
+                        boxSizing: 'border-box',
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAddNewUnit}
+                      style={{
+                        height: '42px',
+                        padding: '0 14px',
+                        background: '#10b981',
+                        border: 'none',
+                        borderRadius: '9px',
+                        color: '#ffffff',
+                        fontSize: '13px',
+                        fontWeight: '700',
+                        cursor: 'pointer',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      Lưu
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsAddingUnit(false);
+                        setUnitError(null);
+                        setNewUnitInput('');
+                      }}
+                      style={{
+                        height: '42px',
+                        padding: '0 12px',
+                        background: '#f1f5f9',
+                        border: '1px solid #cbd5e1',
+                        borderRadius: '9px',
+                        color: '#475569',
+                        fontSize: '13px',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      Hủy
+                    </button>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <select
+                      value={baseUnit}
+                      onChange={(e) => {
+                        if (e.target.value === '__add_new__') {
+                          setIsAddingUnit(true);
+                          setUnitError(null);
+                          setNewUnitInput('');
+                        } else {
+                          setBaseUnit(e.target.value);
+                        }
+                      }}
+                      style={{
+                        flex: 1,
+                        height: '42px',
+                        padding: '9px 12px',
+                        borderRadius: '9px',
+                        border: '1px solid #cbd5e1',
+                        background: '#ffffff',
+                        fontSize: '13.5px',
+                        fontWeight: '600',
+                        color: '#0f172a',
+                        outline: 'none',
+                        boxSizing: 'border-box',
+                      }}
+                    >
+                      {allUnits.map((u) => (
+                        <option key={u} value={u}>
+                          {u}
+                        </option>
+                      ))}
+                      <option value="__add_new__">+ Thêm đơn vị tính mới...</option>
+                    </select>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsAddingUnit(true);
+                        setUnitError(null);
+                        setNewUnitInput('');
+                      }}
+                      title="Thêm đơn vị tính mới"
+                      style={{
+                        height: '42px',
+                        padding: '0 12px',
+                        background: '#eff6ff',
+                        border: '1px solid #bfdbfe',
+                        borderRadius: '9px',
+                        fontSize: '13px',
+                        color: '#1d4ed8',
+                        cursor: 'pointer',
+                        fontWeight: '700',
+                        whiteSpace: 'nowrap',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                      }}
+                    >
+                      + Thêm ĐVT
+                    </button>
+                  </div>
+                )}
+
+                {unitError && (
+                  <span style={{ fontSize: '12px', color: '#ef4444', marginTop: '4px', fontWeight: '600', display: 'block' }}>
+                    {unitError}
+                  </span>
+                )}
+                <span style={{ fontSize: '11.5px', color: '#64748b', display: 'block', marginTop: '4px' }}>
                   Đơn vị cơ sở là đơn vị nhỏ nhất để kiểm kê và lưu kho.
                 </span>
-              </label>
+              </div>
 
               {/* Quy cách đóng gói */}
               <label className="sales-order-field">
-                <span>Quy cách đóng gói</span>
+                <span style={{ fontSize: '13px', fontWeight: '600', color: '#334155', display: 'block', marginBottom: '8px' }}>
+                  Quy cách đóng gói
+                </span>
                 <input
                   type="text"
                   value={packagingSpec}
                   onChange={(e) => setPackagingSpec(e.target.value)}
                   placeholder="Ví dụ: 24 lon / thùng, 1 lốc = 6 chai"
-                  style={{ fontWeight: '500' }}
+                  style={{ height: '42px', fontWeight: '500' }}
                 />
-                <span style={{ fontSize: '11.5px', color: '#64748b' }}>
+                <span style={{ fontSize: '11.5px', color: '#64748b', display: 'block', marginTop: '4px' }}>
                   Ghi chú quy đổi đóng gói phục vụ quá trình bốc dỡ và xuất kho.
                 </span>
               </label>
