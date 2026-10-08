@@ -138,12 +138,13 @@ const checkRegionMatch = (userBranch: string, dealerAddress: string, sourceUserB
 export const UserManagementView: React.FC<UserManagementViewProps> = ({
   currentUser,
   token,
-  onBackToHome: _onBackToHome,
+  onBackToHome,
   onCreateAccount,
 }) => {
   const [users, setUsers] = useState<UserAccount[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+
 
   // Filter, Search & Pagination (S1-08 / S1-10: 20 dòng/trang mặc định)
   const [searchInput, setSearchInput] = useState<string>('');
@@ -393,8 +394,10 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
           title: 'Cập nhật thông tin nhân viên',
         });
       }
-      // Phát tín hiệu đồng bộ vai trò tức thì cho các tab/cửa sổ đang mở
+      // Phát tín hiệu đồng bộ vai trò và dữ liệu đại lý tức thì cho các component/tab đang mở
       sessionManager.broadcastUserUpdate(userToEdit.username);
+      window.dispatchEvent(new CustomEvent('DEALER_DATA_CHANGED'));
+      window.dispatchEvent(new CustomEvent('USER_ACCOUNTS_CHANGED', { detail: { username: updated.username } }));
       if (userToEdit.username.toLowerCase() === currentUser.username.toLowerCase()) {
         sessionManager.syncCurrentProfile();
       }
@@ -461,7 +464,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
   // Open Delete Confirm Popup
   const openDeleteConfirm = (targetUser: UserAccount) => {
     if (targetUser.username.toLowerCase() === currentUser.username.toLowerCase()) {
-      alert('Bảo vệ hệ thống: Bạn không được tự xóa tài khoản Quản trị viên của chính mình!');
+      emitStatusToast({ title: 'Cảnh báo', message: 'Bạn không được tự xóa tài khoản của chính mình!' });
       return;
     }
     setDeleteModalError(null);
@@ -526,6 +529,57 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      {/* 1. Breadcrumb: Trang chủ / Quản lý người dùng */}
+      {onBackToHome && (
+        <nav
+          aria-label="Breadcrumb"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            fontSize: '13.5px',
+            color: '#64748b',
+            fontWeight: '500',
+            padding: '2px 4px',
+          }}
+        >
+          <button
+            onClick={onBackToHome}
+            style={{
+              background: '#ffffff',
+              border: '1px solid #cbd5e1',
+              borderRadius: '20px',
+              color: '#2563eb',
+              cursor: 'pointer',
+              padding: '5px 14px',
+              fontSize: '13px',
+              fontWeight: '600',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
+              transition: 'all 0.18s ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = '#2563eb';
+              e.currentTarget.style.background = '#eff6ff';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = '#cbd5e1';
+              e.currentTarget.style.background = '#ffffff';
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+              <polyline points="9 22 9 12 15 12 15 22" />
+            </svg>
+            <span>Trang chủ</span>
+          </button>
+          <span style={{ color: '#cbd5e1', fontSize: '14px' }}>/</span>
+          <span style={{ color: '#0f172a', fontWeight: '600', fontSize: '13.5px' }}>Quản lý người dùng</span>
+        </nav>
+      )}
+
       {/* Tiêu đề: Quản Lý Phân Quyền Vai Trò */}
       <div style={{
         background: '#ffffff',
@@ -922,7 +976,11 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
 
                         {/* Họ tên + Avatar */}
                         <td style={{ padding: '14px 16px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          <div
+                            onClick={() => openEditModal(u)}
+                            title="Bấm để phân vai trò & chỉnh sửa nhân viên"
+                            style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }}
+                          >
                             <div style={{
                               width: '38px',
                               height: '38px',
@@ -938,6 +996,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                               boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
                               border: '1px solid rgba(255, 255, 255, 0.4)',
                               overflow: 'hidden',
+                              transition: 'transform 0.15s ease',
                             }}>
                               {u.avatar_url ? (
                                 <img
@@ -951,7 +1010,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                             </div>
                             <div>
                               <div style={{ fontWeight: '700', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <span>{u.full_name}</span>
+                                <span style={{ textDecoration: 'none' }} className="hover:underline">{u.full_name}</span>
                                 {isCurrentSelf && (
                                   <span style={{
                                     background: '#eff6ff',
@@ -1013,19 +1072,23 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                                   </span>
                                 ];
                               }
-                              const allRoles = (u.roles && u.roles.length > 0) ? u.roles : [u.role];
+                              const allRoles = (u.roles && u.roles.length > 0) ? u.roles : (u.role ? [u.role] : []);
                               const validRoleCodes = ROLES_LIST.map((item) => item.role);
                               const recognizedRoles = allRoles.filter((r) => validRoleCodes.includes(r));
                               
-                              // Kiểm tra tài khoản mới chưa phân quyền (branch là "Chưa phân công" hoặc chưa có vai trò nào)
-                              const isUnassigned =
-                                (!u.branch || u.branch === 'Chưa phân công') &&
-                                (recognizedRoles.length === 0 || (recognizedRoles.length === 1 && recognizedRoles[0] === 'customer'));
+                              // Chỉ coi là "Chưa phân quyền" nếu hoàn toàn chưa có vai trò nào HOẶC chỉ có vai trò customer mà chưa phân công chi nhánh
+                              const hasOfficialRole = recognizedRoles.some((r) => r !== 'customer');
+                              const isUnassigned = !hasOfficialRole && (
+                                recognizedRoles.length === 0 ||
+                                (recognizedRoles.includes('customer') && (!u.branch || u.branch === 'Chưa phân công'))
+                              );
 
                               if (isUnassigned) {
                                 return (
                                   <span
                                     key="unassigned"
+                                    onClick={() => openEditModal(u)}
+                                    title="Bấm để phân vai trò & địa bàn"
                                     style={{
                                       display: 'inline-flex',
                                       alignItems: 'center',
@@ -1038,6 +1101,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                                       fontSize: '11.5px',
                                       border: '1px solid #cbd5e1',
                                       whiteSpace: 'nowrap',
+                                      cursor: 'pointer',
                                     }}
                                   >
                                     <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#94a3b8' }} />
@@ -1090,7 +1154,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
 
                         {/* Kho / Địa bàn */}
                         <td style={{ padding: '14px 16px', color: '#334155', fontSize: '13px' }}>
-                          <span>{u.branch || 'Kho Tổng Hà Nội'}</span>
+                          <span>{u.branch || (u.roles?.includes('customer') ? 'Chưa phân công' : 'Toàn quốc')}</span>
                         </td>
 
                         {/* Trạng thái & Cảnh báo bàn giao */}
@@ -1171,27 +1235,20 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                           </div>
                         </td>
 
-                        {/* Thao tác (Nút 3 chấm) */}
+                        {/* Thao tác (Nút sửa nhanh & Nút 3 chấm) */}
                         <td style={{ padding: '14px 16px', textAlign: 'center', position: 'relative' }}>
-                          <div className="user-action-dropdown-container" style={{ position: 'relative', display: 'inline-block' }}>
+                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
                             <button
                               type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setActiveDropdownUserId((prev) => (prev === u.id ? null : u.id));
-                              }}
-                              title="Tùy chọn thao tác"
+                              onClick={() => openEditModal(u)}
+                              title="Phân vai trò & kho"
                               style={{
                                 width: '34px',
                                 height: '34px',
                                 borderRadius: '8px',
-                                border: activeDropdownUserId === u.id
-                                  ? '1px solid #2563eb'
-                                  : '1px solid #e2e8f0',
-                                background: activeDropdownUserId === u.id
-                                  ? '#eff6ff'
-                                  : '#ffffff',
-                                color: activeDropdownUserId === u.id ? '#1d4ed8' : '#64748b',
+                                border: '1px solid #bfdbfe',
+                                background: '#eff6ff',
+                                color: '#2563eb',
                                 cursor: 'pointer',
                                 display: 'inline-flex',
                                 alignItems: 'center',
@@ -1199,6 +1256,47 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                                 transition: 'all 0.15s ease',
                                 boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
                               }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.background = '#dbeafe';
+                                e.currentTarget.style.borderColor = '#93c5fd';
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.background = '#eff6ff';
+                                e.currentTarget.style.borderColor = '#bfdbfe';
+                              }}
+                            >
+                              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                                <path d="M9 12l2 2 4-4" />
+                              </svg>
+                            </button>
+
+                            <div className="user-action-dropdown-container" style={{ position: 'relative', display: 'inline-block' }}>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setActiveDropdownUserId((prev) => (prev === u.id ? null : u.id));
+                                }}
+                                title="Tùy chọn thao tác"
+                                style={{
+                                  width: '34px',
+                                  height: '34px',
+                                  borderRadius: '8px',
+                                  border: activeDropdownUserId === u.id
+                                    ? '1px solid #2563eb'
+                                    : '1px solid #e2e8f0',
+                                  background: activeDropdownUserId === u.id
+                                    ? '#eff6ff'
+                                    : '#ffffff',
+                                  color: activeDropdownUserId === u.id ? '#1d4ed8' : '#64748b',
+                                  cursor: 'pointer',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  transition: 'all 0.15s ease',
+                                  boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
+                                }}
                               onMouseEnter={(e) => {
                                 if (activeDropdownUserId !== u.id) {
                                   e.currentTarget.style.background = '#f8fafc';
@@ -1388,8 +1486,9 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                               );
                             })()}
                           </div>
-                        </td>
-                      </tr>
+                        </div>
+                      </td>
+                    </tr>
                     );
                   })}
                 </tbody>
@@ -2593,6 +2692,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
         </div>
         </ModalPortal>
       )}
+
     </div>
   );
 };
