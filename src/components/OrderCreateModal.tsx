@@ -11,6 +11,9 @@ import {
   listDeliveryPointsApi,
   getDiscountPoliciesApi,
   DiscountPolicy,
+  DealerPurchaseHistory,
+  PurchaseHistoryItem,
+  getDealerPurchaseHistoryApi,
 } from '../services/api';
 import { evaluateBestDiscountPolicy, parseStoredPolicies } from '../utils/discountEngine';
 import { searchDealers } from '../services/dealerSearchApi';
@@ -81,6 +84,11 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  // SCRUM-52 / SCRUM-57: Lịch sử mua hàng của đại lý & gợi ý mặt hàng
+  const [purchaseHistory, setPurchaseHistory] = useState<DealerPurchaseHistory | null>(null);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [historyForbidden, setHistoryForbidden] = useState(false);
+
   const selectedDealer = dealers.find((d) => d.id === dealerId) || dealers[0];
 
   useEffect(() => {
@@ -102,6 +110,40 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
         .catch(() => {});
     }
   }, [isOpen, token]);
+
+  // SCRUM-52 / SCRUM-57: Tải lịch sử mua hàng và gợi ý mặt hàng theo đại lý
+  useEffect(() => {
+    if (!isOpen || !token || !dealerId) {
+      setPurchaseHistory(null);
+      setHistoryForbidden(false);
+      setIsLoadingHistory(false);
+      return;
+    }
+    let isMounted = true;
+    setIsLoadingHistory(true);
+    setHistoryForbidden(false);
+
+    getDealerPurchaseHistoryApi(token, Number(dealerId))
+      .then((history) => {
+        if (!isMounted) return;
+        setPurchaseHistory(history);
+        setHistoryForbidden(false);
+      })
+      .catch((err: unknown) => {
+        if (!isMounted) return;
+        setPurchaseHistory(null);
+        if (err instanceof Error && (err.message.includes('phân công') || err.message.includes('403'))) {
+          setHistoryForbidden(true);
+        }
+      })
+      .finally(() => {
+        if (isMounted) setIsLoadingHistory(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isOpen, token, dealerId]);
 
   // Tải danh sách đại lý khi mở modal
   useEffect(() => {
@@ -303,6 +345,170 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
     };
 
     setOrderItems((prev) => [...prev, newItem]);
+  };
+
+  // SCRUM-52 / SCRUM-57: Thêm nhanh một mặt hàng từ lịch sử với số lượng bình quân / lần trước
+  const handleAddHistoryItem = async (item: PurchaseHistoryItem) => {
+    const prod = products.find((p) => p.id === item.product_id);
+    const qtyToAdd = Math.max(1, Math.round(item.last_order_quantity || item.avg_quantity || 1));
+    const baseUnit = prod?.base_unit || item.unit || 'Cái';
+    const itemUnit = item.unit || baseUnit;
+
+    const existingIndex = orderItems.findIndex((it) => it.productId === item.product_id && it.unitName === itemUnit);
+    if (existingIndex >= 0) {
+      setOrderItems((prev) =>
+        prev.map((it, idx) => {
+          if (idx !== existingIndex) return it;
+          const currentQty = typeof it.quantity === 'number' ? it.quantity : parseFloat(it.quantity) || 0;
+          return {
+            ...it,
+            quantity: currentQty + qtyToAdd,
+          };
+        })
+      );
+      emitStatusToast({
+        title: 'Đã cập nhật số lượng',
+        message: `Đã tăng thêm ${qtyToAdd} ${itemUnit} cho "${item.product_name}".`,
+      });
+      return;
+    }
+
+    const units = prod
+      ? [
+          { unit_name: baseUnit, conversion_rate: 1.0, is_base: true },
+          ...(prod.units || []).map((u) => ({
+            unit_name: u.unit_name,
+            conversion_rate: u.conversion_rate,
+            is_base: false,
+          })),
+        ]
+      : [{ unit_name: itemUnit, conversion_rate: item.conversion_rate || 1.0, is_base: true }];
+
+    let itemSellPrice = item.price || prod?.sell_price || 0;
+    let itemFloorPrice: number | null = prod?.sell_price || item.price || 0;
+    let itemNote: string | undefined = undefined;
+
+    if (dealerId) {
+      try {
+        const res = await resolvePriceApi(token, dealerId, item.product_id);
+        itemSellPrice = res.sale_price;
+        itemFloorPrice = res.floor_price;
+        itemNote = res.price_book_name || res.price_book_code;
+      } catch {
+        // fallback
+      }
+    }
+
+    const newItem: SelectedOrderItem = {
+      productId: item.product_id,
+      productCode: item.product_code,
+      productName: item.product_name,
+      stock: prod?.stock ?? 999,
+      baseUnit,
+      unitName: itemUnit,
+      conversionRate: item.conversion_rate || 1.0,
+      availableUnits: units,
+      quantity: qtyToAdd,
+      sellPrice: itemSellPrice,
+      floorPrice: itemFloorPrice,
+      priceNote: itemNote,
+    };
+
+    setOrderItems((prev) => [...prev, newItem]);
+    emitStatusToast({
+      title: 'Đã thêm sản phẩm',
+      message: `Đã thêm "${item.product_name}" (${qtyToAdd} ${itemUnit}) vào đơn hàng.`,
+    });
+  };
+
+  // SCRUM-52 / SCRUM-57: Thêm nhanh cả nhóm hàng đã mua lần trước vào đơn mới
+  const handleAddAllPreviousItems = async () => {
+    if (!purchaseHistory) return;
+    const itemsToAdd = (purchaseHistory.last_order_items && purchaseHistory.last_order_items.length > 0)
+      ? purchaseHistory.last_order_items
+      : purchaseHistory.items.map((it) => ({
+          product_id: it.product_id,
+          product_code: it.product_code,
+          product_name: it.product_name,
+          quantity: it.last_order_quantity || it.avg_quantity || 1,
+          price: it.price,
+          unit: it.unit,
+          conversion_rate: it.conversion_rate || 1,
+        }));
+
+    if (itemsToAdd.length === 0) {
+      emitStatusToast({
+        title: 'Thông báo',
+        message: 'Không tìm thấy nhóm hàng từ lần mua trước để thêm.',
+      });
+      return;
+    }
+
+    let updated = [...orderItems];
+
+    for (const item of itemsToAdd) {
+      const prod = products.find((p) => p.id === item.product_id);
+      const qtyToAdd = Math.max(1, Math.round(item.quantity || 1));
+      const baseUnit = prod?.base_unit || item.unit || 'Cái';
+      const itemUnit = item.unit || baseUnit;
+
+      const existingIndex = updated.findIndex((it) => it.productId === item.product_id && it.unitName === itemUnit);
+      if (existingIndex >= 0) {
+        const cur = updated[existingIndex];
+        const currentQty = typeof cur.quantity === 'number' ? cur.quantity : parseFloat(cur.quantity) || 0;
+        updated[existingIndex] = {
+          ...cur,
+          quantity: currentQty + qtyToAdd,
+        };
+      } else {
+        const units = prod
+          ? [
+              { unit_name: baseUnit, conversion_rate: 1.0, is_base: true },
+              ...(prod.units || []).map((u) => ({
+                unit_name: u.unit_name,
+                conversion_rate: u.conversion_rate,
+                is_base: false,
+              })),
+            ]
+          : [{ unit_name: itemUnit, conversion_rate: item.conversion_rate || 1.0, is_base: true }];
+
+        let itemSellPrice = item.price || prod?.sell_price || 0;
+        let itemFloorPrice: number | null = prod?.sell_price || item.price || 0;
+        let itemNote: string | undefined = undefined;
+
+        if (dealerId) {
+          try {
+            const res = await resolvePriceApi(token, dealerId, item.product_id);
+            itemSellPrice = res.sale_price;
+            itemFloorPrice = res.floor_price;
+            itemNote = res.price_book_name || res.price_book_code;
+          } catch {
+            // fallback
+          }
+        }
+
+        updated.push({
+          productId: item.product_id,
+          productCode: item.product_code,
+          productName: item.product_name,
+          stock: prod?.stock ?? 999,
+          baseUnit,
+          unitName: itemUnit,
+          conversionRate: item.conversion_rate || 1.0,
+          availableUnits: units,
+          quantity: qtyToAdd,
+          sellPrice: itemSellPrice,
+          floorPrice: itemFloorPrice,
+          priceNote: itemNote,
+        });
+      }
+    }
+
+    setOrderItems(updated);
+    emitStatusToast({
+      title: 'Đã thêm nhóm hàng',
+      message: `Đã thêm nhanh cả nhóm ${itemsToAdd.length} mặt hàng đã mua lần trước vào đơn mới!`,
+    });
   };
 
   // Cập nhật số lượng của dòng sản phẩm
@@ -697,6 +903,169 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
               </div>
             )}
           </div>
+
+          {/* SCRUM-52 / SCRUM-57: LỊCH SỬ MUA HÀNG ĐẠI LÝ & GỢI Ý MẶT HÀNG */}
+          {selectedDealer && !historyForbidden && (
+            <div
+              style={{
+                marginBottom: '16px',
+                padding: '12px 14px',
+                background: '#f8fafc',
+                border: '1px solid #cbd5e1',
+                borderRadius: '10px',
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'flex-start',
+                  flexWrap: 'wrap',
+                  gap: '8px',
+                  marginBottom: '10px',
+                }}
+              >
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
+                    <span style={{ fontSize: '15px' }}>💡</span>
+                    <span style={{ fontSize: '13px', fontWeight: '700', color: '#1e293b' }}>
+                      Mặt hàng đại lý thường lấy (3 tháng gần nhất)
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#64748b' }}>
+                    {isLoadingHistory ? (
+                      'Đang tra cứu lịch sử mua hàng của đại lý...'
+                    ) : purchaseHistory && purchaseHistory.has_history ? (
+                      <>
+                        Đại lý đã đặt <strong>{purchaseHistory.total_orders_3_months} đơn</strong> trong 3 tháng qua.
+                        {purchaseHistory.last_order && (
+                          <span>
+                            {' '}• Lần mua gần nhất: <strong>{purchaseHistory.last_order.order_code}</strong> ({purchaseHistory.last_order.created_at})
+                          </span>
+                        )}
+                      </>
+                    ) : (
+                      'Đại lý chưa có lịch sử mua hàng trong 3 tháng gần nhất.'
+                    )}
+                  </div>
+                </div>
+
+                {purchaseHistory && purchaseHistory.has_history && (
+                  <button
+                    type="button"
+                    onClick={handleAddAllPreviousItems}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '6px 12px',
+                      background: 'linear-gradient(135deg, #2563eb, #1d4ed8)',
+                      color: '#ffffff',
+                      border: 'none',
+                      borderRadius: '6px',
+                      fontSize: '12px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                    }}
+                    title="Thêm nhanh cả nhóm hàng đã mua lần trước vào đơn mới"
+                  >
+                    <span>⚡</span>
+                    <span>Thêm nhanh cả nhóm hàng đã mua lần trước vào đơn mới</span>
+                    <span
+                      style={{
+                        background: 'rgba(255,255,255,0.25)',
+                        padding: '1px 6px',
+                        borderRadius: '10px',
+                        fontSize: '11px',
+                      }}
+                    >
+                      {purchaseHistory.last_order_items?.length || purchaseHistory.items.length} món
+                    </span>
+                  </button>
+                )}
+              </div>
+
+              {isLoadingHistory && (
+                <div style={{ textAlign: 'center', padding: '12px', fontSize: '12.5px', color: '#64748b' }}>
+                  Đang tải dữ liệu sản lượng bình quân...
+                </div>
+              )}
+
+              {!isLoadingHistory && purchaseHistory && purchaseHistory.has_history && (
+                <div style={{ maxHeight: '180px', overflowY: 'auto', border: '1px solid #e2e8f0', borderRadius: '6px', background: '#ffffff' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                    <thead>
+                      <tr style={{ background: '#f1f5f9', color: '#475569', textAlign: 'left', borderBottom: '1px solid #e2e8f0' }}>
+                        <th style={{ padding: '6px 8px' }}>Mã SP</th>
+                        <th style={{ padding: '6px 8px' }}>Tên mặt hàng</th>
+                        <th style={{ padding: '6px 8px' }}>ĐVT</th>
+                        <th style={{ padding: '6px 8px', textAlign: 'center' }}>SL bình quân (3 tháng)</th>
+                        <th style={{ padding: '6px 8px', textAlign: 'center' }}>SL lần trước</th>
+                        <th style={{ padding: '6px 8px', textAlign: 'right' }}>Đơn giá</th>
+                        <th style={{ padding: '6px 8px', textAlign: 'center' }}>Hành động</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {purchaseHistory.items.map((item) => (
+                        <tr key={item.product_id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                          <td style={{ padding: '6px 8px', fontFamily: 'monospace', fontWeight: '600', color: '#334155' }}>
+                            {item.product_code}
+                          </td>
+                          <td style={{ padding: '6px 8px' }}>
+                            <div style={{ fontWeight: '500', color: '#0f172a' }}>{item.product_name}</div>
+                            {item.last_purchased_date && (
+                              <div style={{ fontSize: '10.5px', color: '#94a3b8' }}>Gần nhất: {item.last_purchased_date}</div>
+                            )}
+                          </td>
+                          <td style={{ padding: '6px 8px', color: '#64748b' }}>{item.unit}</td>
+                          <td style={{ padding: '6px 8px', textAlign: 'center' }}>
+                            <span
+                              style={{
+                                display: 'inline-block',
+                                padding: '2px 6px',
+                                background: '#ecfdf5',
+                                color: '#047857',
+                                border: '1px solid #a7f3d0',
+                                borderRadius: '4px',
+                                fontWeight: '600',
+                              }}
+                            >
+                              {item.avg_quantity} {item.unit}/đơn
+                            </span>
+                          </td>
+                          <td style={{ padding: '6px 8px', textAlign: 'center', color: '#334155', fontWeight: '500' }}>
+                            {item.last_order_quantity > 0 ? `${item.last_order_quantity} ${item.unit}` : '—'}
+                          </td>
+                          <td style={{ padding: '6px 8px', textAlign: 'right', fontWeight: '500' }}>
+                            {item.price.toLocaleString('vi-VN')} đ
+                          </td>
+                          <td style={{ padding: '6px 8px', textAlign: 'center' }}>
+                            <button
+                              type="button"
+                              onClick={() => handleAddHistoryItem(item)}
+                              style={{
+                                padding: '3px 8px',
+                                background: '#eff6ff',
+                                color: '#1d4ed8',
+                                border: '1px solid #bfdbfe',
+                                borderRadius: '4px',
+                                fontSize: '11px',
+                                fontWeight: '600',
+                                cursor: 'pointer',
+                              }}
+                            >
+                              + Thêm
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* 2. CHỌN SẢN PHẨM (DROPDOWN TỰ ĐỘNG RESET SAU KHI CHỌN ĐỂ THÊM TIẾP) */}
           <div style={{ marginBottom: '16px' }}>

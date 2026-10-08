@@ -128,6 +128,48 @@ export interface OrderDealer {
   name: string;
   phone?: string | null;
   address?: string | null;
+  assigned_sale_id?: number | null;
+}
+
+export interface PurchaseHistoryItem {
+  product_id: number;
+  product_code: string;
+  product_name: string;
+  unit: string;
+  conversion_rate: number;
+  price: number;
+  total_quantity: number;
+  order_count: number;
+  avg_quantity: number;
+  last_order_quantity: number;
+  last_purchased_date?: string | null;
+}
+
+export interface LastOrderItem {
+  product_id: number;
+  product_code: string;
+  product_name: string;
+  quantity: number;
+  price: number;
+  unit: string;
+  conversion_rate: number;
+}
+
+export interface LastOrderSummary {
+  order_code: string;
+  created_at: string;
+  items: LastOrderItem[];
+}
+
+export interface DealerPurchaseHistory {
+  dealer_id: number;
+  dealer_name: string;
+  period: string;
+  has_history: boolean;
+  total_orders_3_months: number;
+  items: PurchaseHistoryItem[];
+  last_order?: LastOrderSummary | null;
+  last_order_items: LastOrderItem[];
 }
 
 export interface CreateOrderPayload {
@@ -636,6 +678,25 @@ export async function getOrderDealersApi(token: string): Promise<OrderDealer[]> 
   }
   if (!Array.isArray(data)) throw new Error('Dữ liệu danh sách đại lý không hợp lệ.');
   return data;
+}
+
+export async function getDealerPurchaseHistoryApi(
+  token: string,
+  dealerId: number
+): Promise<DealerPurchaseHistory> {
+  const response = await authenticatedFetch(
+    `${API_BASE_URL}/orders/dealers/${dealerId}/purchase-history`,
+    { method: 'GET' },
+    token
+  );
+  if (!response.ok) {
+    if (response.status === 403) {
+      throw new Error('Chỉ hiển thị với đại lý mà nhân viên được phân công.');
+    }
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data.detail || `Lỗi tải lịch sử mua hàng (Mã lỗi ${response.status})`);
+  }
+  return response.json();
 }
 
 export function createOrderApi(token: string, payload: CreateOrderPayload): Promise<CreatedOrder>;

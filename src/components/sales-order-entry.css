@@ -621,3 +621,237 @@
   font-weight: 500;
   line-height: 1.35;
 }
+
+/* SCRUM-52 / SCRUM-57: Dealer Purchase History & Product Suggestion Card */
+.sales-order-history-card {
+  background: linear-gradient(180deg, #f0fdf4 0%, #ffffff 100px);
+  border: 1px solid #bbf7d0;
+  border-radius: 14px;
+  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.08);
+  padding: 18px 20px;
+  position: relative;
+  overflow: hidden;
+}
+
+.sales-order-history-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #10b981, #059669, #0284c7);
+}
+
+.sales-order-history-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.sales-order-history-title-group {
+  flex: 1 1 300px;
+}
+
+.sales-order-history-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  background: #dcfce7;
+  border: 1px solid #86efac;
+  border-radius: 20px;
+  color: #15803d;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+
+.sales-order-history-title {
+  margin: 0 0 4px 0;
+  font-size: 16px;
+  font-weight: 750;
+  color: #0f172a;
+}
+
+.sales-order-history-subtitle {
+  margin: 0;
+  font-size: 13px;
+  color: #475569;
+  line-height: 1.45;
+}
+
+.history-last-order-tag {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 7px;
+  background: #f1f5f9;
+  border-radius: 6px;
+  color: #334155;
+  font-size: 12px;
+}
+
+.sales-order-history-actions {
+  display: flex;
+  align-items: center;
+}
+
+.sales-order-btn-add-batch {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 16px;
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  color: #ffffff;
+  border: none;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.25);
+  transition: all 180ms ease;
+  white-space: nowrap;
+}
+
+.sales-order-btn-add-batch:hover {
+  background: linear-gradient(135deg, #047857 0%, #065f46 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(5, 150, 105, 0.35);
+}
+
+.sales-order-btn-add-batch:active {
+  transform: translateY(0);
+}
+
+.batch-count-badge {
+  background: rgba(255, 255, 255, 0.25);
+  padding: 2px 7px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.sales-order-history-loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px;
+  color: #059669;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.history-loading-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid #a7f3d0;
+  border-top-color: #059669;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.sales-order-history-table-wrapper {
+  overflow-x: auto;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+}
+
+.sales-order-history-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  text-align: left;
+}
+
+.sales-order-history-table th {
+  background: #f8fafc;
+  color: #475569;
+  font-weight: 700;
+  font-size: 12px;
+  padding: 10px 14px;
+  border-bottom: 1px solid #e2e8f0;
+  white-space: nowrap;
+}
+
+.sales-order-history-table td {
+  padding: 10px 14px;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: middle;
+}
+
+.history-row:last-child td {
+  border-bottom: none;
+}
+
+.history-row:hover {
+  background: #f8fafc;
+}
+
+.code-badge {
+  font-family: monospace;
+  font-weight: 700;
+  font-size: 11px;
+  color: #0284c7;
+  background: #f0f9ff;
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid #bae6fd;
+}
+
+.product-name-text {
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.product-last-date {
+  display: block;
+  font-size: 11px;
+  color: #64748b;
+  margin-top: 2px;
+}
+
+.avg-qty-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  border-radius: 20px;
+  color: #047857;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.last-qty-text {
+  font-weight: 700;
+  color: #334155;
+  font-size: 12px;
+}
+
+.btn-add-single-history {
+  padding: 5px 12px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #0f172a;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 140ms ease;
+  white-space: nowrap;
+}
+
+.btn-add-single-history:hover {
+  background: #f0fdf4;
+  border-color: #059669;
+  color: #059669;
+  box-shadow: 0 2px 6px rgba(5, 150, 105, 0.15);
+}
