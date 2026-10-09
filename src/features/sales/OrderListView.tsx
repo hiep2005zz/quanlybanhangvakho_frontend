@@ -399,15 +399,15 @@ export const OrderListView: React.FC<OrderListViewProps> = ({
       {/* 3. BẢNG DỮ LIỆU & BỘ LỌC HỢP NHẤT (Single Unified Card - Kiến trúc 1 bảng duy nhất) */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
         {/* Thanh công cụ lọc tinh gọn (Inline Compact Filter Bar - Chuẩn giao diện yêu cầu) */}
-        <div className="p-4 sm:p-5 bg-white border-b border-slate-200">
+        <div className="p-3 sm:px-4 sm:py-3.5 bg-white border-b border-slate-200 overflow-x-auto">
           <form
             onSubmit={handleApplyFilter}
-            className="flex !flex-row flex-wrap xl:flex-nowrap items-end gap-3.5 w-full"
-            style={{ display: 'flex', flexDirection: 'row', alignItems: 'flex-end', gap: '14px' }}
+            className="flex flex-nowrap items-end gap-2.5 w-full min-w-[1020px]"
+            style={{ display: 'flex', flexDirection: 'row', alignItems: 'flex-end', gap: '10px', flexWrap: 'nowrap' }}
           >
             {/* 1. Trạng thái */}
-            <div className="w-full sm:w-[115px] xl:w-[125px] shrink-0">
-              <label htmlFor="filter-status" className="block text-[11px] font-bold text-[#065f46] uppercase tracking-wider mb-1.5">
+            <div className="flex-1 min-w-[136px]">
+              <label htmlFor="filter-status" className="block text-[11px] font-bold text-[#065f46] uppercase tracking-wider mb-1.5 whitespace-nowrap">
                 TRẠNG THÁI
               </label>
               <select
@@ -415,7 +415,7 @@ export const OrderListView: React.FC<OrderListViewProps> = ({
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
                 className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-full focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium text-slate-700 shadow-sm transition-all cursor-pointer"
-                style={{ borderRadius: '9999px', height: '36px', borderColor: '#e2e8f0' }}
+                style={{ borderRadius: '9999px', height: '38px', borderColor: '#e2e8f0' }}
               >
                 <option value="ALL">Tất cả trạng thái</option>
                 <option value="PENDING">Mới tạo</option>
@@ -429,8 +429,8 @@ export const OrderListView: React.FC<OrderListViewProps> = ({
             </div>
 
             {/* 2. Đại lý */}
-            <div className="w-full sm:w-[135px] xl:w-[155px] shrink-0">
-              <label htmlFor="filter-dealer" className="block text-[11px] font-bold text-[#065f46] uppercase tracking-wider mb-1.5">
+            <div className="flex-[1.2] min-w-[145px]">
+              <label htmlFor="filter-dealer" className="block text-[11px] font-bold text-[#065f46] uppercase tracking-wider mb-1.5 whitespace-nowrap">
                 ĐẠI LÝ {isSales && <span className="text-emerald-700 font-bold">(Phụ trách)</span>}
               </label>
               <select
@@ -438,7 +438,7 @@ export const OrderListView: React.FC<OrderListViewProps> = ({
                 value={dealerFilter}
                 onChange={(e) => setDealerFilter(e.target.value)}
                 className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-full focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium text-slate-700 shadow-sm transition-all cursor-pointer"
-                style={{ borderRadius: '9999px', height: '36px', borderColor: '#e2e8f0' }}
+                style={{ borderRadius: '9999px', height: '38px', borderColor: '#e2e8f0' }}
               >
                 <option value="ALL">Tất cả đại lý</option>
                 {dealers.map((d) => (
@@ -450,8 +450,8 @@ export const OrderListView: React.FC<OrderListViewProps> = ({
             </div>
 
             {/* 3. Nhân viên kinh doanh */}
-            <div className="w-full sm:w-[135px] xl:w-[155px] shrink-0">
-              <label htmlFor="filter-sales-rep" className="block text-[11px] font-bold text-[#065f46] uppercase tracking-wider mb-1.5">
+            <div className="flex-[1.4] min-w-[175px]">
+              <label htmlFor="filter-sales-rep" className="block text-[11px] font-bold text-[#065f46] uppercase tracking-wider mb-1.5 whitespace-nowrap">
                 NHÂN VIÊN KINH DOANH
               </label>
               {isSales ? (
@@ -461,7 +461,7 @@ export const OrderListView: React.FC<OrderListViewProps> = ({
                   disabled
                   value={`${currentUser.full_name || currentUser.username} (Chính bạn)`}
                   className="w-full px-2.5 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-full text-slate-500 cursor-not-allowed font-medium shadow-sm"
-                  style={{ borderRadius: '9999px', height: '36px', borderColor: '#e2e8f0' }}
+                  style={{ borderRadius: '9999px', height: '38px', borderColor: '#e2e8f0' }}
                   title="Nhân viên kinh doanh chỉ xem các đại lý mình phụ trách"
                 />
               ) : (
@@ -470,7 +470,7 @@ export const OrderListView: React.FC<OrderListViewProps> = ({
                   value={salesRepFilter}
                   onChange={(e) => setSalesRepFilter(e.target.value)}
                   className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-full focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium text-slate-700 shadow-sm transition-all cursor-pointer"
-                  style={{ borderRadius: '9999px', height: '36px', borderColor: '#e2e8f0' }}
+                  style={{ borderRadius: '9999px', height: '38px', borderColor: '#e2e8f0' }}
                 >
                   <option value="ALL">Tất cả nhân viên</option>
                   {salesReps.map((sr) => (
@@ -483,8 +483,8 @@ export const OrderListView: React.FC<OrderListViewProps> = ({
             </div>
 
             {/* 4. Khu vực */}
-            <div className="w-full sm:w-[105px] xl:w-[115px] shrink-0">
-              <label htmlFor="filter-region" className="block text-[11px] font-bold text-[#065f46] uppercase tracking-wider mb-1.5">
+            <div className="flex-1 min-w-[125px]">
+              <label htmlFor="filter-region" className="block text-[11px] font-bold text-[#065f46] uppercase tracking-wider mb-1.5 whitespace-nowrap">
                 KHU VỰC
               </label>
               <select
@@ -492,7 +492,7 @@ export const OrderListView: React.FC<OrderListViewProps> = ({
                 value={regionFilter}
                 onChange={(e) => setRegionFilter(e.target.value)}
                 className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-full focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium text-slate-700 shadow-sm transition-all cursor-pointer"
-                style={{ borderRadius: '9999px', height: '36px', borderColor: '#e2e8f0' }}
+                style={{ borderRadius: '9999px', height: '38px', borderColor: '#e2e8f0' }}
               >
                 <option value="ALL">Tất cả khu vực</option>
                 {regions.map((reg) => (
@@ -504,8 +504,8 @@ export const OrderListView: React.FC<OrderListViewProps> = ({
             </div>
 
             {/* 5. Từ ngày */}
-            <div className="w-[100px] xl:w-[105px] shrink-0">
-              <label htmlFor="filter-start-date" className="block text-[11px] font-bold text-[#065f46] uppercase tracking-wider mb-1.5">
+            <div className="flex-[0.8] min-w-[136px]">
+              <label htmlFor="filter-start-date" className="block text-[11px] font-bold text-[#065f46] uppercase tracking-wider mb-1.5 whitespace-nowrap">
                 TỪ NGÀY
               </label>
               <input
@@ -514,13 +514,13 @@ export const OrderListView: React.FC<OrderListViewProps> = ({
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
                 className="w-full px-2 py-1.5 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-700 shadow-sm transition-all"
-                style={{ borderRadius: '12px', height: '36px', borderColor: '#e2e8f0' }}
+                style={{ borderRadius: '12px', height: '38px', borderColor: '#e2e8f0' }}
               />
             </div>
 
             {/* 6. Đến ngày */}
-            <div className="w-[100px] xl:w-[105px] shrink-0">
-              <label htmlFor="filter-end-date" className="block text-[11px] font-bold text-[#065f46] uppercase tracking-wider mb-1.5">
+            <div className="flex-[0.8] min-w-[136px]">
+              <label htmlFor="filter-end-date" className="block text-[11px] font-bold text-[#065f46] uppercase tracking-wider mb-1.5 whitespace-nowrap">
                 ĐẾN NGÀY
               </label>
               <input
@@ -529,26 +529,26 @@ export const OrderListView: React.FC<OrderListViewProps> = ({
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
                 className="w-full px-2 py-1.5 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-700 shadow-sm transition-all"
-                style={{ borderRadius: '12px', height: '36px', borderColor: '#e2e8f0' }}
+                style={{ borderRadius: '12px', height: '38px', borderColor: '#e2e8f0' }}
               />
             </div>
 
             {/* Nút bấm tác vụ lọc */}
-            <div className="flex items-center gap-2 ml-auto shrink-0 self-end">
+            <div className="flex items-center gap-2 shrink-0 self-end">
               <button
                 type="button"
                 id="btn-reset-filter"
                 onClick={handleResetFilter}
-                className="px-3.5 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-full hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-300 transition-colors shadow-sm whitespace-nowrap"
-                style={{ borderRadius: '9999px', height: '36px', borderColor: '#e2e8f0' }}
+                className="px-3 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-full hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-300 transition-colors shadow-sm whitespace-nowrap"
+                style={{ borderRadius: '9999px', height: '38px', borderColor: '#e2e8f0' }}
               >
                 Đặt lại
               </button>
               <button
                 type="submit"
                 id="btn-apply-filter"
-                className="inline-flex items-center gap-1.5 px-4 py-1.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-full shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-colors whitespace-nowrap"
-                style={{ borderRadius: '9999px', height: '36px', backgroundColor: '#059669' }}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-full shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-colors whitespace-nowrap"
+                style={{ borderRadius: '9999px', height: '38px', backgroundColor: '#059669', paddingLeft: '14px', paddingRight: '14px' }}
               >
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
