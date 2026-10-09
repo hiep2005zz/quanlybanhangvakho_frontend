@@ -1,19 +1,17 @@
 import { useEffect, useState } from 'react';
-<<<<<<< HEAD
 import {
+  cancelOrderApi,
   getOrderDetailApi,
   OrderDetail,
   getOrderPickingLocationsApi,
   OrderPickingSummary,
   OrderPickingItem,
   ProductPickingLocationItem,
+  User,
 } from '../services/api';
-=======
-import { cancelOrderApi, getOrderDetailApi, OrderDetail, User } from '../services/api';
 import { OrderLifecycleTimeline } from './OrderLifecycleTimeline';
 import { OrderCancelModal } from './OrderCancelModal';
 import { getOrderPermissionTier } from '../utils/orderPermissions';
->>>>>>> origin/test
 import OrderPrintModal from './OrderPrintModal';
 import './orders-view.css';
 
@@ -62,7 +60,12 @@ export default function OrderDetailsModal({
 
   useEffect(() => {
     let isMounted = true;
-<<<<<<< HEAD
+    if (isNoAccess) {
+      setError('Truy cập bị từ chối: Nhân viên mua hàng không có quyền xem đơn hàng bán.');
+      setIsLoading(false);
+      return;
+    }
+
     Promise.all([
       getOrderDetailApi(token, orderCode),
       getOrderPickingLocationsApi(token, orderCode).catch(() => null),
@@ -72,17 +75,6 @@ export default function OrderDetailsModal({
           setOrder(details);
           if (picking) setPickingSummary(picking);
         }
-=======
-    if (isNoAccess) {
-      setError('Truy cập bị từ chối: Nhân viên mua hàng không có quyền xem đơn hàng bán.');
-      setIsLoading(false);
-      return;
-    }
-
-    getOrderDetailApi(token, orderCode)
-      .then((details) => {
-        if (isMounted) setOrder(details);
->>>>>>> origin/test
       })
       .catch((loadError: unknown) => {
         if (isMounted) {
