@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import '../../components/dashboard.css';
 import {
   getFilteredOrdersApi,
   getOrderDetailApi,
@@ -374,85 +375,100 @@ export const OrderListView: React.FC<OrderListViewProps> = ({
         </div>
       </div>
 
-      {/* 2. Bố cục 4 Thẻ KPI Tóm Tắt (Gọn gàng, tinh chỉnh bỏ dòng chữ nhỏ) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+      {/* 2. Bố cục 4 Thẻ KPI Tóm Tắt (Thu gọn bé gọn đồng bộ chuẩn Quản lý kho hàng) */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
+        gap: '10px',
+        flexShrink: 0,
+      }}>
         {/* Thẻ 1: Tổng số đơn hàng */}
         <div
           id="kpi-total-orders"
-          className="bg-white px-4 py-3 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between hover:shadow-md transition-shadow"
+          className="kpi-stat-card"
+          style={{ padding: '10px 14px', borderRadius: '10px' }}
         >
-          <div>
-            <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
-              Tổng số đơn hàng
-            </div>
-            <div className="text-2xl font-extrabold text-slate-900 mt-0.5">
-              {total.toLocaleString('vi-VN')} đơn
-            </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
+            <span style={{ fontSize: '11.5px', color: '#64748b', fontWeight: '600' }}>Tổng số đơn hàng</span>
+            <span style={{ fontSize: '11px', color: '#64748b' }}>
+              Tổng đơn: <strong style={{ color: '#0f172a' }}>{total.toLocaleString('vi-VN')}</strong>
+            </span>
           </div>
-          <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-600 flex-shrink-0">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-            </svg>
+          <div style={{
+            fontSize: '18px',
+            fontWeight: '700',
+            letterSpacing: '-0.02em',
+            color: '#0f172a',
+            fontVariantNumeric: 'tabular-nums',
+            lineHeight: 1.2,
+          }}>
+            {loading ? '...' : `${total.toLocaleString('vi-VN')} đơn`}
           </div>
         </div>
 
         {/* Thẻ 2: Đơn chờ quản lý duyệt */}
         <div
           id="stat-card-pending-orders"
-          className="bg-amber-50/80 px-4 py-3 rounded-xl border border-amber-200 shadow-sm flex items-center justify-between hover:shadow-md transition-shadow"
+          className="kpi-stat-card"
+          style={{ padding: '10px 14px', borderRadius: '10px' }}
         >
-          <div>
-            <div className="text-[11px] font-bold uppercase tracking-wider text-amber-800">
-              Đơn chờ quản lý duyệt
-            </div>
-            <div className="text-2xl font-extrabold text-amber-900 mt-0.5">
-              {pendingOrdersCount.toLocaleString('vi-VN')} đơn
-            </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
+            <span style={{ fontSize: '11.5px', color: '#64748b', fontWeight: '600' }}>Đơn chờ quản lý duyệt</span>
+            <span style={{ fontSize: '10.5px', color: '#d97706', fontWeight: '600' }}>Cần duyệt</span>
           </div>
-          <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center text-amber-700 flex-shrink-0">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
+          <div style={{
+            fontSize: '18px',
+            fontWeight: '700',
+            letterSpacing: '-0.02em',
+            color: '#0f172a',
+            fontVariantNumeric: 'tabular-nums',
+            lineHeight: 1.2,
+          }}>
+            {pendingOrdersCount.toLocaleString('vi-VN')} đơn
           </div>
         </div>
 
         {/* Thẻ 3: Đơn đã xác nhận */}
         <div
           id="kpi-confirmed-orders"
-          className="bg-emerald-50/80 px-4 py-3 rounded-xl border border-emerald-200 shadow-sm flex items-center justify-between hover:shadow-md transition-shadow"
+          className="kpi-stat-card"
+          style={{ padding: '10px 14px', borderRadius: '10px' }}
         >
-          <div>
-            <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-800">
-              Đơn đã xác nhận
-            </div>
-            <div className="text-2xl font-extrabold text-emerald-900 mt-0.5">
-              {confirmedOrdersCount.toLocaleString('vi-VN')} đơn
-            </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
+            <span style={{ fontSize: '11.5px', color: '#64748b', fontWeight: '600' }}>Đơn đã xác nhận</span>
+            <span style={{ fontSize: '10.5px', color: '#15803d', fontWeight: '600' }}>Đã duyệt</span>
           </div>
-          <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-700 flex-shrink-0">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
+          <div style={{
+            fontSize: '18px',
+            fontWeight: '700',
+            letterSpacing: '-0.02em',
+            color: '#0f172a',
+            fontVariantNumeric: 'tabular-nums',
+            lineHeight: 1.2,
+          }}>
+            {confirmedOrdersCount.toLocaleString('vi-VN')} đơn
           </div>
         </div>
 
         {/* Thẻ 4: Tổng doanh thu bán hàng */}
         <div
           id="kpi-total-amount"
-          className="bg-white px-4 py-3 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between hover:shadow-md transition-shadow"
+          className="kpi-stat-card"
+          style={{ padding: '10px 14px', borderRadius: '10px' }}
         >
-          <div>
-            <div className="text-[11px] font-bold uppercase tracking-wider text-slate-600">
-              Tổng doanh thu bán hàng
-            </div>
-            <div className="text-2xl font-extrabold text-emerald-700 mt-0.5">
-              {filteredTotalAmount.toLocaleString('vi-VN')} đ
-            </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
+            <span style={{ fontSize: '11.5px', color: '#64748b', fontWeight: '600' }}>Tổng doanh thu bán hàng</span>
+            <span style={{ fontSize: '10.5px', color: '#059669', fontWeight: '600' }}>Đã gồm VAT</span>
           </div>
-          <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600 flex-shrink-0">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
+          <div style={{
+            fontSize: '18px',
+            fontWeight: '700',
+            letterSpacing: '-0.02em',
+            color: '#0f172a',
+            fontVariantNumeric: 'tabular-nums',
+            lineHeight: 1.2,
+          }}>
+            {filteredTotalAmount.toLocaleString('vi-VN')} đ
           </div>
         </div>
       </div>
