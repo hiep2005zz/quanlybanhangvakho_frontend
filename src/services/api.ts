@@ -102,6 +102,9 @@ export interface OrderItem {
   created_at: string;
   dealer_status?: string;
   dealer_lock_reason?: string;
+  dealer_code?: string | null;
+  dealer_phone?: string | null;
+  dealer_address?: string | null;
 }
 
 export interface OrderDetail extends OrderItem {
@@ -112,6 +115,8 @@ export interface OrderDetail extends OrderItem {
   delivery_point_id?: number | null;
   desired_delivery_date?: string | null;
   note?: string | null;
+  applied_policy_code?: string | null;
+  applied_policy_name?: string | null;
   items: Array<{
     product_id: number;
     product_name: string;
