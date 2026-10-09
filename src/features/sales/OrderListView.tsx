@@ -1,5 +1,5 @@
-// frontend/src/features/sales/OrderListView.tsx
 import React, { useEffect, useState, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import {
   getFilteredOrdersApi,
   getOrderDetailApi,
@@ -15,6 +15,7 @@ import {
 import { OrderCreateModal } from '../../components/OrderCreateModal';
 import { RejectOrderModal } from '../../components/RejectOrderModal';
 import { ApproveOrderModal } from '../../components/ApproveOrderModal';
+import OrderPrintModal from '../../components/OrderPrintModal';
 
 export interface OrderListViewProps {
   currentUser: User;
@@ -74,6 +75,7 @@ export const OrderListView: React.FC<OrderListViewProps> = ({
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
   const [approvingOrder, setApprovingOrder] = useState<OrderResponseData | null>(null);
   const [rejectingOrder, setRejectingOrder] = useState<OrderResponseData | null>(null);
+  const [printingOrder, setPrintingOrder] = useState<OrderResponseData | any | null>(null);
 
   // Load danh mục đại lý, nhân viên, khu vực khi mount
   useEffect(() => {
@@ -874,6 +876,37 @@ export const OrderListView: React.FC<OrderListViewProps> = ({
                           >
                             Chi tiết
                           </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setPrintingOrder(order)}
+                            style={{
+                              padding: '5px 10px',
+                              background: '#eff6ff',
+                              border: '1px solid #bfdbfe',
+                              borderRadius: '6px',
+                              color: '#1d4ed8',
+                              fontSize: '12px',
+                              fontWeight: '600',
+                              cursor: 'pointer',
+                              whiteSpace: 'nowrap',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              justifyContent: 'center',
+                              height: '28px',
+                              boxSizing: 'border-box',
+                              transition: 'all 0.15s ease',
+                            }}
+                            title="In phiếu hoặc xuất PDF đơn hàng cho đại lý xác nhận"
+                          >
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="6 9 6 2 18 2 18 9" />
+                              <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+                              <rect x="6" y="14" width="12" height="8" />
+                            </svg>
+                            In / PDF
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -952,13 +985,28 @@ export const OrderListView: React.FC<OrderListViewProps> = ({
                 </h3>
                 <p className="text-xs text-slate-500">Đại lý: {selectedOrderDetail.dealer_name}</p>
               </div>
-              <button
-                type="button"
-                onClick={() => setSelectedOrderDetail(null)}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
-              >
-                ✕
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPrintingOrder(selectedOrderDetail)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm transition-colors"
+                  title="In phiếu hoặc xuất file PDF đơn hàng"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="6 9 6 2 18 2 18 9" />
+                    <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+                    <rect x="6" y="14" width="12" height="8" />
+                  </svg>
+                  In / PDF
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedOrderDetail(null)}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+                >
+                  ✕
+                </button>
+              </div>
             </div>
 
             {isLoadingDetail ? (
@@ -1134,6 +1182,16 @@ export const OrderListView: React.FC<OrderListViewProps> = ({
             if (onRefreshProducts) onRefreshProducts();
           }}
         />
+      )}
+      {/* Modal In & Xuất PDF Đơn Hàng */}
+      {printingOrder && createPortal(
+        <OrderPrintModal
+          token={token}
+          orderCode={printingOrder.order_code}
+          initialOrder={printingOrder.items && printingOrder.items.length > 0 ? printingOrder : undefined}
+          onClose={() => setPrintingOrder(null)}
+        />,
+        document.body
       )}
     </div>
   );
