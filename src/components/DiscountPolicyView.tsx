@@ -492,7 +492,7 @@ export default function DiscountPolicyView({ token, user, onBackToHome }: Discou
                         fontWeight: '700',
                       }}
                     >
-                      📦 Nhóm: {policy.category}
+                      Nhóm: {policy.category}
                     </span>
                   ) : (!policy.category || policy.category === 'ALL') && policy.title === 'Tất cả sản phẩm' ? (
                     <span
@@ -505,7 +505,7 @@ export default function DiscountPolicyView({ token, user, onBackToHome }: Discou
                         fontWeight: '600',
                       }}
                     >
-                      🌐 Toàn bộ sản phẩm
+                      Toàn bộ sản phẩm
                     </span>
                   ) : (
                     <span
@@ -519,7 +519,7 @@ export default function DiscountPolicyView({ token, user, onBackToHome }: Discou
                         fontWeight: '600',
                       }}
                     >
-                      🏷️ Sản phẩm
+                      Sản phẩm
                     </span>
                   )}
                 </div>
@@ -694,7 +694,7 @@ export default function DiscountPolicyView({ token, user, onBackToHome }: Discou
                       transition: 'all 0.15s ease',
                     }}
                   >
-                    🌐 Tất cả sản phẩm
+                    Tất cả sản phẩm
                   </button>
 
                   <button
@@ -724,7 +724,7 @@ export default function DiscountPolicyView({ token, user, onBackToHome }: Discou
                       transition: 'all 0.15s ease',
                     }}
                   >
-                    📦 1 Nhóm hàng
+                    1 Nhóm hàng
                   </button>
 
                   <button
@@ -754,7 +754,7 @@ export default function DiscountPolicyView({ token, user, onBackToHome }: Discou
                       transition: 'all 0.15s ease',
                     }}
                   >
-                    🏷️ 1 Sản phẩm lẻ
+                    1 Sản phẩm lẻ
                   </button>
                 </div>
               </div>
