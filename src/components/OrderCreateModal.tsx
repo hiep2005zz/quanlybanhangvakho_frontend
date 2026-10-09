@@ -25,6 +25,9 @@ interface OrderCreateModalProps {
   currentUser?: User;
   onSuccess: () => void;
   initialDealerId?: number;
+  initialOrderItems?: SelectedOrderItem[];
+  initialNote?: string;
+  initialDeliveryPointId?: number | null;
 }
 
 export interface SelectedOrderItem {
@@ -57,6 +60,9 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
   currentUser,
   onSuccess,
   initialDealerId = 1,
+  initialOrderItems,
+  initialNote,
+  initialDeliveryPointId,
 }) => {
   if (!isOpen) return null;
 
@@ -66,19 +72,36 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
   const [loadingDealers, setLoadingDealers] = useState(false);
 
   // Danh sách nhiều sản phẩm trong đơn hàng
-  const [orderItems, setOrderItems] = useState<SelectedOrderItem[]>([]);
+  const [orderItems, setOrderItems] = useState<SelectedOrderItem[]>(() => initialOrderItems || []);
 
   // Điểm giao hàng
   const [points, setPoints] = useState<DeliveryPoint[]>([]);
-  const [deliveryPointId, setDeliveryPointId] = useState<number | null>(null);
+  const [deliveryPointId, setDeliveryPointId] = useState<number | null>(() => initialDeliveryPointId !== undefined ? initialDeliveryPointId : null);
 
   // Chiết khấu sản lượng
   const [policies, setPolicies] = useState<DiscountPolicy[]>([]);
   const [discountPercent, setDiscountPercent] = useState<string>('0');
   const [isManualDiscount, setIsManualDiscount] = useState<boolean>(false);
-  const [note, setNote] = useState<string>('');
+  const [note, setNote] = useState<string>(() => initialNote || '');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      if (initialOrderItems && initialOrderItems.length > 0) {
+        setOrderItems(initialOrderItems);
+      }
+      if (initialDealerId) {
+        setDealerId(initialDealerId);
+      }
+      if (initialDeliveryPointId !== undefined) {
+        setDeliveryPointId(initialDeliveryPointId);
+      }
+      if (initialNote !== undefined) {
+        setNote(initialNote);
+      }
+    }
+  }, [isOpen, initialOrderItems, initialDealerId, initialDeliveryPointId, initialNote]);
 
   const isCustomer = currentUser?.role === 'customer' || Boolean(currentUser?.roles && currentUser.roles.includes('customer'));
   const selectedDealer = dealers.find((d) => d.id === dealerId) || dealers[0];

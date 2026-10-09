@@ -1757,7 +1757,64 @@ export async function rejectOrderApi(token: string, orderIdOrCode: number | stri
   return data;
 }
 
+export interface ReorderItemDetail {
+  product_id: number;
+  product_code: string;
+  product_name: string;
+  quantity: number;
+  price: number;
+  old_price?: number;
+  unit: string;
+  unit_name?: string;
+  conversion_rate: number;
+  base_unit: string;
+  stock: number;
+  available_units: Array<{ unit_name: string; conversion_rate: number; is_base: boolean }>;
+  price_note?: string;
+}
 
+export interface ExcludedItemDetail {
+  product_id: number;
+  product_code?: string;
+  product_name: string;
+  reason: string;
+}
+
+export interface ReorderResponseData {
+  order_id: number;
+  order_code: string;
+  dealer_id: number;
+  dealer_name: string;
+  valid_items: ReorderItemDetail[];
+  excluded_items: ExcludedItemDetail[];
+  total_valid: number;
+  total_excluded: number;
+  can_reorder: boolean;
+  message: string;
+  created_order?: any;
+}
+
+export async function reorderOrderApi(
+  token: string,
+  orderIdOrCode: number | string,
+  payload?: { product_id?: number; create_immediate?: boolean; note?: string }
+): Promise<ReorderResponseData> {
+  const response = await authenticatedFetch(
+    `${API_BASE_URL}/orders/${encodeURIComponent(orderIdOrCode)}/reorder`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload || {}),
+    },
+    token
+  );
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi khi đặt lại đơn hàng (Mã lỗi ${response.status})`);
+  }
+  return data;
+}
 
 export async function getDealersApi(token: string): Promise<DealerItem[]> {
   const response = await authenticatedFetch(`${API_BASE_URL}/dealers`, {

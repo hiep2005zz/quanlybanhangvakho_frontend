@@ -4,6 +4,7 @@ import {
   getOrdersApi,
   getOrderDetailApi,
   getOrderDealersApi,
+  reorderOrderApi,
   OrderResponseData,
   User,
   ProductItem,
@@ -11,6 +12,7 @@ import {
 import { OrderCreateModal } from './OrderCreateModal';
 import { RejectOrderModal } from './RejectOrderModal';
 import { ApproveOrderModal } from './ApproveOrderModal';
+import { emitStatusToast } from './StatusToast';
 
 interface OrderManagementViewProps {
   currentUser: User;
@@ -40,6 +42,23 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
   const [approvingOrder, setApprovingOrder] = useState<OrderResponseData | null>(null);
   const [rejectingOrder, setRejectingOrder] = useState<OrderResponseData | null>(null);
 
+  // Trạng thái cho luồng Đặt lại đơn hàng (Reorder)
+  const [reorderLoading, setReorderLoading] = useState(false);
+  const [reorderResultModal, setReorderResultModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    excludedItems: Array<{ product_id: number; product_name: string; reason: string }>;
+    onContinue?: () => void;
+  } | null>(null);
+
+  const [reorderInitialData, setReorderInitialData] = useState<{
+    dealerId: number;
+    items: any[];
+    note?: string;
+    deliveryPointId?: number | null;
+  } | null>(null);
+
   const rawRoles = currentUser.roles && currentUser.roles.length > 0 ? currentUser.roles : [currentUser.role];
   const isAdmin = currentUser.role === 'admin' || rawRoles.includes('admin');
   const isSalesManager = currentUser.role === 'sales_manager' || rawRoles.includes('sales_manager');
@@ -52,6 +71,101 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
     (customerDealer.status.toLowerCase().includes('khóa') ||
      customerDealer.status.toLowerCase().includes('lock'))
   );
+
+  const handleReorderOrder = async (orderCode: string, productId?: number) => {
+    if (isCustomerLocked) {
+      emitStatusToast({
+        title: 'Tài khoản đại lý bị khóa',
+        message: 'Tài khoản đại lý hiện đang bị khóa giao dịch. Không thể đặt lại đơn hàng.',
+        type: 'error',
+      });
+      return;
+    }
+
+    setReorderLoading(true);
+    try {
+      const res = await reorderOrderApi(token, orderCode, productId ? { product_id: productId } : {});
+
+      // Ánh xạ valid_items sang SelectedOrderItem
+      const mappedOrderItems = res.valid_items.map((it) => ({
+        productId: it.product_id,
+        productCode: it.product_code,
+        productName: it.product_name,
+        stock: it.stock,
+        baseUnit: it.base_unit || 'Cái',
+        unitName: it.unit || it.base_unit || 'Cái',
+        conversionRate: it.conversion_rate || 1.0,
+        availableUnits: it.available_units || [{ unit_name: it.base_unit || 'Cái', conversion_rate: 1.0, is_base: true }],
+        quantity: it.quantity,
+        sellPrice: it.price,
+        floorPrice: it.price,
+        priceNote: it.price_note,
+      }));
+
+      // Nếu không có sản phẩm nào hợp lệ (Case 3, Case 5, Case 9)
+      if (!res.can_reorder || res.total_valid === 0) {
+        if (productId) {
+          const excName = res.excluded_items?.[0]?.product_name || `SP #${productId}`;
+          setReorderResultModal({
+            isOpen: true,
+            title: 'Không thể đặt lại sản phẩm',
+            message: `Sản phẩm ${excName} hiện đã ngừng kinh doanh và không thể đặt lại.`,
+            excludedItems: res.excluded_items || [],
+          });
+        } else {
+          setReorderResultModal({
+            isOpen: true,
+            title: 'Không thể đặt lại đơn',
+            message: 'Tất cả sản phẩm trong đơn hàng này hiện đã ngừng kinh doanh. Không thể đặt lại đơn.',
+            excludedItems: res.excluded_items || [],
+          });
+        }
+        return;
+      }
+
+      const continueToNewOrder = () => {
+        setReorderResultModal(null);
+        setSelectedOrderDetail(null); // Đóng modal chi tiết đơn
+        setReorderInitialData({
+          dealerId: res.dealer_id,
+          items: mappedOrderItems,
+          note: productId ? `Đặt lại sản phẩm từ đơn #${res.order_code}` : `Đặt lại từ đơn #${res.order_code}`,
+          deliveryPointId: selectedOrderDetail?.delivery_point_id || null,
+        });
+        setIsCreateModalOpen(true); // Đưa Đại lý đến đơn mới / giỏ hàng theo flow hiện tại
+      };
+
+      // Case 2: Một số sản phẩm bị loại
+      if (res.total_excluded > 0) {
+        setReorderResultModal({
+          isOpen: true,
+          title: 'Đặt lại đơn thành công',
+          message: 'Đặt lại đơn thành công. Tuy nhiên, một số sản phẩm đã bị loại khỏi đơn mới:',
+          excludedItems: res.excluded_items,
+          onContinue: continueToNewOrder,
+        });
+      } else {
+        // Case 1 & Case 4: Toàn bộ thành công
+        emitStatusToast({
+          title: 'Đặt lại đơn thành công',
+          message: productId
+            ? `Đã thêm sản phẩm "${mappedOrderItems[0]?.productName}" vào đơn mới theo giá hiện hành.`
+            : `Đã đưa ${res.total_valid} sản phẩm vào đơn mới theo giá hiện hành.`,
+          type: 'success',
+        });
+        continueToNewOrder();
+      }
+    } catch (err: any) {
+      console.error('Lỗi khi đặt lại đơn hàng:', err);
+      emitStatusToast({
+        title: 'Lỗi đặt lại đơn',
+        message: err.message || 'Không thể đặt lại đơn hàng. Vui lòng thử lại.',
+        type: 'error',
+      });
+    } finally {
+      setReorderLoading(false);
+    }
+  };
 
   const fetchCustomerDealer = async () => {
     if (!isCustomer || !token) return;
@@ -710,6 +824,49 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                           >
                             Chi tiết
                           </button>
+
+                          <button
+                            type="button"
+                            id={`btn-reorder-row-${order.order_code}`}
+                            disabled={reorderLoading || isCustomerLocked}
+                            onClick={() => handleReorderOrder(order.order_code)}
+                            style={{
+                              padding: '5px 10px',
+                              background: '#f0fdf4',
+                              border: '1px solid #86efac',
+                              borderRadius: '6px',
+                              color: '#15803d',
+                              fontSize: '12px',
+                              fontWeight: '600',
+                              cursor: (reorderLoading || isCustomerLocked) ? 'not-allowed' : 'pointer',
+                              whiteSpace: 'nowrap',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '4px',
+                              height: '28px',
+                              boxSizing: 'border-box',
+                              transition: 'all 0.15s ease',
+                            }}
+                            onMouseEnter={(e) => {
+                              if (!reorderLoading && !isCustomerLocked) {
+                                e.currentTarget.style.background = '#16a34a';
+                                e.currentTarget.style.color = '#ffffff';
+                              }
+                            }}
+                            onMouseLeave={(e) => {
+                              if (!reorderLoading && !isCustomerLocked) {
+                                e.currentTarget.style.background = '#f0fdf4';
+                                e.currentTarget.style.color = '#15803d';
+                              }
+                            }}
+                            title="Đặt lại toàn bộ đơn hàng này theo giá hiện hành"
+                          >
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+                            </svg>
+                            Đặt lại
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -1068,6 +1225,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                       <th style={{ padding: '8px 12px', textAlign: 'right' }}>Số lượng</th>
                       <th style={{ padding: '8px 12px', textAlign: 'right' }}>Đơn giá</th>
                       <th style={{ padding: '8px 12px', textAlign: 'right' }}>Thành tiền</th>
+                      <th style={{ padding: '8px 12px', textAlign: 'center' }}>Thao tác</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1102,6 +1260,48 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                           </td>
                           <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: '700', color: '#0f172a' }}>
                             {lineTotal.toLocaleString('vi-VN')} đ
+                          </td>
+                          <td style={{ padding: '10px 12px', textAlign: 'center' }}>
+                            <button
+                              type="button"
+                              title="Đặt lại riêng sản phẩm này theo giá hiện hành"
+                              disabled={reorderLoading || isCustomerLocked}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleReorderOrder(selectedOrderDetail.order_code, item.product_id);
+                              }}
+                              style={{
+                                padding: '5px 12px',
+                                background: '#f0fdf4',
+                                border: '1px solid #86efac',
+                                borderRadius: '6px',
+                                color: '#15803d',
+                                fontSize: '12px',
+                                fontWeight: '600',
+                                cursor: (reorderLoading || isCustomerLocked) ? 'not-allowed' : 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                transition: 'all 0.15s ease',
+                              }}
+                              onMouseEnter={(e) => {
+                                if (!reorderLoading && !isCustomerLocked) {
+                                  e.currentTarget.style.background = '#16a34a';
+                                  e.currentTarget.style.color = '#ffffff';
+                                }
+                              }}
+                              onMouseLeave={(e) => {
+                                if (!reorderLoading && !isCustomerLocked) {
+                                  e.currentTarget.style.background = '#f0fdf4';
+                                  e.currentTarget.style.color = '#15803d';
+                                }
+                              }}
+                            >
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+                              </svg>
+                              Đặt lại
+                            </button>
                           </td>
                         </tr>
                       );
@@ -1223,6 +1423,39 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                 )}
                 <button
                   type="button"
+                  id="btn-reorder-entire-order"
+                  disabled={reorderLoading || isCustomerLocked}
+                  onClick={() => handleReorderOrder(selectedOrderDetail.order_code)}
+                  style={{
+                    padding: '8px 18px',
+                    background: (reorderLoading || isCustomerLocked) ? '#94a3b8' : '#16a34a',
+                    border: 'none',
+                    borderRadius: '8px',
+                    color: '#ffffff',
+                    fontSize: '13px',
+                    fontWeight: '700',
+                    cursor: (reorderLoading || isCustomerLocked) ? 'not-allowed' : 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    boxShadow: '0 2px 4px rgba(22, 163, 74, 0.25)',
+                    transition: 'all 0.15s ease',
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!reorderLoading && !isCustomerLocked) e.currentTarget.style.background = '#15803d';
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!reorderLoading && !isCustomerLocked) e.currentTarget.style.background = '#16a34a';
+                  }}
+                  title="Đặt lại toàn bộ đơn hàng này theo giá hiện hành"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+                  </svg>
+                  {reorderLoading ? 'Đang kiểm tra...' : 'Đặt lại đơn'}
+                </button>
+                <button
+                  type="button"
                   onClick={() => setSelectedOrderDetail(null)}
                   style={{
                     padding: '8px 18px',
@@ -1244,6 +1477,145 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
         document.body
       )}
 
+      {/* Modal Thông báo chi tiết kết quả Đặt lại đơn */}
+      {reorderResultModal && createPortal(
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(15, 23, 42, 0.65)',
+            backdropFilter: 'blur(3px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 10001,
+            padding: '16px',
+          }}
+        >
+          <div
+            style={{
+              background: '#ffffff',
+              borderRadius: '16px',
+              maxWidth: '520px',
+              width: '100%',
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+              border: '1px solid #e2e8f0',
+              overflow: 'hidden',
+            }}
+          >
+            <div style={{ padding: '20px 24px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{
+                width: '38px',
+                height: '38px',
+                borderRadius: '50%',
+                background: reorderResultModal.onContinue ? '#ecfdf5' : '#fef2f2',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: reorderResultModal.onContinue ? '#16a34a' : '#dc2626',
+              }}>
+                {reorderResultModal.onContinue ? (
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M20 6L9 17l-5-5"/>
+                  </svg>
+                ) : (
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+                  </svg>
+                )}
+              </div>
+              <h3 style={{ margin: 0, fontSize: '17px', fontWeight: '700', color: '#0f172a' }}>
+                {reorderResultModal.title}
+              </h3>
+            </div>
+            <div style={{ padding: '20px 24px' }}>
+              <p style={{ margin: '0 0 14px 0', fontSize: '14px', color: '#334155', lineHeight: 1.5 }}>
+                {reorderResultModal.message}
+              </p>
+
+              {reorderResultModal.excludedItems.length > 0 && (
+                <div style={{
+                  background: '#fef2f2',
+                  border: '1px solid #fecaca',
+                  borderRadius: '10px',
+                  padding: '12px 16px',
+                  marginBottom: '14px'
+                }}>
+                  <div style={{ fontSize: '13px', fontWeight: '700', color: '#991b1b', marginBottom: '8px' }}>
+                    Sản phẩm không thể đặt lại:
+                  </div>
+                  <div style={{ maxHeight: '160px', overflowY: 'auto' }}>
+                    {reorderResultModal.excludedItems.map((item, idx) => (
+                      <div key={idx} style={{ fontSize: '13px', color: '#7f1d1d', padding: '5px 0', borderBottom: idx < reorderResultModal.excludedItems.length - 1 ? '1px dashed #fca5a5' : 'none', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontWeight: 600 }}>• {item.product_name}</span>
+                        <span style={{ color: '#b91c1c', fontSize: '12px' }}>{item.reason}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+            <div style={{ padding: '14px 24px', background: '#f8fafc', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              {reorderResultModal.onContinue ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setReorderResultModal(null)}
+                    style={{
+                      padding: '8px 16px',
+                      background: '#ffffff',
+                      border: '1px solid #cbd5e1',
+                      borderRadius: '8px',
+                      color: '#475569',
+                      fontSize: '13px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Hủy
+                  </button>
+                  <button
+                    type="button"
+                    onClick={reorderResultModal.onContinue}
+                    style={{
+                      padding: '8px 20px',
+                      background: '#16a34a',
+                      border: 'none',
+                      borderRadius: '8px',
+                      color: '#ffffff',
+                      fontSize: '13px',
+                      fontWeight: '700',
+                      cursor: 'pointer',
+                      boxShadow: '0 2px 4px rgba(22, 163, 74, 0.25)',
+                    }}
+                  >
+                    Tiếp tục lên đơn
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setReorderResultModal(null)}
+                  style={{
+                    padding: '8px 20px',
+                    background: '#0f172a',
+                    border: 'none',
+                    borderRadius: '8px',
+                    color: '#ffffff',
+                    fontSize: '13px',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Đã hiểu
+                </button>
+              )}
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
       {/* Modal Tạo Đơn Hàng */}
       {isCreateModalOpen && (
         <OrderCreateModal
@@ -1251,9 +1623,17 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
           token={token}
           currentUser={currentUser}
           products={products}
-          onClose={() => setIsCreateModalOpen(false)}
+          initialDealerId={reorderInitialData?.dealerId}
+          initialOrderItems={reorderInitialData?.items}
+          initialNote={reorderInitialData?.note}
+          initialDeliveryPointId={reorderInitialData?.deliveryPointId}
+          onClose={() => {
+            setIsCreateModalOpen(false);
+            setReorderInitialData(null);
+          }}
           onSuccess={() => {
             setIsCreateModalOpen(false);
+            setReorderInitialData(null);
             fetchOrders();
             if (onRefreshProducts) onRefreshProducts();
           }}
