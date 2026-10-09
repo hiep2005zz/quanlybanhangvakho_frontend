@@ -6,13 +6,14 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
 .dealer-profiles-container {
-  padding: 16px 22px;
+  padding: 10px 16px;
   max-width: 100%;
   margin: 0 auto;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   color: #1e293b;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  box-sizing: border-box;
 }
 
 .dealer-profiles-container button,
@@ -29,13 +30,13 @@
 
 @media (max-width: 1440px) {
   .dealer-profiles-container {
-    padding: 14px 18px;
+    padding: 10px 14px;
   }
 }
 
 @media (max-width: 768px) {
   .dealer-profiles-container {
-    padding: 12px;
+    padding: 8px;
   }
 }
 
@@ -44,94 +45,70 @@
    ========================================================================== */
 .dealer-profiles-header {
   background: #ffffff;
-  border-radius: 12px;
-  padding: 16px 20px;
-  margin-bottom: 14px;
-  box-shadow: 0 2px 12px -2px rgba(15, 23, 42, 0.04), 0 1px 3px rgba(15, 23, 42, 0.02);
+  border-radius: 10px;
+  padding: 10px 16px;
+  margin-bottom: 10px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
   border: 1px solid #e2e8f0;
   display: flex;
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
-  gap: 16px;
+  gap: 10px;
 }
 
 .dealer-header-title-wrap {
   flex: 1;
-  min-width: 280px;
-}
-
-.dealer-header-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 3px 10px;
-  border-radius: 999px;
-  background: #ecfdf5;
-  color: #047857;
-  font-size: 11.5px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  border: 1px solid #a7f3d0;
-  margin-bottom: 6px;
+  min-width: 240px;
 }
 
 .dealer-header-title {
-  font-size: 21px;
+  font-size: 18px;
   font-weight: 800;
   color: #0f172a;
   letter-spacing: -0.02em;
-  margin: 0 0 4px 0;
-  line-height: 1.25;
-}
-
-.dealer-header-desc {
-  font-size: 13px;
-  color: #64748b;
   margin: 0;
-  line-height: 1.45;
-  font-weight: 450;
-  max-width: 760px;
+  line-height: 1.25;
 }
 
 .dealer-header-actions {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
 /* ==========================================================================
-   Buttons System (Consistent 38px Height & Proportions)
+   Buttons System (Consistent 34px Height & Proportions for 100% View)
    ========================================================================== */
 .btn-primary-gradient {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  height: 38px;
-  padding: 0 18px;
-  border-radius: 9px;
+  gap: 6px;
+  height: 34px;
+  padding: 0 14px;
+  border-radius: 8px;
   background: linear-gradient(135deg, #0fba90 0%, #0fad89 100%);
   color: #ffffff;
-  font-size: 13.5px;
+  font-size: 12.5px;
   font-weight: 600;
   border: none;
   cursor: pointer;
-  box-shadow: 0 2px 8px rgba(15, 186, 144, 0.28);
+  box-shadow: 0 2px 6px rgba(15, 186, 144, 0.24);
   transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
   white-space: nowrap;
 }
 
 .btn-primary-gradient:hover:not(:disabled) {
   background: linear-gradient(135deg, #0fad89 0%, #0a8f70 100%);
-  box-shadow: 0 4px 14px rgba(15, 186, 144, 0.38);
+  box-shadow: 0 3px 10px rgba(15, 186, 144, 0.32);
   transform: translateY(-1px);
 }
 
 .btn-primary-gradient:active:not(:disabled) {
   transform: translateY(0);
-  box-shadow: 0 2px 6px rgba(15, 186, 144, 0.2);
+  box-shadow: 0 1px 4px rgba(15, 186, 144, 0.2);
 }
 
 .btn-primary-gradient:disabled {
@@ -145,13 +122,13 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  height: 38px;
-  padding: 0 14px;
-  border-radius: 9px;
+  gap: 6px;
+  height: 34px;
+  padding: 0 12px;
+  border-radius: 8px;
   background: #ffffff;
   color: #334155;
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 600;
   border: 1.5px solid #e2e8f0;
   cursor: pointer;
@@ -164,7 +141,7 @@
   border-color: #cbd5e1;
   color: #0f172a;
   transform: translateY(-1px);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
 }
 
 .btn-secondary-white:active:not(:disabled) {
@@ -178,13 +155,13 @@
 }
 
 /* ==========================================================================
-   2. 4 Stat Cards Grid (Interactive, backend-driven, modern minimalist)
+   2. 4 Stat Cards Grid (Interactive, compact for 100% full view)
    ========================================================================== */
 .dealer-stats-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 14px;
-  margin-bottom: 16px;
+  gap: 10px;
+  margin-bottom: 10px;
 }
 
 @media (max-width: 1200px) {
@@ -201,27 +178,27 @@
 
 .dealer-stat-card {
   background: #ffffff;
-  border-radius: 12px;
-  padding: 16px 18px;
+  border-radius: 10px;
+  padding: 10px 14px;
   border: 1px solid #e2e8f0;
   border-left-width: 4px;
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  gap: 4px;
+  gap: 2px;
   cursor: pointer;
   position: relative;
   user-select: none;
-  min-height: 94px;
+  min-height: 72px;
   box-sizing: border-box;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .dealer-stat-card:hover {
-  transform: translateY(-2px);
+  transform: translateY(-1px);
   border-color: #cbd5e1;
-  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.08);
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
 }
 
 .dealer-stat-card.stat-card-blue {
@@ -238,7 +215,7 @@
 }
 
 .dealer-stat-card.stat-card-active {
-  box-shadow: 0 0 0 2px #0fba90, 0 8px 20px rgba(15, 186, 144, 0.12);
+  box-shadow: 0 0 0 2px #0fba90, 0 6px 14px rgba(15, 186, 144, 0.1);
   background: #f0fdf9;
   border-left-color: #0fba90;
 }
@@ -247,12 +224,12 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 6px;
   width: 100%;
 }
 
 .stat-card-label {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
   color: #64748b;
   text-transform: uppercase;
@@ -262,22 +239,22 @@
 .stat-filter-tag {
   display: inline-flex;
   align-items: center;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
   background: #ecfdf5;
   color: #047857;
   border: 1px solid #a7f3d0;
-  padding: 1px 7px;
+  padding: 1px 6px;
   border-radius: 999px;
   white-space: nowrap;
 }
 
 .stat-number {
-  font-size: 26px;
+  font-size: 22px;
   font-weight: 800;
   line-height: 1.1;
   letter-spacing: -0.02em;
-  margin: 2px 0;
+  margin: 1px 0;
 }
 
 .stat-num-blue {
@@ -294,28 +271,28 @@
 }
 
 .stat-subtext {
-  font-size: 12px;
+  font-size: 11px;
   color: #64748b;
   font-weight: 500;
-  line-height: 1.3;
+  line-height: 1.25;
 }
 
 /* ==========================================================================
-   3. Filter Card Section
+   3. Filter Card Section (Compact for 100% Full View)
    ========================================================================== */
 .dealer-filter-card {
   background: #ffffff;
-  border-radius: 16px;
-  padding: 20px 24px;
-  margin-bottom: 22px;
+  border-radius: 10px;
+  padding: 8px 14px;
+  margin-bottom: 10px;
   border: 1px solid #e2e8f0;
-  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.03);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03);
 }
 
 .dealer-filter-grid {
   display: grid;
-  grid-template-columns: 2.2fr 1fr 1fr 1fr 1fr;
-  gap: 14px;
+  grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
+  gap: 8px;
   align-items: center;
 }
 
@@ -339,18 +316,18 @@
 
 .search-input-wrapper svg.search-icon {
   position: absolute;
-  left: 14px;
+  left: 10px;
   color: #94a3b8;
   pointer-events: none;
 }
 
 .search-input {
   width: 100%;
-  height: 40px;
-  padding: 0 38px 0 42px;
-  border-radius: 10px;
+  height: 34px;
+  padding: 0 32px 0 36px;
+  border-radius: 8px;
   border: 1.5px solid #e2e8f0;
-  font-size: 13.5px;
+  font-size: 12.5px;
   color: #0f172a;
   outline: none;
   background: #f8fafc;
@@ -360,20 +337,20 @@
 
 .search-input::placeholder {
   color: #94a3b8;
-  font-size: 13px;
+  font-size: 12.5px;
 }
 
 .search-input:focus {
   background: #ffffff;
   border-color: #2563eb;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.12);
 }
 
 .btn-clear-search {
   position: absolute;
-  right: 10px;
-  width: 24px;
-  height: 24px;
+  right: 8px;
+  width: 20px;
+  height: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -392,11 +369,11 @@
 
 .filter-select {
   width: 100%;
-  height: 40px;
-  padding: 0 14px;
-  border-radius: 10px;
+  height: 34px;
+  padding: 0 10px;
+  border-radius: 8px;
   border: 1.5px solid #e2e8f0;
-  font-size: 13.5px;
+  font-size: 12.5px;
   font-weight: 500;
   color: #0f172a;
   background: #f8fafc;
@@ -409,7 +386,7 @@
 .filter-select:focus {
   background: #ffffff;
   border-color: #2563eb;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.12);
 }
 
 /* Results Summary Bar */
@@ -417,15 +394,15 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 16px;
+  padding: 5px 12px;
   background: #f8fafc;
-  border-radius: 10px;
+  border-radius: 8px;
   border: 1px solid #e2e8f0;
-  margin-top: 14px;
-  font-size: 13.5px;
+  margin-top: 6px;
+  font-size: 12px;
   color: #475569;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 8px;
 }
 
 .results-count-text strong {
@@ -436,14 +413,14 @@
 .btn-reset-filters {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  height: 32px;
-  padding: 0 12px;
-  border-radius: 8px;
+  gap: 5px;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 6px;
   border: 1.5px solid #cbd5e1;
   background: #ffffff;
   color: #475569;
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.18s ease;
@@ -457,33 +434,38 @@
 }
 
 /* ==========================================================================
-   4. Table Section (Responsive, Scrollable, Crisp Layout)
+   4. Table Section (Fixed Sticky Header When Scrolling Database, 100% Fit)
    ========================================================================== */
 .dealer-table-card {
   background: #ffffff;
-  border-radius: 16px;
+  border-radius: 10px;
   border: 1px solid #e2e8f0;
-  box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.05);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
   overflow: hidden;
 }
 
 .table-responsive {
   width: 100%;
   overflow-x: auto;
+  overflow-y: auto;
+  max-height: calc(100vh - 280px);
+  min-height: 280px;
   -webkit-overflow-scrolling: touch;
+  position: relative;
 }
 
-/* Custom Scrollbar for sleek e-commerce feel */
+/* Custom Scrollbar */
 .table-responsive::-webkit-scrollbar {
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 .table-responsive::-webkit-scrollbar-track {
   background: #f1f5f9;
-  border-radius: 4px;
+  border-radius: 3px;
 }
 .table-responsive::-webkit-scrollbar-thumb {
   background: #cbd5e1;
-  border-radius: 4px;
+  border-radius: 3px;
 }
 .table-responsive::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
@@ -493,7 +475,7 @@
   width: 100%;
   border-collapse: separate;
   border-spacing: 0;
-  font-size: 13px;
+  font-size: 12.5px;
 }
 
 .dealer-table th {
@@ -504,16 +486,17 @@
   letter-spacing: 0.02em;
   text-transform: uppercase;
   text-align: left;
-  padding: 11px 14px;
-  border-bottom: 1.5px solid #e2e8f0;
+  padding: 8px 10px;
+  border-bottom: 2px solid #cbd5e1;
   white-space: nowrap;
   position: sticky;
   top: 0;
-  z-index: 10;
+  z-index: 25;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
 }
 
 .dealer-table td {
-  padding: 10px 14px;
+  padding: 7px 10px;
   border-bottom: 1px solid #f1f5f9;
   vertical-align: middle;
   color: #334155;

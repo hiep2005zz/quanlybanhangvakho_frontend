@@ -947,17 +947,17 @@ export default function DealerProfileManagementView({
               <table className="dealer-table">
                 <thead>
                   <tr>
-                    <th style={{ width: '85px', minWidth: '80px' }} title="Mã định danh duy nhất của đại lý">Mã đại lý</th>
-                    <th style={{ width: '240px', minWidth: '220px' }} title="Tên đại lý và thông tin liên hệ">Tên đại lý</th>
-                    <th style={{ width: '125px', minWidth: '115px' }} title="Kho hàng được gán phục vụ mặc định">Kho phục vụ</th>
-                    <th style={{ width: '100px', minWidth: '95px' }} title="Mã số thuế doanh nghiệp">Mã số thuế</th>
-                    <th style={{ width: '115px', minWidth: '105px' }} title="Phân loại nhóm khách hàng">Nhóm KH</th>
-                    <th style={{ width: '135px', minWidth: '125px' }} title="Bảng giá bán đang áp dụng theo nhóm">Bảng giá áp dụng</th>
-                    <th style={{ width: '90px', minWidth: '85px' }} title="Khu vực địa lý của đại lý">Khu vực</th>
-                    <th style={{ width: '130px', minWidth: '120px' }} title="Nhân viên kinh doanh phụ trách">Người phụ trách</th>
-                    <th style={{ width: '75px', minWidth: '70px', textAlign: 'center' }} title="Số lượng đơn hàng/giao dịch đã phát sinh">Giao dịch</th>
-                    <th style={{ width: '130px', minWidth: '120px', textAlign: 'center' }} title="Trạng thái hoạt động giao dịch">Trạng thái</th>
-                    <th style={{ width: '75px', minWidth: '70px', textAlign: 'center' }} title="Các thao tác quản lý hồ sơ">Thao tác</th>
+                    <th style={{ width: '80px', minWidth: '75px' }} title="Mã định danh duy nhất của đại lý">Mã đại lý</th>
+                    <th style={{ width: '200px', minWidth: '170px' }} title="Tên đại lý và thông tin liên hệ">Tên đại lý</th>
+                    <th style={{ width: '110px', minWidth: '100px' }} title="Kho hàng được gán phục vụ mặc định">Kho phục vụ</th>
+                    <th style={{ width: '90px', minWidth: '85px' }} title="Mã số thuế doanh nghiệp">Mã số thuế</th>
+                    <th style={{ width: '95px', minWidth: '90px' }} title="Phân loại nhóm khách hàng">Nhóm KH</th>
+                    <th style={{ width: '130px', minWidth: '115px' }} title="Bảng giá bán đang áp dụng theo nhóm">Bảng giá áp dụng</th>
+                    <th style={{ width: '80px', minWidth: '70px' }} title="Khu vực địa lý của đại lý">Khu vực</th>
+                    <th style={{ width: '115px', minWidth: '105px' }} title="Nhân viên kinh doanh phụ trách">Người phụ trách</th>
+                    <th style={{ width: '65px', minWidth: '60px', textAlign: 'center' }} title="Số lượng đơn hàng/giao dịch đã phát sinh">Giao dịch</th>
+                    <th style={{ width: '115px', minWidth: '105px', textAlign: 'center' }} title="Trạng thái hoạt động giao dịch">Trạng thái</th>
+                    <th style={{ width: '65px', minWidth: '60px', textAlign: 'center' }} title="Các thao tác quản lý hồ sơ">Thao tác</th>
                   </tr>
                 </thead>
                 <tbody>

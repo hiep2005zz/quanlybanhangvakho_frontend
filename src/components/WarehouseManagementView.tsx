@@ -135,7 +135,6 @@ const PaginationControl: React.FC<PaginationControlProps> = ({
 export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = ({
   token,
   currentUser,
-  onBackToHome,
 }) => {
   // Phân quyền
   const userRoles = currentUser.roles || [currentUser.role];
@@ -644,11 +643,6 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
         </div>
 
         <div className="wh-header-actions">
-          {onBackToHome && (
-            <button type="button" className="wh-btn wh-btn-secondary" onClick={onBackToHome}>
-              ← Quay lại Trang chính
-            </button>
-          )}
           {canManage && (
             <button type="button" className="wh-btn wh-btn-primary" onClick={handleOpenCreateWarehouse}>
               + Thêm kho mới
@@ -719,89 +713,91 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
               </div>
             ) : (
               <>
-                <table className="wh-table">
-                  <thead>
-                    <tr>
-                      <th style={{ width: '110px' }}>Mã kho</th>
-                      <th>Tên kho hàng</th>
-                      <th>Địa chỉ</th>
-                      <th>Người phụ trách</th>
-                      <th style={{ textAlign: 'center' }}>Số vị trí kệ</th>
-                      <th style={{ textAlign: 'center' }}>Mặt hàng</th>
-                      <th style={{ textAlign: 'right' }}>Tổng tồn</th>
-                      <th style={{ textAlign: 'center' }}>Trạng thái</th>
-                      <th style={{ textAlign: 'center', width: '220px' }}>Thao tác</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {paginatedWarehouses.map((wh) => (
-                      <tr key={wh.id}>
-                        <td>
-                          <span className="wh-badge wh-badge-code">{wh.code}</span>
-                        </td>
-                        <td>
-                          <strong style={{ color: '#0f172a' }}>{wh.name}</strong>
-                        </td>
-                        <td style={{ maxWidth: '280px', color: '#475569' }}>
-                          {wh.address || '—'}
-                        </td>
-                        <td>
-                          <div>{wh.manager_name || 'Chưa chỉ định'}</div>
-                          {wh.phone && <div style={{ fontSize: '12px', color: '#64748b' }}>SĐT: {wh.phone}</div>}
-                        </td>
-                        <td style={{ textAlign: 'center' }}>
-                          <span className="wh-badge wh-badge-number">{wh.locations_count} vị trí</span>
-                        </td>
-                        <td style={{ textAlign: 'center' }}>
-                          <span>{wh.total_products_count} loại</span>
-                        </td>
-                        <td style={{ textAlign: 'right', fontWeight: 600, color: '#0f172a' }}>
-                          {wh.total_stock_quantity.toLocaleString('vi-VN')}
-                        </td>
-                        <td style={{ textAlign: 'center' }}>
-                          <span className={`wh-badge ${wh.is_active ? 'wh-badge-active' : 'wh-badge-inactive'}`}>
-                            {wh.status || (wh.is_active ? 'Đang hoạt động' : 'Ngừng hoạt động')}
-                          </span>
-                        </td>
-                        <td style={{ textAlign: 'center' }}>
-                          <div style={{ display: 'inline-flex', gap: '6px' }}>
-                            <button
-                              type="button"
-                              className="wh-btn wh-btn-sm wh-btn-primary"
-                              title="Quản lý sơ đồ vị trí kệ và phân bổ sản phẩm"
-                              onClick={() => {
-                                setSelectedWarehouse(wh);
-                                setSubTab('locations');
-                              }}
-                            >
-                              Quản lý vị trí
-                            </button>
-                            {canManage && (
-                              <>
-                                <button
-                                  type="button"
-                                  className="wh-btn wh-btn-sm wh-btn-secondary"
-                                  title="Chỉnh sửa thông tin kho"
-                                  onClick={() => handleOpenEditWarehouse(wh)}
-                                >
-                                  Sửa
-                                </button>
-                                <button
-                                  type="button"
-                                  className="wh-btn wh-btn-sm wh-btn-danger"
-                                  title="Xóa kho hàng"
-                                  onClick={() => setDeletingWarehouse(wh)}
-                                >
-                                  Xóa
-                                </button>
-                              </>
-                            )}
-                          </div>
-                        </td>
+                <div className="wh-table-responsive">
+                  <table className="wh-table">
+                    <thead>
+                      <tr>
+                        <th style={{ width: '110px' }}>Mã kho</th>
+                        <th>Tên kho hàng</th>
+                        <th>Địa chỉ</th>
+                        <th>Người phụ trách</th>
+                        <th style={{ textAlign: 'center' }}>Số vị trí kệ</th>
+                        <th style={{ textAlign: 'center' }}>Mặt hàng</th>
+                        <th style={{ textAlign: 'right' }}>Tổng tồn</th>
+                        <th style={{ textAlign: 'center' }}>Trạng thái</th>
+                        <th style={{ textAlign: 'center', width: '220px' }}>Thao tác</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {paginatedWarehouses.map((wh) => (
+                        <tr key={wh.id}>
+                          <td>
+                            <span className="wh-badge wh-badge-code">{wh.code}</span>
+                          </td>
+                          <td>
+                            <strong style={{ color: '#0f172a' }}>{wh.name}</strong>
+                          </td>
+                          <td style={{ maxWidth: '280px', color: '#475569' }}>
+                            {wh.address || '—'}
+                          </td>
+                          <td>
+                            <div>{wh.manager_name || 'Chưa chỉ định'}</div>
+                            {wh.phone && <div style={{ fontSize: '12px', color: '#64748b' }}>SĐT: {wh.phone}</div>}
+                          </td>
+                          <td style={{ textAlign: 'center' }}>
+                            <span className="wh-badge wh-badge-number">{wh.locations_count} vị trí</span>
+                          </td>
+                          <td style={{ textAlign: 'center' }}>
+                            <span>{wh.total_products_count} loại</span>
+                          </td>
+                          <td style={{ textAlign: 'right', fontWeight: 600, color: '#0f172a' }}>
+                            {wh.total_stock_quantity.toLocaleString('vi-VN')}
+                          </td>
+                          <td style={{ textAlign: 'center' }}>
+                            <span className={`wh-badge ${wh.is_active ? 'wh-badge-active' : 'wh-badge-inactive'}`}>
+                              {wh.status || (wh.is_active ? 'Đang hoạt động' : 'Ngừng hoạt động')}
+                            </span>
+                          </td>
+                          <td style={{ textAlign: 'center' }}>
+                            <div style={{ display: 'inline-flex', gap: '6px' }}>
+                              <button
+                                type="button"
+                                className="wh-btn wh-btn-sm wh-btn-primary"
+                                title="Quản lý sơ đồ vị trí kệ và phân bổ sản phẩm"
+                                onClick={() => {
+                                  setSelectedWarehouse(wh);
+                                  setSubTab('locations');
+                                }}
+                              >
+                                Quản lý vị trí
+                              </button>
+                              {canManage && (
+                                <>
+                                  <button
+                                    type="button"
+                                    className="wh-btn wh-btn-sm wh-btn-secondary"
+                                    title="Chỉnh sửa thông tin kho"
+                                    onClick={() => handleOpenEditWarehouse(wh)}
+                                  >
+                                    Sửa
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="wh-btn wh-btn-sm wh-btn-danger"
+                                    title="Xóa kho hàng"
+                                    onClick={() => setDeletingWarehouse(wh)}
+                                  >
+                                    Xóa
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
                 <PaginationControl
                   currentPage={whCurrentPage}
                   totalPages={whTotalPages}
@@ -925,74 +921,76 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                   </div>
                 ) : (
                   <>
-                    <table className="wh-table">
-                      <thead>
-                        <tr>
-                          <th style={{ width: '130px' }}>Mã vị trí</th>
-                          <th>Tên vị trí kệ</th>
-                          <th>Khu vực (Zone)</th>
-                          <th>Dãy kệ (Aisle)</th>
-                          <th>Tầng/Kệ (Rack)</th>
-                          <th>Ô chứa (Bin)</th>
-                          <th style={{ textAlign: 'center' }}>Sức chứa</th>
-                          <th style={{ textAlign: 'center' }}>Mặt hàng</th>
-                          <th style={{ textAlign: 'right' }}>Lượng hàng chứa</th>
-                          <th style={{ textAlign: 'center' }}>Trạng thái</th>
-                          {canManage && <th style={{ textAlign: 'center', width: '140px' }}>Thao tác</th>}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {paginatedLocations.map((loc) => (
-                          <tr key={loc.id}>
-                            <td>
-                              <span className="wh-badge wh-badge-location">{loc.location_code}</span>
-                            </td>
-                            <td>
-                              <strong>{loc.location_name || loc.location_code}</strong>
-                              {loc.note && <div style={{ fontSize: '12px', color: '#64748b' }}>{loc.note}</div>}
-                            </td>
-                            <td>{loc.zone || '—'}</td>
-                            <td>{loc.aisle || '—'}</td>
-                            <td>{loc.rack || '—'}</td>
-                            <td>{loc.bin || '—'}</td>
-                            <td style={{ textAlign: 'center' }}>
-                              {loc.max_capacity?.toLocaleString('vi-VN')}
-                            </td>
-                            <td style={{ textAlign: 'center' }}>
-                              <span className="wh-badge wh-badge-number">{loc.items_count} SP</span>
-                            </td>
-                            <td style={{ textAlign: 'right', fontWeight: 600 }}>
-                              {loc.total_quantity.toLocaleString('vi-VN')}
-                            </td>
-                            <td style={{ textAlign: 'center' }}>
-                              <span className="wh-badge wh-badge-active">
-                                {loc.status || 'Đang sử dụng'}
-                              </span>
-                            </td>
-                            {canManage && (
-                              <td style={{ textAlign: 'center' }}>
-                                <div style={{ display: 'inline-flex', gap: '6px' }}>
-                                  <button
-                                    type="button"
-                                    className="wh-btn wh-btn-sm wh-btn-secondary"
-                                    onClick={() => handleOpenEditLocation(loc)}
-                                  >
-                                    Sửa
-                                  </button>
-                                  <button
-                                    type="button"
-                                    className="wh-btn wh-btn-sm wh-btn-danger"
-                                    onClick={() => setDeletingLocation(loc)}
-                                  >
-                                    Xóa
-                                  </button>
-                                </div>
-                              </td>
-                            )}
+                    <div className="wh-table-responsive">
+                      <table className="wh-table">
+                        <thead>
+                          <tr>
+                            <th style={{ width: '130px' }}>Mã vị trí</th>
+                            <th>Tên vị trí kệ</th>
+                            <th>Khu vực (Zone)</th>
+                            <th>Dãy kệ (Aisle)</th>
+                            <th>Tầng/Kệ (Rack)</th>
+                            <th>Ô chứa (Bin)</th>
+                            <th style={{ textAlign: 'center' }}>Sức chứa</th>
+                            <th style={{ textAlign: 'center' }}>Mặt hàng</th>
+                            <th style={{ textAlign: 'right' }}>Lượng hàng chứa</th>
+                            <th style={{ textAlign: 'center' }}>Trạng thái</th>
+                            {canManage && <th style={{ textAlign: 'center', width: '140px' }}>Thao tác</th>}
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody>
+                          {paginatedLocations.map((loc) => (
+                            <tr key={loc.id}>
+                              <td>
+                                <span className="wh-badge wh-badge-location">{loc.location_code}</span>
+                              </td>
+                              <td>
+                                <strong>{loc.location_name || loc.location_code}</strong>
+                                {loc.note && <div style={{ fontSize: '12px', color: '#64748b' }}>{loc.note}</div>}
+                              </td>
+                              <td>{loc.zone || '—'}</td>
+                              <td>{loc.aisle || '—'}</td>
+                              <td>{loc.rack || '—'}</td>
+                              <td>{loc.bin || '—'}</td>
+                              <td style={{ textAlign: 'center' }}>
+                                {loc.max_capacity?.toLocaleString('vi-VN')}
+                              </td>
+                              <td style={{ textAlign: 'center' }}>
+                                <span className="wh-badge wh-badge-number">{loc.items_count} SP</span>
+                              </td>
+                              <td style={{ textAlign: 'right', fontWeight: 600 }}>
+                                {loc.total_quantity.toLocaleString('vi-VN')}
+                              </td>
+                              <td style={{ textAlign: 'center' }}>
+                                <span className="wh-badge wh-badge-active">
+                                  {loc.status || 'Đang sử dụng'}
+                                </span>
+                              </td>
+                              {canManage && (
+                                <td style={{ textAlign: 'center' }}>
+                                  <div style={{ display: 'inline-flex', gap: '6px' }}>
+                                    <button
+                                      type="button"
+                                      className="wh-btn wh-btn-sm wh-btn-secondary"
+                                      onClick={() => handleOpenEditLocation(loc)}
+                                    >
+                                      Sửa
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="wh-btn wh-btn-sm wh-btn-danger"
+                                      onClick={() => setDeletingLocation(loc)}
+                                    >
+                                      Xóa
+                                    </button>
+                                  </div>
+                                </td>
+                              )}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                     <PaginationControl
                       currentPage={locCurrentPage}
                       totalPages={locTotalPages}
@@ -1054,64 +1052,66 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                   </div>
                 ) : (
                   <>
-                    <table className="wh-table">
-                      <thead>
-                        <tr>
-                          <th style={{ width: '100px' }}>Mã SP</th>
-                          <th>Tên sản phẩm</th>
-                          <th>ĐVT</th>
-                          <th>Vị trí kệ lưu trữ</th>
-                          <th>Khu vực / Dãy</th>
-                          <th style={{ textAlign: 'right' }}>Số lượng tại kệ này</th>
-                          <th style={{ textAlign: 'right' }}>Tổng tồn tại kho</th>
-                          {canManage && <th style={{ textAlign: 'center', width: '130px' }}>Thao tác</th>}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {paginatedLocationProducts.map((item) => (
-                          <tr key={item.id}>
-                            <td>
-                              <span className="wh-badge wh-badge-code">{item.product_code}</span>
-                            </td>
-                            <td>
-                              <strong>{item.product_name}</strong>
-                            </td>
-                            <td>{item.base_unit || 'Cái'}</td>
-                            <td>
-                              <span className="wh-badge wh-badge-location">
-                                {item.location_code}
-                              </span>
-                              {item.location_name && (
-                                <div style={{ fontSize: '12px', color: '#64748b' }}>
-                                  {item.location_name}
-                                </div>
-                              )}
-                            </td>
-                            <td>
-                              {[item.zone, item.aisle, item.rack, item.bin].filter(Boolean).join(' - ') || '—'}
-                            </td>
-                            <td style={{ textAlign: 'right', fontWeight: 700, color: '#16a34a' }}>
-                              {item.quantity.toLocaleString('vi-VN')} {item.base_unit}
-                            </td>
-                            <td style={{ textAlign: 'right', fontWeight: 600, color: '#0f172a' }}>
-                              {item.warehouse_total_stock.toLocaleString('vi-VN')} {item.base_unit}
-                            </td>
-                            {canManage && (
-                              <td style={{ textAlign: 'center' }}>
-                                <button
-                                  type="button"
-                                  className="wh-btn wh-btn-sm wh-btn-secondary"
-                                  title="Chuyển một phần hoặc toàn bộ sang vị trí kệ khác"
-                                  onClick={() => handleOpenTransferProduct(item)}
-                                >
-                                  ⇄ Chuyển kệ
-                                </button>
-                              </td>
-                            )}
+                    <div className="wh-table-responsive">
+                      <table className="wh-table">
+                        <thead>
+                          <tr>
+                            <th style={{ width: '100px' }}>Mã SP</th>
+                            <th>Tên sản phẩm</th>
+                            <th>ĐVT</th>
+                            <th>Vị trí kệ lưu trữ</th>
+                            <th>Khu vực / Dãy</th>
+                            <th style={{ textAlign: 'right' }}>Số lượng tại kệ này</th>
+                            <th style={{ textAlign: 'right' }}>Tổng tồn tại kho</th>
+                            {canManage && <th style={{ textAlign: 'center', width: '130px' }}>Thao tác</th>}
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody>
+                          {paginatedLocationProducts.map((item) => (
+                            <tr key={item.id}>
+                              <td>
+                                <span className="wh-badge wh-badge-code">{item.product_code}</span>
+                              </td>
+                              <td>
+                                <strong>{item.product_name}</strong>
+                              </td>
+                              <td>{item.base_unit || 'Cái'}</td>
+                              <td>
+                                <span className="wh-badge wh-badge-location">
+                                  {item.location_code}
+                                </span>
+                                {item.location_name && (
+                                  <div style={{ fontSize: '12px', color: '#64748b' }}>
+                                    {item.location_name}
+                                  </div>
+                                )}
+                              </td>
+                              <td>
+                                {[item.zone, item.aisle, item.rack, item.bin].filter(Boolean).join(' - ') || '—'}
+                              </td>
+                              <td style={{ textAlign: 'right', fontWeight: 700, color: '#16a34a' }}>
+                                {item.quantity.toLocaleString('vi-VN')} {item.base_unit}
+                              </td>
+                              <td style={{ textAlign: 'right', fontWeight: 600, color: '#0f172a' }}>
+                                {item.warehouse_total_stock.toLocaleString('vi-VN')} {item.base_unit}
+                              </td>
+                              {canManage && (
+                                <td style={{ textAlign: 'center' }}>
+                                  <button
+                                    type="button"
+                                    className="wh-btn wh-btn-sm wh-btn-secondary"
+                                    title="Chuyển một phần hoặc toàn bộ sang vị trí kệ khác"
+                                    onClick={() => handleOpenTransferProduct(item)}
+                                  >
+                                    ⇄ Chuyển kệ
+                                  </button>
+                                </td>
+                              )}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                     <PaginationControl
                       currentPage={prodCurrentPage}
                       totalPages={prodTotalPages}
