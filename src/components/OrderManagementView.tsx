@@ -62,6 +62,9 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
   const rawRoles = currentUser.roles && currentUser.roles.length > 0 ? currentUser.roles : [currentUser.role];
   const isAdmin = currentUser.role === 'admin' || rawRoles.includes('admin');
   const isSalesManager = currentUser.role === 'sales_manager' || rawRoles.includes('sales_manager');
+  const isSales = currentUser.role === 'sales' || rawRoles.includes('sales');
+  const isAccountant = currentUser.role === 'accountant' || rawRoles.includes('accountant');
+  const canCreateOrders = !isAccountant && (isAdmin || isSalesManager || isSales);
   const canApprove = isAdmin || isSalesManager;
   const isCustomer = currentUser.role === 'customer' || Boolean(currentUser.roles && currentUser.roles.includes('customer'));
   const [customerDealer, setCustomerDealer] = useState<any | null>(null);
@@ -311,39 +314,41 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
             Làm mới
           </button>
 
-          <button
-            type="button"
-            id="btn-create-order-view"
-            onClick={() => !isCustomerLocked && setIsCreateModalOpen(true)}
-            disabled={isCustomerLocked}
-            style={{
-              padding: '9px 20px',
-              background: isCustomerLocked ? '#94a3b8' : 'linear-gradient(135deg, #0fba90 0%, #0fad89 100%)',
-              border: 'none',
-              borderRadius: '8px',
-              fontSize: '13.5px',
-              fontWeight: '700',
-              color: '#ffffff',
-              cursor: isCustomerLocked ? 'not-allowed' : 'pointer',
-              boxShadow: isCustomerLocked ? 'none' : '0 2px 8px rgba(15, 186, 144, 0.35)',
-              transition: 'all 0.18s ease',
-            }}
-            onMouseEnter={(e) => {
-              if (!isCustomerLocked) {
-                e.currentTarget.style.background = 'linear-gradient(135deg, #0fad89 0%, #0a8f70 100%)';
-                e.currentTarget.style.boxShadow = '0 4px 14px rgba(15, 186, 144, 0.45)';
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (!isCustomerLocked) {
-                e.currentTarget.style.background = 'linear-gradient(135deg, #0fba90 0%, #0fad89 100%)';
-                e.currentTarget.style.boxShadow = '0 2px 8px rgba(15, 186, 144, 0.35)';
-              }
-            }}
-            title={isCustomerLocked ? 'Đại lý hiện đang bị khóa giao dịch, không thể tạo đơn hàng mới' : undefined}
-          >
-            {isCustomerLocked ? 'Tạo Đơn Hàng Mới (Đã khóa)' : 'Tạo Đơn Hàng Mới'}
-          </button>
+          {canCreateOrders && (
+            <button
+              type="button"
+              id="btn-create-order-view"
+              onClick={() => !isCustomerLocked && setIsCreateModalOpen(true)}
+              disabled={isCustomerLocked}
+              style={{
+                padding: '9px 20px',
+                background: isCustomerLocked ? '#94a3b8' : 'linear-gradient(135deg, #0fba90 0%, #0fad89 100%)',
+                border: 'none',
+                borderRadius: '8px',
+                fontSize: '13.5px',
+                fontWeight: '700',
+                color: '#ffffff',
+                cursor: isCustomerLocked ? 'not-allowed' : 'pointer',
+                boxShadow: isCustomerLocked ? 'none' : '0 2px 8px rgba(15, 186, 144, 0.35)',
+                transition: 'all 0.18s ease',
+              }}
+              onMouseEnter={(e) => {
+                if (!isCustomerLocked) {
+                  e.currentTarget.style.background = 'linear-gradient(135deg, #0fad89 0%, #0a8f70 100%)';
+                  e.currentTarget.style.boxShadow = '0 4px 14px rgba(15, 186, 144, 0.45)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!isCustomerLocked) {
+                  e.currentTarget.style.background = 'linear-gradient(135deg, #0fba90 0%, #0fad89 100%)';
+                  e.currentTarget.style.boxShadow = '0 2px 8px rgba(15, 186, 144, 0.35)';
+                }
+              }}
+              title={isCustomerLocked ? 'Đại lý hiện đang bị khóa giao dịch, không thể tạo đơn hàng mới' : undefined}
+            >
+              {isCustomerLocked ? 'Tạo Đơn Hàng Mới (Đã khóa)' : 'Tạo Đơn Hàng Mới'}
+            </button>
+          )}
         </div>
       </div>
 
@@ -481,46 +486,6 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                 </button>
               )}
             </div>
-
-            {/* Nút Tạo Đơn Hàng Mới và nút Làm mới ở khoảng trắng */}
-            <button
-              type="button"
-              id="btn-create-order-view"
-              onClick={() => setIsCreateModalOpen(true)}
-              style={{
-                padding: '8px 16px',
-                background: '#0fad89',
-                border: 'none',
-                borderRadius: '8px',
-                fontSize: '13px',
-                fontWeight: '700',
-                color: '#ffffff',
-                cursor: 'pointer',
-                boxShadow: '0 2px 4px rgba(15, 173, 137, 0.25)',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              Tạo Đơn Hàng Mới
-            </button>
-
-            <button
-              type="button"
-              onClick={fetchOrders}
-              style={{
-                padding: '8px 14px',
-                background: '#ffffff',
-                border: '1px solid #cbd5e1',
-                borderRadius: '8px',
-                fontSize: '13px',
-                fontWeight: '600',
-                color: '#334155',
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-              }}
-              title="Tải lại danh sách đơn hàng"
-            >
-              Làm mới
-            </button>
           </div>
 
           <div style={{ fontSize: '13px', color: '#64748b', whiteSpace: 'nowrap' }}>

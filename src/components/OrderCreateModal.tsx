@@ -12,10 +12,13 @@ import {
   DiscountPolicy,
   getDealerStockSummaryApi,
   DealerStockSummaryResponse,
+  DealerCreditInfo,
+  getDealerCreditInfoApi,
 } from '../services/api';
 import { evaluateBestDiscountPolicy, parseStoredPolicies } from '../utils/discountEngine';
 import { searchDealers } from '../services/dealerSearchApi';
 import { emitStatusToast } from './StatusToast';
+import { DealerCreditBadge } from './DealerCreditBadge';
 import type { DeliveryPoint } from '../types/deliveryPoint';
 
 interface OrderCreateModalProps {
@@ -107,6 +110,10 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
   // AC 1 & 2: Quản lý tồn kho khả dụng theo kho phục vụ của đại lý
   const [stockSummary, setStockSummary] = useState<DealerStockSummaryResponse | null>(null);
   const [isLoadingStock, setIsLoadingStock] = useState<boolean>(false);
+
+  // AC 1: Tải thông tin công nợ, hạn mức & nợ quá hạn của đại lý
+  const [creditInfo, setCreditInfo] = useState<DealerCreditInfo | null>(null);
+  const [isLoadingCredit, setIsLoadingCredit] = useState<boolean>(false);
 
   const isCustomer = currentUser?.role === 'customer' || Boolean(currentUser?.roles && currentUser.roles.includes('customer'));
   const selectedDealer = dealers.find((d) => d.id === dealerId) || dealers[0];
@@ -223,6 +230,33 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
     };
   }, [dealerId, token]);
 
+  // AC 1: Tải thông tin công nợ, hạn mức & nợ quá hạn
+  useEffect(() => {
+    if (!dealerId || !token) {
+      setCreditInfo(null);
+      return;
+    }
+    let isCancelled = false;
+    setIsLoadingCredit(true);
+    getDealerCreditInfoApi(token, dealerId)
+      .then((info) => {
+        if (!isCancelled) {
+          setCreditInfo(info);
+        }
+      })
+      .catch((err) => {
+        console.warn('Could not load dealer credit info in modal:', err);
+      })
+      .finally(() => {
+        if (!isCancelled) {
+          setIsLoadingCredit(false);
+        }
+      });
+    return () => {
+      isCancelled = true;
+    };
+  }, [dealerId, token]);
+
   const stockMap = React.useMemo(() => {
     const map = new Map<number, { actual_stock: number; reserved_stock: number; available_stock: number }>();
     if (!stockSummary?.items) return map;
@@ -243,10 +277,6 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
       return q > maxOrderable;
     });
   }, [dealerId, orderItems, stockMap]);
-
-  const isDebtWarning =
-    selectedDealer?.debt_status &&
-    (selectedDealer.debt_status.includes('Vượt') || selectedDealer.debt_status.includes('Quá hạn'));
 
   // Nhận diện nhãn và màu sắc nhóm khách hàng
   const getCustomerGroupDisplay = (group?: string) => {
@@ -479,6 +509,22 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
   const safeDiscount = Number.isFinite(parsedDiscount) ? Math.min(100, Math.max(0, parsedDiscount)) : 0;
   const discountAmount = Math.round((subtotalAmount * safeDiscount) / 100);
   const totalAmount = subtotalAmount - discountAmount;
+
+  // AC 4: Phân quyền - Chỉ Sales / Admin được phép tạo đơn và kiểm tra công nợ
+  const rawRoles = currentUser?.roles && currentUser.roles.length > 0 ? currentUser.roles : (currentUser?.role ? [currentUser.role] : []);
+  const isSalesOrAdmin = !currentUser || rawRoles.some((r) => ['sales', 'sales_manager', 'admin'].includes(r));
+
+  // AC 2 & 3: Kiểm tra nợ quá hạn và vượt hạn mức
+  const isOverdueBlocked = Boolean(
+    creditInfo?.is_overdue ||
+    (creditInfo && creditInfo.max_debt_age > (creditInfo.overdue_days_allowed || 30))
+  );
+  const isOverLimit = Boolean(
+    creditInfo &&
+    creditInfo.credit_limit > 0 &&
+    (creditInfo.current_debt + totalAmount > creditInfo.credit_limit)
+  );
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
@@ -498,6 +544,25 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
       emitStatusToast({
         title: 'Đại lý bị khóa giao dịch',
         message: `Đại lý "${selectedDealer?.name}" hiện đang bị KHÓA giao dịch. Vui lòng liên hệ quản trị viên.`,
+        type: 'error',
+      });
+      return;
+    }
+
+    if (!isSalesOrAdmin) {
+      setErrorMsg('Bạn không có quyền tạo đơn hàng. Chỉ Nhân viên kinh doanh và Quản trị hệ thống mới được phép.');
+      return;
+    }
+
+    // AC 3: Chặn tạo đơn hoàn toàn khi đại lý có nợ quá hạn
+    if (isOverdueBlocked) {
+      const overdueDays = creditInfo?.max_debt_age || 0;
+      const maxAllowed = creditInfo?.overdue_days_allowed || 30;
+      const overdueMsg = `Đại lý "${selectedDealer?.name}" có khoản nợ quá hạn (${overdueDays} ngày, vượt mức cho phép ${maxAllowed} ngày). Hệ thống chặn tạo đơn hàng hoàn toàn!`;
+      setErrorMsg(overdueMsg);
+      emitStatusToast({
+        title: 'Chặn tạo đơn do nợ quá hạn',
+        message: overdueMsg,
         type: 'error',
       });
       return;
@@ -809,22 +874,14 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
               </div>
             )}
 
-            {isDebtWarning && (
-              <div
-                style={{
-                  marginTop: '8px',
-                  fontSize: '12.5px',
-                  color: '#dc2626',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                }}
-              >
-                <span>
-                  <strong>Cảnh báo:</strong> Khách hàng đang có trạng thái: <strong>{selectedDealer?.debt_status}</strong>. Đơn hàng có thể bị chặn khi lưu.
-                </span>
-              </div>
-            )}
+            {/* AC 1, 2, 3: Hiển thị 3 chỉ số công nợ của đại lý & cảnh báo */}
+            <div style={{ marginTop: '12px' }}>
+              <DealerCreditBadge
+                creditInfo={creditInfo}
+                currentOrderAmount={totalAmount}
+                isLoading={isLoadingCredit}
+              />
+            </div>
           </div>
 
           {/* 2. CHỌN SẢN PHẨM (DROPDOWN TỰ ĐỘNG RESET SAU KHI CHỌN ĐỂ THÊM TIẾP) */}
@@ -1446,26 +1503,30 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
             <button
               id="btn-submit-order"
               type="submit"
-              disabled={isSubmitting || orderItems.length === 0 || isLockedDealer || hasStockErrors}
+              disabled={isSubmitting || orderItems.length === 0 || isLockedDealer || hasStockErrors || isOverdueBlocked || !isSalesOrAdmin}
               style={{
                 padding: '9px 22px',
                 borderRadius: '8px',
                 border: 'none',
-                background: orderItems.length === 0 || isLockedDealer || hasStockErrors ? '#94a3b8' : isAnyBelowFloorPrice ? '#ea580c' : '#0fad89',
+                background: orderItems.length === 0 || isLockedDealer || hasStockErrors || isOverdueBlocked || !isSalesOrAdmin ? '#94a3b8' : (isAnyBelowFloorPrice || isOverLimit) ? '#ea580c' : '#0fad89',
                 fontSize: '13.5px',
                 fontWeight: '700',
                 color: '#fff',
-                cursor: isSubmitting || orderItems.length === 0 || isLockedDealer || hasStockErrors ? 'not-allowed' : 'pointer',
+                cursor: isSubmitting || orderItems.length === 0 || isLockedDealer || hasStockErrors || isOverdueBlocked || !isSalesOrAdmin ? 'not-allowed' : 'pointer',
                 opacity: isSubmitting ? 0.7 : 1,
                 boxShadow:
-                  orderItems.length === 0 || isLockedDealer || hasStockErrors
+                  orderItems.length === 0 || isLockedDealer || hasStockErrors || isOverdueBlocked || !isSalesOrAdmin
                     ? 'none'
-                    : isAnyBelowFloorPrice
+                    : (isAnyBelowFloorPrice || isOverLimit)
                     ? '0 4px 6px -1px rgba(234, 88, 12, 0.3)'
                     : '0 4px 6px -1px rgba(15, 173, 137, 0.3)',
               }}
               title={
-                isLockedDealer
+                !isSalesOrAdmin
+                  ? 'Chỉ Nhân viên kinh doanh và Quản trị hệ thống mới có quyền tạo đơn'
+                  : isOverdueBlocked
+                  ? `Đại lý "${selectedDealer?.name}" có khoản nợ quá hạn (${creditInfo?.max_debt_age} ngày), bị chặn tạo đơn hoàn toàn`
+                  : isLockedDealer
                   ? `Đại lý "${selectedDealer?.name}" hiện đang bị khóa giao dịch, không thể tạo đơn hàng`
                   : hasStockErrors
                   ? 'Có sản phẩm vượt quá tồn khả dụng kho phục vụ. Vui lòng điều chỉnh số lượng trước khi đặt hàng'
@@ -1474,12 +1535,18 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
             >
               {isSubmitting
                 ? 'Đang lưu đơn hàng...'
+                : !isSalesOrAdmin
+                ? 'Không có quyền tạo đơn'
+                : isOverdueBlocked
+                ? 'Bị chặn do nợ quá hạn'
                 : isLockedDealer
                 ? 'Đại lý bị khóa (Không thể tạo đơn)'
                 : hasStockErrors
                 ? 'Vượt tồn khả dụng (Không thể tạo đơn)'
                 : isAnyBelowFloorPrice
                 ? 'Gửi duyệt (Dưới giá niêm yết / sàn)'
+                : isOverLimit
+                ? 'Tạo đơn (Cần duyệt do vượt hạn mức)'
                 : `Tạo đơn hàng (${orderItems.length} sản phẩm)`}
             </button>
           </div>
