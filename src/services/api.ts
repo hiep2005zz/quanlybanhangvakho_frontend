@@ -133,6 +133,33 @@ export interface OrderDealer {
   address?: string | null;
   status?: string;
   lock_reason?: string;
+  credit_limit?: number;
+  overdue_days_allowed?: number;
+  max_debt_days?: number;
+  current_debt?: number;
+  remaining_credit?: number;
+  max_debt_age?: number;
+  is_overdue?: boolean;
+  is_over_limit?: boolean;
+  customer_group?: string;
+}
+
+export interface DealerCreditInfo {
+  dealer_id: number;
+  dealer_code: string;
+  dealer_name: string;
+  phone?: string | null;
+  address?: string | null;
+  customer_group?: string | null;
+  status?: string;
+  credit_limit: number;
+  overdue_days_allowed: number;
+  max_debt_days: number;
+  current_debt: number;
+  remaining_credit: number;
+  max_debt_age: number;
+  is_overdue: boolean;
+  is_over_limit: boolean;
 }
 
 export interface CreateOrderPayload {
@@ -675,6 +702,15 @@ export async function getOrderDealersApi(token: string): Promise<OrderDealer[]> 
   }
   if (!Array.isArray(data)) throw new Error('Dữ liệu danh sách đại lý không hợp lệ.');
   return data;
+}
+
+export async function getDealerCreditInfoApi(token: string, dealerId: number): Promise<DealerCreditInfo> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/dealers/${dealerId}/credit-info`, { method: 'GET' }, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi tải thông tin công nợ đại lý (Mã lỗi ${response.status})`);
+  }
+  return data as DealerCreditInfo;
 }
 
 export function createOrderApi(token: string, payload: CreateOrderPayload): Promise<CreatedOrder>;
