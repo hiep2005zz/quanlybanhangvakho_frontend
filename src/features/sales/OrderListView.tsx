@@ -30,7 +30,7 @@ export const OrderListView: React.FC<OrderListViewProps> = ({
   token,
   products = [],
   onBackToHome: _onBackToHome,
-  onRefreshProducts: _onRefreshProducts,
+  onRefreshProducts,
   onNavigateToPriceBooks: _onNavigateToPriceBooks,
 }) => {
   // 1. Phân quyền người dùng
@@ -63,7 +63,11 @@ export const OrderListView: React.FC<OrderListViewProps> = ({
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  // 5. State Modals & Chi tiết đơn hàng
+  // 5. State cho 4 Thẻ KPI (Tổng số, Chờ duyệt, Đã duyệt, Tổng doanh thu)
+  const [pendingOrdersCount, setPendingOrdersCount] = useState<number>(0);
+  const [confirmedOrdersCount, setConfirmedOrdersCount] = useState<number>(0);
+
+  // 6. State Modals & Chi tiết đơn hàng
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedOrderDetail, setSelectedOrderDetail] = useState<any | null>(null);
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
@@ -91,6 +95,25 @@ export const OrderListView: React.FC<OrderListViewProps> = ({
       .then((data) => setRegions(data || []))
       .catch((err) => console.warn('Lỗi tải danh sách khu vực:', err));
   }, [token, isSales]);
+
+  // Hàm tải dữ liệu 4 thẻ KPI tóm tắt
+  const fetchKpiSummary = useCallback(async () => {
+    if (!token) return;
+    try {
+      const [pendingRes, confirmedRes] = await Promise.all([
+        getFilteredOrdersApi(token, { status: 'PENDING_APPROVAL', page: 1, page_size: 1 }),
+        getFilteredOrdersApi(token, { status: 'CONFIRMED', page: 1, page_size: 1 }),
+      ]);
+      setPendingOrdersCount(pendingRes.total || 0);
+      setConfirmedOrdersCount(confirmedRes.total || 0);
+    } catch (err) {
+      console.warn('Lỗi tải KPI tóm tắt:', err);
+    }
+  }, [token]);
+
+  useEffect(() => {
+    fetchKpiSummary();
+  }, [fetchKpiSummary]);
 
   // Hàm tải dữ liệu đơn hàng theo bộ lọc & phân trang
   const fetchOrders = useCallback(
@@ -143,7 +166,6 @@ export const OrderListView: React.FC<OrderListViewProps> = ({
     setStartDate('');
     setEndDate('');
     setPage(1);
-    // Fetch lại ngay lập tức với params rỗng
     setLoading(true);
     getFilteredOrdersApi(token, { page: 1, page_size: pageSize })
       .then((res) => {
@@ -153,6 +175,7 @@ export const OrderListView: React.FC<OrderListViewProps> = ({
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
+    fetchKpiSummary();
   };
 
   // Xem chi tiết đơn hàng
@@ -176,48 +199,48 @@ export const OrderListView: React.FC<OrderListViewProps> = ({
     const s = (status || '').toUpperCase();
     if (s === 'CONFIRMED') {
       return (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800">
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200">
           Đã duyệt
         </span>
       );
     }
     if (s === 'PENDING_APPROVAL' || s === 'PENDING') {
       return (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 animate-pulse">
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 border border-amber-200">
           Chờ duyệt
         </span>
       );
     }
     if (s === 'SHIPPING') {
       return (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800">
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 border border-blue-200">
           Đang giao
         </span>
       );
     }
     if (s === 'COMPLETED' || s === 'PAID') {
       return (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-800">
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-teal-100 text-teal-800 border border-teal-200">
           Hoàn thành
         </span>
       );
     }
     if (s === 'CANCELLED') {
       return (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-700">
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200">
           Đã hủy
         </span>
       );
     }
     if (s === 'REJECTED') {
       return (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-100 text-rose-800">
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-100 text-rose-800 border border-rose-200">
           Từ chối
         </span>
       );
     }
     return (
-      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700">
+      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200">
         {status}
       </span>
     );
@@ -241,26 +264,29 @@ export const OrderListView: React.FC<OrderListViewProps> = ({
   };
 
   return (
-    <div className="w-full max-w-[1680px] mx-auto flex flex-col gap-5 min-h-full text-slate-900 pb-10">
+    <div className="w-full max-w-[1680px] mx-auto flex flex-col gap-4 text-slate-900 pb-10">
       {/* 1. Header Tiêu đề & Nút thao tác chính */}
-      <div className="flex flex-wrap items-center justify-between gap-4 pb-2 border-b border-slate-200">
+      <div className="flex flex-wrap items-center justify-between gap-3 pb-2 border-b border-slate-200">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
-            <span>Quản Lý Đơn Hàng & Doanh Thu</span>
+            <span>Quản Lý Đơn Hàng & Bán Hàng</span>
           </h1>
-          <p className="text-sm text-slate-500 mt-1">
-            Tra cứu đơn hàng, lọc đa tiêu chí theo đại lý, khu vực, khoảng thời gian và tổng hợp doanh thu.
+          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
+            Theo dõi trạng thái đơn bán, kiểm soát biên lợi nhuận và phê duyệt đơn hàng.
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
           <button
             type="button"
             id="btn-refresh-orders"
-            onClick={() => fetchOrders(page, pageSize)}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg shadow-sm hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors"
+            onClick={() => {
+              fetchOrders(page, pageSize);
+              fetchKpiSummary();
+            }}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs sm:text-sm font-semibold text-slate-700 bg-white border border-slate-300 rounded-lg shadow-sm hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-colors"
           >
-            <svg className="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
             </svg>
             Làm mới
@@ -271,7 +297,7 @@ export const OrderListView: React.FC<OrderListViewProps> = ({
               type="button"
               id="btn-create-order"
               onClick={() => setIsCreateModalOpen(true)}
-              className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-lg shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors"
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs sm:text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-colors"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
@@ -282,224 +308,275 @@ export const OrderListView: React.FC<OrderListViewProps> = ({
         </div>
       </div>
 
-      {/* 2. Thẻ Tổng Hợp KPI (Summary KPI Card) - Nằm ngay phía trên bảng đơn hàng */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* KPI: Tổng số đơn hàng khớp bộ lọc */}
+      {/* 2. Bố cục 4 Thẻ KPI Tóm Tắt (Theo chuẩn layout quen thuộc của hệ thống) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+        {/* Thẻ 1: Tổng số đơn hàng */}
         <div
           id="kpi-total-orders"
-          className="p-5 bg-white rounded-xl border border-slate-200 shadow-sm flex items-center justify-between"
+          className="bg-white p-3.5 sm:p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between hover:shadow-md transition-shadow"
         >
           <div>
-            <div className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-              Tổng số đơn hàng khớp bộ lọc
+            <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+              Tổng số đơn hàng
             </div>
-            <div className="text-3xl font-extrabold text-slate-900 mt-2">
+            <div className="text-2xl font-extrabold text-slate-900 mt-1">
               {total.toLocaleString('vi-VN')} đơn
             </div>
-            <div className="text-xs text-slate-400 mt-1">Toàn bộ tập dữ liệu thỏa mãn điều kiện lọc</div>
+            <div className="text-[11px] text-slate-400 mt-0.5">Số lượng đơn khớp bộ lọc</div>
           </div>
-          <div className="w-12 h-12 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600">
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-600 flex-shrink-0">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
             </svg>
           </div>
         </div>
 
-        {/* KPI: Tổng giá trị tiền đơn hàng */}
+        {/* Thẻ 2: Đơn chờ quản lý duyệt */}
         <div
-          id="kpi-total-amount"
-          className="p-5 bg-white rounded-xl border border-slate-200 shadow-sm flex items-center justify-between"
+          id="stat-card-pending-orders"
+          className="bg-amber-50/80 p-3.5 sm:p-4 rounded-xl border border-amber-200 shadow-sm flex items-center justify-between hover:shadow-md transition-shadow"
         >
           <div>
-            <div className="text-xs font-semibold uppercase tracking-wider text-emerald-600">
-              Tổng giá trị tiền đơn hàng
+            <div className="text-[11px] font-bold uppercase tracking-wider text-amber-800">
+              Đơn chờ quản lý duyệt
             </div>
-            <div className="text-3xl font-extrabold text-emerald-700 mt-2">
+            <div className="text-2xl font-extrabold text-amber-900 mt-1">
+              {pendingOrdersCount.toLocaleString('vi-VN')} đơn
+            </div>
+            <div className="text-[11px] text-amber-700 mt-0.5">Bán dưới giá sàn cần phê duyệt</div>
+          </div>
+          <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center text-amber-700 flex-shrink-0">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+        </div>
+
+        {/* Thẻ 3: Đơn đã xác nhận */}
+        <div
+          id="kpi-confirmed-orders"
+          className="bg-emerald-50/80 p-3.5 sm:p-4 rounded-xl border border-emerald-200 shadow-sm flex items-center justify-between hover:shadow-md transition-shadow"
+        >
+          <div>
+            <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-800">
+              Đơn đã xác nhận
+            </div>
+            <div className="text-2xl font-extrabold text-emerald-900 mt-1">
+              {confirmedOrdersCount.toLocaleString('vi-VN')} đơn
+            </div>
+            <div className="text-[11px] text-emerald-700 mt-0.5">Đủ điều kiện xuất kho bán hàng</div>
+          </div>
+          <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-700 flex-shrink-0">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+        </div>
+
+        {/* Thẻ 4: Tổng doanh thu bán hàng */}
+        <div
+          id="kpi-total-amount"
+          className="bg-white p-3.5 sm:p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between hover:shadow-md transition-shadow"
+        >
+          <div>
+            <div className="text-[11px] font-bold uppercase tracking-wider text-slate-600">
+              Tổng doanh thu bán hàng
+            </div>
+            <div className="text-2xl font-extrabold text-emerald-700 mt-1">
               {filteredTotalAmount.toLocaleString('vi-VN')} đ
             </div>
-            <div className="text-xs text-slate-400 mt-1">Doanh thu tổng hợp từ database (không phụ thuộc trang)</div>
+            <div className="text-[11px] text-slate-400 mt-0.5">Doanh thu tổng hợp từ database (không phụ thuộc trang)</div>
           </div>
-          <div className="w-12 h-12 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600">
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600 flex-shrink-0">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
         </div>
       </div>
 
-      {/* 3. Thanh Bộ Lọc Đa Tiêu Chí (Filter Bar) */}
-      <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-        <form onSubmit={handleApplyFilter} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-          {/* 1. Trạng thái */}
-          <div>
-            <label htmlFor="filter-status" className="block text-xs font-semibold text-slate-600 mb-1.5">
-              Trạng thái đơn
-            </label>
-            <select
-              id="filter-status"
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            >
-              <option value="ALL">Tất cả</option>
-              <option value="PENDING">Mới tạo</option>
-              <option value="PENDING_APPROVAL">Chờ duyệt</option>
-              <option value="CONFIRMED">Đã duyệt</option>
-              <option value="SHIPPING">Đang giao</option>
-              <option value="COMPLETED">Hoàn thành</option>
-              <option value="CANCELLED">Hủy</option>
-              <option value="REJECTED">Từ chối</option>
-            </select>
-          </div>
-
-          {/* 2. Đại lý */}
-          <div>
-            <label htmlFor="filter-dealer" className="block text-xs font-semibold text-slate-600 mb-1.5">
-              Đại lý {isSales && <span className="text-xs text-indigo-600">(Phụ trách)</span>}
-            </label>
-            <select
-              id="filter-dealer"
-              value={dealerFilter}
-              onChange={(e) => setDealerFilter(e.target.value)}
-              className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            >
-              <option value="ALL">Tất cả đại lý</option>
-              {dealers.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.name} ({d.code})
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* 3. Nhân viên kinh doanh (Ẩn hoặc disable nếu role là sales) */}
-          <div>
-            <label htmlFor="filter-sales-rep" className="block text-xs font-semibold text-slate-600 mb-1.5">
-              Nhân viên phụ trách
-            </label>
-            {isSales ? (
-              <input
-                id="filter-sales-rep"
-                type="text"
-                disabled
-                value={`${currentUser.full_name || currentUser.username} (Chính bạn)`}
-                className="w-full px-3 py-2 text-sm bg-slate-100 border border-slate-300 rounded-lg text-slate-500 cursor-not-allowed"
-                title="Nhân viên kinh doanh chỉ xem các đại lý mình phụ trách"
-              />
-            ) : (
+      {/* 3. BẢNG DỮ LIỆU & BỘ LỌC HỢP NHẤT (Single Unified Card - Kiến trúc 1 bảng duy nhất) */}
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+        {/* Thanh công cụ lọc tinh gọn (Inline Compact Filter Bar) - Thu gọn chiều cao tối đa */}
+        <div className="p-3 bg-slate-50/80 border-b border-slate-200">
+          <form
+            onSubmit={handleApplyFilter}
+            className="flex !flex-row flex-wrap xl:flex-nowrap items-end gap-2.5 w-full"
+            style={{ display: 'flex', flexDirection: 'row', alignItems: 'flex-end' }}
+          >
+            {/* 1. Trạng thái */}
+            <div className="w-full sm:w-[140px] xl:w-[150px] shrink-0">
+              <label htmlFor="filter-status" className="block text-[11px] font-semibold text-slate-600 uppercase tracking-wide mb-1">
+                Trạng thái
+              </label>
               <select
-                id="filter-sales-rep"
-                value={salesRepFilter}
-                onChange={(e) => setSalesRepFilter(e.target.value)}
-                className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                id="filter-status"
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium text-slate-700 shadow-sm"
               >
-                <option value="ALL">Tất cả nhân viên</option>
-                {salesReps.map((sr) => (
-                  <option key={sr.id} value={sr.id}>
-                    {sr.full_name || sr.username}
+                <option value="ALL">Tất cả trạng thái</option>
+                <option value="PENDING">Mới tạo</option>
+                <option value="PENDING_APPROVAL">Chờ duyệt</option>
+                <option value="CONFIRMED">Đã duyệt</option>
+                <option value="SHIPPING">Đang giao</option>
+                <option value="COMPLETED">Hoàn thành</option>
+                <option value="CANCELLED">Hủy</option>
+                <option value="REJECTED">Từ chối</option>
+              </select>
+            </div>
+
+            {/* 2. Đại lý */}
+            <div className="w-full sm:w-[200px] xl:w-[220px] shrink-0">
+              <label htmlFor="filter-dealer" className="block text-[11px] font-semibold text-slate-600 uppercase tracking-wide mb-1">
+                Đại lý {isSales && <span className="text-emerald-700 font-bold">(Phụ trách)</span>}
+              </label>
+              <select
+                id="filter-dealer"
+                value={dealerFilter}
+                onChange={(e) => setDealerFilter(e.target.value)}
+                className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium text-slate-700 shadow-sm"
+              >
+                <option value="ALL">Tất cả đại lý</option>
+                {dealers.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.name} ({d.code})
                   </option>
                 ))}
               </select>
-            )}
-          </div>
+            </div>
 
-          {/* 4. Khu vực */}
-          <div>
-            <label htmlFor="filter-region" className="block text-xs font-semibold text-slate-600 mb-1.5">
-              Khu vực
-            </label>
-            <select
-              id="filter-region"
-              value={regionFilter}
-              onChange={(e) => setRegionFilter(e.target.value)}
-              className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            >
-              <option value="ALL">Tất cả khu vực</option>
-              {regions.map((reg) => (
-                <option key={reg} value={reg}>
-                  {reg}
-                </option>
-              ))}
-            </select>
-          </div>
+            {/* 3. Nhân viên kinh doanh */}
+            <div className="w-full sm:w-[180px] xl:w-[190px] shrink-0">
+              <label htmlFor="filter-sales-rep" className="block text-[11px] font-semibold text-slate-600 uppercase tracking-wide mb-1">
+                Nhân viên kinh doanh
+              </label>
+              {isSales ? (
+                <input
+                  id="filter-sales-rep"
+                  type="text"
+                  disabled
+                  value={`${currentUser.full_name || currentUser.username} (Chính bạn)`}
+                  className="w-full px-2.5 py-1.5 text-xs bg-slate-100 border border-slate-300 rounded-lg text-slate-500 cursor-not-allowed font-medium shadow-sm"
+                  title="Nhân viên kinh doanh chỉ xem các đại lý mình phụ trách"
+                />
+              ) : (
+                <select
+                  id="filter-sales-rep"
+                  value={salesRepFilter}
+                  onChange={(e) => setSalesRepFilter(e.target.value)}
+                  className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium text-slate-700 shadow-sm"
+                >
+                  <option value="ALL">Tất cả nhân viên</option>
+                  {salesReps.map((sr) => (
+                    <option key={sr.id} value={sr.id}>
+                      {sr.full_name || sr.username}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
 
-          {/* 5. Từ ngày */}
-          <div>
-            <label htmlFor="filter-start-date" className="block text-xs font-semibold text-slate-600 mb-1.5">
-              Từ ngày
-            </label>
-            <input
-              id="filter-start-date"
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-          </div>
+            {/* 4. Khu vực */}
+            <div className="w-full sm:w-[130px] xl:w-[140px] shrink-0">
+              <label htmlFor="filter-region" className="block text-[11px] font-semibold text-slate-600 uppercase tracking-wide mb-1">
+                Khu vực
+              </label>
+              <select
+                id="filter-region"
+                value={regionFilter}
+                onChange={(e) => setRegionFilter(e.target.value)}
+                className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium text-slate-700 shadow-sm"
+              >
+                <option value="ALL">Tất cả khu vực</option>
+                {regions.map((reg) => (
+                  <option key={reg} value={reg}>
+                    {reg}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-          {/* 6. Đến ngày */}
-          <div>
-            <label htmlFor="filter-end-date" className="block text-xs font-semibold text-slate-600 mb-1.5">
-              Đến ngày
-            </label>
-            <input
-              id="filter-end-date"
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-          </div>
+            {/* 5. Từ ngày */}
+            <div className="w-[125px] shrink-0">
+              <label htmlFor="filter-start-date" className="block text-[11px] font-semibold text-slate-600 uppercase tracking-wide mb-1">
+                Từ ngày
+              </label>
+              <input
+                id="filter-start-date"
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="w-full px-2 py-1.5 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-700 shadow-sm"
+              />
+            </div>
 
-          {/* Hàng nút bấm Áp dụng & Đặt lại */}
-          <div className="col-span-full flex items-center justify-end gap-3 pt-2 border-t border-slate-100">
-            <button
-              type="button"
-              id="btn-reset-filter"
-              onClick={handleResetFilter}
-              className="px-4 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400 transition-colors"
-            >
-              Đặt lại bộ lọc
-            </button>
-            <button
-              type="submit"
-              id="btn-apply-filter"
-              className="px-5 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-lg shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors"
-            >
-              Áp dụng lọc
-            </button>
-          </div>
-        </form>
-      </div>
+            {/* 6. Đến ngày */}
+            <div className="w-[125px] shrink-0">
+              <label htmlFor="filter-end-date" className="block text-[11px] font-semibold text-slate-600 uppercase tracking-wide mb-1">
+                Đến ngày
+              </label>
+              <input
+                id="filter-end-date"
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="w-full px-2 py-1.5 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-700 shadow-sm"
+              />
+            </div>
 
-      {/* 4. Bảng Dữ Liệu & Phân Trang (Data Table & Pagination) */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+            {/* Nút bấm tác vụ lọc */}
+            <div className="flex items-center gap-1.5 ml-auto pt-1 sm:pt-0 shrink-0 self-end">
+              <button
+                type="button"
+                id="btn-reset-filter"
+                onClick={handleResetFilter}
+                className="px-3 py-1.5 text-xs font-semibold text-slate-600 bg-white border border-slate-300 rounded-lg hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-300 transition-colors shadow-sm"
+              >
+                Đặt lại
+              </button>
+              <button
+                type="submit"
+                id="btn-apply-filter"
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-colors"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                Áp dụng lọc
+              </button>
+            </div>
+          </form>
+        </div>
+
+        {/* Thông báo lỗi nếu có */}
         {error && (
-          <div className="p-4 bg-rose-50 border-b border-rose-200 text-rose-700 text-sm">
+          <div className="p-3 bg-rose-50 border-b border-rose-200 text-rose-700 text-xs font-medium">
             {error}
           </div>
         )}
 
+        {/* Bảng Dữ Liệu Đơn Hàng (Data Table) */}
         <div className="overflow-x-auto">
           <table id="orders-table" className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-slate-50 border-b border-slate-200 text-xs font-semibold uppercase text-slate-500 tracking-wider">
-                <th className="py-3 px-4">Mã đơn hàng</th>
-                <th className="py-3 px-4">Tên đại lý</th>
-                <th className="py-3 px-4">Khu vực</th>
-                <th className="py-3 px-4">Nhân viên phụ trách</th>
-                <th className="py-3 px-4">Ngày tạo</th>
-                <th className="py-3 px-4 text-right">Tổng tiền</th>
-                <th className="py-3 px-4 text-center">Trạng thái đơn</th>
-                <th className="py-3 px-4 text-center">Thao tác</th>
+              <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-bold uppercase text-slate-600 tracking-wider">
+                <th className="py-2.5 px-3.5">Mã đơn hàng</th>
+                <th className="py-2.5 px-3.5">Khách hàng / Đại lý</th>
+                <th className="py-2.5 px-3.5">Khu vực</th>
+                <th className="py-2.5 px-3.5">Người lên đơn / Phụ trách</th>
+                <th className="py-2.5 px-3.5">Ngày tạo</th>
+                <th className="py-2.5 px-3.5 text-right">Tổng tiền</th>
+                <th className="py-2.5 px-3.5 text-center">Trạng thái đơn</th>
+                <th className="py-2.5 px-3.5 text-center">Thao tác</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 text-sm text-slate-700">
+            <tbody className="divide-y divide-slate-100 text-xs text-slate-700">
               {loading ? (
                 <tr>
                   <td colSpan={8} className="py-12 text-center text-slate-400">
                     <div className="flex items-center justify-center gap-2">
-                      <div className="w-5 h-5 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+                      <div className="w-4 h-4 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
                       <span>Đang tải dữ liệu đơn hàng...</span>
                     </div>
                   </td>
@@ -517,51 +594,64 @@ export const OrderListView: React.FC<OrderListViewProps> = ({
                     className="hover:bg-slate-50/80 transition-colors cursor-pointer"
                     onClick={() => handleOpenOrderDetail(o)}
                   >
-                    {/* Mã đơn */}
-                    <td className="py-3 px-4 font-semibold text-indigo-600">
+                    {/* 1. Mã đơn */}
+                    <td className="py-2.5 px-3.5 font-bold text-emerald-700 whitespace-nowrap">
                       {o.order_code}
                     </td>
 
-                    {/* Tên đại lý */}
-                    <td className="py-3 px-4 font-medium text-slate-900">
-                      {o.dealer_name}
+                    {/* 2. Đại lý */}
+                    <td className="py-2.5 px-3.5 font-medium text-slate-800">
+                      <div>{o.dealer_name || 'Khách vãng lai'}</div>
+                      {o.dealer_lock_reason && !isCustomer && (
+                        <div className="text-[10px] text-amber-700">Lý do khóa: {o.dealer_lock_reason}</div>
+                      )}
                     </td>
 
-                    {/* Khu vực */}
-                    <td className="py-3 px-4 text-slate-600">
+                    {/* 3. Khu vực */}
+                    <td className="py-2.5 px-3.5 text-slate-600 whitespace-nowrap">
                       {o.region || '—'}
                     </td>
 
-                    {/* Nhân viên phụ trách */}
-                    <td className="py-3 px-4 text-slate-600">
+                    {/* 4. Nhân viên phụ trách */}
+                    <td className="py-2.5 px-3.5 text-slate-600 whitespace-nowrap">
                       {o.assigned_sale_name || o.created_by || '—'}
                     </td>
 
-                    {/* Ngày tạo */}
-                    <td className="py-3 px-4 text-slate-500 text-xs">
+                    {/* 5. Ngày tạo */}
+                    <td className="py-2.5 px-3.5 text-slate-500 whitespace-nowrap">
                       {formatDateTime(o.created_at)}
                     </td>
 
-                    {/* Tổng tiền */}
-                    <td className="py-3 px-4 text-right font-bold text-slate-900">
+                    {/* 6. Tổng tiền */}
+                    <td className="py-2.5 px-3.5 text-right font-bold text-slate-900 whitespace-nowrap">
                       {(o.total_amount || 0).toLocaleString('vi-VN')} đ
                     </td>
 
-                    {/* Trạng thái */}
-                    <td className="py-3 px-4 text-center">
-                      {renderStatusBadge(o.status)}
+                    {/* 7. Trạng thái */}
+                    <td className="py-2.5 px-3.5 text-center whitespace-nowrap">
+                      <div className="inline-flex items-center gap-1">
+                        {renderStatusBadge(o.status)}
+                        {o.approval_reason && (
+                          <span
+                            className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800"
+                            title={o.approval_reason}
+                          >
+                            Giá sàn
+                          </span>
+                        )}
+                      </div>
                     </td>
 
-                    {/* Thao tác */}
+                    {/* 8. Thao tác */}
                     <td
-                      className="py-3 px-4 text-center"
+                      className="py-2.5 px-3.5 text-center whitespace-nowrap"
                       onClick={(e) => e.stopPropagation()}
                     >
                       <div className="flex items-center justify-center gap-1.5">
                         <button
                           type="button"
                           onClick={() => handleOpenOrderDetail(o)}
-                          className="px-2.5 py-1 text-xs font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded transition-colors"
+                          className="px-2 py-1 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded transition-colors"
                         >
                           Chi tiết
                         </button>
@@ -570,14 +660,14 @@ export const OrderListView: React.FC<OrderListViewProps> = ({
                             <button
                               type="button"
                               onClick={() => setApprovingOrder(o)}
-                              className="px-2 py-1 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded transition-colors"
+                              className="px-2 py-1 text-xs font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded transition-colors"
                             >
                               Duyệt
                             </button>
                             <button
                               type="button"
                               onClick={() => setRejectingOrder(o)}
-                              className="px-2 py-1 text-xs font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 rounded transition-colors"
+                              className="px-2 py-1 text-xs font-bold text-rose-800 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded transition-colors"
                             >
                               Từ chối
                             </button>
@@ -592,17 +682,17 @@ export const OrderListView: React.FC<OrderListViewProps> = ({
           </table>
         </div>
 
-        {/* Thanh Phân Trang (Pagination Controls) */}
-        <div className="p-4 border-t border-slate-200 bg-slate-50 flex flex-wrap items-center justify-between gap-4 text-sm text-slate-600">
-          <div id="pagination-info" className="flex items-center gap-2">
+        {/* Thanh Phân Trang ở Đáy Card (Pagination Controls) */}
+        <div className="p-3 border-t border-slate-200 bg-slate-50 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-600">
+          <div id="pagination-info" className="pagination-info flex items-center gap-2 font-medium">
             <span>
-              Hiển thị <span className="font-semibold text-slate-800">{orders.length}</span> /{' '}
-              <span className="font-semibold text-slate-800">{total}</span> đơn hàng
+              Hiển thị <span className="font-bold text-slate-800">{orders.length}</span> /{' '}
+              <span className="font-bold text-slate-800">{total}</span> đơn hàng
             </span>
             <span className="text-slate-300">|</span>
             <span>
-              Trang <span className="font-semibold text-slate-800">{page}</span> /{' '}
-              <span className="font-semibold text-slate-800">{totalPages}</span>
+              Trang <span className="font-bold text-slate-800">{page}</span> /{' '}
+              <span className="font-bold text-slate-800">{totalPages}</span>
             </span>
           </div>
 
@@ -617,7 +707,7 @@ export const OrderListView: React.FC<OrderListViewProps> = ({
                   setPageSize(newSize);
                   setPage(1);
                 }}
-                className="px-2 py-1 bg-white border border-slate-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className="px-2 py-1 bg-white border border-slate-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500 font-medium"
               >
                 <option value={10}>10</option>
                 <option value={20}>20</option>
@@ -631,7 +721,7 @@ export const OrderListView: React.FC<OrderListViewProps> = ({
                 id="btn-prev-page"
                 onClick={() => setPage((prev) => Math.max(1, prev - 1))}
                 disabled={page <= 1 || loading}
-                className="px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded-l-lg hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                className="px-3 py-1 text-xs font-semibold text-slate-700 bg-white border border-slate-300 rounded-l-lg hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 Trang trước
               </button>
@@ -640,7 +730,7 @@ export const OrderListView: React.FC<OrderListViewProps> = ({
                 id="btn-next-page"
                 onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
                 disabled={page >= totalPages || loading}
-                className="px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-l-0 border-slate-300 rounded-r-lg hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                className="px-3 py-1 text-xs font-semibold text-slate-700 bg-white border border-l-0 border-slate-300 rounded-r-lg hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 Trang sau
               </button>
@@ -747,18 +837,46 @@ export const OrderListView: React.FC<OrderListViewProps> = ({
                       Chiết khấu ({selectedOrderDetail.discount_percent || selectedOrderDetail.discount_rate}%): -{selectedOrderDetail.discount_amount.toLocaleString('vi-VN')} đ
                     </div>
                   )}
-                  <div className="text-base font-bold text-indigo-700">
+                  <div className="text-base font-bold text-emerald-700">
                     Tổng thanh toán: {(selectedOrderDetail.total_amount || 0).toLocaleString('vi-VN')} đ
                   </div>
                 </div>
               </div>
             )}
 
-            <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+            <div className="flex justify-between items-center gap-2 pt-3 border-t border-slate-100">
+              <div className="flex gap-2">
+                {canApprove && (selectedOrderDetail?.status === 'PENDING_APPROVAL' || selectedOrderDetail?.status === 'PENDING') && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const o = selectedOrderDetail;
+                        setSelectedOrderDetail(null);
+                        setApprovingOrder(o);
+                      }}
+                      className="px-3.5 py-1.5 text-xs font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition-colors"
+                    >
+                      Duyệt đơn
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const o = selectedOrderDetail;
+                        setSelectedOrderDetail(null);
+                        setRejectingOrder(o);
+                      }}
+                      className="px-3.5 py-1.5 text-xs font-bold text-rose-800 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-lg transition-colors"
+                    >
+                      Từ chối
+                    </button>
+                  </>
+                )}
+              </div>
               <button
                 type="button"
                 onClick={() => setSelectedOrderDetail(null)}
-                className="px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+                className="px-4 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
               >
                 Đóng
               </button>
@@ -777,6 +895,8 @@ export const OrderListView: React.FC<OrderListViewProps> = ({
           onSuccess={() => {
             setApprovingOrder(null);
             fetchOrders(page, pageSize);
+            fetchKpiSummary();
+            if (onRefreshProducts) onRefreshProducts();
           }}
         />
       )}
@@ -791,6 +911,8 @@ export const OrderListView: React.FC<OrderListViewProps> = ({
           onSuccess={() => {
             setRejectingOrder(null);
             fetchOrders(page, pageSize);
+            fetchKpiSummary();
+            if (onRefreshProducts) onRefreshProducts();
           }}
         />
       )}
@@ -806,6 +928,8 @@ export const OrderListView: React.FC<OrderListViewProps> = ({
           onSuccess={() => {
             setIsCreateModalOpen(false);
             fetchOrders(page, pageSize);
+            fetchKpiSummary();
+            if (onRefreshProducts) onRefreshProducts();
           }}
         />
       )}
