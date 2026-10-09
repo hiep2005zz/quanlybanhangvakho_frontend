@@ -626,8 +626,10 @@ export default function DashboardPage({
     isOpen: boolean;
     actionType: 'receipt' | 'issue' | 'adjust';
     product: ProductItem | null;
+    initialReason?: string;
   }>({ isOpen: false, actionType: 'receipt', product: null });
   const [isGoodsReceiptModalOpen, setIsGoodsReceiptModalOpen] = useState(false);
+  const [goodsReceiptInitialTab, setGoodsReceiptInitialTab] = useState<'form' | 'list'>('form');
   const [isSalesOrderEntryOpen, setIsSalesOrderEntryOpen] = useState(false);
   const [isDiscountExpanded, setIsDiscountExpanded] = useState(false);
   const availableCategories = useMemo(
@@ -1767,6 +1769,7 @@ export default function DashboardPage({
                             type="button"
                             onClick={() => {
                               setIsCreateMenuOpen(false);
+                              setGoodsReceiptInitialTab('form');
                               setIsGoodsReceiptModalOpen(true);
                             }}
                             style={{
@@ -1819,28 +1822,63 @@ export default function DashboardPage({
                       Thêm sản phẩm
                     </button>
                   ) : (
-                    <button
-                      type="button"
-                      id="btn-goods-receipt-modal"
-                      onClick={() => setIsGoodsReceiptModalOpen(true)}
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
-                        border: 'none',
-                        padding: '7px 16px',
-                        borderRadius: '8px',
-                        fontSize: '12.5px',
-                        fontWeight: '600',
-                        color: '#ffffff',
-                        cursor: 'pointer',
-                        boxShadow: '0 2px 8px rgba(5, 150, 105, 0.35)',
-                        transition: 'all 0.15s ease',
-                      }}
-                      title="Lập phiếu nhập kho từ nhà cung cấp"
-                    >
-                      Nhập kho
-                    </button>
+                    <>
+                      <button
+                        type="button"
+                        id="btn-goods-receipt-modal"
+                        onClick={() => {
+                          setGoodsReceiptInitialTab('form');
+                          setIsGoodsReceiptModalOpen(true);
+                        }}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
+                          border: 'none',
+                          padding: '7px 16px',
+                          borderRadius: '8px',
+                          fontSize: '12.5px',
+                          fontWeight: '600',
+                          color: '#ffffff',
+                          cursor: 'pointer',
+                          boxShadow: '0 2px 8px rgba(5, 150, 105, 0.35)',
+                          transition: 'all 0.15s ease',
+                        }}
+                        title="Lập phiếu nhập kho từ nhà cung cấp"
+                      >
+                        Nhập kho
+                      </button>
+                      <button
+                        type="button"
+                        id="btn-stock-adjust-modal"
+                        onClick={() => {
+                          setStockActionState({
+                            isOpen: true,
+                            actionType: 'adjust',
+                            product: null,
+                            initialReason: 'Kiểm kê / Điều chỉnh tồn kho',
+                          });
+                        }}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          background: '#ffffff',
+                          border: '1px solid #cbd5e1',
+                          padding: '7px 14px',
+                          borderRadius: '8px',
+                          fontSize: '12.5px',
+                          fontWeight: '600',
+                          color: '#1e293b',
+                          cursor: 'pointer',
+                          transition: 'all 0.15s ease',
+                        }}
+                        title="Lập phiếu điều chỉnh / kiểm kê kho hàng"
+                      >
+                        <span>⚖️</span>
+                        <span>Điều chỉnh kho</span>
+                      </button>
+                    </>
                   )
                 )}
               </div>
@@ -2244,6 +2282,46 @@ export default function DashboardPage({
                                         <line x1="5" y1="12" x2="19" y2="12" />
                                       </svg>
                                       <span>Xuất kho</span>
+                                    </button>
+                                  )}
+
+                                  {canWriteInventory && (
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setStockActionState({
+                                          isOpen: true,
+                                          actionType: 'adjust',
+                                          product: item,
+                                          initialReason: `Kiểm kê / Điều chỉnh tồn cho mặt hàng [${item.code}] ${item.name}`,
+                                        });
+                                        setOpenProductMenuId(null);
+                                      }}
+                                      style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '8px',
+                                        width: '100%',
+                                        padding: '8px 12px',
+                                        background: 'transparent',
+                                        border: 'none',
+                                        borderRadius: '6px',
+                                        fontSize: '13px',
+                                        fontWeight: '600',
+                                        color: '#0f766e',
+                                        cursor: 'pointer',
+                                        boxShadow: 'none',
+                                        margin: 0,
+                                        transition: 'background 0.15s ease',
+                                        textAlign: 'left',
+                                      }}
+                                      onMouseEnter={(e) => (e.currentTarget.style.background = '#f0fdfa')}
+                                      onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                                      title="Lập phiếu điều chỉnh / kiểm kê tồn kho cho mặt hàng này"
+                                    >
+                                      <span style={{ fontSize: '14px' }}>⚖️</span>
+                                      <span>Điều chỉnh kho</span>
                                     </button>
                                   )}
                                 </div>
@@ -2658,6 +2736,8 @@ export default function DashboardPage({
           token={token}
           actionType={stockActionState.actionType}
           product={stockActionState.product}
+          products={products}
+          initialReason={stockActionState.initialReason}
           onClose={() => setStockActionState({ isOpen: false, actionType: 'receipt', product: null })}
           onSuccess={() => {
             setStockActionState({ isOpen: false, actionType: 'receipt', product: null });
@@ -2669,10 +2749,20 @@ export default function DashboardPage({
       {canWriteInventory && isGoodsReceiptModalOpen && (
         <GoodsReceiptModal
           isOpen={isGoodsReceiptModalOpen}
+          initialTab={goodsReceiptInitialTab}
           onClose={() => setIsGoodsReceiptModalOpen(false)}
           token={token}
           products={products}
           currentUserWarehouse={user.branch || user.warehouse_name || undefined}
+          onRequestAdjust={(targetProduct, receiptCode) => {
+            setIsGoodsReceiptModalOpen(false);
+            setStockActionState({
+              isOpen: true,
+              actionType: 'adjust',
+              product: targetProduct,
+              initialReason: `Điều chỉnh số lượng theo phiếu nhập kho ${receiptCode}`,
+            });
+          }}
           onSuccess={() => {
             fetchProducts();
           }}

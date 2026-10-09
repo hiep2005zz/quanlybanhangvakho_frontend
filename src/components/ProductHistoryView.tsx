@@ -167,7 +167,7 @@ export const ProductHistoryView: React.FC<ProductHistoryViewProps> = ({
   }, [logs]);
 
   const inventoryLogsCount = useMemo(() => {
-    return logs.filter((l) => l.action_type === 'INVENTORY_ADJUST').length;
+    return logs.filter((l) => l.action_type === 'INVENTORY_ADJUST' || l.action_type === 'STOCK_RECEIPT').length;
   }, [logs]);
 
   // Lọc danh sách sản phẩm trong dropdown
@@ -183,8 +183,12 @@ export const ProductHistoryView: React.FC<ProductHistoryViewProps> = ({
   const filteredLogs = useMemo(() => {
     return logs.filter((log) => {
       // 1. Lọc theo loại thao tác
-      if (filterType !== 'ALL' && log.action_type !== filterType) {
-        return false;
+      if (filterType !== 'ALL') {
+        if (filterType === 'INVENTORY_ADJUST') {
+          if (log.action_type !== 'INVENTORY_ADJUST' && log.action_type !== 'STOCK_RECEIPT') return false;
+        } else if (log.action_type !== filterType) {
+          return false;
+        }
       }
 
       // 2. Lọc theo từ khóa (người sửa, lý do)
@@ -669,7 +673,7 @@ export const ProductHistoryView: React.FC<ProductHistoryViewProps> = ({
               </span>
             </button>
 
-            {/* Tab Điều chỉnh kho */}
+            {/* Tab Biến động / Nhập kho */}
             <button
               type="button"
               onClick={() => setFilterType('INVENTORY_ADJUST')}
@@ -690,7 +694,7 @@ export const ProductHistoryView: React.FC<ProductHistoryViewProps> = ({
                 transition: 'all 0.15s ease',
               }}
             >
-              <span>Điều chỉnh kho</span>
+              <span>Biến động kho</span>
               <span
                 style={{
                   background: filterType === 'INVENTORY_ADJUST' ? '#ffffff' : '#f1f5f9',
@@ -1044,7 +1048,8 @@ export const ProductHistoryView: React.FC<ProductHistoryViewProps> = ({
                   ? newCostPrice - oldCostPrice
                   : null;
 
-              const isInventoryAdjust = log.action_type === 'INVENTORY_ADJUST';
+              const isStockReceipt = log.action_type === 'STOCK_RECEIPT';
+              const isInventoryAdjust = log.action_type === 'INVENTORY_ADJUST' || isStockReceipt;
               const oldStock = oldObj?.stock;
               const newStock = newObj?.stock;
               const diffStock =
@@ -1083,11 +1088,15 @@ export const ProductHistoryView: React.FC<ProductHistoryViewProps> = ({
                         fontWeight: '700',
                         background: isPriceChange
                           ? '#fef3c7'
+                          : isStockReceipt
+                          ? '#ecfdf5'
                           : isInventoryAdjust
                           ? '#dbeafe'
                           : '#f1f5f9',
                         color: isPriceChange
                           ? '#b45309'
+                          : isStockReceipt
+                          ? '#047857'
                           : isInventoryAdjust
                           ? '#1d4ed8'
                           : '#475569',
@@ -1095,6 +1104,8 @@ export const ProductHistoryView: React.FC<ProductHistoryViewProps> = ({
                     >
                       {isPriceChange
                         ? 'Thay đổi giá'
+                        : isStockReceipt
+                        ? 'Nhập kho NCC'
                         : isInventoryAdjust
                         ? 'Điều chỉnh kho'
                         : log.action_type}

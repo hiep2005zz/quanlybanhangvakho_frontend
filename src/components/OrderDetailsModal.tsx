@@ -10,6 +10,7 @@ interface OrderDetailsModalProps {
   token: string;
   orderCode: string;
   onClose: () => void;
+  onOpenPrint?: (orderCode: string, orderData?: OrderDetail | null) => void;
   currentUser?: User;
   onOrderCancelled?: () => void;
 }
@@ -31,6 +32,7 @@ export default function OrderDetailsModal({
   token,
   orderCode,
   onClose,
+  onOpenPrint,
   currentUser,
   onOrderCancelled,
 }: OrderDetailsModalProps) {
@@ -154,7 +156,13 @@ export default function OrderDetailsModal({
                   borderRadius: '6px',
                   cursor: 'pointer',
                 }}
-                onClick={() => setIsPrintOpen(true)}
+                onClick={() => {
+                  if (onOpenPrint) {
+                    onOpenPrint(orderCode, order);
+                  } else {
+                    setIsPrintOpen(true);
+                  }
+                }}
                 title="In phiếu hoặc xuất file PDF đơn hàng cho đại lý xem và ký xác nhận"
               >
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

@@ -946,37 +946,6 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                           >
                             Chi tiết
                           </button>
-
-                          <button
-                            type="button"
-                            onClick={() => setPrintingOrder(order)}
-                            style={{
-                              padding: '5px 10px',
-                              background: '#eff6ff',
-                              border: '1px solid #bfdbfe',
-                              borderRadius: '6px',
-                              color: '#1d4ed8',
-                              fontSize: '12px',
-                              fontWeight: '600',
-                              cursor: 'pointer',
-                              whiteSpace: 'nowrap',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '4px',
-                              justifyContent: 'center',
-                              height: '28px',
-                              boxSizing: 'border-box',
-                              transition: 'all 0.15s ease',
-                            }}
-                            title="In phiếu hoặc xuất PDF đơn hàng cho đại lý xác nhận"
-                          >
-                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <polyline points="6 9 6 2 18 2 18 9" />
-                              <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
-                              <rect x="6" y="14" width="12" height="8" />
-                            </svg>
-                            In / PDF
-                          </button>
                         </div>
                       </td>
                     </tr>
@@ -1204,7 +1173,11 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <button
                   type="button"
-                  onClick={() => setPrintingOrder(selectedOrderDetail)}
+                  onClick={() => {
+                    const orderToPrint = selectedOrderDetail;
+                    setSelectedOrderDetail(null);
+                    setPrintingOrder(orderToPrint);
+                  }}
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',
