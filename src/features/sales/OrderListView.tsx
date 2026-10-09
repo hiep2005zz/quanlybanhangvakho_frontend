@@ -119,24 +119,46 @@ export const OrderListView: React.FC<OrderListViewProps> = ({
       .catch((err) => console.warn('Lỗi tải danh sách khu vực:', err));
   }, [token, isSales]);
 
-  // Hàm tải dữ liệu 4 thẻ KPI tóm tắt
-  const fetchKpiSummary = useCallback(async () => {
-    if (!token) return;
-    try {
-      const [pendingRes, confirmedRes] = await Promise.all([
-        getFilteredOrdersApi(token, { status: 'PENDING_APPROVAL', page: 1, page_size: 1 }),
-        getFilteredOrdersApi(token, { status: 'CONFIRMED', page: 1, page_size: 1 }),
-      ]);
-      setPendingOrdersCount(pendingRes.total || 0);
-      setConfirmedOrdersCount(confirmedRes.total || 0);
-    } catch (err) {
-      console.warn('Lỗi tải KPI tóm tắt:', err);
-    }
-  }, [token]);
+  // Hàm tải dữ liệu 4 thẻ KPI tóm tắt đồng bộ theo bộ lọc hiện tại
+  const fetchKpiSummary = useCallback(
+    async (currentFilters: FilterCriteria = appliedFiltersRef.current) => {
+      if (!token) return;
+      try {
+        const baseParams: any = { page: 1, page_size: 1 };
+        if (currentFilters.dealer_id) baseParams.dealer_id = currentFilters.dealer_id;
+        if (currentFilters.sales_rep_id) baseParams.sales_rep_id = currentFilters.sales_rep_id;
+        if (currentFilters.region) baseParams.region = currentFilters.region;
+        if (currentFilters.start_date) baseParams.start_date = currentFilters.start_date;
+        if (currentFilters.end_date) baseParams.end_date = currentFilters.end_date;
 
-  useEffect(() => {
-    fetchKpiSummary();
-  }, [fetchKpiSummary]);
+        const filterStatus = currentFilters.status;
+        if (filterStatus && filterStatus !== 'ALL') {
+          if (filterStatus === 'PENDING_APPROVAL' || filterStatus === 'PENDING') {
+            const pendingRes = await getFilteredOrdersApi(token, { ...baseParams, status: 'PENDING_APPROVAL' });
+            setPendingOrdersCount(pendingRes.total || 0);
+            setConfirmedOrdersCount(0);
+          } else if (filterStatus === 'CONFIRMED') {
+            const confirmedRes = await getFilteredOrdersApi(token, { ...baseParams, status: 'CONFIRMED' });
+            setPendingOrdersCount(0);
+            setConfirmedOrdersCount(confirmedRes.total || 0);
+          } else {
+            setPendingOrdersCount(0);
+            setConfirmedOrdersCount(0);
+          }
+        } else {
+          const [pendingRes, confirmedRes] = await Promise.all([
+            getFilteredOrdersApi(token, { ...baseParams, status: 'PENDING_APPROVAL' }),
+            getFilteredOrdersApi(token, { ...baseParams, status: 'CONFIRMED' }),
+          ]);
+          setPendingOrdersCount(pendingRes.total || 0);
+          setConfirmedOrdersCount(confirmedRes.total || 0);
+        }
+      } catch (err) {
+        console.warn('Lỗi tải KPI tóm tắt:', err);
+      }
+    },
+    [token]
+  );
 
   // Gom các tiêu chí được chọn hợp lệ (bỏ qua 'ALL' hoặc rỗng)
   const buildFilterCriteria = (): FilterCriteria => {
@@ -198,12 +220,13 @@ export const OrderListView: React.FC<OrderListViewProps> = ({
     [token]
   );
 
-  // Khởi tạo tải trang đầu tiên khi token sẵn sàng (chỉ chạy 1 lần khi mount)
+  // Khởi tạo tải trang đầu tiên và KPI khi token sẵn sàng (chỉ chạy 1 lần khi mount)
   useEffect(() => {
     if (token) {
       fetchOrders(1, appliedFiltersRef.current, pageSizeRef.current);
+      fetchKpiSummary(appliedFiltersRef.current);
     }
-  }, [token, fetchOrders]);
+  }, [token, fetchOrders, fetchKpiSummary]);
 
   // Nút Áp dụng lọc: Chỉ khi bấm nút này mới tổng hợp điều kiện và gửi request
   const handleApplyFilter = (e?: React.FormEvent) => {
@@ -213,6 +236,7 @@ export const OrderListView: React.FC<OrderListViewProps> = ({
     appliedFiltersRef.current = criteria;
     setPage(1);
     fetchOrders(1, criteria, pageSizeRef.current);
+    fetchKpiSummary(criteria);
   };
 
   // Nút Đặt lại bộ lọc: Reset toàn bộ inputs về mặc định và tải lại toàn bộ
@@ -228,7 +252,7 @@ export const OrderListView: React.FC<OrderListViewProps> = ({
     appliedFiltersRef.current = emptyCriteria;
     setPage(1);
     fetchOrders(1, emptyCriteria, pageSizeRef.current);
-    fetchKpiSummary();
+    fetchKpiSummary(emptyCriteria);
   };
 
   // Xử lý chuyển trang
