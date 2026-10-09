@@ -15,6 +15,7 @@ import { ApproveOrderModal } from './ApproveOrderModal';
 import { OrderLifecycleTimeline } from './OrderLifecycleTimeline';
 import { OrderCancelModal } from './OrderCancelModal';
 import { getOrderPermissionTier, isOrderPastExported } from '../utils/orderPermissions';
+import OrderPrintModal from './OrderPrintModal';
 
 interface OrderManagementViewProps {
   currentUser: User;
@@ -46,6 +47,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
   const [cancellingOrder, setCancellingOrder] = useState<OrderResponseData | null>(null);
   const [isSubmittingCancel, setIsSubmittingCancel] = useState(false);
   const [cancelNotice, setCancelNotice] = useState<string | null>(null);
+  const [printingOrder, setPrintingOrder] = useState<OrderResponseData | any | null>(null);
 
   const permTier = getOrderPermissionTier(currentUser);
   const isFullAccess = permTier === 'FULL_ACCESS';
@@ -847,6 +849,37 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                           >
                             Chi tiết
                           </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setPrintingOrder(order)}
+                            style={{
+                              padding: '5px 10px',
+                              background: '#eff6ff',
+                              border: '1px solid #bfdbfe',
+                              borderRadius: '6px',
+                              color: '#1d4ed8',
+                              fontSize: '12px',
+                              fontWeight: '600',
+                              cursor: 'pointer',
+                              whiteSpace: 'nowrap',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              justifyContent: 'center',
+                              height: '28px',
+                              boxSizing: 'border-box',
+                              transition: 'all 0.15s ease',
+                            }}
+                            title="In phiếu hoặc xuất PDF đơn hàng cho đại lý xác nhận"
+                          >
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="6 9 6 2 18 2 18 9" />
+                              <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+                              <rect x="6" y="14" width="12" height="8" />
+                            </svg>
+                            In / PDF
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -1071,24 +1104,52 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                   Khách hàng: <strong>{selectedOrderDetail.dealer_name}</strong> (Mã: #{selectedOrderDetail.dealer_id})
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={() => setSelectedOrderDetail(null)}
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  fontSize: '22px',
-                  color: '#94a3b8',
-                  cursor: 'pointer',
-                  padding: '4px',
-                  lineHeight: 1,
-                  borderRadius: '6px',
-                  flexShrink: 0,
-                }}
-                title="Đóng"
-              >
-                ✕
-              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <button
+                  type="button"
+                  onClick={() => setPrintingOrder(selectedOrderDetail)}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '8px 14px',
+                    borderRadius: '6px',
+                    background: '#2563eb',
+                    color: '#ffffff',
+                    border: 'none',
+                    fontWeight: 600,
+                    fontSize: '13px',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                  }}
+                  title="In phiếu hoặc xuất file PDF đơn hàng cho đại lý xem và ký xác nhận"
+                >
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="6 9 6 2 18 2 18 9" />
+                    <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+                    <rect x="6" y="14" width="12" height="8" />
+                  </svg>
+                  In / Xuất PDF
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedOrderDetail(null)}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    fontSize: '22px',
+                    color: '#94a3b8',
+                    cursor: 'pointer',
+                    padding: '4px',
+                    lineHeight: 1,
+                    borderRadius: '6px',
+                    flexShrink: 0,
+                  }}
+                  title="Đóng"
+                >
+                  ✕
+                </button>
+              </div>
             </div>
 
             {/* Thân Modal Cuộn Mượt Mà */}
@@ -1478,6 +1539,17 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
           }}
           onConfirm={handleExecuteCancel}
         />
+      )}
+
+      {/* Modal In & Xuất PDF Đơn Hàng */}
+      {printingOrder && createPortal(
+        <OrderPrintModal
+          token={token}
+          orderCode={printingOrder.order_code}
+          initialOrder={printingOrder.items && printingOrder.items.length > 0 ? printingOrder : undefined}
+          onClose={() => setPrintingOrder(null)}
+        />,
+        document.body
       )}
     </div>
   );

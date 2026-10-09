@@ -3,6 +3,7 @@ import { cancelOrderApi, getOrderDetailApi, OrderDetail, User } from '../service
 import { OrderLifecycleTimeline } from './OrderLifecycleTimeline';
 import { OrderCancelModal } from './OrderCancelModal';
 import { getOrderPermissionTier } from '../utils/orderPermissions';
+import OrderPrintModal from './OrderPrintModal';
 import './orders-view.css';
 
 interface OrderDetailsModalProps {
@@ -39,6 +40,7 @@ export default function OrderDetailsModal({
   const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
   const [isSubmittingCancel, setIsSubmittingCancel] = useState(false);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
+  const [isPrintOpen, setIsPrintOpen] = useState(false);
 
   const permTier = getOrderPermissionTier(currentUser);
   const isFullAccess = permTier === 'FULL_ACCESS';
@@ -137,6 +139,32 @@ export default function OrderDetailsModal({
               <h2 id="order-detail-title">{orderCode}</h2>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <button
+                type="button"
+                className="orders-detail-button"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  backgroundColor: '#2563eb',
+                  color: '#ffffff',
+                  border: 'none',
+                  fontWeight: 600,
+                  padding: '8px 14px',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                }}
+                onClick={() => setIsPrintOpen(true)}
+                title="In phiếu hoặc xuất file PDF đơn hàng cho đại lý xem và ký xác nhận"
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="6 9 6 2 18 2 18 9" />
+                  <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+                  <rect x="6" y="14" width="12" height="8" />
+                </svg>
+                In / Xuất PDF
+              </button>
+
               {/* Nút Hủy đơn chỉ hiển thị với Nhóm Toàn Quyền (Sales / Sales Manager / Admin) */}
               {isFullAccess && !isAlreadyCancelled && (
                 <button
@@ -307,6 +335,15 @@ export default function OrderDetailsModal({
           isSubmitting={isSubmittingCancel}
           onClose={() => setIsCancelModalOpen(false)}
           onConfirm={handleConfirmCancel}
+        />
+      )}
+
+      {isPrintOpen && (
+        <OrderPrintModal
+          token={token}
+          orderCode={orderCode}
+          initialOrder={order}
+          onClose={() => setIsPrintOpen(false)}
         />
       )}
     </>

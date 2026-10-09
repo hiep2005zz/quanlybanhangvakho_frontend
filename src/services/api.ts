@@ -108,6 +108,9 @@ export interface OrderItem {
   approval_reason?: string | null;
   approved_by?: string | null;
   approved_at?: string | null;
+  dealer_code?: string | null;
+  dealer_phone?: string | null;
+  dealer_address?: string | null;
 }
 
 export interface OrderDetail extends OrderItem {
@@ -118,6 +121,8 @@ export interface OrderDetail extends OrderItem {
   delivery_point_id?: number | null;
   desired_delivery_date?: string | null;
   note?: string | null;
+  applied_policy_code?: string | null;
+  applied_policy_name?: string | null;
   items: Array<{
     product_id: number;
     product_name: string;

@@ -4,6 +4,7 @@ import { emitStatusToast } from './StatusToast';
 import OrderDetailsModal from './OrderDetailsModal';
 import OrderCancelConfirmModal from './OrderCancelConfirmModal';
 import { isOrderPastExported } from '../utils/orderPermissions';
+import OrderPrintModal from './OrderPrintModal';
 import './orders-view.css';
 
 interface OrdersViewProps {
@@ -92,6 +93,7 @@ export default function OrdersView({ token, username, currentUser, products, can
   const [cancellingOrderCode, setCancellingOrderCode] = useState<string | null>(null);
   const [orderToCancel, setOrderToCancel] = useState<OrderItem | null>(null);
   const [selectedOrderCode, setSelectedOrderCode] = useState<string | null>(null);
+  const [printingOrderCode, setPrintingOrderCode] = useState<string | null>(null);
 
   useEffect(() => {
     try {
@@ -597,6 +599,19 @@ export default function OrdersView({ token, username, currentUser, products, can
                       >
                         Chi tiết
                       </button>
+                      <button
+                        type="button"
+                        className="orders-detail-button"
+                        style={{
+                          backgroundColor: '#eff6ff',
+                          borderColor: '#bfdbfe',
+                          color: '#1d4ed8',
+                        }}
+                        onClick={() => setPrintingOrderCode(order.order_code)}
+                        title="In phiếu hoặc xuất file PDF"
+                      >
+                        In / PDF
+                      </button>
                       {order.status.toUpperCase() !== 'CANCELLED' &&
                         canCreateOrders &&
                         (canManageOrders || order.created_by.toLowerCase() === username.toLowerCase()) && (
@@ -677,6 +692,13 @@ export default function OrdersView({ token, username, currentUser, products, can
             if (!cancellingOrderCode) setOrderToCancel(null);
           }}
           onConfirm={(reason) => void handleCancelOrder(reason)}
+        />
+      )}
+      {printingOrderCode && (
+        <OrderPrintModal
+          token={token}
+          orderCode={printingOrderCode}
+          onClose={() => setPrintingOrderCode(null)}
         />
       )}
     </main>
