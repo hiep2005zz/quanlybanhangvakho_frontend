@@ -7,7 +7,6 @@ import {
   getDealersApi,
   resolvePriceApi,
   DealerItem,
-  getAvatarUrl,
   listDeliveryPointsApi,
   getDiscountPoliciesApi,
   DiscountPolicy,
@@ -640,31 +639,6 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
                     color: '#334155',
                   }}
                 >
-                  <div
-                    style={{
-                      width: '18px',
-                      height: '18px',
-                      borderRadius: '50%',
-                      background: currentUser.avatar_url ? '#f1f5f9' : '#2563eb',
-                      color: '#ffffff',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '10px',
-                      fontWeight: '700',
-                      overflow: 'hidden',
-                    }}
-                  >
-                    {currentUser.avatar_url ? (
-                      <img
-                        src={getAvatarUrl(currentUser.avatar_url)}
-                        alt=""
-                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                      />
-                    ) : (
-                      (currentUser.full_name || currentUser.username).charAt(0).toUpperCase()
-                    )}
-                  </div>
                   <span>
                     Người tạo: <strong>{currentUser.full_name || currentUser.username}</strong>
                   </span>
@@ -809,7 +783,7 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
                   borderRadius: '6px',
                 }}
               >
-                <span>🏬 Kho phục vụ: <strong>{stockSummary.warehouse_name}</strong> ({stockSummary.warehouse_id})</span>
+                <span>Kho phục vụ: <strong>{stockSummary.warehouse_name}</strong> ({stockSummary.warehouse_id})</span>
                 {isLoadingStock && <span style={{ color: '#0284c7' }}>(Đang cập nhật tồn...)</span>}
               </div>
             )}
@@ -846,11 +820,6 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
                   gap: '6px',
                 }}
               >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-                  <line x1="12" y1="9" x2="12" y2="13" />
-                  <line x1="12" y1="17" x2="12.01" y2="17" />
-                </svg>
                 <span>
                   <strong>Cảnh báo:</strong> Khách hàng đang có trạng thái: <strong>{selectedDealer?.debt_status}</strong>. Đơn hàng có thể bị chặn khi lưu.
                 </span>
@@ -930,7 +899,6 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
                   fontSize: '13px',
                 }}
               >
-                <div style={{ fontSize: '24px', marginBottom: '6px' }}>📦</div>
                 Chưa có sản phẩm nào trong đơn hàng.
               </div>
             ) : (
@@ -1017,7 +985,7 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
                               {/* AC 3: Cảnh báo vượt tồn khả dụng và nút gợi ý đặt tối đa */}
                               {isExceeded && maxOrderable !== undefined && (
                                 <div style={{ marginTop: '4px', fontSize: '11px', color: '#dc2626', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                  <span>⚠️ Vượt tồn kho ({maxOrderable} {item.unitName})</span>
+                                  <span>Vượt tồn kho ({maxOrderable} {item.unitName})</span>
                                   <button
                                     type="button"
                                     onClick={() => handleQuantityChange(idx, maxOrderable)}
@@ -1040,7 +1008,7 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
 
                               {item.priceNote && (
                                 <div style={{ fontSize: '11px', color: '#0284c7', marginTop: '2px' }}>
-                                  🏷️ {item.priceNote}
+                                  {item.priceNote}
                                 </div>
                               )}
                             </td>
@@ -1157,30 +1125,15 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
                                   border: 'none',
                                   color: '#ef4444',
                                   cursor: 'pointer',
-                                  padding: '4px',
+                                  padding: '4px 6px',
                                   borderRadius: '4px',
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
+                                  fontSize: '12px',
+                                  fontWeight: '600',
                                   transition: 'background 0.15s ease',
                                 }}
                                 title="Xóa sản phẩm khỏi đơn"
                               >
-                                <svg
-                                  width="16"
-                                  height="16"
-                                  viewBox="0 0 24 24"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  strokeWidth="2.2"
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                >
-                                  <polyline points="3 6 5 6 21 6" />
-                                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                                  <line x1="10" y1="11" x2="10" y2="17" />
-                                  <line x1="14" y1="11" x2="14" y2="17" />
-                                </svg>
+                                Xóa
                               </button>
                             </td>
                           </tr>
@@ -1312,9 +1265,6 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
                   fontWeight: '600',
                 }}
               >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
                 <span>{discountEvaluation.label}</span>
               </div>
             )}
@@ -1331,7 +1281,7 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
                   fontSize: '11.5px',
                 }}
               >
-                ⚠️ Chiết khấu bạn nhập ({safeDiscount}%) cao hơn mức chính sách ({discountEvaluation.discountPercent}%). Đơn hàng sẽ cần Quản lý duyệt.
+                Chiết khấu bạn nhập ({safeDiscount}%) cao hơn mức chính sách ({discountEvaluation.discountPercent}%). Đơn hàng sẽ cần Quản lý duyệt.
               </div>
             )}
             <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px dashed #cbd5e1', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -1358,7 +1308,7 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
                 lineHeight: '1.4',
               }}
             >
-              ⚠️ Đơn hàng có sản phẩm có đơn giá bán thấp hơn giá niêm yết / giá sàn quy định. Đơn hàng sẽ được chuyển sang trạng thái Chờ quản lý phê duyệt.
+              Đơn hàng có sản phẩm có đơn giá bán thấp hơn giá niêm yết / giá sàn quy định. Đơn hàng sẽ được chuyển sang trạng thái Chờ quản lý phê duyệt.
             </div>
           )}
 

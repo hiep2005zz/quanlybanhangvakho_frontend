@@ -862,9 +862,6 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                             }}
                             title="Đặt lại toàn bộ đơn hàng này theo giá hiện hành"
                           >
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
-                            </svg>
                             Đặt lại
                           </button>
                         </div>
@@ -1297,9 +1294,6 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                                 }
                               }}
                             >
-                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
-                              </svg>
                               Đặt lại
                             </button>
                           </td>
@@ -1449,9 +1443,6 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                   }}
                   title="Đặt lại toàn bộ đơn hàng này theo giá hiện hành"
                 >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
-                  </svg>
                   {reorderLoading ? 'Đang kiểm tra...' : 'Đặt lại đơn'}
                 </button>
                 <button
@@ -1503,27 +1494,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
               overflow: 'hidden',
             }}
           >
-            <div style={{ padding: '20px 24px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <div style={{
-                width: '38px',
-                height: '38px',
-                borderRadius: '50%',
-                background: reorderResultModal.onContinue ? '#ecfdf5' : '#fef2f2',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: reorderResultModal.onContinue ? '#16a34a' : '#dc2626',
-              }}>
-                {reorderResultModal.onContinue ? (
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M20 6L9 17l-5-5"/>
-                  </svg>
-                ) : (
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
-                  </svg>
-                )}
-              </div>
+            <div style={{ padding: '20px 24px', borderBottom: '1px solid #f1f5f9' }}>
               <h3 style={{ margin: 0, fontSize: '17px', fontWeight: '700', color: '#0f172a' }}>
                 {reorderResultModal.title}
               </h3>
