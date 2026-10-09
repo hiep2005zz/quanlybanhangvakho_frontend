@@ -20,6 +20,7 @@ interface PriceBookManagementViewProps {
   products?: ProductItem[];
   onBackToHome?: () => void;
   onNavigateToOrders?: () => void;
+  onRefreshProducts?: () => void;
 }
 
 export function PriceBookManagementView({ 
@@ -28,6 +29,7 @@ export function PriceBookManagementView({
   products: initialProducts,
   onBackToHome: _onBackToHome,
   onNavigateToOrders: _onNavigateToOrders,
+  onRefreshProducts,
 }: PriceBookManagementViewProps) {
   // Xác định vai trò người dùng (RBAC Matrix)
   const userRoles = useMemo(() => {
@@ -46,6 +48,14 @@ export function PriceBookManagementView({
   const [products, setProducts] = useState<ProductItem[]>(initialProducts || []);
   const [loading, setLoading] = useState(true);
   const [cloningId, setCloningId] = useState<number | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Đồng bộ products khi props initialProducts thay đổi
+  useEffect(() => {
+    if (initialProducts && initialProducts.length > 0) {
+      setProducts(initialProducts);
+    }
+  }, [initialProducts]);
   
   // Bộ lọc tìm kiếm
   const [searchQuery, setSearchQuery] = useState('');
@@ -225,23 +235,24 @@ export function PriceBookManagementView({
     e.preventDefault();
 
     if (!formData.name.trim()) {
-      emitStatusToast({ message: 'Vui lòng nhập Tên Bảng Giá' });
+      emitStatusToast({ message: 'Vui lòng nhập Tên Bảng Giá', title: 'Thông báo', type: 'warning' });
       setActiveTab('info');
       return;
     }
 
     if (new Date(formData.valid_to) < new Date(formData.valid_from)) {
-      emitStatusToast({ message: 'Ngày kết thúc không được nhỏ hơn ngày bắt đầu' });
+      emitStatusToast({ message: 'Ngày kết thúc không được nhỏ hơn ngày bắt đầu', title: 'Thông báo', type: 'warning' });
       setActiveTab('info');
       return;
     }
 
     if (formItems.length === 0) {
-      emitStatusToast({ message: 'Vui lòng thêm ít nhất 1 sản phẩm vào bảng giá' });
+      emitStatusToast({ message: 'Vui lòng thêm ít nhất 1 sản phẩm vào bảng giá', title: 'Thông báo', type: 'warning' });
       setActiveTab('items');
       return;
     }
 
+    setIsSubmitting(true);
     try {
       const formattedValidFrom = new Date(formData.valid_from).toISOString();
       const formattedValidTo = new Date(formData.valid_to).toISOString();
@@ -264,7 +275,15 @@ export function PriceBookManagementView({
           note: formData.note.trim() || undefined,
           items: normalizedItems
         });
-        emitStatusToast({ message: 'Cập nhật bảng giá thành công' });
+
+        // (a) Đóng modal
+        setIsFormModalOpen(false);
+        // (b) Hiển thị thông báo Toast màu xanh ở góc dưới màn hình
+        emitStatusToast({ 
+          message: 'Cập nhật bảng giá thành công! Đã tự động cập nhật giá niêm yết và giá sàn sang Quản lý kho hàng.', 
+          title: 'Thành công', 
+          type: 'success' 
+        });
       } else {
         await createPriceBookApi(token, {
           code: formData.code.trim(),
@@ -276,13 +295,39 @@ export function PriceBookManagementView({
           note: formData.note.trim() || undefined,
           items: normalizedItems
         });
-        emitStatusToast({ message: 'Tạo bảng giá mới thành công' });
+
+        // (a) Đóng Modal thoát ra danh sách Bảng giá
+        setIsFormModalOpen(false);
+        // (b) Hiển thị thông báo Toast màu xanh ở góc dưới màn hình
+        emitStatusToast({ 
+          message: 'Thêm mới Bảng giá thành công! Đã tự động cập nhật giá niêm yết và giá sàn sang Quản lý kho hàng.', 
+          title: 'Thành công', 
+          type: 'success' 
+        });
       }
 
-      setIsFormModalOpen(false);
-      loadPriceBooks();
+      // (c) Tự động tải lại danh sách bảng giá để thấy bản ghi vừa tạo
+      await loadPriceBooks();
+
+      // Đồng bộ refetch danh sách sản phẩm để cập nhật giá niêm yết/giá sàn mới nhất
+      try {
+        const prodData = await getProductsApi(token);
+        setProducts(prodData.items || []);
+      } catch (loadErr) {
+        console.warn('Lỗi tải lại danh sách sản phẩm sau khi lưu bảng giá:', loadErr);
+      }
+
+      if (onRefreshProducts) {
+        onRefreshProducts();
+      }
     } catch (err: any) {
-      emitStatusToast({ message: err.message || 'Lỗi lưu bảng giá', title: 'Thất bại' });
+      emitStatusToast({ 
+        message: err.message || 'Lỗi lưu bảng giá', 
+        title: 'Thất bại', 
+        type: 'error' 
+      });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -1196,9 +1241,20 @@ export function PriceBookManagementView({
                 </button>
                 <button 
                   type="submit" 
-                  style={{ padding: '10px 24px', borderRadius: '8px', border: 'none', background: '#0fad89', color: 'white', cursor: 'pointer', fontWeight: '700', fontSize: '14px', boxShadow: '0 2px 4px rgba(15, 173, 137, 0.2)' }}
+                  disabled={isSubmitting}
+                  style={{ 
+                    padding: '10px 24px', 
+                    borderRadius: '8px', 
+                    border: 'none', 
+                    background: isSubmitting ? '#94a3b8' : '#0fad89', 
+                    color: 'white', 
+                    cursor: isSubmitting ? 'not-allowed' : 'pointer', 
+                    fontWeight: '700', 
+                    fontSize: '14px', 
+                    boxShadow: '0 2px 4px rgba(15, 173, 137, 0.2)' 
+                  }}
                 >
-                  {selectedBook ? 'Lưu cập nhật' : 'Lưu Bảng Giá'}
+                  {isSubmitting ? 'Đang lưu...' : (selectedBook ? 'Lưu cập nhật' : 'Lưu Bảng Giá')}
                 </button>
               </div>
             </form>

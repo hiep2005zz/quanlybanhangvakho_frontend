@@ -90,6 +90,36 @@ export const OrderPrintModal: React.FC<OrderPrintModalProps> = ({
   const [error, setError] = useState<string | null>(null);
   const previewContainerRef = useRef<HTMLDivElement>(null);
 
+  // State điều khiển tỉ lệ thu phóng (Zoom Scale) & Chế độ vừa trang (Fit to page)
+  const [zoomScale, setZoomScale] = useState<number>(0.85);
+  const [isFitMode, setIsFitMode] = useState<boolean>(true);
+
+  // Tính toán tỉ lệ vừa màn hình tự động dựa trên chiều cao thực tế của khung xem trước
+  const calculateFitScale = () => {
+    if (!previewContainerRef.current) return 0.85;
+    const containerHeight = previewContainerRef.current.clientHeight;
+    if (containerHeight > 100) {
+      // Chiều cao nội dung A4 khoảng 960px kèm padding
+      const target = Math.min(1.0, Math.max(0.55, (containerHeight - 40) / 960));
+      return Math.round(target * 20) / 20; // Làm tròn tới bước 0.05
+    }
+    return 0.85;
+  };
+
+  const handleSetFit = () => {
+    const fit = calculateFitScale();
+    setZoomScale(fit);
+    setIsFitMode(true);
+    if (previewContainerRef.current) {
+      previewContainerRef.current.scrollTop = 0;
+    }
+  };
+
+  const handleZoomChange = (delta: number) => {
+    setIsFitMode(false);
+    setZoomScale((prev) => Math.min(1.4, Math.max(0.5, Math.round((prev + delta) * 20) / 20)));
+  };
+
   useEffect(() => {
     let isMounted = true;
     setIsLoading(true);
@@ -138,10 +168,16 @@ export const OrderPrintModal: React.FC<OrderPrintModalProps> = ({
     };
   }, [token, orderCode, initialOrder]);
 
-  // Đảm bảo khi mở lên cuộn ngay về đầu trang xem trước
+  // Đảm bảo khi mở lên cuộn ngay về đầu trang và tự động co giãn vừa khung hình nếu đang ở chế độ Fit
   useEffect(() => {
     if (previewContainerRef.current) {
       previewContainerRef.current.scrollTop = 0;
+    }
+    if (order && isFitMode) {
+      const timer = setTimeout(() => {
+        handleSetFit();
+      }, 60);
+      return () => clearTimeout(timer);
     }
   }, [order]);
 
@@ -182,6 +218,7 @@ export const OrderPrintModal: React.FC<OrderPrintModalProps> = ({
   return createPortal(
     <div
       className="order-print-backdrop"
+      style={{ zIndex: 100002 }}
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -203,41 +240,187 @@ export const OrderPrintModal: React.FC<OrderPrintModalProps> = ({
             <span>MẪU IN &amp; XUẤT PDF ĐƠN HÀNG #{orderCode}</span>
           </div>
 
-          <div className="order-print-toolbar-actions">
-            <button
-              type="button"
-              className="order-print-btn order-print-btn-pdf"
-              onClick={handleExportPdf}
-              title="Xuất file PDF đơn hàng cho đại lý"
+          {/* Cụm điều khiển Thu/Phóng xem trước & Nút đóng góc trên */}
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+            }}
+          >
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                background: '#0f172a',
+                borderRadius: '8px',
+                padding: '3px 6px',
+                gap: '4px',
+                border: '1px solid #334155',
+              }}
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                <polyline points="14 2 14 8 20 8" />
-                <line x1="16" y1="13" x2="8" y2="13" />
-                <line x1="16" y1="17" x2="8" y2="17" />
-                <polyline points="10 9 9 9 8 9" />
-              </svg>
-              Xuất PDF
-            </button>
+              <button
+                type="button"
+                onClick={() => handleZoomChange(-0.05)}
+                style={{
+                  background: '#1e293b',
+                  border: '1px solid #475569',
+                  color: '#f8fafc',
+                  cursor: 'pointer',
+                  padding: '3px 8px',
+                  borderRadius: '5px',
+                  fontSize: '13px',
+                  fontWeight: '700',
+                }}
+                title="Thu nhỏ xem trước"
+              >
+                −
+              </button>
+
+              <span
+                style={{
+                  fontSize: '12px',
+                  fontWeight: '700',
+                  color: '#38bdf8',
+                  minWidth: '45px',
+                  textAlign: 'center',
+                  userSelect: 'none',
+                }}
+              >
+                {Math.round(zoomScale * 100)}%
+              </span>
+
+              <button
+                type="button"
+                onClick={() => handleZoomChange(0.05)}
+                style={{
+                  background: '#1e293b',
+                  border: '1px solid #475569',
+                  color: '#f8fafc',
+                  cursor: 'pointer',
+                  padding: '3px 8px',
+                  borderRadius: '5px',
+                  fontSize: '13px',
+                  fontWeight: '700',
+                }}
+                title="Phóng to xem trước"
+              >
+                +
+              </button>
+
+              <button
+                type="button"
+                onClick={handleSetFit}
+                style={{
+                  background: isFitMode ? '#2563eb' : '#334155',
+                  border: isFitMode ? '1px solid #3b82f6' : '1px solid #475569',
+                  color: '#ffffff',
+                  cursor: 'pointer',
+                  padding: '3px 10px',
+                  borderRadius: '5px',
+                  fontSize: '12px',
+                  fontWeight: '600',
+                  marginLeft: '4px',
+                  transition: 'all 0.15s ease',
+                }}
+                title="Tự động thu phóng vừa vặn toàn bộ trang trong màn hình (như khi zoom nhỏ)"
+              >
+                Vừa trang
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setZoomScale(1.0);
+                  setIsFitMode(false);
+                }}
+                style={{
+                  background: !isFitMode && zoomScale === 1.0 ? '#2563eb' : '#334155',
+                  border: !isFitMode && zoomScale === 1.0 ? '1px solid #3b82f6' : '1px solid #475569',
+                  color: '#ffffff',
+                  cursor: 'pointer',
+                  padding: '3px 8px',
+                  borderRadius: '5px',
+                  fontSize: '12px',
+                  fontWeight: '600',
+                  transition: 'all 0.15s ease',
+                }}
+                title="Kích thước gốc 100%"
+              >
+                100%
+              </button>
+            </div>
 
             <button
               type="button"
-              className="order-print-btn order-print-btn-primary"
-              onClick={handlePrint}
-              title="In phiếu đơn hàng trực tiếp"
+              onClick={onClose}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                fontSize: '20px',
+                color: '#94a3b8',
+                cursor: 'pointer',
+                padding: '4px 6px',
+                lineHeight: 1,
+                borderRadius: '6px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 0.15s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = '#ffffff';
+                e.currentTarget.style.background = '#334155';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = '#94a3b8';
+                e.currentTarget.style.background = 'transparent';
+              }}
+              title="Đóng cửa sổ in (Esc)"
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="6 9 6 2 18 2 18 9" />
-                <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
-                <rect x="6" y="14" width="12" height="8" />
-              </svg>
-              In đơn ngay
+              ✕
             </button>
+          </div>
+
+          {/* Hàng nút tác vụ: Xuất/In bên trái và Đóng ở góc phải */}
+          <div className="order-print-toolbar-actions">
+            <div className="order-print-actions-left">
+              <button
+                type="button"
+                className="order-print-btn order-print-btn-pdf"
+                onClick={handleExportPdf}
+                title="Xuất file PDF đơn hàng cho đại lý"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                  <line x1="16" y1="13" x2="8" y2="13" />
+                  <line x1="16" y1="17" x2="8" y2="17" />
+                  <polyline points="10 9 9 9 8 9" />
+                </svg>
+                Xuất PDF
+              </button>
+
+              <button
+                type="button"
+                className="order-print-btn order-print-btn-primary"
+                onClick={handlePrint}
+                title="In phiếu đơn hàng trực tiếp"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="6 9 6 2 18 2 18 9" />
+                  <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+                  <rect x="6" y="14" width="12" height="8" />
+                </svg>
+                In đơn ngay
+              </button>
+            </div>
 
             <button
               type="button"
               className="order-print-btn order-print-btn-secondary"
               onClick={onClose}
+              title="Đóng cửa sổ in"
             >
               Đóng
             </button>
@@ -259,7 +442,7 @@ export const OrderPrintModal: React.FC<OrderPrintModalProps> = ({
           )}
 
           {order && (
-            <article className="order-print-paper">
+            <article className="order-print-paper" style={{ zoom: zoomScale }}>
               {/* Header phiếu: Thông tin đơn vị & Barcode tra cứu kho */}
               <div className="order-print-header">
                 <div className="order-print-company">

@@ -36,7 +36,6 @@ export const DealerCreditBadge: React.FC<DealerCreditBadgeProps> = ({
           margin: '10px 0',
         }}
       >
-        <span style={{ display: 'inline-block', animation: 'spin 1s linear infinite' }}>⏳</span>
         <span>Đang kiểm tra hạn mức & công nợ đại lý...</span>
       </div>
     );
@@ -180,7 +179,6 @@ export const DealerCreditBadge: React.FC<DealerCreditBadgeProps> = ({
             boxShadow: '0 2px 6px rgba(239, 68, 68, 0.1)',
           }}
         >
-          <span style={{ fontSize: '20px', lineHeight: 1 }}>🛑</span>
           <div style={{ flex: 1, fontSize: '13px', color: '#991b1b', lineHeight: '1.5' }}>
             <strong style={{ display: 'block', fontSize: '13.5px', marginBottom: '2px', color: '#7f1d1d' }}>
               CHẶN TẠO ĐƠN HÀNG DO CÔNG NỢ QUÁ HẠN
@@ -207,7 +205,6 @@ export const DealerCreditBadge: React.FC<DealerCreditBadgeProps> = ({
             boxShadow: '0 2px 6px rgba(245, 158, 11, 0.1)',
           }}
         >
-          <span style={{ fontSize: '20px', lineHeight: 1 }}>⚠️</span>
           <div style={{ flex: 1, fontSize: '13px', color: '#92400e', lineHeight: '1.5' }}>
             <strong style={{ display: 'block', fontSize: '13.5px', marginBottom: '2px', color: '#78350f' }}>
               CẢNH BÁO: ĐƠN HÀNG VƯỢT HẠN MỨC CÔNG NỢ (CẦN PHÊ DUYỆT)

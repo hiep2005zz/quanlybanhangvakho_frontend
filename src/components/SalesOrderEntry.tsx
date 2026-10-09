@@ -682,7 +682,6 @@ export default function SalesOrderEntry({ token, username, products, user, onClo
             <h2>Thông tin giao hàng</h2>
             {stockSummary && (
               <div className="serving-warehouse-badge" id="serving-warehouse-badge">
-                <span className="warehouse-icon">🏢</span>
                 <span>Kho phục vụ đại lý: <strong>{stockSummary.warehouse_name} ({stockSummary.warehouse_id})</strong></span>
               </div>
             )}
@@ -969,7 +968,7 @@ export default function SalesOrderEntry({ token, username, products, user, onClo
                       {isExceeded && maxOrderable !== undefined && (
                         <div className="sales-order-stock-error">
                           <span>
-                            ⚠️ Vượt tồn khả dụng tại {stockSummary?.warehouse_name || 'kho'}! Kho chỉ còn tối đa{' '}
+                            Vượt tồn khả dụng tại {stockSummary?.warehouse_name || 'kho'}! Kho chỉ còn tối đa{' '}
                             <strong>{maxOrderable} {line.unit}</strong>.
                           </span>
                           <button
