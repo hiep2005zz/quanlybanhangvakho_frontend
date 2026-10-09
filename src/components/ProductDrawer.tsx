@@ -702,7 +702,7 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
                               type="button"
                               onClick={handleAddNewCategory}
                               style={{
-                                background: '#2563eb',
+                                background: '#0fad89',
                                 color: '#fff',
                                 border: 'none',
                                 borderRadius: '4px',
@@ -830,7 +830,7 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
                               position: 'absolute',
                               top: 2,
                               left: 2,
-                              background: '#2563eb',
+                              background: '#0fad89',
                               color: '#ffffff',
                               fontSize: '9px',
                               fontWeight: '700',
@@ -970,7 +970,7 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
                       type="button"
                       onClick={handleAddNewUnit}
                       style={{
-                        background: '#2563eb',
+                        background: '#0fad89',
                         color: '#fff',
                         border: 'none',
                         borderRadius: '8px',
@@ -1053,6 +1053,9 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
                     {unitError}
                   </div>
                 )}
+                <div style={{ fontSize: '11.5px', color: '#64748b', marginTop: '4px' }}>
+                  Đơn vị cơ sở là đơn vị nhỏ nhất để kiểm kê và lưu kho.
+                </div>
               </div>
 
               <div>
@@ -1063,7 +1066,7 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
                   type="text"
                   value={packagingSpec}
                   onChange={(e) => setPackagingSpec(e.target.value)}
-                  placeholder="Ví dụ: 1 Thùng = 24 Hộp"
+                  placeholder="VD: Lon 330ml, Hộp 500g, Túi zip..."
                   style={{
                     width: '100%',
                     padding: '8px 12px',
@@ -1075,6 +1078,9 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
                     boxSizing: 'border-box',
                   }}
                 />
+                <div style={{ fontSize: '11.5px', color: '#64748b', marginTop: '4px' }}>
+                  Mô tả định lượng, thể tích hoặc đóng gói bao bì của sản phẩm.
+                </div>
               </div>
             </div>
           </div>
@@ -1341,15 +1347,26 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
               onClick={handleSubmit}
               disabled={isSubmitting || isDeleting}
               style={{
-                background: '#2563eb',
+                background: 'linear-gradient(135deg, #0fba90 0%, #0fad89 100%)',
                 border: 'none',
                 color: '#ffffff',
                 borderRadius: '8px',
                 padding: '9px 24px',
                 fontSize: '13.5px',
                 fontWeight: '700',
-                cursor: 'pointer',
-                boxShadow: '0 2px 6px rgba(37, 99, 235, 0.3)',
+                cursor: isSubmitting || isDeleting ? 'not-allowed' : 'pointer',
+                boxShadow: '0 2px 8px rgba(15, 186, 144, 0.35)',
+                transition: 'all 0.18s ease',
+              }}
+              onMouseEnter={(e) => {
+                if (!isSubmitting && !isDeleting) {
+                  e.currentTarget.style.background = 'linear-gradient(135deg, #0fad89 0%, #0a8f70 100%)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!isSubmitting && !isDeleting) {
+                  e.currentTarget.style.background = 'linear-gradient(135deg, #0fba90 0%, #0fad89 100%)';
+                }
               }}
             >
               {isSubmitting ? 'Đang lưu...' : isEditing ? 'Lưu thay đổi' : 'Thêm sản phẩm'}

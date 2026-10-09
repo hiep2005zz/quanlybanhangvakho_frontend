@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { getProductsApi, ProductItem, User } from '../services/api';
 import { sessionManager, SessionState } from '../services/sessionManager';
 import SecurityModal from './SecurityModal';
@@ -21,6 +21,7 @@ import DealerProfileManagementView from './DealerProfileManagementView';
 import DeliveryPointsView from './DeliveryPointsView';
 import { ProductUnitModal } from './ProductUnitModal';
 import { StockActionModal } from './StockActionModal';
+import { GoodsReceiptModal } from './GoodsReceiptModal';
 import { OrderManagementView } from './OrderManagementView';
 import SalesOrderEntry from './SalesOrderEntry';
 import { ProductHistoryView } from './ProductHistoryView';
@@ -60,10 +61,10 @@ export default function DashboardPage({
     officialRoles.length === 0 &&
     (!user.branch || user.branch === 'Chưa phân công');
   const isAdmin = user.role === 'admin' || Boolean(user.roles && user.roles.includes('admin'));
-  const canReadOrders = hasPermission(user, Permissions.ORDER_READ) || user.role === 'sales' || Boolean(user.roles && user.roles.includes('sales'));
-  const canCreateOrders = hasPermission(user, Permissions.ORDER_WRITE) || user.role === 'sales' || Boolean(user.roles && user.roles.includes('sales'));
-  const isSalesManager = user.role === 'sales_manager' || Boolean(user.roles && user.roles.includes('sales_manager'));
   const isAccountant = user.role === 'accountant' || Boolean(user.roles && user.roles.includes('accountant'));
+  const canReadOrders = hasPermission(user, Permissions.ORDER_READ) || user.role === 'sales' || Boolean(user.roles && user.roles.includes('sales')) || isAccountant;
+  const canCreateOrders = !isAccountant && (hasPermission(user, Permissions.ORDER_WRITE) || user.role === 'sales' || Boolean(user.roles && user.roles.includes('sales')));
+  const isSalesManager = user.role === 'sales_manager' || Boolean(user.roles && user.roles.includes('sales_manager'));
   const canAccessDiscounts =
     isAdmin ||
     isSalesManager ||
@@ -147,7 +148,13 @@ export default function DashboardPage({
     }
 
     if (isCreateOrderPath || oldTabVal === 'create-order') {
-      return 'create-order';
+      if (canCreateOrders) return 'create-order';
+      if (canReadOrders) {
+        try { window.history.replaceState({}, '', '/orders'); } catch {}
+        return 'orders';
+      }
+      try { window.history.replaceState({}, '', '/'); } catch {}
+      return 'inventory';
     }
     if (isPriceBooksPath) {
       return 'price-books';
@@ -215,15 +222,7 @@ export default function DashboardPage({
       return 'users';
     }
     if (isCategoriesPath) {
-      if (canManageCategories) {
-        return 'categories';
-      }
-      try {
-        window.history.replaceState({}, '', '/');
-      } catch {
-        // ignore
-      }
-      return 'users';
+      return 'categories';
     }
     return 'inventory';
   });
@@ -260,6 +259,15 @@ export default function DashboardPage({
     }
 
     if (tab === 'create-order') {
+      if (!canCreateOrders) {
+        setActiveTabState('orders');
+        try {
+          window.history.replaceState({}, '', '/orders');
+        } catch {
+          // ignore
+        }
+        return;
+      }
       setActiveTabState('create-order');
       try {
         window.history.pushState({}, '', '/create-order');
@@ -290,15 +298,6 @@ export default function DashboardPage({
         // ignore
       }
     } else if (tab === 'delivery-points') {
-      if (!canManageDeliveryPoints) {
-        setActiveTabState('inventory');
-        try {
-          window.history.replaceState({}, '', '/');
-        } catch {
-          // ignore
-        }
-        return;
-      }
       setActiveTabState('delivery-points');
       try {
         window.history.pushState({}, '', '/delivery-points');
@@ -322,15 +321,6 @@ export default function DashboardPage({
         // ignore
       }
     } else if (tab === 'dealers') {
-      if (!canViewDealers) {
-        setActiveTabState('inventory');
-        try {
-          window.history.replaceState({}, '', '/');
-        } catch {
-          // ignore
-        }
-        return;
-      }
       setActiveTabState('dealers');
       try {
         window.history.pushState({}, '', '/dealers');
@@ -338,15 +328,6 @@ export default function DashboardPage({
         // ignore
       }
     } else if (tab === 'users') {
-      if (!isAdmin) {
-        setActiveTabState('inventory');
-        try {
-          window.history.replaceState({}, '', '/');
-        } catch {
-          // ignore
-        }
-        return;
-      }
       setActiveTabState('users');
       try {
         window.history.pushState({}, '', '/users');
@@ -354,15 +335,6 @@ export default function DashboardPage({
         // ignore
       }
     } else if (tab === 'categories') {
-      if (!canManageCategories) {
-        setActiveTabState('inventory');
-        try {
-          window.history.replaceState({}, '', '/');
-        } catch {
-          // ignore
-        }
-        return;
-      }
       setActiveTabState('categories');
       try {
         window.history.pushState({}, '', '/categories');
@@ -579,13 +551,7 @@ export default function DashboardPage({
         }
         setActiveTabState('users');
       } else if (pathname === '/categories') {
-        if (canManageCategories) {
-          setActiveTabState('categories');
-        } else {
-          setActiveTabState('inventory');
-          window.history.replaceState({}, '', '/');
-          return;
-        }
+        setActiveTabState('categories');
       } else {
         setActiveTabState('inventory');
         if (pathname !== '/' || params.size) window.history.replaceState({}, '', '/');
@@ -660,35 +626,51 @@ export default function DashboardPage({
     actionType: 'receipt' | 'issue' | 'adjust';
     product: ProductItem | null;
   }>({ isOpen: false, actionType: 'receipt', product: null });
+  const [isGoodsReceiptModalOpen, setIsGoodsReceiptModalOpen] = useState(false);
   const [isSalesOrderEntryOpen, setIsSalesOrderEntryOpen] = useState(false);
+  const [isDiscountExpanded, setIsDiscountExpanded] = useState(false);
   const availableCategories = useMemo(
     () => Array.from(new Set(['Thời trang', 'Giày dép', 'Phụ kiện', ...products.map((p) => p.category).filter(Boolean)])),
     [products]
   );
 
-  // Dropdown menu 3 chấm trên dòng sản phẩm kho hàng
+  // Dropdown menu 3 chấm trên dòng sản phẩm, menu Excel & menu Thêm mới
   const [openProductMenuId, setOpenProductMenuId] = useState<number | null>(null);
+  const [isExcelMenuOpen, setIsExcelMenuOpen] = useState(false);
+  const excelMenuRef = useRef<HTMLDivElement>(null);
+  const [isCreateMenuOpen, setIsCreateMenuOpen] = useState(false);
+  const createMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const handleGlobalClick = () => setOpenProductMenuId(null);
+    const handleGlobalClick = (e: MouseEvent) => {
+      setOpenProductMenuId(null);
+      if (excelMenuRef.current && !excelMenuRef.current.contains(e.target as Node)) {
+        setIsExcelMenuOpen(false);
+      }
+      if (createMenuRef.current && !createMenuRef.current.contains(e.target as Node)) {
+        setIsCreateMenuOpen(false);
+      }
+    };
     window.addEventListener('click', handleGlobalClick);
     return () => window.removeEventListener('click', handleGlobalClick);
   }, []);
 
-  // Tự động đóng popover user khi bấm phím Esc
+  // Tự động đóng popover user / Excel / Thêm mới khi bấm phím Esc
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         setIsUserMenuOpen(false);
+        setIsExcelMenuOpen(false);
+        setIsCreateMenuOpen(false);
       }
     };
-    if (isUserMenuOpen) {
+    if (isUserMenuOpen || isExcelMenuOpen || isCreateMenuOpen) {
       window.addEventListener('keydown', handleKeyDown);
     }
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [isUserMenuOpen]);
+  }, [isUserMenuOpen, isExcelMenuOpen, isCreateMenuOpen]);
 
   // Lắng nghe cập nhật trạng thái phiên
   useEffect(() => {
@@ -745,6 +727,71 @@ export default function DashboardPage({
   const safeCurrentPage = Math.min(currentPage, totalPages);
   const startIndex = (safeCurrentPage - 1) * pageSize;
   const paginatedProducts = filteredProducts.slice(startIndex, startIndex + pageSize);
+
+  // Xuất file Excel danh mục hàng hóa
+  const handleExportExcel = () => {
+    const excelTemplate = `
+      <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+      <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+        <!--[if gte mso 9]>
+        <xml>
+          <x:ExcelWorkbook>
+            <x:ExcelWorksheets>
+              <x:ExcelWorksheet>
+                <x:Name>Danh Sách Hàng Hóa</x:Name>
+                <x:WorksheetOptions>
+                  <x:DisplayGridlines/>
+                </x:WorksheetOptions>
+              </x:ExcelWorksheet>
+            </x:ExcelWorksheets>
+          </x:ExcelWorkbook>
+        </xml>
+        <![endif]-->
+        <style>
+          table { border-collapse: collapse; font-family: Calibri, sans-serif; }
+          th { background-color: #f1f5f9; color: #0f172a; font-weight: bold; border: 1px solid #cbd5e1; padding: 10px; text-align: left; }
+          td { border: 1px solid #e2e8f0; padding: 8px 10px; color: #334155; }
+          .text-center { text-align: center; }
+          .text-right { text-align: right; }
+        </style>
+      </head>
+      <body>
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 100px;">Mã SP</th>
+              <th style="width: 250px;">Tên sản phẩm</th>
+              <th style="width: 140px;" class="text-center">Ngành hàng</th>
+              <th style="width: 110px;" class="text-right">Số lượng tồn</th>
+              <th style="width: 150px;" class="text-right">Giá niêm yết (VNĐ)</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${filteredProducts.map((p) => `
+              <tr>
+                <td style="mso-number-format:'\\@'; font-weight: 600;">${p.code}</td>
+                <td>${p.name}</td>
+                <td class="text-center">${p.category}</td>
+                <td class="text-right">${p.stock}</td>
+                <td class="text-right">${p.sell_price.toLocaleString('vi-VN')}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </body>
+      </html>
+    `;
+    const blob = new Blob(['\uFEFF' + excelTemplate], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `danh_sach_hang_hoa_${new Date().toISOString().slice(0, 10)}.xls`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
 
   const roleLabelMap: Record<string, string> = {
     admin: 'Quản Trị Hệ Thống',
@@ -887,6 +934,7 @@ export default function DashboardPage({
           <SalesOrderEntry
             token={token}
             username={user.username}
+            user={user}
             products={products}
             onClose={() => {
               setIsSalesOrderEntryOpen(false);
@@ -941,16 +989,34 @@ export default function DashboardPage({
           />
         )
       ) : activeTab === 'categories' ? (
-        <CategoryManagementView
-          token={token}
-          onBackToHome={() => setActiveTab('inventory')}
-        />
+        canManageCategories ? (
+          <CategoryManagementView
+            token={token}
+            onBackToHome={() => setActiveTab('inventory')}
+          />
+        ) : (
+          <AccessDeniedView
+            currentUser={user}
+            requiredPermission="Quản lý ngành hàng (Quản lý kinh doanh / Quản trị viên)"
+            onBackToWorkflow={() => setActiveTab('inventory')}
+            onLogout={onLogout}
+          />
+        )
       ) : activeTab === 'discounts' ? (
-        <DiscountPolicyView
-          token={token}
-          user={user}
-          onBackToHome={() => setActiveTab('inventory')}
-        />
+        canAccessDiscounts ? (
+          <DiscountPolicyView
+            token={token}
+            user={user}
+            onBackToHome={() => setActiveTab('inventory')}
+          />
+        ) : (
+          <AccessDeniedView
+            currentUser={user}
+            requiredPermission="Chính sách chiết khấu (Quản lý kinh doanh / Quản trị viên)"
+            onBackToWorkflow={() => setActiveTab('inventory')}
+            onLogout={onLogout}
+          />
+        )
       ) : activeTab === 'audit-logs' ? (
         isAdmin ? (
           <AuditLogView
@@ -1229,221 +1295,92 @@ export default function DashboardPage({
             </div>
           )}
 
-          {/* 4 Thẻ KPI Dashboard */}
+          {/* 4 Thẻ KPI Dashboard (Thu gọn bé gọn) */}
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-            gap: '14px',
-            marginBottom: '14px',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
+            gap: '10px',
+            marginBottom: '10px',
             flexShrink: 0,
           }}>
-            <div className="kpi-stat-card">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
-                <div>
-                  <span style={{ fontSize: '13px', color: '#64748b', fontWeight: '500' }}>Mặt hàng trong kho</span>
-                  <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '1px' }}>Danh mục sản phẩm lưu hành</div>
-                </div>
-                <div style={{
-                  width: '32px',
-                  height: '32px',
-                  borderRadius: '8px',
-                  background: '#f8fafc',
-                  border: '1px solid #e2e8f0',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: '#64748b',
-                }}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
-                    <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
-                    <line x1="12" y1="22.08" x2="12" y2="12" />
-                  </svg>
-                </div>
+            <div className="kpi-stat-card" style={{ padding: '10px 14px', borderRadius: '10px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
+                <span style={{ fontSize: '11.5px', color: '#64748b', fontWeight: '600' }}>Mặt hàng trong kho</span>
+                <span style={{ fontSize: '11px', color: '#64748b' }}>
+                  Tổng tồn: <strong style={{ color: '#0f172a' }}>{totalStock.toLocaleString()}</strong>
+                </span>
               </div>
               <div style={{
-                fontSize: '24px',
+                fontSize: '18px',
                 fontWeight: '700',
                 letterSpacing: '-0.02em',
                 color: '#0f172a',
                 fontVariantNumeric: 'tabular-nums',
                 lineHeight: 1.2,
-                marginTop: '4px'
               }}>
                 {isLoading ? '...' : `${products.length} mã SP`}
               </div>
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '5px',
-                fontSize: '12px',
-                color: '#64748b',
-                marginTop: '12px',
-                fontWeight: '500'
-              }}>
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
-                </svg>
-                <span>Tổng lưu kho: <strong style={{ color: '#0f172a', fontWeight: '600' }}>{totalStock.toLocaleString()}</strong> đơn vị</span>
-              </div>
             </div>
 
-            <div className="kpi-stat-card">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
-                <div>
-                  <span style={{ fontSize: '13px', color: '#64748b', fontWeight: '500' }}>Tổng giá trị bán niêm yết</span>
-                  <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '1px' }}>Dự kiến toàn bộ tồn kho</div>
-                </div>
-                <div style={{
-                  width: '32px',
-                  height: '32px',
-                  borderRadius: '8px',
-                  background: '#f8fafc',
-                  border: '1px solid #e2e8f0',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: '#64748b',
-                }}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <line x1="12" y1="1" x2="12" y2="23" />
-                    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-                  </svg>
-                </div>
+            <div className="kpi-stat-card" style={{ padding: '10px 14px', borderRadius: '10px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
+                <span style={{ fontSize: '11.5px', color: '#64748b', fontWeight: '600' }}>Tổng giá trị bán niêm yết</span>
+                <span style={{ fontSize: '10.5px', color: '#64748b' }}>Đã gồm VAT</span>
               </div>
               <div style={{
-                fontSize: '24px',
+                fontSize: '18px',
                 fontWeight: '700',
                 letterSpacing: '-0.02em',
                 color: '#0f172a',
                 fontVariantNumeric: 'tabular-nums',
                 lineHeight: 1.2,
-                marginTop: '4px'
               }}>
                 {isLoading ? '...' : `${totalSellValue.toLocaleString('vi-VN')} đ`}
-              </div>
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '5px',
-                fontSize: '12px',
-                color: '#64748b',
-                marginTop: '12px',
-                fontWeight: '500'
-              }}>
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
-                  <polyline points="17 6 23 6 23 12" />
-                </svg>
-                <span>Giá niêm yết bán lẻ · Đã gồm VAT</span>
               </div>
             </div>
 
             {isCostVisible && isCostAvailable && (
-              <div className="kpi-stat-card">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
-                  <div>
-                    <span style={{ fontSize: '13px', color: '#64748b', fontWeight: '500' }}>Tổng giá vốn tồn kho</span>
-                    <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '1px' }}>Dữ liệu nội bộ bảo mật</div>
-                  </div>
-                  <div style={{
-                    width: '32px',
-                    height: '32px',
-                    borderRadius: '8px',
-                    background: '#f8fafc',
-                    border: '1px solid #e2e8f0',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: '#64748b',
-                  }}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                    </svg>
-                  </div>
+              <div className="kpi-stat-card" style={{ padding: '10px 14px', borderRadius: '10px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
+                  <span style={{ fontSize: '11.5px', color: '#64748b', fontWeight: '600' }}>Tổng giá vốn tồn kho</span>
+                  <span style={{ fontSize: '10.5px', color: '#0284c7' }}>Admin / QL</span>
                 </div>
                 <div style={{
-                  fontSize: '24px',
+                  fontSize: '18px',
                   fontWeight: '700',
                   letterSpacing: '-0.02em',
                   color: '#0f172a',
                   fontVariantNumeric: 'tabular-nums',
                   lineHeight: 1.2,
-                  marginTop: '4px'
                 }}>
                   {isLoading ? '...' : `${totalCostValue.toLocaleString('vi-VN')} đ`}
-                </div>
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '5px',
-                  fontSize: '12px',
-                  color: '#64748b',
-                  marginTop: '12px',
-                  fontWeight: '500'
-                }}>
-                  <span style={{ color: '#0284c7' }}>🔒</span>
-                  <span>Quyền xem: Quản lý kinh doanh / Admin</span>
                 </div>
               </div>
             )}
 
             {isCostVisible && isCostAvailable && (
-              <div className="kpi-stat-card">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
-                  <div>
-                    <span style={{ fontSize: '13px', color: '#64748b', fontWeight: '500' }}>Lợi nhuận gộp dự kiến</span>
-                    <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '1px' }}>Biên lãi chênh lệch giá</div>
-                  </div>
-                  <div style={{
-                    width: '32px',
-                    height: '32px',
-                    borderRadius: '8px',
-                    background: '#f8fafc',
-                    border: '1px solid #e2e8f0',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: '#64748b',
-                  }}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
-                      <polyline points="17 6 23 6 23 12" />
-                    </svg>
-                  </div>
+              <div className="kpi-stat-card" style={{ padding: '10px 14px', borderRadius: '10px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
+                  <span style={{ fontSize: '11.5px', color: '#64748b', fontWeight: '600' }}>Lợi nhuận gộp dự kiến</span>
+                  <span style={{ fontSize: '11px', color: '#15803d', fontWeight: '600' }}>
+                    +{totalSellValue && totalCostValue ? Math.round(((totalSellValue - totalCostValue) / totalSellValue) * 100) : 0}%
+                  </span>
                 </div>
                 <div style={{
-                  fontSize: '24px',
+                  fontSize: '18px',
                   fontWeight: '700',
                   letterSpacing: '-0.02em',
                   color: '#0f172a',
                   fontVariantNumeric: 'tabular-nums',
                   lineHeight: 1.2,
-                  marginTop: '4px'
                 }}>
                   {isLoading ? '...' : `+${totalProfit.toLocaleString('vi-VN')} đ`}
-                </div>
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '5px',
-                  fontSize: '12px',
-                  color: '#15803d',
-                  marginTop: '12px',
-                  fontWeight: '600'
-                }}>
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
-                    <polyline points="17 6 23 6 23 12" />
-                  </svg>
-                  <span>Biên lợi nhuận: +{totalSellValue && totalCostValue ? Math.round(((totalSellValue - totalCostValue) / totalSellValue) * 100) : 0}%</span>
                 </div>
               </div>
             )}
           </div>
 
-          {/* ACTIVE DISCOUNTS TABLE */}
+          {/* CHÍNH SÁCH CHIẾT KHẤU - 1 Ô GỌN GÀNG */}
           {(() => {
             try {
               const savedPolicies = localStorage.getItem('discountPolicies');
@@ -1452,43 +1389,101 @@ export default function DashboardPage({
                 const activePolicies = policies.filter((p: any) => p.status === 'active');
                 if (activePolicies.length > 0) {
                   return (
-                    <div style={{ marginBottom: '24px', background: '#fff', borderRadius: '12px', padding: '16px', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
-                      <h3 style={{ fontSize: '15px', fontWeight: '600', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px', color: '#0f172a' }}>
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.5 12H16c-.7 2-3 3-4.9 3a5 5 0 0 1-5.1-3H2.5"/><path d="M2 12c0 5.5 4.5 10 10 10s10-4.5 10-10-4.5-10-10-10S2 6.5 2 12Z"/></svg>
-                        Chính sách chiết khấu đang áp dụng
-                      </h3>
-                      <div style={{ overflowX: 'auto' }}>
-                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-                          <thead>
-                            <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', textAlign: 'left' }}>
-                              <th style={{ padding: '10px 12px', fontWeight: '600', color: '#475569' }}>Mã CS</th>
-                              <th style={{ padding: '10px 12px', fontWeight: '600', color: '#475569' }}>Sản phẩm áp dụng</th>
-                              <th style={{ padding: '10px 12px', fontWeight: '600', color: '#475569' }}>Đối tượng</th>
-                              <th style={{ padding: '10px 12px', fontWeight: '600', color: '#475569' }}>Thời hạn</th>
-                              <th style={{ padding: '10px 12px', fontWeight: '600', color: '#475569' }}>Bậc chiết khấu</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {activePolicies.map((p: any) => (
-                              <tr key={p.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                                <td style={{ padding: '10px 12px', fontWeight: '600', color: '#2563eb' }}>{p.code}</td>
-                                <td style={{ padding: '10px 12px', fontWeight: '500', color: '#334155' }}>{p.title === 'Tất cả sản phẩm' ? <span style={{ background: '#dbeafe', color: '#1e40af', padding: '2px 8px', borderRadius: '12px', fontSize: '11px' }}>Tất cả SP</span> : p.title}</td>
-                                <td style={{ padding: '10px 12px', color: '#475569' }}>{p.target_group === 'all' ? 'Tất cả đại lý' : p.target_group === 'agent_tier_1' ? 'Đại lý Cấp 1' : 'Đại lý Cấp 2'}</td>
-                                <td style={{ padding: '10px 12px', color: '#64748b' }}>{p.start_date} - {p.end_date || 'Vô thời hạn'}</td>
-                                <td style={{ padding: '10px 12px' }}>
-                                  <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-                                    {p.tiers && p.tiers.map((t: any, idx: number) => (
-                                      <span key={idx} style={{ background: '#ecfdf5', color: '#059669', border: '1px solid #d1fae5', padding: '2px 6px', borderRadius: '4px', fontSize: '11px', fontWeight: '500' }}>
-                                        Từ {t.min_quantity}sp: -{t.discount_percent}%
-                                      </span>
-                                    ))}
-                                  </div>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                    <div style={{
+                      marginBottom: '10px',
+                      background: '#ffffff',
+                      borderRadius: '8px',
+                      border: '1px solid #e2e8f0',
+                      padding: '7px 12px',
+                    }}>
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: '10px',
+                        flexWrap: 'wrap',
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', flex: 1 }}>
+                          <span style={{ fontSize: '12px', fontWeight: '600', color: '#0f172a', whiteSpace: 'nowrap' }}>
+                            Chính sách chiết khấu:
+                          </span>
+                          {activePolicies.map((p: any) => (
+                            <div
+                              key={p.id}
+                              style={{
+                                background: '#f8fafc',
+                                border: '1px solid #e2e8f0',
+                                borderRadius: '5px',
+                                padding: '2px 8px',
+                                fontSize: '11.5px',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '5px',
+                              }}
+                            >
+                              <strong style={{ color: '#2563eb' }}>{p.code}</strong>
+                              <span style={{ color: '#475569' }}>
+                                {p.target_group === 'all' ? 'Tất cả đại lý' : p.target_group === 'agent_tier_1' ? 'Đại lý Cấp 1' : 'Đại lý Cấp 2'}:
+                              </span>
+                              <span style={{ color: '#059669', fontWeight: '600' }}>
+                                {p.tiers?.map((t: any) => `≥${t.min_quantity}sp (-${t.discount_percent}%)`).join(', ')}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => setIsDiscountExpanded(!isDiscountExpanded)}
+                          style={{
+                            background: 'transparent',
+                            border: '1px solid #cbd5e1',
+                            borderRadius: '5px',
+                            padding: '2px 8px',
+                            fontSize: '11px',
+                            color: '#475569',
+                            cursor: 'pointer',
+                            fontWeight: '500',
+                          }}
+                        >
+                          {isDiscountExpanded ? 'Thu gọn ▲' : 'Bảng chi tiết ▼'}
+                        </button>
                       </div>
+
+                      {isDiscountExpanded && (
+                        <div style={{ overflowX: 'auto', marginTop: '8px', borderTop: '1px solid #f1f5f9', paddingTop: '8px' }}>
+                          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                            <thead>
+                              <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', textAlign: 'left' }}>
+                                <th style={{ padding: '6px 10px', fontWeight: '600', color: '#475569' }}>Mã CS</th>
+                                <th style={{ padding: '6px 10px', fontWeight: '600', color: '#475569' }}>Sản phẩm áp dụng</th>
+                                <th style={{ padding: '6px 10px', fontWeight: '600', color: '#475569' }}>Đối tượng</th>
+                                <th style={{ padding: '6px 10px', fontWeight: '600', color: '#475569' }}>Thời hạn</th>
+                                <th style={{ padding: '6px 10px', fontWeight: '600', color: '#475569' }}>Bậc chiết khấu</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {activePolicies.map((p: any) => (
+                                <tr key={p.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                  <td style={{ padding: '6px 10px', fontWeight: '600', color: '#2563eb' }}>{p.code}</td>
+                                  <td style={{ padding: '6px 10px', color: '#334155' }}>{p.title === 'Tất cả sản phẩm' ? <span style={{ background: '#dbeafe', color: '#1e40af', padding: '1px 6px', borderRadius: '10px', fontSize: '11px' }}>Tất cả SP</span> : p.title}</td>
+                                  <td style={{ padding: '6px 10px', color: '#475569' }}>{p.target_group === 'all' ? 'Tất cả đại lý' : p.target_group === 'agent_tier_1' ? 'Đại lý Cấp 1' : 'Đại lý Cấp 2'}</td>
+                                  <td style={{ padding: '6px 10px', color: '#64748b' }}>{p.start_date} - {p.end_date || 'Vô thời hạn'}</td>
+                                  <td style={{ padding: '6px 10px' }}>
+                                    <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                                      {p.tiers && p.tiers.map((t: any, idx: number) => (
+                                        <span key={idx} style={{ background: '#ecfdf5', color: '#059669', border: '1px solid #d1fae5', padding: '1px 5px', borderRadius: '4px', fontSize: '10.5px', fontWeight: '500' }}>
+                                          Từ {t.min_quantity}sp: -{t.discount_percent}%
+                                        </span>
+                                      ))}
+                                    </div>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
                     </div>
                   );
                 }
@@ -1580,187 +1575,272 @@ export default function DashboardPage({
                 </span>
 
 
-                {/* Nút Thêm sản phẩm (Chỉ hiển thị cho admin và quản lý kinh doanh) */}
-                {canManageProducts && (
+                {/* Dropdown Excel ▾ */}
+                <div ref={excelMenuRef} style={{ position: 'relative' }}>
                   <button
                     type="button"
-                    id="btn-add-product"
-                    onClick={() => {
-                      setProductDrawerState({ isOpen: true, product: null });
-                      try {
-                        window.history.pushState({}, '', '/add-product');
-                      } catch {
-                        // ignore
-                      }
-                    }}
+                    id="btn-excel-menu"
+                    onClick={() => setIsExcelMenuOpen(!isExcelMenuOpen)}
                     style={{
                       display: 'inline-flex',
                       alignItems: 'center',
-                      gap: '6px',
-                      background: '#2563eb',
-                      border: '1px solid #1d4ed8',
-                      padding: '7px 14px',
-                      borderRadius: '8px',
-                      fontSize: '12.5px',
-                      fontWeight: '600',
-                      color: '#ffffff',
-                      cursor: 'pointer',
-                      boxShadow: '0 2px 6px rgba(37, 99, 235, 0.25)',
-                      transition: 'all 0.15s ease',
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = '#1d4ed8';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = '#2563eb';
-                    }}
-                    title="Thêm mới sản phẩm vào hệ thống kho"
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-                      <line x1="12" y1="5" x2="12" y2="19" />
-                      <line x1="5" y1="12" x2="19" y2="12" />
-                    </svg>
-                    <span>Thêm sản phẩm</span>
-                  </button>
-                )}
-
-                {/* Nút Nhập file Excel danh mục hàng loạt (Chỉ hiển thị cho admin và quản lý kinh doanh) */}
-                {(isAdmin || isSalesManager) && (
-                  <>
-                    <button
-                    type="button"
-                    onClick={() => setIsProductBulkImportOpen(true)}
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      background: '#ecfdf5',
-                      border: '1px solid #a7f3d0',
+                      background: '#ffffff',
+                      border: '1px solid #cbd5e1',
                       padding: '7px 12px',
                       borderRadius: '8px',
                       fontSize: '12.5px',
                       fontWeight: '600',
-                      color: '#0fad89',
+                      color: '#334155',
                       cursor: 'pointer',
-                      transition: 'all 0.15s ease'
+                      transition: 'all 0.15s ease',
                     }}
                     onMouseEnter={(e) => {
-                      e.currentTarget.style.background = '#d1fae5';
-                      e.currentTarget.style.borderColor = '#6ee7b7';
+                      e.currentTarget.style.background = '#f8fafc';
+                      e.currentTarget.style.borderColor = '#94a3b8';
                     }}
                     onMouseLeave={(e) => {
-                      e.currentTarget.style.background = '#ecfdf5';
-                      e.currentTarget.style.borderColor = '#a7f3d0';
+                      e.currentTarget.style.background = '#ffffff';
+                      e.currentTarget.style.borderColor = '#cbd5e1';
                     }}
-                    title="Nhập danh mục sản phẩm hàng loạt từ file Excel"
+                    title="Tùy chọn nhập / xuất file Excel"
                   >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                      <polyline points="17 8 12 3 7 8" />
-                      <line x1="12" y1="3" x2="12" y2="15" />
-                    </svg>
-                    <span>Nhập file</span>
+                    Excel ▾
                   </button>
-                  </>
-                )}
 
-                {/* Nút Xuất file Excel danh mục */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    const excelTemplate = `
-                      <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
-                      <head>
-                        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-                        <!--[if gte mso 9]>
-                        <xml>
-                          <x:ExcelWorkbook>
-                            <x:ExcelWorksheets>
-                              <x:ExcelWorksheet>
-                                <x:Name>Danh Sách Hàng Hóa</x:Name>
-                                <x:WorksheetOptions>
-                                  <x:DisplayGridlines/>
-                                </x:WorksheetOptions>
-                              </x:ExcelWorksheet>
-                            </x:ExcelWorksheets>
-                          </x:ExcelWorkbook>
-                        </xml>
-                        <![endif]-->
-                        <style>
-                          table { border-collapse: collapse; font-family: Calibri, sans-serif; }
-                          th { background-color: #f1f5f9; color: #0f172a; font-weight: bold; border: 1px solid #cbd5e1; padding: 10px; text-align: left; }
-                          td { border: 1px solid #e2e8f0; padding: 8px 10px; color: #334155; }
-                          .text-center { text-align: center; }
-                          .text-right { text-align: right; }
-                        </style>
-                      </head>
-                      <body>
-                        <table>
-                          <thead>
-                            <tr>
-                              <th style="width: 100px;">Mã SP</th>
-                              <th style="width: 250px;">Tên sản phẩm</th>
-                              <th style="width: 140px;" class="text-center">Ngành hàng</th>
-                              <th style="width: 110px;" class="text-right">Số lượng tồn</th>
-                              <th style="width: 150px;" class="text-right">Giá niêm yết (VNĐ)</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            ${filteredProducts.map((p) => `
-                              <tr>
-                                <td style="mso-number-format:'\\@'; font-weight: 600;">${p.code}</td>
-                                <td>${p.name}</td>
-                                <td class="text-center">${p.category}</td>
-                                <td class="text-right">${p.stock}</td>
-                                <td class="text-right">${p.sell_price.toLocaleString('vi-VN')}</td>
-                              </tr>
-                            `).join('')}
-                          </tbody>
-                        </table>
-                      </body>
-                      </html>
-                    `;
-                    const blob = new Blob(['\uFEFF' + excelTemplate], { type: 'application/vnd.ms-excel;charset=utf-8;' });
-                    const url = URL.createObjectURL(blob);
-                    const link = document.createElement('a');
-                    link.setAttribute('href', url);
-                    link.setAttribute('download', `danh_sach_hang_hoa_${new Date().toISOString().slice(0, 10)}.xls`);
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                    URL.revokeObjectURL(url);
-                  }}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    background: '#ffffff',
-                    border: '1px solid #cbd5e1',
-                    padding: '7px 12px',
-                    borderRadius: '8px',
-                    fontSize: '12.5px',
-                    fontWeight: '600',
-                    color: '#334155',
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = '#f8fafc';
-                    e.currentTarget.style.borderColor = '#94a3b8';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = '#ffffff';
-                    e.currentTarget.style.borderColor = '#cbd5e1';
-                  }}
-                  title="Xuất danh sách sản phẩm dạng Excel"
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                    <polyline points="7 10 12 15 17 10" />
-                    <line x1="12" y1="15" x2="12" y2="3" />
-                  </svg>
-                  <span>Xuất file</span>
-                </button>
+                  {isExcelMenuOpen && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: 'calc(100% + 4px)',
+                        right: 0,
+                        minWidth: '150px',
+                        background: '#ffffff',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: '8px',
+                        boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1)',
+                        zIndex: 50,
+                        padding: '4px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '2px',
+                      }}
+                    >
+                      {(isAdmin || isSalesManager) && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsExcelMenuOpen(false);
+                            setIsProductBulkImportOpen(true);
+                          }}
+                          style={{
+                            width: '100%',
+                            textAlign: 'left',
+                            background: 'transparent',
+                            border: 'none',
+                            padding: '8px 12px',
+                            borderRadius: '6px',
+                            fontSize: '12.5px',
+                            fontWeight: '500',
+                            color: '#0f172a',
+                            cursor: 'pointer',
+                            transition: 'background 0.15s ease',
+                          }}
+                          onMouseEnter={(e) => (e.currentTarget.style.background = '#f1f5f9')}
+                          onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                        >
+                          Nhập file Excel
+                        </button>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsExcelMenuOpen(false);
+                          handleExportExcel();
+                        }}
+                        style={{
+                          width: '100%',
+                          textAlign: 'left',
+                          background: 'transparent',
+                          border: 'none',
+                          padding: '8px 12px',
+                          borderRadius: '6px',
+                          fontSize: '12.5px',
+                          fontWeight: '500',
+                          color: '#0f172a',
+                          cursor: 'pointer',
+                          transition: 'background 0.15s ease',
+                        }}
+                        onMouseEnter={(e) => (e.currentTarget.style.background = '#f1f5f9')}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                      >
+                        Xuất file Excel
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Dropdown Thêm mới ▾ (Gộp Thêm sản phẩm và Nhập kho) */}
+                {(canManageProducts || canWriteInventory) && (
+                  (canManageProducts && canWriteInventory) ? (
+                    <div ref={createMenuRef} style={{ position: 'relative' }}>
+                      <button
+                        type="button"
+                        id="btn-create-menu"
+                        onClick={() => setIsCreateMenuOpen(!isCreateMenuOpen)}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          background: 'linear-gradient(135deg, #0fba90 0%, #0fad89 100%)',
+                          border: 'none',
+                          padding: '7px 16px',
+                          borderRadius: '8px',
+                          fontSize: '12.5px',
+                          fontWeight: '600',
+                          color: '#ffffff',
+                          cursor: 'pointer',
+                          boxShadow: '0 2px 8px rgba(15, 186, 144, 0.35)',
+                          transition: 'all 0.15s ease',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = 'linear-gradient(135deg, #0fad89 0%, #0a8f70 100%)';
+                          e.currentTarget.style.boxShadow = '0 4px 14px rgba(15, 186, 144, 0.45)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = 'linear-gradient(135deg, #0fba90 0%, #0fad89 100%)';
+                          e.currentTarget.style.boxShadow = '0 2px 8px rgba(15, 186, 144, 0.35)';
+                        }}
+                        title="Thêm mới sản phẩm hoặc lập phiếu nhập kho"
+                      >
+                        Thêm mới ▾
+                      </button>
+
+                      {isCreateMenuOpen && (
+                        <div
+                          style={{
+                            position: 'absolute',
+                            top: 'calc(100% + 4px)',
+                            right: 0,
+                            minWidth: '150px',
+                            background: '#ffffff',
+                            border: '1px solid #e2e8f0',
+                            borderRadius: '8px',
+                            boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1)',
+                            zIndex: 50,
+                            padding: '4px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '2px',
+                          }}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsCreateMenuOpen(false);
+                              setProductDrawerState({ isOpen: true, product: null });
+                              try {
+                                window.history.pushState({}, '', '/add-product');
+                              } catch {}
+                            }}
+                            style={{
+                              width: '100%',
+                              textAlign: 'left',
+                              background: 'transparent',
+                              border: 'none',
+                              padding: '8px 12px',
+                              borderRadius: '6px',
+                              fontSize: '12.5px',
+                              fontWeight: '500',
+                              color: '#0f172a',
+                              cursor: 'pointer',
+                              transition: 'background 0.15s ease',
+                            }}
+                            onMouseEnter={(e) => (e.currentTarget.style.background = '#f1f5f9')}
+                            onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                          >
+                            Thêm sản phẩm
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsCreateMenuOpen(false);
+                              setIsGoodsReceiptModalOpen(true);
+                            }}
+                            style={{
+                              width: '100%',
+                              textAlign: 'left',
+                              background: 'transparent',
+                              border: 'none',
+                              padding: '8px 12px',
+                              borderRadius: '6px',
+                              fontSize: '12.5px',
+                              fontWeight: '500',
+                              color: '#0f172a',
+                              cursor: 'pointer',
+                              transition: 'background 0.15s ease',
+                            }}
+                            onMouseEnter={(e) => (e.currentTarget.style.background = '#f1f5f9')}
+                            onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                          >
+                            Nhập kho
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ) : canManageProducts ? (
+                    <button
+                      type="button"
+                      id="btn-add-product"
+                      onClick={() => {
+                        setProductDrawerState({ isOpen: true, product: null });
+                        try {
+                          window.history.pushState({}, '', '/add-product');
+                        } catch {}
+                      }}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        background: 'linear-gradient(135deg, #0fba90 0%, #0fad89 100%)',
+                        border: 'none',
+                        padding: '7px 16px',
+                        borderRadius: '8px',
+                        fontSize: '12.5px',
+                        fontWeight: '600',
+                        color: '#ffffff',
+                        cursor: 'pointer',
+                        boxShadow: '0 2px 8px rgba(15, 186, 144, 0.35)',
+                        transition: 'all 0.15s ease',
+                      }}
+                      title="Thêm mới sản phẩm vào hệ thống kho"
+                    >
+                      Thêm sản phẩm
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      id="btn-goods-receipt-modal"
+                      onClick={() => setIsGoodsReceiptModalOpen(true)}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
+                        border: 'none',
+                        padding: '7px 16px',
+                        borderRadius: '8px',
+                        fontSize: '12.5px',
+                        fontWeight: '600',
+                        color: '#ffffff',
+                        cursor: 'pointer',
+                        boxShadow: '0 2px 8px rgba(5, 150, 105, 0.35)',
+                        transition: 'all 0.15s ease',
+                      }}
+                      title="Lập phiếu nhập kho từ nhà cung cấp"
+                    >
+                      Nhập kho
+                    </button>
+                  )
+                )}
               </div>
             </div>
 
@@ -1802,10 +1882,7 @@ export default function DashboardPage({
                       <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'right', background: '#f8fafc' }}>Số Lượng Tồn</th>
                       <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'right', background: '#f8fafc' }}>Giá Niêm Yết (Bán)</th>
                       {isCostVisible && (
-                        <>
-                          <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'right', background: '#f8fafc' }}>Giá Vốn Nhập Kho</th>
-                          <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'right', background: '#f8fafc' }}>Biên Lợi Nhuận</th>
-                        </>
+                        <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'right', background: '#f8fafc' }}>Giá Vốn Nhập Kho</th>
                       )}
                       {canPerformProductAction && (
                         <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'center', width: '80px', background: '#f8fafc' }}>Thao Tác</th>
@@ -1845,13 +1922,45 @@ export default function DashboardPage({
                             <div style={{ display: 'flex', flexDirection: 'column' }}>
                               <span>{item.name}</span>
                               {item.status === 'inactive' && (
-                                <span style={{ fontSize: '10px', background: '#fef2f2', color: '#ef4444', border: '1px solid #fecaca', padding: '1px 4px', borderRadius: '4px', width: 'fit-content', marginTop: '2px' }}>
-                                  Ngừng kinh doanh
+                                <span
+                                  style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '4px',
+                                    fontSize: '11px',
+                                    fontWeight: '700',
+                                    background: '#fee2e2',
+                                    color: '#b91c1c',
+                                    border: '1px solid #fecaca',
+                                    padding: '2px 8px',
+                                    borderRadius: '999px',
+                                    width: 'fit-content',
+                                    marginTop: '3px',
+                                  }}
+                                >
+                                  <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#dc2626', flexShrink: 0 }} />
+                                  Ngừng giao dịch
                                 </span>
                               )}
                               {item.status === 'active' && (
-                                <span style={{ fontSize: '10px', background: '#f0fdf4', color: '#16a34a', border: '1px solid #bbf7d0', padding: '1px 4px', borderRadius: '4px', width: 'fit-content', marginTop: '2px' }}>
-                                  Đang kinh doanh
+                                <span
+                                  style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '4px',
+                                    fontSize: '11px',
+                                    fontWeight: '700',
+                                    background: '#dcfce7',
+                                    color: '#15803d',
+                                    border: '1px solid #bbf7d0',
+                                    padding: '2px 8px',
+                                    borderRadius: '999px',
+                                    width: 'fit-content',
+                                    marginTop: '3px',
+                                  }}
+                                >
+                                  <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#16a34a', flexShrink: 0 }} />
+                                  Đang giao dịch
                                 </span>
                               )}
                             </div>
@@ -1932,47 +2041,11 @@ export default function DashboardPage({
                         </td>
 
                         {isCostVisible && (
-                          <>
-                            <td style={{ padding: '13px 18px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-                              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '2px' }}>
-                                <span style={{ color: '#0f172a', fontWeight: '600', fontSize: '13.5px' }}>
-                                  {item.cost_price ? `${item.cost_price.toLocaleString('vi-VN')} đ` : '—'}
-                                </span>
-                                <span style={{ fontSize: '10.5px', color: '#94a3b8', letterSpacing: '-0.01em' }}>
-                                  Chỉ Quản lý
-                                </span>
-                              </div>
-                            </td>
-                            <td style={{ padding: '13px 18px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-                              {item.profit_margin !== undefined && item.profit_margin !== null ? (
-                                <span style={{
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '3px',
-                                  color: item.profit_margin >= 0 ? '#15803d' : '#dc2626',
-                                  fontWeight: '600',
-                                  fontSize: '13px',
-                                }}>
-                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                    {item.profit_margin >= 0 ? (
-                                      <>
-                                        <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
-                                        <polyline points="17 6 23 6 23 12" />
-                                      </>
-                                    ) : (
-                                      <>
-                                        <polyline points="23 18 13.5 8.5 8.5 13.5 1 6" />
-                                        <polyline points="17 18 23 18 23 12" />
-                                      </>
-                                    )}
-                                  </svg>
-                                  <span>{item.profit_margin >= 0 ? '+' : ''}{item.profit_margin}%</span>
-                                </span>
-                              ) : (
-                                <span style={{ color: '#94a3b8' }}>—</span>
-                              )}
-                            </td>
-                          </>
+                          <td style={{ padding: '13px 18px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                            <span style={{ color: '#0f172a', fontWeight: '600', fontSize: '13.5px' }}>
+                              {item.cost_price ? `${item.cost_price.toLocaleString('vi-VN')} đ` : '—'}
+                            </span>
+                          </td>
                         )}
                         {canPerformProductAction && (
                           <td style={{ padding: '10px 18px', textAlign: 'center' }}>
@@ -2121,78 +2194,40 @@ export default function DashboardPage({
                                   )}
 
                                   {canWriteInventory && (
-                                    <>
-                                      <button
-                                        type="button"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setStockActionState({ isOpen: true, actionType: 'receipt', product: item });
-                                          setOpenProductMenuId(null);
-                                        }}
-                                        style={{
-                                          display: 'flex',
-                                          alignItems: 'center',
-                                          gap: '8px',
-                                          width: '100%',
-                                          padding: '8px 12px',
-                                          background: 'transparent',
-                                          border: 'none',
-                                          borderRadius: '6px',
-                                          fontSize: '13px',
-                                          fontWeight: '600',
-                                          color: '#065f46',
-                                          cursor: 'pointer',
-                                          boxShadow: 'none',
-                                          margin: 0,
-                                          transition: 'background 0.15s ease',
-                                          textAlign: 'left',
-                                        }}
-                                        onMouseEnter={(e) => (e.currentTarget.style.background = '#ecfdf5')}
-                                        onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-                                        title="Tạo phiếu nhập kho (cho phép chọn ĐVT quy đổi)"
-                                      >
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                          <line x1="12" y1="5" x2="12" y2="19" />
-                                          <line x1="5" y1="12" x2="19" y2="12" />
-                                        </svg>
-                                        <span>Nhập kho</span>
-                                      </button>
-
-                                      <button
-                                        type="button"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setStockActionState({ isOpen: true, actionType: 'issue', product: item });
-                                          setOpenProductMenuId(null);
-                                        }}
-                                        style={{
-                                          display: 'flex',
-                                          alignItems: 'center',
-                                          gap: '8px',
-                                          width: '100%',
-                                          padding: '8px 12px',
-                                          background: 'transparent',
-                                          border: 'none',
-                                          borderRadius: '6px',
-                                          fontSize: '13px',
-                                          fontWeight: '600',
-                                          color: '#9a3412',
-                                          cursor: 'pointer',
-                                          boxShadow: 'none',
-                                          margin: 0,
-                                          transition: 'background 0.15s ease',
-                                          textAlign: 'left',
-                                        }}
-                                        onMouseEnter={(e) => (e.currentTarget.style.background = '#fff7ed')}
-                                        onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-                                        title="Tạo phiếu xuất kho (cho phép chọn ĐVT quy đổi)"
-                                      >
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                          <line x1="5" y1="12" x2="19" y2="12" />
-                                        </svg>
-                                        <span>Xuất kho</span>
-                                      </button>
-                                    </>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setStockActionState({ isOpen: true, actionType: 'issue', product: item });
+                                        setOpenProductMenuId(null);
+                                      }}
+                                      style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '8px',
+                                        width: '100%',
+                                        padding: '8px 12px',
+                                        background: 'transparent',
+                                        border: 'none',
+                                        borderRadius: '6px',
+                                        fontSize: '13px',
+                                        fontWeight: '600',
+                                        color: '#9a3412',
+                                        cursor: 'pointer',
+                                        boxShadow: 'none',
+                                        margin: 0,
+                                        transition: 'background 0.15s ease',
+                                        textAlign: 'left',
+                                      }}
+                                      onMouseEnter={(e) => (e.currentTarget.style.background = '#fff7ed')}
+                                      onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                                      title="Tạo phiếu xuất kho (cho phép chọn ĐVT quy đổi)"
+                                    >
+                                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                        <line x1="5" y1="12" x2="19" y2="12" />
+                                      </svg>
+                                      <span>Xuất kho</span>
+                                    </button>
                                   )}
                                 </div>
                               )}
@@ -2609,6 +2644,19 @@ export default function DashboardPage({
           onClose={() => setStockActionState({ isOpen: false, actionType: 'receipt', product: null })}
           onSuccess={() => {
             setStockActionState({ isOpen: false, actionType: 'receipt', product: null });
+            fetchProducts();
+          }}
+        />
+      )}
+
+      {canWriteInventory && isGoodsReceiptModalOpen && (
+        <GoodsReceiptModal
+          isOpen={isGoodsReceiptModalOpen}
+          onClose={() => setIsGoodsReceiptModalOpen(false)}
+          token={token}
+          products={products}
+          currentUserWarehouse={user.branch || user.warehouse_name || undefined}
+          onSuccess={() => {
             fetchProducts();
           }}
         />

@@ -81,14 +81,6 @@ const ROLES_LIST = [
     costPerm: false,
     invPerm: false,
   },
-  {
-    role: 'customer',
-    title: 'Đại lý',
-    badgeColor: '#0284c7',
-    description: '(Cửa hàng hoặc đại lý mua sỉ, tự đặt hàng, theo dõi đơn và công nợ của mình)',
-    costPerm: false,
-    invPerm: false,
-  },
 ];
 
 const BRANCH_OPTIONS = [
@@ -285,18 +277,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
       const validRoleCodes = ROLES_LIST.map((item) => item.role);
       // Lọc các vai trò hợp lệ trong ROLES_LIST (ngoại trừ admin)
       const validAssignedRoles = rawRoles.filter((r) => r && validRoleCodes.includes(r) && r !== 'admin');
-      
-      // Nếu là tài khoản mới tạo (chưa được phân công chi nhánh hoặc chỉ có role customer ban đầu chưa qua phân quyền)
-      const isUnassignedAccount =
-        (!targetUser.branch || targetUser.branch === 'Chưa phân công') &&
-        (validAssignedRoles.length === 0 || (validAssignedRoles.length === 1 && validAssignedRoles[0] === 'customer'));
-
-      if (isUnassignedAccount) {
-        // Tài khoản mới chưa phân quyền: Để trống vai trò, KHÔNG chọn sẵn bất kỳ vai trò nào (kể cả sales)
-        initialRoles = [];
-      } else {
-        initialRoles = validAssignedRoles;
-      }
+      initialRoles = validAssignedRoles.length > 0 ? validAssignedRoles : ['sales'];
     }
 
     setEditFormData({
@@ -394,8 +375,10 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
           title: 'Cập nhật thông tin nhân viên',
         });
       }
-      // Phát tín hiệu đồng bộ vai trò tức thì cho các tab/cửa sổ đang mở
+      // Phát tín hiệu đồng bộ vai trò và dữ liệu đại lý tức thì cho các component/tab đang mở
       sessionManager.broadcastUserUpdate(userToEdit.username);
+      window.dispatchEvent(new CustomEvent('DEALER_DATA_CHANGED'));
+      window.dispatchEvent(new CustomEvent('USER_ACCOUNTS_CHANGED', { detail: { username: updated.username } }));
       if (userToEdit.username.toLowerCase() === currentUser.username.toLowerCase()) {
         sessionManager.syncCurrentProfile();
       }
@@ -499,15 +482,8 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
       (u.branch && u.branch.toLowerCase().includes(term));
 
     const userRoles = u.roles && u.roles.length > 0 ? u.roles : [u.role];
-    const isUnassigned =
-      (!u.branch || u.branch === 'Chưa phân công') &&
-      (userRoles.length === 0 || (userRoles.length === 1 && userRoles[0] === 'customer'));
-
     const matchesRole =
-      selectedRoleFilter === 'all' ||
-      (selectedRoleFilter === 'unassigned' && isUnassigned) ||
-      (selectedRoleFilter === 'customer' && !isUnassigned && userRoles.includes('customer')) ||
-      (selectedRoleFilter !== 'unassigned' && selectedRoleFilter !== 'customer' && userRoles.includes(selectedRoleFilter));
+      selectedRoleFilter === 'all' || userRoles.includes(selectedRoleFilter);
 
     const isActive = u.is_active && u.status !== 'LOCKED';
     const matchesStatus =
@@ -803,7 +779,6 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
               }}
             >
               <option value="all">Tất cả vai trò ({users.length})</option>
-              <option value="unassigned">⏳ Chưa phân quyền</option>
               {ROLES_LIST.map((r) => (
                 <option key={r.role} value={r.role}>
                   {r.title}
@@ -891,13 +866,13 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
         <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <div style={{ width: '4px', height: '20px', borderRadius: '4px', background: 'linear-gradient(180deg, #6366f1 0%, #a855f7 100%)' }} />
-            <h2 style={{ fontSize: '18px', fontWeight: '700', margin: 0, color: '#f8fafc', letterSpacing: '-0.01em' }}>
+            <h2 style={{ fontSize: '18px', fontWeight: '700', margin: 0, color: '#0f172a', letterSpacing: '-0.01em' }}>
               Danh Sách Nhân Viên
             </h2>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '12.5px', color: '#94a3b8', background: 'rgba(255, 255, 255, 0.05)', padding: '4px 12px', borderRadius: '8px', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
-              Kết quả: <strong style={{ color: '#38bdf8' }}>{filteredUsers.length}</strong> / {users.length} nhân viên
+            <span style={{ fontSize: '12.5px', color: '#475569', background: '#f8fafc', padding: '4px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontWeight: '500' }}>
+              Kết quả: <strong style={{ color: '#0284c7' }}>{filteredUsers.length}</strong> / {users.length} nhân viên
             </span>
           </div>
         </div>
@@ -1118,7 +1093,6 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                                 warehouse_manager: 'Quản lý kho',
                                 accountant: 'Kế toán công nợ',
                                 purchasing: 'Nhân viên mua hàng',
-                                customer: 'Đại lý',
                               };
                               return displayRoles.map((rCode) => {
                                 const rMeta = ROLES_LIST.find((item) => item.role === rCode);
@@ -1963,7 +1937,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                               ))
                             ) : (
                               <span style={{ color: '#94a3b8', fontSize: '13.5px' }}>
-                                Chưa phân quyền (Bấm để chọn vai trò)...
+                                Chọn vai trò hệ thống...
                               </span>
                             )}
                           </div>
@@ -2338,7 +2312,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
               lineHeight: '1.6'
             }}>
               <div>• Vai trò: <strong style={{ color: userToDelete.badge_color }}>
-                {ROLES_LIST.find((r) => r.role === userToDelete.role)?.title || (userToDelete.role_title && userToDelete.role_title !== 'sales' && userToDelete.role_title !== 'warehouse' && userToDelete.role_title !== 'admin' && userToDelete.role_title !== 'purchasing' && userToDelete.role_title !== 'customer' && userToDelete.role_title !== 'accountant' ? userToDelete.role_title : undefined) || 'Nhân viên'}
+                {ROLES_LIST.find((r) => r.role === userToDelete.role)?.title || (userToDelete.role_title && userToDelete.role_title !== 'sales' && userToDelete.role_title !== 'warehouse' && userToDelete.role_title !== 'admin' && userToDelete.role_title !== 'purchasing' && userToDelete.role_title !== 'accountant' ? userToDelete.role_title : undefined) || 'Nhân viên'}
               </strong></div>
               <div>• Địa bàn: <strong style={{ color: '#0f172a' }}>{userToDelete.branch}</strong></div>
               <div style={{ color: '#dc2626', marginTop: '4px', fontWeight: '500' }}>

@@ -14,10 +14,15 @@ import {
   DealerPurchaseHistory,
   PurchaseHistoryItem,
   getDealerPurchaseHistoryApi,
+  getDealerStockSummaryApi,
+  DealerStockSummaryResponse,
+  DealerCreditInfo,
+  getDealerCreditInfoApi,
 } from '../services/api';
 import { evaluateBestDiscountPolicy, parseStoredPolicies } from '../utils/discountEngine';
 import { searchDealers } from '../services/dealerSearchApi';
 import { emitStatusToast } from './StatusToast';
+import { DealerCreditBadge } from './DealerCreditBadge';
 import type { DeliveryPoint } from '../types/deliveryPoint';
 
 interface OrderCreateModalProps {
@@ -87,6 +92,14 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
   const [purchaseHistory, setPurchaseHistory] = useState<DealerPurchaseHistory | null>(null);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [historyForbidden, setHistoryForbidden] = useState(false);
+
+  // AC 1 & 2: Quản lý tồn kho khả dụng theo kho phục vụ của đại lý
+  const [stockSummary, setStockSummary] = useState<DealerStockSummaryResponse | null>(null);
+  const [isLoadingStock, setIsLoadingStock] = useState<boolean>(false);
+
+  // AC 1: Tải thông tin công nợ, hạn mức & nợ quá hạn của đại lý
+  const [creditInfo, setCreditInfo] = useState<DealerCreditInfo | null>(null);
+  const [isLoadingCredit, setIsLoadingCredit] = useState<boolean>(false);
 
   const isCustomer = currentUser?.role === 'customer' || Boolean(currentUser?.roles && currentUser.roles.includes('customer'));
   const selectedDealer = dealers.find((d) => d.id === dealerId) || dealers[0];
@@ -210,9 +223,80 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
     loadPoints();
   }, [loadPoints]);
 
-  const isDebtWarning =
-    selectedDealer?.debt_status &&
-    (selectedDealer.debt_status.includes('Vượt') || selectedDealer.debt_status.includes('Quá hạn'));
+  // AC 1: Tải tồn kho khả dụng của kho phục vụ cho đại lý được chọn
+  useEffect(() => {
+    if (!dealerId || !token) {
+      setStockSummary(null);
+      return;
+    }
+    let isCancelled = false;
+    setIsLoadingStock(true);
+    getDealerStockSummaryApi(token, dealerId)
+      .then((data) => {
+        if (!isCancelled) {
+          setStockSummary(data);
+        }
+      })
+      .catch((err) => {
+        console.warn('Could not load dealer stock summary in modal:', err);
+      })
+      .finally(() => {
+        if (!isCancelled) {
+          setIsLoadingStock(false);
+        }
+      });
+    return () => {
+      isCancelled = true;
+    };
+  }, [dealerId, token]);
+
+  // AC 1: Tải thông tin công nợ, hạn mức & nợ quá hạn
+  useEffect(() => {
+    if (!dealerId || !token) {
+      setCreditInfo(null);
+      return;
+    }
+    let isCancelled = false;
+    setIsLoadingCredit(true);
+    getDealerCreditInfoApi(token, dealerId)
+      .then((info) => {
+        if (!isCancelled) {
+          setCreditInfo(info);
+        }
+      })
+      .catch((err) => {
+        console.warn('Could not load dealer credit info in modal:', err);
+      })
+      .finally(() => {
+        if (!isCancelled) {
+          setIsLoadingCredit(false);
+        }
+      });
+    return () => {
+      isCancelled = true;
+    };
+  }, [dealerId, token]);
+
+  const stockMap = React.useMemo(() => {
+    const map = new Map<number, { actual_stock: number; reserved_stock: number; available_stock: number }>();
+    if (!stockSummary?.items) return map;
+    for (const item of stockSummary.items) {
+      map.set(item.product_id, item);
+    }
+    return map;
+  }, [stockSummary]);
+
+  const hasStockErrors = React.useMemo(() => {
+    if (!dealerId) return false;
+    return orderItems.some((item) => {
+      const stockItem = stockMap.get(item.productId);
+      if (!stockItem) return false;
+      const q = typeof item.quantity === 'number' ? item.quantity : parseFloat(item.quantity) || 0;
+      const rate = item.conversionRate || 1;
+      const maxOrderable = Math.max(0, Math.floor(stockItem.available_stock / rate));
+      return q > maxOrderable;
+    });
+  }, [dealerId, orderItems, stockMap]);
 
   // Nhận diện nhãn và màu sắc nhóm khách hàng
   const getCustomerGroupDisplay = (group?: string) => {
@@ -517,7 +601,7 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
   };
 
   // Cập nhật số lượng của dòng sản phẩm
-  const handleQuantityChange = (index: number, val: string) => {
+  const handleQuantityChange = (index: number, val: string | number) => {
     setOrderItems((prev) =>
       prev.map((item, idx) => (idx === index ? { ...item, quantity: val } : item))
     );
@@ -609,6 +693,22 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
   const safeDiscount = Number.isFinite(parsedDiscount) ? Math.min(100, Math.max(0, parsedDiscount)) : 0;
   const discountAmount = Math.round((subtotalAmount * safeDiscount) / 100);
   const totalAmount = subtotalAmount - discountAmount;
+
+  // AC 4: Phân quyền - Chỉ Sales / Admin được phép tạo đơn và kiểm tra công nợ
+  const rawRoles = currentUser?.roles && currentUser.roles.length > 0 ? currentUser.roles : (currentUser?.role ? [currentUser.role] : []);
+  const isSalesOrAdmin = !currentUser || rawRoles.some((r) => ['sales', 'sales_manager', 'admin'].includes(r));
+
+  // AC 2 & 3: Kiểm tra nợ quá hạn và vượt hạn mức
+  const isOverdueBlocked = Boolean(
+    creditInfo?.is_overdue ||
+    (creditInfo && creditInfo.max_debt_age > (creditInfo.overdue_days_allowed || 30))
+  );
+  const isOverLimit = Boolean(
+    creditInfo &&
+    creditInfo.credit_limit > 0 &&
+    (creditInfo.current_debt + totalAmount > creditInfo.credit_limit)
+  );
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
@@ -633,6 +733,25 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
       return;
     }
 
+    if (!isSalesOrAdmin) {
+      setErrorMsg('Bạn không có quyền tạo đơn hàng. Chỉ Nhân viên kinh doanh và Quản trị hệ thống mới được phép.');
+      return;
+    }
+
+    // AC 3: Chặn tạo đơn hoàn toàn khi đại lý có nợ quá hạn
+    if (isOverdueBlocked) {
+      const overdueDays = creditInfo?.max_debt_age || 0;
+      const maxAllowed = creditInfo?.overdue_days_allowed || 30;
+      const overdueMsg = `Đại lý "${selectedDealer?.name}" có khoản nợ quá hạn (${overdueDays} ngày, vượt mức cho phép ${maxAllowed} ngày). Hệ thống chặn tạo đơn hàng hoàn toàn!`;
+      setErrorMsg(overdueMsg);
+      emitStatusToast({
+        title: 'Chặn tạo đơn do nợ quá hạn',
+        message: overdueMsg,
+        type: 'error',
+      });
+      return;
+    }
+
     if (orderItems.length === 0) {
       setErrorMsg('Vui lòng chọn ít nhất một sản phẩm vào đơn hàng.');
       return;
@@ -643,6 +762,23 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
       if (q <= 0) {
         setErrorMsg(`Số lượng của sản phẩm "${item.productName}" phải lớn hơn 0.`);
         return;
+      }
+      // AC 3: Kiểm tra vượt tồn khả dụng tại kho phục vụ
+      const stockItem = stockMap.get(item.productId);
+      if (stockItem) {
+        const rate = item.conversionRate || 1;
+        const maxOrderable = Math.max(0, Math.floor(stockItem.available_stock / rate));
+        if (q > maxOrderable) {
+          const warehouseName = stockSummary?.warehouse_name || 'kho';
+          const errMsg = `Sản phẩm "${item.productName}" vượt quá tồn khả dụng tại ${warehouseName}. Số lượng tối đa có thể đặt: ${maxOrderable} ${item.unitName}.`;
+          setErrorMsg(errMsg);
+          emitStatusToast({
+            title: 'Vượt tồn khả dụng',
+            message: errMsg,
+            type: 'error',
+          });
+          return;
+        }
       }
     }
 
@@ -905,6 +1041,27 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
               })}
             </select>
 
+            {/* AC 1: Hiển thị kho phục vụ riêng cho đại lý */}
+            {stockSummary && (
+              <div
+                style={{
+                  marginTop: '8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  fontSize: '12px',
+                  color: '#0369a1',
+                  background: '#f0f9ff',
+                  border: '1px solid #bae6fd',
+                  padding: '6px 10px',
+                  borderRadius: '6px',
+                }}
+              >
+                <span>🏬 Kho phục vụ: <strong>{stockSummary.warehouse_name}</strong> ({stockSummary.warehouse_id})</span>
+                {isLoadingStock && <span style={{ color: '#0284c7' }}>(Đang cập nhật tồn...)</span>}
+              </div>
+            )}
+
             {isLockedDealer && (
               <div
                 style={{
@@ -926,27 +1083,14 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
               </div>
             )}
 
-            {isDebtWarning && (
-              <div
-                style={{
-                  marginTop: '8px',
-                  fontSize: '12.5px',
-                  color: '#dc2626',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                }}
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-                  <line x1="12" y1="9" x2="12" y2="13" />
-                  <line x1="12" y1="17" x2="12.01" y2="17" />
-                </svg>
-                <span>
-                  <strong>Cảnh báo:</strong> Khách hàng đang có trạng thái: <strong>{selectedDealer?.debt_status}</strong>. Đơn hàng có thể bị chặn khi lưu.
-                </span>
-              </div>
-            )}
+            {/* AC 1, 2, 3: Hiển thị 3 chỉ số công nợ của đại lý & cảnh báo */}
+            <div style={{ marginTop: '12px' }}>
+              <DealerCreditBadge
+                creditInfo={creditInfo}
+                currentOrderAmount={totalAmount}
+                isLoading={isLoadingCredit}
+              />
+            </div>
           </div>
 
           {/* SCRUM-52 / SCRUM-57: LỊCH SỬ MUA HÀNG ĐẠI LÝ & GỢI Ý MẶT HÀNG */}
@@ -1221,21 +1365,75 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
                           typeof item.quantity === 'number' ? item.quantity : parseFloat(item.quantity) || 0;
                         const itemTotal = itemQty * item.sellPrice;
                         const isBelowFloor = item.floorPrice !== null && item.sellPrice < item.floorPrice;
+                        const stockItem = stockMap.get(item.productId);
+                        const rate = item.conversionRate || 1;
+                        const maxOrderable = stockItem ? Math.max(0, Math.floor(stockItem.available_stock / rate)) : undefined;
+                        const actualInUnit = stockItem ? Math.floor(stockItem.actual_stock / rate) : undefined;
+                        const reservedInUnit = stockItem ? Math.floor(stockItem.reserved_stock / rate) : undefined;
+                        const isExceeded = stockItem !== undefined && maxOrderable !== undefined && itemQty > maxOrderable;
 
                         return (
                           <tr
                             key={item.productId}
                             style={{
                               borderBottom: idx === orderItems.length - 1 ? 'none' : '1px solid #f1f5f9',
-                              background: isBelowFloor ? '#fef2f2' : idx % 2 === 0 ? '#ffffff' : '#fafafa',
+                              background: isExceeded ? '#fff1f2' : isBelowFloor ? '#fef2f2' : idx % 2 === 0 ? '#ffffff' : '#fafafa',
                             }}
                           >
                             {/* Tên sản phẩm */}
                             <td style={{ padding: '10px 12px' }}>
                               <div style={{ fontWeight: '600', color: '#0f172a' }}>{item.productName}</div>
                               <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
-                                Mã: <span style={{ fontFamily: 'monospace' }}>{item.productCode}</span> · Tồn: {item.stock} {item.baseUnit}
+                                Mã: <span style={{ fontFamily: 'monospace' }}>{item.productCode}</span>
                               </div>
+
+                              {/* AC 1 & 2: Hiển thị tồn khả dụng theo kho phục vụ riêng cho đại lý */}
+                              {stockItem && (
+                                <div style={{ fontSize: '11px', marginTop: '4px', display: 'flex', flexWrap: 'wrap', gap: '5px', alignItems: 'center' }}>
+                                  <span
+                                    style={{
+                                      padding: '2px 6px',
+                                      borderRadius: '4px',
+                                      fontWeight: '600',
+                                      fontSize: '11px',
+                                      background: isExceeded ? '#fee2e2' : maxOrderable === 0 ? '#f1f5f9' : '#dcfce7',
+                                      color: isExceeded ? '#dc2626' : maxOrderable === 0 ? '#64748b' : '#15803d',
+                                      border: `1px solid ${isExceeded ? '#fca5a5' : maxOrderable === 0 ? '#cbd5e1' : '#86efac'}`,
+                                    }}
+                                    title={`Tồn thực tế: ${actualInUnit} ${item.unitName} - Đang giữ chỗ: ${reservedInUnit} ${item.unitName}`}
+                                  >
+                                    Tồn khả dụng: {maxOrderable} {item.unitName}
+                                  </span>
+                                  <span style={{ fontSize: '10.5px', color: '#64748b' }}>
+                                    (Thực tế: {actualInUnit} | Giữ chỗ: {reservedInUnit})
+                                  </span>
+                                </div>
+                              )}
+
+                              {/* AC 3: Cảnh báo vượt tồn khả dụng và nút gợi ý đặt tối đa */}
+                              {isExceeded && maxOrderable !== undefined && (
+                                <div style={{ marginTop: '4px', fontSize: '11px', color: '#dc2626', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                  <span>⚠️ Vượt tồn kho ({maxOrderable} {item.unitName})</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleQuantityChange(idx, maxOrderable)}
+                                    style={{
+                                      background: '#fee2e2',
+                                      border: '1px solid #f87171',
+                                      color: '#b91c1c',
+                                      borderRadius: '4px',
+                                      padding: '1px 6px',
+                                      fontSize: '10.5px',
+                                      fontWeight: '600',
+                                      cursor: 'pointer',
+                                    }}
+                                    title="Điều chỉnh số lượng về tồn khả dụng tối đa"
+                                  >
+                                    Đặt tối đa ({maxOrderable})
+                                  </button>
+                                </div>
+                              )}
+
                               {item.priceNote && (
                                 <div style={{ fontSize: '11px', color: '#0284c7', marginTop: '2px' }}>
                                   🏷️ {item.priceNote}
@@ -1294,7 +1492,8 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
                                   width: '70px',
                                   padding: '5px 8px',
                                   borderRadius: '6px',
-                                  border: '1px solid #cbd5e1',
+                                  border: isExceeded ? '1.5px solid #ef4444' : '1px solid #cbd5e1',
+                                  background: isExceeded ? '#fef2f2' : '#ffffff',
                                   fontSize: '13px',
                                   fontWeight: '600',
                                   textAlign: 'center',
@@ -1693,32 +1892,50 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
             <button
               id="btn-submit-order"
               type="submit"
-              disabled={isSubmitting || orderItems.length === 0 || isLockedDealer}
+              disabled={isSubmitting || orderItems.length === 0 || isLockedDealer || hasStockErrors || isOverdueBlocked || !isSalesOrAdmin}
               style={{
                 padding: '9px 22px',
                 borderRadius: '8px',
                 border: 'none',
-                background: orderItems.length === 0 || isLockedDealer ? '#94a3b8' : isAnyBelowFloorPrice ? '#ea580c' : '#0fad89',
+                background: orderItems.length === 0 || isLockedDealer || hasStockErrors || isOverdueBlocked || !isSalesOrAdmin ? '#94a3b8' : (isAnyBelowFloorPrice || isOverLimit) ? '#ea580c' : '#0fad89',
                 fontSize: '13.5px',
                 fontWeight: '700',
                 color: '#fff',
-                cursor: isSubmitting || orderItems.length === 0 || isLockedDealer ? 'not-allowed' : 'pointer',
+                cursor: isSubmitting || orderItems.length === 0 || isLockedDealer || hasStockErrors || isOverdueBlocked || !isSalesOrAdmin ? 'not-allowed' : 'pointer',
                 opacity: isSubmitting ? 0.7 : 1,
                 boxShadow:
-                  orderItems.length === 0 || isLockedDealer
+                  orderItems.length === 0 || isLockedDealer || hasStockErrors || isOverdueBlocked || !isSalesOrAdmin
                     ? 'none'
-                    : isAnyBelowFloorPrice
+                    : (isAnyBelowFloorPrice || isOverLimit)
                     ? '0 4px 6px -1px rgba(234, 88, 12, 0.3)'
                     : '0 4px 6px -1px rgba(15, 173, 137, 0.3)',
               }}
-              title={isLockedDealer ? `Đại lý "${selectedDealer?.name}" hiện đang bị khóa giao dịch, không thể tạo đơn hàng` : undefined}
+              title={
+                !isSalesOrAdmin
+                  ? 'Chỉ Nhân viên kinh doanh và Quản trị hệ thống mới có quyền tạo đơn'
+                  : isOverdueBlocked
+                  ? `Đại lý "${selectedDealer?.name}" có khoản nợ quá hạn (${creditInfo?.max_debt_age} ngày), bị chặn tạo đơn hoàn toàn`
+                  : isLockedDealer
+                  ? `Đại lý "${selectedDealer?.name}" hiện đang bị khóa giao dịch, không thể tạo đơn hàng`
+                  : hasStockErrors
+                  ? 'Có sản phẩm vượt quá tồn khả dụng kho phục vụ. Vui lòng điều chỉnh số lượng trước khi đặt hàng'
+                  : undefined
+              }
             >
               {isSubmitting
                 ? 'Đang lưu đơn hàng...'
+                : !isSalesOrAdmin
+                ? 'Không có quyền tạo đơn'
+                : isOverdueBlocked
+                ? 'Bị chặn do nợ quá hạn'
                 : isLockedDealer
                 ? 'Đại lý bị khóa (Không thể tạo đơn)'
+                : hasStockErrors
+                ? 'Vượt tồn khả dụng (Không thể tạo đơn)'
                 : isAnyBelowFloorPrice
                 ? 'Gửi duyệt (Dưới giá niêm yết / sàn)'
+                : isOverLimit
+                ? 'Tạo đơn (Cần duyệt do vượt hạn mức)'
                 : `Tạo đơn hàng (${orderItems.length} sản phẩm)`}
             </button>
           </div>
