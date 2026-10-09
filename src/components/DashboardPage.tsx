@@ -65,14 +65,8 @@ export default function DashboardPage({
   const canReadOrders = hasPermission(user, Permissions.ORDER_READ) || user.role === 'sales' || Boolean(user.roles && user.roles.includes('sales')) || isAccountant;
   const canCreateOrders = !isAccountant && (hasPermission(user, Permissions.ORDER_WRITE) || user.role === 'sales' || Boolean(user.roles && user.roles.includes('sales')));
   const isSalesManager = user.role === 'sales_manager' || Boolean(user.roles && user.roles.includes('sales_manager'));
-  const canAccessDiscounts =
-    isAdmin ||
-    isSalesManager ||
-    officialRoles.includes('sales') ||
-    user.role === 'sales' ||
-    officialRoles.includes('accountant') ||
-    user.role === 'accountant' ||
-    Boolean(user.permissions && (user.permissions.includes('discount:read') || user.permissions.includes('discount:manage')));
+  // Tất cả vai trò đều có thể xem chính sách chiết khấu (Read-only), chỉ Admin & Quản lý kinh doanh mới được thao tác
+  const canAccessDiscounts = Boolean(user);
 
   // Quyền quản lý nhà cung cấp
   const SUPPLIER_ROLES = ['admin', 'warehouse', 'warehouse_manager'];

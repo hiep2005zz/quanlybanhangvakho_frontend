@@ -36,7 +36,12 @@ interface DiscountPolicyViewProps {
 }
 
 export default function DiscountPolicyView({ token, user, onBackToHome }: DiscountPolicyViewProps) {
-  console.log(token, user);
+  const canManageDiscounts = Boolean(
+    user?.role === 'admin' ||
+    user?.role === 'sales_manager' ||
+    user?.roles?.includes('admin') ||
+    user?.roles?.includes('sales_manager')
+  );
   const [products, setProducts] = useState<ProductItem[]>([]);
   React.useEffect(() => {
     let active = true;
@@ -153,6 +158,10 @@ export default function DiscountPolicyView({ token, user, onBackToHome }: Discou
   // Lưu chính sách chiết khấu mới vào Database
   const handleSavePolicy = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!canManageDiscounts) {
+      emitStatusToast({ title: 'Từ chối', message: 'Chỉ Quản trị viên và Quản lý kinh doanh mới có quyền tạo chính sách chiết khấu!' });
+      return;
+    }
     if (!formData.title || !formData.code) {
       emitStatusToast({ title: 'Lỗi', message: 'Vui lòng nhập đầy đủ Tên chính sách và Mã áp dụng!' });
       return;
@@ -189,6 +198,10 @@ export default function DiscountPolicyView({ token, user, onBackToHome }: Discou
   // Xóa vĩnh viễn chính sách khỏi Database
   const handleDeletePolicy = async (id: string | undefined) => {
     if (!id) return;
+    if (!canManageDiscounts) {
+      emitStatusToast({ title: 'Từ chối', message: 'Chỉ Quản trị viên và Quản lý kinh doanh mới có quyền xóa chính sách chiết khấu!' });
+      return;
+    }
     const targetPolicy = policies.find(p => p.id === id);
     try {
       const numId = Number(id);
@@ -213,6 +226,10 @@ export default function DiscountPolicyView({ token, user, onBackToHome }: Discou
   // Ngừng áp dụng chính sách (cập nhật DB)
   const handleStopPolicy = async (id: string | undefined) => {
     if (!id) return;
+    if (!canManageDiscounts) {
+      emitStatusToast({ title: 'Từ chối', message: 'Chỉ Quản trị viên và Quản lý kinh doanh mới có quyền ngừng áp dụng chính sách chiết khấu!' });
+      return;
+    }
     const targetPolicy = policies.find(p => p.id === id);
     try {
       const numId = Number(id);
@@ -309,35 +326,59 @@ export default function DiscountPolicyView({ token, user, onBackToHome }: Discou
             Khai báo mốc sản lượng & tỷ lệ chiết khấu tự động dành cho đại lý
           </p>
         </div>
-        <button
-          onClick={() => {
-            setFormData({
-              title: '',
-              code: `CK-${Math.floor(1000 + Math.random() * 9000)}`,
-              target_group: 'all',
-              start_date: new Date().toISOString().split('T')[0],
-              end_date: '',
-              status: 'active',
-              note: '',
-              tiers: [
-                { id: Date.now().toString(), min_quantity: 100, max_quantity: 499, discount_percent: 5 },
-              ],
-            });
-            setIsModalOpen(true);
-          }}
-          style={{
-            background: 'linear-gradient(135deg, #0fba90 0%, #0fad89 100%)',
-            color: '#fff',
-            border: 'none',
-            padding: '10px 18px',
-            borderRadius: '8px',
-            fontWeight: '600',
-            cursor: 'pointer',
-            boxShadow: '0 2px 8px rgba(15, 186, 144, 0.35)',
-          }}
-        >
-          + Khai Báo Chính Sách Mới
-        </button>
+        {canManageDiscounts ? (
+          <button
+            onClick={() => {
+              setFormData({
+                title: '',
+                code: `CK-${Math.floor(1000 + Math.random() * 9000)}`,
+                target_group: 'all',
+                start_date: new Date().toISOString().split('T')[0],
+                end_date: '',
+                status: 'active',
+                note: '',
+                tiers: [
+                  { id: Date.now().toString(), min_quantity: 100, max_quantity: 499, discount_percent: 5 },
+                ],
+              });
+              setIsModalOpen(true);
+            }}
+            style={{
+              background: 'linear-gradient(135deg, #0fba90 0%, #0fad89 100%)',
+              color: '#fff',
+              border: 'none',
+              padding: '10px 18px',
+              borderRadius: '8px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              boxShadow: '0 2px 8px rgba(15, 186, 144, 0.35)',
+            }}
+          >
+            + Khai Báo Chính Sách Mới
+          </button>
+        ) : (
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '8px 14px',
+              borderRadius: '8px',
+              fontSize: '13px',
+              fontWeight: '600',
+              background: '#f8fafc',
+              color: '#64748b',
+              border: '1px solid #e2e8f0',
+            }}
+            title="Chỉ Admin và Quản lý kinh doanh mới có quyền thiết lập chính sách chiết khấu"
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+              <circle cx="12" cy="12" r="3" />
+            </svg>
+            <span>Chế độ chỉ xem</span>
+          </div>
+        )}
       </div>
 
       {/* Danh sách chính sách hiện tại (Khối liền nhau) */}
@@ -400,56 +441,58 @@ export default function DiscountPolicyView({ token, user, onBackToHome }: Discou
                 >
                   {policy.status === 'active' ? 'Đang áp dụng' : policy.status === 'expired' ? 'Đã ngừng' : 'Dự thảo'}
                 </span>
-                {policy.status === 'active' ? (
-                  <button
-                    onClick={() => handleStopPolicy(policy.id)}
-                    style={{
-                      background: 'none',
-                      border: '1px solid #fef08a',
-                      borderRadius: '6px',
-                      color: '#ca8a04',
-                      padding: '4px 8px',
-                      fontSize: '12px',
-                      cursor: 'pointer',
-                      fontWeight: '600',
-                      transition: 'all 0.2s',
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = '#fefce8';
-                      e.currentTarget.style.borderColor = '#fde047';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = 'none';
-                      e.currentTarget.style.borderColor = '#fef08a';
-                    }}
-                  >
-                    Ngừng áp dụng
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => handleDeletePolicy(policy.id)}
-                    style={{
-                      background: 'none',
-                      border: '1px solid #fee2e2',
-                      borderRadius: '6px',
-                      color: '#ef4444',
-                      padding: '4px 8px',
-                      fontSize: '12px',
-                      cursor: 'pointer',
-                      fontWeight: '600',
-                      transition: 'all 0.2s',
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = '#fef2f2';
-                      e.currentTarget.style.borderColor = '#fca5a5';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = 'none';
-                      e.currentTarget.style.borderColor = '#fee2e2';
-                    }}
-                  >
-                    Xóa
-                  </button>
+                {canManageDiscounts && (
+                  policy.status === 'active' ? (
+                    <button
+                      onClick={() => handleStopPolicy(policy.id)}
+                      style={{
+                        background: 'none',
+                        border: '1px solid #fef08a',
+                        borderRadius: '6px',
+                        color: '#ca8a04',
+                        padding: '4px 8px',
+                        fontSize: '12px',
+                        cursor: 'pointer',
+                        fontWeight: '600',
+                        transition: 'all 0.2s',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = '#fefce8';
+                        e.currentTarget.style.borderColor = '#fde047';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = 'none';
+                        e.currentTarget.style.borderColor = '#fef08a';
+                      }}
+                    >
+                      Ngừng áp dụng
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => handleDeletePolicy(policy.id)}
+                      style={{
+                        background: 'none',
+                        border: '1px solid #fee2e2',
+                        borderRadius: '6px',
+                        color: '#ef4444',
+                        padding: '4px 8px',
+                        fontSize: '12px',
+                        cursor: 'pointer',
+                        fontWeight: '600',
+                        transition: 'all 0.2s',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = '#fef2f2';
+                        e.currentTarget.style.borderColor = '#fca5a5';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = 'none';
+                        e.currentTarget.style.borderColor = '#fee2e2';
+                      }}
+                    >
+                      Xóa
+                    </button>
+                  )
                 )}
               </div>
             </div>
