@@ -525,3 +525,98 @@
     transform: scale(1);
   }
 }
+
+/* ==========================================================================
+   Pagination Bar Section for Warehouse Tables
+   ========================================================================== */
+.wh-pagination-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 18px;
+  border-top: 1px solid var(--wh-slate-200);
+  background: #ffffff;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.wh-pagination-info {
+  font-size: 13px;
+  color: var(--wh-slate-500);
+}
+
+.wh-pagination-info strong {
+  color: var(--wh-slate-900);
+  font-weight: 700;
+}
+
+.wh-pagination-controls-wrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.wh-pagination-size-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--wh-slate-500);
+}
+
+.wh-pagination-select {
+  height: 30px;
+  padding: 0 8px;
+  border-radius: 6px;
+  border: 1px solid var(--wh-slate-300);
+  background: #ffffff;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--wh-slate-700);
+  outline: none;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.wh-pagination-buttons {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.wh-btn-page {
+  min-width: 30px;
+  height: 30px;
+  padding: 0 6px;
+  border-radius: 6px;
+  border: 1px solid var(--wh-slate-200);
+  background: #ffffff;
+  color: var(--wh-slate-700);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.wh-btn-page:hover:not(:disabled):not(.active) {
+  background: var(--wh-slate-100);
+  border-color: var(--wh-slate-300);
+  color: var(--wh-slate-900);
+}
+
+.wh-btn-page.active {
+  background: var(--wh-primary);
+  border-color: var(--wh-primary);
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.wh-btn-page:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
