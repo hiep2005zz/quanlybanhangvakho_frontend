@@ -5,6 +5,7 @@ import {
   ProductItem,
   getDiscountPoliciesApi,
   createDiscountPolicyApi,
+  updateDiscountPolicyApi,
   toggleDiscountPolicyStatusApi,
   deleteDiscountPolicyApi,
   getCategoryTreeApi,
@@ -137,6 +138,7 @@ export default function DiscountPolicyView({ token, user, onBackToHome }: Discou
   }, [policies]);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingPolicyId, setEditingPolicyId] = useState<string | null>(null);
   const [formData, setFormData] = useState<DiscountPolicy>({
     title: 'Tất cả sản phẩm',
     code: '',
@@ -151,15 +153,68 @@ export default function DiscountPolicyView({ token, user, onBackToHome }: Discou
     ],
   });
 
-  // Xử lý thêm mốc sản lượng (Tier)
+  // Kiểm tra chính sách có bị chồng chéo số lượng không
+  const hasOverlappingTiers = (tiers?: DiscountTier[]) => {
+    if (!tiers || tiers.length < 2) return false;
+    const sorted = [...tiers].sort((a, b) => a.min_quantity - b.min_quantity);
+    for (let i = 1; i < sorted.length; i++) {
+      const prev = sorted[i - 1];
+      const curr = sorted[i];
+      if (prev.max_quantity === null || prev.max_quantity === undefined || curr.min_quantity <= prev.max_quantity) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  // Mở modal chỉnh sửa chính sách
+  const handleEditPolicy = (policy: DiscountPolicy) => {
+    setEditingPolicyId(policy.id || null);
+    let scope: 'all' | 'category' | 'product' = 'all';
+    if (policy.category && policy.category !== 'ALL' && policy.category !== 'PRODUCT') {
+      scope = 'category';
+    } else if (policy.title && policy.title !== 'Tất cả sản phẩm') {
+      scope = 'product';
+    }
+    setApplyScope(scope);
+    setFormData({
+      id: policy.id,
+      title: policy.title,
+      code: policy.code,
+      category: policy.category || 'ALL',
+      target_group: policy.target_group,
+      start_date: policy.start_date || new Date().toISOString().split('T')[0],
+      end_date: policy.end_date || '',
+      status: policy.status,
+      note: policy.note || '',
+      tiers: policy.tiers && policy.tiers.length > 0
+        ? policy.tiers.map(t => ({ ...t }))
+        : [{ id: Date.now().toString(), min_quantity: 100, max_quantity: 499, discount_percent: 5 }],
+    });
+    setIsModalOpen(true);
+  };
+
+  // Xử lý thêm mốc sản lượng (Tier) tự động tính toán không để chồng chéo
   const handleAddTier = () => {
     const lastTier = formData.tiers[formData.tiers.length - 1];
-    const newMin = lastTier && lastTier.max_quantity ? lastTier.max_quantity + 1 : 100;
-    
+    let newMin = 100;
+    let nextTiers = [...formData.tiers];
+    if (lastTier) {
+      if (lastTier.max_quantity !== null && lastTier.max_quantity !== undefined) {
+        newMin = Number(lastTier.max_quantity) + 1;
+      } else {
+        const autoMax = Number(lastTier.min_quantity) + 49;
+        nextTiers = nextTiers.map((t, idx) =>
+          idx === nextTiers.length - 1 ? { ...t, max_quantity: autoMax } : t
+        );
+        newMin = autoMax + 1;
+      }
+    }
+
     setFormData({
       ...formData,
       tiers: [
-        ...formData.tiers,
+        ...nextTiers,
         { id: Date.now().toString(), min_quantity: newMin, max_quantity: null, discount_percent: 5 },
       ],
     });
@@ -190,11 +245,11 @@ export default function DiscountPolicyView({ token, user, onBackToHome }: Discou
     });
   };
 
-  // Lưu chính sách chiết khấu mới vào Database
+  // Lưu chính sách chiết khấu (Tạo mới hoặc Cập nhật) vào Database
   const handleSavePolicy = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!canManageDiscounts) {
-      emitStatusToast({ title: 'Từ chối', message: 'Chỉ Quản trị viên và Quản lý kinh doanh mới có quyền tạo chính sách chiết khấu!', type: 'error' });
+      emitStatusToast({ title: 'Từ chối', message: 'Chỉ Quản trị viên và Quản lý kinh doanh mới có quyền thiết lập chính sách chiết khấu!', type: 'error' });
       return;
     }
     if (!formData.title || !formData.code) {
@@ -207,19 +262,40 @@ export default function DiscountPolicyView({ token, user, onBackToHome }: Discou
       return;
     }
 
-    for (let i = 0; i < formData.tiers.length; i++) {
-      const t = formData.tiers[i];
+    // Kiểm tra từng mốc chiết khấu và chống chồng chéo số lượng (overlapping)
+    const sortedTiers = [...formData.tiers].sort((a, b) => a.min_quantity - b.min_quantity);
+    for (let i = 0; i < sortedTiers.length; i++) {
+      const t = sortedTiers[i];
       if (t.min_quantity < 0 || isNaN(t.min_quantity)) {
         emitStatusToast({ title: 'Lỗi nhập liệu', message: `Mốc ${i + 1}: Số lượng tối thiểu phải lớn hơn hoặc bằng 0!`, type: 'error' });
         return;
       }
       if (t.max_quantity !== null && t.max_quantity !== undefined && t.max_quantity < t.min_quantity) {
-        emitStatusToast({ title: 'Lỗi nhập liệu', message: `Mốc ${i + 1}: Số lượng tối đa phải lớn hơn hoặc bằng số lượng tối thiểu!`, type: 'error' });
+        emitStatusToast({ title: 'Lỗi nhập liệu', message: `Mốc ${i + 1}: Số lượng tối đa (${t.max_quantity}) phải lớn hơn hoặc bằng số lượng tối thiểu (${t.min_quantity})!`, type: 'error' });
         return;
       }
       if (isNaN(t.discount_percent) || t.discount_percent < 0 || t.discount_percent > 100) {
         emitStatusToast({ title: 'Lỗi nhập liệu', message: `Mốc ${i + 1}: Tỷ lệ chiết khấu phải từ 0% đến 100%!`, type: 'error' });
         return;
+      }
+      if (i > 0) {
+        const prev = sortedTiers[i - 1];
+        if (prev.max_quantity === null || prev.max_quantity === undefined) {
+          emitStatusToast({
+            title: 'Lỗi cấu hình mốc sản lượng',
+            message: `Mốc ${i} (từ ${prev.min_quantity}+) không có giới hạn tối đa, không thể tạo thêm Mốc ${i + 1}!`,
+            type: 'error',
+          });
+          return;
+        }
+        if (t.min_quantity <= prev.max_quantity) {
+          emitStatusToast({
+            title: 'Bị chồng số lượng sản phẩm',
+            message: `Mốc ${i + 1} (từ ${t.min_quantity} sp) bị trùng với Mốc ${i} (đến ${prev.max_quantity} sp)! Mốc ${i + 1} phải bắt đầu từ ${prev.max_quantity + 1} sp trở lên.`,
+            type: 'error',
+          });
+          return;
+        }
       }
     }
 
@@ -227,31 +303,66 @@ export default function DiscountPolicyView({ token, user, onBackToHome }: Discou
       ? (formData.category || 'ALL')
       : (applyScope === 'all' ? 'ALL' : (formData.category || 'ALL'));
 
+    const payload = {
+      name: formData.title,
+      title: formData.title,
+      code: formData.code,
+      category: finalCategory,
+      target_dealer_type: formData.target_group,
+      target_group: formData.target_group,
+      description: formData.note,
+      start_date: formData.start_date,
+      end_date: formData.end_date || undefined,
+      is_active: formData.status === 'active',
+      status: formData.status,
+      tiers: sortedTiers.map((t) => ({
+        min_quantity: t.min_quantity,
+        max_quantity: t.max_quantity,
+        discount_percent: t.discount_percent,
+      })),
+    };
+
     try {
-      await createDiscountPolicyApi({
-        name: formData.title,
-        title: formData.title,
-        code: formData.code,
-        category: finalCategory,
-        target_dealer_type: formData.target_group,
-        target_group: formData.target_group,
-        description: formData.note,
-        start_date: formData.start_date,
-        end_date: formData.end_date || undefined,
-        is_active: formData.status === 'active',
-        status: formData.status,
-        tiers: formData.tiers.map((t) => ({
-          min_quantity: t.min_quantity,
-          max_quantity: t.max_quantity,
-          discount_percent: t.discount_percent,
-        })),
-      }, token);
+      if (editingPolicyId) {
+        const numId = Number(editingPolicyId);
+        if (!isNaN(numId) && numId > 0) {
+          await updateDiscountPolicyApi(numId, payload, token);
+        } else {
+          const beList = await getDiscountPoliciesApi(token);
+          const match = beList.items.find((item: any) => item.code === formData.code);
+          if (match?.id) {
+            await updateDiscountPolicyApi(Number(match.id), payload, token);
+          }
+        }
+        const updatedPolicies: DiscountPolicy[] = policies.map(p =>
+          (p.id === editingPolicyId || p.code === formData.code)
+            ? {
+                ...p,
+                title: formData.title,
+                code: formData.code,
+                category: finalCategory,
+                target_group: formData.target_group,
+                start_date: formData.start_date,
+                end_date: formData.end_date || '',
+                status: formData.status,
+                note: formData.note,
+                tiers: sortedTiers,
+              }
+            : p
+        );
+        setPolicies(updatedPolicies);
+        localStorage.setItem('discountPolicies', JSON.stringify(updatedPolicies));
+        emitStatusToast({ title: 'Thành công', message: 'Cập nhật chính sách chiết khấu thành công!', type: 'success' });
+      } else {
+        await createDiscountPolicyApi(payload, token);
+        emitStatusToast({ title: 'Thành công', message: 'Khai báo chính sách chiết khấu sản lượng thành công!', type: 'success' });
+      }
 
       await fetchPolicies();
       setIsModalOpen(false);
-      emitStatusToast({ title: 'Thành công', message: 'Khai báo chính sách chiết khấu sản lượng thành công!', type: 'success' });
+      setEditingPolicyId(null);
     } catch (err: any) {
-      emitStatusToast({ title: 'Lỗi', message: err?.message || 'Không thể tạo chính sách chiết khấu.', type: 'error' });
+      emitStatusToast({ title: 'Lỗi', message: err?.message || 'Không thể lưu chính sách chiết khấu.', type: 'error' });
     }
   };
 
@@ -389,6 +500,7 @@ export default function DiscountPolicyView({ token, user, onBackToHome }: Discou
         {canManageDiscounts ? (
           <button
             onClick={() => {
+              setEditingPolicyId(null);
               setApplyScope('all');
               setFormData({
                 title: 'Tất cả sản phẩm',
@@ -522,6 +634,22 @@ export default function DiscountPolicyView({ token, user, onBackToHome }: Discou
                       Sản phẩm
                     </span>
                   )}
+                  {hasOverlappingTiers(policy.tiers) && (
+                    <span
+                      style={{
+                        background: '#fef2f2',
+                        color: '#dc2626',
+                        border: '1px solid #fca5a5',
+                        padding: '2px 8px',
+                        borderRadius: '6px',
+                        fontSize: '12px',
+                        fontWeight: '700',
+                      }}
+                      title="Chính sách này có các mốc sản lượng bị chồng chéo nhau!"
+                    >
+                      Bị chồng số lượng sản phẩm
+                    </span>
+                  )}
                 </div>
                 <p style={{ margin: '6px 0 0 0', fontSize: '13px', color: '#64748b' }}>
                   Áp dụng: {policy.target_group === 'all' ? 'Tất cả đại lý' : policy.target_group === 'agent_tier_1' ? 'Đại lý Cấp 1' : 'Đại lý Cấp 2'} | Hiệu lực: {policy.start_date} đến {policy.end_date || 'Không thời hạn'}
@@ -541,14 +669,14 @@ export default function DiscountPolicyView({ token, user, onBackToHome }: Discou
                   {policy.status === 'active' ? 'Đang áp dụng' : policy.status === 'expired' ? 'Đã ngừng' : 'Dự thảo'}
                 </span>
                 {canManageDiscounts && (
-                  policy.status === 'active' ? (
+                  <>
                     <button
-                      onClick={() => handleStopPolicy(policy.id)}
+                      onClick={() => handleEditPolicy(policy)}
                       style={{
                         background: 'none',
-                        border: '1px solid #fef08a',
+                        border: '1px solid #cbd5e1',
                         borderRadius: '6px',
-                        color: '#ca8a04',
+                        color: '#2563eb',
                         padding: '4px 8px',
                         fontSize: '12px',
                         cursor: 'pointer',
@@ -556,42 +684,69 @@ export default function DiscountPolicyView({ token, user, onBackToHome }: Discou
                         transition: 'all 0.2s',
                       }}
                       onMouseEnter={(e) => {
-                        e.currentTarget.style.background = '#fefce8';
-                        e.currentTarget.style.borderColor = '#fde047';
+                        e.currentTarget.style.background = '#eff6ff';
+                        e.currentTarget.style.borderColor = '#93c5fd';
                       }}
                       onMouseLeave={(e) => {
                         e.currentTarget.style.background = 'none';
-                        e.currentTarget.style.borderColor = '#fef08a';
+                        e.currentTarget.style.borderColor = '#cbd5e1';
                       }}
+                      title="Chỉnh sửa chính sách"
                     >
-                      Ngừng áp dụng
+                      Sửa
                     </button>
-                  ) : (
-                    <button
-                      onClick={() => handleDeletePolicy(policy.id)}
-                      style={{
-                        background: 'none',
-                        border: '1px solid #fee2e2',
-                        borderRadius: '6px',
-                        color: '#ef4444',
-                        padding: '4px 8px',
-                        fontSize: '12px',
-                        cursor: 'pointer',
-                        fontWeight: '600',
-                        transition: 'all 0.2s',
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.background = '#fef2f2';
-                        e.currentTarget.style.borderColor = '#fca5a5';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.background = 'none';
-                        e.currentTarget.style.borderColor = '#fee2e2';
-                      }}
-                    >
-                      Xóa
-                    </button>
-                  )
+                    {policy.status === 'active' ? (
+                      <button
+                        onClick={() => handleStopPolicy(policy.id)}
+                        style={{
+                          background: 'none',
+                          border: '1px solid #fef08a',
+                          borderRadius: '6px',
+                          color: '#ca8a04',
+                          padding: '4px 8px',
+                          fontSize: '12px',
+                          cursor: 'pointer',
+                          fontWeight: '600',
+                          transition: 'all 0.2s',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = '#fefce8';
+                          e.currentTarget.style.borderColor = '#fde047';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = 'none';
+                          e.currentTarget.style.borderColor = '#fef08a';
+                        }}
+                      >
+                        Ngừng áp dụng
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => handleDeletePolicy(policy.id)}
+                        style={{
+                          background: 'none',
+                          border: '1px solid #fee2e2',
+                          borderRadius: '6px',
+                          color: '#ef4444',
+                          padding: '4px 8px',
+                          fontSize: '12px',
+                          cursor: 'pointer',
+                          fontWeight: '600',
+                          transition: 'all 0.2s',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = '#fef2f2';
+                          e.currentTarget.style.borderColor = '#fca5a5';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = 'none';
+                          e.currentTarget.style.borderColor = '#fee2e2';
+                        }}
+                      >
+                        Xóa
+                      </button>
+                    )}
+                  </>
                 )}
               </div>
             </div>
@@ -652,7 +807,9 @@ export default function DiscountPolicyView({ token, user, onBackToHome }: Discou
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '700' }}>Khai Báo Chính Sách Chiết Khấu</h3>
+              <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '700' }}>
+                {editingPolicyId ? 'Chỉnh Sửa Chính Sách Chiết Khấu' : 'Khai Báo Chính Sách Chiết Khấu'}
+              </h3>
               <button
                 onClick={() => setIsModalOpen(false)}
                 style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#64748b' }}
@@ -919,67 +1076,99 @@ export default function DiscountPolicyView({ token, user, onBackToHome }: Discou
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  {formData.tiers.map((tier, index) => (
-                    <div
-                      key={tier.id}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '10px',
-                        background: '#f8fafc',
-                        padding: '10px',
-                        borderRadius: '8px',
-                        border: '1px solid #e2e8f0',
-                      }}
-                    >
-                      <span style={{ fontSize: '13px', color: '#64748b', minWidth: '50px' }}>Mốc {index + 1}:</span>
-                      <input
-                        type="number"
-                        min="0"
-                        placeholder="Từ (SL)"
-                        value={tier.min_quantity}
-                        onChange={(e) => handleTierChange(tier.id, 'min_quantity', e.target.value)}
-                        style={{ width: '100px', padding: '6px 8px', borderRadius: '6px', border: '1px solid #cbd5e1' }}
-                      />
-                      <span style={{ fontSize: '13px', color: '#64748b' }}>đến</span>
-                      <input
-                        type="number"
-                        min="0"
-                        placeholder="Không giới hạn"
-                        value={tier.max_quantity ?? ''}
-                        onChange={(e) => handleTierChange(tier.id, 'max_quantity', e.target.value)}
-                        style={{ width: '110px', padding: '6px 8px', borderRadius: '6px', border: '1px solid #cbd5e1' }}
-                      />
-                      <span style={{ fontSize: '13px', color: '#64748b' }}>sp ➔ Giảm</span>
-                      <input
-                        type="number"
-                        min="0"
-                        max="100"
-                        step="0.5"
-                        placeholder="%"
-                        value={tier.discount_percent}
-                        onChange={(e) => handleTierChange(tier.id, 'discount_percent', e.target.value)}
-                        style={{ width: '80px', padding: '6px 8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontWeight: '700' }}
-                      />
-                      <span style={{ fontSize: '13px', fontWeight: '700' }}>%</span>
+                  {formData.tiers.map((tier, index) => {
+                    const prevTier = index > 0 ? formData.tiers[index - 1] : null;
+                    const isOverlapping = prevTier !== null && (
+                      prevTier.max_quantity === null || prevTier.max_quantity === undefined
+                        ? true
+                        : tier.min_quantity <= prevTier.max_quantity
+                    );
+                    const isInvalidMax = tier.max_quantity !== null && tier.max_quantity !== undefined && tier.max_quantity < tier.min_quantity;
 
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveTier(tier.id)}
+                    return (
+                      <div
+                        key={tier.id}
                         style={{
-                          marginLeft: 'auto',
-                          background: '#fef2f2',
-                          color: '#ef4444',
-                          border: '1px solid #fecaca',
-                          borderRadius: '6px',
-                          padding: '4px 8px',
-                          cursor: 'pointer',
+                          background: isOverlapping || isInvalidMax ? '#fef2f2' : '#f8fafc',
+                          padding: '10px',
+                          borderRadius: '8px',
+                          border: isOverlapping || isInvalidMax ? '1px solid #fca5a5' : '1px solid #e2e8f0',
                         }}
                       >
-                        Xóa
-                      </button>
-                    </div>
-                  ))}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <span style={{ fontSize: '13px', color: '#64748b', minWidth: '50px' }}>Mốc {index + 1}:</span>
+                          <input
+                            type="number"
+                            min="0"
+                            placeholder="Từ (SL)"
+                            value={tier.min_quantity}
+                            onChange={(e) => handleTierChange(tier.id, 'min_quantity', e.target.value)}
+                            style={{
+                              width: '100px',
+                              padding: '6px 8px',
+                              borderRadius: '6px',
+                              border: isOverlapping ? '1.5px solid #ef4444' : '1px solid #cbd5e1',
+                              backgroundColor: '#ffffff',
+                            }}
+                          />
+                          <span style={{ fontSize: '13px', color: '#64748b' }}>đến</span>
+                          <input
+                            type="number"
+                            min="0"
+                            placeholder="Không giới hạn"
+                            value={tier.max_quantity ?? ''}
+                            onChange={(e) => handleTierChange(tier.id, 'max_quantity', e.target.value)}
+                            style={{
+                              width: '110px',
+                              padding: '6px 8px',
+                              borderRadius: '6px',
+                              border: isInvalidMax ? '1.5px solid #ef4444' : '1px solid #cbd5e1',
+                              backgroundColor: '#ffffff',
+                            }}
+                          />
+                          <span style={{ fontSize: '13px', color: '#64748b' }}>sp ➔ Giảm</span>
+                          <input
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="0.5"
+                            placeholder="%"
+                            value={tier.discount_percent}
+                            onChange={(e) => handleTierChange(tier.id, 'discount_percent', e.target.value)}
+                            style={{ width: '80px', padding: '6px 8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontWeight: '700' }}
+                          />
+                          <span style={{ fontSize: '13px', fontWeight: '700' }}>%</span>
+
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveTier(tier.id)}
+                            style={{
+                              marginLeft: 'auto',
+                              background: '#fef2f2',
+                              color: '#ef4444',
+                              border: '1px solid #fecaca',
+                              borderRadius: '6px',
+                              padding: '4px 8px',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            Xóa
+                          </button>
+                        </div>
+
+                        {isOverlapping && (
+                          <div style={{ color: '#dc2626', fontSize: '12px', fontWeight: '600', marginTop: '6px', paddingLeft: '60px' }}>
+                            Bị chồng số lượng sản phẩm: Mốc này phải bắt đầu từ {prevTier?.max_quantity ? Number(prevTier.max_quantity) + 1 : Number(prevTier?.min_quantity || 0) + 1} sp trở lên!
+                          </div>
+                        )}
+                        {isInvalidMax && (
+                          <div style={{ color: '#dc2626', fontSize: '12px', fontWeight: '600', marginTop: '6px', paddingLeft: '60px' }}>
+                            Số lượng tối đa phải lớn hơn hoặc bằng số lượng tối thiểu!
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 
