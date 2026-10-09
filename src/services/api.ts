@@ -613,10 +613,11 @@ export async function getOrdersApi(token: string): Promise<OrderItem[]> {
   if (!response.ok) {
     throw new Error(data.detail || `Lỗi tải danh sách đơn hàng (Mã lỗi ${response.status})`);
   }
-  if (!Array.isArray(data) || !data.every(isOrderItem)) {
+  const list = Array.isArray(data) ? data : (Array.isArray(data.items) ? data.items : null);
+  if (!list || !list.every(isOrderItem)) {
     throw new Error('Dữ liệu danh sách đơn hàng không hợp lệ.');
   }
-  return data;
+  return list;
 }
 
 export async function getOrderDetailApi(token: string, orderCode: string): Promise<OrderDetail> {
@@ -1720,6 +1721,85 @@ export interface OrderResponseData {
   discount_amount?: number;
   dealer_status?: string;
   dealer_lock_reason?: string;
+  region?: string | null;
+}
+
+export interface OrderFilterParams {
+  status?: string;
+  dealer_id?: number;
+  sales_rep_id?: number;
+  region?: string;
+  start_date?: string;
+  end_date?: string;
+  page?: number;
+  page_size?: number;
+}
+
+export interface OrderListFilteredResponse {
+  items: OrderResponseData[];
+  total: number;
+  page: number;
+  page_size: number;
+  filtered_total_amount: number;
+}
+
+export interface SalesRepItem {
+  id: number;
+  username: string;
+  full_name: string;
+  role: string;
+}
+
+export async function getFilteredOrdersApi(
+  token: string,
+  params?: OrderFilterParams
+): Promise<OrderListFilteredResponse> {
+  const query = new URLSearchParams();
+  if (params) {
+    if (params.status && params.status !== 'ALL') query.append('status', params.status);
+    if (params.dealer_id !== undefined && params.dealer_id !== null) query.append('dealer_id', String(params.dealer_id));
+    if (params.sales_rep_id !== undefined && params.sales_rep_id !== null) query.append('sales_rep_id', String(params.sales_rep_id));
+    if (params.region && params.region !== 'ALL' && params.region.trim()) query.append('region', params.region.trim());
+    if (params.start_date) query.append('start_date', params.start_date);
+    if (params.end_date) query.append('end_date', params.end_date);
+    if (params.page !== undefined) query.append('page', String(params.page));
+    if (params.page_size !== undefined) query.append('page_size', String(params.page_size));
+  }
+  const queryString = query.toString();
+  const url = `${API_BASE_URL}/orders${queryString ? `?${queryString}` : ''}`;
+  const response = await authenticatedFetch(url, { method: 'GET' }, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi tải danh sách đơn hàng (Mã lỗi ${response.status})`);
+  }
+  if (Array.isArray(data)) {
+    return {
+      items: data,
+      total: data.length,
+      page: 1,
+      page_size: data.length || 20,
+      filtered_total_amount: data.reduce((sum: number, o: any) => sum + (o.total_amount || 0), 0),
+    };
+  }
+  return data as OrderListFilteredResponse;
+}
+
+export async function getOrderSalesRepsApi(token: string): Promise<SalesRepItem[]> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/orders/sales-reps`, { method: 'GET' }, token);
+  const data = await response.json().catch(() => []);
+  if (!response.ok) {
+    return [];
+  }
+  return Array.isArray(data) ? data : [];
+}
+
+export async function getOrderRegionsApi(token: string): Promise<string[]> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/orders/regions`, { method: 'GET' }, token);
+  const data = await response.json().catch(() => []);
+  if (!response.ok) {
+    return [];
+  }
+  return Array.isArray(data) ? data : [];
 }
 
 export async function approveOrderApi(token: string, orderIdOrCode: number | string): Promise<OrderResponseData> {
