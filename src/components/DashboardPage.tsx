@@ -26,6 +26,7 @@ import { OrderManagementView } from './OrderManagementView';
 import SalesOrderEntry from './SalesOrderEntry';
 import { ProductHistoryView } from './ProductHistoryView';
 import { ProductFormView } from './ProductFormView';
+import WarehouseManagementView from './WarehouseManagementView';
 import { ModalPortal } from './ModalPortal';
 
 import './dashboard.css';
@@ -127,10 +128,18 @@ export default function DashboardPage({
     const isDealersPath = pathname === '/dealers' || pathname.startsWith('/dealers/');
     const isDeliveryPointsPath = pathname === '/delivery-points' || pathname.startsWith('/delivery-points/');
     const isProductHistoryPath = pathname === '/product-history' || pathname.startsWith('/product-history/');
+    const isWarehousesPath = pathname === '/warehouses' || pathname.startsWith('/warehouses/');
 
     const params = new URLSearchParams(window.location.search);
     const hasOldTabParam = params.has('tab') || params.has('view');
     const oldTabVal = (params.get('tab') || params.get('view') || '').toLowerCase();
+
+    if (isWarehousesPath || oldTabVal === 'warehouses') {
+      if (pathname !== '/warehouses' || hasOldTabParam) {
+        try { window.history.replaceState({}, '', '/warehouses'); } catch {}
+      }
+      return 'warehouses';
+    }
 
     if (isDiscountsPath || oldTabVal === 'discounts' || oldTabVal === 'discount') {
       if (canAccessDiscounts) {
@@ -358,6 +367,13 @@ export default function DashboardPage({
       setActiveTabState('discounts');
       try {
         window.history.pushState({}, '', '/discounts');
+      } catch {
+        // ignore
+      }
+    } else if (tab === 'warehouses') {
+      setActiveTabState('warehouses');
+      try {
+        window.history.pushState({}, '', '/warehouses');
       } catch {
         // ignore
       }
@@ -1119,6 +1135,13 @@ export default function DashboardPage({
             onLogout={onLogout}
           />
         )
+
+      ) : activeTab === 'warehouses' ? (
+        <WarehouseManagementView
+          token={token}
+          currentUser={user}
+          onBackToHome={() => setActiveTab('inventory')}
+        />
 
       ) : isPendingCustomer ? (
         <div style={{

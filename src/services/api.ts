@@ -2064,7 +2064,7 @@ export interface GoodsReceiptListResponse {
   total: number;
 }
 
-export async function getWarehousesApi(token: string): Promise<Warehouse[]> {
+export async function getGoodsReceiptWarehousesApi(token: string): Promise<Warehouse[]> {
   const response = await authenticatedFetch(`${API_BASE_URL}/goods-receipts/meta/warehouses`, { method: 'GET' }, token);
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
@@ -2160,4 +2160,381 @@ export async function deleteGoodsReceiptApi(token: string, id: number): Promise<
     throw new Error(errorData.detail || `Lỗi xóa phiếu nhập kho (${response.status})`);
   }
 }
+
+// ==========================================
+// QUẢN LÝ KHO HÀNG & VỊ TRÍ LƯU TRỮ
+// ==========================================
+
+export interface WarehouseItem {
+  id: number;
+  code: string;
+  name: string;
+  address?: string;
+  manager_name?: string;
+  phone?: string;
+  status: string;
+  is_active: boolean;
+  created_at?: string;
+  locations_count: number;
+  total_products_count: number;
+  total_stock_quantity: number;
+}
+
+export interface WarehouseLocationItem {
+  id: number;
+  warehouse_id: number;
+  warehouse_code?: string;
+  warehouse_name?: string;
+  location_code: string;
+  location_name?: string;
+  zone?: string;
+  aisle?: string;
+  rack?: string;
+  bin?: string;
+  max_capacity?: number;
+  is_active: boolean;
+  status: string;
+  note?: string;
+  created_at?: string;
+  items_count: number;
+  total_quantity: number;
+}
+
+export interface LocationProductStockItem {
+  id: number;
+  location_id: number;
+  location_code: string;
+  location_name?: string;
+  zone?: string;
+  aisle?: string;
+  rack?: string;
+  bin?: string;
+  product_id: number;
+  product_code: string;
+  product_name: string;
+  base_unit: string;
+  quantity: number;
+  warehouse_total_stock: number;
+}
+
+export type Product = ProductItem;
+
+export interface ProductPickingLocationItem {
+  location_id: number;
+  location_code: string;
+  location_name: string;
+  zone?: string;
+  aisle?: string;
+  rack?: string;
+  bin?: string;
+  available_quantity: number;
+}
+
+export interface OrderPickingItem {
+  product_id: number;
+  product_code: string;
+  product_name: string;
+  ordered_quantity: number;
+  unit_name: string;
+  warehouse_id?: number;
+  warehouse_code?: string;
+  warehouse_name?: string;
+  locations: ProductPickingLocationItem[];
+}
+
+export interface OrderPickingSummary {
+  warehouse_id?: number;
+  warehouse_code?: string;
+  warehouse_name?: string;
+  warehouse_address?: string;
+  items: OrderPickingItem[];
+}
+
+export async function getWarehousesApi(
+  token: string,
+  search?: string,
+  statusFilter?: string
+): Promise<WarehouseItem[]> {
+  const params = new URLSearchParams();
+  if (search && search.trim()) params.set('search', search.trim());
+  if (statusFilter && statusFilter.trim() && statusFilter !== 'all') params.set('status', statusFilter.trim());
+  const qs = params.toString() ? `?${params.toString()}` : '';
+
+  const response = await authenticatedFetch(`${API_BASE_URL}/warehouses${qs}`, {
+    method: 'GET',
+  }, token);
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Lỗi tải danh sách kho hàng');
+  }
+  return response.json();
+}
+
+export async function getWarehouseDetailApi(token: string, id: number): Promise<WarehouseItem> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/warehouses/${id}`, {
+    method: 'GET',
+  }, token);
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Lỗi tải thông tin chi tiết kho hàng');
+  }
+  return response.json();
+}
+
+export async function createWarehouseApi(
+  token: string,
+  payload: {
+    code: string;
+    name: string;
+    address?: string;
+    manager_name?: string;
+    phone?: string;
+    status?: string;
+    is_active?: boolean;
+  }
+): Promise<WarehouseItem> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/warehouses`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  }, token);
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi tạo kho hàng mới (${response.status})`);
+  }
+  return data;
+}
+
+export async function updateWarehouseApi(
+  token: string,
+  id: number,
+  payload: {
+    name?: string;
+    address?: string;
+    manager_name?: string;
+    phone?: string;
+    status?: string;
+    is_active?: boolean;
+  }
+): Promise<WarehouseItem> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/warehouses/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  }, token);
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi cập nhật kho hàng (${response.status})`);
+  }
+  return data;
+}
+
+export async function deleteWarehouseApi(token: string, id: number): Promise<{ message: string }> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/warehouses/${id}`, {
+    method: 'DELETE',
+  }, token);
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi xóa kho hàng (${response.status})`);
+  }
+  return data;
+}
+
+export async function getWarehouseLocationsApi(
+  token: string,
+  warehouseId: number,
+  zone?: string,
+  search?: string
+): Promise<WarehouseLocationItem[]> {
+  const params = new URLSearchParams();
+  if (zone && zone !== 'all') params.set('zone', zone);
+  if (search && search.trim()) params.set('search', search.trim());
+  const qs = params.toString() ? `?${params.toString()}` : '';
+
+  const response = await authenticatedFetch(`${API_BASE_URL}/warehouses/${warehouseId}/locations${qs}`, {
+    method: 'GET',
+  }, token);
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Lỗi tải danh sách vị trí lưu kho');
+  }
+  return response.json();
+}
+
+export async function createWarehouseLocationApi(
+  token: string,
+  warehouseId: number,
+  payload: {
+    location_code: string;
+    location_name?: string;
+    zone?: string;
+    aisle?: string;
+    rack?: string;
+    bin?: string;
+    max_capacity?: number;
+    status?: string;
+    note?: string;
+  }
+): Promise<WarehouseLocationItem> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/warehouses/${warehouseId}/locations`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  }, token);
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi thêm vị trí lưu kho (${response.status})`);
+  }
+  return data;
+}
+
+export async function updateWarehouseLocationApi(
+  token: string,
+  locationId: number,
+  payload: {
+    location_code?: string;
+    location_name?: string;
+    zone?: string;
+    aisle?: string;
+    rack?: string;
+    bin?: string;
+    max_capacity?: number;
+    status?: string;
+    is_active?: boolean;
+    note?: string;
+  }
+): Promise<WarehouseLocationItem> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/warehouses/locations/${locationId}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  }, token);
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi cập nhật vị trí (${response.status})`);
+  }
+  return data;
+}
+
+export async function deleteWarehouseLocationApi(token: string, locationId: number): Promise<{ message: string }> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/warehouses/locations/${locationId}`, {
+    method: 'DELETE',
+  }, token);
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi xóa vị trí lưu kho (${response.status})`);
+  }
+  return data;
+}
+
+export async function getWarehouseProductsApi(
+  token: string,
+  warehouseId: number,
+  search?: string
+): Promise<LocationProductStockItem[]> {
+  const params = new URLSearchParams();
+  if (search && search.trim()) params.set('search', search.trim());
+  const qs = params.toString() ? `?${params.toString()}` : '';
+
+  const response = await authenticatedFetch(`${API_BASE_URL}/warehouses/${warehouseId}/products${qs}`, {
+    method: 'GET',
+  }, token);
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Lỗi tải danh sách sản phẩm theo vị trí');
+  }
+  return response.json();
+}
+
+export async function assignProductToLocationApi(
+  token: string,
+  locationId: number,
+  productId: number,
+  quantity: number
+): Promise<{ message: string; quantity: number }> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/warehouses/locations/assign-product`, {
+    method: 'POST',
+    body: JSON.stringify({
+      location_id: locationId,
+      product_id: productId,
+      quantity,
+    }),
+  }, token);
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi gán sản phẩm vào vị trí (${response.status})`);
+  }
+  return data;
+}
+
+export async function transferLocationProductApi(
+  token: string,
+  fromLocationId: number,
+  toLocationId: number,
+  productId: number,
+  quantity: number
+): Promise<{ message: string; quantity: number }> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/warehouses/locations/transfer-product`, {
+    method: 'POST',
+    body: JSON.stringify({
+      from_location_id: fromLocationId,
+      to_location_id: toLocationId,
+      product_id: productId,
+      quantity,
+    }),
+  }, token);
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi chuyển vị trí sản phẩm (${response.status})`);
+  }
+  return data;
+}
+
+export async function assignDefaultWarehouseToDealerApi(
+  token: string,
+  dealerId: number,
+  warehouseId: number | string
+): Promise<{ message: string; dealer_id: number; warehouse_id: number; warehouse_name: string }> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/warehouses/dealers/${dealerId}/default-warehouse`, {
+    method: 'PUT',
+    body: JSON.stringify({ warehouse_id: warehouseId }),
+  }, token);
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi gán kho mặc định cho đại lý (${response.status})`);
+  }
+  return data;
+}
+
+export async function getOrderPickingLocationsApi(
+  token: string,
+  orderCode: string
+): Promise<OrderPickingSummary> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/warehouses/orders/${encodeURIComponent(orderCode)}/picking-locations`, {
+    method: 'GET',
+  }, token);
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Lỗi tra cứu vị trí kệ soạn đơn hàng');
+  }
+  const items: OrderPickingItem[] = await response.json();
+  const first = items[0];
+  return {
+    warehouse_id: first?.warehouse_id,
+    warehouse_code: first?.warehouse_code,
+    warehouse_name: first?.warehouse_name,
+    items,
+  };
+}
+
 

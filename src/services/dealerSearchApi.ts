@@ -36,6 +36,8 @@ export interface DealerSearchItem {
     transaction_count?: number;
     has_transactions?: boolean;
     applied_price_book?: AppliedPriceBookInfo | null;
+    warehouse_id?: string | null;
+    warehouse_name?: string | null;
 }
 
 export interface DealerStats {
@@ -333,6 +335,8 @@ export interface CreateDealerPayload {
     customer_group?: string;
     status?: string;
     transaction_count?: number | null;
+    warehouse_id?: string | null;
+    warehouse_name?: string | null;
 }
 
 export interface UpdateDealerPayload {
@@ -349,6 +353,8 @@ export interface UpdateDealerPayload {
     credit_limit?: number;
     max_debt_days?: number;
     transaction_count?: number | null;
+    warehouse_id?: string | null;
+    warehouse_name?: string | null;
 }
 
 export async function updateDealerProfile(

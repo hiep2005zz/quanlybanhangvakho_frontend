@@ -4,6 +4,10 @@ import {
   getOrdersApi,
   getOrderDetailApi,
   getOrderDealersApi,
+  getOrderPickingLocationsApi,
+  OrderPickingSummary,
+  OrderPickingItem,
+  ProductPickingLocationItem,
   OrderResponseData,
   User,
   ProductItem,
@@ -36,6 +40,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'PENDING_APPROVAL' | 'CONFIRMED' | 'REJECTED'>('ALL');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedOrderDetail, setSelectedOrderDetail] = useState<any | null>(null);
+  const [pickingSummary, setPickingSummary] = useState<OrderPickingSummary | null>(null);
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
   const [approvingOrder, setApprovingOrder] = useState<OrderResponseData | null>(null);
   const [rejectingOrder, setRejectingOrder] = useState<OrderResponseData | null>(null);
@@ -69,10 +74,15 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
 
   const handleOpenOrderDetail = async (order: OrderResponseData) => {
     setSelectedOrderDetail(order);
+    setPickingSummary(null);
     setIsLoadingDetail(true);
     try {
-      const detail = await getOrderDetailApi(token, order.order_code);
+      const [detail, picking] = await Promise.all([
+        getOrderDetailApi(token, order.order_code),
+        getOrderPickingLocationsApi(token, order.order_code).catch(() => null),
+      ]);
       setSelectedOrderDetail(detail);
+      if (picking) setPickingSummary(picking);
     } catch (err: any) {
       console.error('Không thể tải chi tiết đơn hàng:', err);
     } finally {
@@ -902,7 +912,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
             style={{
               background: '#ffffff',
               borderRadius: '16px',
-              maxWidth: '740px',
+              maxWidth: '920px',
               width: '100%',
               maxHeight: 'calc(100vh - 32px)',
               boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
@@ -996,13 +1006,62 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                 </div>
               )}
             {selectedOrderDetail.approval_reason && (
-              <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '8px', padding: '12px 14px', marginBottom: '16px', fontSize: '13px', color: '#b45309' }}>
+              <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '8px', padding: '12px 14px', fontSize: '13px', color: '#b45309' }}>
                 <strong>Lý do yêu cầu phê duyệt:</strong> {selectedOrderDetail.approval_reason}
               </div>
             )}
 
+            {/* Thông tin kho xuất hàng phục vụ */}
+            {pickingSummary && (
+              <div
+                style={{
+                  background: '#f0f9ff',
+                  border: '1px solid #bae6fd',
+                  borderRadius: '10px',
+                  padding: '12px 16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  gap: '12px',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div
+                    style={{
+                      width: '36px',
+                      height: '36px',
+                      borderRadius: '8px',
+                      background: '#0284c7',
+                      color: '#ffffff',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M3 21V9l9-7 9 7v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '12px', color: '#0369a1', fontWeight: '600', textTransform: 'uppercase' }}>
+                      Kho xuất hàng (Phục vụ đại lý {selectedOrderDetail.dealer_name})
+                    </div>
+                    <div style={{ fontSize: '15px', fontWeight: '700', color: '#0c4a6e' }}>
+                      {pickingSummary.warehouse_name} ({pickingSummary.warehouse_code})
+                    </div>
+                  </div>
+                </div>
+                {pickingSummary.warehouse_address && (
+                  <div style={{ fontSize: '12.5px', color: '#0369a1', background: '#e0f2fe', padding: '4px 10px', borderRadius: '6px' }}>
+                    Địa chỉ: {pickingSummary.warehouse_address}
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Thông tin giao hàng & người lên đơn */}
-            <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '14px 16px', marginBottom: '16px' }}>
+            <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '14px 16px' }}>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', fontSize: '13px' }}>
                 <div>
                   <span style={{ color: '#64748b' }}>Điểm giao hàng:</span>
@@ -1053,7 +1112,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
             >
               {isLoadingDetail ? (
                 <div style={{ padding: '30px', textAlign: 'center', color: '#64748b' }}>
-                  <div style={{ fontSize: '14px', fontWeight: '600' }}>Đang tải thông tin chi tiết các mặt hàng...</div>
+                  <div style={{ fontSize: '14px', fontWeight: '600' }}>Đang tải thông tin chi tiết các mặt hàng và vị trí kho...</div>
                 </div>
               ) : (!selectedOrderDetail.items || selectedOrderDetail.items.length === 0) ? (
                 <div style={{ padding: '24px', textAlign: 'center', color: '#64748b', background: '#f8fafc', borderRadius: '8px' }}>
@@ -1065,7 +1124,8 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                     <tr style={{ background: '#f8fafc', color: '#64748b', borderBottom: '1px solid #e2e8f0', position: 'sticky', top: 0 }}>
                       <th style={{ padding: '8px 12px', textAlign: 'left' }}>Sản phẩm</th>
                       <th style={{ padding: '8px 12px', textAlign: 'center' }}>ĐVT</th>
-                      <th style={{ padding: '8px 12px', textAlign: 'right' }}>Số lượng</th>
+                      <th style={{ padding: '8px 12px', textAlign: 'right' }}>SL đặt</th>
+                      <th style={{ padding: '8px 12px', textAlign: 'left' }}>Vị trí kệ & Tồn khả dụng</th>
                       <th style={{ padding: '8px 12px', textAlign: 'right' }}>Đơn giá</th>
                       <th style={{ padding: '8px 12px', textAlign: 'right' }}>Thành tiền</th>
                     </tr>
@@ -1076,6 +1136,13 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                       const qty = item.quantity || 1;
                       const price = item.price || 0;
                       const lineTotal = qty * price;
+                      const pickingItem = pickingSummary?.items.find((p: OrderPickingItem) => p.product_id === item.product_id);
+                      const totalAvailable = (pickingItem?.locations || []).reduce(
+                        (acc: number, l: ProductPickingLocationItem) => acc + (l.available_quantity || 0),
+                        0
+                      );
+                      const isSufficient = totalAvailable >= qty;
+
                       return (
                         <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
                           <td style={{ padding: '10px 12px', fontWeight: '500', color: '#0f172a' }}>
@@ -1094,8 +1161,52 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                               </span>
                             )}
                           </td>
-                          <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: '600', color: '#0f172a' }}>
+                          <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: '700', color: '#0f172a' }}>
                             {qty.toLocaleString('vi-VN')}
+                          </td>
+                          <td style={{ padding: '10px 12px' }}>
+                            {pickingItem && pickingItem.locations.length > 0 ? (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                {pickingItem.locations.map((loc: ProductPickingLocationItem) => (
+                                  <div
+                                    key={loc.location_id}
+                                    style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '6px',
+                                      background: '#f1f5f9',
+                                      border: '1px solid #cbd5e1',
+                                      borderRadius: '6px',
+                                      padding: '2px 8px',
+                                      fontSize: '12px',
+                                    }}
+                                  >
+                                    <span style={{ fontWeight: '700', color: '#1e293b' }}>
+                                      {loc.location_code}
+                                    </span>
+                                    <span style={{ color: '#64748b', fontSize: '11px' }}>
+                                      ({loc.zone}-{loc.aisle}/{loc.rack})
+                                    </span>
+                                    <span
+                                      style={{
+                                        marginLeft: 'auto',
+                                        color: loc.available_quantity >= qty ? '#16a34a' : '#d97706',
+                                        fontWeight: '600',
+                                      }}
+                                    >
+                                      SL: {loc.available_quantity}
+                                    </span>
+                                  </div>
+                                ))}
+                                <div style={{ fontSize: '11px', color: isSufficient ? '#16a34a' : '#dc2626', fontWeight: '600' }}>
+                                  {isSufficient
+                                    ? `✓ Đủ tồn (${totalAvailable} khả dụng)`
+                                    : `⚠ Thiếu (${totalAvailable}/${qty})`}
+                                </div>
+                              </div>
+                            ) : (
+                              <span style={{ color: '#b45309', fontSize: '12px' }}>Chưa xếp vị trí kệ</span>
+                            )}
                           </td>
                           <td style={{ padding: '10px 12px', textAlign: 'right', color: '#334155' }}>
                             {price.toLocaleString('vi-VN')} đ

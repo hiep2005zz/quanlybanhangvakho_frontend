@@ -16,7 +16,7 @@ import {
   getAppliedPriceBookPreview,
   AppliedPriceBookInfo,
 } from '../services/dealerSearchApi';
-import { User } from '../services/api';
+import { User, getWarehousesApi, WarehouseItem } from '../services/api';
 import { emitStatusToast } from './StatusToast';
 import './dealer-profile-management.css';
 
@@ -105,6 +105,7 @@ export default function DealerProfileManagementView({
   // Filter options from API
   const [regions, setRegions] = useState<string[]>(DEFAULT_REGIONS);
   const [salesList, setSalesList] = useState<{ id: number; name: string }[]>([]);
+  const [activeWarehouses, setActiveWarehouses] = useState<WarehouseItem[]>([]);
 
   // Modal Khai báo / Sửa đại lý
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
@@ -121,6 +122,8 @@ export default function DealerProfileManagementView({
     address: '',
     status: 'Đang hoạt động',
     transaction_count: '',
+    warehouse_id: '',
+    warehouse_name: '',
   });
   const [formError, setFormError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -173,6 +176,11 @@ export default function DealerProfileManagementView({
       }
       if (res.sales && res.sales.length > 0) {
         setSalesList(res.sales);
+      }
+      if (token) {
+        getWarehousesApi(token, '', 'Đang hoạt động')
+          .then((whs) => setActiveWarehouses(whs))
+          .catch(() => {});
       }
     } catch {
       // Backend error fallback
@@ -360,6 +368,8 @@ export default function DealerProfileManagementView({
       address: '',
       status: 'Đang hoạt động',
       transaction_count: '',
+      warehouse_id: activeWarehouses[0]?.id ? String(activeWarehouses[0].id) : '',
+      warehouse_name: activeWarehouses[0]?.name || '',
     });
     setIsFormModalOpen(true);
   };
@@ -385,6 +395,8 @@ export default function DealerProfileManagementView({
         dealer.transaction_count !== undefined && dealer.transaction_count !== null
           ? String(dealer.transaction_count)
           : '0',
+      warehouse_id: dealer.warehouse_id ? String(dealer.warehouse_id) : '',
+      warehouse_name: dealer.warehouse_name || '',
     });
     setIsFormModalOpen(true);
   };
@@ -450,6 +462,8 @@ export default function DealerProfileManagementView({
             address: formData.address.trim() || null,
             status: formData.status,
             transaction_count: validatedTxCount,
+            warehouse_id: formData.warehouse_id || null,
+            warehouse_name: formData.warehouse_name || null,
           },
           token
         );
@@ -469,6 +483,8 @@ export default function DealerProfileManagementView({
           email: formData.email.trim() || undefined,
           address: formData.address.trim() || undefined,
           status: formData.status,
+          warehouse_id: formData.warehouse_id || null,
+          warehouse_name: formData.warehouse_name || null,
         };
         await createDealer(payload, token);
         emitStatusToast({
@@ -966,7 +982,8 @@ export default function DealerProfileManagementView({
                 <thead>
                   <tr>
                     <th style={{ width: '95px' }}>Mã đại lý</th>
-                    <th style={{ width: '195px' }}>Tên đại lý</th>
+                    <th style={{ width: '180px' }}>Tên đại lý</th>
+                    <th style={{ width: '130px' }}>Kho phục vụ</th>
                     <th style={{ width: '110px' }}>Mã số thuế</th>
                     <th style={{ width: '120px' }}>Nhóm khách hàng</th>
                     <th style={{ width: '150px' }}>Bảng giá áp dụng</th>
@@ -1013,6 +1030,34 @@ export default function DealerProfileManagementView({
                               </svg>
                               <span>{dealer.phone}</span>
                             </div>
+                          )}
+                        </td>
+
+                        {/* 2b. Kho phục vụ mặc định */}
+                        <td>
+                          {dealer.warehouse_name ? (
+                            <span
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '5px',
+                                padding: '3px 8px',
+                                borderRadius: '6px',
+                                background: '#eff6ff',
+                                color: '#1d4ed8',
+                                fontSize: '12px',
+                                fontWeight: '600',
+                                border: '1px solid #bfdbfe'
+                              }}
+                              title={`Kho mặc định cấp hàng cho đại lý: ${dealer.warehouse_name}`}
+                            >
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M3 21V9l9-7 9 7v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                              </svg>
+                              {dealer.warehouse_name}
+                            </span>
+                          ) : (
+                            <span className="empty-subtext" title="Chưa thiết lập kho phục vụ mặc định">Tự động chọn</span>
                           )}
                         </td>
 
@@ -1536,7 +1581,45 @@ export default function DealerProfileManagementView({
                   </div>
                 </div>
 
-                {/* Hàng 5: Ràng buộc Số lượng giao dịch khi sửa & Địa chỉ */}
+                {/* Hàng 5: Kho phục vụ mặc định */}
+                <div className="form-group-item">
+                  <label>
+                    Kho phục vụ mặc định
+                    <span style={{ color: '#2563eb', fontSize: '12px', fontWeight: '500', marginLeft: '6px' }}>
+                      (Đề xuất xuất kho khi lên đơn & tra cứu vị trí kệ)
+                    </span>
+                  </label>
+                  <select
+                    className="form-input"
+                    value={formData.warehouse_id}
+                    onChange={(e) => {
+                      const selectedId = e.target.value;
+                      const selectedWh = activeWarehouses.find((w) => String(w.id) === selectedId);
+                      setFormData({
+                        ...formData,
+                        warehouse_id: selectedId,
+                        warehouse_name: selectedWh ? selectedWh.name : '',
+                      });
+                    }}
+                  >
+                    <option value="">-- Tự động theo khu vực / Chưa gán kho --</option>
+                    {activeWarehouses.map((wh) => (
+                      <option key={wh.id} value={wh.id}>
+                        {wh.code} - {wh.name} ({wh.address || 'Chưa có địa chỉ'})
+                      </option>
+                    ))}
+                  </select>
+                  {formData.warehouse_name && (
+                    <div style={{ marginTop: '4px', fontSize: '12px', color: '#16a34a', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                      <span>Kho đang gán: <strong>{formData.warehouse_name}</strong></span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Hàng 6: Ràng buộc Số lượng giao dịch khi sửa & Địa chỉ */}
                 <div className={editingDealer ? 'form-grid-2' : 'form-group-item'}>
                   {editingDealer && (
                     <div className="form-group-item">
