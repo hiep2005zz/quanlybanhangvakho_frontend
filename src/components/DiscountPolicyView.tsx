@@ -133,7 +133,7 @@ export default function DiscountPolicyView({ token, user, onBackToHome }: Discou
   // Xử lý xóa mốc sản lượng
   const handleRemoveTier = (id: string) => {
     if (formData.tiers.length === 1) {
-      emitStatusToast({ title: 'Lỗi', message: 'Chính sách phải có ít nhất 1 mốc chiết khấu!' });
+      emitStatusToast({ title: 'Lỗi', message: 'Chính sách phải có ít nhất 1 mốc chiết khấu!', type: 'error' });
       return;
     }
     setFormData({
@@ -159,12 +159,28 @@ export default function DiscountPolicyView({ token, user, onBackToHome }: Discou
   const handleSavePolicy = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!canManageDiscounts) {
-      emitStatusToast({ title: 'Từ chối', message: 'Chỉ Quản trị viên và Quản lý kinh doanh mới có quyền tạo chính sách chiết khấu!' });
+      emitStatusToast({ title: 'Từ chối', message: 'Chỉ Quản trị viên và Quản lý kinh doanh mới có quyền tạo chính sách chiết khấu!', type: 'error' });
       return;
     }
     if (!formData.title || !formData.code) {
-      emitStatusToast({ title: 'Lỗi', message: 'Vui lòng nhập đầy đủ Tên chính sách và Mã áp dụng!' });
+      emitStatusToast({ title: 'Lỗi nhập liệu', message: 'Vui lòng nhập đầy đủ Tên chính sách và Mã áp dụng!', type: 'error' });
       return;
+    }
+
+    for (let i = 0; i < formData.tiers.length; i++) {
+      const t = formData.tiers[i];
+      if (t.min_quantity < 0 || isNaN(t.min_quantity)) {
+        emitStatusToast({ title: 'Lỗi nhập liệu', message: `Mốc ${i + 1}: Số lượng tối thiểu phải lớn hơn hoặc bằng 0!`, type: 'error' });
+        return;
+      }
+      if (t.max_quantity !== null && t.max_quantity !== undefined && t.max_quantity < t.min_quantity) {
+        emitStatusToast({ title: 'Lỗi nhập liệu', message: `Mốc ${i + 1}: Số lượng tối đa phải lớn hơn hoặc bằng số lượng tối thiểu!`, type: 'error' });
+        return;
+      }
+      if (isNaN(t.discount_percent) || t.discount_percent < 0 || t.discount_percent > 100) {
+        emitStatusToast({ title: 'Lỗi nhập liệu', message: `Mốc ${i + 1}: Tỷ lệ chiết khấu phải từ 0% đến 100%!`, type: 'error' });
+        return;
+      }
     }
 
     try {
@@ -189,9 +205,9 @@ export default function DiscountPolicyView({ token, user, onBackToHome }: Discou
 
       await fetchPolicies();
       setIsModalOpen(false);
-      emitStatusToast({ title: 'Thành công', message: 'Khai báo chính sách chiết khấu sản lượng thành công!' });
+      emitStatusToast({ title: 'Thành công', message: 'Khai báo chính sách chiết khấu sản lượng thành công!', type: 'success' });
     } catch (err: any) {
-      emitStatusToast({ title: 'Lỗi', message: err?.message || 'Không thể tạo chính sách chiết khấu.' });
+      emitStatusToast({ title: 'Lỗi', message: err?.message || 'Không thể tạo chính sách chiết khấu.', type: 'error' });
     }
   };
 
@@ -199,7 +215,7 @@ export default function DiscountPolicyView({ token, user, onBackToHome }: Discou
   const handleDeletePolicy = async (id: string | undefined) => {
     if (!id) return;
     if (!canManageDiscounts) {
-      emitStatusToast({ title: 'Từ chối', message: 'Chỉ Quản trị viên và Quản lý kinh doanh mới có quyền xóa chính sách chiết khấu!' });
+      emitStatusToast({ title: 'Từ chối', message: 'Chỉ Quản trị viên và Quản lý kinh doanh mới có quyền xóa chính sách chiết khấu!', type: 'error' });
       return;
     }
     const targetPolicy = policies.find(p => p.id === id);
@@ -220,14 +236,14 @@ export default function DiscountPolicyView({ token, user, onBackToHome }: Discou
     const nextPolicies = policies.filter(p => p.id !== id);
     setPolicies(nextPolicies);
     localStorage.setItem('discountPolicies', JSON.stringify(nextPolicies));
-    emitStatusToast({ title: 'Thành công', message: 'Xóa chính sách thành công!' });
+    emitStatusToast({ title: 'Thành công', message: 'Xóa chính sách thành công!', type: 'success' });
   };
 
   // Ngừng áp dụng chính sách (cập nhật DB)
   const handleStopPolicy = async (id: string | undefined) => {
     if (!id) return;
     if (!canManageDiscounts) {
-      emitStatusToast({ title: 'Từ chối', message: 'Chỉ Quản trị viên và Quản lý kinh doanh mới có quyền ngừng áp dụng chính sách chiết khấu!' });
+      emitStatusToast({ title: 'Từ chối', message: 'Chỉ Quản trị viên và Quản lý kinh doanh mới có quyền ngừng áp dụng chính sách chiết khấu!', type: 'error' });
       return;
     }
     const targetPolicy = policies.find(p => p.id === id);
@@ -248,7 +264,7 @@ export default function DiscountPolicyView({ token, user, onBackToHome }: Discou
     const nextPolicies = policies.map(p => p.id === id ? { ...p, status: 'expired' as const } : p);
     setPolicies(nextPolicies);
     localStorage.setItem('discountPolicies', JSON.stringify(nextPolicies));
-    emitStatusToast({ title: 'Thành công', message: 'Đã ngừng áp dụng chính sách!' });
+    emitStatusToast({ title: 'Thành công', message: 'Đã ngừng áp dụng chính sách!', type: 'success' });
   };
 
   // Quay lại trang chủ (Kho hàng) an toàn
@@ -675,6 +691,7 @@ export default function DiscountPolicyView({ token, user, onBackToHome }: Discou
                       <span style={{ fontSize: '13px', color: '#64748b', minWidth: '50px' }}>Mốc {index + 1}:</span>
                       <input
                         type="number"
+                        min="0"
                         placeholder="Từ (SL)"
                         value={tier.min_quantity}
                         onChange={(e) => handleTierChange(tier.id, 'min_quantity', e.target.value)}
@@ -683,6 +700,7 @@ export default function DiscountPolicyView({ token, user, onBackToHome }: Discou
                       <span style={{ fontSize: '13px', color: '#64748b' }}>đến</span>
                       <input
                         type="number"
+                        min="0"
                         placeholder="Không giới hạn"
                         value={tier.max_quantity ?? ''}
                         onChange={(e) => handleTierChange(tier.id, 'max_quantity', e.target.value)}
@@ -691,6 +709,8 @@ export default function DiscountPolicyView({ token, user, onBackToHome }: Discou
                       <span style={{ fontSize: '13px', color: '#64748b' }}>sp ➔ Giảm</span>
                       <input
                         type="number"
+                        min="0"
+                        max="100"
                         step="0.5"
                         placeholder="%"
                         value={tier.discount_percent}

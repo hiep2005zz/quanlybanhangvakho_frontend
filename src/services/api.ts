@@ -20,6 +20,28 @@ export const AUTH_STORAGE = {
   EXPIRED_MESSAGE: 'auth_session_expired_message',
 };
 
+export function formatErrorMessage(detail: any, fallback: string = 'Đã có lỗi xảy ra'): string {
+  if (!detail) return fallback;
+  if (typeof detail === 'string') return detail;
+  if (Array.isArray(detail)) {
+    return detail
+      .map((d: any) => {
+        if (typeof d === 'string') return d;
+        if (d && typeof d === 'object') {
+          const msg = d.msg || d.message || JSON.stringify(d);
+          const loc = Array.isArray(d.loc) ? d.loc.filter((x: any) => x !== 'body').join('.') : '';
+          return loc ? `${loc}: ${msg}` : msg;
+        }
+        return String(d);
+      })
+      .join('; ');
+  }
+  if (typeof detail === 'object') {
+    return detail.message || detail.msg || detail.detail || JSON.stringify(detail);
+  }
+  return String(detail);
+}
+
 export interface User {
   id?: number;
   username: string;
@@ -1685,7 +1707,7 @@ export async function createDiscountPolicyApi(
   );
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(data.detail || `Lỗi tạo chính sách chiết khấu (Mã lỗi ${response.status})`);
+    throw new Error(formatErrorMessage(data.detail, `Lỗi tạo chính sách chiết khấu (Mã lỗi ${response.status})`));
   }
   return data;
 }
@@ -1707,7 +1729,7 @@ export async function updateDiscountPolicyApi(
   );
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(data.detail || `Lỗi cập nhật chính sách chiết khấu (Mã lỗi ${response.status})`);
+    throw new Error(formatErrorMessage(data.detail, `Lỗi cập nhật chính sách chiết khấu (Mã lỗi ${response.status})`));
   }
   return data;
 }

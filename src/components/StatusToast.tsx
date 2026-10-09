@@ -9,7 +9,7 @@ export const STATUS_TOAST_EXIT_MS = 460;     // BẮT BUỘC khớp với durati
 const STATUS_TOAST_EVENT = 'APP_STATUS_TOAST';
 
 export interface StatusToastPayload {
-  message: string;
+  message: string | any;
   title?: string;
   type?: 'success' | 'warning' | 'error' | 'info';
 }
@@ -24,8 +24,30 @@ export const emitStatusToast = (payload: StatusToastPayload) => {
 };
 
 /**
+ * Format error message nếu nhận vào object hoặc string [object Object]
+ */
+function cleanToastMessage(raw: any): string {
+  if (raw === null || raw === undefined) return '';
+  if (typeof raw === 'string') {
+    if (raw.includes('[object Object]')) {
+      return 'Dữ liệu không hợp lệ hoặc đã xảy ra lỗi từ hệ thống.';
+    }
+    return raw;
+  }
+  if (Array.isArray(raw)) {
+    return raw
+      .map((item) => (typeof item === 'object' ? item?.msg || item?.message || JSON.stringify(item) : String(item)))
+      .join('; ');
+  }
+  if (typeof raw === 'object') {
+    return raw.detail || raw.message || raw.msg || JSON.stringify(raw);
+  }
+  return String(raw);
+}
+
+/**
  * "Ổ" hiển thị thông báo nổi.
- * Chỉ cần mount MỘT lần duy nhất ở gốc giao diện đã đăng nhập (DashboardPage).
+ * Mount MỘT lần duy nhất ở gốc giao diện (DashboardPage).
  */
 export const StatusToastHost: React.FC = () => {
   const [message, setMessage] = useState<string | null>(null);
@@ -38,13 +60,49 @@ export const StatusToastHost: React.FC = () => {
   useEffect(() => {
     const handleToast = (e: Event) => {
       const d = (e as CustomEvent<StatusToastPayload>).detail;
-      if (!d || !d.message) return;
-      setMessage(d.message);
-      setTitle(d.title ?? 'Thông báo hệ thống');
-      setToastType(d.type ?? 'success');
+      if (!d) return;
+
+      const cleanedMsg = cleanToastMessage(d.message);
+      if (!cleanedMsg) return;
+
+      const rawTitle = d.title ?? 'Thông báo hệ thống';
+      const lowerTitle = rawTitle.toLowerCase();
+      const lowerMsg = cleanedMsg.toLowerCase();
+
+      // Tự động nhận diện loại thông báo nếu chưa truyền hoặc có dấu hiệu lỗi / cảnh báo
+      let determinedType = d.type;
+      if (!determinedType) {
+        if (
+          lowerTitle.includes('lỗi') ||
+          lowerTitle.includes('thất bại') ||
+          lowerTitle.includes('từ chối') ||
+          lowerTitle.includes('error') ||
+          lowerTitle.includes('fail') ||
+          lowerTitle.includes('hỏng') ||
+          lowerMsg.includes('lỗi') ||
+          lowerMsg.includes('thất bại')
+        ) {
+          determinedType = 'error';
+        } else if (
+          lowerTitle.includes('cảnh báo') ||
+          lowerTitle.includes('chú ý') ||
+          lowerTitle.includes('warning')
+        ) {
+          determinedType = 'warning';
+        } else if (lowerTitle.includes('thông tin') || lowerTitle.includes('info')) {
+          determinedType = 'info';
+        } else {
+          determinedType = 'success';
+        }
+      }
+
+      setMessage(cleanedMsg);
+      setTitle(rawTitle);
+      setToastType(determinedType);
       setIsExiting(false);
       setSeq((s) => s + 1);
     };
+
     window.addEventListener(STATUS_TOAST_EVENT, handleToast);
     return () => window.removeEventListener(STATUS_TOAST_EVENT, handleToast);
   }, []);
@@ -55,7 +113,6 @@ export const StatusToastHost: React.FC = () => {
     const hideTimer = setTimeout(() => {
       setIsExiting(true);
     }, STATUS_TOAST_VISIBLE_MS);
-    // Gỡ khỏi DOM SAU khi hiệu ứng trượt ra đã chạy xong hoàn toàn (tránh bị cắt cụt hiệu ứng)
     const removeTimer = setTimeout(() => {
       setMessage(null);
       setIsExiting(false);
@@ -72,15 +129,17 @@ export const StatusToastHost: React.FC = () => {
   const isError = toastType === 'error';
   const isInfo = toastType === 'info';
 
-  const borderColor = isWarning ? '#fed7aa' : isError ? '#fecaca' : isInfo ? '#bfdbfe' : '#bbf7d0';
-  const borderLeftColor = isWarning ? '#f59e0b' : isError ? '#ef4444' : isInfo ? '#3b82f6' : '#16a34a';
-  const textColor = isWarning ? '#9a3412' : isError ? '#991b1b' : isInfo ? '#1e40af' : '#166534';
-  const titleColor = isWarning ? '#7c2d12' : isError ? '#7f1d1d' : isInfo ? '#1e3a8a' : '#15803d';
-  const closeColor = isWarning ? '#c2410c' : isError ? '#b91c1c' : isInfo ? '#2563eb' : '#15803d';
-  const progressBg = isWarning
+  // Màu sắc thiết kế: khi lỗi thì ĐỎ RỰC RỠ rõ ràng
+  const borderColor = isError ? '#fca5a5' : isWarning ? '#fed7aa' : isInfo ? '#bfdbfe' : '#bbf7d0';
+  const borderLeftColor = isError ? '#dc2626' : isWarning ? '#f59e0b' : isInfo ? '#3b82f6' : '#16a34a';
+  const titleColor = isError ? '#dc2626' : isWarning ? '#c2410c' : isInfo ? '#1d4ed8' : '#15803d';
+  const textColor = isError ? '#991b1b' : isWarning ? '#9a3412' : isInfo ? '#1e40af' : '#166534';
+  const bgColor = isError ? '#fef2f2' : isWarning ? '#fffbeb' : isInfo ? '#eff6ff' : '#ffffff';
+  const closeColor = isError ? '#dc2626' : isWarning ? '#c2410c' : isInfo ? '#2563eb' : '#15803d';
+  const progressBg = isError
+    ? 'linear-gradient(90deg, #f87171, #dc2626)'
+    : isWarning
     ? 'linear-gradient(90deg, #fcd34d, #f59e0b)'
-    : isError
-    ? 'linear-gradient(90deg, #f87171, #ef4444)'
     : isInfo
     ? 'linear-gradient(90deg, #60a5fa, #3b82f6)'
     : 'linear-gradient(90deg, #34d399, #16a34a)';
@@ -96,33 +155,67 @@ export const StatusToastHost: React.FC = () => {
         right: '20px',
         bottom: '20px',
         zIndex: 100000,
-        width: 'min(340px, calc(100vw - 24px))',
+        width: 'min(360px, calc(100vw - 24px))',
         boxSizing: 'border-box',
         display: 'flex',
         alignItems: 'flex-start',
         gap: '10px',
-        padding: '10px 12px',
+        padding: '12px 14px',
         border: `1px solid ${borderColor}`,
-        borderLeft: `3px solid ${borderLeftColor}`,
+        borderLeft: `4px solid ${borderLeftColor}`,
         borderRadius: '10px',
         overflow: 'hidden',
-        background: '#ffffff',
+        background: bgColor,
         color: textColor,
-        boxShadow: '0 10px 24px rgba(15, 23, 42, 0.16)',
+        boxShadow: isError
+          ? '0 10px 25px rgba(220, 38, 38, 0.18), 0 4px 10px rgba(0, 0, 0, 0.05)'
+          : '0 10px 24px rgba(15, 23, 42, 0.16)',
         willChange: 'transform, opacity',
         animation: isExiting
           ? `accountStatusToastExit ${STATUS_TOAST_EXIT_MS}ms cubic-bezier(0.55, 0, 1, 0.45) forwards`
           : 'accountStatusToastEnter 620ms cubic-bezier(0.22, 1, 0.36, 1) both',
       }}
     >
+      {/* Icon trạng thái */}
+      <div style={{ flexShrink: 0, marginTop: '1px' }}>
+        {isError && (
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="8" x2="12" y2="12" />
+            <line x1="12" y1="16" x2="12.01" y2="16" />
+          </svg>
+        )}
+        {isWarning && (
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
+            <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
+            <line x1="12" y1="9" x2="12" y2="13" />
+            <line x1="12" y1="17" x2="12.01" y2="17" />
+          </svg>
+        )}
+        {!isError && !isWarning && !isInfo && (
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+            <polyline points="22 4 12 14.01 9 11.01" />
+          </svg>
+        )}
+        {isInfo && (
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="16" x2="12" y2="12" />
+            <line x1="12" y1="8" x2="12.01" y2="8" />
+          </svg>
+        )}
+      </div>
+
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: '13px', fontWeight: 700, marginBottom: '2px', color: titleColor }}>
+        <div style={{ fontSize: '13.5px', fontWeight: 700, marginBottom: '2px', color: titleColor }}>
           {title}
         </div>
-        <div style={{ fontSize: '12px', lineHeight: 1.45, overflowWrap: 'anywhere' }}>
+        <div style={{ fontSize: '12.5px', lineHeight: 1.45, overflowWrap: 'anywhere', color: textColor }}>
           {message}
         </div>
       </div>
+
       <button
         type="button"
         aria-label="Đóng thông báo"
@@ -134,13 +227,15 @@ export const StatusToastHost: React.FC = () => {
           background: 'transparent',
           color: closeColor,
           cursor: 'pointer',
-          fontSize: '16px',
+          fontSize: '18px',
           lineHeight: 1,
+          fontWeight: 700,
         }}
       >
         ×
       </button>
-      {/* Thanh tiến trình đếm ngược thời gian tự ẩn của thông báo */}
+
+      {/* Thanh tiến trình đếm ngược thời gian tự ẩn */}
       <span
         aria-hidden="true"
         className="status-toast-progress"
