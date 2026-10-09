@@ -38,7 +38,8 @@ export const OrderListView: React.FC<OrderListViewProps> = ({
   const isAdmin = currentUser.role === 'admin' || rawRoles.includes('admin');
   const isSalesManager = currentUser.role === 'sales_manager' || rawRoles.includes('sales_manager');
   const isSales = (currentUser.role === 'sales' || rawRoles.includes('sales')) && !(isAdmin || isSalesManager);
-  const isCustomer = currentUser.role === 'customer' || rawRoles.includes('customer');
+  const isAccountant = currentUser.role === 'accountant' || rawRoles.includes('accountant');
+  const canCreateOrders = !isAccountant && (isAdmin || isSalesManager || currentUser.role === 'sales' || rawRoles.includes('sales'));
   const canApprove = isAdmin || isSalesManager;
 
   // 2. State dữ liệu danh mục phụ trợ
@@ -292,7 +293,7 @@ export const OrderListView: React.FC<OrderListViewProps> = ({
             Làm mới
           </button>
 
-          {!isCustomer && (
+          {canCreateOrders && (
             <button
               type="button"
               id="btn-create-order"
@@ -556,127 +557,319 @@ export const OrderListView: React.FC<OrderListViewProps> = ({
           </div>
         )}
 
-        {/* Bảng Dữ Liệu Đơn Hàng (Data Table) */}
-        <div className="overflow-x-auto">
-          <table id="orders-table" className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-bold uppercase text-slate-600 tracking-wider">
-                <th className="py-2.5 px-3.5">Mã đơn hàng</th>
-                <th className="py-2.5 px-3.5">Khách hàng / Đại lý</th>
-                <th className="py-2.5 px-3.5">Khu vực</th>
-                <th className="py-2.5 px-3.5">Người lên đơn / Phụ trách</th>
-                <th className="py-2.5 px-3.5">Ngày tạo</th>
-                <th className="py-2.5 px-3.5 text-right">Tổng tiền</th>
-                <th className="py-2.5 px-3.5 text-center">Trạng thái đơn</th>
-                <th className="py-2.5 px-3.5 text-center">Thao tác</th>
+        {/* Bảng Dữ Liệu Đơn Hàng (Data Table - Chuẩn giao diện gốc theo yêu cầu) */}
+        <div className="overflow-x-auto roles-grid-scroll">
+          <table
+            id="orders-table"
+            className="w-full text-left border-collapse"
+            style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}
+          >
+            <thead style={{ position: 'sticky', top: 0, zIndex: 10, background: '#f8fafc' }}>
+              <tr style={{ background: '#f8fafc', color: '#64748b', borderBottom: '1px solid #e2e8f0', fontSize: '11.5px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                <th style={{ padding: '9px 12px', fontWeight: '700', background: '#f8fafc', whiteSpace: 'nowrap' }}>MÃ ĐƠN</th>
+                <th style={{ padding: '9px 12px', fontWeight: '700', background: '#f8fafc' }}>KHÁCH HÀNG / ĐẠI LÝ</th>
+                <th style={{ padding: '9px 12px', fontWeight: '700', background: '#f8fafc', whiteSpace: 'nowrap' }}>NGƯỜI LÊN ĐƠN</th>
+                <th style={{ padding: '9px 12px', fontWeight: '700', textAlign: 'right', background: '#f8fafc', whiteSpace: 'nowrap' }}>TỔNG GIÁ TRỊ</th>
+                <th style={{ padding: '9px 12px', fontWeight: '700', textAlign: 'center', background: '#f8fafc', whiteSpace: 'nowrap', minWidth: '155px' }}>TRẠNG THÁI DUYỆT</th>
+                <th style={{ padding: '9px 12px', fontWeight: '700', background: '#f8fafc' }}>LÝ DO CẢNH BÁO</th>
+                <th style={{ padding: '9px 14px', fontWeight: '700', textAlign: 'right', background: '#f8fafc', whiteSpace: 'nowrap', minWidth: '220px' }}>THAO TÁC</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 text-xs text-slate-700">
+            <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={8} className="py-12 text-center text-slate-400">
+                  <td colSpan={7} style={{ padding: '60px', textAlign: 'center', color: '#64748b' }}>
                     <div className="flex items-center justify-center gap-2">
                       <div className="w-4 h-4 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
-                      <span>Đang tải dữ liệu đơn hàng...</span>
+                      <span style={{ fontSize: '14px', fontWeight: '600' }}>Đang tải danh sách đơn hàng...</span>
                     </div>
                   </td>
                 </tr>
               ) : orders.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-12 text-center text-slate-400">
-                    Không tìm thấy đơn hàng nào phù hợp với bộ lọc hiện tại.
+                  <td colSpan={7} style={{ padding: '60px 20px', textAlign: 'center', color: '#64748b' }}>
+                    <div style={{ fontSize: '15px', fontWeight: '700', color: '#334155' }}>Không có đơn hàng nào phù hợp</div>
+                    <p style={{ fontSize: '13.5px', color: '#94a3b8', marginTop: '6px' }}>
+                      Không tìm thấy đơn hàng nào phù hợp với bộ lọc hiện tại.
+                    </p>
                   </td>
                 </tr>
               ) : (
-                orders.map((o) => (
-                  <tr
-                    key={o.id || o.order_code}
-                    className="hover:bg-slate-50/80 transition-colors cursor-pointer"
-                    onClick={() => handleOpenOrderDetail(o)}
-                  >
-                    {/* 1. Mã đơn */}
-                    <td className="py-2.5 px-3.5 font-bold text-emerald-700 whitespace-nowrap">
-                      {o.order_code}
-                    </td>
+                orders.map((order, idx) => {
+                  const isPending = order.status === 'PENDING_APPROVAL' || order.status === 'PENDING';
+                  const isRejected = order.status === 'REJECTED';
+                  const isConfirmed = order.status === 'CONFIRMED';
+                  const isCancelled = order.status === 'CANCELLED';
 
-                    {/* 2. Đại lý */}
-                    <td className="py-2.5 px-3.5 font-medium text-slate-800">
-                      <div>{o.dealer_name || 'Khách vãng lai'}</div>
-                      {o.dealer_lock_reason && !isCustomer && (
-                        <div className="text-[10px] text-amber-700">Lý do khóa: {o.dealer_lock_reason}</div>
-                      )}
-                    </td>
+                  return (
+                    <tr
+                      key={order.id || order.order_code}
+                      onClick={() => handleOpenOrderDetail(order)}
+                      style={{
+                        borderBottom: '1px solid #f1f5f9',
+                        background: isPending ? '#fffbeb' : idx % 2 === 0 ? '#ffffff' : '#fcfdfd',
+                        transition: 'background 0.15s ease',
+                        cursor: 'pointer',
+                      }}
+                      className="hover:opacity-95"
+                    >
+                      {/* 1. Mã đơn */}
+                      <td style={{ padding: '9px 12px', fontFamily: 'monospace', fontWeight: '700', color: '#1e293b', fontSize: '12px', whiteSpace: 'nowrap' }}>
+                        {order.order_code}
+                      </td>
 
-                    {/* 3. Khu vực */}
-                    <td className="py-2.5 px-3.5 text-slate-600 whitespace-nowrap">
-                      {o.region || '—'}
-                    </td>
+                      {/* 2. Khách hàng / Đại lý */}
+                      <td style={{ padding: '9px 12px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                          <span style={{ fontWeight: '600', color: '#0f172a', fontSize: '12.5px', lineHeight: '1.3' }}>
+                            {order.dealer_name || 'Khách vãng lai'}
+                          </span>
+                          {Boolean(
+                            (order.dealer_status &&
+                              (order.dealer_status.toLowerCase().includes('khóa') ||
+                               order.dealer_status.toLowerCase().includes('lock') ||
+                               order.dealer_status.toLowerCase().includes('ngừng'))) ||
+                            order.dealer_lock_reason
+                          ) && (
+                            <span
+                              style={{
+                                background: '#fee2e2',
+                                color: '#b91c1c',
+                                border: '1px solid #fca5a5',
+                                borderRadius: '4px',
+                                padding: '1px 6px',
+                                fontSize: '11px',
+                                fontWeight: 750,
+                              }}
+                              title={order.dealer_lock_reason ? `Lý do: ${order.dealer_lock_reason}` : 'Đại lý bị khóa giao dịch'}
+                            >
+                              Đã khóa
+                            </span>
+                          )}
+                        </div>
+                        <div style={{ fontSize: '11px', color: '#64748b', marginTop: '1px' }}>
+                          Mã khách hàng: #{order.dealer_id || (order.id ? order.id : '—')}
+                        </div>
+                      </td>
 
-                    {/* 4. Nhân viên phụ trách */}
-                    <td className="py-2.5 px-3.5 text-slate-600 whitespace-nowrap">
-                      {o.assigned_sale_name || o.created_by || '—'}
-                    </td>
+                      {/* 3. Người lên đơn */}
+                      <td style={{ padding: '9px 12px', whiteSpace: 'nowrap' }}>
+                        <div style={{ fontWeight: '600', color: '#0f172a', fontSize: '12px' }}>
+                          {order.created_by || order.assigned_sale_name || '—'}
+                        </div>
+                      </td>
 
-                    {/* 5. Ngày tạo */}
-                    <td className="py-2.5 px-3.5 text-slate-500 whitespace-nowrap">
-                      {formatDateTime(o.created_at)}
-                    </td>
+                      {/* 4. Tổng giá trị */}
+                      <td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: '700', color: '#0f172a', fontSize: '12.5px', whiteSpace: 'nowrap' }}>
+                        {(order.total_amount || 0).toLocaleString('vi-VN')} đồng
+                      </td>
 
-                    {/* 6. Tổng tiền */}
-                    <td className="py-2.5 px-3.5 text-right font-bold text-slate-900 whitespace-nowrap">
-                      {(o.total_amount || 0).toLocaleString('vi-VN')} đ
-                    </td>
-
-                    {/* 7. Trạng thái */}
-                    <td className="py-2.5 px-3.5 text-center whitespace-nowrap">
-                      <div className="inline-flex items-center gap-1">
-                        {renderStatusBadge(o.status)}
-                        {o.approval_reason && (
+                      {/* 5. Trạng thái duyệt */}
+                      <td style={{ padding: '9px 12px', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                        {isPending ? (
                           <span
-                            className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800"
-                            title={o.approval_reason}
+                            style={{
+                              display: 'inline-block',
+                              background: '#fef3c7',
+                              color: '#92400e',
+                              border: '1px solid #fde68a',
+                              borderRadius: '999px',
+                              padding: '2.5px 10px',
+                              fontSize: '11.5px',
+                              fontWeight: '600',
+                              whiteSpace: 'nowrap',
+                            }}
                           >
-                            Giá sàn
+                            Chờ quản lý duyệt
+                          </span>
+                        ) : isConfirmed ? (
+                          <span
+                            style={{
+                              display: 'inline-block',
+                              background: '#dcfce7',
+                              color: '#15803d',
+                              border: '1px solid #bbf7d0',
+                              borderRadius: '999px',
+                              padding: '2.5px 10px',
+                              fontSize: '11.5px',
+                              fontWeight: '600',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            Đã duyệt
+                          </span>
+                        ) : isRejected ? (
+                          <span
+                            style={{
+                              display: 'inline-block',
+                              background: '#fee2e2',
+                              color: '#b91c1c',
+                              border: '1px solid #fecaca',
+                              borderRadius: '999px',
+                              padding: '2.5px 10px',
+                              fontSize: '11.5px',
+                              fontWeight: '600',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            Bị từ chối
+                          </span>
+                        ) : isCancelled ? (
+                          <span
+                            style={{
+                              display: 'inline-block',
+                              background: '#f1f5f9',
+                              color: '#64748b',
+                              border: '1px solid #cbd5e1',
+                              borderRadius: '999px',
+                              padding: '2.5px 10px',
+                              fontSize: '11.5px',
+                              fontWeight: '600',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            Đã hủy
+                          </span>
+                        ) : (
+                          <span
+                            style={{
+                              background: '#f1f5f9',
+                              color: '#64748b',
+                              borderRadius: '999px',
+                              padding: '2.5px 10px',
+                              fontSize: '11.5px',
+                              fontWeight: '600',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            {order.status === 'CANCELLED' ? 'Đã hủy' : order.status}
                           </span>
                         )}
-                      </div>
-                    </td>
+                      </td>
 
-                    {/* 8. Thao tác */}
-                    <td
-                      className="py-2.5 px-3.5 text-center whitespace-nowrap"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <div className="flex items-center justify-center gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => handleOpenOrderDetail(o)}
-                          className="px-2 py-1 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded transition-colors"
-                        >
-                          Chi tiết
-                        </button>
-                        {canApprove && (o.status === 'PENDING_APPROVAL' || o.status === 'PENDING') && (
-                          <>
-                            <button
-                              type="button"
-                              onClick={() => setApprovingOrder(o)}
-                              className="px-2 py-1 text-xs font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded transition-colors"
-                            >
-                              Duyệt
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setRejectingOrder(o)}
-                              className="px-2 py-1 text-xs font-bold text-rose-800 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded transition-colors"
-                            >
-                              Từ chối
-                            </button>
-                          </>
+                      {/* 6. Lý do cảnh báo */}
+                      <td style={{ padding: '9px 12px', maxWidth: '320px' }}>
+                        {Boolean(
+                          (order.dealer_status &&
+                            (order.dealer_status.toLowerCase().includes('khóa') ||
+                             order.dealer_status.toLowerCase().includes('lock'))) ||
+                          order.dealer_lock_reason
+                        ) && (
+                          <div style={{ fontSize: '11.5px', color: '#dc2626', fontWeight: '600', marginBottom: order.approval_reason ? '3px' : '0' }}>
+                            Đại lý bị khóa giao dịch (Cần kiểm tra công nợ)
+                          </div>
                         )}
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                        {order.approval_reason ? (
+                          <div style={{ fontSize: '11.5px', color: isRejected ? '#dc2626' : '#b45309', fontWeight: '500', lineHeight: '1.35' }}>
+                            {order.approval_reason}
+                          </div>
+                        ) : order.approved_by ? (
+                          <div style={{ fontSize: '11.5px', color: '#16a34a', fontWeight: '500' }}>
+                            Duyệt bởi @{order.approved_by}
+                          </div>
+                        ) : isPending ? (
+                          <div style={{ fontSize: '11.5px', color: '#b45309', fontWeight: '500' }}>
+                            {order.discount_rate && order.discount_rate > 0
+                              ? `Chiết khấu (${order.discount_rate}%) vượt hạn mức cần duyệt`
+                              : 'Bán dưới giá sàn cần quản lý duyệt'}
+                          </div>
+                        ) : !Boolean(
+                          order.dealer_status &&
+                          (order.dealer_status.toLowerCase().includes('khóa') ||
+                           order.dealer_status.toLowerCase().includes('lock'))
+                        ) ? (
+                          <span style={{ color: '#94a3b8', fontSize: '11.5px' }}>Đơn giá chuẩn bảng giá</span>
+                        ) : null}
+                      </td>
+
+                      {/* 7. Thao tác */}
+                      <td style={{ padding: '9px 14px', textAlign: 'right', whiteSpace: 'nowrap' }} onClick={(e) => e.stopPropagation()}>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px', whiteSpace: 'nowrap' }}>
+                          {isPending && canApprove && (
+                            <>
+                              <button
+                                type="button"
+                                id={`btn-approve-order-${order.order_code}`}
+                                onClick={() => setApprovingOrder(order)}
+                                style={{
+                                  padding: '5px 10px',
+                                  background: '#16a34a',
+                                  border: 'none',
+                                  borderRadius: '6px',
+                                  color: '#ffffff',
+                                  fontSize: '12px',
+                                  fontWeight: '600',
+                                  cursor: 'pointer',
+                                  whiteSpace: 'nowrap',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  height: '28px',
+                                  boxSizing: 'border-box',
+                                  transition: 'all 0.15s ease',
+                                }}
+                                title="Phê duyệt đơn hàng bán dưới giá sàn"
+                              >
+                                Duyệt đơn
+                              </button>
+
+                              <button
+                                type="button"
+                                id={`btn-reject-order-${order.order_code}`}
+                                onClick={() => setRejectingOrder(order)}
+                                style={{
+                                  padding: '5px 10px',
+                                  background: '#dc2626',
+                                  border: 'none',
+                                  borderRadius: '6px',
+                                  color: '#ffffff',
+                                  fontSize: '12px',
+                                  fontWeight: '600',
+                                  cursor: 'pointer',
+                                  whiteSpace: 'nowrap',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  height: '28px',
+                                  boxSizing: 'border-box',
+                                  transition: 'all 0.15s ease',
+                                }}
+                                title="Từ chối đơn hàng bán dưới giá sàn"
+                              >
+                                Từ chối
+                              </button>
+                            </>
+                          )}
+
+                          <button
+                            type="button"
+                            onClick={() => handleOpenOrderDetail(order)}
+                            style={{
+                              padding: '5px 10px',
+                              background: '#f1f5f9',
+                              border: '1px solid #cbd5e1',
+                              borderRadius: '6px',
+                              color: '#334155',
+                              fontSize: '12px',
+                              fontWeight: '600',
+                              cursor: 'pointer',
+                              whiteSpace: 'nowrap',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              height: '28px',
+                              boxSizing: 'border-box',
+                              transition: 'all 0.15s ease',
+                            }}
+                            title="Xem chi tiết các mặt hàng"
+                          >
+                            Chi tiết
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
