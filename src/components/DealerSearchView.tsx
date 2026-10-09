@@ -138,7 +138,7 @@ export default function DealerSearchView({
     const [isCreateOrderModalOpen, setIsCreateOrderModalOpen] = useState(false);
     const [productsForOrder, setProductsForOrder] = useState<ProductItem[]>([]);
 
-    // State cho SCRUM-48: Phân công
+    // State cho Phân công
     const [selectedDealerIds, setSelectedDealerIds] = useState<number[]>([]);
     const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
     const [isBulkAssignModalOpen, setIsBulkAssignModalOpen] = useState(false);
@@ -146,7 +146,7 @@ export default function DealerSearchView({
     const [newSaleIdForAssign, setNewSaleIdForAssign] = useState<string>('');
     const [assignReason, setAssignReason] = useState<string>('');
 
-    // State cho SCRUM-48: Lịch sử phân công
+    // State cho Lịch sử phân công
     const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
     const [historyTargetDealer, setHistoryTargetDealer] = useState<DealerSearchItem | null>(null);
     const [historyLogs, setHistoryLogs] = useState<any[]>([]);
@@ -215,7 +215,7 @@ export default function DealerSearchView({
         }
     };
 
-    // State cho SCRUM: Cập nhật hạn mức công nợ
+    // State cho Cập nhật hạn mức công nợ
     const [isCreditModalOpen, setIsCreditModalOpen] = useState(false);
     const [creditTargetDealer, setCreditTargetDealer] = useState<DealerSearchItem | null>(null);
     const [creditLimitData, setCreditLimitData] = useState<{

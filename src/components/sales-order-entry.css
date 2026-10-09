@@ -622,7 +622,7 @@
   line-height: 1.35;
 }
 
-/* SCRUM-56 Available Stock & Serving Warehouse Styles */
+/* Available Stock & Serving Warehouse Styles */
 .serving-warehouse-badge {
   display: inline-flex;
   align-items: center;
@@ -635,10 +635,6 @@
   font-size: 13px;
   font-weight: 600;
   margin-bottom: 14px;
-}
-
-.serving-warehouse-badge .warehouse-icon {
-  font-size: 16px;
 }
 
 .sales-order-stock-info {
@@ -714,4 +710,3 @@
   background-color: #fef2f2 !important;
   box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2) !important;
 }
-
