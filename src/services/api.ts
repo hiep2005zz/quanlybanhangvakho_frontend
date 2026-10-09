@@ -253,6 +253,39 @@ export interface InventoryResponse {
   transaction?: InventoryTransaction;
 }
 
+export interface AvailableStockInfo {
+  product_id: number;
+  product_code: string;
+  product_name: string;
+  dealer_id: number;
+  dealer_name: string;
+  warehouse_id: string;
+  warehouse_name: string;
+  actual_stock: number;
+  reserved_stock: number;
+  available_stock: number;
+  base_unit: string;
+}
+
+export interface ProductStockSummaryItem {
+  product_id: number;
+  product_code: string;
+  product_name: string;
+  base_unit: string;
+  actual_stock: number;
+  reserved_stock: number;
+  available_stock: number;
+}
+
+export interface DealerStockSummaryResponse {
+  dealer_id: number;
+  dealer_name: string;
+  warehouse_id: string;
+  warehouse_name: string;
+  items: ProductStockSummaryItem[];
+}
+
+
 function getApiErrorMessage(data: unknown, fallback: string): string {
   if (typeof data !== 'object' || data === null || !('detail' in data)) return fallback;
   const detail = data.detail;
@@ -816,6 +849,40 @@ export async function updateProductUnitsApi(
   }
   return data;
 }
+
+export async function getAvailableStockApi(
+  token: string,
+  dealerId: number,
+  productId: number
+): Promise<AvailableStockInfo> {
+  const response = await authenticatedFetch(
+    `${API_BASE_URL}/inventory/available-stock?dealer_id=${dealerId}&product_id=${productId}`,
+    {},
+    token
+  );
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi kiểm tra tồn khả dụng (Mã lỗi ${response.status})`);
+  }
+  return data;
+}
+
+export async function getDealerStockSummaryApi(
+  token: string,
+  dealerId: number
+): Promise<DealerStockSummaryResponse> {
+  const response = await authenticatedFetch(
+    `${API_BASE_URL}/inventory/dealer-stock-summary/${dealerId}`,
+    {},
+    token
+  );
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi lấy tồn khả dụng theo đại lý (Mã lỗi ${response.status})`);
+  }
+  return data;
+}
+
 
 
 export interface UserAccount {
