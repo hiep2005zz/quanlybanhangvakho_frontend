@@ -32,7 +32,7 @@ import './dashboard.css';
 import { Sidebar, type TabType } from './Sidebar';
 import { DashboardHeader } from './DashboardHeader';
 import { DashboardLayout } from '../layouts/DashboardLayout';
-import { hasPermission, Permissions } from '../hooks/usePermission';
+import { getOrderPermissionTier } from '../utils/orderPermissions';
 
 interface DashboardProps {
   user: User;
@@ -62,8 +62,9 @@ export default function DashboardPage({
     (!user.branch || user.branch === 'Chưa phân công');
   const isAdmin = user.role === 'admin' || Boolean(user.roles && user.roles.includes('admin'));
   const isAccountant = user.role === 'accountant' || Boolean(user.roles && user.roles.includes('accountant'));
-  const canReadOrders = hasPermission(user, Permissions.ORDER_READ) || user.role === 'sales' || Boolean(user.roles && user.roles.includes('sales')) || isAccountant;
-  const canCreateOrders = !isAccountant && (hasPermission(user, Permissions.ORDER_WRITE) || user.role === 'sales' || Boolean(user.roles && user.roles.includes('sales')));
+  const orderPermTier = getOrderPermissionTier(user);
+  const canReadOrders = orderPermTier !== 'NO_ACCESS';
+  const canCreateOrders = orderPermTier === 'FULL_ACCESS' && !isAccountant;
   const isSalesManager = user.role === 'sales_manager' || Boolean(user.roles && user.roles.includes('sales_manager'));
   const canAccessDiscounts =
     isAdmin ||
@@ -619,7 +620,7 @@ export default function DashboardPage({
     return c ? { code: c, name: n } : null;
   });
 
-  // SCRUM Unit Conversion Modals State
+  // Unit Conversion Modals State
   const [unitConfigProduct, setUnitConfigProduct] = useState<ProductItem | null>(null);
   const [stockActionState, setStockActionState] = useState<{
     isOpen: boolean;
@@ -2621,7 +2622,7 @@ export default function DashboardPage({
         />
       )}
 
-      {/* SCRUM Unit Conversion Modals */}
+      {/* Unit Conversion Modals */}
       {unitConfigProduct && (
         <ProductUnitModal
           isOpen={Boolean(unitConfigProduct)}

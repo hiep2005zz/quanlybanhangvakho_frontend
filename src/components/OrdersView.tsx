@@ -1,13 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
-import { cancelOrderApi, createOrderApi, getOrderDealersApi, getOrdersApi, OrderDealer, OrderItem, ProductItem } from '../services/api';
+import { cancelOrderApi, createOrderApi, getOrderDealersApi, getOrdersApi, OrderDealer, OrderItem, ProductItem, User } from '../services/api';
 import { emitStatusToast } from './StatusToast';
 import OrderDetailsModal from './OrderDetailsModal';
 import OrderCancelConfirmModal from './OrderCancelConfirmModal';
+import { isOrderPastExported } from '../utils/orderPermissions';
 import './orders-view.css';
 
 interface OrdersViewProps {
   token: string;
   username: string;
+  currentUser?: User;
   products: ProductItem[];
   canCreateOrders: boolean;
   canManageOrders: boolean;
@@ -65,7 +67,7 @@ const getStatusLabel = (status: string) => {
   }
 };
 
-export default function OrdersView({ token, username, products, canCreateOrders, canManageOrders, onCreateOrderEntry, onBackToHome: _onBackToHome }: OrdersViewProps) {
+export default function OrdersView({ token, username, currentUser, products, canCreateOrders, canManageOrders, onCreateOrderEntry, onBackToHome: _onBackToHome }: OrdersViewProps) {
   const [orders, setOrders] = useState<OrderItem[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(true);
@@ -333,12 +335,12 @@ export default function OrdersView({ token, username, products, canCreateOrders,
     }
   };
 
-  const handleCancelOrder = async () => {
+  const handleCancelOrder = async (reason: string) => {
     if (!orderToCancel) return;
     const order = orderToCancel;
     setCancellingOrderCode(order.order_code);
     try {
-      const result = await cancelOrderApi(token, order.order_code, 'Người dùng yêu cầu hủy đơn hàng.');
+      const result = await cancelOrderApi(token, order.order_code, reason);
       setOrderToCancel(null);
       emitStatusToast({ title: 'Đã hủy đơn hàng', message: result.message });
       setReloadVersion((value) => value + 1);
@@ -601,8 +603,10 @@ export default function OrdersView({ token, username, products, canCreateOrders,
                           <button
                             type="button"
                             className="orders-delete-button"
-                            onClick={() => setOrderToCancel(order)}
-                            disabled={cancellingOrderCode === order.order_code}
+                            onClick={() => !isOrderPastExported(order.status) && setOrderToCancel(order)}
+                            disabled={cancellingOrderCode === order.order_code || isOrderPastExported(order.status)}
+                            title={isOrderPastExported(order.status) ? 'Đơn đã xuất kho, không thể hủy' : 'Hủy đơn hàng'}
+                            style={isOrderPastExported(order.status) ? { opacity: 0.5, cursor: 'not-allowed', background: '#94a3b8' } : undefined}
                           >
                             {cancellingOrderCode === order.order_code ? 'Đang hủy...' : 'Hủy đơn'}
                           </button>
@@ -661,6 +665,8 @@ export default function OrdersView({ token, username, products, canCreateOrders,
           token={token}
           orderCode={selectedOrderCode}
           onClose={() => setSelectedOrderCode(null)}
+          currentUser={currentUser}
+          onOrderCancelled={() => setReloadVersion((v) => v + 1)}
         />
       )}
       {orderToCancel && (
@@ -670,7 +676,7 @@ export default function OrdersView({ token, username, products, canCreateOrders,
           onCancel={() => {
             if (!cancellingOrderCode) setOrderToCancel(null);
           }}
-          onConfirm={() => void handleCancelOrder()}
+          onConfirm={(reason) => void handleCancelOrder(reason)}
         />
       )}
     </main>

@@ -851,7 +851,7 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
                   borderRadius: '6px',
                 }}
               >
-                <span>🏬 Kho phục vụ: <strong>{stockSummary.warehouse_name}</strong> ({stockSummary.warehouse_id})</span>
+                <span>Kho phục vụ: <strong>{stockSummary.warehouse_name}</strong> ({stockSummary.warehouse_id})</span>
                 {isLoadingStock && <span style={{ color: '#0284c7' }}>(Đang cập nhật tồn...)</span>}
               </div>
             )}
@@ -1046,7 +1046,7 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
                               {/* AC 3: Cảnh báo vượt tồn khả dụng và nút gợi ý đặt tối đa */}
                               {isExceeded && maxOrderable !== undefined && (
                                 <div style={{ marginTop: '4px', fontSize: '11px', color: '#dc2626', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                  <span>⚠️ Vượt tồn kho ({maxOrderable} {item.unitName})</span>
+                                  <span>Vượt tồn kho ({maxOrderable} {item.unitName})</span>
                                   <button
                                     type="button"
                                     onClick={() => handleQuantityChange(idx, maxOrderable)}

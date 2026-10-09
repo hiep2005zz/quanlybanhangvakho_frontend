@@ -102,6 +102,12 @@ export interface OrderItem {
   created_at: string;
   dealer_status?: string;
   dealer_lock_reason?: string;
+  cancel_reason?: string | null;
+  cancelled_by?: string | null;
+  cancelled_at?: string | null;
+  approval_reason?: string | null;
+  approved_by?: string | null;
+  approved_at?: string | null;
 }
 
 export interface OrderDetail extends OrderItem {
@@ -737,11 +743,20 @@ export async function cancelOrderApi(
   orderCode: string,
   reason: string
 ): Promise<{ status: string; message: string; order: OrderItem }> {
-  const response = await authenticatedFetch(`${API_BASE_URL}/orders/${encodeURIComponent(orderCode)}`, {
-    method: 'PUT',
+  let response = await authenticatedFetch(`${API_BASE_URL}/orders/${encodeURIComponent(orderCode)}/cancel`, {
+    method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ status: 'CANCELLED', reason }),
+    body: JSON.stringify({ reason }),
   }, token);
+
+  if (response.status === 404 || response.status === 405) {
+    response = await authenticatedFetch(`${API_BASE_URL}/orders/${encodeURIComponent(orderCode)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'CANCELLED', reason }),
+    }, token);
+  }
+
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
     throw new Error(data.detail || `Lỗi hủy đơn hàng (Mã lỗi ${response.status})`);
@@ -1203,7 +1218,8 @@ export async function moveProductCategoryApi(token: string, productId: number, c
   return data;
 }
 
-// ===================================// SCRUM-29: AUDIT LOGS INTERFACES & CLIENT
+// ===================================
+// AUDIT LOGS INTERFACES & CLIENT
 // ===================================
 export interface AuditLogItem {
   id: number;
@@ -1305,7 +1321,7 @@ export async function clearAllAuditLogsApi(token: string): Promise<{ message: st
   return data;
 }
 /**
- * User Story SCRUM-27: Xem và cập nhật hồ sơ cá nhân
+ * Xem và cập nhật hồ sơ cá nhân
  */
 export async function getMyProfileApi(token: string): Promise<UserProfile> {
   const response = await authenticatedFetch(`${API_BASE_URL}/me`, {
@@ -1831,6 +1847,9 @@ export interface OrderResponseData {
   discount_amount?: number;
   dealer_status?: string;
   dealer_lock_reason?: string;
+  cancel_reason?: string | null;
+  cancelled_by?: string | null;
+  cancelled_at?: string | null;
 }
 
 export async function approveOrderApi(token: string, orderIdOrCode: number | string): Promise<OrderResponseData> {
