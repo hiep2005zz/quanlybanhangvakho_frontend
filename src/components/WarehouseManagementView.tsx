@@ -599,7 +599,7 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                       </td>
                       <td>
                         <div>{wh.manager_name || 'Chưa chỉ định'}</div>
-                        {wh.phone && <div style={{ fontSize: '12px', color: '#64748b' }}>☎ {wh.phone}</div>}
+                        {wh.phone && <div style={{ fontSize: '12px', color: '#64748b' }}>SĐT: {wh.phone}</div>}
                       </td>
                       <td style={{ textAlign: 'center' }}>
                         <span className="wh-badge wh-badge-number">{wh.locations_count} vị trí</span>
@@ -626,7 +626,7 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                               setSubTab('locations');
                             }}
                           >
-                            📦 Quản lý vị trí
+                            Quản lý vị trí
                           </button>
                           {canManage && (
                             <>
@@ -670,7 +670,7 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                 {selectedWarehouse.name} ({selectedWarehouse.code})
               </h2>
               <div style={{ fontSize: '13px', color: '#475569', marginTop: '4px' }}>
-                📍 {selectedWarehouse.address || 'Chưa cập nhật địa chỉ'} | 👤 Phụ trách: {selectedWarehouse.manager_name || '—'} (SĐT: {selectedWarehouse.phone || '—'})
+                Địa chỉ: {selectedWarehouse.address || 'Chưa cập nhật'} | Phụ trách: {selectedWarehouse.manager_name || '—'} (SĐT: {selectedWarehouse.phone || '—'})
               </div>
             </div>
 
@@ -692,14 +692,14 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
               className={`wh-tab-btn ${subTab === 'locations' ? 'active' : ''}`}
               onClick={() => setSubTab('locations')}
             >
-              🏷️ Danh sách vị trí kệ ({locations.length})
+              Danh sách vị trí kệ ({locations.length})
             </button>
             <button
               type="button"
               className={`wh-tab-btn ${subTab === 'products' ? 'active' : ''}`}
               onClick={() => setSubTab('products')}
             >
-              📦 Sản phẩm theo vị trí kệ ({locationProducts.length})
+              Sản phẩm theo vị trí kệ ({locationProducts.length})
             </button>
           </div>
 
@@ -900,7 +900,7 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                           <td>{item.base_unit || 'Cái'}</td>
                           <td>
                             <span className="wh-badge wh-badge-location">
-                              📍 {item.location_code}
+                              {item.location_code}
                             </span>
                             {item.location_name && (
                               <div style={{ fontSize: '12px', color: '#64748b' }}>
