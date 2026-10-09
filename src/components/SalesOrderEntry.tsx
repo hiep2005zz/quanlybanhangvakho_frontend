@@ -19,6 +19,7 @@ import { evaluateBestDiscountPolicy, parseStoredPolicies } from '../utils/discou
 import { emitStatusToast } from './StatusToast';
 import { AccessDeniedView } from './AccessDeniedView';
 import { DealerCreditBadge } from './DealerCreditBadge';
+import OrderPrintModal from './OrderPrintModal';
 import './sales-order-entry.css';
 
 interface SalesOrderEntryProps {
@@ -133,6 +134,12 @@ export default function SalesOrderEntry({ token, username, products, user, onClo
   const [activeDraftId, setActiveDraftId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [successCreatedOrder, setSuccessCreatedOrder] = useState<{
+    order_code: string;
+    dealer_name: string;
+    total_amount: number;
+  } | null>(null);
+  const [createdOrderCodeToPrint, setCreatedOrderCodeToPrint] = useState<string | null>(null);
 
   // AC 1: Tải thông tin công nợ, hạn mức và nợ quá hạn của đại lý
   const [creditInfo, setCreditInfo] = useState<DealerCreditInfo | null>(null);
@@ -613,7 +620,11 @@ export default function SalesOrderEntry({ token, username, products, user, onClo
         title: 'Tạo đơn hàng thành công',
         message: `Đã tạo đơn ${created.order_code} thành công. Tổng phải thu: ${formatCurrency(created.total_amount)}.${draftCleanupWarning || ''}`,
       });
-      onCreated();
+      setSuccessCreatedOrder({
+        order_code: created.order_code,
+        dealer_name: selectedDealer.name,
+        total_amount: created.total_amount,
+      });
     } catch (createError) {
       setError(createError instanceof Error ? createError.message : 'Không thể tạo đơn hàng.');
     } finally {
@@ -1107,6 +1118,144 @@ export default function SalesOrderEntry({ token, username, products, user, onClo
           </section>
         </aside>
       </div>
+
+      {successCreatedOrder && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(15, 23, 42, 0.65)',
+            backdropFilter: 'blur(4px)',
+            zIndex: 9998,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px',
+          }}
+        >
+          <div
+            style={{
+              background: '#ffffff',
+              borderRadius: '14px',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+              maxWidth: '480px',
+              width: '100%',
+              padding: '28px 24px',
+              textAlign: 'center',
+              border: '1px solid #e2e8f0',
+            }}
+          >
+            <div
+              style={{
+                width: '56px',
+                height: '56px',
+                borderRadius: '50%',
+                background: '#dcfce7',
+                color: '#16a34a',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: '0 auto 16px auto',
+              }}
+            >
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            </div>
+
+            <h3 style={{ margin: '0 0 8px 0', fontSize: '20px', fontWeight: '800', color: '#0f172a' }}>
+              Tạo Đơn Hàng Thành Công!
+            </h3>
+            <p style={{ margin: '0 0 12px 0', fontSize: '14px', color: '#475569', lineHeight: 1.5 }}>
+              Mã đơn: <strong style={{ color: '#0f172a', fontSize: '15px' }}>#{successCreatedOrder.order_code}</strong>
+              <br />
+              Đại lý: <strong>{successCreatedOrder.dealer_name}</strong>
+            </p>
+            <p style={{ margin: '0 0 22px 0', fontSize: '16px', fontWeight: '800', color: '#16a34a' }}>
+              Tổng thanh toán: {formatCurrency(successCreatedOrder.total_amount)}
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <button
+                type="button"
+                onClick={() => setCreatedOrderCodeToPrint(successCreatedOrder.order_code)}
+                style={{
+                  padding: '12px 20px',
+                  backgroundColor: '#2563eb',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontWeight: 700,
+                  fontSize: '14px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  boxShadow: '0 4px 6px -1px rgba(37, 99, 235, 0.25)',
+                }}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="6 9 6 2 18 2 18 9" />
+                  <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+                  <rect x="6" y="14" width="12" height="8" />
+                </svg>
+                In / Xuất PDF cho Đại Lý Xác Nhận
+              </button>
+
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSuccessCreatedOrder(null);
+                  }}
+                  style={{
+                    flex: 1,
+                    padding: '10px 14px',
+                    backgroundColor: '#f1f5f9',
+                    color: '#334155',
+                    border: '1px solid #cbd5e1',
+                    borderRadius: '8px',
+                    fontWeight: 600,
+                    fontSize: '13px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Tạo đơn khác
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSuccessCreatedOrder(null);
+                    onCreated();
+                  }}
+                  style={{
+                    flex: 1,
+                    padding: '10px 14px',
+                    backgroundColor: '#0f172a',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontWeight: 600,
+                    fontSize: '13px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Về danh sách đơn
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {createdOrderCodeToPrint && (
+        <OrderPrintModal
+          token={token}
+          orderCode={createdOrderCodeToPrint}
+          onClose={() => setCreatedOrderCodeToPrint(null)}
+        />
+      )}
     </div>
   );
 }
