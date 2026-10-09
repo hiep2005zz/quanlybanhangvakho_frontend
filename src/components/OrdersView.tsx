@@ -597,19 +597,6 @@ export default function OrdersView({ token, username, products, canCreateOrders,
                       >
                         Chi tiết
                       </button>
-                      <button
-                        type="button"
-                        className="orders-detail-button"
-                        style={{
-                          backgroundColor: '#eff6ff',
-                          borderColor: '#bfdbfe',
-                          color: '#1d4ed8',
-                        }}
-                        onClick={() => setPrintingOrderCode(order.order_code)}
-                        title="In phiếu hoặc xuất file PDF"
-                      >
-                        In / PDF
-                      </button>
                       {order.status.toUpperCase() !== 'CANCELLED' &&
                         canCreateOrders &&
                         (canManageOrders || order.created_by.toLowerCase() === username.toLowerCase()) && (
@@ -676,6 +663,10 @@ export default function OrdersView({ token, username, products, canCreateOrders,
           token={token}
           orderCode={selectedOrderCode}
           onClose={() => setSelectedOrderCode(null)}
+          onOpenPrint={(code) => {
+            setSelectedOrderCode(null);
+            setPrintingOrderCode(code);
+          }}
         />
       )}
       {orderToCancel && (

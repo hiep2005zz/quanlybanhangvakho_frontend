@@ -7,6 +7,7 @@ interface OrderDetailsModalProps {
   token: string;
   orderCode: string;
   onClose: () => void;
+  onOpenPrint?: (orderCode: string, orderData?: OrderDetail | null) => void;
 }
 
 const formatCurrency = (amount: number) =>
@@ -22,7 +23,7 @@ const formatDate = (value?: string | null) => {
   return Number.isNaN(date.getTime()) ? value : date.toLocaleString('vi-VN');
 };
 
-export default function OrderDetailsModal({ token, orderCode, onClose }: OrderDetailsModalProps) {
+export default function OrderDetailsModal({ token, orderCode, onClose, onOpenPrint }: OrderDetailsModalProps) {
   const [order, setOrder] = useState<OrderDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -86,7 +87,13 @@ export default function OrderDetailsModal({ token, orderCode, onClose }: OrderDe
                 borderRadius: '6px',
                 cursor: 'pointer',
               }}
-              onClick={() => setIsPrintOpen(true)}
+              onClick={() => {
+                if (onOpenPrint) {
+                  onOpenPrint(orderCode, order);
+                } else {
+                  setIsPrintOpen(true);
+                }
+              }}
               title="In phiếu hoặc xuất file PDF đơn hàng cho đại lý xem và ký xác nhận"
             >
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
