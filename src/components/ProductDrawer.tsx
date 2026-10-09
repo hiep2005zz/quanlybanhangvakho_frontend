@@ -1053,6 +1053,9 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
                     {unitError}
                   </div>
                 )}
+                <div style={{ fontSize: '11.5px', color: '#64748b', marginTop: '4px' }}>
+                  Đơn vị cơ sở là đơn vị nhỏ nhất để kiểm kê và lưu kho.
+                </div>
               </div>
 
               <div>
@@ -1063,7 +1066,7 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
                   type="text"
                   value={packagingSpec}
                   onChange={(e) => setPackagingSpec(e.target.value)}
-                  placeholder="Ví dụ: 1 Thùng = 24 Hộp"
+                  placeholder="VD: Lon 330ml, Hộp 500g, Túi zip..."
                   style={{
                     width: '100%',
                     padding: '8px 12px',
@@ -1075,6 +1078,9 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
                     boxSizing: 'border-box',
                   }}
                 />
+                <div style={{ fontSize: '11.5px', color: '#64748b', marginTop: '4px' }}>
+                  Mô tả định lượng, thể tích hoặc đóng gói bao bì của sản phẩm.
+                </div>
               </div>
             </div>
           </div>

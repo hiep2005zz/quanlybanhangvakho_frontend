@@ -13,6 +13,7 @@ import {
 } from '../services/api';
 import { emitStatusToast } from './StatusToast';
 import { ModalPortal } from './ModalPortal';
+import './dashboard.css';
 
 interface CategoryManagementViewProps {
   token: string;
@@ -459,7 +460,7 @@ export function CategoryManagementView({ token, onBackToHome: _onBackToHome }: C
 
   const renderProductsList = () => {
     return (
-      <div style={{ flex: '1', display: 'flex', flexDirection: 'column', background: '#ffffff', minWidth: '460px', overflow: 'hidden' }}>
+      <div style={{ flex: '1', display: 'flex', flexDirection: 'column', background: '#ffffff', minWidth: '460px', overflow: 'hidden', height: 'auto' }}>
         {/* Header Cột Phải */}
         <div style={{ padding: '16px 20px', borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', marginBottom: '12px' }}>
@@ -591,8 +592,19 @@ export function CategoryManagementView({ token, onBackToHome: _onBackToHome }: C
           <div style={{ textAlign: 'right' }}>Phân nhóm</div>
         </div>
 
-        {/* Products List Rows */}
-        <div style={{ padding: '8px 12px', overflowY: 'auto', flex: 1, maxHeight: 'calc(100vh - 380px)', minHeight: '440px' }}>
+        {/* Products List Rows - Vùng cuộn danh sách sản phẩm */}
+        <div
+          className="custom-product-scrollbar roles-grid-scroll"
+          style={{
+            padding: '8px 12px 16px 12px',
+            overflowY: 'auto',
+            overflowX: 'hidden',
+            height: '240px',
+            maxHeight: '240px',
+            scrollbarWidth: 'thin',
+            scrollbarColor: '#0fad89 #f1f5f9',
+          }}
+        >
           {displayedProducts.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '60px 20px', color: '#94a3b8' }}>
               <div style={{ fontSize: '36px', marginBottom: '10px' }}>
@@ -759,29 +771,29 @@ export function CategoryManagementView({ token, onBackToHome: _onBackToHome }: C
     };
 
     return (
-      <div style={{ animation: 'fadeIn 0.3s ease' }}>
-        {/* KPI Dashboard Cards */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px', marginBottom: '24px' }}>
-          <div style={{ background: 'linear-gradient(135deg, #eff6ff, #dbeafe)', padding: '24px', borderRadius: '20px', border: '1px solid #bfdbfe', boxShadow: '0 10px 25px -5px rgba(37,99,235,0.1)' }}>
-            <h4 style={{ margin: '0 0 10px 0', color: '#1e3a8a', fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: '700' }}>Tổng doanh số toàn ngành</h4>
-            <div style={{ fontSize: '32px', fontWeight: '800', color: '#1e40af', letterSpacing: '-0.02em' }}>
-              {totalSales.toLocaleString('vi-VN')} <span style={{ fontSize: '18px' }}>VNĐ</span>
+      <div style={{ animation: 'fadeIn 0.3s ease', width: '100%', boxSizing: 'border-box' }}>
+        {/* KPI Dashboard Cards - Nhỏ gọn, thanh lịch */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', maxWidth: '860px', gap: '12px', marginBottom: '18px' }}>
+          <div style={{ background: 'linear-gradient(135deg, #eff6ff, #dbeafe)', padding: '14px 18px', borderRadius: '14px', border: '1px solid #bfdbfe', boxShadow: '0 2px 8px -2px rgba(37,99,235,0.08)' }}>
+            <h4 style={{ margin: '0 0 6px 0', color: '#1e3a8a', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: '700' }}>Tổng doanh số toàn ngành</h4>
+            <div style={{ fontSize: '20px', fontWeight: '800', color: '#1e40af', letterSpacing: '-0.01em' }}>
+              {totalSales.toLocaleString('vi-VN')} <span style={{ fontSize: '13px', fontWeight: '700' }}>VNĐ</span>
             </div>
           </div>
-          <div style={{ background: 'linear-gradient(135deg, #f0fdf4, #dcfce7)', padding: '24px', borderRadius: '20px', border: '1px solid #bbf7d0', boxShadow: '0 10px 25px -5px rgba(22,163,74,0.1)' }}>
-            <h4 style={{ margin: '0 0 10px 0', color: '#14532d', fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: '700' }}>Ngành hàng nổi bật</h4>
-            <div style={{ fontSize: '22px', fontWeight: '800', color: '#166534', letterSpacing: '-0.01em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          <div style={{ background: 'linear-gradient(135deg, #f0fdf4, #dcfce7)', padding: '14px 18px', borderRadius: '14px', border: '1px solid #bbf7d0', boxShadow: '0 2px 8px -2px rgba(22,163,74,0.08)' }}>
+            <h4 style={{ margin: '0 0 6px 0', color: '#14532d', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: '700' }}>Ngành hàng nổi bật</h4>
+            <div style={{ fontSize: '18px', fontWeight: '800', color: '#166534', letterSpacing: '-0.01em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {topCategory ? topCategory.name : 'Chưa có'}
             </div>
-            <div style={{ fontSize: '14px', color: '#15803d', marginTop: '6px', fontWeight: '600' }}>
+            <div style={{ fontSize: '12px', color: '#15803d', marginTop: '3px', fontWeight: '600' }}>
               {topCategory ? `Đạt ${topCategory.total_sales.toLocaleString('vi-VN')} VNĐ` : '0 VNĐ'}
             </div>
           </div>
-          <div style={{ background: '#fff', padding: '24px', borderRadius: '20px', border: '1px solid #e2e8f0', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.05)' }}>
-            <h4 style={{ margin: '0 0 10px 0', color: '#64748b', fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: '700' }}>Quy mô cấu trúc</h4>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px' }}>
-              <span style={{ fontSize: '32px', fontWeight: '800', color: '#0f172a' }}>{salesReport.length}</span>
-              <span style={{ fontSize: '15px', color: '#64748b', fontWeight: '500' }}>nhóm hàng & phân mục</span>
+          <div style={{ background: '#fff', padding: '14px 18px', borderRadius: '14px', border: '1px solid #e2e8f0', boxShadow: '0 2px 8px -2px rgba(0,0,0,0.04)' }}>
+            <h4 style={{ margin: '0 0 6px 0', color: '#64748b', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: '700' }}>Quy mô cấu trúc</h4>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+              <span style={{ fontSize: '20px', fontWeight: '800', color: '#0f172a' }}>{salesReport.length}</span>
+              <span style={{ fontSize: '12.5px', color: '#64748b', fontWeight: '500' }}>nhóm hàng & phân mục</span>
             </div>
           </div>
         </div>
@@ -836,7 +848,7 @@ export function CategoryManagementView({ token, onBackToHome: _onBackToHome }: C
   };
 
   return (
-    <div style={{ padding: '32px 40px', maxWidth: '1400px', margin: '0 auto', fontFamily: 'Inter, sans-serif' }}>
+    <div style={{ padding: '20px 32px', width: '100%', maxWidth: '1440px', boxSizing: 'border-box', fontFamily: 'Inter, sans-serif', height: '100%', overflowY: 'auto' }}>
       <style>{`
         .category-tree-card:hover { transform: translateX(2px); box-shadow: 0 4px 12px rgba(0,0,0,0.05) !important; }
         .product-drag-card:hover { transform: translateY(-2px); box-shadow: 0 6px 12px rgba(0,0,0,0.08) !important; border-color: #cbd5e1 !important; }
@@ -850,27 +862,48 @@ export function CategoryManagementView({ token, onBackToHome: _onBackToHome }: C
         .back-btn:hover { background: #f8fafc !important; border-color: #94a3b8 !important; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+        .custom-product-scrollbar {
+          overflow-y: auto !important;
+          overflow-x: hidden !important;
+          scrollbar-width: thin !important;
+          scrollbar-color: #0fad89 #f1f5f9 !important;
+          scroll-behavior: smooth;
+        }
+        .custom-product-scrollbar::-webkit-scrollbar {
+          width: 8px;
+        }
+        .custom-product-scrollbar::-webkit-scrollbar-track {
+          background: #f1f5f9;
+          border-radius: 8px;
+        }
+        .custom-product-scrollbar::-webkit-scrollbar-thumb {
+          background: #0fad89;
+          border-radius: 8px;
+          border: 1px solid #f1f5f9;
+        }
+        .custom-product-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: #0d8b6e;
+        }
       `}</style>
       
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
           <div>
-            <h2 style={{ fontSize: '30px', fontWeight: '800', color: '#0f172a', margin: 0, letterSpacing: '-0.02em' }}>
+            <h2 style={{ fontSize: '28px', fontWeight: '800', color: '#0f172a', margin: 0, letterSpacing: '-0.02em' }}>
               Quản Lý Ngành Hàng & Doanh Số
             </h2>
-            <p style={{ margin: '6px 0 0 0', color: '#64748b', fontSize: '15px' }}>Tổ chức cấu trúc sản phẩm và theo dõi hiệu suất bán hàng chi tiết</p>
           </div>
         </div>
       </div>
 
       {/* Modern Tabs */}
-      <div style={{ display: 'flex', gap: '12px', marginBottom: '28px' }}>
+      <div style={{ display: 'flex', gap: '12px', marginBottom: '20px' }}>
         <button
           onClick={() => setActiveTab('manage')}
           style={{
             display: 'flex', alignItems: 'center', gap: '10px',
-            padding: '12px 28px', borderRadius: '16px', fontWeight: '700', fontSize: '15px',
+            padding: '11px 26px', borderRadius: '14px', fontWeight: '700', fontSize: '14.5px',
             background: activeTab === 'manage' ? '#0fad89' : '#fff',
             color: activeTab === 'manage' ? '#fff' : '#64748b',
             border: activeTab === 'manage' ? 'none' : '1px solid #e2e8f0',
@@ -892,7 +925,7 @@ export function CategoryManagementView({ token, onBackToHome: _onBackToHome }: C
           onClick={() => setActiveTab('report')}
           style={{
             display: 'flex', alignItems: 'center', gap: '10px',
-            padding: '12px 28px', borderRadius: '16px', fontWeight: '700', fontSize: '15px',
+            padding: '11px 26px', borderRadius: '14px', fontWeight: '700', fontSize: '14.5px',
             background: activeTab === 'report' ? '#0fad89' : '#fff',
             color: activeTab === 'report' ? '#fff' : '#64748b',
             border: activeTab === 'report' ? 'none' : '1px solid #e2e8f0',
@@ -910,7 +943,7 @@ export function CategoryManagementView({ token, onBackToHome: _onBackToHome }: C
       </div>
 
       {/* Main Content Area */}
-      <div style={{ minHeight: '600px' }}>
+      <div style={{ minHeight: '400px' }}>
         {activeTab === 'manage' && (
           <div
             style={{
@@ -921,7 +954,8 @@ export function CategoryManagementView({ token, onBackToHome: _onBackToHome }: C
               boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
               display: 'flex',
               overflow: 'hidden',
-              minHeight: '620px',
+              height: 'auto',
+              minHeight: '440px',
             }}
           >
             {/* Cột trái: Cây Ngành Hàng */}
@@ -934,6 +968,7 @@ export function CategoryManagementView({ token, onBackToHome: _onBackToHome }: C
                 display: 'flex',
                 flexDirection: 'column',
                 background: '#fafbfc',
+                height: 'auto',
               }}
             >
               {/* Header Cột Trái */}
@@ -998,7 +1033,17 @@ export function CategoryManagementView({ token, onBackToHome: _onBackToHome }: C
               </div>
 
               {/* Vùng cuộn danh sách cây ngành hàng */}
-              <div style={{ padding: '14px 16px', overflowY: 'auto', flex: 1, maxHeight: 'calc(100vh - 380px)', minHeight: '440px' }}>
+              <div
+                className="custom-product-scrollbar roles-grid-scroll"
+                style={{
+                  padding: '14px 16px 20px 16px',
+                  overflowY: 'auto',
+                  height: '280px',
+                  maxHeight: '280px',
+                  scrollbarWidth: 'thin',
+                  scrollbarColor: '#0fad89 #f1f5f9',
+                }}
+              >
                 {isLoading ? (
                   <div style={{ padding: '60px 20px', textAlign: 'center', color: '#64748b' }}>
                     <div style={{ fontSize: '28px', marginBottom: '8px' }}>⏳</div>

@@ -19,7 +19,8 @@ interface ProductFormViewProps {
   onSuccess: (updatedProduct?: ProductItem, isDeleted?: boolean) => void;
 }
 
-const DEFAULT_UNITS = ['Cái', 'Chiếc', 'Hộp', 'Kg', 'Thùng', 'Bộ', 'Gói', 'Chai', 'Đôi'];
+const DEFAULT_UNITS = ['Cái', 'Chiếc', 'Hộp', 'Kg', 'Thùng', 'Bộ', 'Gói', 'Chai', 'Đôi', 'Lon'];
+const CUSTOM_UNITS_STORAGE_KEY = 'ttcs_custom_product_units';
 
 export const ProductFormView: React.FC<ProductFormViewProps> = ({
   product,
@@ -32,101 +33,87 @@ export const ProductFormView: React.FC<ProductFormViewProps> = ({
   const isEditing = Boolean(product);
   const hasTransactions = Boolean(product && (product.transaction_count || 0) > 0);
 
+  // 1. Mã SKU
   const [skuCode, setSkuCode] = useState('');
   const [skuError, setSkuError] = useState<string | null>(null);
   const [skuChecking, setSkuChecking] = useState(false);
 
+  // 2. Tên sản phẩm
   const [productName, setProductName] = useState('');
   const [nameError, setNameError] = useState<string | null>(null);
 
+  // 3. Nhóm hàng
   const [category, setCategory] = useState('');
-  const [categorySearch, setCategorySearch] = useState('');
-  const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
-  const [customCategories, setCustomCategories] = useState<string[]>([]);
-  const [isAddingNewCategory, setIsAddingNewCategory] = useState(false);
-  const [newCategoryInput, setNewCategoryInput] = useState('');
 
-  const [images, setImages] = useState<string[]>([]);
-  const [mainImageIdx, setMainImageIdx] = useState<number>(0);
-
+  // 4. Đơn vị tính cơ sở & Custom units
   const [baseUnit, setBaseUnit] = useState('Cái');
-  const [customUnits, setCustomUnits] = useState<string[]>([]);
+  const [customUnits, setCustomUnits] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem(CUSTOM_UNITS_STORAGE_KEY);
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
   const [isAddingUnit, setIsAddingUnit] = useState(false);
   const [newUnitInput, setNewUnitInput] = useState('');
   const [unitError, setUnitError] = useState<string | null>(null);
+
+  // 5. Quy cách đóng gói
   const [packagingSpec, setPackagingSpec] = useState('');
 
-  const [sellPrice, setSellPrice] = useState<number>(0);
+  // 6. Giá vốn
   const [costPrice, setCostPrice] = useState<number>(0);
 
+  // 7. Ảnh sản phẩm (1 ảnh đại diện duy nhất)
+  const [image, setImage] = useState<string | null>(null);
+
+  // 8. Trạng thái kinh doanh
   const [status, setStatus] = useState<'active' | 'inactive'>('active');
 
+  // UI state
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [generalError, setGeneralError] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const categoryDropdownRef = useRef<HTMLDivElement | null>(null);
 
   // Khởi tạo state khi mở form
   useEffect(() => {
     if (product) {
       setSkuCode(product.code || '');
       setProductName(product.name || '');
-      setCategory(product.category || '');
+      setCategory(product.category || (categories[0] || 'Thời trang'));
       setBaseUnit(product.base_unit || 'Cái');
       setPackagingSpec(product.packaging_specification || '');
-      setSellPrice(product.sell_price || 0);
       setCostPrice(product.cost_price || 0);
       setStatus(product.status === 'inactive' ? 'inactive' : 'active');
-
-      let parsedImgs: string[] = [];
-      if (Array.isArray(product.images) && product.images.length > 0) {
-        parsedImgs = product.images;
-      }
-      setImages(parsedImgs);
-      setMainImageIdx(0);
+      setImage(Array.isArray(product.images) && product.images.length > 0 ? product.images[0] : null);
     } else {
       setSkuCode('');
       setProductName('');
       setCategory(categories[0] || 'Thời trang');
       setBaseUnit('Cái');
       setPackagingSpec('');
-      setSellPrice(0);
       setCostPrice(0);
       setStatus('active');
-      setImages([]);
-      setMainImageIdx(0);
+      setImage(null);
     }
     setSkuError(null);
     setNameError(null);
-    setUnitError(null);
     setGeneralError(null);
     setIsAddingUnit(false);
-    setIsAddingNewCategory(false);
+    setNewUnitInput('');
+    setUnitError(null);
   }, [product, categories]);
-
-  // Đóng dropdown ngành hàng khi click ngoài
-  useEffect(() => {
-    const handleOutsideClick = (e: MouseEvent) => {
-      if (
-        categoryDropdownRef.current &&
-        !categoryDropdownRef.current.contains(e.target as Node)
-      ) {
-        setIsCategoryDropdownOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleOutsideClick);
-    return () => document.removeEventListener('mousedown', handleOutsideClick);
-  }, []);
 
   // Cuộn trang lên đầu khi mount
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
 
-  // Validate SKU
+  // Validate SKU realtime
   const handleSkuChange = (val: string) => {
     const upper = val.toUpperCase();
     setSkuCode(upper);
@@ -190,96 +177,44 @@ export const ProductFormView: React.FC<ProductFormViewProps> = ({
     }
   };
 
-  // Upload ảnh
+  // Upload 1 ảnh đại diện sản phẩm
   const handleImageUpload = (files: FileList | null) => {
-    if (!files) return;
+    if (!files || files.length === 0) return;
+    const file = files[0];
     const allowedTypes = ['image/png', 'image/jpeg', 'image/webp'];
-    const maxFiles = 5;
-    const currentCount = images.length;
 
-    const newFiles: File[] = [];
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      if (!allowedTypes.includes(file.type)) {
-        emitStatusToast({
-          message: `Ảnh "${file.name}" không hợp lệ. Chỉ chấp nhận PNG, JPG, WEBP.`,
-          title: 'Ảnh không đúng định dạng',
-        });
-        continue;
-      }
-      if (file.size > 5 * 1024 * 1024) {
-        emitStatusToast({ message: `Ảnh "${file.name}" vượt quá 5MB.`, title: 'Ảnh quá dung lượng' });
-        continue;
-      }
-      if (currentCount + newFiles.length >= maxFiles) {
-        emitStatusToast({ message: `Chỉ được tải lên tối đa ${maxFiles} ảnh.`, title: 'Giới hạn số lượng ảnh' });
-        break;
-      }
-      newFiles.push(file);
+    if (!allowedTypes.includes(file.type)) {
+      emitStatusToast({
+        message: `Ảnh "${file.name}" không hợp lệ. Chỉ chấp nhận định dạng PNG, JPG, WEBP.`,
+        title: 'Ảnh không đúng định dạng',
+      });
+      return;
     }
 
-    newFiles.forEach((file) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        if (e.target?.result) {
-          setImages((prev) => [...prev, e.target!.result as string]);
-        }
-      };
-      reader.readAsDataURL(file);
-    });
+    if (file.size > 5 * 1024 * 1024) {
+      emitStatusToast({ message: `Ảnh "${file.name}" vượt quá 5MB.`, title: 'Ảnh quá dung lượng' });
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      if (e.target?.result) {
+        setImage(e.target.result as string);
+        emitStatusToast({ message: 'Tải ảnh sản phẩm thành công.', title: 'Ảnh sản phẩm' });
+      }
+    };
+    reader.readAsDataURL(file);
+
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
   };
 
-  const handleRemoveImage = (index: number) => {
-    setImages((prev) => prev.filter((_, i) => i !== index));
-    if (mainImageIdx === index) {
-      setMainImageIdx(0);
-    } else if (mainImageIdx > index) {
-      setMainImageIdx((prev) => prev - 1);
+  const handleRemoveImage = () => {
+    setImage(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
-  };
-
-  const handleSetMainImage = (index: number) => {
-    setMainImageIdx(index);
-    emitStatusToast({ message: 'Đã chọn làm ảnh đại diện chính', title: 'Cập nhật ảnh đại diện' });
-  };
-
-  // Tạo nhanh nhóm hàng
-  const handleAddNewCategory = () => {
-    const trimmed = newCategoryInput.trim();
-    if (!trimmed) return;
-    if (!categories.includes(trimmed) && !customCategories.includes(trimmed)) {
-      setCustomCategories((prev) => [...prev, trimmed]);
-    }
-    setCategory(trimmed);
-    setNewCategoryInput('');
-    setIsAddingNewCategory(false);
-    setIsCategoryDropdownOpen(false);
-    emitStatusToast({ message: `Đã thêm nhóm hàng "${trimmed}"`, title: 'Thêm nhóm hàng thành công' });
-  };
-
-  // Tạo nhanh ĐVT
-  const handleAddNewUnit = () => {
-    const trimmed = newUnitInput.trim();
-    if (!trimmed) {
-      setUnitError('Vui lòng nhập tên đơn vị tính.');
-      return;
-    }
-    const isDuplicate = allUnits.some((u) => u.trim().toLowerCase() === trimmed.toLowerCase());
-    if (isDuplicate) {
-      const errMsg = `Đơn vị tính "${trimmed}" đã tồn tại. Không thể tạo trùng lặp!`;
-      setUnitError(errMsg);
-      emitStatusToast({ message: errMsg, title: 'Không thể tạo đơn vị tính' });
-      return;
-    }
-    setCustomUnits((prev) => [...prev, trimmed]);
-    setBaseUnit(trimmed);
-    setNewUnitInput('');
-    setUnitError(null);
-    setIsAddingUnit(false);
-    emitStatusToast({ message: `Đã thêm đơn vị tính "${trimmed}"`, title: 'Thêm đơn vị tính thành công' });
   };
 
   const formatCurrency = (val: number): string => {
@@ -291,7 +226,46 @@ export const ProductFormView: React.FC<ProductFormViewProps> = ({
     setter(cleanNum);
   };
 
-  // Submit
+  // Danh sách hợp nhất tất cả các đơn vị tính
+  const allUnits = Array.from(new Set([...DEFAULT_UNITS, ...customUnits, baseUnit].filter(Boolean)));
+
+  // Thêm Đơn vị tính cơ sở mới
+  const handleAddNewUnit = () => {
+    const trimmed = newUnitInput.trim();
+    if (!trimmed) {
+      setUnitError('Vui lòng nhập tên đơn vị tính.');
+      return;
+    }
+
+    const isDuplicate = allUnits.some(
+      (u) => u.trim().toLowerCase() === trimmed.toLowerCase()
+    );
+
+    if (isDuplicate) {
+      const existing = allUnits.find((u) => u.trim().toLowerCase() === trimmed.toLowerCase()) || trimmed;
+      setBaseUnit(existing);
+      setIsAddingUnit(false);
+      setNewUnitInput('');
+      setUnitError(null);
+      emitStatusToast({ message: `Đã chọn đơn vị tính "${existing}".`, title: 'Đơn vị tính' });
+      return;
+    }
+
+    const updated = [...customUnits, trimmed];
+    setCustomUnits(updated);
+    try {
+      localStorage.setItem(CUSTOM_UNITS_STORAGE_KEY, JSON.stringify(updated));
+    } catch {
+      // ignore
+    }
+    setBaseUnit(trimmed);
+    setNewUnitInput('');
+    setUnitError(null);
+    setIsAddingUnit(false);
+    emitStatusToast({ message: `Đã thêm đơn vị tính "${trimmed}".`, title: 'Thêm đơn vị tính thành công' });
+  };
+
+  // Submit form
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     setGeneralError(null);
@@ -319,21 +293,15 @@ export const ProductFormView: React.FC<ProductFormViewProps> = ({
       return;
     }
 
-    let sortedImages = [...images];
-    if (sortedImages.length > 0 && mainImageIdx < sortedImages.length && mainImageIdx !== 0) {
-      const mainImg = sortedImages.splice(mainImageIdx, 1)[0];
-      sortedImages.unshift(mainImg);
-    }
-
     const payload: ProductPayload = {
       code: cleanSku,
       name: cleanName,
       category: category.trim(),
       base_unit: baseUnit.trim(),
       packaging_specification: packagingSpec.trim(),
-      sell_price: sellPrice,
+      sell_price: product?.sell_price ?? 0,
       cost_price: isCostVisible ? costPrice : (product?.cost_price ?? 0),
-      images: sortedImages,
+      images: image ? [image] : [],
       status: status,
     };
 
@@ -357,7 +325,7 @@ export const ProductFormView: React.FC<ProductFormViewProps> = ({
     }
   };
 
-  // Delete
+  // Xóa sản phẩm
   const handleDelete = async () => {
     if (!product) return;
     if (hasTransactions) {
@@ -383,7 +351,7 @@ export const ProductFormView: React.FC<ProductFormViewProps> = ({
     }
   };
 
-  // Nhanh chóng chuyển sang ngừng kinh doanh từ modal
+  // Chuyển nhanh sang ngừng kinh doanh
   const handleSwitchToInactive = async () => {
     if (!product) return;
     setStatus('inactive');
@@ -394,20 +362,9 @@ export const ProductFormView: React.FC<ProductFormViewProps> = ({
     });
   };
 
-  const allCategories = Array.from(new Set([...categories, ...customCategories])).filter(Boolean);
-  const filteredCategories = allCategories.filter((c) =>
-    c.toLowerCase().includes(categorySearch.toLowerCase())
-  );
-  const allUnits = Array.from(new Set([...DEFAULT_UNITS, ...customUnits]));
-
-  const profitMargin =
-    sellPrice > 0 && isCostVisible
-      ? (((sellPrice - costPrice) / sellPrice) * 100).toFixed(1)
-      : null;
-
   return (
     <div className="sales-order-page" style={{ paddingBottom: '60px' }}>
-      {/* Tiêu đề trang khớp với thiết kế Ảnh 2 */}
+      {/* Tiêu đề trang */}
       <div className="sales-order-heading" style={{ borderBottom: '1px solid #e2e8f0', paddingBottom: '16px', marginBottom: '24px' }}>
         <div>
           <p className="sales-order-eyebrow">QUẢN LÝ KHO HÀNG</p>
@@ -431,7 +388,7 @@ export const ProductFormView: React.FC<ProductFormViewProps> = ({
           </h1>
           <p className="sales-order-subtitle">
             {isEditing
-              ? 'Cập nhật thông tin chi tiết, quy cách đóng gói và chính sách giá của sản phẩm.'
+              ? 'Cập nhật thông tin chi tiết, quy cách đóng gói và giá vốn của sản phẩm.'
               : 'Nhập đầy đủ thông tin chuẩn hóa để quản lý sản phẩm trong hệ thống kho.'}
           </p>
         </div>
@@ -478,7 +435,7 @@ export const ProductFormView: React.FC<ProductFormViewProps> = ({
         </div>
       )}
 
-      {/* Bố cục 2 cột toàn màn hình theo phong cách Ảnh 2 */}
+      {/* Bố cục 2 cột */}
       <form onSubmit={handleSubmit} className="sales-order-layout">
         {/* CỘT CHÍNH (TRÁI): CÁC KHỐI NHẬP LIỆU */}
         <section className="sales-order-main">
@@ -532,144 +489,35 @@ export const ProductFormView: React.FC<ProductFormViewProps> = ({
               </label>
 
               {/* Nhóm hàng */}
-              <div className="sales-order-field" ref={categoryDropdownRef} style={{ position: 'relative' }}>
+              <label className="sales-order-field">
                 <span>
                   Ngành hàng / Nhóm hàng <b aria-hidden="true">*</b>
                 </span>
-                <div
-                  onClick={() => setIsCategoryDropdownOpen((prev) => !prev)}
+                <select
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
                   style={{
                     height: '42px',
                     padding: '9px 12px',
                     borderRadius: '9px',
                     border: '1px solid #cbd5e1',
                     background: '#ffffff',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    cursor: 'pointer',
-                    boxSizing: 'border-box',
+                    fontSize: '13.5px',
                     fontWeight: '600',
-                    color: category ? '#0f172a' : '#94a3b8',
+                    color: '#0f172a',
+                    outline: 'none',
+                    width: '100%',
+                    boxSizing: 'border-box',
                   }}
                 >
-                  <span>{category || 'Chọn nhóm hàng...'}</span>
-                  <span style={{ fontSize: '11px', color: '#64748b' }}>▼</span>
-                </div>
-
-                {isCategoryDropdownOpen && (
-                  <div
-                    style={{
-                      position: 'absolute',
-                      top: '72px',
-                      left: 0,
-                      right: 0,
-                      background: '#ffffff',
-                      border: '1px solid #cbd5e1',
-                      borderRadius: '8px',
-                      boxShadow: '0 8px 24px rgba(0, 0, 0, 0.12)',
-                      padding: '8px',
-                      zIndex: 200,
-                    }}
-                  >
-                    <input
-                      type="text"
-                      placeholder="Tìm kiếm nhóm hàng..."
-                      value={categorySearch}
-                      onChange={(e) => setCategorySearch(e.target.value)}
-                      onClick={(e) => e.stopPropagation()}
-                      style={{
-                        width: '100%',
-                        padding: '6px 10px',
-                        borderRadius: '6px',
-                        border: '1px solid #cbd5e1',
-                        fontSize: '12.5px',
-                        marginBottom: '6px',
-                        outline: 'none',
-                        boxSizing: 'border-box',
-                      }}
-                    />
-                    <div style={{ maxHeight: '160px', overflowY: 'auto' }}>
-                      {filteredCategories.map((cat) => (
-                        <div
-                          key={cat}
-                          onClick={() => {
-                            setCategory(cat);
-                            setIsCategoryDropdownOpen(false);
-                          }}
-                          style={{
-                            padding: '8px 10px',
-                            borderRadius: '6px',
-                            fontSize: '13px',
-                            cursor: 'pointer',
-                            background: category === cat ? '#eff6ff' : 'transparent',
-                            color: category === cat ? '#1d4ed8' : '#334155',
-                            fontWeight: category === cat ? '700' : '500',
-                          }}
-                        >
-                          {cat}
-                        </div>
-                      ))}
-                    </div>
-
-                    <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: '8px', marginTop: '6px' }}>
-                      {isAddingNewCategory ? (
-                        <div style={{ display: 'flex', gap: '6px' }}>
-                          <input
-                            type="text"
-                            placeholder="Tên nhóm mới..."
-                            value={newCategoryInput}
-                            onChange={(e) => setNewCategoryInput(e.target.value)}
-                            onClick={(e) => e.stopPropagation()}
-                            style={{
-                              flex: 1,
-                              padding: '5px 8px',
-                              borderRadius: '4px',
-                              border: '1px solid #94a3b8',
-                              fontSize: '12px',
-                            }}
-                          />
-                          <button
-                            type="button"
-                            onClick={handleAddNewCategory}
-                            style={{
-                              background: '#0fad89',
-                              color: '#fff',
-                              border: 'none',
-                              borderRadius: '4px',
-                              padding: '5px 10px',
-                              fontSize: '12px',
-                              cursor: 'pointer',
-                              fontWeight: '600',
-                            }}
-                          >
-                            Lưu
-                          </button>
-                        </div>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setIsAddingNewCategory(true);
-                          }}
-                          style={{
-                            background: 'transparent',
-                            border: 'none',
-                            color: '#2563eb',
-                            fontSize: '12.5px',
-                            fontWeight: '600',
-                            cursor: 'pointer',
-                            padding: '4px 0',
-                          }}
-                        >
-                          + Thêm nhanh nhóm hàng mới
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
+                  <option value="">-- Chọn nhóm hàng --</option>
+                  {categories.map((cat) => (
+                    <option key={cat} value={cat}>
+                      {cat}
+                    </option>
+                  ))}
+                </select>
+              </label>
 
               {/* Tên sản phẩm chiếm full width 2 cột */}
               <label className="sales-order-field" style={{ gridColumn: 'span 2' }}>
@@ -706,46 +554,78 @@ export const ProductFormView: React.FC<ProductFormViewProps> = ({
 
             <div className="sales-order-fields">
               {/* Đơn vị tính cơ sở */}
-              <label className="sales-order-field">
-                <span>
-                  Đơn vị tính cơ sở <b aria-hidden="true">*</b>
+              <div className="sales-order-field">
+                <span style={{ fontSize: '13px', fontWeight: '600', color: '#334155', display: 'block', marginBottom: '8px' }}>
+                  Đơn vị tính cơ sở <b aria-hidden="true" style={{ color: '#ef4444' }}>*</b>
                 </span>
+
                 {isAddingUnit ? (
-                  <div style={{ display: 'flex', gap: '8px' }}>
+                  <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
                     <input
                       type="text"
-                      placeholder="Nhập tên ĐVT..."
+                      autoFocus
+                      placeholder="VD: Cuộn, Mét, Bao, Lon..."
                       value={newUnitInput}
-                      onChange={(e) => setNewUnitInput(e.target.value)}
-                      style={{ flex: 1 }}
+                      onChange={(e) => {
+                        setNewUnitInput(e.target.value);
+                        if (unitError) setUnitError(null);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleAddNewUnit();
+                        } else if (e.key === 'Escape') {
+                          setIsAddingUnit(false);
+                          setUnitError(null);
+                          setNewUnitInput('');
+                        }
+                      }}
+                      style={{
+                        flex: 1,
+                        height: '42px',
+                        padding: '9px 12px',
+                        borderRadius: '9px',
+                        border: unitError ? '1px solid #ef4444' : '1px solid #cbd5e1',
+                        fontSize: '13.5px',
+                        boxSizing: 'border-box',
+                      }}
                     />
                     <button
                       type="button"
                       onClick={handleAddNewUnit}
                       style={{
+                        height: '42px',
                         padding: '0 14px',
-                        background: '#0fad89',
-                        color: '#fff',
+                        background: '#10b981',
                         border: 'none',
                         borderRadius: '9px',
-                        fontSize: '12.5px',
-                        fontWeight: '600',
+                        color: '#ffffff',
+                        fontSize: '13px',
+                        fontWeight: '700',
                         cursor: 'pointer',
+                        whiteSpace: 'nowrap',
                       }}
                     >
                       Lưu
                     </button>
                     <button
                       type="button"
-                      onClick={() => setIsAddingUnit(false)}
+                      onClick={() => {
+                        setIsAddingUnit(false);
+                        setUnitError(null);
+                        setNewUnitInput('');
+                      }}
                       style={{
-                        padding: '0 10px',
+                        height: '42px',
+                        padding: '0 12px',
                         background: '#f1f5f9',
-                        color: '#64748b',
                         border: '1px solid #cbd5e1',
                         borderRadius: '9px',
-                        fontSize: '12.5px',
+                        color: '#475569',
+                        fontSize: '13px',
+                        fontWeight: '600',
                         cursor: 'pointer',
+                        whiteSpace: 'nowrap',
                       }}
                     >
                       Hủy
@@ -755,14 +635,35 @@ export const ProductFormView: React.FC<ProductFormViewProps> = ({
                   <div style={{ display: 'flex', gap: '8px' }}>
                     <select
                       value={baseUnit}
-                      onChange={(e) => setBaseUnit(e.target.value)}
-                      style={{ flex: 1, fontWeight: '600' }}
+                      onChange={(e) => {
+                        if (e.target.value === '__add_new__') {
+                          setIsAddingUnit(true);
+                          setUnitError(null);
+                          setNewUnitInput('');
+                        } else {
+                          setBaseUnit(e.target.value);
+                        }
+                      }}
+                      style={{
+                        flex: 1,
+                        height: '42px',
+                        padding: '9px 12px',
+                        borderRadius: '9px',
+                        border: '1px solid #cbd5e1',
+                        background: '#ffffff',
+                        fontSize: '13.5px',
+                        fontWeight: '600',
+                        color: '#0f172a',
+                        outline: 'none',
+                        boxSizing: 'border-box',
+                      }}
                     >
                       {allUnits.map((u) => (
                         <option key={u} value={u}>
                           {u}
                         </option>
                       ))}
+                      <option value="__add_new__">+ Thêm đơn vị tính mới...</option>
                     </select>
                     <button
                       type="button"
@@ -771,80 +672,66 @@ export const ProductFormView: React.FC<ProductFormViewProps> = ({
                         setUnitError(null);
                         setNewUnitInput('');
                       }}
-                      title="Thêm đơn vị mới"
+                      title="Thêm đơn vị tính mới"
                       style={{
+                        height: '42px',
                         padding: '0 12px',
                         background: '#eff6ff',
                         border: '1px solid #bfdbfe',
                         borderRadius: '9px',
-                        fontSize: '12.5px',
-                        color: '#2563eb',
+                        fontSize: '13px',
+                        color: '#1d4ed8',
                         cursor: 'pointer',
-                        fontWeight: '600',
+                        fontWeight: '700',
                         whiteSpace: 'nowrap',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
                       }}
                     >
                       + Thêm ĐVT
                     </button>
                   </div>
                 )}
+
                 {unitError && (
-                  <span style={{ fontSize: '12px', color: '#ef4444', marginTop: '2px' }}>
+                  <span style={{ fontSize: '12px', color: '#ef4444', marginTop: '4px', fontWeight: '600', display: 'block' }}>
                     {unitError}
                   </span>
                 )}
-                <span style={{ fontSize: '11.5px', color: '#64748b' }}>
+                <span style={{ fontSize: '11.5px', color: '#64748b', display: 'block', marginTop: '4px' }}>
                   Đơn vị cơ sở là đơn vị nhỏ nhất để kiểm kê và lưu kho.
                 </span>
-              </label>
+              </div>
 
               {/* Quy cách đóng gói */}
               <label className="sales-order-field">
-                <span>Quy cách đóng gói</span>
+                <span style={{ fontSize: '13px', fontWeight: '600', color: '#334155', display: 'block', marginBottom: '8px' }}>
+                  Quy cách đóng gói
+                </span>
                 <input
                   type="text"
                   value={packagingSpec}
                   onChange={(e) => setPackagingSpec(e.target.value)}
-                  placeholder="Ví dụ: 1 Thùng = 24 Hộp, 1 Lốc = 6 Chai"
-                  style={{ fontWeight: '500' }}
+                  placeholder="Ví dụ: 24 lon / thùng, 1 lốc = 6 chai"
+                  style={{ height: '42px', fontWeight: '500' }}
                 />
-                <span style={{ fontSize: '11.5px', color: '#64748b' }}>
+                <span style={{ fontSize: '11.5px', color: '#64748b', display: 'block', marginTop: '4px' }}>
                   Ghi chú quy đổi đóng gói phục vụ quá trình bốc dỡ và xuất kho.
                 </span>
               </label>
             </div>
           </section>
 
-          {/* Card 3: Chính sách giá & Trạng thái */}
+          {/* Card 3: Giá vốn & Trạng thái kinh doanh */}
           <section className="sales-order-card">
             <div style={{ marginBottom: '16px', borderBottom: '1px solid #f1f5f9', paddingBottom: '10px' }}>
               <h2 style={{ margin: 0, fontSize: '16px', fontWeight: '750', color: '#0f172a' }}>
-                Chính sách giá & Trạng thái kinh doanh
+                Giá vốn & Trạng thái kinh doanh
               </h2>
             </div>
 
             <div className="sales-order-fields">
-              {/* Giá niêm yết bán */}
-              <label className="sales-order-field">
-                <span>
-                  Giá niêm yết bán lẻ (VNĐ) <b aria-hidden="true">*</b>
-                </span>
-                <input
-                  type="text"
-                  value={formatCurrency(sellPrice)}
-                  onChange={(e) => handleCurrencyChange(e.target.value, setSellPrice)}
-                  style={{
-                    fontSize: '15px',
-                    fontWeight: '750',
-                    color: '#0f172a',
-                    fontVariantNumeric: 'tabular-nums',
-                  }}
-                />
-                <span style={{ fontSize: '11.5px', color: '#64748b' }}>
-                  Giá bán tiêu chuẩn đã bao gồm thuế GTGT (VAT).
-                </span>
-              </label>
-
               {/* Giá vốn nhập kho */}
               <label className="sales-order-field">
                 <span>Giá vốn nhập kho (VNĐ)</span>
@@ -874,103 +761,88 @@ export const ProductFormView: React.FC<ProductFormViewProps> = ({
                 )}
                 <span style={{ fontSize: '11.5px', color: isCostVisible ? '#64748b' : '#f59e0b' }}>
                   {isCostVisible
-                    ? 'Dữ liệu nội bộ bảo mật phục vụ tính lãi gộp.'
-                    : 'Bị ẩn bởi cơ chế bảo mật (Chỉ Admin / Quản lý kinh doanh).'}
+                    ? 'Dữ liệu nội bộ bảo mật của Quản lý kinh doanh.'
+                    : 'Bị ẩn bởi cơ chế bảo mật (Chỉ Quản lý kinh doanh và Admin).'}
                 </span>
               </label>
 
               {/* Trạng thái kinh doanh */}
-              <div style={{ gridColumn: 'span 2' }}>
-                <span style={{ fontSize: '13px', fontWeight: 600, color: '#334155', display: 'block', marginBottom: '6px' }}>
+              <div className="sales-order-field">
+                <span style={{ fontSize: '13px', fontWeight: 600, color: '#334155', display: 'block', marginBottom: '8px' }}>
                   Trạng thái sản phẩm
                 </span>
-                <div style={{ display: 'inline-flex', gap: '8px', alignItems: 'center' }}>
-                  <label
+                <div style={{ display: 'inline-flex', gap: '8px', alignItems: 'center', height: '42px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setStatus('active')}
                     style={{
                       display: 'inline-flex',
                       alignItems: 'center',
                       gap: '6px',
                       padding: '6px 14px',
-                      borderRadius: '6px',
-                      border: status === 'active' ? '1.5px solid #10b981' : '1px solid #cbd5e1',
-                      background: status === 'active' ? '#ecfdf5' : '#ffffff',
+                      borderRadius: '999px',
+                      border: status === 'active' ? '1px solid #bbf7d0' : '1px solid #cbd5e1',
+                      background: status === 'active' ? '#dcfce7' : '#ffffff',
+                      color: status === 'active' ? '#15803d' : '#64748b',
+                      fontSize: '12.5px',
+                      fontWeight: '750',
                       cursor: 'pointer',
                       transition: 'all 0.15s ease',
-                      fontSize: '13px',
-                      fontWeight: 600,
-                      color: status === 'active' ? '#047857' : '#64748b',
+                      boxShadow: status === 'active' ? '0 1px 3px rgba(22, 163, 74, 0.15)' : 'none',
                     }}
                   >
-                    <input
-                      type="radio"
-                      name="status"
-                      value="active"
-                      checked={status === 'active'}
-                      onChange={() => setStatus('active')}
+                    <span
                       style={{
-                        width: '15px',
-                        height: '15px',
-                        minWidth: '15px',
-                        maxWidth: '15px',
-                        margin: 0,
-                        cursor: 'pointer',
-                        accentColor: '#10b981',
-                        boxShadow: 'none',
-                        outline: 'none',
-                        background: 'transparent',
+                        width: '6px',
+                        height: '6px',
+                        borderRadius: '50%',
+                        background: status === 'active' ? '#16a34a' : '#cbd5e1',
+                        flexShrink: 0,
                       }}
                     />
-                    <span>Đang kinh doanh</span>
-                  </label>
+                    <span>Đang giao dịch</span>
+                  </button>
 
-                  <label
+                  <button
+                    type="button"
+                    onClick={() => setStatus('inactive')}
                     style={{
                       display: 'inline-flex',
                       alignItems: 'center',
                       gap: '6px',
                       padding: '6px 14px',
-                      borderRadius: '6px',
-                      border: status === 'inactive' ? '1.5px solid #ef4444' : '1px solid #cbd5e1',
-                      background: status === 'inactive' ? '#fef2f2' : '#ffffff',
+                      borderRadius: '999px',
+                      border: status === 'inactive' ? '1px solid #fecaca' : '1px solid #cbd5e1',
+                      background: status === 'inactive' ? '#fee2e2' : '#ffffff',
+                      color: status === 'inactive' ? '#b91c1c' : '#64748b',
+                      fontSize: '12.5px',
+                      fontWeight: '750',
                       cursor: 'pointer',
                       transition: 'all 0.15s ease',
-                      fontSize: '13px',
-                      fontWeight: 600,
-                      color: status === 'inactive' ? '#b91c1c' : '#64748b',
+                      boxShadow: status === 'inactive' ? '0 1px 3px rgba(220, 38, 38, 0.15)' : 'none',
                     }}
                   >
-                    <input
-                      type="radio"
-                      name="status"
-                      value="inactive"
-                      checked={status === 'inactive'}
-                      onChange={() => setStatus('inactive')}
+                    <span
                       style={{
-                        width: '15px',
-                        height: '15px',
-                        minWidth: '15px',
-                        maxWidth: '15px',
-                        margin: 0,
-                        cursor: 'pointer',
-                        accentColor: '#ef4444',
-                        boxShadow: 'none',
-                        outline: 'none',
-                        background: 'transparent',
+                        width: '6px',
+                        height: '6px',
+                        borderRadius: '50%',
+                        background: status === 'inactive' ? '#dc2626' : '#cbd5e1',
+                        flexShrink: 0,
                       }}
                     />
-                    <span>Ngừng kinh doanh</span>
-                  </label>
+                    <span>Ngừng giao dịch</span>
+                  </button>
                 </div>
               </div>
             </div>
           </section>
 
-          {/* Card 4: Hình ảnh sản phẩm */}
+          {/* Card 4: Hình ảnh sản phẩm (1 ảnh) */}
           <section className="sales-order-card">
             <input
               ref={fileInputRef}
               type="file"
-              multiple
               accept="image/png, image/jpeg, image/webp"
               style={{ display: 'none' }}
               onChange={(e) => handleImageUpload(e.target.files)}
@@ -979,21 +851,15 @@ export const ProductFormView: React.FC<ProductFormViewProps> = ({
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', borderBottom: '1px solid #f1f5f9', paddingBottom: '10px' }}>
               <div>
                 <h2 style={{ margin: 0, fontSize: '16px', fontWeight: '750', color: '#0f172a' }}>
-                  Hình ảnh sản phẩm
+                  Ảnh sản phẩm
                 </h2>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <span style={{ fontSize: '12px', color: '#64748b' }}>
-                  Đã tải: <strong>{images.length}</strong> / 5 ảnh
-                </span>
-                {images.length > 0 && images.length < 5 && (
+              {image && (
+                <div style={{ display: 'flex', gap: '8px' }}>
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
                     style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '4px',
                       padding: '4px 10px',
                       fontSize: '12px',
                       fontWeight: 600,
@@ -1004,14 +870,30 @@ export const ProductFormView: React.FC<ProductFormViewProps> = ({
                       cursor: 'pointer',
                     }}
                   >
-                    + Thêm ảnh
+                    Đổi ảnh
                   </button>
-                )}
-              </div>
+                  <button
+                    type="button"
+                    onClick={handleRemoveImage}
+                    style={{
+                      padding: '4px 10px',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      color: '#dc2626',
+                      background: '#fef2f2',
+                      border: '1px solid #fecaca',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Xóa ảnh
+                  </button>
+                </div>
+              )}
             </div>
 
-            {/* Vùng kéo thả upload to (chỉ hiện khi chưa có ảnh) */}
-            {images.length === 0 && (
+            {/* Vùng ảnh */}
+            {!image ? (
               <div
                 onClick={() => fileInputRef.current?.click()}
                 style={{
@@ -1040,146 +922,34 @@ export const ProductFormView: React.FC<ProductFormViewProps> = ({
                   </svg>
                 </div>
                 <div style={{ fontSize: '13.5px', fontWeight: '700', color: '#1e293b', marginBottom: '4px' }}>
-                  Nhấn vào đây để tải ảnh lên
+                  Nhấn vào đây để tải ảnh sản phẩm
                 </div>
                 <div style={{ fontSize: '12px', color: '#64748b' }}>
-                  Hoặc kéo thả file ảnh vào khung này (Tối đa 5 ảnh, định dạng PNG, JPG, WEBP &le; 5MB)
+                  Định dạng PNG, JPG, WEBP (dung lượng tối đa &le; 5MB)
                 </div>
               </div>
-            )}
-
-            {/* Danh sách ảnh đã upload */}
-            {images.length > 0 && (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: '12px' }}>
-                {images.map((img, idx) => (
-                  <div
-                    key={idx}
-                    style={{
-                      position: 'relative',
-                      borderRadius: '10px',
-                      overflow: 'hidden',
-                      border: mainImageIdx === idx ? '2px solid #2563eb' : '1px solid #e2e8f0',
-                      background: '#f8fafc',
-                      aspectRatio: '1',
-                      display: 'flex',
-                      flexDirection: 'column',
-                    }}
-                  >
-                    <img
-                      src={img}
-                      alt={`Sản phẩm ${idx + 1}`}
-                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                    />
-                    {mainImageIdx === idx && (
-                      <span
-                        style={{
-                          position: 'absolute',
-                          top: '6px',
-                          left: '6px',
-                          background: '#0fad89',
-                          color: '#ffffff',
-                          fontSize: '10px',
-                          fontWeight: '700',
-                          padding: '2px 6px',
-                          borderRadius: '4px',
-                        }}
-                      >
-                        Ảnh chính
-                      </span>
-                    )}
-                    <div
-                      style={{
-                        position: 'absolute',
-                        bottom: 0,
-                        left: 0,
-                        right: 0,
-                        background: 'rgba(15, 23, 42, 0.75)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        padding: '4px 6px',
-                      }}
-                    >
-                      {mainImageIdx !== idx ? (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleSetMainImage(idx);
-                          }}
-                          style={{
-                            background: 'transparent',
-                            border: 'none',
-                            color: '#93c5fd',
-                            fontSize: '11px',
-                            fontWeight: '600',
-                            cursor: 'pointer',
-                            padding: 0,
-                          }}
-                        >
-                          Đặt làm chính
-                        </button>
-                      ) : (
-                        <span style={{ fontSize: '11px', color: '#ffffff' }}>Mặc định</span>
-                      )}
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleRemoveImage(idx);
-                        }}
-                        style={{
-                          background: 'transparent',
-                          border: 'none',
-                          color: '#f87171',
-                          fontSize: '13px',
-                          cursor: 'pointer',
-                          padding: 0,
-                          fontWeight: '700',
-                        }}
-                        title="Xóa ảnh này"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  </div>
-                ))}
-
-                {/* Ô nhỏ thêm ảnh khi chưa đạt tối đa 5 ảnh */}
-                {images.length < 5 && (
-                  <div
-                    onClick={() => fileInputRef.current?.click()}
-                    style={{
-                      borderRadius: '10px',
-                      border: '2px dashed #cbd5e1',
-                      background: '#f8fafc',
-                      aspectRatio: '1',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      cursor: 'pointer',
-                      gap: '4px',
-                      transition: 'all 0.15s ease',
-                      color: '#64748b',
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.borderColor = '#2563eb';
-                      e.currentTarget.style.background = '#eff6ff';
-                      e.currentTarget.style.color = '#2563eb';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.borderColor = '#cbd5e1';
-                      e.currentTarget.style.background = '#f8fafc';
-                      e.currentTarget.style.color = '#64748b';
-                    }}
-                    title="Thêm ảnh khác"
-                  >
-                    <span style={{ fontSize: '24px', lineHeight: 1 }}>+</span>
-                    <span style={{ fontSize: '12px', fontWeight: '600' }}>Thêm ảnh</span>
-                    <span style={{ fontSize: '10.5px', color: '#94a3b8' }}>({images.length}/5)</span>
-                  </div>
-                )}
+            ) : (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                <div
+                  style={{
+                    width: '140px',
+                    height: '140px',
+                    borderRadius: '10px',
+                    overflow: 'hidden',
+                    border: '1px solid #e2e8f0',
+                    background: '#f8fafc',
+                    boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
+                  }}
+                >
+                  <img
+                    src={image}
+                    alt="Ảnh sản phẩm"
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  />
+                </div>
+                <div style={{ fontSize: '12.5px', color: '#64748b' }}>
+                  Ảnh đã được tải lên thành công. Bạn có thể nhấn <strong>Đổi ảnh</strong> hoặc <strong>Xóa ảnh</strong> ở góc trên bên phải.
+                </div>
               </div>
             )}
           </section>
@@ -1187,7 +957,7 @@ export const ProductFormView: React.FC<ProductFormViewProps> = ({
 
         {/* CỘT PHỤ (PHẢI): TỔNG KẾT & THAO TÁC */}
         <aside className="sales-order-sidebar">
-          {/* Card 1: Tổng kết & Thao tác */}
+          {/* Card: Tổng kết & Thao tác */}
           <section className="sales-order-card" style={{ position: 'sticky', top: '16px' }}>
             <h2 style={{ fontSize: '17px', borderBottom: '1px solid #f1f5f9', paddingBottom: '12px', marginBottom: '14px' }}>
               Tổng kết sản phẩm
@@ -1206,32 +976,27 @@ export const ProductFormView: React.FC<ProductFormViewProps> = ({
                 <span style={{ color: '#64748b' }}>ĐVT cơ sở:</span>
                 <strong style={{ color: '#0f172a' }}>{baseUnit || '---'}</strong>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
-                <span style={{ color: '#64748b' }}>Giá niêm yết:</span>
-                <strong style={{ color: '#2563eb', fontSize: '14px' }}>{formatCurrency(sellPrice)} đ</strong>
-              </div>
+              {packagingSpec && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+                  <span style={{ color: '#64748b' }}>Quy cách:</span>
+                  <strong style={{ color: '#0f172a' }}>{packagingSpec}</strong>
+                </div>
+              )}
 
               {isCostVisible && (
-                <>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
-                    <span style={{ color: '#64748b' }}>Giá vốn:</span>
-                    <strong style={{ color: '#475569' }}>{formatCurrency(costPrice)} đ</strong>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', paddingTop: '6px', borderTop: '1px dashed #e2e8f0' }}>
-                    <span style={{ color: '#64748b' }}>Biên lợi nhuận:</span>
-                    <span
-                      style={{
-                        fontWeight: '750',
-                        color: Number(profitMargin) > 0 ? '#10b981' : '#f59e0b',
-                      }}
-                    >
-                      {profitMargin ? `+${profitMargin}%` : '---'}
-                    </span>
-                  </div>
-                </>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+                  <span style={{ color: '#64748b' }}>Giá vốn:</span>
+                  <strong style={{ color: '#059669', fontSize: '14px' }}>{formatCurrency(costPrice)} đ</strong>
+                </div>
               )}
-            </div>
 
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+                <span style={{ color: '#64748b' }}>Trạng thái:</span>
+                <strong style={{ color: status === 'active' ? '#16a34a' : '#dc2626' }}>
+                  {status === 'active' ? 'Đang giao dịch' : 'Ngừng giao dịch'}
+                </strong>
+              </div>
+            </div>
 
             {/* Các nút bấm thao tác */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>

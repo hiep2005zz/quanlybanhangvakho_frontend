@@ -403,7 +403,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
                       <circle cx="12" cy="10" r="3" />
                     </svg>
                   </div>
-                  <span>Tra cứu đại lý</span>
+                  <span>Danh bạ đại lý & Khách hàng</span>
                 </button>
               )}
 
