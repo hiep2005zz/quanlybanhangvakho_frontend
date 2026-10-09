@@ -241,7 +241,7 @@ export const OrderListView: React.FC<OrderListViewProps> = ({
   };
 
   return (
-    <div className="w-full max-w-[1680px] mx-auto p-4 flex flex-col gap-5 min-h-screen text-slate-900 bg-slate-50">
+    <div className="w-full max-w-[1680px] mx-auto flex flex-col gap-5 min-h-full text-slate-900 pb-10">
       {/* 1. Header Tiêu đề & Nút thao tác chính */}
       <div className="flex flex-wrap items-center justify-between gap-4 pb-2 border-b border-slate-200">
         <div>
