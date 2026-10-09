@@ -7,6 +7,7 @@ import {
   OrderPickingItem,
   ProductPickingLocationItem,
 } from '../services/api';
+import OrderPrintModal from './OrderPrintModal';
 import './orders-view.css';
 
 interface OrderDetailsModalProps {
@@ -33,6 +34,7 @@ export default function OrderDetailsModal({ token, orderCode, onClose }: OrderDe
   const [pickingSummary, setPickingSummary] = useState<OrderPickingSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isPrintOpen, setIsPrintOpen] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -83,7 +85,34 @@ export default function OrderDetailsModal({ token, orderCode, onClose }: OrderDe
             <p className="orders-page-eyebrow">CHI TIẾT ĐƠN HÀNG & SOẠN HÀNG THEO VỊ TRÍ KHO</p>
             <h2 id="order-detail-title">{orderCode}</h2>
           </div>
-          <button type="button" className="orders-back-button" onClick={onClose}>Đóng</button>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <button
+              type="button"
+              className="orders-detail-button"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                backgroundColor: '#2563eb',
+                color: '#ffffff',
+                border: 'none',
+                fontWeight: 600,
+                padding: '8px 14px',
+                borderRadius: '6px',
+                cursor: 'pointer',
+              }}
+              onClick={() => setIsPrintOpen(true)}
+              title="In phiếu hoặc xuất file PDF đơn hàng cho đại lý xem và ký xác nhận"
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="6 9 6 2 18 2 18 9" />
+                <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+                <rect x="6" y="14" width="12" height="8" />
+              </svg>
+              In / Xuất PDF
+            </button>
+            <button type="button" className="orders-back-button" onClick={onClose}>Đóng</button>
+          </div>
         </header>
 
         {isLoading && <div className="orders-state" role="status">Đang tải chi tiết đơn hàng và vị trí kho...</div>}
@@ -283,6 +312,15 @@ export default function OrderDetailsModal({ token, orderCode, onClose }: OrderDe
           </div>
         )}
       </section>
+
+      {isPrintOpen && (
+        <OrderPrintModal
+          token={token}
+          orderCode={orderCode}
+          initialOrder={order}
+          onClose={() => setIsPrintOpen(false)}
+        />
+      )}
     </div>
   );
 }
