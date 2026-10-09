@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import {
   getFilteredOrdersApi,
@@ -48,7 +48,7 @@ export const OrderListView: React.FC<OrderListViewProps> = ({
   const [salesReps, setSalesReps] = useState<SalesRepItem[]>([]);
   const [regions, setRegions] = useState<string[]>([]);
 
-  // 3. State Bộ lọc (Filter Inputs)
+  // 3. State Bộ lọc (Draft inputs trên giao diện - thay đổi KHÔNG tự động bắn API)
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [dealerFilter, setDealerFilter] = useState<string>('ALL');
   const [salesRepFilter, setSalesRepFilter] = useState<string>('ALL');
@@ -56,9 +56,28 @@ export const OrderListView: React.FC<OrderListViewProps> = ({
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
 
+  // Interface & State tiêu chí đã được kích hoạt (chỉ cập nhật khi bấm 'Áp dụng lọc' hoặc 'Đặt lại')
+  interface FilterCriteria {
+    status?: string;
+    dealer_id?: number;
+    sales_rep_id?: number;
+    region?: string;
+    start_date?: string;
+    end_date?: string;
+  }
+
+  const [appliedFilters, setAppliedFilters] = useState<FilterCriteria>({});
+  const appliedFiltersRef = useRef<FilterCriteria>({});
+  appliedFiltersRef.current = appliedFilters;
+
   // 4. State Phân trang & Dữ liệu đơn hàng
   const [page, setPage] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(20);
+  const pageRef = useRef<number>(1);
+  pageRef.current = page;
+  const pageSizeRef = useRef<number>(20);
+  pageSizeRef.current = pageSize;
+
   const [orders, setOrders] = useState<OrderResponseData[]>([]);
   const [total, setTotal] = useState<number>(0);
   const [filteredTotalAmount, setFilteredTotalAmount] = useState<number>(0);
@@ -118,22 +137,52 @@ export const OrderListView: React.FC<OrderListViewProps> = ({
     fetchKpiSummary();
   }, [fetchKpiSummary]);
 
-  // Hàm tải dữ liệu đơn hàng theo bộ lọc & phân trang
+  // Gom các tiêu chí được chọn hợp lệ (bỏ qua 'ALL' hoặc rỗng)
+  const buildFilterCriteria = (): FilterCriteria => {
+    const criteria: FilterCriteria = {};
+    if (statusFilter && statusFilter !== 'ALL') {
+      criteria.status = statusFilter;
+    }
+    if (dealerFilter && dealerFilter !== 'ALL') {
+      const parsedDealerId = Number(dealerFilter);
+      if (!isNaN(parsedDealerId) && parsedDealerId > 0) {
+        criteria.dealer_id = parsedDealerId;
+      }
+    }
+    if (!isSales && salesRepFilter && salesRepFilter !== 'ALL') {
+      const parsedRepId = Number(salesRepFilter);
+      if (!isNaN(parsedRepId) && parsedRepId > 0) {
+        criteria.sales_rep_id = parsedRepId;
+      }
+    }
+    if (regionFilter && regionFilter !== 'ALL' && regionFilter.trim() !== '') {
+      criteria.region = regionFilter.trim();
+    }
+    if (startDate && startDate.trim() !== '') {
+      criteria.start_date = startDate.trim();
+    }
+    if (endDate && endDate.trim() !== '') {
+      criteria.end_date = endDate.trim();
+    }
+    return criteria;
+  };
+
+  // Hàm tải dữ liệu đơn hàng (Chỉ nhận tham số trực tiếp, KHÔNG gắn phụ thuộc vào draft state)
   const fetchOrders = useCallback(
-    async (currentPage = page, currentPageSize = pageSize) => {
+    async (
+      targetPage: number = pageRef.current,
+      targetFilters: FilterCriteria = appliedFiltersRef.current,
+      targetPageSize: number = pageSizeRef.current
+    ) => {
+      if (!token) return;
       setLoading(true);
       setError(null);
       try {
         const params: any = {
-          page: currentPage,
-          page_size: currentPageSize,
+          page: targetPage,
+          page_size: targetPageSize,
+          ...targetFilters,
         };
-        if (statusFilter && statusFilter !== 'ALL') params.status = statusFilter;
-        if (dealerFilter && dealerFilter !== 'ALL') params.dealer_id = Number(dealerFilter);
-        if (!isSales && salesRepFilter && salesRepFilter !== 'ALL') params.sales_rep_id = Number(salesRepFilter);
-        if (regionFilter && regionFilter !== 'ALL') params.region = regionFilter;
-        if (startDate) params.start_date = startDate;
-        if (endDate) params.end_date = endDate;
 
         const res = await getFilteredOrdersApi(token, params);
         setOrders(res.items || []);
@@ -145,22 +194,27 @@ export const OrderListView: React.FC<OrderListViewProps> = ({
         setLoading(false);
       }
     },
-    [token, statusFilter, dealerFilter, salesRepFilter, regionFilter, startDate, endDate, isSales, page, pageSize]
+    [token]
   );
 
-  // Tự động load khi page hoặc pageSize thay đổi
+  // Khởi tạo tải trang đầu tiên khi token sẵn sàng (chỉ chạy 1 lần khi mount)
   useEffect(() => {
-    fetchOrders(page, pageSize);
-  }, [page, pageSize, fetchOrders]);
+    if (token) {
+      fetchOrders(1, appliedFiltersRef.current, pageSizeRef.current);
+    }
+  }, [token, fetchOrders]);
 
-  // Nút Áp dụng lọc: Quay về trang 1 và fetch
+  // Nút Áp dụng lọc: Chỉ khi bấm nút này mới tổng hợp điều kiện và gửi request
   const handleApplyFilter = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
+    const criteria = buildFilterCriteria();
+    setAppliedFilters(criteria);
+    appliedFiltersRef.current = criteria;
     setPage(1);
-    fetchOrders(1, pageSize);
+    fetchOrders(1, criteria, pageSizeRef.current);
   };
 
-  // Nút Đặt lại bộ lọc: Reset toàn bộ inputs về mặc định
+  // Nút Đặt lại bộ lọc: Reset toàn bộ inputs về mặc định và tải lại toàn bộ
   const handleResetFilter = () => {
     setStatusFilter('ALL');
     setDealerFilter('ALL');
@@ -168,17 +222,26 @@ export const OrderListView: React.FC<OrderListViewProps> = ({
     setRegionFilter('ALL');
     setStartDate('');
     setEndDate('');
+    const emptyCriteria: FilterCriteria = {};
+    setAppliedFilters(emptyCriteria);
+    appliedFiltersRef.current = emptyCriteria;
     setPage(1);
-    setLoading(true);
-    getFilteredOrdersApi(token, { page: 1, page_size: pageSize })
-      .then((res) => {
-        setOrders(res.items || []);
-        setTotal(res.total || 0);
-        setFilteredTotalAmount(res.filtered_total_amount || 0);
-      })
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false));
+    fetchOrders(1, emptyCriteria, pageSizeRef.current);
     fetchKpiSummary();
+  };
+
+  // Xử lý chuyển trang
+  const handlePageChange = (newPage: number) => {
+    setPage(newPage);
+    fetchOrders(newPage, appliedFiltersRef.current, pageSizeRef.current);
+  };
+
+  // Xử lý đổi số dòng mỗi trang
+  const handlePageSizeChange = (newSize: number) => {
+    setPageSize(newSize);
+    pageSizeRef.current = newSize;
+    setPage(1);
+    fetchOrders(1, appliedFiltersRef.current, newSize);
   };
 
   // Xem chi tiết đơn hàng
@@ -284,7 +347,7 @@ export const OrderListView: React.FC<OrderListViewProps> = ({
             type="button"
             id="btn-refresh-orders"
             onClick={() => {
-              fetchOrders(page, pageSize);
+              fetchOrders(page, appliedFiltersRef.current, pageSize);
               fetchKpiSummary();
             }}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs sm:text-sm font-semibold text-slate-700 bg-white border border-slate-300 rounded-lg shadow-sm hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-colors"
@@ -311,21 +374,20 @@ export const OrderListView: React.FC<OrderListViewProps> = ({
         </div>
       </div>
 
-      {/* 2. Bố cục 4 Thẻ KPI Tóm Tắt (Theo chuẩn layout quen thuộc của hệ thống) */}
+      {/* 2. Bố cục 4 Thẻ KPI Tóm Tắt (Gọn gàng, tinh chỉnh bỏ dòng chữ nhỏ) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
         {/* Thẻ 1: Tổng số đơn hàng */}
         <div
           id="kpi-total-orders"
-          className="bg-white p-3.5 sm:p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between hover:shadow-md transition-shadow"
+          className="bg-white px-4 py-3 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between hover:shadow-md transition-shadow"
         >
           <div>
             <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
               Tổng số đơn hàng
             </div>
-            <div className="text-2xl font-extrabold text-slate-900 mt-1">
+            <div className="text-2xl font-extrabold text-slate-900 mt-0.5">
               {total.toLocaleString('vi-VN')} đơn
             </div>
-            <div className="text-[11px] text-slate-400 mt-0.5">Số lượng đơn khớp bộ lọc</div>
           </div>
           <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-600 flex-shrink-0">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -337,16 +399,15 @@ export const OrderListView: React.FC<OrderListViewProps> = ({
         {/* Thẻ 2: Đơn chờ quản lý duyệt */}
         <div
           id="stat-card-pending-orders"
-          className="bg-amber-50/80 p-3.5 sm:p-4 rounded-xl border border-amber-200 shadow-sm flex items-center justify-between hover:shadow-md transition-shadow"
+          className="bg-amber-50/80 px-4 py-3 rounded-xl border border-amber-200 shadow-sm flex items-center justify-between hover:shadow-md transition-shadow"
         >
           <div>
             <div className="text-[11px] font-bold uppercase tracking-wider text-amber-800">
               Đơn chờ quản lý duyệt
             </div>
-            <div className="text-2xl font-extrabold text-amber-900 mt-1">
+            <div className="text-2xl font-extrabold text-amber-900 mt-0.5">
               {pendingOrdersCount.toLocaleString('vi-VN')} đơn
             </div>
-            <div className="text-[11px] text-amber-700 mt-0.5">Bán dưới giá sàn cần phê duyệt</div>
           </div>
           <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center text-amber-700 flex-shrink-0">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -358,16 +419,15 @@ export const OrderListView: React.FC<OrderListViewProps> = ({
         {/* Thẻ 3: Đơn đã xác nhận */}
         <div
           id="kpi-confirmed-orders"
-          className="bg-emerald-50/80 p-3.5 sm:p-4 rounded-xl border border-emerald-200 shadow-sm flex items-center justify-between hover:shadow-md transition-shadow"
+          className="bg-emerald-50/80 px-4 py-3 rounded-xl border border-emerald-200 shadow-sm flex items-center justify-between hover:shadow-md transition-shadow"
         >
           <div>
             <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-800">
               Đơn đã xác nhận
             </div>
-            <div className="text-2xl font-extrabold text-emerald-900 mt-1">
+            <div className="text-2xl font-extrabold text-emerald-900 mt-0.5">
               {confirmedOrdersCount.toLocaleString('vi-VN')} đơn
             </div>
-            <div className="text-[11px] text-emerald-700 mt-0.5">Đủ điều kiện xuất kho bán hàng</div>
           </div>
           <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-700 flex-shrink-0">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -379,16 +439,15 @@ export const OrderListView: React.FC<OrderListViewProps> = ({
         {/* Thẻ 4: Tổng doanh thu bán hàng */}
         <div
           id="kpi-total-amount"
-          className="bg-white p-3.5 sm:p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between hover:shadow-md transition-shadow"
+          className="bg-white px-4 py-3 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between hover:shadow-md transition-shadow"
         >
           <div>
             <div className="text-[11px] font-bold uppercase tracking-wider text-slate-600">
               Tổng doanh thu bán hàng
             </div>
-            <div className="text-2xl font-extrabold text-emerald-700 mt-1">
+            <div className="text-2xl font-extrabold text-emerald-700 mt-0.5">
               {filteredTotalAmount.toLocaleString('vi-VN')} đ
             </div>
-            <div className="text-[11px] text-slate-400 mt-0.5">Doanh thu tổng hợp từ database (không phụ thuộc trang)</div>
           </div>
           <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600 flex-shrink-0">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -937,11 +996,7 @@ export const OrderListView: React.FC<OrderListViewProps> = ({
               <select
                 id="select-page-size"
                 value={pageSize}
-                onChange={(e) => {
-                  const newSize = Number(e.target.value);
-                  setPageSize(newSize);
-                  setPage(1);
-                }}
+                onChange={(e) => handlePageSizeChange(Number(e.target.value))}
                 className="px-2 py-1 bg-white border border-slate-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500 font-medium"
               >
                 <option value={10}>10</option>
@@ -954,7 +1009,7 @@ export const OrderListView: React.FC<OrderListViewProps> = ({
               <button
                 type="button"
                 id="btn-prev-page"
-                onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+                onClick={() => handlePageChange(Math.max(1, page - 1))}
                 disabled={page <= 1 || loading}
                 className="px-3 py-1 text-xs font-semibold text-slate-700 bg-white border border-slate-300 rounded-l-lg hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
               >
@@ -963,9 +1018,9 @@ export const OrderListView: React.FC<OrderListViewProps> = ({
               <button
                 type="button"
                 id="btn-next-page"
-                onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+                onClick={() => handlePageChange(Math.min(totalPages, page + 1))}
                 disabled={page >= totalPages || loading}
-                className="px-3 py-1 text-xs font-semibold text-slate-700 bg-white border border-l-0 border-slate-300 rounded-r-lg hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                className="px-3 py-1 text-xs font-semibold text-slate-700 bg-white border border-slate-300 rounded-r-lg hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 Trang sau
               </button>
@@ -1144,7 +1199,7 @@ export const OrderListView: React.FC<OrderListViewProps> = ({
           onClose={() => setApprovingOrder(null)}
           onSuccess={() => {
             setApprovingOrder(null);
-            fetchOrders(page, pageSize);
+            fetchOrders(page, appliedFiltersRef.current, pageSize);
             fetchKpiSummary();
             if (onRefreshProducts) onRefreshProducts();
           }}
@@ -1160,7 +1215,7 @@ export const OrderListView: React.FC<OrderListViewProps> = ({
           onClose={() => setRejectingOrder(null)}
           onSuccess={() => {
             setRejectingOrder(null);
-            fetchOrders(page, pageSize);
+            fetchOrders(page, appliedFiltersRef.current, pageSize);
             fetchKpiSummary();
             if (onRefreshProducts) onRefreshProducts();
           }}
@@ -1177,7 +1232,7 @@ export const OrderListView: React.FC<OrderListViewProps> = ({
           onClose={() => setIsCreateModalOpen(false)}
           onSuccess={() => {
             setIsCreateModalOpen(false);
-            fetchOrders(page, pageSize);
+            fetchOrders(page, appliedFiltersRef.current, pageSize);
             fetchKpiSummary();
             if (onRefreshProducts) onRefreshProducts();
           }}
