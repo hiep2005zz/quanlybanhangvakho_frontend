@@ -636,19 +636,7 @@ export default function DealerProfileManagementView({
       {/* 1. Header Section */}
       <div className="dealer-profiles-header">
         <div className="dealer-header-title-wrap">
-          <div className="dealer-header-badge">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-              <circle cx="9" cy="7" r="4"></circle>
-              <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-              <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-            </svg>
-            <span>Hệ thống Quản lý Đối tác</span>
-          </div>
           <h2 className="dealer-header-title">Quản lý Hồ sơ Đại lý</h2>
-          <p className="dealer-header-desc">
-            Quản lý thông tin, trạng thái và hoạt động giao dịch của các đại lý.
-          </p>
         </div>
 
         <div className="dealer-header-actions">
@@ -700,92 +688,70 @@ export default function DealerProfileManagementView({
         </div>
       </div>
 
-      {/* 2. 4 Ô Thống Kê (Lấy từ Backend, Bấm vào để lọc) */}
+      {/* 2. 4 Ô Thống Kê (Bố cục hiện đại, không dùng icon, trực quan và sang trọng) */}
       <div className="dealer-stats-grid">
         {/* Ô 1: Tổng số hồ sơ đại lý */}
         <div
-          className={`dealer-stat-card ${selectedStatFilter === 'all' ? 'stat-card-active' : ''}`}
+          className={`dealer-stat-card stat-card-blue ${selectedStatFilter === 'all' ? 'stat-card-active' : ''}`}
           onClick={() => handleStatCardClick('all')}
           title="Bấm để xem toàn bộ danh sách đại lý (bỏ lọc trạng thái)"
         >
-          {selectedStatFilter === 'all' && (
-            <span className="stat-filter-tag">Đang lọc • Bấm để hủy</span>
-          )}
-          <div className="stat-icon-box" style={{ background: '#dbeafe', color: '#1d4ed8' }}>
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-              <circle cx="9" cy="7" r="4" />
-              <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-            </svg>
+          <div className="stat-card-top">
+            <span className="stat-card-label">Tổng số hồ sơ đại lý</span>
+            {selectedStatFilter === 'all' && (
+              <span className="stat-filter-tag">Đang lọc</span>
+            )}
           </div>
-          <div>
-            <div className="stat-number">{stats.total}</div>
-            <div className="stat-label">Tổng số hồ sơ đại lý</div>
-          </div>
+          <div className="stat-number stat-num-blue">{stats.total}</div>
+          <div className="stat-subtext">Hồ sơ đối tác trên hệ thống</div>
         </div>
 
         {/* Ô 2: Đang hoạt động */}
         <div
-          className={`dealer-stat-card ${selectedStatFilter === 'active' || selectedStatus === 'Đang hoạt động' ? 'stat-card-active' : ''}`}
+          className={`dealer-stat-card stat-card-green ${selectedStatFilter === 'active' || selectedStatus === 'Đang hoạt động' ? 'stat-card-active' : ''}`}
           onClick={() => handleStatCardClick('active')}
-          title="Bấm để lọc các đại lý đang hoạt động"
+          title="Bấm để lọc các đại lý đang hoạt động giao dịch"
         >
-          {(selectedStatFilter === 'active' || selectedStatus === 'Đang hoạt động') && (
-            <span className="stat-filter-tag">Đang lọc • Bấm để hủy</span>
-          )}
-          <div className="stat-icon-box" style={{ background: '#dcfce7', color: '#15803d' }}>
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-              <polyline points="22 4 12 14.01 9 11.01" />
-            </svg>
+          <div className="stat-card-top">
+            <span className="stat-card-label">Đang hoạt động</span>
+            {(selectedStatFilter === 'active' || selectedStatus === 'Đang hoạt động') && (
+              <span className="stat-filter-tag">Đang lọc</span>
+            )}
           </div>
-          <div>
-            <div className="stat-number">{stats.active}</div>
-            <div className="stat-label">Đang hoạt động giao dịch</div>
-          </div>
+          <div className="stat-number stat-num-green">{stats.active}</div>
+          <div className="stat-subtext">Sẵn sàng giao dịch & tạo đơn</div>
         </div>
 
         {/* Ô 3: Ngừng giao dịch */}
         <div
-          className={`dealer-stat-card ${selectedStatFilter === 'stopped' || selectedStatus === 'Ngừng giao dịch' ? 'stat-card-active' : ''}`}
+          className={`dealer-stat-card stat-card-red ${selectedStatFilter === 'stopped' || selectedStatus === 'Ngừng giao dịch' ? 'stat-card-active' : ''}`}
           onClick={() => handleStatCardClick('stopped')}
-          title="Bấm để lọc các đại lý đã ngừng giao dịch"
+          title="Bấm để lọc các đại lý đã ngừng giao dịch / tạm dừng"
         >
-          {(selectedStatFilter === 'stopped' || selectedStatus === 'Ngừng giao dịch') && (
-            <span className="stat-filter-tag">Đang lọc • Bấm để hủy</span>
-          )}
-          <div className="stat-icon-box" style={{ background: '#fee2e2', color: '#b91c1c' }}>
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-              <circle cx="12" cy="12" r="10" />
-              <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
-            </svg>
+          <div className="stat-card-top">
+            <span className="stat-card-label">Ngừng giao dịch / Tạm dừng</span>
+            {(selectedStatFilter === 'stopped' || selectedStatus === 'Ngừng giao dịch') && (
+              <span className="stat-filter-tag">Đang lọc</span>
+            )}
           </div>
-          <div>
-            <div className="stat-number">{stats.stopped}</div>
-            <div className="stat-label">Ngừng giao dịch</div>
-          </div>
+          <div className="stat-number stat-num-red">{stats.stopped}</div>
+          <div className="stat-subtext">Đã khóa hoặc ngưng giao dịch</div>
         </div>
 
         {/* Ô 4: Đã phát sinh GD (Khóa xóa) */}
         <div
-          className={`dealer-stat-card ${selectedStatFilter === 'with_tx' || hasTxFilter === true ? 'stat-card-active' : ''}`}
+          className={`dealer-stat-card stat-card-amber ${selectedStatFilter === 'with_tx' || hasTxFilter === true ? 'stat-card-active' : ''}`}
           onClick={() => handleStatCardClick('with_tx')}
           title="Bấm để lọc các đại lý đã phát sinh giao dịch (không thể xóa trực tiếp)"
         >
-          {(selectedStatFilter === 'with_tx' || hasTxFilter === true) && (
-            <span className="stat-filter-tag">Đang lọc • Bấm để hủy</span>
-          )}
-          <div className="stat-icon-box" style={{ background: '#fef3c7', color: '#b45309' }}>
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-              <rect x="2" y="4" width="20" height="16" rx="2" />
-              <line x1="2" y1="10" x2="22" y2="10" />
-            </svg>
+          <div className="stat-card-top">
+            <span className="stat-card-label">Đã phát sinh GD</span>
+            {(selectedStatFilter === 'with_tx' || hasTxFilter === true) && (
+              <span className="stat-filter-tag">Đang lọc</span>
+            )}
           </div>
-          <div>
-            <div className="stat-number">{stats.with_transactions}</div>
-            <div className="stat-label">Đã phát sinh GD (Khóa xóa)</div>
-          </div>
+          <div className="stat-number stat-num-amber">{stats.with_transactions}</div>
+          <div className="stat-subtext">Có dữ liệu đơn hàng (Khóa xóa)</div>
         </div>
       </div>
 
@@ -978,20 +944,20 @@ export default function DealerProfileManagementView({
         ) : (
           <>
             <div className="table-responsive">
-              <table className="dealer-table" style={{ minWidth: '1100px' }}>
+              <table className="dealer-table">
                 <thead>
                   <tr>
-                    <th style={{ width: '95px' }}>Mã đại lý</th>
-                    <th style={{ width: '180px' }}>Tên đại lý</th>
-                    <th style={{ width: '130px' }}>Kho phục vụ</th>
-                    <th style={{ width: '110px' }}>Mã số thuế</th>
-                    <th style={{ width: '120px' }}>Nhóm khách hàng</th>
-                    <th style={{ width: '150px' }}>Bảng giá áp dụng</th>
-                    <th style={{ width: '100px' }}>Khu vực</th>
-                    <th style={{ width: '165px' }}>Người phụ trách</th>
-                    <th style={{ width: '85px', textAlign: 'center' }}>Giao dịch</th>
-                    <th style={{ width: '140px', textAlign: 'center' }}>Trạng thái</th>
-                    <th style={{ width: '95px', textAlign: 'center' }}>Thao tác</th>
+                    <th style={{ width: '85px', minWidth: '80px' }} title="Mã định danh duy nhất của đại lý">Mã đại lý</th>
+                    <th style={{ width: '240px', minWidth: '220px' }} title="Tên đại lý và thông tin liên hệ">Tên đại lý</th>
+                    <th style={{ width: '125px', minWidth: '115px' }} title="Kho hàng được gán phục vụ mặc định">Kho phục vụ</th>
+                    <th style={{ width: '100px', minWidth: '95px' }} title="Mã số thuế doanh nghiệp">Mã số thuế</th>
+                    <th style={{ width: '115px', minWidth: '105px' }} title="Phân loại nhóm khách hàng">Nhóm KH</th>
+                    <th style={{ width: '135px', minWidth: '125px' }} title="Bảng giá bán đang áp dụng theo nhóm">Bảng giá áp dụng</th>
+                    <th style={{ width: '90px', minWidth: '85px' }} title="Khu vực địa lý của đại lý">Khu vực</th>
+                    <th style={{ width: '130px', minWidth: '120px' }} title="Nhân viên kinh doanh phụ trách">Người phụ trách</th>
+                    <th style={{ width: '75px', minWidth: '70px', textAlign: 'center' }} title="Số lượng đơn hàng/giao dịch đã phát sinh">Giao dịch</th>
+                    <th style={{ width: '130px', minWidth: '120px', textAlign: 'center' }} title="Trạng thái hoạt động giao dịch">Trạng thái</th>
+                    <th style={{ width: '75px', minWidth: '70px', textAlign: 'center' }} title="Các thao tác quản lý hồ sơ">Thao tác</th>
                   </tr>
                 </thead>
                 <tbody>
