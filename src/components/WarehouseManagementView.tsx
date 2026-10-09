@@ -167,9 +167,6 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
   const [allProducts, setAllProducts] = useState<Product[]>([]);
 
   // --- PAGINATION STATE ---
-  // Phân trang danh sách kho
-  const [whCurrentPage, setWhCurrentPage] = useState<number>(1);
-  const [whPageSize, setWhPageSize] = useState<number>(10);
 
   // Phân trang danh sách vị trí kệ
   const [locCurrentPage, setLocCurrentPage] = useState<number>(1);
@@ -322,12 +319,9 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
   }, [locations]);
 
   // --- TÍNH TOÁN PHÂN TRANG ---
-  const whTotalMatches = warehouses.length;
-  const whTotalPages = Math.max(1, Math.ceil(whTotalMatches / whPageSize));
   const paginatedWarehouses = useMemo(() => {
-    const start = (whCurrentPage - 1) * whPageSize;
-    return warehouses.slice(start, start + whPageSize);
-  }, [warehouses, whCurrentPage, whPageSize]);
+    return warehouses;
+  }, [warehouses]);
 
   const locTotalMatches = locations.length;
   const locTotalPages = Math.max(1, Math.ceil(locTotalMatches / locPageSize));
@@ -662,19 +656,13 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                 className="wh-search-input"
                 placeholder="Tìm kiếm theo mã kho, tên kho, địa chỉ..."
                 value={whSearch}
-                onChange={(e) => {
-                  setWhSearch(e.target.value);
-                  setWhCurrentPage(1);
-                }}
+                onChange={(e) => setWhSearch(e.target.value)}
               />
 
               <select
                 className="wh-select"
                 value={whStatusFilter}
-                onChange={(e) => {
-                  setWhStatusFilter(e.target.value);
-                  setWhCurrentPage(1);
-                }}
+                onChange={(e) => setWhStatusFilter(e.target.value)}
               >
                 <option value="all">Tất cả trạng thái</option>
                 <option value="Đang hoạt động">Đang hoạt động</option>
@@ -798,15 +786,6 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                     </tbody>
                   </table>
                 </div>
-                <PaginationControl
-                  currentPage={whCurrentPage}
-                  totalPages={whTotalPages}
-                  pageSize={whPageSize}
-                  totalMatches={whTotalMatches}
-                  itemName="kho hàng"
-                  onPageChange={setWhCurrentPage}
-                  onPageSizeChange={setWhPageSize}
-                />
               </>
             )}
           </div>

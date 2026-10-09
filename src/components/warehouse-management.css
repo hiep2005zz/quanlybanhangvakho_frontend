@@ -28,10 +28,12 @@
 .wh-container {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 12px 18px;
-  background-color: #f8fafc;
-  min-height: 100%;
+  gap: 8px;
+  padding: 0;
+  background-color: transparent;
+  height: 100%;
+  max-height: 100%;
+  overflow: hidden;
   font-family: inherit;
   color: var(--wh-slate-800);
   box-sizing: border-box;
@@ -39,13 +41,14 @@
 
 /* Header & Breadcrumb */
 .wh-header {
+  flex-shrink: 0;
   display: flex;
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: 8px;
   background: #ffffff;
-  padding: 12px 18px;
+  padding: 8px 14px;
   border-radius: var(--wh-radius);
   border: 1px solid var(--wh-slate-200);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
@@ -147,6 +150,7 @@
 
 /* Tabs Navigation */
 .wh-tabs {
+  flex-shrink: 0;
   display: flex;
   gap: 8px;
   background: #ffffff;
@@ -182,14 +186,15 @@
 
 /* Filter Bar */
 .wh-filter-card {
+  flex-shrink: 0;
   background: #ffffff;
-  padding: 10px 16px;
+  padding: 8px 14px;
   border-radius: var(--wh-radius);
   border: 1px solid var(--wh-slate-200);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 10px;
   flex-wrap: wrap;
 }
 
@@ -240,6 +245,10 @@
 
 /* Data Table Container with Sticky Header */
 .wh-table-card {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
   background: #ffffff;
   border-radius: var(--wh-radius);
   border: 1px solid var(--wh-slate-200);
@@ -248,11 +257,12 @@
 }
 
 .wh-table-responsive {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
   width: 100%;
   overflow-x: auto;
   overflow-y: auto;
-  max-height: calc(100vh - 270px);
-  min-height: 280px;
   -webkit-overflow-scrolling: touch;
   position: relative;
 }
@@ -265,6 +275,12 @@
   font-size: 13px;
 }
 
+.wh-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+}
+
 .wh-table th {
   background-color: #f8fafc;
   color: var(--wh-slate-600);
@@ -275,7 +291,7 @@
   white-space: nowrap;
   position: sticky;
   top: 0;
-  z-index: 25;
+  z-index: 30;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
@@ -546,14 +562,15 @@
    Pagination Bar Section for Warehouse Tables
    ========================================================================== */
 .wh-pagination-bar {
+  flex-shrink: 0;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 18px;
+  padding: 8px 16px;
   border-top: 1px solid var(--wh-slate-200);
   background: #ffffff;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: 10px;
 }
 
 .wh-pagination-info {

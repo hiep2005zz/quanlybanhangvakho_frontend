@@ -672,6 +672,21 @@ export default function DealerProfileManagementView({
             {loading || isRefreshing ? 'Đang làm mới...' : 'Làm mới'}
           </button>
 
+          {hasActiveFilters && (
+            <button
+              className="btn-secondary-white"
+              onClick={handleResetFilters}
+              title="Khôi phục về trạng thái mặc định (bỏ lọc)"
+              style={{ color: '#b91c1c', borderColor: '#fca5a5' }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+              Xóa bộ lọc
+            </button>
+          )}
+
           <button
             className="btn-primary-gradient"
             id="btn-create-dealer-profile"
@@ -854,32 +869,6 @@ export default function DealerProfileManagementView({
               </option>
             ))}
           </select>
-        </div>
-
-        {/* Thanh tóm tắt kết quả tìm kiếm & Nút Xóa bộ lọc */}
-        <div className="dealer-results-summary-bar">
-          <div className="results-count-text">
-            <span>
-              {hasActiveFilters ? 'Kết quả tìm kiếm & lọc: ' : 'Toàn bộ danh sách: '}
-              <strong>{totalMatches}</strong> đại lý phù hợp
-              {debouncedKeyword && (
-                <span>
-                  {' '}
-                  với từ khóa "<em>{debouncedKeyword}</em>"
-                </span>
-              )}
-            </span>
-          </div>
-
-          {hasActiveFilters && (
-            <button className="btn-reset-filters" onClick={handleResetFilters} title="Khôi phục về trạng thái mặc định">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                <line x1="18" y1="6" x2="6" y2="18"></line>
-                <line x1="6" y1="6" x2="18" y2="18"></line>
-              </svg>
-              Xóa bộ lọc
-            </button>
-          )}
         </div>
       </div>
 
