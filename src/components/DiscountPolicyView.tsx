@@ -7,6 +7,7 @@ import {
   createDiscountPolicyApi,
   toggleDiscountPolicyStatusApi,
   deleteDiscountPolicyApi,
+  getCategoryTreeApi,
 } from '../services/api';
 import { emitStatusToast } from './StatusToast';
 
@@ -21,6 +22,7 @@ interface DiscountPolicy {
   id?: string;
   title: string;
   code: string;
+  category?: string;
   target_group: 'all' | 'agent_tier_1' | 'agent_tier_2';
   start_date: string;
   end_date: string;
@@ -43,11 +45,42 @@ export default function DiscountPolicyView({ token, user, onBackToHome }: Discou
     user?.roles?.includes('sales_manager')
   );
   const [products, setProducts] = useState<ProductItem[]>([]);
+  const [categories, setCategories] = useState<string[]>([
+    'Thời trang',
+    'Giày dép',
+    'Phụ kiện',
+    'Áo Nam',
+    'Quần Nam',
+    'Đồ uống',
+    'Đồ điện tử',
+  ]);
+  const [applyScope, setApplyScope] = useState<'all' | 'category' | 'product'>('all');
+
   React.useEffect(() => {
     let active = true;
     getProductsApi(token).then(res => {
-      if (active) setProducts(res.items || []);
+      if (active && res.items) {
+        setProducts(res.items);
+        const catsFromProd = res.items.map((p: any) => p.category).filter(Boolean);
+        setCategories(prev => Array.from(new Set([...prev, ...catsFromProd])));
+      }
     }).catch(() => {});
+
+    getCategoryTreeApi(token).then(tree => {
+      if (active && Array.isArray(tree)) {
+        const flatten = (nodes: any[]): string[] => {
+          let list: string[] = [];
+          for (const n of nodes) {
+            if (n.name) list.push(n.name);
+            if (n.sub_categories) list = list.concat(flatten(n.sub_categories));
+          }
+          return list;
+        };
+        const catsFromTree = flatten(tree);
+        setCategories(prev => Array.from(new Set([...prev, ...catsFromTree])));
+      }
+    }).catch(() => {});
+
     return () => { active = false; };
   }, [token]);
 
@@ -72,6 +105,7 @@ export default function DiscountPolicyView({ token, user, onBackToHome }: Discou
           id: String(bePolicy.id),
           title: bePolicy.name || bePolicy.title || bePolicy.code,
           code: bePolicy.code,
+          category: bePolicy.category || 'ALL',
           target_group: (bePolicy.target_dealer_type === 'agent_tier_1' || bePolicy.target_group === 'agent_tier_1')
             ? 'agent_tier_1'
             : (bePolicy.target_dealer_type === 'agent_tier_2' || bePolicy.target_group === 'agent_tier_2')
@@ -104,8 +138,9 @@ export default function DiscountPolicyView({ token, user, onBackToHome }: Discou
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState<DiscountPolicy>({
-    title: '',
+    title: 'Tất cả sản phẩm',
     code: '',
+    category: 'ALL',
     target_group: 'all',
     start_date: new Date().toISOString().split('T')[0],
     end_date: '',
@@ -167,6 +202,11 @@ export default function DiscountPolicyView({ token, user, onBackToHome }: Discou
       return;
     }
 
+    if (applyScope === 'category' && (!formData.category || formData.category === 'ALL')) {
+      emitStatusToast({ title: 'Lỗi nhập liệu', message: 'Vui lòng chọn 1 nhóm hàng áp dụng cụ thể!', type: 'error' });
+      return;
+    }
+
     for (let i = 0; i < formData.tiers.length; i++) {
       const t = formData.tiers[i];
       if (t.min_quantity < 0 || isNaN(t.min_quantity)) {
@@ -183,12 +223,16 @@ export default function DiscountPolicyView({ token, user, onBackToHome }: Discou
       }
     }
 
+    const finalCategory = applyScope === 'category'
+      ? (formData.category || 'ALL')
+      : (applyScope === 'all' ? 'ALL' : (formData.category || 'ALL'));
+
     try {
       await createDiscountPolicyApi({
         name: formData.title,
         title: formData.title,
         code: formData.code,
-        category: 'ALL',
+        category: finalCategory,
         target_dealer_type: formData.target_group,
         target_group: formData.target_group,
         description: formData.note,
@@ -345,9 +389,11 @@ export default function DiscountPolicyView({ token, user, onBackToHome }: Discou
         {canManageDiscounts ? (
           <button
             onClick={() => {
+              setApplyScope('all');
               setFormData({
-                title: '',
+                title: 'Tất cả sản phẩm',
                 code: `CK-${Math.floor(1000 + Math.random() * 9000)}`,
+                category: 'ALL',
                 target_group: 'all',
                 start_date: new Date().toISOString().split('T')[0],
                 end_date: '',
@@ -417,7 +463,7 @@ export default function DiscountPolicyView({ token, user, onBackToHome }: Discou
             >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
               <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
                   <h3 style={{ margin: 0, fontSize: '17px', fontWeight: '700', color: '#1e293b' }}>
                     {policy.title}
                   </h3>
@@ -434,6 +480,48 @@ export default function DiscountPolicyView({ token, user, onBackToHome }: Discou
                   >
                     {policy.code}
                   </span>
+                  {policy.category && policy.category !== 'ALL' && policy.category !== 'PRODUCT' ? (
+                    <span
+                      style={{
+                        background: '#fef3c7',
+                        color: '#92400e',
+                        border: '1px solid #fde68a',
+                        padding: '2px 8px',
+                        borderRadius: '6px',
+                        fontSize: '12px',
+                        fontWeight: '700',
+                      }}
+                    >
+                      📦 Nhóm: {policy.category}
+                    </span>
+                  ) : (!policy.category || policy.category === 'ALL') && policy.title === 'Tất cả sản phẩm' ? (
+                    <span
+                      style={{
+                        background: '#f1f5f9',
+                        color: '#475569',
+                        padding: '2px 8px',
+                        borderRadius: '6px',
+                        fontSize: '12px',
+                        fontWeight: '600',
+                      }}
+                    >
+                      🌐 Toàn bộ sản phẩm
+                    </span>
+                  ) : (
+                    <span
+                      style={{
+                        background: '#e0f2fe',
+                        color: '#0369a1',
+                        border: '1px solid #bae6fd',
+                        padding: '2px 8px',
+                        borderRadius: '6px',
+                        fontSize: '12px',
+                        fontWeight: '600',
+                      }}
+                    >
+                      🏷️ Sản phẩm
+                    </span>
+                  )}
                 </div>
                 <p style={{ margin: '6px 0 0 0', fontSize: '13px', color: '#64748b' }}>
                   Áp dụng: {policy.target_group === 'all' ? 'Tất cả đại lý' : policy.target_group === 'agent_tier_1' ? 'Đại lý Cấp 1' : 'Đại lý Cấp 2'} | Hiệu lực: {policy.start_date} đến {policy.end_date || 'Không thời hạn'}
@@ -574,26 +662,172 @@ export default function DiscountPolicyView({ token, user, onBackToHome }: Discou
             </div>
 
             <form onSubmit={handleSavePolicy}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '6px' }}>
-                    Sản phẩm áp dụng *
-                  </label>
-                  <select
-                    required
-                    value={formData.title}
-                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                    style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', backgroundColor: 'white' }}
+              {/* Phạm vi áp dụng */}
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '8px', color: '#1e293b' }}>
+                  Phạm vi áp dụng chính sách *
+                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setApplyScope('all');
+                      setFormData({
+                        ...formData,
+                        category: 'ALL',
+                        title: 'Tất cả sản phẩm',
+                      });
+                    }}
+                    style={{
+                      padding: '9px 12px',
+                      borderRadius: '8px',
+                      border: applyScope === 'all' ? '2px solid #0fba90' : '1px solid #cbd5e1',
+                      background: applyScope === 'all' ? '#ecfdf5' : '#ffffff',
+                      color: applyScope === 'all' ? '#065f46' : '#475569',
+                      fontWeight: applyScope === 'all' ? '700' : '500',
+                      cursor: 'pointer',
+                      fontSize: '13px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px',
+                      transition: 'all 0.15s ease',
+                    }}
                   >
-                    <option value="">-- Chọn sản phẩm --</option>
-                    <option value="Tất cả sản phẩm">Tất cả sản phẩm</option>
-                    {products.map(p => (
-                      <option key={p.id} value={`${p.code} - ${p.name}`}>{p.code} - {p.name}</option>
-                    ))}
-                  </select>
+                    🌐 Tất cả sản phẩm
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setApplyScope('category');
+                      const firstCat = categories[0] || 'Thời trang';
+                      setFormData({
+                        ...formData,
+                        category: firstCat,
+                        title: `Nhóm hàng: ${firstCat}`,
+                      });
+                    }}
+                    style={{
+                      padding: '9px 12px',
+                      borderRadius: '8px',
+                      border: applyScope === 'category' ? '2px solid #0fba90' : '1px solid #cbd5e1',
+                      background: applyScope === 'category' ? '#ecfdf5' : '#ffffff',
+                      color: applyScope === 'category' ? '#065f46' : '#475569',
+                      fontWeight: applyScope === 'category' ? '700' : '500',
+                      cursor: 'pointer',
+                      fontSize: '13px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    📦 1 Nhóm hàng
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setApplyScope('product');
+                      const firstProd = products[0];
+                      setFormData({
+                        ...formData,
+                        category: firstProd?.category || 'ALL',
+                        title: firstProd ? `${firstProd.code} - ${firstProd.name}` : '',
+                      });
+                    }}
+                    style={{
+                      padding: '9px 12px',
+                      borderRadius: '8px',
+                      border: applyScope === 'product' ? '2px solid #0fba90' : '1px solid #cbd5e1',
+                      background: applyScope === 'product' ? '#ecfdf5' : '#ffffff',
+                      color: applyScope === 'product' ? '#065f46' : '#475569',
+                      fontWeight: applyScope === 'product' ? '700' : '500',
+                      cursor: 'pointer',
+                      fontSize: '13px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    🏷️ 1 Sản phẩm lẻ
+                  </button>
                 </div>
+              </div>
+
+              {/* Chi tiết đối tượng áp dụng & Mã chính sách */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '16px', marginBottom: '16px' }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '6px' }}>
+                  {applyScope === 'category' ? (
+                    <>
+                      <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '6px', color: '#1e293b' }}>
+                        Chọn nhóm hàng áp dụng *
+                      </label>
+                      <select
+                        required
+                        value={formData.category}
+                        onChange={(e) => {
+                          const cat = e.target.value;
+                          setFormData({
+                            ...formData,
+                            category: cat,
+                            title: `Nhóm hàng: ${cat}`,
+                          });
+                        }}
+                        style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', backgroundColor: 'white' }}
+                      >
+                        <option value="">-- Chọn nhóm hàng --</option>
+                        {categories.map((c) => (
+                          <option key={c} value={c}>{c}</option>
+                        ))}
+                      </select>
+                    </>
+                  ) : applyScope === 'product' ? (
+                    <>
+                      <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '6px', color: '#1e293b' }}>
+                        Chọn sản phẩm áp dụng *
+                      </label>
+                      <select
+                        required
+                        value={formData.title}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          const selectedProd = products.find(p => `${p.code} - ${p.name}` === val);
+                          setFormData({
+                            ...formData,
+                            title: val,
+                            category: selectedProd?.category || 'ALL',
+                          });
+                        }}
+                        style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', backgroundColor: 'white' }}
+                      >
+                        <option value="">-- Chọn sản phẩm --</option>
+                        {products.map(p => (
+                          <option key={p.id} value={`${p.code} - ${p.name}`}>{p.code} - {p.name}</option>
+                        ))}
+                      </select>
+                    </>
+                  ) : (
+                    <>
+                      <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '6px', color: '#1e293b' }}>
+                        Phạm vi áp dụng
+                      </label>
+                      <input
+                        type="text"
+                        disabled
+                        value="Toàn bộ sản phẩm trong hệ thống"
+                        style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid #e2e8f0', backgroundColor: '#f8fafc', color: '#64748b' }}
+                      />
+                    </>
+                  )}
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '6px', color: '#1e293b' }}>
                     Mã chính sách *
                   </label>
                   <input
@@ -604,6 +838,21 @@ export default function DiscountPolicyView({ token, user, onBackToHome }: Discou
                     style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1' }}
                   />
                 </div>
+              </div>
+
+              {/* Tên chính sách chiết khấu */}
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '6px', color: '#1e293b' }}>
+                  Tên chính sách chiết khấu *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ví dụ: Chiết khấu nhóm Thời trang, Chiết khấu Đại lý Cấp 1..."
+                  value={formData.title}
+                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1' }}
+                />
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px', marginBottom: '16px' }}>
