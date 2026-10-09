@@ -704,7 +704,7 @@ export default function DashboardPage({
 
   useEffect(() => {
     fetchProducts();
-  }, [token, isPendingCustomer]);
+  }, [token, isPendingCustomer, activeTab]);
 
   // Tính toán số liệu thống kê
   const totalStock = products.reduce((acc, p) => acc + p.stock, 0);
@@ -1111,6 +1111,7 @@ export default function DashboardPage({
             products={products}
             onBackToHome={() => setActiveTab('inventory')}
             onNavigateToOrders={() => setActiveTab('orders')}
+            onRefreshProducts={fetchProducts}
           />
         ) : (
           <AccessDeniedView
@@ -1882,6 +1883,7 @@ export default function DashboardPage({
                       <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'left', background: '#f8fafc' }}>Đơn Vị Tính</th>
                       <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'right', background: '#f8fafc' }}>Số Lượng Tồn</th>
                       <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'right', background: '#f8fafc' }}>Giá Niêm Yết (Bán)</th>
+                      <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'right', background: '#f8fafc' }}>Giá Sàn (Tối thiểu)</th>
                       {isCostVisible && (
                         <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'right', background: '#f8fafc' }}>Giá Vốn Nhập Kho</th>
                       )}
@@ -2038,7 +2040,21 @@ export default function DashboardPage({
                         </td>
 
                         <td style={{ padding: '13px 18px', color: '#0f172a', fontWeight: '600', fontSize: '13.5px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-                          {item.sell_price.toLocaleString('vi-VN')} đ
+                          {item.sell_price > 0 ? (
+                            `${item.sell_price.toLocaleString('vi-VN')} đ`
+                          ) : (
+                            <span style={{ color: '#94a3b8', fontSize: '12px', fontStyle: 'italic', fontWeight: '400' }}>Chưa thiết lập</span>
+                          )}
+                        </td>
+
+                        <td style={{ padding: '13px 18px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                          {item.floor_price && item.floor_price > 0 ? (
+                            <span style={{ color: '#0284c7', fontWeight: '600', fontSize: '13.5px' }}>
+                              {item.floor_price.toLocaleString('vi-VN')} đ
+                            </span>
+                          ) : (
+                            <span style={{ color: '#94a3b8', fontSize: '12px', fontStyle: 'italic', fontWeight: '400' }}>Chưa thiết lập</span>
+                          )}
                         </td>
 
                         {isCostVisible && (

@@ -76,6 +76,7 @@ export interface ProductItem {
   category_id?: number | null;
   stock: number;
   sell_price: number;
+  floor_price?: number;
   base_unit?: string;
   units?: UnitConversionItem[];
   cost_price?: number | null;
@@ -634,6 +635,7 @@ export interface ProductPayload {
   units?: UnitConversionItem[];
   packaging_specification?: string;
   sell_price?: number;
+  floor_price?: number;
   cost_price?: number | null;
   images?: string[];
   status?: 'active' | 'inactive';
