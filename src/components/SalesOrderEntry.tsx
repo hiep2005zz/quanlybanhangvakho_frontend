@@ -11,11 +11,14 @@ import {
   DealerStockSummaryResponse,
   ProductStockSummaryItem,
   User,
+  DealerCreditInfo,
+  getDealerCreditInfoApi,
 } from '../services/api';
 import type { DeliveryPoint } from '../types/deliveryPoint';
 import { evaluateBestDiscountPolicy, parseStoredPolicies } from '../utils/discountEngine';
 import { emitStatusToast } from './StatusToast';
 import { AccessDeniedView } from './AccessDeniedView';
+import { DealerCreditBadge } from './DealerCreditBadge';
 import './sales-order-entry.css';
 
 interface SalesOrderEntryProps {
@@ -130,6 +133,34 @@ export default function SalesOrderEntry({ token, username, products, user, onClo
   const [activeDraftId, setActiveDraftId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+
+  // AC 1: Tải thông tin công nợ, hạn mức và nợ quá hạn của đại lý
+  const [creditInfo, setCreditInfo] = useState<DealerCreditInfo | null>(null);
+  const [isLoadingCredit, setIsLoadingCredit] = useState(false);
+
+  useEffect(() => {
+    if (!dealerId) {
+      setCreditInfo(null);
+      return;
+    }
+    let isMounted = true;
+    setIsLoadingCredit(true);
+    getDealerCreditInfoApi(token, Number(dealerId))
+      .then((info) => {
+        if (isMounted) {
+          setCreditInfo(info);
+        }
+      })
+      .catch((err) => {
+        console.warn('Lỗi tải thông tin công nợ:', err);
+      })
+      .finally(() => {
+        if (isMounted) setIsLoadingCredit(false);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, [dealerId, token]);
 
   // Tự động tải tồn kho khả dụng của kho phục vụ riêng cho đại lý được chọn
   useEffect(() => {
@@ -360,8 +391,20 @@ export default function SalesOrderEntry({ token, username, products, user, onClo
   const discountAmount = Math.round(subtotal * safeDiscount / 100);
   const totalDue = subtotal - discountAmount;
 
+  // AC 2 & AC 3: Kiểm tra nợ quá hạn (Block hoàn toàn) và Vượt hạn mức (Cần duyệt)
+  const isOverdueBlocked = Boolean(
+    creditInfo?.is_overdue ||
+    (creditInfo && creditInfo.max_debt_age > (creditInfo.overdue_days_allowed || 30))
+  );
+  const isOverLimit = Boolean(
+    creditInfo &&
+    creditInfo.credit_limit > 0 &&
+    (creditInfo.current_debt + totalDue > creditInfo.credit_limit)
+  );
+
   const resetForm = () => {
     setDealerId('');
+    setCreditInfo(null);
     setDeliveryPoint('');
     setDeliveryPointId(null);
     setDeliveryPoints([]);
@@ -478,6 +521,20 @@ export default function SalesOrderEntry({ token, username, products, user, onClo
       emitStatusToast({
         title: 'Đại lý bị khóa giao dịch',
         message: `Đại lý "${selectedDealer.name}" hiện đang bị KHÓA giao dịch. Vui lòng liên hệ quản trị viên.`,
+        type: 'error',
+      });
+      return;
+    }
+
+    // AC 3: Chặn tạo đơn hoàn toàn khi đại lý có nợ quá hạn
+    if (isOverdueBlocked) {
+      const overdueDays = creditInfo?.max_debt_age || 0;
+      const maxAllowed = creditInfo?.overdue_days_allowed || 30;
+      const overdueMsg = `Đại lý "${selectedDealer.name}" có khoản nợ quá hạn (${overdueDays} ngày, vượt mức cho phép ${maxAllowed} ngày). Hệ thống chặn tạo đơn hàng hoàn toàn!`;
+      setError(overdueMsg);
+      emitStatusToast({
+        title: 'Chặn tạo đơn do nợ quá hạn',
+        message: overdueMsg,
         type: 'error',
       });
       return;
@@ -677,6 +734,18 @@ export default function SalesOrderEntry({ token, username, products, user, onClo
                   </span>
                 )}
               </label>
+
+              {/* AC 1, 2, 3: Hiển thị 3 chỉ số công nợ của đại lý */}
+              {selectedDealer && (
+                <div style={{ gridColumn: '1 / -1', marginBottom: '8px' }}>
+                  <DealerCreditBadge
+                    creditInfo={creditInfo}
+                    currentOrderAmount={totalDue}
+                    isLoading={isLoadingCredit}
+                  />
+                </div>
+              )}
+
               <label className="sales-order-field">
                 <span>Điểm giao hàng <b aria-hidden="true">*</b></span>
                 <select
@@ -977,22 +1046,28 @@ export default function SalesOrderEntry({ token, username, products, user, onClo
               type="button"
               className="sales-order-primary-button"
               onClick={handleCreateOrder}
-              disabled={isSaving || isLoadingDealers || !selectedDealer || !dealerId || !!dealerLoadError || dealers.length === 0 || isLockedDealer || hasStockErrors}
-              style={isLockedDealer || hasStockErrors ? { background: '#94a3b8', cursor: 'not-allowed', borderColor: '#94a3b8' } : undefined}
+              disabled={isSaving || isLoadingDealers || !selectedDealer || !dealerId || !!dealerLoadError || dealers.length === 0 || isLockedDealer || hasStockErrors || isOverdueBlocked}
+              style={isLockedDealer || hasStockErrors || isOverdueBlocked ? { background: '#94a3b8', cursor: 'not-allowed', borderColor: '#94a3b8' } : undefined}
               title={
-                isLockedDealer
+                isOverdueBlocked
+                  ? `Đại lý "${selectedDealer?.name}" có khoản nợ quá hạn (${creditInfo?.max_debt_age} ngày), bị chặn tạo đơn hoàn toàn`
+                  : isLockedDealer
                   ? `Đại lý "${selectedDealer?.name}" hiện đang bị khóa giao dịch, không thể tạo đơn hàng`
                   : hasStockErrors
                   ? 'Có sản phẩm vượt quá tồn khả dụng. Vui lòng điều chỉnh lại số lượng trước khi đặt hàng'
                   : undefined
               }
             >
-              {isLockedDealer
+              {isOverdueBlocked
+                ? 'Bị chặn do nợ quá hạn'
+                : isLockedDealer
                 ? 'Đại lý bị khóa (Không thể tạo đơn)'
                 : hasStockErrors
                 ? 'Vượt tồn khả dụng (Không thể tạo đơn)'
                 : isSaving
                 ? 'Đang tạo đơn...'
+                : isOverLimit
+                ? 'Tạo đơn hàng (Cần duyệt)'
                 : 'Tạo đơn hàng'}
             </button>
             <button type="button" className="sales-order-secondary-button full" onClick={handleSaveDraft}>

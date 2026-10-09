@@ -62,10 +62,10 @@ export default function DashboardPage({
     officialRoles.length === 0 &&
     (!user.branch || user.branch === 'Chưa phân công');
   const isAdmin = user.role === 'admin' || Boolean(user.roles && user.roles.includes('admin'));
-  const canReadOrders = hasPermission(user, Permissions.ORDER_READ) || user.role === 'sales' || Boolean(user.roles && user.roles.includes('sales'));
-  const canCreateOrders = hasPermission(user, Permissions.ORDER_WRITE) || user.role === 'sales' || Boolean(user.roles && user.roles.includes('sales'));
-  const isSalesManager = user.role === 'sales_manager' || Boolean(user.roles && user.roles.includes('sales_manager'));
   const isAccountant = user.role === 'accountant' || Boolean(user.roles && user.roles.includes('accountant'));
+  const canReadOrders = hasPermission(user, Permissions.ORDER_READ) || user.role === 'sales' || Boolean(user.roles && user.roles.includes('sales')) || isAccountant;
+  const canCreateOrders = !isAccountant && (hasPermission(user, Permissions.ORDER_WRITE) || user.role === 'sales' || Boolean(user.roles && user.roles.includes('sales')));
+  const isSalesManager = user.role === 'sales_manager' || Boolean(user.roles && user.roles.includes('sales_manager'));
   const canAccessDiscounts =
     isAdmin ||
     isSalesManager ||
@@ -157,7 +157,13 @@ export default function DashboardPage({
     }
 
     if (isCreateOrderPath || oldTabVal === 'create-order') {
-      return 'create-order';
+      if (canCreateOrders) return 'create-order';
+      if (canReadOrders) {
+        try { window.history.replaceState({}, '', '/orders'); } catch {}
+        return 'orders';
+      }
+      try { window.history.replaceState({}, '', '/'); } catch {}
+      return 'inventory';
     }
     if (isPriceBooksPath) {
       return 'price-books';
@@ -262,6 +268,15 @@ export default function DashboardPage({
     }
 
     if (tab === 'create-order') {
+      if (!canCreateOrders) {
+        setActiveTabState('orders');
+        try {
+          window.history.replaceState({}, '', '/orders');
+        } catch {
+          // ignore
+        }
+        return;
+      }
       setActiveTabState('create-order');
       try {
         window.history.pushState({}, '', '/create-order');
