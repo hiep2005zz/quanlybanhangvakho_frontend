@@ -823,45 +823,6 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                             In / PDF
                           </button>
 
-                          <button
-                            type="button"
-                            id={`btn-reorder-row-${order.order_code}`}
-                            disabled={reorderLoading || isCustomerLocked}
-                            onClick={() => handleReorderOrder(order.order_code)}
-                            style={{
-                              padding: '5px 10px',
-                              background: '#f0fdf4',
-                              border: '1px solid #86efac',
-                              borderRadius: '6px',
-                              color: '#15803d',
-                              fontSize: '12px',
-                              fontWeight: '600',
-                              cursor: (reorderLoading || isCustomerLocked) ? 'not-allowed' : 'pointer',
-                              whiteSpace: 'nowrap',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              gap: '4px',
-                              height: '28px',
-                              boxSizing: 'border-box',
-                              transition: 'all 0.15s ease',
-                            }}
-                            onMouseEnter={(e) => {
-                              if (!reorderLoading && !isCustomerLocked) {
-                                e.currentTarget.style.background = '#16a34a';
-                                e.currentTarget.style.color = '#ffffff';
-                              }
-                            }}
-                            onMouseLeave={(e) => {
-                              if (!reorderLoading && !isCustomerLocked) {
-                                e.currentTarget.style.background = '#f0fdf4';
-                                e.currentTarget.style.color = '#15803d';
-                              }
-                            }}
-                            title="Đặt lại toàn bộ đơn hàng này theo giá hiện hành"
-                          >
-                            Đặt lại
-                          </button>
                         </div>
                       </td>
                     </tr>
@@ -1505,7 +1466,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            zIndex: 10001,
+            zIndex: 100005,
             padding: '16px',
           }}
         >
