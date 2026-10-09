@@ -397,24 +397,25 @@ export const OrderListView: React.FC<OrderListViewProps> = ({
       </div>
 
       {/* 3. BẢNG DỮ LIỆU & BỘ LỌC HỢP NHẤT (Single Unified Card - Kiến trúc 1 bảng duy nhất) */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
-        {/* Thanh công cụ lọc tinh gọn (Inline Compact Filter Bar) - Thu gọn chiều cao tối đa */}
-        <div className="p-3 bg-slate-50/80 border-b border-slate-200">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+        {/* Thanh công cụ lọc tinh gọn (Inline Compact Filter Bar - Chuẩn giao diện yêu cầu) */}
+        <div className="p-4 sm:p-5 bg-white border-b border-slate-200">
           <form
             onSubmit={handleApplyFilter}
-            className="flex !flex-row flex-wrap xl:flex-nowrap items-end gap-2.5 w-full"
-            style={{ display: 'flex', flexDirection: 'row', alignItems: 'flex-end' }}
+            className="flex !flex-row flex-wrap xl:flex-nowrap items-end gap-3.5 w-full"
+            style={{ display: 'flex', flexDirection: 'row', alignItems: 'flex-end', gap: '14px' }}
           >
             {/* 1. Trạng thái */}
-            <div className="w-full sm:w-[140px] xl:w-[150px] shrink-0">
-              <label htmlFor="filter-status" className="block text-[11px] font-semibold text-slate-600 uppercase tracking-wide mb-1">
-                Trạng thái
+            <div className="w-full sm:w-[115px] xl:w-[125px] shrink-0">
+              <label htmlFor="filter-status" className="block text-[11px] font-bold text-[#065f46] uppercase tracking-wider mb-1.5">
+                TRẠNG THÁI
               </label>
               <select
                 id="filter-status"
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium text-slate-700 shadow-sm"
+                className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-full focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium text-slate-700 shadow-sm transition-all cursor-pointer"
+                style={{ borderRadius: '9999px', height: '36px', borderColor: '#e2e8f0' }}
               >
                 <option value="ALL">Tất cả trạng thái</option>
                 <option value="PENDING">Mới tạo</option>
@@ -428,15 +429,16 @@ export const OrderListView: React.FC<OrderListViewProps> = ({
             </div>
 
             {/* 2. Đại lý */}
-            <div className="w-full sm:w-[200px] xl:w-[220px] shrink-0">
-              <label htmlFor="filter-dealer" className="block text-[11px] font-semibold text-slate-600 uppercase tracking-wide mb-1">
-                Đại lý {isSales && <span className="text-emerald-700 font-bold">(Phụ trách)</span>}
+            <div className="w-full sm:w-[135px] xl:w-[155px] shrink-0">
+              <label htmlFor="filter-dealer" className="block text-[11px] font-bold text-[#065f46] uppercase tracking-wider mb-1.5">
+                ĐẠI LÝ {isSales && <span className="text-emerald-700 font-bold">(Phụ trách)</span>}
               </label>
               <select
                 id="filter-dealer"
                 value={dealerFilter}
                 onChange={(e) => setDealerFilter(e.target.value)}
-                className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium text-slate-700 shadow-sm"
+                className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-full focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium text-slate-700 shadow-sm transition-all cursor-pointer"
+                style={{ borderRadius: '9999px', height: '36px', borderColor: '#e2e8f0' }}
               >
                 <option value="ALL">Tất cả đại lý</option>
                 {dealers.map((d) => (
@@ -448,9 +450,9 @@ export const OrderListView: React.FC<OrderListViewProps> = ({
             </div>
 
             {/* 3. Nhân viên kinh doanh */}
-            <div className="w-full sm:w-[180px] xl:w-[190px] shrink-0">
-              <label htmlFor="filter-sales-rep" className="block text-[11px] font-semibold text-slate-600 uppercase tracking-wide mb-1">
-                Nhân viên kinh doanh
+            <div className="w-full sm:w-[135px] xl:w-[155px] shrink-0">
+              <label htmlFor="filter-sales-rep" className="block text-[11px] font-bold text-[#065f46] uppercase tracking-wider mb-1.5">
+                NHÂN VIÊN KINH DOANH
               </label>
               {isSales ? (
                 <input
@@ -458,7 +460,8 @@ export const OrderListView: React.FC<OrderListViewProps> = ({
                   type="text"
                   disabled
                   value={`${currentUser.full_name || currentUser.username} (Chính bạn)`}
-                  className="w-full px-2.5 py-1.5 text-xs bg-slate-100 border border-slate-300 rounded-lg text-slate-500 cursor-not-allowed font-medium shadow-sm"
+                  className="w-full px-2.5 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-full text-slate-500 cursor-not-allowed font-medium shadow-sm"
+                  style={{ borderRadius: '9999px', height: '36px', borderColor: '#e2e8f0' }}
                   title="Nhân viên kinh doanh chỉ xem các đại lý mình phụ trách"
                 />
               ) : (
@@ -466,7 +469,8 @@ export const OrderListView: React.FC<OrderListViewProps> = ({
                   id="filter-sales-rep"
                   value={salesRepFilter}
                   onChange={(e) => setSalesRepFilter(e.target.value)}
-                  className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium text-slate-700 shadow-sm"
+                  className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-full focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium text-slate-700 shadow-sm transition-all cursor-pointer"
+                  style={{ borderRadius: '9999px', height: '36px', borderColor: '#e2e8f0' }}
                 >
                   <option value="ALL">Tất cả nhân viên</option>
                   {salesReps.map((sr) => (
@@ -479,15 +483,16 @@ export const OrderListView: React.FC<OrderListViewProps> = ({
             </div>
 
             {/* 4. Khu vực */}
-            <div className="w-full sm:w-[130px] xl:w-[140px] shrink-0">
-              <label htmlFor="filter-region" className="block text-[11px] font-semibold text-slate-600 uppercase tracking-wide mb-1">
-                Khu vực
+            <div className="w-full sm:w-[105px] xl:w-[115px] shrink-0">
+              <label htmlFor="filter-region" className="block text-[11px] font-bold text-[#065f46] uppercase tracking-wider mb-1.5">
+                KHU VỰC
               </label>
               <select
                 id="filter-region"
                 value={regionFilter}
                 onChange={(e) => setRegionFilter(e.target.value)}
-                className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium text-slate-700 shadow-sm"
+                className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-full focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium text-slate-700 shadow-sm transition-all cursor-pointer"
+                style={{ borderRadius: '9999px', height: '36px', borderColor: '#e2e8f0' }}
               >
                 <option value="ALL">Tất cả khu vực</option>
                 {regions.map((reg) => (
@@ -499,47 +504,51 @@ export const OrderListView: React.FC<OrderListViewProps> = ({
             </div>
 
             {/* 5. Từ ngày */}
-            <div className="w-[125px] shrink-0">
-              <label htmlFor="filter-start-date" className="block text-[11px] font-semibold text-slate-600 uppercase tracking-wide mb-1">
-                Từ ngày
+            <div className="w-[100px] xl:w-[105px] shrink-0">
+              <label htmlFor="filter-start-date" className="block text-[11px] font-bold text-[#065f46] uppercase tracking-wider mb-1.5">
+                TỪ NGÀY
               </label>
               <input
                 id="filter-start-date"
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="w-full px-2 py-1.5 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-700 shadow-sm"
+                className="w-full px-2 py-1.5 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-700 shadow-sm transition-all"
+                style={{ borderRadius: '12px', height: '36px', borderColor: '#e2e8f0' }}
               />
             </div>
 
             {/* 6. Đến ngày */}
-            <div className="w-[125px] shrink-0">
-              <label htmlFor="filter-end-date" className="block text-[11px] font-semibold text-slate-600 uppercase tracking-wide mb-1">
-                Đến ngày
+            <div className="w-[100px] xl:w-[105px] shrink-0">
+              <label htmlFor="filter-end-date" className="block text-[11px] font-bold text-[#065f46] uppercase tracking-wider mb-1.5">
+                ĐẾN NGÀY
               </label>
               <input
                 id="filter-end-date"
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="w-full px-2 py-1.5 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-700 shadow-sm"
+                className="w-full px-2 py-1.5 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-700 shadow-sm transition-all"
+                style={{ borderRadius: '12px', height: '36px', borderColor: '#e2e8f0' }}
               />
             </div>
 
             {/* Nút bấm tác vụ lọc */}
-            <div className="flex items-center gap-1.5 ml-auto pt-1 sm:pt-0 shrink-0 self-end">
+            <div className="flex items-center gap-2 ml-auto shrink-0 self-end">
               <button
                 type="button"
                 id="btn-reset-filter"
                 onClick={handleResetFilter}
-                className="px-3 py-1.5 text-xs font-semibold text-slate-600 bg-white border border-slate-300 rounded-lg hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-300 transition-colors shadow-sm"
+                className="px-3.5 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-full hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-300 transition-colors shadow-sm whitespace-nowrap"
+                style={{ borderRadius: '9999px', height: '36px', borderColor: '#e2e8f0' }}
               >
                 Đặt lại
               </button>
               <button
                 type="submit"
                 id="btn-apply-filter"
-                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-colors"
+                className="inline-flex items-center gap-1.5 px-4 py-1.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-full shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-colors whitespace-nowrap"
+                style={{ borderRadius: '9999px', height: '36px', backgroundColor: '#059669' }}
               >
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
