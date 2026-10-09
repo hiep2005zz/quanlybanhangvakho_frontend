@@ -377,8 +377,7 @@ export default function DiscountPolicyView({ token, user, onBackToHome }: Discou
             style={{
               display: 'inline-flex',
               alignItems: 'center',
-              gap: '6px',
-              padding: '8px 14px',
+              padding: '6px 14px',
               borderRadius: '8px',
               fontSize: '13px',
               fontWeight: '600',
@@ -388,11 +387,7 @@ export default function DiscountPolicyView({ token, user, onBackToHome }: Discou
             }}
             title="Chỉ Admin và Quản lý kinh doanh mới có quyền thiết lập chính sách chiết khấu"
           >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-              <circle cx="12" cy="12" r="3" />
-            </svg>
-            <span>Chế độ chỉ xem</span>
+            <span>Chỉ xem</span>
           </div>
         )}
       </div>
