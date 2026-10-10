@@ -7,6 +7,7 @@ import {
   getOrderDealersApi,
   getOrderSalesRepsApi,
   getOrderRegionsApi,
+  cancelOrderApi,
   OrderResponseData,
   OrderDealer,
   SalesRepItem,
@@ -16,6 +17,9 @@ import {
 import { OrderCreateModal } from '../../components/OrderCreateModal';
 import { RejectOrderModal } from '../../components/RejectOrderModal';
 import { ApproveOrderModal } from '../../components/ApproveOrderModal';
+import { OrderLifecycleTimeline } from '../../components/OrderLifecycleTimeline';
+import { OrderCancelModal } from '../../components/OrderCancelModal';
+import { isOrderPastExported } from '../../utils/orderPermissions';
 import OrderPrintModal from '../../components/OrderPrintModal';
 
 export interface OrderListViewProps {
@@ -96,6 +100,9 @@ export const OrderListView: React.FC<OrderListViewProps> = ({
   const [approvingOrder, setApprovingOrder] = useState<OrderResponseData | null>(null);
   const [rejectingOrder, setRejectingOrder] = useState<OrderResponseData | null>(null);
   const [printingOrder, setPrintingOrder] = useState<OrderResponseData | any | null>(null);
+  const [cancellingOrder, setCancellingOrder] = useState<OrderResponseData | any | null>(null);
+  const [isSubmittingCancel, setIsSubmittingCancel] = useState(false);
+  const [cancelNotice, setCancelNotice] = useState<string | null>(null);
 
   // Load danh mục đại lý, nhân viên, khu vực khi mount
   useEffect(() => {
@@ -280,6 +287,35 @@ export const OrderListView: React.FC<OrderListViewProps> = ({
       console.error('Lỗi tải chi tiết đơn hàng:', err);
     } finally {
       setIsLoadingDetail(false);
+    }
+  };
+
+  // Hủy đơn hàng và nhả tồn kho
+  const handleExecuteCancel = async (reason: string) => {
+    if (!cancellingOrder) return;
+    setIsSubmittingCancel(true);
+    try {
+      await cancelOrderApi(token, cancellingOrder.order_code, reason);
+      const targetCode = cancellingOrder.order_code;
+      setCancellingOrder(null);
+      setCancelNotice(`Đã hủy thành công đơn hàng ${targetCode}. Lượng tồn đang giữ chỗ đã được giải phóng lại kho.`);
+      setTimeout(() => setCancelNotice(null), 5000);
+      if (selectedOrderDetail && selectedOrderDetail.order_code === targetCode) {
+        setSelectedOrderDetail({
+          ...selectedOrderDetail,
+          status: 'CANCELLED',
+          cancel_reason: reason,
+          cancelled_by: currentUser.username || currentUser.full_name,
+          cancelled_at: new Date().toISOString(),
+        });
+      }
+      fetchOrders(page, appliedFiltersRef.current, pageSize);
+      fetchKpiSummary();
+      if (onRefreshProducts) onRefreshProducts();
+    } catch (err: any) {
+      alert(err.message || 'Không thể hủy đơn hàng.');
+    } finally {
+      setIsSubmittingCancel(false);
     }
   };
 
@@ -660,6 +696,14 @@ export const OrderListView: React.FC<OrderListViewProps> = ({
           </form>
         </div>
 
+        {/* Thông báo hủy đơn thành công */}
+        {cancelNotice && (
+          <div className="p-3 bg-emerald-50 border-b border-emerald-200 text-emerald-800 text-xs font-semibold flex items-center justify-between">
+            <span>{cancelNotice}</span>
+            <button type="button" onClick={() => setCancelNotice(null)} className="text-emerald-600 hover:text-emerald-800 font-bold ml-2">✕</button>
+          </div>
+        )}
+
         {/* Thông báo lỗi nếu có */}
         {error && (
           <div className="p-3 bg-rose-50 border-b border-rose-200 text-rose-700 text-xs font-medium">
@@ -976,6 +1020,43 @@ export const OrderListView: React.FC<OrderListViewProps> = ({
                             Chi tiết
                           </button>
 
+                          {!isAccountant && order.status !== 'CANCELLED' && order.status !== 'REJECTED' && (
+                            <button
+                              type="button"
+                              id={`btn-cancel-order-${order.order_code}`}
+                              disabled={isOrderPastExported(order.status)}
+                              onClick={() => {
+                                if (!isOrderPastExported(order.status)) {
+                                  setCancellingOrder(order);
+                                }
+                              }}
+                              style={{
+                                padding: '5px 10px',
+                                background: isOrderPastExported(order.status) ? '#f8fafc' : '#fff1f2',
+                                border: `1px solid ${isOrderPastExported(order.status) ? '#e2e8f0' : '#fecdd3'}`,
+                                borderRadius: '6px',
+                                color: isOrderPastExported(order.status) ? '#94a3b8' : '#e11d48',
+                                fontSize: '12px',
+                                fontWeight: '600',
+                                cursor: isOrderPastExported(order.status) ? 'not-allowed' : 'pointer',
+                                whiteSpace: 'nowrap',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                height: '28px',
+                                boxSizing: 'border-box',
+                                transition: 'all 0.15s ease',
+                              }}
+                              title={
+                                isOrderPastExported(order.status)
+                                  ? 'Đơn đã xuất kho, không thể hủy (phải xử lý trả hàng)'
+                                  : 'Hủy đơn hàng'
+                              }
+                            >
+                              Hủy đơn
+                            </button>
+                          )}
+
                           <button
                             type="button"
                             onClick={() => setPrintingOrder(order)}
@@ -1108,6 +1189,16 @@ export const OrderListView: React.FC<OrderListViewProps> = ({
               <div className="py-8 text-center text-slate-400">Đang tải chi tiết đơn hàng...</div>
             ) : (
               <div className="space-y-4 text-sm">
+                {/* Stepper / Timeline Vòng đời đơn hàng */}
+                <OrderLifecycleTimeline
+                  status={selectedOrderDetail.status}
+                  cancelReason={selectedOrderDetail.cancel_reason}
+                  cancelledBy={selectedOrderDetail.cancelled_by}
+                  cancelledAt={selectedOrderDetail.cancelled_at}
+                  approvalReason={selectedOrderDetail.approval_reason}
+                  approvedBy={selectedOrderDetail.approved_by}
+                />
+
                 <div className="grid grid-cols-2 gap-3 bg-slate-50 p-3 rounded-lg text-xs">
                   <div>
                     <span className="text-slate-500">Trạng thái: </span>
@@ -1191,6 +1282,29 @@ export const OrderListView: React.FC<OrderListViewProps> = ({
 
             <div className="flex justify-between items-center gap-2 pt-3 border-t border-slate-100">
               <div className="flex gap-2">
+                {!isAccountant && selectedOrderDetail?.status !== 'CANCELLED' && selectedOrderDetail?.status !== 'REJECTED' && (
+                  <button
+                    type="button"
+                    disabled={isOrderPastExported(selectedOrderDetail.status)}
+                    onClick={() => {
+                      if (!isOrderPastExported(selectedOrderDetail.status)) {
+                        setCancellingOrder(selectedOrderDetail);
+                      }
+                    }}
+                    className={`px-3.5 py-1.5 text-xs font-bold rounded-lg transition-colors ${
+                      isOrderPastExported(selectedOrderDetail.status)
+                        ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
+                        : 'bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 cursor-pointer'
+                    }`}
+                    title={
+                      isOrderPastExported(selectedOrderDetail.status)
+                        ? 'Đơn đã xuất kho, không thể hủy (phải xử lý trả hàng)'
+                        : 'Hủy đơn hàng này'
+                    }
+                  >
+                    Hủy đơn
+                  </button>
+                )}
                 {canApprove && (selectedOrderDetail?.status === 'PENDING_APPROVAL' || selectedOrderDetail?.status === 'PENDING') && (
                   <>
                     <button
@@ -1287,6 +1401,21 @@ export const OrderListView: React.FC<OrderListViewProps> = ({
           onClose={() => setPrintingOrder(null)}
         />,
         document.body
+      )}
+
+      {/* Modal Hủy Đơn Hàng (Bắt buộc nhập lý do & Nhả tồn kho qua DB Transaction) */}
+      {cancellingOrder && (
+        <OrderCancelModal
+          isOpen={Boolean(cancellingOrder)}
+          orderCode={cancellingOrder.order_code}
+          dealerName={cancellingOrder.dealer_name}
+          totalAmount={cancellingOrder.total_amount}
+          isSubmitting={isSubmittingCancel}
+          onClose={() => {
+            if (!isSubmittingCancel) setCancellingOrder(null);
+          }}
+          onConfirm={handleExecuteCancel}
+        />
       )}
     </div>
   );

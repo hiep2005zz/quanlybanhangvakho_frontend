@@ -10,6 +10,8 @@ import {
   confirmGoodsReceiptApi,
   deleteGoodsReceiptApi,
   GoodsReceiptItemCreatePayload,
+  getGoodsReceiptsApi,
+  GoodsReceiptResponse,
 } from '../services/api';
 import { ModalPortal } from './ModalPortal';
 import { emitStatusToast } from './StatusToast';
@@ -20,7 +22,9 @@ interface GoodsReceiptModalProps {
   token: string;
   products: ProductItem[];
   currentUserWarehouse?: string;
+  initialTab?: 'form' | 'list';
   onSuccess: () => void;
+  onRequestAdjust?: (product: ProductItem | null, receiptCode: string) => void;
 }
 
 interface ReceiptItemFormRow {
@@ -75,15 +79,39 @@ const createEmptyRow = (): ReceiptItemFormRow => ({
   note: '',
 });
 
-// Helper đọc danh sách bản nháp từ LocalStorage (tương thích cả bản ghi cũ đơn lẻ)
+// Helper kiểm tra bản nháp có rỗng hoàn toàn không (chưa chọn NCC, chưa điền số HĐ và chưa chọn sản phẩm nào)
+export const isDraftDataEmpty = (d: Partial<StockInDraftItem>): boolean => {
+  const hasSupplier = Boolean(d.supplier_id);
+  const hasRef = Boolean(d.reference_number && d.reference_number.trim().length > 0);
+  const hasItems =
+    Array.isArray(d.items) &&
+    d.items.some(
+      (it: any) =>
+        Boolean(it.product_id) ||
+        Boolean(it.product_name && it.product_name.trim().length > 0) ||
+        Boolean(it.note && it.note.trim().length > 0) ||
+        Boolean(it.batch_number && it.batch_number.trim().length > 0)
+    );
+  return !hasSupplier && !hasRef && !hasItems;
+};
+
+// Helper đọc danh sách bản nháp từ LocalStorage (tự động loại bỏ các bản nháp rỗng chưa điền gì)
 const loadDraftsFromStorage = (): StockInDraftItem[] => {
   try {
     const raw = localStorage.getItem(DRAFT_STORAGE_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     if (Array.isArray(parsed)) {
-      return parsed;
+      const validDrafts = parsed.filter((d: StockInDraftItem) => !isDraftDataEmpty(d));
+      if (validDrafts.length !== parsed.length) {
+        localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(validDrafts));
+      }
+      return validDrafts;
     } else if (parsed && typeof parsed === 'object') {
+      if (isDraftDataEmpty(parsed)) {
+        localStorage.removeItem(DRAFT_STORAGE_KEY);
+        return [];
+      }
       // Tự động nâng cấp bản nháp đơn lẻ cũ sang danh sách
       const legacyDraft: StockInDraftItem = {
         draft_id: 'draft_legacy_' + Date.now(),
@@ -114,8 +142,20 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
   token,
   products,
   currentUserWarehouse,
+  initialTab = 'form',
   onSuccess,
+  onRequestAdjust,
 }) => {
+  // Tab điều hướng chính: 'form' (Lập / Xem chi tiết phiếu) hoặc 'list' (Danh sách phiếu)
+  const [activeTab, setActiveTab] = useState<'form' | 'list'>(initialTab);
+  const [listSearchQuery, setListSearchQuery] = useState('');
+
+  useEffect(() => {
+    if (isOpen) {
+      setActiveTab(initialTab);
+    }
+  }, [isOpen, initialTab]);
+
   // Metadata dropdowns
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
@@ -136,12 +176,37 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
   const [isBannerDismissed, setIsBannerDismissed] = useState(false);
   const draftMenuRef = useRef<HTMLDivElement | null>(null);
 
+  // Quản lý phiếu từ Server (CONFIRMED / DRAFT)
+  const [serverReceipts, setServerReceipts] = useState<GoodsReceiptResponse[]>([]);
+  const [viewingReceipt, setViewingReceipt] = useState<GoodsReceiptResponse | null>(null);
+  const [justConfirmedReceiptId, setJustConfirmedReceiptId] = useState<number | null>(null);
+
+  const confirmedReceiptsCount = React.useMemo(() => {
+    return serverReceipts.filter((rc) => rc.status === 'CONFIRMED').length;
+  }, [serverReceipts]);
+
+  const filteredReceipts = React.useMemo(() => {
+    return serverReceipts.filter((rc) => {
+      // LỊCH SỬ CHỨNG TỪ: CHỈ HIỆN PHIẾU ĐÃ XÁC NHẬN (KHÔNG HIỆN BẢN NHÁP)
+      if (rc.status !== 'CONFIRMED') return false;
+      if (listSearchQuery.trim()) {
+        const q = listSearchQuery.trim().toLowerCase();
+        const codeMatch = (rc.code || '').toLowerCase().includes(q);
+        const suppMatch = (rc.supplier_name || '').toLowerCase().includes(q);
+        const whMatch = (rc.warehouse_name || '').toLowerCase().includes(q);
+        const refMatch = (rc.reference_number || '').toLowerCase().includes(q);
+        if (!codeMatch && !suppMatch && !whMatch && !refMatch) return false;
+      }
+      return true;
+    });
+  }, [serverReceipts, listSearchQuery]);
+
   // Validation & Submit State
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [generalError, setGeneralError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Tải metadata và nạp danh sách bản nháp khi mở modal
+  // Tải metadata, danh sách phiếu server và nạp danh sách bản nháp khi mở modal
   useEffect(() => {
     if (!isOpen || !token) return;
 
@@ -149,10 +214,12 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
     Promise.all([
       getSuppliersApi(token, { status: 'active' }).catch(() => ({ items: [] })),
       getWarehousesApi(token).catch(() => []),
+      getGoodsReceiptsApi(token, { limit: 50 }).catch(() => ({ items: [], total: 0 })),
     ])
-      .then(([suppRes, whList]) => {
+      .then(([suppRes, whList, rcList]) => {
         setSuppliers(suppRes.items || []);
         setWarehouses(whList);
+        setServerReceipts(rcList.items || []);
 
         // Khởi tạo mặc định kho nếu chưa chọn
         if (whList.length > 0 && !warehouseId) {
@@ -166,10 +233,11 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
         setIsLoadingMeta(false);
       });
 
-    // Nạp danh sách các bản nháp từ storage
+    // Nạp danh sách các bản nháp từ storage (đã tự động loại trừ bản nháp rỗng)
     const loadedDrafts = loadDraftsFromStorage();
     setDraftsList(loadedDrafts);
     setIsBannerDismissed(false);
+    setCurrentDraftId((prev) => (prev && loadedDrafts.some((d) => d.draft_id === prev) ? prev : null));
 
     // Reset danh sách dòng nếu đang rỗng
     if (items.length === 0) {
@@ -199,8 +267,12 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
 
   if (!isOpen) return null;
 
+  // Cờ nhận diện phiếu đã ghi sổ bất biến
+  const isConfirmed = Boolean(viewingReceipt && viewingReceipt.status === 'CONFIRMED');
+
   // Xử lý nạp dữ liệu từ một bản nháp cụ thể
   const handleSelectDraft = (draft: StockInDraftItem) => {
+    setViewingReceipt(null);
     setCurrentDraftId(draft.draft_id);
     setSupplierId(draft.supplier_id || '');
     if (draft.warehouse_id) {
@@ -225,8 +297,76 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
     });
   };
 
+  // Xử lý nạp dữ liệu từ một phiếu nhập trên Server (CONFIRMED hoặc DRAFT)
+  const handleSelectServerReceipt = (receipt: GoodsReceiptResponse) => {
+    setViewingReceipt(receipt);
+    setCurrentDraftId(null);
+    setServerDraftId(receipt.status === 'DRAFT' ? receipt.id : null);
+    setIsDraftMenuOpen(false);
+    setIsBannerDismissed(true);
+
+    setSupplierId(receipt.supplier_id);
+    setReferenceNumber(receipt.reference_number || '');
+    setReceiptDate(receipt.receipt_date ? receipt.receipt_date.slice(0, 16) : getDefaultReceiptDate());
+    setWarehouseId(receipt.warehouse_id);
+
+    if (receipt.items && receipt.items.length > 0) {
+      const mappedRows: ReceiptItemFormRow[] = receipt.items.map((it) => {
+        const prod = products.find((p) => p.id === it.product_id);
+        const baseU = prod?.base_unit || 'Cái';
+        return {
+          product_id: it.product_id,
+          product_code: it.product_code || prod?.code || '',
+          product_name: it.product_name || prod?.name || '',
+          is_batch_managed: Boolean(prod?.is_batch_managed),
+          base_unit: baseU,
+          unit_name: it.unit_name || baseU,
+          conversion_rate: it.conversion_rate || 1.0,
+          quantity: it.quantity,
+          unit_price: it.unit_price,
+          batch_number: it.batch_number || '',
+          expiry_date: it.expiry_date ? it.expiry_date.slice(0, 10) : '',
+          note: it.note || '',
+        };
+      });
+      setItems(mappedRows);
+    } else {
+      setItems([createEmptyRow()]);
+    }
+
+    setFieldErrors({});
+    setGeneralError(null);
+
+    emitStatusToast({
+      title: receipt.status === 'CONFIRMED' ? 'Phiếu đã xác nhận' : 'Phiếu nháp server',
+      message: `Đã mở phiếu ${receipt.code} (${receipt.status === 'CONFIRMED' ? 'Đã ghi sổ - Không thể sửa' : 'Nháp'}).`,
+    });
+  };
+
+  // Xử lý Lập Phiếu Điều Chỉnh Kho từ phiếu đã xác nhận
+  const handleTriggerAdjust = (targetProductId?: number | '', customReceipt?: GoodsReceiptResponse) => {
+    const rc = customReceipt || viewingReceipt;
+    if (!rc) return;
+    const pid =
+      targetProductId ||
+      (rc.items && rc.items.length > 0 ? rc.items[0].product_id : undefined);
+    const targetProd = pid ? products.find((p) => p.id === pid) || null : null;
+
+    emitStatusToast({
+      type: 'info',
+      title: 'Lập phiếu điều chỉnh kho',
+      message: `Đang mở phiếu điều chỉnh theo chứng từ ${rc.code}...`,
+    });
+
+    if (onRequestAdjust) {
+      onRequestAdjust(targetProd, rc.code);
+    }
+    onClose();
+  };
+
   // Bắt đầu lập một phiếu mới trắng tinh
   const handleStartNewReceipt = () => {
+    setViewingReceipt(null);
     setCurrentDraftId(null);
     setServerDraftId(null);
     setSupplierId('');
@@ -471,6 +611,11 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
 
     if (errorList.length > 0) {
       setGeneralError(errorList[0]);
+      emitStatusToast({
+        type: 'warning',
+        title: 'Chưa đủ điều kiện nhập kho',
+        message: errorList[0],
+      });
       return false;
     }
 
@@ -478,8 +623,31 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
     return true;
   };
 
-  // Xử lý Lưu Nháp (Lưu nhiều bản nháp không ghi đè)
+  // Xử lý Lưu Nháp (Lưu nhiều bản nháp không ghi đè, nếu chưa điền gì thì không lưu)
   const handleSaveDraft = async () => {
+    // Kiểm tra xem người dùng đã điền thông tin nào chưa (nếu chưa điền gì thì không lưu)
+    const hasSupplier = Boolean(supplierId);
+    const hasRef = Boolean(referenceNumber && referenceNumber.trim().length > 0);
+    const hasValidItem = items.some(
+      (it) =>
+        Boolean(it.product_id) ||
+        Boolean(it.product_name && it.product_name.trim().length > 0) ||
+        Boolean(it.note && it.note.trim().length > 0) ||
+        Boolean(it.batch_number && it.batch_number.trim().length > 0)
+    );
+
+    if (!hasSupplier && !hasRef && !hasValidItem) {
+      if (currentDraftId) {
+        // Nếu người dùng xóa trắng dữ liệu của một bản nháp cũ -> dọn dẹp bản nháp đó luôn
+        handleDeleteSingleDraft(currentDraftId);
+      }
+      emitStatusToast({
+        title: 'Chưa có thông tin để lưu',
+        message: 'Bạn chưa điền thông tin nào (chưa chọn nhà cung cấp hoặc sản phẩm) nên không cần lưu bản nháp.',
+      });
+      return;
+    }
+
     setIsSubmitting(true);
     setGeneralError(null);
 
@@ -649,16 +817,40 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
       setCurrentDraftId(null);
       setServerDraftId(null);
 
+      // Đồng bộ lại danh sách phiếu từ server
+      try {
+        const rcList = await getGoodsReceiptsApi(token, { limit: 50 });
+        const listItems = rcList.items || [];
+        if (!listItems.some((x) => x.id === confirmed.id)) {
+          setServerReceipts([confirmed, ...listItems]);
+        } else {
+          setServerReceipts(listItems);
+        }
+      } catch {
+        setServerReceipts((prev) => [confirmed, ...prev.filter((x) => x.id !== confirmed.id)]);
+      }
+
+      // Tự động chuyển ngay sang tab "Lịch sử nhập kho"
+      // Phiếu đã xác nhận là chứng từ lịch sử bất biến, lưu vào lịch sử chứng từ và hiển thị ngay đầu danh sách
+      setJustConfirmedReceiptId(confirmed.id);
+      setViewingReceipt(null);
+      setActiveTab('list');
+
       emitStatusToast({
         title: 'Nhập kho thành công',
-        message: `Phiếu ${confirmed.code} đã được xác nhận ghi sổ! Toàn bộ số lượng và lô hàng đã được cộng vào kho.`,
+        message: `Phiếu ${confirmed.code} đã được xác nhận ghi sổ và lưu vào Lịch sử chứng từ! Phiếu đã xác nhận không sửa được, chỉ lập phiếu điều chỉnh.`,
       });
 
       onSuccess();
-      onClose();
     } catch (err: any) {
       console.error('Lỗi khi xác nhận nhập kho:', err);
-      setGeneralError(err.message || 'Không thể xác nhận phiếu nhập kho. Vui lòng kiểm tra lại thông tin.');
+      const errorMsg = err.message || 'Không thể xác nhận phiếu nhập kho. Vui lòng kiểm tra lại thông tin.';
+      setGeneralError(errorMsg);
+      emitStatusToast({
+        type: 'error',
+        title: 'Lỗi xác nhận nhập kho',
+        message: errorMsg,
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -686,8 +878,8 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
           style={{
             background: '#ffffff',
             borderRadius: '16px',
-            width: '100%',
-            maxWidth: '1020px',
+            width: '96%',
+            maxWidth: '1260px',
             maxHeight: '92vh',
             display: 'flex',
             flexDirection: 'column',
@@ -707,7 +899,7 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
               background: '#f8fafc',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
               <h2
                 style={{
                   margin: 0,
@@ -717,31 +909,114 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
                   letterSpacing: '-0.01em',
                 }}
               >
-                Lập Phiếu Nhập Kho Từ Nhà Cung Cấp
+                {activeTab === 'list'
+                  ? 'Lịch Sử Chứng Từ Nhập Kho'
+                  : isConfirmed
+                  ? `Chi Tiết Chứng Từ Nhập Kho: ${viewingReceipt?.code}`
+                  : viewingReceipt
+                  ? `Phiếu Nháp Server: ${viewingReceipt?.code}`
+                  : 'Lập Phiếu Nhập Kho Từ Nhà Cung Cấp'}
               </h2>
 
-              {/* Nút Tạo mới / Làm mới form */}
-              <button
-                type="button"
-                onClick={handleStartNewReceipt}
-                style={{
-                  padding: '4px 10px',
-                  borderRadius: '6px',
-                  border: currentDraftId ? '1px solid #cbd5e1' : '1px solid #bae6fd',
-                  background: currentDraftId ? '#ffffff' : '#e0f2fe',
-                  color: currentDraftId ? '#475569' : '#0369a1',
-                  fontSize: '12px',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  transition: 'all 0.15s ease',
-                }}
-                title="Xóa form và bắt đầu lập phiếu mới"
-              >
-                <span>+ Lập phiếu mới</span>
-              </button>
+              {/* Chuyển đổi Tab: Lập phiếu mới vs Lịch sử nhập kho (Chỉ hiện khi KHÔNG ở chế độ xem chi tiết) */}
+              {!(activeTab === 'form' && isConfirmed) && (
+                <div
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    background: '#f1f5f9',
+                    padding: '3px 4px',
+                    borderRadius: '10px',
+                    border: '1px solid #e2e8f0',
+                    gap: '3px',
+                    boxShadow: 'inset 0 1px 2px rgba(0, 0, 0, 0.03)',
+                  }}
+                >
+                  {activeTab !== 'list' && (
+                    <button
+                      type="button"
+                      id="tab-btn-form"
+                      onClick={() => {
+                        handleStartNewReceipt();
+                        setActiveTab('form');
+                      }}
+                      style={{
+                        padding: '6px 14px',
+                        borderRadius: '7px',
+                        border: '1px solid rgba(0, 0, 0, 0.06)',
+                        background: activeTab === 'form' ? '#ffffff' : 'transparent',
+                        color: activeTab === 'form' ? '#0f172a' : '#64748b',
+                        fontWeight: activeTab === 'form' ? '700' : '600',
+                        fontSize: '12.5px',
+                        cursor: 'pointer',
+                        boxShadow: activeTab === 'form' ? '0 1px 4px rgba(0, 0, 0, 0.08)' : 'none',
+                        transition: 'all 0.18s ease',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                      }}
+                    >
+                      <span>Lập phiếu mới</span>
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    id="tab-btn-list"
+                    onClick={() => {
+                      setViewingReceipt(null);
+                      setActiveTab('list');
+                    }}
+                    style={{
+                      padding: '6px 13px',
+                      borderRadius: '7px',
+                      border: '1px solid rgba(0, 0, 0, 0.06)',
+                      background: activeTab === 'list' ? '#ffffff' : 'transparent',
+                      color: activeTab === 'list' ? '#0f172a' : '#64748b',
+                      fontWeight: activeTab === 'list' ? '700' : '600',
+                      fontSize: '12.5px',
+                      cursor: 'pointer',
+                      boxShadow: activeTab === 'list' ? '0 1px 4px rgba(0, 0, 0, 0.08)' : 'none',
+                      transition: 'all 0.18s ease',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                    }}
+                  >
+                    <span>Lịch sử nhập kho</span>
+                    <span
+                      style={{
+                        background: activeTab === 'list' ? 'linear-gradient(135deg, #2563eb, #1d4ed8)' : '#cbd5e1',
+                        color: activeTab === 'list' ? '#ffffff' : '#334155',
+                        fontSize: '11px',
+                        fontWeight: '700',
+                        padding: '1.5px 7px',
+                        borderRadius: '999px',
+                        boxShadow: activeTab === 'list' ? '0 1px 2px rgba(37, 99, 235, 0.3)' : 'none',
+                      }}
+                    >
+                      {confirmedReceiptsCount}
+                    </span>
+                  </button>
+                </div>
+              )}
+
+              {activeTab === 'form' && isConfirmed && (
+                <span
+                  style={{
+                    fontSize: '11.5px',
+                    fontWeight: '700',
+                    color: '#047857',
+                    background: '#ecfdf5',
+                    padding: '4px 10px',
+                    borderRadius: '6px',
+                    border: '1px solid #a7f3d0',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                  }}
+                >
+                  ĐÃ XÁC NHẬN (BẤT BIẾN)
+                </span>
+              )}
 
               {currentDraftId && (
                 <span
@@ -750,7 +1025,7 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
                     fontWeight: '600',
                     color: '#b45309',
                     background: '#fef3c7',
-                    padding: '3px 8px',
+                    padding: '4px 10px',
                     borderRadius: '6px',
                     border: '1px solid #fde68a',
                   }}
@@ -761,194 +1036,177 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              {/* Menu Dropdown Quản lý các bản nháp [ Bản nháp ({drafts.length}) ▾ ] */}
-              <div style={{ position: 'relative' }} ref={draftMenuRef}>
-                <button
-                  type="button"
-                  onClick={() => setIsDraftMenuOpen((prev) => !prev)}
-                  disabled={draftsList.length === 0}
-                  style={{
-                    padding: '6px 12px',
-                    borderRadius: '7px',
-                    border: draftsList.length > 0 ? '1px solid #cbd5e1' : '1px solid #e2e8f0',
-                    background: draftsList.length > 0 ? '#ffffff' : '#f1f5f9',
-                    color: draftsList.length > 0 ? '#1e293b' : '#94a3b8',
-                    fontSize: '12.5px',
-                    fontWeight: '600',
-                    cursor: draftsList.length > 0 ? 'pointer' : 'not-allowed',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    transition: 'all 0.15s ease',
-                  }}
-                  title={
-                    draftsList.length > 0
-                      ? `Có ${draftsList.length} bản nháp đã lưu`
-                      : 'Chưa có bản nháp nào được lưu'
-                  }
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                    <polyline points="14 2 14 8 20 8" />
-                    <line x1="16" y1="13" x2="8" y2="13" />
-                    <line x1="16" y1="17" x2="8" y2="17" />
-                  </svg>
-                  <span>Bản nháp ({draftsList.length})</span>
-                  <span style={{ fontSize: '10px' }}>▼</span>
-                </button>
-
-                {/* Danh sách bản nháp xổ xuống */}
-                {isDraftMenuOpen && draftsList.length > 0 && (
-                  <div
+              {/* Menu Dropdown Quản lý các bản nháp [ Bản nháp ({draftsList.length}) ] */}
+              {draftsList.length > 0 && !isConfirmed && activeTab === 'form' && (
+                <div style={{ position: 'relative' }} ref={draftMenuRef}>
+                  <button
+                    type="button"
+                    onClick={() => setIsDraftMenuOpen((prev) => !prev)}
                     style={{
-                      position: 'absolute',
-                      top: 'calc(100% + 6px)',
-                      right: 0,
-                      width: '330px',
-                      maxHeight: '380px',
-                      background: '#ffffff',
-                      borderRadius: '12px',
-                      border: '1px solid #cbd5e1',
-                      boxShadow: '0 12px 28px rgba(0, 0, 0, 0.15)',
-                      zIndex: 1000,
-                      overflow: 'hidden',
-                      display: 'flex',
-                      flexDirection: 'column',
+                      padding: '6px 13px',
+                      borderRadius: '8px',
+                      border: '1px solid #fcd34d',
+                      background: 'linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)',
+                      color: '#92400e',
+                      fontSize: '12.5px',
+                      fontWeight: '700',
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      boxShadow: '0 1px 3px rgba(245, 158, 11, 0.15)',
+                      transition: 'all 0.15s ease',
                     }}
+                    title={`Có ${draftsList.length} bản nháp đã lưu`}
                   >
+                    <span>Bản nháp ({draftsList.length})</span>
+                  </button>
+
+                  {/* Danh sách bản nháp xổ xuống */}
+                  {isDraftMenuOpen && (
                     <div
                       style={{
-                        padding: '10px 14px',
-                        borderBottom: '1px solid #f1f5f9',
-                        background: '#f8fafc',
-                        fontSize: '12px',
-                        fontWeight: '700',
-                        color: '#475569',
+                        position: 'absolute',
+                        top: 'calc(100% + 6px)',
+                        right: 0,
+                        width: '330px',
+                        maxHeight: '380px',
+                        background: '#ffffff',
+                        borderRadius: '12px',
+                        border: '1px solid #cbd5e1',
+                        boxShadow: '0 12px 28px rgba(0, 0, 0, 0.15)',
+                        zIndex: 1000,
+                        overflow: 'hidden',
                         display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
+                        flexDirection: 'column',
                       }}
                     >
-                      <span>DANH SÁCH BẢN NHÁP ({draftsList.length})</span>
-                      <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: '500' }}>Mới nhất trước</span>
-                    </div>
+                      <div
+                        style={{
+                          padding: '10px 14px',
+                          borderBottom: '1px solid #f1f5f9',
+                          background: '#f8fafc',
+                          fontSize: '12px',
+                          fontWeight: '700',
+                          color: '#475569',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                        }}
+                      >
+                        <span>DANH SÁCH BẢN NHÁP ({draftsList.length})</span>
+                        <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: '500' }}>Mới nhất trước</span>
+                      </div>
 
-                    <div style={{ overflowY: 'auto', maxHeight: '310px' }}>
-                      {draftsList.map((d) => {
-                        const isSelected = d.draft_id === currentDraftId;
-                        return (
-                          <div
-                            key={d.draft_id}
-                            onClick={() => handleSelectDraft(d)}
-                            style={{
-                              padding: '10px 14px',
-                              borderBottom: '1px solid #f1f5f9',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'space-between',
-                              gap: '10px',
-                              cursor: 'pointer',
-                              background: isSelected ? '#eff6ff' : '#ffffff',
-                              transition: 'background 0.15s ease',
-                            }}
-                            onMouseEnter={(e) => {
-                              if (!isSelected) e.currentTarget.style.background = '#f8fafc';
-                            }}
-                            onMouseLeave={(e) => {
-                              if (!isSelected) e.currentTarget.style.background = '#ffffff';
-                            }}
-                          >
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                              {/* Dòng 1: Tên NCC • X mặt hàng */}
-                              <div
-                                style={{
-                                  fontSize: '13px',
-                                  fontWeight: '700',
-                                  color: isSelected ? '#1d4ed8' : '#0f172a',
-                                  whiteSpace: 'nowrap',
-                                  overflow: 'hidden',
-                                  textOverflow: 'ellipsis',
-                                }}
-                                title={d.supplier_name}
-                              >
-                                {d.supplier_name}
-                                <span style={{ fontWeight: '500', color: '#64748b', fontSize: '12px', marginLeft: '6px' }}>
-                                  • {d.total_items} mặt hàng
-                                </span>
-                              </div>
-
-                              {/* Dòng 2: Thời gian tạo */}
-                              <div
-                                style={{
-                                  fontSize: '11.5px',
-                                  color: '#64748b',
-                                  marginTop: '3px',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: '6px',
-                                }}
-                              >
-                                <span>🕒 {d.created_at}</span>
-                                {isSelected && (
-                                  <span
-                                    style={{
-                                      fontSize: '10.5px',
-                                      background: '#dbeafe',
-                                      color: '#1e40af',
-                                      padding: '1px 6px',
-                                      borderRadius: '4px',
-                                      fontWeight: '600',
-                                    }}
-                                  >
-                                    Đang mở
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-
-                            {/* Nút Xóa riêng bản nháp */}
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeleteSingleDraft(d.draft_id);
-                              }}
+                      <div style={{ overflowY: 'auto', maxHeight: '310px' }}>
+                        {draftsList.map((d) => {
+                          const isSelected = d.draft_id === currentDraftId;
+                          return (
+                            <div
+                              key={d.draft_id}
+                              onClick={() => handleSelectDraft(d)}
                               style={{
-                                background: 'transparent',
-                                border: 'none',
-                                color: '#94a3b8',
-                                padding: '6px',
-                                borderRadius: '6px',
-                                cursor: 'pointer',
+                                padding: '10px 14px',
+                                borderBottom: '1px solid #f1f5f9',
                                 display: 'flex',
                                 alignItems: 'center',
-                                justifyContent: 'center',
-                                transition: 'all 0.15s ease',
+                                justifyContent: 'space-between',
+                                gap: '10px',
+                                cursor: 'pointer',
+                                background: isSelected ? '#eff6ff' : '#ffffff',
+                                transition: 'background 0.15s ease',
                               }}
-                              title="Xóa bản nháp này"
                               onMouseEnter={(e) => {
-                                e.currentTarget.style.color = '#ef4444';
-                                e.currentTarget.style.background = '#fee2e2';
+                                if (!isSelected) e.currentTarget.style.background = '#f8fafc';
                               }}
                               onMouseLeave={(e) => {
-                                e.currentTarget.style.color = '#94a3b8';
-                                e.currentTarget.style.background = 'transparent';
+                                if (!isSelected) e.currentTarget.style.background = '#ffffff';
                               }}
                             >
-                              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <polyline points="3 6 5 6 21 6" />
-                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                                <line x1="10" y1="11" x2="10" y2="17" />
-                                <line x1="14" y1="11" x2="14" y2="17" />
-                              </svg>
-                            </button>
-                          </div>
-                        );
-                      })}
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div
+                                  style={{
+                                    fontSize: '13px',
+                                    fontWeight: '700',
+                                    color: isSelected ? '#1d4ed8' : '#0f172a',
+                                    whiteSpace: 'nowrap',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                  }}
+                                  title={d.supplier_name}
+                                >
+                                  {d.supplier_name}
+                                  <span style={{ fontWeight: '500', color: '#64748b', fontSize: '12px', marginLeft: '6px' }}>
+                                    • {d.total_items} mặt hàng
+                                  </span>
+                                </div>
+
+                                <div
+                                  style={{
+                                    fontSize: '11.5px',
+                                    color: '#64748b',
+                                    marginTop: '3px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '6px',
+                                  }}
+                                >
+                                  <span>{d.created_at}</span>
+                                  {isSelected && (
+                                    <span
+                                      style={{
+                                        fontSize: '10.5px',
+                                        background: '#dbeafe',
+                                        color: '#1e40af',
+                                        padding: '1px 6px',
+                                        borderRadius: '4px',
+                                        fontWeight: '600',
+                                      }}
+                                    >
+                                      Đang mở
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteSingleDraft(d.draft_id);
+                                }}
+                                style={{
+                                  background: 'transparent',
+                                  border: 'none',
+                                  color: '#94a3b8',
+                                  padding: '6px',
+                                  borderRadius: '6px',
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  transition: 'all 0.15s ease',
+                                }}
+                                title="Xóa bản nháp này"
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.color = '#ef4444';
+                                  e.currentTarget.style.background = '#fee2e2';
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.color = '#94a3b8';
+                                  e.currentTarget.style.background = 'transparent';
+                                }}
+                              >
+                                <span style={{ fontSize: '13px', fontWeight: '700' }}>✕</span>
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
-                  </div>
-                )}
-              </div>
+                  )}
+                </div>
+              )}
 
               {/* Close Button */}
               <button
@@ -956,22 +1214,32 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
                 onClick={onClose}
                 disabled={isSubmitting}
                 style={{
-                  background: 'transparent',
-                  border: 'none',
+                  width: '34px',
+                  height: '34px',
+                  borderRadius: '8px',
+                  border: '1px solid #e2e8f0',
+                  background: '#f8fafc',
                   color: '#64748b',
-                  cursor: 'pointer',
-                  padding: '6px',
-                  borderRadius: '6px',
+                  cursor: isSubmitting ? 'not-allowed' : 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
+                  transition: 'all 0.18s ease',
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = '#fee2e2';
+                  e.currentTarget.style.color = '#ef4444';
+                  e.currentTarget.style.borderColor = '#fca5a5';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = '#f8fafc';
+                  e.currentTarget.style.color = '#64748b';
+                  e.currentTarget.style.borderColor = '#e2e8f0';
                 }}
                 title="Đóng cửa sổ"
               >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <line x1="18" y1="6" x2="6" y2="18" />
-                  <line x1="6" y1="6" x2="18" y2="18" />
-                </svg>
+                <span style={{ fontSize: '18px', fontWeight: '600', lineHeight: 1 }}>✕</span>
               </button>
             </div>
           </div>
@@ -984,11 +1252,436 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
               flex: 1,
             }}
           >
-            {/* Banner Thông Báo Phục Hồi Bản Nháp (Chỉ hiển thị khi có bản nháp và chưa chọn sửa) */}
-            {draftsList.length > 0 && !currentDraftId && !isBannerDismissed && (
-              <div
-                style={{
-                  background: '#eff6ff',
+            {activeTab === 'list' ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                {/* Thanh tìm kiếm, lọc trạng thái & Tạo mới */}
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '12px',
+                    flexWrap: 'wrap',
+                    background: '#f8fafc',
+                    padding: '12px 16px',
+                    borderRadius: '10px',
+                    border: '1px solid #e2e8f0',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: '260px', flexWrap: 'wrap' }}>
+                    <div style={{ position: 'relative', width: '100%', maxWidth: '320px' }}>
+                      <input
+                        type="text"
+                        placeholder="Tìm theo mã phiếu, NCC, kho..."
+                        value={listSearchQuery}
+                        onChange={(e) => setListSearchQuery(e.target.value)}
+                        style={{
+                          width: '100%',
+                          padding: '7px 12px',
+                          borderRadius: '7px',
+                          border: '1px solid #cbd5e1',
+                          fontSize: '13px',
+                          color: '#0f172a',
+                          background: '#ffffff',
+                          outline: 'none',
+                        }}
+                      />
+                    </div>
+
+                    <div
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        background: '#ecfdf5',
+                        border: '1px solid #a7f3d0',
+                        padding: '6px 12px',
+                        borderRadius: '6px',
+                        fontSize: '12px',
+                        fontWeight: '700',
+                        color: '#065f46',
+                      }}
+                    >
+                      <span>Đã xác nhận & Ghi sổ:</span>
+                      <span
+                        style={{
+                          background: '#059669',
+                          color: '#ffffff',
+                          padding: '1px 6px',
+                          borderRadius: '10px',
+                          fontSize: '11px',
+                          fontWeight: '700',
+                        }}
+                      >
+                        {confirmedReceiptsCount}
+                      </span>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleStartNewReceipt();
+                      setActiveTab('form');
+                    }}
+                    style={{
+                      padding: '7px 16px',
+                      borderRadius: '8px',
+                      border: 'none',
+                      background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                      color: '#ffffff',
+                      fontSize: '12.5px',
+                      fontWeight: '700',
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      boxShadow: '0 2px 6px rgba(5, 150, 105, 0.3)',
+                      transition: 'all 0.18s ease',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.filter = 'brightness(1.08)';
+                      e.currentTarget.style.transform = 'translateY(-1px)';
+                      e.currentTarget.style.boxShadow = '0 4px 10px rgba(5, 150, 105, 0.4)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.filter = 'brightness(1)';
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = '0 2px 6px rgba(5, 150, 105, 0.3)';
+                    }}
+                  >
+                    <span>Lập phiếu mới</span>
+                  </button>
+                </div>
+
+                {/* Thông Báo Thành Công Vừa Ghi Sổ Chuyển Sang Lịch Sử */}
+                {justConfirmedReceiptId && (
+                  <div
+                    style={{
+                      background: '#ecfdf5',
+                      border: '1.5px solid #10b981',
+                      borderRadius: '8px',
+                      padding: '12px 16px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '12px',
+                      boxShadow: '0 2px 6px rgba(16, 185, 129, 0.15)',
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontWeight: '700', color: '#065f46', fontSize: '13.5px' }}>
+                        Đã xác nhận ghi sổ và lưu phiếu vào Lịch sử chứng từ!
+                      </div>
+                      <div style={{ fontSize: '12px', color: '#047857', marginTop: '2px' }}>
+                        Phiếu nhập đã được lưu giữ bất biến trong Lịch sử và cộng tồn kho. Phiếu đã xác nhận không sửa được, chỉ lập phiếu điều chỉnh!
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setJustConfirmedReceiptId(null)}
+                      style={{
+                        background: 'transparent',
+                        border: '1px solid #a7f3d0',
+                        padding: '4px 10px',
+                        borderRadius: '6px',
+                        color: '#065f46',
+                        cursor: 'pointer',
+                        fontWeight: '600',
+                        fontSize: '12px',
+                      }}
+                    >
+                      Đã rõ
+                    </button>
+                  </div>
+                )}
+
+                {/* Banner Nhắc Nhở Quy Tắc Bất Biến */}
+                <div
+                  style={{
+                    background: '#fffdf5',
+                    border: '1px solid #fde68a',
+                    borderRadius: '10px',
+                    padding: '12px 16px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '12px',
+                    fontSize: '13px',
+                    boxShadow: '0 1px 2px rgba(245, 158, 11, 0.05)',
+                  }}
+                >
+                  <div>
+                    <div style={{ fontWeight: '700', color: '#854d0e', fontSize: '12.5px' }}>
+                      Quy tắc bảo toàn chứng từ: Phiếu đã xác nhận không sửa được, chỉ lập phiếu điều chỉnh
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#a16207', marginTop: '2px' }}>
+                      Toàn bộ phiếu nhập đã ghi sổ kế toán kho được lưu trữ vĩnh viễn trong <strong>Lịch sử chứng từ</strong>. Mọi sai lệch hoặc điều chỉnh số lượng tồn thực tế bắt buộc phải lập <strong>Phiếu điều chỉnh kho</strong>.
+                    </div>
+                  </div>
+                </div>
+
+                {/* Bảng Danh Sách Phiếu Nhập Trong Lịch Sử */}
+                <div
+                  style={{
+                    borderRadius: '12px',
+                    border: '1px solid #e2e8f0',
+                    overflowX: 'auto',
+                    background: '#ffffff',
+                    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
+                  }}
+                >
+                  <table style={{ width: '100%', minWidth: '1080px', borderCollapse: 'collapse', fontSize: '12.5px', textAlign: 'left' }}>
+                    <thead style={{ position: 'sticky', top: 0, zIndex: 5 }}>
+                      <tr style={{ background: '#f8fafc', borderBottom: '1.5px solid #e2e8f0', color: '#475569' }}>
+                        <th style={{ padding: '12px 16px', fontWeight: '700', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap', background: '#f8fafc' }}>Mã phiếu</th>
+                        <th style={{ padding: '12px 16px', fontWeight: '700', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap', background: '#f8fafc' }}>Ngày nhập</th>
+                        <th style={{ padding: '12px 16px', fontWeight: '700', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap', background: '#f8fafc' }}>Nhà cung cấp</th>
+                        <th style={{ padding: '12px 16px', fontWeight: '700', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap', background: '#f8fafc' }}>Kho nhập</th>
+                        <th style={{ padding: '12px 16px', fontWeight: '700', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.04em', textAlign: 'center', whiteSpace: 'nowrap', background: '#f8fafc' }}>Mặt hàng</th>
+                        <th style={{ padding: '12px 16px', fontWeight: '700', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.04em', textAlign: 'center', whiteSpace: 'nowrap', background: '#f8fafc' }}>Trạng thái</th>
+                        <th style={{ padding: '12px 16px', fontWeight: '700', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap', background: '#f8fafc' }}>Quy tắc nghiệp vụ</th>
+                        <th style={{ padding: '12px 16px', fontWeight: '700', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.04em', textAlign: 'right', whiteSpace: 'nowrap', background: '#f8fafc' }}>Thao tác</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredReceipts.length === 0 ? (
+                        <tr>
+                          <td colSpan={8} style={{ padding: '36px 16px', textAlign: 'center', color: '#94a3b8' }}>
+                            Không tìm thấy phiếu nhập kho nào phù hợp trong lịch sử.
+                          </td>
+                        </tr>
+                      ) : (
+                        filteredReceipts.map((rc) => {
+                          const isJustConfirmed = rc.id === justConfirmedReceiptId;
+                          return (
+                            <tr
+                              key={rc.id}
+                              style={{
+                                borderBottom: '1px solid #f1f5f9',
+                                background: isJustConfirmed ? '#f0fdf4' : '#ffffff',
+                                transition: 'background 0.15s ease',
+                              }}
+                              onMouseEnter={(e) => (e.currentTarget.style.background = isJustConfirmed ? '#ecfdf5' : '#f8fafc')}
+                              onMouseLeave={(e) => (e.currentTarget.style.background = isJustConfirmed ? '#f0fdf4' : '#ffffff')}
+                            >
+                              <td style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>
+                                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      handleSelectServerReceipt(rc);
+                                      setActiveTab('form');
+                                    }}
+                                    style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      padding: '3px 8px',
+                                      borderRadius: '6px',
+                                      background: '#eff6ff',
+                                      border: '1px solid #dbeafe',
+                                      color: '#1d4ed8',
+                                      fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+                                      fontSize: '12px',
+                                      fontWeight: '700',
+                                      cursor: 'pointer',
+                                      transition: 'all 0.15s ease',
+                                    }}
+                                    onMouseEnter={(e) => {
+                                      e.currentTarget.style.background = '#dbeafe';
+                                      e.currentTarget.style.borderColor = '#bfdbfe';
+                                    }}
+                                    onMouseLeave={(e) => {
+                                      e.currentTarget.style.background = '#eff6ff';
+                                      e.currentTarget.style.borderColor = '#dbeafe';
+                                    }}
+                                    title="Nhấn để xem chi tiết chứng từ nhập kho này"
+                                  >
+                                    {rc.code}
+                                  </button>
+                                  {isJustConfirmed && (
+                                    <span
+                                      style={{
+                                        background: '#ecfdf5',
+                                        border: '1px solid #a7f3d0',
+                                        color: '#065f46',
+                                        fontSize: '10px',
+                                        fontWeight: '700',
+                                        padding: '2px 6px',
+                                        borderRadius: '4px',
+                                        whiteSpace: 'nowrap',
+                                      }}
+                                    >
+                                      VỪA GHI SỔ
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+                              <td style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>
+                                {(() => {
+                                  if (!rc.receipt_date) return <span style={{ color: '#94a3b8' }}>—</span>;
+                                  const d = new Date(rc.receipt_date);
+                                  if (isNaN(d.getTime())) return <span style={{ color: '#475569' }}>{rc.receipt_date}</span>;
+                                  const dateStr = d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                                  const timeStr = d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                                  return (
+                                    <div style={{ lineHeight: '1.4' }}>
+                                      <div style={{ fontWeight: '600', color: '#0f172a', fontSize: '12.5px' }}>{dateStr}</div>
+                                      <div style={{ color: '#64748b', fontSize: '11px', fontFamily: 'ui-monospace, monospace' }}>{timeStr}</div>
+                                    </div>
+                                  );
+                                })()}
+                              </td>
+                              <td style={{ padding: '12px 16px', color: '#0f172a', fontWeight: '600', whiteSpace: 'nowrap' }}>
+                                {rc.supplier_name || `NCC #${rc.supplier_id}`}
+                              </td>
+                              <td style={{ padding: '12px 16px', color: '#334155', fontWeight: '500', whiteSpace: 'nowrap' }}>
+                                {rc.warehouse_name || `Kho #${rc.warehouse_id}`}
+                              </td>
+                              <td style={{ padding: '12px 16px', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                                <div style={{ lineHeight: '1.4' }}>
+                                  <div style={{ fontWeight: '700', color: '#0f172a', fontSize: '12.5px' }}>
+                                    {rc.total_items} SP
+                                  </div>
+                                  <div style={{ fontSize: '11px', color: '#64748b' }}>
+                                    ({rc.total_quantity?.toLocaleString('vi-VN')} {rc.items?.[0]?.unit_name || 'cái'})
+                                  </div>
+                                </div>
+                              </td>
+                              <td style={{ padding: '12px 16px', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                                <span
+                                  style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '6px',
+                                    fontSize: '11.5px',
+                                    fontWeight: '700',
+                                    padding: '4px 10px',
+                                    borderRadius: '999px',
+                                    background: '#ecfdf5',
+                                    color: '#065f46',
+                                    border: '1px solid #a7f3d0',
+                                    whiteSpace: 'nowrap',
+                                  }}
+                                >
+                                  <span
+                                    style={{
+                                      width: '6px',
+                                      height: '6px',
+                                      borderRadius: '50%',
+                                      background: '#10b981',
+                                      display: 'inline-block',
+                                    }}
+                                  />
+                                  ĐÃ XÁC NHẬN
+                                </span>
+                              </td>
+                              <td style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>
+                                <span
+                                  style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    fontSize: '11.5px',
+                                    color: '#475569',
+                                    background: '#f8fafc',
+                                    border: '1px solid #e2e8f0',
+                                    padding: '3px 9px',
+                                    borderRadius: '6px',
+                                    fontWeight: '600',
+                                    whiteSpace: 'nowrap',
+                                  }}
+                                  title="Chứng từ đã vào sổ kế toán, không thể chỉnh sửa trực tiếp. Để thay đổi cần lập phiếu điều chỉnh."
+                                >
+                                  Bất biến (Không sửa được)
+                                </span>
+                              </td>
+                              <td style={{ padding: '12px 16px', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                                <div style={{ display: 'inline-flex', gap: '8px', alignItems: 'center', justifyContent: 'flex-end' }}>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      handleSelectServerReceipt(rc);
+                                      setActiveTab('form');
+                                    }}
+                                    style={{
+                                      padding: '5px 12px',
+                                      borderRadius: '6px',
+                                      border: '1px solid #cbd5e1',
+                                      background: '#ffffff',
+                                      color: '#1e293b',
+                                      fontSize: '12px',
+                                      fontWeight: '600',
+                                      cursor: 'pointer',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+                                      transition: 'all 0.15s ease',
+                                      whiteSpace: 'nowrap',
+                                    }}
+                                    onMouseEnter={(e) => {
+                                      e.currentTarget.style.background = '#f8fafc';
+                                      e.currentTarget.style.borderColor = '#94a3b8';
+                                    }}
+                                    onMouseLeave={(e) => {
+                                      e.currentTarget.style.background = '#ffffff';
+                                      e.currentTarget.style.borderColor = '#cbd5e1';
+                                    }}
+                                    title="Xem chi tiết chứng từ nhập kho"
+                                  >
+                                    <span>Xem</span>
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => handleTriggerAdjust(undefined, rc)}
+                                    style={{
+                                      padding: '5px 12px',
+                                      borderRadius: '6px',
+                                      border: '1px solid #bfdbfe',
+                                      background: '#eff6ff',
+                                      color: '#1d4ed8',
+                                      fontSize: '12px',
+                                      fontWeight: '700',
+                                      cursor: 'pointer',
+                                      boxShadow: '0 1px 2px rgba(37, 99, 235, 0.08)',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      transition: 'all 0.15s ease',
+                                      whiteSpace: 'nowrap',
+                                    }}
+                                    onMouseEnter={(e) => {
+                                      e.currentTarget.style.background = '#2563eb';
+                                      e.currentTarget.style.borderColor = '#2563eb';
+                                      e.currentTarget.style.color = '#ffffff';
+                                      e.currentTarget.style.boxShadow = '0 2px 6px rgba(37, 99, 235, 0.25)';
+                                    }}
+                                    onMouseLeave={(e) => {
+                                      e.currentTarget.style.background = '#eff6ff';
+                                      e.currentTarget.style.borderColor = '#bfdbfe';
+                                      e.currentTarget.style.color = '#1d4ed8';
+                                      e.currentTarget.style.boxShadow = '0 1px 2px rgba(37, 99, 235, 0.08)';
+                                    }}
+                                    title="Lập phiếu điều chỉnh kho cho phiếu này"
+                                  >
+                                    <span>Lập phiếu điều chỉnh</span>
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ) : (
+              <>
+                {/* Banner Thông Báo Phục Hồi Bản Nháp (Chỉ hiển thị khi có bản nháp và chưa chọn sửa) */}
+                {draftsList.length > 0 && !currentDraftId && !isBannerDismissed && (
+                  <div
+                    style={{
+                      background: '#eff6ff',
                   border: '1px solid #bfdbfe',
                   borderRadius: '10px',
                   padding: '12px 18px',
@@ -1000,34 +1693,13 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
                   boxShadow: '0 1px 3px rgba(37, 99, 235, 0.08)',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <div
-                    style={{
-                      width: '28px',
-                      height: '28px',
-                      borderRadius: '50%',
-                      background: '#dbeafe',
-                      color: '#1d4ed8',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      flexShrink: 0,
-                    }}
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <circle cx="12" cy="12" r="10" />
-                      <line x1="12" y1="8" x2="12" y2="12" />
-                      <line x1="12" y1="16" x2="12.01" y2="16" />
-                    </svg>
+                <div>
+                  <div style={{ fontSize: '13px', fontWeight: '600', color: '#1e40af' }}>
+                    Bạn có <strong>{draftsList.length}</strong> bản nháp chưa ghi sổ (Gần nhất: {draftsList[0].created_at} -{' '}
+                    {draftsList[0].supplier_name}). Bạn muốn tiếp tục?
                   </div>
-                  <div>
-                    <div style={{ fontSize: '13px', fontWeight: '600', color: '#1e40af' }}>
-                      Bạn có <strong>{draftsList.length}</strong> bản nháp chưa ghi sổ (Gần nhất: {draftsList[0].created_at} -{' '}
-                      {draftsList[0].supplier_name}). Bạn muốn tiếp tục?
-                    </div>
-                    <div style={{ fontSize: '11.5px', color: '#3b82f6', marginTop: '2px' }}>
-                      Chọn từ menu <strong>[Bản nháp ({draftsList.length}) ▾]</strong> ở góc phải hoặc nhấn "Tiếp tục điền" để mở bản gần nhất.
-                    </div>
+                  <div style={{ fontSize: '11.5px', color: '#3b82f6', marginTop: '2px' }}>
+                    Chọn từ menu <strong>[Bản nháp ({draftsList.length})]</strong> ở góc phải hoặc nhấn "Tiếp tục điền" để mở bản gần nhất.
                   </div>
                 </div>
 
@@ -1045,14 +1717,8 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
                       fontWeight: '600',
                       cursor: 'pointer',
                       boxShadow: '0 1px 2px rgba(37, 99, 235, 0.2)',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '6px',
                     }}
                   >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                      <polyline points="20 6 9 17 4 12" />
-                    </svg>
                     Tiếp tục điền
                   </button>
                   <button
@@ -1091,11 +1757,6 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
                   gap: '8px',
                 }}
               >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <circle cx="12" cy="12" r="10" />
-                  <line x1="12" y1="8" x2="12" y2="12" />
-                  <line x1="12" y1="16" x2="12.01" y2="16" />
-                </svg>
                 <span>{generalError}</span>
               </div>
             )}
@@ -1118,9 +1779,17 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
                   marginBottom: '12px',
                   textTransform: 'uppercase',
                   letterSpacing: '0.04em',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
                 }}
               >
-                1. Khai báo thông tin nhập hàng
+                <span>1. Khai báo thông tin nhập hàng</span>
+                {isConfirmed && (
+                  <span style={{ fontSize: '11px', color: '#64748b', fontWeight: '500', textTransform: 'none' }}>
+                    Đang khóa (Bất biến)
+                  </span>
+                )}
               </div>
 
               <div
@@ -1138,6 +1807,7 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
                   <select
                     value={supplierId}
                     onChange={(e) => {
+                      if (isConfirmed) return;
                       setSupplierId(Number(e.target.value) || '');
                       if (fieldErrors['supplier_id']) {
                         setFieldErrors((prev) => {
@@ -1147,15 +1817,16 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
                         });
                       }
                     }}
-                    disabled={isLoadingMeta}
+                    disabled={isConfirmed || isLoadingMeta}
                     style={{
                       width: '100%',
                       padding: '8px 10px',
                       borderRadius: '7px',
                       border: fieldErrors['supplier_id'] ? '1.5px solid #ef4444' : '1px solid #cbd5e1',
-                      background: fieldErrors['supplier_id'] ? '#fef2f2' : '#ffffff',
+                      background: isConfirmed ? '#f1f5f9' : fieldErrors['supplier_id'] ? '#fef2f2' : '#ffffff',
                       fontSize: '13px',
                       color: '#0f172a',
+                      cursor: isConfirmed ? 'not-allowed' : 'pointer',
                       outline: 'none',
                     }}
                   >
@@ -1183,7 +1854,9 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
                     maxLength={50}
                     placeholder="VD: HĐ-2026/089, PG-789 (Tối đa 50 ký tự)"
                     value={referenceNumber}
+                    disabled={isConfirmed}
                     onChange={(e) => {
+                      if (isConfirmed) return;
                       setReferenceNumber(e.target.value);
                       if (fieldErrors['reference_number']) {
                         setFieldErrors((prev) => {
@@ -1198,9 +1871,10 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
                       padding: '8px 10px',
                       borderRadius: '7px',
                       border: fieldErrors['reference_number'] ? '1.5px solid #ef4444' : '1px solid #cbd5e1',
-                      background: fieldErrors['reference_number'] ? '#fef2f2' : '#ffffff',
+                      background: isConfirmed ? '#f1f5f9' : fieldErrors['reference_number'] ? '#fef2f2' : '#ffffff',
                       fontSize: '13px',
                       color: '#0f172a',
+                      cursor: isConfirmed ? 'not-allowed' : 'text',
                       boxSizing: 'border-box',
                       outline: 'none',
                     }}
@@ -1220,7 +1894,9 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
                   <input
                     type="datetime-local"
                     value={receiptDate}
+                    disabled={isConfirmed}
                     onChange={(e) => {
+                      if (isConfirmed) return;
                       setReceiptDate(e.target.value);
                       if (fieldErrors['receipt_date']) {
                         setFieldErrors((prev) => {
@@ -1235,9 +1911,10 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
                       padding: '8px 10px',
                       borderRadius: '7px',
                       border: fieldErrors['receipt_date'] ? '1.5px solid #ef4444' : '1px solid #cbd5e1',
-                      background: fieldErrors['receipt_date'] ? '#fef2f2' : '#ffffff',
+                      background: isConfirmed ? '#f1f5f9' : fieldErrors['receipt_date'] ? '#fef2f2' : '#ffffff',
                       fontSize: '13px',
                       color: '#0f172a',
+                      cursor: isConfirmed ? 'not-allowed' : 'text',
                       boxSizing: 'border-box',
                       outline: 'none',
                     }}
@@ -1257,6 +1934,7 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
                   <select
                     value={warehouseId}
                     onChange={(e) => {
+                      if (isConfirmed) return;
                       setWarehouseId(Number(e.target.value) || '');
                       if (fieldErrors['warehouse_id']) {
                         setFieldErrors((prev) => {
@@ -1266,15 +1944,16 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
                         });
                       }
                     }}
-                    disabled={isLoadingMeta}
+                    disabled={isConfirmed || isLoadingMeta}
                     style={{
                       width: '100%',
                       padding: '8px 10px',
                       borderRadius: '7px',
                       border: fieldErrors['warehouse_id'] ? '1.5px solid #ef4444' : '1px solid #cbd5e1',
-                      background: fieldErrors['warehouse_id'] ? '#fef2f2' : '#ffffff',
+                      background: isConfirmed ? '#f1f5f9' : fieldErrors['warehouse_id'] ? '#fef2f2' : '#ffffff',
                       fontSize: '13px',
                       color: '#0f172a',
+                      cursor: isConfirmed ? 'not-allowed' : 'pointer',
                       outline: 'none',
                     }}
                   >
@@ -1318,25 +1997,39 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
                   </span>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={handleAddItemRow}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    background: '#ecfdf5',
-                    border: '1px solid #a7f3d0',
-                    color: '#059669',
-                    padding: '6px 14px',
-                    borderRadius: '7px',
-                    fontSize: '12.5px',
-                    fontWeight: '600',
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease',
-                  }}
-                >
-                  + Thêm mặt hàng
-                </button>
+                {!isConfirmed && (
+                  <button
+                    type="button"
+                    onClick={handleAddItemRow}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      background: 'linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)',
+                      border: '1.5px solid #10b981',
+                      color: '#065f46',
+                      padding: '7px 16px',
+                      borderRadius: '8px',
+                      fontSize: '12.5px',
+                      fontWeight: '700',
+                      cursor: 'pointer',
+                      boxShadow: '0 1px 3px rgba(16, 185, 129, 0.15)',
+                      transition: 'all 0.18s ease',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = 'linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)';
+                      e.currentTarget.style.transform = 'translateY(-1px)';
+                      e.currentTarget.style.boxShadow = '0 3px 8px rgba(16, 185, 129, 0.25)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)';
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = '0 1px 3px rgba(16, 185, 129, 0.15)';
+                    }}
+                  >
+                    <span>Thêm mặt hàng</span>
+                  </button>
+                )}
               </div>
 
               {/* Bảng dòng hàng */}
@@ -1365,7 +2058,11 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
                       <th style={{ padding: '10px 12px', width: '110px', textAlign: 'right' }}>Số lượng</th>
                       <th style={{ padding: '10px 12px', minWidth: '130px' }}>Quy đổi cơ sở</th>
                       <th style={{ padding: '10px 12px', minWidth: '170px' }}>Số lô & Hạn dùng</th>
-                      <th style={{ padding: '10px 12px', width: '40px', textAlign: 'center' }}>Xóa</th>
+                      {!isConfirmed && (
+                        <th style={{ padding: '10px 12px', width: '40px', textAlign: 'center' }}>
+                          Xóa
+                        </th>
+                      )}
                     </tr>
                   </thead>
                   <tbody>
@@ -1405,26 +2102,33 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
                           <td style={{ padding: '10px 12px' }}>
                             <select
                               value={row.product_id}
-                              onChange={(e) => handleProductChange(idx, e.target.value ? Number(e.target.value) : '')}
+                              disabled={isConfirmed}
+                              onChange={(e) => {
+                                if (isConfirmed) return;
+                                handleProductChange(idx, e.target.value ? Number(e.target.value) : '');
+                              }}
                               style={{
                                 width: '100%',
                                 padding: '6px 8px',
                                 borderRadius: '6px',
-                                border: prodError
+                                border: isConfirmed
+                                  ? '1px solid #cbd5e1'
+                                  : prodError
                                   ? '1.5px solid #ef4444'
                                   : !row.product_id
                                   ? '1px dashed #94a3b8'
                                   : '1px solid #cbd5e1',
-                                background: prodError ? '#fef2f2' : '#ffffff',
+                                background: isConfirmed ? '#f1f5f9' : prodError ? '#fef2f2' : '#ffffff',
                                 fontSize: '12.5px',
                                 color: !row.product_id ? '#64748b' : '#0f172a',
+                                cursor: isConfirmed ? 'not-allowed' : 'pointer',
                                 outline: 'none',
                               }}
                             >
                               <option value="">-- Chọn sản phẩm dỡ xe --</option>
                               {products.map((p) => (
                                 <option key={p.id} value={p.id}>
-                                  [{p.code}] {p.name}{p.is_batch_managed ? ' (★ Có quản lý lô)' : ''}
+                                  [{p.code}] {p.name}{p.is_batch_managed ? ' (Có quản lý lô)' : ''}
                                 </option>
                               ))}
                             </select>
@@ -1445,7 +2149,7 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
                                     fontWeight: '600',
                                   }}
                                 >
-                                  ★ Bắt buộc khai báo Số lô & HSD
+                                  Bắt buộc khai báo Số lô & HSD
                                 </div>
                               ) : (
                                 <div
@@ -1471,16 +2175,30 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
                           <td style={{ padding: '10px 12px' }}>
                             <select
                               value={row.unit_name}
-                              onChange={(e) => handleUnitChange(idx, e.target.value)}
-                              disabled={!row.product_id}
+                              onChange={(e) => {
+                                if (isConfirmed) return;
+                                handleUnitChange(idx, e.target.value);
+                              }}
+                              disabled={isConfirmed || !row.product_id}
                               style={{
                                 width: '100%',
                                 padding: '6px 8px',
                                 borderRadius: '6px',
-                                border: unitError ? '1.5px solid #ef4444' : '1px solid #cbd5e1',
-                                background: unitError ? '#fef2f2' : !row.product_id ? '#f1f5f9' : '#ffffff',
+                                border: isConfirmed
+                                  ? '1px solid #cbd5e1'
+                                  : unitError
+                                  ? '1.5px solid #ef4444'
+                                  : '1px solid #cbd5e1',
+                                background: isConfirmed
+                                  ? '#f1f5f9'
+                                  : unitError
+                                  ? '#fef2f2'
+                                  : !row.product_id
+                                  ? '#f1f5f9'
+                                  : '#ffffff',
                                 fontSize: '12.5px',
                                 color: '#0f172a',
+                                cursor: isConfirmed ? 'not-allowed' : 'pointer',
                                 outline: 'none',
                               }}
                             >
@@ -1508,8 +2226,9 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
                               min="0.001"
                               step="any"
                               value={row.quantity}
-                              disabled={!row.product_id}
+                              disabled={isConfirmed || !row.product_id}
                               onChange={(e) => {
+                                if (isConfirmed) return;
                                 const val = e.target.value;
                                 setFieldErrors((prev) => {
                                   const copy = { ...prev };
@@ -1526,12 +2245,23 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
                                 width: '100%',
                                 padding: '6px 8px',
                                 borderRadius: '6px',
-                                border: qtyError ? '1.5px solid #ef4444' : '1px solid #cbd5e1',
-                                background: qtyError ? '#fef2f2' : !row.product_id ? '#f1f5f9' : '#ffffff',
+                                border: isConfirmed
+                                  ? '1px solid #cbd5e1'
+                                  : qtyError
+                                  ? '1.5px solid #ef4444'
+                                  : '1px solid #cbd5e1',
+                                background: isConfirmed
+                                  ? '#f1f5f9'
+                                  : qtyError
+                                  ? '#fef2f2'
+                                  : !row.product_id
+                                  ? '#f1f5f9'
+                                  : '#ffffff',
                                 fontSize: '12.5px',
                                 textAlign: 'right',
                                 color: '#0f172a',
                                 fontWeight: '600',
+                                cursor: isConfirmed ? 'not-allowed' : 'text',
                                 boxSizing: 'border-box',
                                 outline: 'none',
                               }}
@@ -1574,7 +2304,9 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
                                   maxLength={50}
                                   placeholder="Số lô * (3-50 ký tự)"
                                   value={row.batch_number}
+                                  disabled={isConfirmed}
                                   onChange={(e) => {
+                                    if (isConfirmed) return;
                                     const val = e.target.value;
                                     setFieldErrors((prev) => {
                                       const copy = { ...prev };
@@ -1591,14 +2323,17 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
                                     width: '100%',
                                     padding: '5px 8px',
                                     borderRadius: '5px',
-                                    border: batchError
+                                    border: isConfirmed
+                                      ? '1px solid #cbd5e1'
+                                      : batchError
                                       ? '1.5px solid #ef4444'
                                       : !row.batch_number.trim()
                                       ? '1.5px solid #f59e0b'
                                       : '1px solid #10b981',
-                                    background: batchError ? '#fef2f2' : '#fffbeb',
+                                    background: isConfirmed ? '#f1f5f9' : batchError ? '#fef2f2' : '#fffbeb',
                                     fontSize: '12px',
                                     color: '#0f172a',
+                                    cursor: isConfirmed ? 'not-allowed' : 'text',
                                     boxSizing: 'border-box',
                                     outline: 'none',
                                   }}
@@ -1613,7 +2348,9 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
                                   type="date"
                                   title="Hạn sử dụng (> Ngày nhập)"
                                   value={row.expiry_date}
+                                  disabled={isConfirmed}
                                   onChange={(e) => {
+                                    if (isConfirmed) return;
                                     const val = e.target.value;
                                     setFieldErrors((prev) => {
                                       const copy = { ...prev };
@@ -1630,14 +2367,17 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
                                     width: '100%',
                                     padding: '4px 8px',
                                     borderRadius: '5px',
-                                    border: expiryError
+                                    border: isConfirmed
+                                      ? '1px solid #cbd5e1'
+                                      : expiryError
                                       ? '1.5px solid #ef4444'
                                       : !row.expiry_date.trim()
                                       ? '1.5px solid #f59e0b'
                                       : '1px solid #10b981',
-                                    background: expiryError ? '#fef2f2' : '#fffbeb',
+                                    background: isConfirmed ? '#f1f5f9' : expiryError ? '#fef2f2' : '#fffbeb',
                                     fontSize: '12px',
                                     color: '#0f172a',
+                                    cursor: isConfirmed ? 'not-allowed' : 'text',
                                     boxSizing: 'border-box',
                                     outline: 'none',
                                   }}
@@ -1662,26 +2402,41 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
                             )}
                           </td>
 
-                          {/* Nút xóa dòng */}
-                          <td style={{ padding: '10px 12px', textAlign: 'center' }}>
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveItemRow(idx)}
-                              disabled={items.length <= 1}
-                              style={{
-                                background: 'transparent',
-                                border: 'none',
-                                color: items.length <= 1 ? '#cbd5e1' : '#ef4444',
-                                cursor: items.length <= 1 ? 'not-allowed' : 'pointer',
-                                padding: '4px 6px',
-                                fontSize: '12px',
-                                fontWeight: '500',
-                              }}
-                              title="Xóa dòng này"
-                            >
-                              Xóa
-                            </button>
-                          </td>
+                          {/* Cột thao tác / xóa dòng */}
+                          {!isConfirmed && (
+                            <td style={{ padding: '10px 12px', textAlign: 'center' }}>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveItemRow(idx)}
+                                disabled={items.length <= 1}
+                                style={{
+                                  background: 'transparent',
+                                  border: 'none',
+                                  color: items.length <= 1 ? '#cbd5e1' : '#ef4444',
+                                  cursor: items.length <= 1 ? 'not-allowed' : 'pointer',
+                                  padding: '5px 8px',
+                                  borderRadius: '6px',
+                                  fontSize: '12px',
+                                  fontWeight: '600',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                  transition: 'all 0.15s ease',
+                                }}
+                                onMouseEnter={(e) => {
+                                  if (items.length > 1) {
+                                    e.currentTarget.style.background = '#fee2e2';
+                                  }
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.background = 'transparent';
+                                }}
+                                title={items.length <= 1 ? 'Phải có ít nhất 1 mặt hàng' : 'Xóa mặt hàng này'}
+                              >
+                                <span>Xóa</span>
+                              </button>
+                            </td>
+                          )}
                         </tr>
                       );
                     })}
@@ -1716,7 +2471,9 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
                 </div>
               </div>
             </div>
-          </div>
+          </>
+        )}
+      </div>
 
           {/* Footer Modal Actions */}
           <div
@@ -1725,52 +2482,207 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
               borderTop: '1px solid #e2e8f0',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'flex-end',
+              justifyContent: activeTab === 'list' ? 'space-between' : isConfirmed ? 'space-between' : 'flex-end',
               gap: '10px',
               background: '#f8fafc',
             }}
           >
-            {/* Nút Lưu Nháp */}
-            <button
-              type="button"
-              onClick={handleSaveDraft}
-              disabled={isSubmitting}
-              style={{
-                padding: '8px 16px',
-                borderRadius: '8px',
-                border: '1px solid #f59e0b',
-                background: '#fffbeb',
-                color: '#b45309',
-                fontSize: '13px',
-                fontWeight: '600',
-                cursor: isSubmitting ? 'not-allowed' : 'pointer',
-                transition: 'all 0.15s ease',
-              }}
-              title="Lưu phiếu ở trạng thái nháp, không cộng tồn kho"
-            >
-              {isSubmitting ? 'Đang lưu...' : currentDraftId ? 'Cập nhật nháp' : 'Lưu nháp'}
-            </button>
+            {activeTab === 'list' ? (
+              <>
+                <div style={{ color: '#64748b', fontSize: '13px' }}>
+                  Hiển thị <strong style={{ color: '#0f172a' }}>{filteredReceipts.length}</strong> / {confirmedReceiptsCount} chứng từ nhập kho đã ghi sổ
+                </div>
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    style={{
+                      padding: '8px 18px',
+                      borderRadius: '8px',
+                      border: '1px solid #cbd5e1',
+                      background: '#ffffff',
+                      color: '#475569',
+                      fontSize: '13px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = '#f8fafc';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = '#ffffff';
+                    }}
+                  >
+                    Đóng
+                  </button>
+                </div>
+              </>
+            ) : isConfirmed ? (
+              <>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#64748b', fontSize: '12.5px', flexWrap: 'wrap' }}>
+                  <span
+                    style={{
+                      color: '#047857',
+                      fontWeight: '700',
+                      background: '#ecfdf5',
+                      padding: '3px 8px',
+                      borderRadius: '5px',
+                      border: '1px solid #a7f3d0',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                    }}
+                  >
+                    <span>ĐÃ XÁC NHẬN - BẤT BIẾN</span>
+                  </span>
+                  {viewingReceipt?.confirmed_by && (
+                    <span>• Người xác nhận: <strong style={{ color: '#0f172a' }}>{viewingReceipt.confirmed_by}</strong></span>
+                  )}
+                  {viewingReceipt?.confirmed_at && (
+                    <span> lúc {new Date(viewingReceipt.confirmed_at).toLocaleString('vi-VN')}</span>
+                  )}
+                </div>
 
-            {/* Nút Xác Nhận Nhập Kho & Ghi Sổ */}
-            <button
-              type="button"
-              onClick={handleConfirmSubmit}
-              disabled={isSubmitting}
-              style={{
-                padding: '8px 20px',
-                borderRadius: '8px',
-                border: 'none',
-                background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
-                color: '#ffffff',
-                fontSize: '13px',
-                fontWeight: '600',
-                cursor: isSubmitting ? 'not-allowed' : 'pointer',
-                boxShadow: '0 2px 8px rgba(5, 150, 105, 0.35)',
-              }}
-              title="Xác nhận dỡ xe xong và cộng tồn kho ngay"
-            >
-              {isSubmitting ? 'Đang xử lý...' : 'Xác nhận nhập kho & Ghi sổ'}
-            </button>
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveTab('list');
+                      setViewingReceipt(null);
+                    }}
+                    style={{
+                      padding: '8px 16px',
+                      borderRadius: '8px',
+                      border: '1px solid #cbd5e1',
+                      background: '#ffffff',
+                      color: '#1e293b',
+                      fontSize: '13px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
+                      transition: 'all 0.15s ease',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = '#f8fafc';
+                      e.currentTarget.style.borderColor = '#94a3b8';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = '#ffffff';
+                      e.currentTarget.style.borderColor = '#cbd5e1';
+                    }}
+                    title="Quay lại danh sách Lịch sử chứng từ nhập kho"
+                  >
+                    <span>Về Lịch sử nhập kho</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    style={{
+                      padding: '9px 18px',
+                      borderRadius: '8px',
+                      border: '1px solid #cbd5e1',
+                      background: '#ffffff',
+                      color: '#475569',
+                      fontSize: '13px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = '#f8fafc';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = '#ffffff';
+                    }}
+                  >
+                    Đóng
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                {/* Nút Lưu Nháp */}
+                <button
+                  type="button"
+                  onClick={handleSaveDraft}
+                  disabled={isSubmitting}
+                  style={{
+                    padding: '9px 18px',
+                    borderRadius: '8px',
+                    border: '1.5px solid #fcd34d',
+                    background: 'linear-gradient(135deg, #ffffff 0%, #fffbeb 100%)',
+                    color: '#92400e',
+                    fontSize: '13px',
+                    fontWeight: '700',
+                    cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    boxShadow: '0 1px 3px rgba(245, 158, 11, 0.15)',
+                    transition: 'all 0.18s ease',
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isSubmitting) {
+                      e.currentTarget.style.background = '#fef3c7';
+                      e.currentTarget.style.borderColor = '#f59e0b';
+                      e.currentTarget.style.transform = 'translateY(-1px)';
+                      e.currentTarget.style.boxShadow = '0 3px 8px rgba(245, 158, 11, 0.25)';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'linear-gradient(135deg, #ffffff 0%, #fffbeb 100%)';
+                    e.currentTarget.style.borderColor = '#fcd34d';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '0 1px 3px rgba(245, 158, 11, 0.15)';
+                  }}
+                  title="Lưu phiếu ở trạng thái nháp, không cộng tồn kho"
+                >
+                  <span>{isSubmitting ? 'Đang lưu...' : currentDraftId ? 'Cập nhật nháp' : 'Lưu nháp'}</span>
+                </button>
+
+                {/* Nút Xác Nhận Nhập Kho & Ghi Sổ */}
+                <button
+                  type="button"
+                  onClick={handleConfirmSubmit}
+                  disabled={isSubmitting}
+                  style={{
+                    padding: '9px 24px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    background: 'linear-gradient(135deg, #10b981 0%, #059669 60%, #047857 100%)',
+                    color: '#ffffff',
+                    fontSize: '13.5px',
+                    fontWeight: '700',
+                    cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '7px',
+                    boxShadow: '0 4px 14px rgba(5, 150, 105, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2)',
+                    transition: 'all 0.18s ease',
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isSubmitting) {
+                      e.currentTarget.style.filter = 'brightness(1.08)';
+                      e.currentTarget.style.transform = 'translateY(-1px)';
+                      e.currentTarget.style.boxShadow = '0 6px 18px rgba(5, 150, 105, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.2)';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.filter = 'brightness(1)';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '0 4px 14px rgba(5, 150, 105, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2)';
+                  }}
+                  title="Xác nhận dỡ xe xong và cộng tồn kho ngay"
+                >
+                  <span>{isSubmitting ? 'Đang xử lý...' : 'Xác nhận nhập kho & Ghi sổ'}</span>
+                </button>
+              </>
+            )}
           </div>
         </div>
       </div>

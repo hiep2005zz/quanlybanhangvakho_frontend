@@ -132,7 +132,6 @@ export default function SalesOrderEntry({ token, username, products, user, onClo
   const [productQuery, setProductQuery] = useState('');
   const [drafts, setDrafts] = useState<OrderDraft[]>([]);
   const [activeDraftId, setActiveDraftId] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [successCreatedOrder, setSuccessCreatedOrder] = useState<{
     order_code: string;
@@ -323,7 +322,11 @@ export default function SalesOrderEntry({ token, username, products, user, onClo
       }
       setDrafts(compatibleDrafts);
     } catch (loadError) {
-      setError(loadError instanceof Error ? `Không thể đọc bản nháp: ${loadError.message}` : 'Không thể đọc bản nháp đã lưu.');
+      emitStatusToast({
+        title: 'Lỗi bản nháp',
+        message: loadError instanceof Error ? `Không thể đọc bản nháp: ${loadError.message}` : 'Không thể đọc bản nháp đã lưu.',
+        type: 'error',
+      });
     }
   }, [username]);
 
@@ -422,7 +425,6 @@ export default function SalesOrderEntry({ token, username, products, user, onClo
     setLines([]);
     setProductQuery('');
     setActiveDraftId(null);
-    setError(null);
   };
 
   const storeDrafts = (updatedDrafts: OrderDraft[]) => {
@@ -431,7 +433,6 @@ export default function SalesOrderEntry({ token, username, products, user, onClo
   };
 
   const handleSaveDraft = () => {
-    setError(null);
     try {
       const id = activeDraftId || `${Date.now()}`;
       const draft: OrderDraft = {
@@ -453,7 +454,11 @@ export default function SalesOrderEntry({ token, username, products, user, onClo
         message: 'Đã lưu bản nháp trên thiết bị này. Bạn có thể mở lại để tiếp tục nhập.',
       });
     } catch (saveError) {
-      setError(saveError instanceof Error ? `Không thể lưu bản nháp: ${saveError.message}` : 'Không thể lưu bản nháp.');
+      emitStatusToast({
+        title: 'Lỗi',
+        message: saveError instanceof Error ? `Không thể lưu bản nháp: ${saveError.message}` : 'Không thể lưu bản nháp.',
+        type: 'error',
+      });
     }
   };
 
@@ -471,7 +476,6 @@ export default function SalesOrderEntry({ token, username, products, user, onClo
       title: 'Mở bản nháp thành công',
       message: `Đã mở bản nháp lưu ngày ${new Date(draft.updatedAt).toLocaleString('vi-VN')}.`,
     });
-    setError(null);
   };
 
   const handleDeleteDraft = (id: string) => {
@@ -479,9 +483,12 @@ export default function SalesOrderEntry({ token, username, products, user, onClo
       storeDrafts(drafts.filter((draft) => draft.id !== id));
       if (activeDraftId === id) setActiveDraftId(null);
       emitStatusToast({ title: 'Xóa bản nháp thành công', message: 'Đã xóa bản nháp.' });
-      setError(null);
     } catch (deleteError) {
-      setError(deleteError instanceof Error ? `Không thể xóa bản nháp: ${deleteError.message}` : 'Không thể xóa bản nháp.');
+      emitStatusToast({
+        title: 'Lỗi',
+        message: deleteError instanceof Error ? `Không thể xóa bản nháp: ${deleteError.message}` : 'Không thể xóa bản nháp.',
+        type: 'error',
+      });
     }
   };
 
@@ -515,7 +522,11 @@ export default function SalesOrderEntry({ token, username, products, user, onClo
 
   const handleCreateOrder = async () => {
     if (!selectedDealer) {
-      setError('Vui lòng chọn đại lý.');
+      emitStatusToast({
+        title: 'Chưa chọn đại lý',
+        message: 'Vui lòng chọn đại lý trước khi tạo đơn hàng.',
+        type: 'error',
+      });
       return;
     }
     const isLocked = Boolean(
@@ -524,7 +535,6 @@ export default function SalesOrderEntry({ token, username, products, user, onClo
         selectedDealer.status.toLowerCase().includes('lock'))
     );
     if (isLocked) {
-      setError(`Đại lý "${selectedDealer.name}" hiện đang bị KHÓA giao dịch. Không thể tạo đơn hàng.`);
       emitStatusToast({
         title: 'Đại lý bị khóa giao dịch',
         message: `Đại lý "${selectedDealer.name}" hiện đang bị KHÓA giao dịch. Vui lòng liên hệ quản trị viên.`,
@@ -538,7 +548,6 @@ export default function SalesOrderEntry({ token, username, products, user, onClo
       const overdueDays = creditInfo?.max_debt_age || 0;
       const maxAllowed = creditInfo?.overdue_days_allowed || 30;
       const overdueMsg = `Đại lý "${selectedDealer.name}" có khoản nợ quá hạn (${overdueDays} ngày, vượt mức cho phép ${maxAllowed} ngày). Hệ thống chặn tạo đơn hàng hoàn toàn!`;
-      setError(overdueMsg);
       emitStatusToast({
         title: 'Chặn tạo đơn do nợ quá hạn',
         message: overdueMsg,
@@ -547,23 +556,43 @@ export default function SalesOrderEntry({ token, username, products, user, onClo
       return;
     }
     if (!deliveryPoint.trim()) {
-      setError('Vui lòng nhập hoặc chọn điểm giao hàng.');
+      emitStatusToast({
+        title: 'Thiếu thông tin',
+        message: 'Vui lòng nhập hoặc chọn điểm giao hàng.',
+        type: 'error',
+      });
       return;
     }
     if (!desiredDeliveryDate) {
-      setError('Vui lòng chọn ngày giao mong muốn.');
+      emitStatusToast({
+        title: 'Thiếu thông tin',
+        message: 'Vui lòng chọn ngày giao mong muốn.',
+        type: 'error',
+      });
       return;
     }
     if (desiredDeliveryDate < getToday()) {
-      setError('Ngày giao mong muốn không được ở quá khứ.');
+      emitStatusToast({
+        title: 'Ngày giao không hợp lệ',
+        message: 'Ngày giao mong muốn không được ở quá khứ.',
+        type: 'error',
+      });
       return;
     }
     if (!lines.length) {
-      setError('Vui lòng thêm ít nhất một dòng hàng.');
+      emitStatusToast({
+        title: 'Chưa có sản phẩm',
+        message: 'Vui lòng thêm ít nhất một dòng hàng.',
+        type: 'error',
+      });
       return;
     }
     if (!discountPercent.trim() || !Number.isFinite(parsedDiscount) || parsedDiscount < 0 || parsedDiscount > 100) {
-      setError('Chiết khấu phải từ 0% đến 100%.');
+      emitStatusToast({
+        title: 'Chiết khấu không hợp lệ',
+        message: 'Chiết khấu phải từ 0% đến 100%.',
+        type: 'error',
+      });
       return;
     }
 
@@ -575,10 +604,9 @@ export default function SalesOrderEntry({ token, username, products, user, onClo
         const maxOrderable = Math.max(0, Math.floor(stockItem.available_stock / rate));
         if (line.quantity > maxOrderable) {
           const warehouseName = stockSummary?.warehouse_name || 'kho';
-          setError(`Không thể đặt hàng: Sản phẩm "${line.name}" (${line.code}) vượt quá tồn khả dụng tại ${warehouseName}. Số lượng tối đa có thể đặt là: ${maxOrderable} ${line.unit}.`);
           emitStatusToast({
             title: 'Vượt tồn khả dụng',
-            message: `Sản phẩm "${line.name}" vượt quá tồn khả dụng (${maxOrderable} ${line.unit}). Vui lòng điều chỉnh số lượng.`,
+            message: `Sản phẩm "${line.name}" (${line.code}) vượt quá tồn khả dụng tại ${warehouseName}. Số lượng tối đa có thể đặt là: ${maxOrderable} ${line.unit}.`,
             type: 'error',
           });
           return;
@@ -587,7 +615,6 @@ export default function SalesOrderEntry({ token, username, products, user, onClo
     }
 
     setIsSaving(true);
-    setError(null);
     try {
       const created = await createOrderApi(token, {
         dealer_id: selectedDealer.id,
@@ -626,7 +653,12 @@ export default function SalesOrderEntry({ token, username, products, user, onClo
         total_amount: created.total_amount,
       });
     } catch (createError) {
-      setError(createError instanceof Error ? createError.message : 'Không thể tạo đơn hàng.');
+      const errMsg = createError instanceof Error ? createError.message : 'Không thể tạo đơn hàng.';
+      emitStatusToast({
+        title: errMsg.includes('vượt quá tồn') ? 'Vượt tồn khả dụng' : 'Lỗi tạo đơn hàng',
+        message: errMsg,
+        type: 'error',
+      });
     } finally {
       setIsSaving(false);
     }
@@ -649,14 +681,14 @@ export default function SalesOrderEntry({ token, username, products, user, onClo
       <AccessDeniedView
         currentUser={user}
         requiredPermission="Quyền Nhân viên kinh doanh (Sales / Sale Executive)"
-        onBackToWorkflow={_onClose || (() => {})}
+        onBackToWorkflow={_onClose || (() => { })}
       />
     );
   }
 
   return (
     <div className="sales-order-page">
-      {error && <div className="sales-order-alert error" role="alert">{error}</div>}
+      {/* Bỏ thông báo lỗi tràn ở trên; các cảnh báo và lỗi vượt tồn kho hiển thị qua Toast đỏ ở góc dưới bên phải */}
 
       {isLockedDealer && (
         <div
@@ -682,7 +714,6 @@ export default function SalesOrderEntry({ token, username, products, user, onClo
             <h2>Thông tin giao hàng</h2>
             {stockSummary && (
               <div className="serving-warehouse-badge" id="serving-warehouse-badge">
-                <span className="warehouse-icon">🏢</span>
                 <span>Kho phục vụ đại lý: <strong>{stockSummary.warehouse_name} ({stockSummary.warehouse_id})</strong></span>
               </div>
             )}
@@ -892,13 +923,12 @@ export default function SalesOrderEntry({ token, username, products, user, onClo
                               ) : stockItem ? (
                                 <>
                                   <span
-                                    className={`sales-order-stock-badge ${
-                                      isExceeded
+                                    className={`sales-order-stock-badge ${isExceeded
                                         ? 'stock-badge-danger'
                                         : maxOrderable === 0
-                                        ? 'stock-badge-out'
-                                        : 'stock-badge-ok'
-                                    }`}
+                                          ? 'stock-badge-out'
+                                          : 'stock-badge-ok'
+                                      }`}
                                     title={`Tồn thực tế: ${actualInUnit} ${line.unit} - Giữ chỗ: ${reservedInUnit} ${line.unit}`}
                                   >
                                     Tồn khả dụng: <strong>{maxOrderable}</strong> {line.unit}
@@ -969,7 +999,7 @@ export default function SalesOrderEntry({ token, username, products, user, onClo
                       {isExceeded && maxOrderable !== undefined && (
                         <div className="sales-order-stock-error">
                           <span>
-                            ⚠️ Vượt tồn khả dụng tại {stockSummary?.warehouse_name || 'kho'}! Kho chỉ còn tối đa{' '}
+                            Vượt tồn khả dụng tại {stockSummary?.warehouse_name || 'kho'}! Kho chỉ còn tối đa{' '}
                             <strong>{maxOrderable} {line.unit}</strong>.
                           </span>
                           <button
@@ -1063,23 +1093,23 @@ export default function SalesOrderEntry({ token, username, products, user, onClo
                 isOverdueBlocked
                   ? `Đại lý "${selectedDealer?.name}" có khoản nợ quá hạn (${creditInfo?.max_debt_age} ngày), bị chặn tạo đơn hoàn toàn`
                   : isLockedDealer
-                  ? `Đại lý "${selectedDealer?.name}" hiện đang bị khóa giao dịch, không thể tạo đơn hàng`
-                  : hasStockErrors
-                  ? 'Có sản phẩm vượt quá tồn khả dụng. Vui lòng điều chỉnh lại số lượng trước khi đặt hàng'
-                  : undefined
+                    ? `Đại lý "${selectedDealer?.name}" hiện đang bị khóa giao dịch, không thể tạo đơn hàng`
+                    : hasStockErrors
+                      ? 'Có sản phẩm vượt quá tồn khả dụng. Vui lòng điều chỉnh lại số lượng trước khi đặt hàng'
+                      : undefined
               }
             >
               {isOverdueBlocked
                 ? 'Bị chặn do nợ quá hạn'
                 : isLockedDealer
-                ? 'Đại lý bị khóa (Không thể tạo đơn)'
-                : hasStockErrors
-                ? 'Vượt tồn khả dụng (Không thể tạo đơn)'
-                : isSaving
-                ? 'Đang tạo đơn...'
-                : isOverLimit
-                ? 'Tạo đơn hàng (Cần duyệt)'
-                : 'Tạo đơn hàng'}
+                  ? 'Đại lý bị khóa (Không thể tạo đơn)'
+                  : hasStockErrors
+                    ? 'Vượt tồn khả dụng (Không thể tạo đơn)'
+                    : isSaving
+                      ? 'Đang tạo đơn...'
+                      : isOverLimit
+                        ? 'Tạo đơn hàng (Cần duyệt)'
+                        : 'Tạo đơn hàng'}
             </button>
             <button type="button" className="sales-order-secondary-button full" onClick={handleSaveDraft}>
               Lưu nháp
