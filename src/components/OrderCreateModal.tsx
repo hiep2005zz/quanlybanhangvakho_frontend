@@ -632,7 +632,13 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
       onSuccess();
       onClose();
     } catch (err: any) {
-      setErrorMsg(err.message || 'Lỗi khi tạo đơn hàng');
+      const msg = err.message || 'Lỗi khi tạo đơn hàng';
+      setErrorMsg(msg);
+      emitStatusToast({
+        title: msg.includes('vượt quá tồn') ? 'Vượt tồn khả dụng' : 'Lỗi tạo đơn hàng',
+        message: msg,
+        type: 'error',
+      });
     } finally {
       setIsSubmitting(false);
     }
