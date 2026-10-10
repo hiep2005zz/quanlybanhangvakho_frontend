@@ -46,15 +46,9 @@ const PaginationControl: React.FC<PaginationControlProps> = ({
   onPageSizeChange,
 }) => {
   if (totalMatches === 0) return null;
-  const start = (currentPage - 1) * pageSize + 1;
-  const end = Math.min(currentPage * pageSize, totalMatches);
 
   return (
-    <div className="wh-pagination-bar">
-      <div className="wh-pagination-info">
-        Hiển thị <strong>{start}-{end}</strong> / <strong>{totalMatches}</strong> {itemName}
-      </div>
-
+    <div className="wh-pagination-bar" style={{ justifyContent: 'flex-end' }}>
       <div className="wh-pagination-controls-wrap">
         <div className="wh-pagination-size-wrap">
           <span>Số dòng mỗi trang:</span>
@@ -326,16 +320,14 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
   const locTotalMatches = locations.length;
   const locTotalPages = Math.max(1, Math.ceil(locTotalMatches / locPageSize));
   const paginatedLocations = useMemo(() => {
-    const start = (locCurrentPage - 1) * locPageSize;
-    return locations.slice(start, start + locPageSize);
-  }, [locations, locCurrentPage, locPageSize]);
+    return locations;
+  }, [locations]);
 
   const prodTotalMatches = locationProducts.length;
   const prodTotalPages = Math.max(1, Math.ceil(prodTotalMatches / prodPageSize));
   const paginatedLocationProducts = useMemo(() => {
-    const start = (prodCurrentPage - 1) * prodPageSize;
-    return locationProducts.slice(start, start + prodPageSize);
-  }, [locationProducts, prodCurrentPage, prodPageSize]);
+    return locationProducts;
+  }, [locationProducts]);
 
   // --- XỬ LÝ SUBMIT KHO ---
   const handleOpenCreateWarehouse = () => {
@@ -709,9 +701,6 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                         <th>Tên kho hàng</th>
                         <th>Địa chỉ</th>
                         <th>Người phụ trách</th>
-                        <th style={{ textAlign: 'center' }}>Số vị trí kệ</th>
-                        <th style={{ textAlign: 'center' }}>Mặt hàng</th>
-                        <th style={{ textAlign: 'right' }}>Tổng tồn</th>
                         <th style={{ textAlign: 'center' }}>Trạng thái</th>
                         <th style={{ textAlign: 'center', width: '220px' }}>Thao tác</th>
                       </tr>
@@ -731,15 +720,6 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                           <td>
                             <div>{wh.manager_name || 'Chưa chỉ định'}</div>
                             {wh.phone && <div style={{ fontSize: '12px', color: '#64748b' }}>SĐT: {wh.phone}</div>}
-                          </td>
-                          <td style={{ textAlign: 'center' }}>
-                            <span className="wh-badge wh-badge-number">{wh.locations_count} vị trí</span>
-                          </td>
-                          <td style={{ textAlign: 'center' }}>
-                            <span>{wh.total_products_count} loại</span>
-                          </td>
-                          <td style={{ textAlign: 'right', fontWeight: 600, color: '#0f172a' }}>
-                            {wh.total_stock_quantity.toLocaleString('vi-VN')}
                           </td>
                           <td style={{ textAlign: 'center' }}>
                             <span className={`wh-badge ${wh.is_active ? 'wh-badge-active' : 'wh-badge-inactive'}`}>
@@ -800,10 +780,10 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                 DANH MỤC VỊ TRÍ LƯU KHO & SOẠN ĐƠN
               </div>
               <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 700, color: '#0f172a' }}>
-                {selectedWarehouse.name} ({selectedWarehouse.code})
+                {selectedWarehouse.name} {selectedWarehouse.code ? `- ${selectedWarehouse.code}` : ''}
               </h2>
               <div style={{ fontSize: '13px', color: '#475569', marginTop: '4px' }}>
-                Địa chỉ: {selectedWarehouse.address || 'Chưa cập nhật'} | Phụ trách: {selectedWarehouse.manager_name || '—'} (SĐT: {selectedWarehouse.phone || '—'})
+                Địa chỉ: {selectedWarehouse.address || 'Chưa cập nhật'} | Phụ trách: {selectedWarehouse.manager_name || '—'} {selectedWarehouse.phone ? `| SĐT: ${selectedWarehouse.phone}` : ''}
               </div>
             </div>
 
@@ -825,14 +805,14 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
               className={`wh-tab-btn ${subTab === 'locations' ? 'active' : ''}`}
               onClick={() => setSubTab('locations')}
             >
-              Danh sách vị trí kệ ({locations.length})
+              Danh sách vị trí kệ
             </button>
             <button
               type="button"
               className={`wh-tab-btn ${subTab === 'products' ? 'active' : ''}`}
               onClick={() => setSubTab('products')}
             >
-              Sản phẩm theo vị trí kệ ({locationProducts.length})
+              Sản phẩm theo vị trí kệ
             </button>
           </div>
 
@@ -906,10 +886,10 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                           <tr>
                             <th style={{ width: '130px' }}>Mã vị trí</th>
                             <th>Tên vị trí kệ</th>
-                            <th>Khu vực (Zone)</th>
-                            <th>Dãy kệ (Aisle)</th>
-                            <th>Tầng/Kệ (Rack)</th>
-                            <th>Ô chứa (Bin)</th>
+                            <th>Khu vực</th>
+                            <th>Dãy kệ</th>
+                            <th>Tầng/Kệ</th>
+                            <th>Ô chứa</th>
                             <th style={{ textAlign: 'center' }}>Sức chứa</th>
                             <th style={{ textAlign: 'center' }}>Mặt hàng</th>
                             <th style={{ textAlign: 'right' }}>Lượng hàng chứa</th>
@@ -970,15 +950,6 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                         </tbody>
                       </table>
                     </div>
-                    <PaginationControl
-                      currentPage={locCurrentPage}
-                      totalPages={locTotalPages}
-                      pageSize={locPageSize}
-                      totalMatches={locTotalMatches}
-                      itemName="vị trí kệ"
-                      onPageChange={setLocCurrentPage}
-                      onPageSizeChange={setLocPageSize}
-                    />
                   </>
                 )}
               </div>
@@ -1091,15 +1062,6 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                         </tbody>
                       </table>
                     </div>
-                    <PaginationControl
-                      currentPage={prodCurrentPage}
-                      totalPages={prodTotalPages}
-                      pageSize={prodPageSize}
-                      totalMatches={prodTotalMatches}
-                      itemName="sản phẩm"
-                      onPageChange={setProdCurrentPage}
-                      onPageSizeChange={setProdPageSize}
-                    />
                   </>
                 )}
               </div>
@@ -1305,18 +1267,18 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
 
                 <div className="wh-form-grid-2">
                   <div className="wh-form-group">
-                    <label>Khu vực (Zone)</label>
+                    <label>Khu vực</label>
                     <input
                       type="text"
                       className="wh-form-input"
-                      placeholder="VD: Khu A (Thời trang), Khu B..."
+                      placeholder="VD: Khu A, Khu B..."
                       value={locFormData.zone}
                       onChange={(e) => setLocFormData({ ...locFormData, zone: e.target.value })}
                     />
                   </div>
 
                   <div className="wh-form-group">
-                    <label>Dãy kệ (Aisle)</label>
+                    <label>Dãy kệ</label>
                     <input
                       type="text"
                       className="wh-form-input"
@@ -1329,7 +1291,7 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
 
                 <div className="wh-form-grid-2">
                   <div className="wh-form-group">
-                    <label>Tầng/Kệ (Rack)</label>
+                    <label>Tầng/Kệ</label>
                     <input
                       type="text"
                       className="wh-form-input"
@@ -1340,7 +1302,7 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                   </div>
 
                   <div className="wh-form-group">
-                    <label>Ô chứa hàng / Hộc (Bin)</label>
+                    <label>Ô chứa hàng / Hộc</label>
                     <input
                       type="text"
                       className="wh-form-input"
@@ -1353,7 +1315,7 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
 
                 <div className="wh-form-grid-2">
                   <div className="wh-form-group">
-                    <label>Sức chứa tối đa (ĐVT cơ sở)</label>
+                    <label>Sức chứa tối đa</label>
                     <input
                       type="number"
                       min="0"
@@ -1548,7 +1510,7 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                 <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '6px', fontSize: '13.5px' }}>
                   Sản phẩm: <strong>{transferFormData.product_name}</strong>
                   <br />
-                  Vị trí xuất hiện tại: <strong>{locations.find((l) => l.id === transferFormData.from_location_id)?.location_code}</strong> (Tồn tại kệ: {transferFormData.max_available})
+                  Vị trí xuất hiện tại: <strong>{locations.find((l) => l.id === transferFormData.from_location_id)?.location_code}</strong> - Tồn tại kệ: {transferFormData.max_available}
                 </div>
 
                 <div className="wh-form-group">
