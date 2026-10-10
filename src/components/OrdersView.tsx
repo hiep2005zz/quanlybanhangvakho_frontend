@@ -214,7 +214,7 @@ export default function OrdersView({ token, username, currentUser, products, can
     setCreateError(null);
   };
 
-  const saveDraft = () => {
+    const saveDraft = () => {
     try {
       const id = activeDraftId || `${Date.now()}`;
       const draft: SavedOrderDraft = {
@@ -695,3 +695,4 @@ export default function OrdersView({ token, username, currentUser, products, can
     </main>
   );
 }
+
