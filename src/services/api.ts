@@ -2599,4 +2599,217 @@ export async function getOrderPickingLocationsApi(
   };
 }
 
+// ==========================================================
+// MASTER DATA: KHU VỰC (ZONES) & KỆ / DÃY (RACKS / AISLES)
+// ==========================================================
+
+export interface WarehouseZoneItem {
+  id: number;
+  warehouse_id: number;
+  zone_code: string;
+  zone_name: string;
+  description?: string;
+  is_active: boolean;
+  created_at?: string;
+  locations_count: number;
+}
+
+export interface WarehouseRackItem {
+  id: number;
+  warehouse_id: number;
+  zone_id?: number;
+  zone_name?: string;
+  rack_code: string;
+  rack_name: string;
+  rack_type: string;
+  max_capacity?: number;
+  is_active: boolean;
+  created_at?: string;
+  locations_count: number;
+}
+
+export interface MasterDataOptionItem {
+  id?: number;
+  code: string;
+  name: string;
+  type?: string;
+  zone_name?: string;
+}
+
+export interface WarehouseMasterData {
+  zones: MasterDataOptionItem[];
+  aisles: MasterDataOptionItem[];
+  racks: MasterDataOptionItem[];
+  bins: MasterDataOptionItem[];
+}
+
+export async function getWarehouseMasterDataApi(
+  token: string,
+  warehouseId: number
+): Promise<WarehouseMasterData> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/warehouses/${warehouseId}/master-data`, {
+    method: 'GET',
+  }, token);
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Lỗi nạp cấu hình danh mục kệ và khu vực');
+  }
+  return response.json();
+}
+
+export async function getWarehouseZonesApi(
+  token: string,
+  warehouseId: number
+): Promise<WarehouseZoneItem[]> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/warehouses/${warehouseId}/zones`, {
+    method: 'GET',
+  }, token);
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Lỗi tải danh mục khu vực');
+  }
+  return response.json();
+}
+
+export async function createWarehouseZoneApi(
+  token: string,
+  warehouseId: number,
+  payload: {
+    zone_code: string;
+    zone_name: string;
+    description?: string;
+    is_active?: boolean;
+  }
+): Promise<WarehouseZoneItem> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/warehouses/${warehouseId}/zones`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  }, token);
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi tạo khu vực mới (${response.status})`);
+  }
+  return data;
+}
+
+export async function updateWarehouseZoneApi(
+  token: string,
+  zoneId: number,
+  payload: {
+    zone_code?: string;
+    zone_name?: string;
+    description?: string;
+    is_active?: boolean;
+  }
+): Promise<WarehouseZoneItem> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/warehouses/zones/${zoneId}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  }, token);
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi cập nhật khu vực (${response.status})`);
+  }
+  return data;
+}
+
+export async function deleteWarehouseZoneApi(token: string, zoneId: number): Promise<{ message: string }> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/warehouses/zones/${zoneId}`, {
+    method: 'DELETE',
+  }, token);
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi xóa khu vực (${response.status})`);
+  }
+  return data;
+}
+
+export async function getWarehouseRacksApi(
+  token: string,
+  warehouseId: number,
+  rackType?: string,
+  zoneId?: number
+): Promise<WarehouseRackItem[]> {
+  const params = new URLSearchParams();
+  if (rackType && rackType !== 'all') params.set('rack_type', rackType);
+  if (zoneId) params.set('zone_id', String(zoneId));
+  const qs = params.toString() ? `?${params.toString()}` : '';
+
+  const response = await authenticatedFetch(`${API_BASE_URL}/warehouses/${warehouseId}/racks${qs}`, {
+    method: 'GET',
+  }, token);
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Lỗi tải danh mục kệ và dãy');
+  }
+  return response.json();
+}
+
+export async function createWarehouseRackApi(
+  token: string,
+  warehouseId: number,
+  payload: {
+    rack_code: string;
+    rack_name: string;
+    rack_type?: string;
+    zone_id?: number;
+    max_capacity?: number;
+    is_active?: boolean;
+  }
+): Promise<WarehouseRackItem> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/warehouses/${warehouseId}/racks`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  }, token);
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi tạo kệ mới (${response.status})`);
+  }
+  return data;
+}
+
+export async function updateWarehouseRackApi(
+  token: string,
+  rackId: number,
+  payload: {
+    rack_code?: string;
+    rack_name?: string;
+    rack_type?: string;
+    zone_id?: number;
+    max_capacity?: number;
+    is_active?: boolean;
+  }
+): Promise<WarehouseRackItem> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/warehouses/racks/${rackId}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  }, token);
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi cập nhật kệ (${response.status})`);
+  }
+  return data;
+}
+
+export async function deleteWarehouseRackApi(token: string, rackId: number): Promise<{ message: string }> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/warehouses/racks/${rackId}`, {
+    method: 'DELETE',
+  }, token);
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi xóa kệ (${response.status})`);
+  }
+  return data;
+}
+
+
 
