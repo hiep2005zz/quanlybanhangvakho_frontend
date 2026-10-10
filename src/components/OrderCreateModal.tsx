@@ -1083,7 +1083,7 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
                             }}
                           >
                             {/* Tên sản phẩm */}
-                            <td style={{ padding: '10px 12px' }}>
+                            <td style={{ padding: '10px 12px', verticalAlign: 'middle' }}>
                               <div style={{ fontWeight: '600', color: '#0f172a' }}>{item.productName}</div>
                               <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
                                 Mã: <span style={{ fontFamily: 'monospace' }}>{item.productCode}</span>
@@ -1144,19 +1144,21 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
                             </td>
 
                             {/* Đơn vị tính */}
-                            <td style={{ padding: '10px 8px', textAlign: 'center' }}>
+                            <td style={{ padding: '10px 8px', textAlign: 'center', verticalAlign: 'middle' }}>
                               {item.availableUnits.length > 1 ? (
                                 <select
                                   value={item.unitName}
                                   onChange={(e) => handleUnitChange(idx, e.target.value)}
                                   style={{
-                                    padding: '4px 6px',
+                                    height: '36px',
+                                    padding: '0 8px',
                                     borderRadius: '6px',
                                     border: '1px solid #cbd5e1',
-                                    fontSize: '12px',
+                                    fontSize: '13px',
                                     background: '#fff',
                                     outline: 'none',
                                     cursor: 'pointer',
+                                    boxSizing: 'border-box',
                                   }}
                                 >
                                   {item.availableUnits.map((u) => (
@@ -1168,13 +1170,17 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
                               ) : (
                                 <span
                                   style={{
-                                    display: 'inline-block',
-                                    padding: '2px 8px',
-                                    borderRadius: '4px',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    height: '36px',
+                                    padding: '0 10px',
+                                    borderRadius: '6px',
                                     background: '#f1f5f9',
                                     color: '#475569',
-                                    fontSize: '12px',
+                                    fontSize: '13px',
                                     fontWeight: '500',
+                                    boxSizing: 'border-box',
                                   }}
                                 >
                                   {item.unitName}
@@ -1183,7 +1189,7 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
                             </td>
 
                             {/* Số lượng */}
-                            <td style={{ padding: '10px 8px', textAlign: 'center' }}>
+                            <td style={{ padding: '10px 8px', textAlign: 'center', verticalAlign: 'middle' }}>
                               <input
                                 type="number"
                                 min="1"
@@ -1192,7 +1198,8 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
                                 onChange={(e) => handleQuantityChange(idx, e.target.value)}
                                 style={{
                                   width: '70px',
-                                  padding: '5px 8px',
+                                  height: '36px',
+                                  padding: '0 8px',
                                   borderRadius: '6px',
                                   border: isExceeded ? '1.5px solid #ef4444' : '1px solid #cbd5e1',
                                   background: isExceeded ? '#fef2f2' : '#ffffff',
@@ -1206,15 +1213,17 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
                             </td>
 
                             {/* Đơn giá bán thực tế */}
-                            <td style={{ padding: '10px 12px', textAlign: 'right' }}>
+                            <td style={{ padding: '10px 12px', textAlign: 'right', verticalAlign: 'middle' }}>
                               <input
                                 type="number"
                                 min="0"
                                 value={item.sellPrice}
                                 onChange={(e) => handlePriceChange(idx, parseFloat(e.target.value) || 0)}
+                                title={item.floorPrice !== null ? `Giá sàn: ${item.floorPrice.toLocaleString('vi-VN')} đ` : undefined}
                                 style={{
                                   width: '105px',
-                                  padding: '5px 8px',
+                                  height: '36px',
+                                  padding: '0 8px',
                                   borderRadius: '6px',
                                   border: isBelowFloor ? '1.5px solid #ef4444' : '1px solid #cbd5e1',
                                   fontSize: '13px',
@@ -1222,31 +1231,21 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
                                   textAlign: 'right',
                                   outline: 'none',
                                   color: isBelowFloor ? '#b91c1c' : '#0f172a',
-                                  background: isBelowFloor ? '#fff' : '#fff',
+                                  background: '#fff',
                                   boxSizing: 'border-box',
                                 }}
                               />
-                              {item.floorPrice !== null && (
-                                <div
-                                  style={{
-                                    fontSize: '10.5px',
-                                    color: isBelowFloor ? '#dc2626' : '#64748b',
-                                    fontWeight: isBelowFloor ? '700' : '400',
-                                    marginTop: '2px',
-                                  }}
-                                >
-                                  Sàn: {item.floorPrice.toLocaleString('vi-VN')} đ
-                                </div>
-                              )}
                             </td>
 
                             {/* Thành tiền (Số lượng x Đơn giá) */}
-                            <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: '700', color: '#0f172a' }}>
-                              {itemTotal.toLocaleString('vi-VN')} đ
+                            <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: '700', color: '#0f172a', verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
+                              <span style={{ display: 'inline-flex', alignItems: 'center', height: '36px' }}>
+                                {itemTotal.toLocaleString('vi-VN')} đ
+                              </span>
                             </td>
 
                             {/* Nút xóa sản phẩm */}
-                            <td style={{ padding: '10px 8px', textAlign: 'center' }}>
+                            <td style={{ padding: '10px 8px', textAlign: 'center', verticalAlign: 'middle' }}>
                               <button
                                 type="button"
                                 onClick={() => handleRemoveItem(idx)}
@@ -1255,10 +1254,14 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
                                   border: 'none',
                                   color: '#ef4444',
                                   cursor: 'pointer',
-                                  padding: '4px 6px',
+                                  height: '36px',
+                                  padding: '0 6px',
                                   borderRadius: '4px',
                                   fontSize: '12px',
                                   fontWeight: '600',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
                                   transition: 'background 0.15s ease',
                                 }}
                                 title="Xóa sản phẩm khỏi đơn"
