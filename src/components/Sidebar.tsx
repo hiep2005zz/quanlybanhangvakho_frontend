@@ -51,7 +51,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   activeTab,
   onSelectTab,
   canManageProducts: _canManageProducts = true,
-  canCreateOrders = false,
+  canCreateOrders: _canCreateOrders = false,
   canReadOrders = false,
   canViewDealers = false,
   canManageDealerProfiles = false,
@@ -115,7 +115,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       tab: 'create-order',
       path: '/create-order',
       label: 'Tạo đơn hàng',
-      visible: canCreateOrders,
+      visible: false, // Bỏ hiển thị mục tạo đơn hàng ở thanh menu
       icon: (
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />

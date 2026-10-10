@@ -93,13 +93,29 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
   const [creditInfo, setCreditInfo] = useState<DealerCreditInfo | null>(null);
   const [isLoadingCredit, setIsLoadingCredit] = useState<boolean>(false);
 
-  const isCustomer = currentUser?.role === 'customer' || Boolean(currentUser?.roles && currentUser.roles.includes('customer'));
+  const isCustomer = Boolean(
+    currentUser?.role === 'customer' ||
+    currentUser?.role === 'agent' ||
+    (currentUser?.roles && (currentUser.roles.includes('customer') || currentUser.roles.includes('agent')))
+  );
   const selectedDealer = dealers.find((d) => d.id === dealerId) || dealers[0];
   const isLockedDealer = Boolean(
     selectedDealer?.status &&
     (selectedDealer.status.toLowerCase().includes('khóa') ||
      selectedDealer.status.toLowerCase().includes('lock'))
   );
+
+  // Helper tìm đại lý tương ứng với tài khoản đại lý đang đăng nhập
+  const findCustomerOwnDealer = useCallback((itemsList: any[]) => {
+    if (!currentUser || !itemsList || itemsList.length === 0) return null;
+    return itemsList.find((d: any) =>
+      d.id === currentUser.id ||
+      (d.code && currentUser.username && d.code.toLowerCase() === currentUser.username.toLowerCase()) ||
+      (d.email && currentUser.email && d.email.toLowerCase() === currentUser.email.toLowerCase()) ||
+      (d.phone && currentUser.phone && d.phone === currentUser.phone) ||
+      (d.name && currentUser.full_name && d.name.toLowerCase() === currentUser.full_name.toLowerCase())
+    ) || itemsList[0];
+  }, [currentUser]);
 
   useEffect(() => {
     if (isOpen && token) {
@@ -130,13 +146,23 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
           const items = res.items || [];
           if (items.length > 0) {
             setDealers(items);
-            setDealerId((prev) => (items.some((d) => d.id === prev) ? prev : items[0].id));
+            if (isCustomer) {
+              const own = findCustomerOwnDealer(items);
+              if (own) setDealerId(own.id);
+            } else {
+              setDealerId((prev) => (items.some((d) => d.id === prev) ? prev : items[0].id));
+            }
           } else {
             getDealersApi(token)
               .then((dList) => {
                 if (dList && dList.length > 0) {
                   setDealers(dList);
-                  setDealerId((prev) => (dList.some((d) => d.id === prev) ? prev : dList[0].id));
+                  if (isCustomer) {
+                    const own = findCustomerOwnDealer(dList);
+                    if (own) setDealerId(own.id);
+                  } else {
+                    setDealerId((prev) => (dList.some((d) => d.id === prev) ? prev : dList[0].id));
+                  }
                 }
               })
               .catch(() => {});
@@ -147,7 +173,12 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
             .then((dList) => {
               if (dList && dList.length > 0) {
                 setDealers(dList);
-                setDealerId((prev) => (dList.some((d) => d.id === prev) ? prev : dList[0].id));
+                if (isCustomer) {
+                  const own = findCustomerOwnDealer(dList);
+                  if (own) setDealerId(own.id);
+                } else {
+                  setDealerId((prev) => (dList.some((d) => d.id === prev) ? prev : dList[0].id));
+                }
               }
             })
             .catch(() => {});
@@ -156,7 +187,7 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
           setLoadingDealers(false);
         });
     }
-  }, [isOpen, token]);
+  }, [isOpen, token, isCustomer, findCustomerOwnDealer]);
 
   // Tải điểm giao hàng theo Đại lý được chọn
   const loadPoints = useCallback(async () => {
@@ -488,9 +519,25 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
   const discountAmount = Math.round((subtotalAmount * safeDiscount) / 100);
   const totalAmount = subtotalAmount - discountAmount;
 
-  // AC 4: Phân quyền - Chỉ Sales / Admin được phép tạo đơn và kiểm tra công nợ
+  // AC 4 & User Story 46: Phân quyền mở rộng cho Đại lý (Customer / Agent) tự lên đơn
   const rawRoles = currentUser?.roles && currentUser.roles.length > 0 ? currentUser.roles : (currentUser?.role ? [currentUser.role] : []);
   const isSalesOrAdmin = !currentUser || rawRoles.some((r) => ['sales', 'sales_manager', 'admin'].includes(r));
+  const isCustomerRole = Boolean(
+    currentUser && (
+      currentUser.role === 'customer' ||
+      currentUser.role === 'agent' ||
+      rawRoles.includes('customer') ||
+      rawRoles.includes('agent')
+    )
+  );
+  // Tiếp tục chặn nghiêm ngặt các vai trò không liên quan: muahang, kho, ketoan
+  const isStrictlyBlockedRole = Boolean(
+    currentUser &&
+    rawRoles.some((r) => ['muahang', 'purchasing', 'kho', 'warehouse', 'warehouse_manager', 'ketoan', 'accountant'].includes(r)) &&
+    !isSalesOrAdmin &&
+    !isCustomerRole
+  );
+  const canCreateOrder = (isSalesOrAdmin || isCustomerRole) && !isStrictlyBlockedRole;
 
   // AC 2 & 3: Kiểm tra nợ quá hạn và vượt hạn mức
   const isOverdueBlocked = Boolean(
@@ -527,8 +574,8 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
       return;
     }
 
-    if (!isSalesOrAdmin) {
-      setErrorMsg('Bạn không có quyền tạo đơn hàng. Chỉ Nhân viên kinh doanh và Quản trị hệ thống mới được phép.');
+    if (!canCreateOrder) {
+      setErrorMsg('Bạn không có quyền tạo đơn hàng. Chức năng chỉ dành cho Nhân viên kinh doanh, Quản trị hệ thống và Đại lý.');
       return;
     }
 
@@ -840,6 +887,26 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
                 );
               })}
             </select>
+
+            {isCustomer && (
+              <div
+                style={{
+                  marginTop: '8px',
+                  padding: '7px 12px',
+                  borderRadius: '6px',
+                  background: '#ecfdf5',
+                  border: '1px solid #a7f3d0',
+                  fontSize: '12.5px',
+                  color: '#065f46',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  fontWeight: 500,
+                }}
+              >
+                <span>✓ <strong>Cổng Đại lý tự đặt hàng:</strong> Hệ thống tự động gán đơn hàng cho tài khoản đại lý <strong>{selectedDealer?.name || currentUser?.full_name}</strong></span>
+              </div>
+            )}
 
             {/* AC 1: Hiển thị kho phục vụ riêng cho đại lý */}
             {stockSummary && (
@@ -1531,39 +1598,41 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
             <button
               id="btn-submit-order"
               type="submit"
-              disabled={isSubmitting || orderItems.length === 0 || isLockedDealer || hasStockErrors || isOverdueBlocked || !isSalesOrAdmin}
+              disabled={isSubmitting || orderItems.length === 0 || isLockedDealer || hasStockErrors || isOverdueBlocked || !canCreateOrder}
               style={{
                 padding: '9px 22px',
                 borderRadius: '8px',
                 border: 'none',
-                background: orderItems.length === 0 || isLockedDealer || hasStockErrors || isOverdueBlocked || !isSalesOrAdmin ? '#94a3b8' : (isAnyBelowFloorPrice || isOverLimit) ? '#ea580c' : '#0fad89',
+                background: orderItems.length === 0 || isLockedDealer || hasStockErrors || isOverdueBlocked || !canCreateOrder ? '#94a3b8' : (isAnyBelowFloorPrice || isOverLimit || isCustomerRole) ? '#ea580c' : '#0fad89',
                 fontSize: '13.5px',
                 fontWeight: '700',
                 color: '#fff',
-                cursor: isSubmitting || orderItems.length === 0 || isLockedDealer || hasStockErrors || isOverdueBlocked || !isSalesOrAdmin ? 'not-allowed' : 'pointer',
+                cursor: isSubmitting || orderItems.length === 0 || isLockedDealer || hasStockErrors || isOverdueBlocked || !canCreateOrder ? 'not-allowed' : 'pointer',
                 opacity: isSubmitting ? 0.7 : 1,
                 boxShadow:
-                  orderItems.length === 0 || isLockedDealer || hasStockErrors || isOverdueBlocked || !isSalesOrAdmin
+                  orderItems.length === 0 || isLockedDealer || hasStockErrors || isOverdueBlocked || !canCreateOrder
                     ? 'none'
-                    : (isAnyBelowFloorPrice || isOverLimit)
+                    : (isAnyBelowFloorPrice || isOverLimit || isCustomerRole)
                     ? '0 4px 6px -1px rgba(234, 88, 12, 0.3)'
                     : '0 4px 6px -1px rgba(15, 173, 137, 0.3)',
               }}
               title={
-                !isSalesOrAdmin
-                  ? 'Chỉ Nhân viên kinh doanh và Quản trị hệ thống mới có quyền tạo đơn'
+                !canCreateOrder
+                  ? 'Chỉ Nhân viên kinh doanh, Quản trị hệ thống và Đại lý mới có quyền tạo đơn'
                   : isOverdueBlocked
                   ? `Đại lý "${selectedDealer?.name}" có khoản nợ quá hạn (${creditInfo?.max_debt_age} ngày), bị chặn tạo đơn hoàn toàn`
                   : isLockedDealer
                   ? `Đại lý "${selectedDealer?.name}" hiện đang bị khóa giao dịch, không thể tạo đơn hàng`
                   : hasStockErrors
                   ? 'Có sản phẩm vượt quá tồn khả dụng kho phục vụ. Vui lòng điều chỉnh số lượng trước khi đặt hàng'
+                  : isCustomerRole
+                  ? 'Tạo đơn hàng từ Cổng Đại lý (Đơn hàng gửi lên sẽ luôn ở trạng thái Chờ duyệt)'
                   : undefined
               }
             >
               {isSubmitting
                 ? 'Đang lưu đơn hàng...'
-                : !isSalesOrAdmin
+                : !canCreateOrder
                 ? 'Không có quyền tạo đơn'
                 : isOverdueBlocked
                 ? 'Bị chặn do nợ quá hạn'
@@ -1571,6 +1640,8 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
                 ? 'Đại lý bị khóa (Không thể tạo đơn)'
                 : hasStockErrors
                 ? 'Vượt tồn khả dụng (Không thể tạo đơn)'
+                : isCustomerRole
+                ? `Tạo đơn hàng (Chờ duyệt${orderItems.length > 0 ? ` - ${orderItems.length} SP` : ''})`
                 : isAnyBelowFloorPrice
                 ? 'Gửi duyệt (Dưới giá niêm yết / sàn)'
                 : isOverLimit
