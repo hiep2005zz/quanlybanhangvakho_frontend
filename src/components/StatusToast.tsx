@@ -1,7 +1,5 @@
-// frontend/src/components/StatusToast.tsx
-// ===== Thông báo nổi ở góc phải màn hình (dùng chung toàn hệ thống) =====
-// Hiệu ứng: trượt ra từ mép phải màn hình -> dừng lại -> trượt ngược vào lại mép phải.
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 export const STATUS_TOAST_VISIBLE_MS = 5000; // Thời gian giữ thông báo trên màn hình
 export const STATUS_TOAST_EXIT_MS = 460;     // BẮT BUỘC khớp với duration keyframes accountStatusToastExit
@@ -47,7 +45,7 @@ function cleanToastMessage(raw: any): string {
 
 /**
  * "Ổ" hiển thị thông báo nổi.
- * Mount MỘT lần duy nhất ở gốc giao diện (DashboardPage).
+ * Dùng createPortal gắn trực tiếp vào document.body với z-index cao nhất để không bao giờ bị modal/phiếu đè.
  */
 export const StatusToastHost: React.FC = () => {
   const [message, setMessage] = useState<string | null>(null);
@@ -123,7 +121,7 @@ export const StatusToastHost: React.FC = () => {
     };
   }, [seq, message]);
 
-  if (!message) return null;
+  if (!message || typeof document === 'undefined') return null;
 
   const isWarning = toastType === 'warning';
   const isError = toastType === 'error';
@@ -144,7 +142,7 @@ export const StatusToastHost: React.FC = () => {
     ? 'linear-gradient(90deg, #60a5fa, #3b82f6)'
     : 'linear-gradient(90deg, #34d399, #16a34a)';
 
-  return (
+  return createPortal(
     <div
       key={seq}
       role="status"
@@ -152,10 +150,10 @@ export const StatusToastHost: React.FC = () => {
       className={isExiting ? 'status-toast status-toast--exiting' : 'status-toast'}
       style={{
         position: 'fixed',
-        right: '20px',
-        bottom: '20px',
-        zIndex: 100000,
-        width: 'min(360px, calc(100vw - 24px))',
+        right: '24px',
+        bottom: '24px',
+        zIndex: 9999999,
+        width: 'min(420px, calc(100vw - 32px))',
         boxSizing: 'border-box',
         display: 'flex',
         alignItems: 'flex-start',
@@ -169,7 +167,7 @@ export const StatusToastHost: React.FC = () => {
         color: textColor,
         boxShadow: isError
           ? '0 10px 25px rgba(220, 38, 38, 0.18), 0 4px 10px rgba(0, 0, 0, 0.05)'
-          : '0 10px 24px rgba(15, 23, 42, 0.16)',
+          : '0 12px 32px rgba(15, 23, 42, 0.25), 0 2px 6px rgba(0, 0, 0, 0.08)',
         willChange: 'transform, opacity',
         animation: isExiting
           ? `accountStatusToastExit ${STATUS_TOAST_EXIT_MS}ms cubic-bezier(0.55, 0, 1, 0.45) forwards`
@@ -208,7 +206,7 @@ export const StatusToastHost: React.FC = () => {
       </div>
 
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: '13.5px', fontWeight: 700, marginBottom: '2px', color: titleColor }}>
+        <div style={{ fontSize: '13.5px', fontWeight: 700, marginBottom: '3px', color: titleColor }}>
           {title}
         </div>
         <div style={{ fontSize: '12.5px', lineHeight: 1.45, overflowWrap: 'anywhere', color: textColor }}>
@@ -251,7 +249,8 @@ export const StatusToastHost: React.FC = () => {
           animation: `accountStatusToastProgress ${STATUS_TOAST_VISIBLE_MS}ms linear forwards`,
         }}
       />
-    </div>
+    </div>,
+    document.body
   );
 };
 

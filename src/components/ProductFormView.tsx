@@ -62,8 +62,10 @@ export const ProductFormView: React.FC<ProductFormViewProps> = ({
   // 5. Quy cách đóng gói
   const [packagingSpec, setPackagingSpec] = useState('');
 
-  // 6. Giá vốn
+  // 6. Giá vốn & Giá bán
   const [costPrice, setCostPrice] = useState<number>(0);
+  const [sellPrice, setSellPrice] = useState<number>(0);
+  const [floorPrice, setFloorPrice] = useState<number>(0);
 
   // 7. Ảnh sản phẩm (1 ảnh đại diện duy nhất)
   const [image, setImage] = useState<string | null>(null);
@@ -88,6 +90,8 @@ export const ProductFormView: React.FC<ProductFormViewProps> = ({
       setBaseUnit(product.base_unit || 'Cái');
       setPackagingSpec(product.packaging_specification || '');
       setCostPrice(product.cost_price || 0);
+      setSellPrice(product.sell_price || 0);
+      setFloorPrice(product.floor_price || 0);
       setStatus(product.status === 'inactive' ? 'inactive' : 'active');
       setImage(Array.isArray(product.images) && product.images.length > 0 ? product.images[0] : null);
     } else {
@@ -97,6 +101,8 @@ export const ProductFormView: React.FC<ProductFormViewProps> = ({
       setBaseUnit('Cái');
       setPackagingSpec('');
       setCostPrice(0);
+      setSellPrice(0);
+      setFloorPrice(0);
       setStatus('active');
       setImage(null);
     }
@@ -299,7 +305,8 @@ export const ProductFormView: React.FC<ProductFormViewProps> = ({
       category: category.trim(),
       base_unit: baseUnit.trim(),
       packaging_specification: packagingSpec.trim(),
-      sell_price: product?.sell_price ?? 0,
+      sell_price: sellPrice,
+      floor_price: floorPrice,
       cost_price: isCostVisible ? costPrice : (product?.cost_price ?? 0),
       images: image ? [image] : [],
       status: status,
@@ -723,15 +730,59 @@ export const ProductFormView: React.FC<ProductFormViewProps> = ({
             </div>
           </section>
 
-          {/* Card 3: Giá vốn & Trạng thái kinh doanh */}
+          {/* Card 3: Giá bán, Giá sàn, Giá vốn & Trạng thái kinh doanh */}
           <section className="sales-order-card">
             <div style={{ marginBottom: '16px', borderBottom: '1px solid #f1f5f9', paddingBottom: '10px' }}>
               <h2 style={{ margin: 0, fontSize: '16px', fontWeight: '750', color: '#0f172a' }}>
-                Giá vốn & Trạng thái kinh doanh
+                Giá bán, Giá sàn & Trạng thái kinh doanh
               </h2>
             </div>
 
             <div className="sales-order-fields">
+              {/* Giá bán niêm yết */}
+              <label className="sales-order-field">
+                <span style={{ fontSize: '13px', fontWeight: 600, color: '#334155', display: 'block', marginBottom: '8px' }}>
+                  Giá bán niêm yết (VNĐ)
+                </span>
+                <input
+                  type="text"
+                  placeholder="0 đ (hoặc nhập từ Bảng giá)"
+                  value={sellPrice > 0 ? formatCurrency(sellPrice) : ''}
+                  onChange={(e) => handleCurrencyChange(e.target.value, setSellPrice)}
+                  style={{
+                    fontSize: '15px',
+                    fontWeight: '750',
+                    color: '#0f172a',
+                    fontVariantNumeric: 'tabular-nums',
+                  }}
+                />
+                <span style={{ fontSize: '11.5px', color: '#64748b' }}>
+                  Giá niêm yết chuẩn hoặc tự động đồng bộ theo Bảng giá.
+                </span>
+              </label>
+
+              {/* Giá sàn bán */}
+              <label className="sales-order-field">
+                <span style={{ fontSize: '13px', fontWeight: 600, color: '#334155', display: 'block', marginBottom: '8px' }}>
+                  Giá sàn bán tối thiểu (VNĐ)
+                </span>
+                <input
+                  type="text"
+                  placeholder="0 đ (hoặc nhập từ Bảng giá)"
+                  value={floorPrice > 0 ? formatCurrency(floorPrice) : ''}
+                  onChange={(e) => handleCurrencyChange(e.target.value, setFloorPrice)}
+                  style={{
+                    fontSize: '15px',
+                    fontWeight: '750',
+                    color: '#0284c7',
+                    fontVariantNumeric: 'tabular-nums',
+                  }}
+                />
+                <span style={{ fontSize: '11.5px', color: '#64748b' }}>
+                  Mức giá tối thiểu nhân viên kinh doanh được phép bán (dưới mức này cần duyệt).
+                </span>
+              </label>
+
               {/* Giá vốn nhập kho */}
               <label className="sales-order-field">
                 <span>Giá vốn nhập kho (VNĐ)</span>

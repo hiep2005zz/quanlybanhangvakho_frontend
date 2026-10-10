@@ -76,10 +76,13 @@ export const ProductAuditDrawer: React.FC<ProductAuditDrawerProps> = ({
   };
 
   const priceLogsCount = logs.filter((l) => l.action_type === 'PRICE_CHANGE').length;
-  const inventoryLogsCount = logs.filter((l) => l.action_type === 'INVENTORY_ADJUST').length;
+  const inventoryLogsCount = logs.filter((l) => l.action_type === 'INVENTORY_ADJUST' || l.action_type === 'STOCK_RECEIPT').length;
 
   const filteredLogs = logs.filter((log) => {
     if (filterType === 'ALL') return true;
+    if (filterType === 'INVENTORY_ADJUST') {
+      return log.action_type === 'INVENTORY_ADJUST' || log.action_type === 'STOCK_RECEIPT';
+    }
     return log.action_type === filterType;
   });
 
@@ -230,7 +233,7 @@ export const ProductAuditDrawer: React.FC<ProductAuditDrawerProps> = ({
                 gap: '5px',
               }}
             >
-              <span>Điều chỉnh kho</span>
+              <span>Biến động kho</span>
               <span style={{
                 background: filterType === 'INVENTORY_ADJUST' ? '#bfdbfe' : '#f1f5f9',
                 padding: '1px 6px',
@@ -294,7 +297,8 @@ export const ProductAuditDrawer: React.FC<ProductAuditDrawerProps> = ({
                   ? newCostPrice - oldCostPrice
                   : null;
 
-                const isInventoryAdjust = log.action_type === 'INVENTORY_ADJUST';
+                const isStockReceipt = log.action_type === 'STOCK_RECEIPT';
+                const isInventoryAdjust = log.action_type === 'INVENTORY_ADJUST' || isStockReceipt;
                 const oldStock = oldObj?.stock;
                 const newStock = newObj?.stock;
                 const diffStock = (typeof newStock === 'number' && typeof oldStock === 'number')
@@ -320,10 +324,28 @@ export const ProductAuditDrawer: React.FC<ProductAuditDrawerProps> = ({
                         borderRadius: '6px',
                         fontSize: '11px',
                         fontWeight: '700',
-                        background: isPriceChange ? '#fef3c7' : isInventoryAdjust ? '#dbeafe' : '#f1f5f9',
-                        color: isPriceChange ? '#b45309' : isInventoryAdjust ? '#1d4ed8' : '#475569',
+                        background: isPriceChange
+                          ? '#fef3c7'
+                          : isStockReceipt
+                          ? '#ecfdf5'
+                          : isInventoryAdjust
+                          ? '#dbeafe'
+                          : '#f1f5f9',
+                        color: isPriceChange
+                          ? '#b45309'
+                          : isStockReceipt
+                          ? '#047857'
+                          : isInventoryAdjust
+                          ? '#1d4ed8'
+                          : '#475569',
                       }}>
-                        {isPriceChange ? 'Thay đổi giá' : isInventoryAdjust ? 'Điều chỉnh kho' : log.action_type}
+                        {isPriceChange
+                          ? 'Thay đổi giá'
+                          : isStockReceipt
+                          ? 'Nhập kho NCC'
+                          : isInventoryAdjust
+                          ? 'Điều chỉnh kho'
+                          : log.action_type}
                       </span>
 
                       {/* Thời điểm áp dụng */}
