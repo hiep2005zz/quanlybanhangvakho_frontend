@@ -10,6 +10,7 @@ export interface OrderManagementViewProps {
   onBackToHome?: () => void;
   onRefreshProducts?: () => void;
   onNavigateToPriceBooks?: () => void;
+  onCloneOrder?: (data: any) => void;
 }
 
 export const OrderManagementView: React.FC<OrderManagementViewProps> = (props) => {

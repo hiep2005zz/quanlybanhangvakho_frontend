@@ -8,6 +8,7 @@ import {
   getOrderSalesRepsApi,
   getOrderRegionsApi,
   cancelOrderApi,
+  getCloneOrderDataApi,
   OrderResponseData,
   OrderDealer,
   SalesRepItem,
@@ -29,6 +30,7 @@ export interface OrderListViewProps {
   onBackToHome?: () => void;
   onRefreshProducts?: () => void;
   onNavigateToPriceBooks?: () => void;
+  onCloneOrder?: (data: any) => void;
 }
 
 export const OrderListView: React.FC<OrderListViewProps> = ({
@@ -38,6 +40,7 @@ export const OrderListView: React.FC<OrderListViewProps> = ({
   onBackToHome: _onBackToHome,
   onRefreshProducts,
   onNavigateToPriceBooks: _onNavigateToPriceBooks,
+  onCloneOrder,
 }) => {
   // 1. Phân quyền người dùng
   const rawRoles = currentUser.roles && currentUser.roles.length > 0 ? currentUser.roles : [currentUser.role];
@@ -100,6 +103,17 @@ export const OrderListView: React.FC<OrderListViewProps> = ({
   const [approvingOrder, setApprovingOrder] = useState<OrderResponseData | null>(null);
   const [rejectingOrder, setRejectingOrder] = useState<OrderResponseData | null>(null);
   const [printingOrder, setPrintingOrder] = useState<OrderResponseData | any | null>(null);
+
+  const handleCloneOrder = async (orderCode: string) => {
+    try {
+      const cloneData = await getCloneOrderDataApi(token, orderCode);
+      if (onCloneOrder) {
+        onCloneOrder(cloneData);
+      }
+    } catch (e: any) {
+      alert(e.message || 'Lỗi khi sao chép đơn hàng');
+    }
+  };
   const [cancellingOrder, setCancellingOrder] = useState<OrderResponseData | any | null>(null);
   const [isSubmittingCancel, setIsSubmittingCancel] = useState(false);
   const [cancelNotice, setCancelNotice] = useState<string | null>(null);
@@ -1174,6 +1188,22 @@ export const OrderListView: React.FC<OrderListViewProps> = ({
                     <rect x="6" y="14" width="12" height="8" />
                   </svg>
                   In / PDF
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const code = selectedOrderDetail.order_code;
+                    setSelectedOrderDetail(null);
+                    handleCloneOrder(code);
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg shadow-sm transition-colors"
+                  title="Sao chép đơn hàng này thành đơn mới (giữ lại đại lý, sản phẩm và tính lại đơn giá/chiết khấu hiện hành)"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                  </svg>
+                  Sao chép đơn
                 </button>
                 <button
                   type="button"
