@@ -351,7 +351,7 @@ export function StockAuditManagementView({ token, currentUser }: StockAuditManag
     if (missingReason.length > 0) {
       emitStatusToast({
         title: 'Thiếu lý do chênh lệch',
-        message: `Bắt buộc nhập lý do cho ${missingReason.length} sản phẩm có chênh lệch (ví dụ: '${missingReason[0].product_name}').`,
+        message: `Bắt buộc nhập lý do cho ${missingReason.length} sản phẩm có chênh lệch.`,
         type: 'warning',
       });
       return;
@@ -566,10 +566,10 @@ export function StockAuditManagementView({ token, currentUser }: StockAuditManag
       </div>
 
       {/* Thanh tìm kiếm & bộ lọc */}
-      <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm space-y-3">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          {/* Tìm kiếm mã phiếu */}
-          <div className="relative">
+      <div className="bg-white p-3.5 rounded-xl border border-gray-200 shadow-sm">
+        <div className="flex flex-wrap items-center gap-3">
+          {/* 1. Tìm kiếm mã phiếu */}
+          <div className="relative flex-1 min-w-[240px]">
             <input
               type="text"
               id="input-search-audit-code"
@@ -579,10 +579,12 @@ export function StockAuditManagementView({ token, currentUser }: StockAuditManag
                 setSearchCode(e.target.value);
                 setPage(1);
               }}
-              className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0fad89] focus:border-transparent"
+              style={{ paddingLeft: '38px' }}
+              className="w-full h-10 pr-3 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0fad89] focus:border-transparent bg-white text-gray-800 placeholder-gray-400 transition-all"
             />
             <svg
-              className="w-4 h-4 text-gray-400 absolute left-3 top-2.5"
+              className="w-4 h-4 text-gray-400 absolute pointer-events-none"
+              style={{ left: '12px', top: '50%', transform: 'translateY(-50%)' }}
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -591,8 +593,8 @@ export function StockAuditManagementView({ token, currentUser }: StockAuditManag
             </svg>
           </div>
 
-          {/* Lọc theo kho */}
-          <div>
+          {/* 2. Lọc theo kho */}
+          <div className="w-full sm:w-auto min-w-[170px]">
             <select
               id="select-filter-warehouse"
               value={filterWarehouse}
@@ -600,7 +602,7 @@ export function StockAuditManagementView({ token, currentUser }: StockAuditManag
                 setFilterWarehouse(e.target.value);
                 setPage(1);
               }}
-              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0fad89] focus:border-transparent bg-white"
+              className="w-full h-10 px-3 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0fad89] focus:border-transparent bg-white text-gray-700 cursor-pointer transition-all"
             >
               <option value="">Tất cả các kho</option>
               {warehouses.map((wh) => (
@@ -611,8 +613,8 @@ export function StockAuditManagementView({ token, currentUser }: StockAuditManag
             </select>
           </div>
 
-          {/* Lọc theo trạng thái */}
-          <div>
+          {/* 3. Lọc theo trạng thái */}
+          <div className="w-full sm:w-auto min-w-[160px]">
             <select
               id="select-filter-status"
               value={filterStatus}
@@ -620,7 +622,7 @@ export function StockAuditManagementView({ token, currentUser }: StockAuditManag
                 setFilterStatus(e.target.value);
                 setPage(1);
               }}
-              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0fad89] focus:border-transparent bg-white"
+              className="w-full h-10 px-3 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0fad89] focus:border-transparent bg-white text-gray-700 cursor-pointer transition-all"
             >
               <option value="">Tất cả trạng thái</option>
               <option value="IN_PROGRESS">Đang kiểm kê</option>
@@ -629,8 +631,8 @@ export function StockAuditManagementView({ token, currentUser }: StockAuditManag
             </select>
           </div>
 
-          {/* Lọc theo phạm vi */}
-          <div>
+          {/* 4. Lọc theo phạm vi */}
+          <div className="w-full sm:w-auto min-w-[160px]">
             <select
               id="select-filter-scope"
               value={filterScope}
@@ -638,37 +640,50 @@ export function StockAuditManagementView({ token, currentUser }: StockAuditManag
                 setFilterScope(e.target.value);
                 setPage(1);
               }}
-              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0fad89] focus:border-transparent bg-white"
+              className="w-full h-10 px-3 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0fad89] focus:border-transparent bg-white text-gray-700 cursor-pointer transition-all"
             >
               <option value="">Tất cả phạm vi</option>
               <option value="WAREHOUSE">Kiểm kê theo kho</option>
               <option value="CATEGORY">Kiểm kê theo nhóm hàng</option>
             </select>
           </div>
+
+          {/* 5. Nút Làm mới */}
+          <button
+            type="button"
+            onClick={() => fetchAudits()}
+            title="Làm mới danh sách phiếu kiểm kê"
+            className="h-10 px-4 text-sm font-medium rounded-lg border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 flex items-center justify-center gap-2 cursor-pointer transition-colors shrink-0 shadow-2xs"
+          >
+            <svg className={`w-4 h-4 text-gray-500 ${loading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            <span>Làm mới</span>
+          </button>
         </div>
       </div>
 
       {/* Bảng danh sách phiếu kiểm kê */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200 text-sm">
-            <thead className="bg-gray-50 text-gray-700 font-semibold">
+          <table className="w-full divide-y divide-gray-200 text-xs whitespace-nowrap">
+            <thead className="bg-gray-50 text-gray-700 font-bold uppercase tracking-wider text-[11px] whitespace-nowrap">
               <tr>
-                <th className="py-3 px-4 text-left">Mã phiếu</th>
-                <th className="py-3 px-4 text-left">Kho / Phạm vi</th>
-                <th className="py-3 px-4 text-left">Thời điểm tạo</th>
-                <th className="py-3 px-4 text-left">Người tạo</th>
-                <th className="py-3 px-4 text-center">Tổng SP</th>
-                <th className="py-3 px-4 text-center">SP lệch</th>
-                <th className="py-3 px-4 text-center">Trạng thái</th>
-                <th className="py-3 px-4 text-left">Người xác nhận</th>
-                <th className="py-3 px-4 text-right">Thao tác</th>
+                <th className="py-3 px-3 text-left whitespace-nowrap">Mã phiếu</th>
+                <th className="py-3 px-3 text-left whitespace-nowrap">Kho / Phạm vi</th>
+                <th className="py-3 px-2.5 text-left whitespace-nowrap">Thời điểm tạo</th>
+                <th className="py-3 px-2.5 text-left whitespace-nowrap">Người tạo</th>
+                <th className="py-3 px-2 text-center whitespace-nowrap">Tổng SP</th>
+                <th className="py-3 px-2 text-center whitespace-nowrap">SP lệch</th>
+                <th className="py-3 px-2.5 text-center whitespace-nowrap">Trạng thái</th>
+                <th className="py-3 px-2.5 text-left whitespace-nowrap">Người xác nhận</th>
+                <th className="py-3 px-3 text-center whitespace-nowrap sticky right-0 bg-gray-50 shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.06)] z-10">Thao tác</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100 text-gray-800">
+            <tbody className="divide-y divide-gray-100 text-gray-800 whitespace-nowrap text-xs">
               {loading ? (
                 <tr>
-                  <td colSpan={9} className="py-8 text-center text-gray-500">
+                  <td colSpan={9} className="py-8 text-center text-gray-500 whitespace-nowrap">
                     <div className="flex items-center justify-center gap-2">
                       <div className="w-5 h-5 border-2 border-[#0fad89] border-t-transparent rounded-full animate-spin" />
                       <span>Đang tải dữ liệu kiểm kê...</span>
@@ -677,9 +692,9 @@ export function StockAuditManagementView({ token, currentUser }: StockAuditManag
                 </tr>
               ) : audits.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="py-12 text-center text-gray-500">
+                  <td colSpan={9} className="py-12 text-center text-gray-500 whitespace-nowrap">
                     <svg className="w-12 h-12 mx-auto text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                     </svg>
                     <p className="font-medium text-gray-600">Chưa có phiếu kiểm kê nào phù hợp</p>
                     <p className="text-xs text-gray-400 mt-1">Nhấn &quot;Tạo phiếu kiểm kê&quot; để bắt đầu đợt kiểm kho mới</p>
@@ -692,28 +707,29 @@ export function StockAuditManagementView({ token, currentUser }: StockAuditManag
                   const hasDisc = (a.discrepancy_items_count || 0) > 0;
 
                   return (
-                    <tr key={a.id} className="hover:bg-gray-50 transition-colors">
+                    <tr key={a.id} className="hover:bg-gray-50 transition-colors whitespace-nowrap group">
                       {/* Mã phiếu */}
-                      <td className="py-3 px-4 font-semibold text-gray-900">
+                      <td className="py-2.5 px-3 font-bold text-gray-900 whitespace-nowrap">
                         <button
                           type="button"
                           onClick={() => handleOpenDetail(a.id)}
-                          className="text-[#0fad89] hover:underline font-bold cursor-pointer bg-transparent border-0 p-0 text-left"
+                          className="text-[#0fad89] hover:underline font-bold cursor-pointer bg-transparent border-0 p-0 text-left whitespace-nowrap"
+                          title="Xem chi tiết phiếu kiểm kê"
                         >
                           {a.code}
                         </button>
                       </td>
 
                       {/* Kho & Phạm vi */}
-                      <td className="py-3 px-4">
-                        <div className="font-medium text-gray-900">{a.warehouse_name}</div>
-                        <div className="text-xs text-gray-500">
+                      <td className="py-2.5 px-3 whitespace-nowrap">
+                        <div className="flex items-center gap-1.5 whitespace-nowrap">
+                          <span className="font-semibold text-gray-900 whitespace-nowrap">{a.warehouse_name}</span>
                           {a.scope_type === 'CATEGORY' ? (
-                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-purple-50 text-purple-700">
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-purple-50 text-purple-700 whitespace-nowrap">
                               Nhóm: {a.category_name || 'Tất cả'}
                             </span>
                           ) : (
-                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700">
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-50 text-blue-700 whitespace-nowrap">
                               Toàn kho
                             </span>
                           )}
@@ -721,7 +737,7 @@ export function StockAuditManagementView({ token, currentUser }: StockAuditManag
                       </td>
 
                       {/* Thời điểm tạo */}
-                      <td className="py-3 px-4 text-gray-600 whitespace-nowrap">
+                      <td className="py-2.5 px-2.5 text-gray-600 whitespace-nowrap">
                         {new Date(a.created_at).toLocaleString('vi-VN', {
                           year: 'numeric',
                           month: '2-digit',
@@ -732,72 +748,89 @@ export function StockAuditManagementView({ token, currentUser }: StockAuditManag
                       </td>
 
                       {/* Người tạo */}
-                      <td className="py-3 px-4 text-gray-700 font-medium">{a.created_by}</td>
+                      <td className="py-2.5 px-2.5 text-gray-700 font-medium whitespace-nowrap">{a.created_by}</td>
 
                       {/* Tổng SP */}
-                      <td className="py-3 px-4 text-center font-semibold text-gray-800">
+                      <td className="py-2.5 px-2 text-center font-bold text-gray-800 whitespace-nowrap">
                         {a.total_items}
                       </td>
 
                       {/* SP lệch */}
-                      <td className="py-3 px-4 text-center">
+                      <td className="py-2.5 px-2 text-center whitespace-nowrap">
                         {hasDisc ? (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800 whitespace-nowrap">
                             {a.discrepancy_items_count} SP lệch
                           </span>
                         ) : (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-green-50 text-green-700 whitespace-nowrap">
                             0 lệch
                           </span>
                         )}
                       </td>
 
                       {/* Trạng thái */}
-                      <td className="py-3 px-4 text-center">
+                      <td className="py-2.5 px-2.5 text-center whitespace-nowrap">
                         {isDone ? (
-                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 whitespace-nowrap">
                             Hoàn tất
                           </span>
                         ) : isCancelled ? (
-                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-600">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-gray-100 text-gray-600 whitespace-nowrap">
                             Đã hủy
                           </span>
                         ) : (
-                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 animate-pulse">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800 whitespace-nowrap">
                             Đang kiểm kê
                           </span>
                         )}
                       </td>
 
                       {/* Người xác nhận */}
-                      <td className="py-3 px-4 text-gray-600 text-xs">
+                      <td className="py-2.5 px-2.5 text-gray-600 text-xs whitespace-nowrap">
                         {a.confirmed_by ? (
-                          <div>
-                            <div className="font-medium text-gray-900">{a.confirmed_by}</div>
+                          <div className="flex items-center gap-1.5 whitespace-nowrap">
+                            <span className="font-semibold text-gray-900 whitespace-nowrap">{a.confirmed_by}</span>
                             {a.confirmed_at && (
-                              <div className="text-gray-400">
-                                {new Date(a.confirmed_at).toLocaleDateString('vi-VN')}
-                              </div>
+                              <span className="text-gray-400 whitespace-nowrap text-[11px]">
+                                ({new Date(a.confirmed_at).toLocaleDateString('vi-VN')})
+                              </span>
                             )}
                           </div>
                         ) : isCancelled ? (
-                          <span className="text-gray-400 italic">Đã hủy</span>
+                          <span className="text-gray-400 italic whitespace-nowrap">Đã hủy</span>
                         ) : (
-                          <span className="text-gray-400 italic">Chờ xác nhận</span>
+                          <span className="text-gray-400 italic whitespace-nowrap">Chờ xác nhận</span>
                         )}
                       </td>
 
-                      {/* Thao tác */}
-                      <td className="py-3 px-4 text-right whitespace-nowrap">
-                        <button
-                          type="button"
-                          onClick={() => handleOpenDetail(a.id)}
-                          className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 transition-colors cursor-pointer border-0"
-                        >
-                          {a.status === 'IN_PROGRESS' && isWarehouseManager
-                            ? 'Kiểm đếm & Xác nhận'
-                            : 'Xem chi tiết'}
-                        </button>
+                      {/* Thao tác (Cố định ở mép phải - Luôn hiển thị không bị trôi) */}
+                      <td className="py-2.5 px-3 text-center whitespace-nowrap sticky right-0 bg-white group-hover:bg-gray-50 shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.06)] transition-colors z-10">
+                        {a.status === 'IN_PROGRESS' && isWarehouseManager ? (
+                          <button
+                            type="button"
+                            onClick={() => handleOpenDetail(a.id)}
+                            className="px-3 py-1.5 text-xs font-bold rounded-lg bg-[#0fad89] hover:bg-[#0c8a6d] text-white shadow-xs transition-colors cursor-pointer border-0 whitespace-nowrap inline-flex items-center gap-1"
+                            title="Kiểm đếm & Xác nhận kết quả kiểm kê"
+                          >
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                            </svg>
+                            <span>Kiểm đếm & Xác nhận</span>
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleOpenDetail(a.id)}
+                            className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 transition-colors cursor-pointer border-0 whitespace-nowrap inline-flex items-center gap-1"
+                            title="Xem chi tiết phiếu kiểm kê"
+                          >
+                            <svg className="w-3.5 h-3.5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            </svg>
+                            <span>Xem chi tiết</span>
+                          </button>
+                        )}
                       </td>
                     </tr>
                   );
@@ -882,7 +915,7 @@ export function StockAuditManagementView({ token, currentUser }: StockAuditManag
                         onChange={() => setCreateScopeType('WAREHOUSE')}
                         className="text-[#0fad89] focus:ring-[#0fad89]"
                       />
-                      <span>A. Kiểm kê theo kho</span>
+                      <span>Kiểm kê theo kho</span>
                     </label>
 
                     <label
@@ -900,7 +933,7 @@ export function StockAuditManagementView({ token, currentUser }: StockAuditManag
                         onChange={() => setCreateScopeType('CATEGORY')}
                         className="text-[#0fad89] focus:ring-[#0fad89]"
                       />
-                      <span>B. Kiểm kê theo nhóm hàng</span>
+                      <span>Kiểm kê theo nhóm hàng</span>
                     </label>
                   </div>
                 </div>
@@ -1127,20 +1160,20 @@ export function StockAuditManagementView({ token, currentUser }: StockAuditManag
                   <div className="py-12 text-center text-gray-500">Đang tải chi tiết...</div>
                 ) : (
                   <div className="overflow-x-auto rounded-lg border border-gray-200">
-                    <table className="min-w-full divide-y divide-gray-200 text-xs">
-                      <thead className="bg-gray-50 text-gray-700 font-bold uppercase tracking-wider">
+                    <table className="min-w-full divide-y divide-gray-200 text-xs whitespace-nowrap">
+                      <thead className="bg-gray-50 text-gray-700 font-bold uppercase tracking-wider whitespace-nowrap">
                         <tr>
-                          <th className="py-2.5 px-3 text-left">Mã SP</th>
-                          <th className="py-2.5 px-3 text-left">Tên sản phẩm</th>
-                          <th className="py-2.5 px-3 text-center">ĐVT cơ sở</th>
-                          <th className="py-2.5 px-3 text-center bg-gray-100">Tồn đã chốt</th>
-                          <th className="py-2.5 px-3 text-center">SL thực tế</th>
-                          <th className="py-2.5 px-3 text-center">Chênh lệch</th>
-                          <th className="py-2.5 px-3 text-center">Kết quả</th>
-                          <th className="py-2.5 px-3 text-left">Lý do chênh lệch</th>
+                          <th className="py-2.5 px-3 text-left whitespace-nowrap">Mã SP</th>
+                          <th className="py-2.5 px-3 text-left whitespace-nowrap">Tên sản phẩm</th>
+                          <th className="py-2.5 px-3 text-center whitespace-nowrap">ĐVT cơ sở</th>
+                          <th className="py-2.5 px-3 text-center bg-gray-100 whitespace-nowrap">Tồn đã chốt</th>
+                          <th className="py-2.5 px-3 text-center whitespace-nowrap">SL thực tế</th>
+                          <th className="py-2.5 px-3 text-center whitespace-nowrap">Chênh lệch</th>
+                          <th className="py-2.5 px-3 text-center whitespace-nowrap">Kết quả</th>
+                          <th className="py-2.5 px-3 text-left whitespace-nowrap">Lý do chênh lệch</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-gray-100">
+                      <tbody className="divide-y divide-gray-100 whitespace-nowrap">
                         {filteredDetailItems.map((itm) => {
                           const isDeficit = typeof itm.discrepancy === 'number' && itm.discrepancy < 0;
                           const isSurplus = typeof itm.discrepancy === 'number' && itm.discrepancy > 0;
