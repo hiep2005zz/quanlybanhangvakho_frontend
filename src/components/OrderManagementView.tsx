@@ -5,6 +5,7 @@ import {
   getOrderDetailApi,
   getOrderDealersApi,
   cancelOrderApi,
+  getCloneOrderDataApi,
   OrderResponseData,
   User,
   ProductItem,
@@ -18,6 +19,7 @@ import { getOrderPermissionTier, isOrderPastExported } from '../utils/orderPermi
 import OrderPrintModal from './OrderPrintModal';
 
 interface OrderManagementViewProps {
+  onCloneOrder?: (data: any) => void;
   currentUser: User;
   token: string;
   products: ProductItem[];
@@ -33,6 +35,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
   onBackToHome: _onBackToHome,
   onRefreshProducts,
   onNavigateToPriceBooks: _onNavigateToPriceBooks,
+  onCloneOrder,
 }) => {
   const [orders, setOrders] = useState<OrderResponseData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -96,6 +99,16 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
      customerDealer.status.toLowerCase().includes('lock'))
   );
 
+  const handleCloneOrder = async (orderCode: string) => {
+    try {
+      const cloneData = await getCloneOrderDataApi(token, orderCode);
+      if (onCloneOrder) {
+        onCloneOrder(cloneData);
+      }
+    } catch (e: any) {
+      alert(e.message || 'Lỗi khi sao chép đơn hàng');
+    }
+  };
   const fetchCustomerDealer = async () => {
     if (!isCustomer || !token) return;
     try {
@@ -1203,6 +1216,35 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                 </button>
                 <button
                   type="button"
+                  onClick={() => {
+                    const code = selectedOrderDetail.order_code;
+                    setSelectedOrderDetail(null);
+                    handleCloneOrder(code);
+                  }}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '8px 14px',
+                    borderRadius: '6px',
+                    background: '#f0fdf4',
+                    border: '1px solid #86efac',
+                    color: '#166534',
+                    fontSize: '13px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                  }}
+                  title="Sao chép đơn hàng này thành đơn mới (giữ lại đại lý, sản phẩm và tính lại đơn giá/chiết khấu hiện hành)"
+                >
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                  </svg>
+                  Sao chép đơn này
+                </button>
+                <button
+                  type="button"
                   onClick={() => setSelectedOrderDetail(null)}
                   style={{
                     background: 'transparent',
@@ -1552,3 +1594,4 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
   );
 };
 export default OrderManagementView;
+
