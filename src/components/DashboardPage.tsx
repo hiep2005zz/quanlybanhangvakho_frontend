@@ -64,7 +64,7 @@ export default function DashboardPage({
   const isAccountant = user.role === 'accountant' || Boolean(user.roles && user.roles.includes('accountant'));
   const orderPermTier = getOrderPermissionTier(user);
   const canReadOrders = orderPermTier !== 'NO_ACCESS';
-  const canCreateOrders = orderPermTier === 'FULL_ACCESS' && !isAccountant;
+  const canCreateOrders = (orderPermTier === 'FULL_ACCESS' || isCustomer || user.role === 'agent' || Boolean(user.roles && user.roles.includes('agent'))) && !isAccountant;
   const isSalesManager = user.role === 'sales_manager' || Boolean(user.roles && user.roles.includes('sales_manager'));
   const canAccessDiscounts =
     isAdmin ||
