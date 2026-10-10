@@ -1048,7 +1048,7 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
               className={`wh-tab-btn ${subTab === 'master-data' ? 'active' : ''}`}
               onClick={() => setSubTab('master-data')}
             >
-              ⚙️ Quản lý Kệ & Khu vực
+              Quản lý Kệ & Khu vực
             </button>
             <button
               type="button"
@@ -1245,7 +1245,7 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                 <div className="wh-master-card">
                   <div className="wh-master-card-header">
                     <h3>
-                      <span>📍 Danh mục Khu vực (Zones)</span>
+                      <span>Danh mục Khu vực (Zones)</span>
                       <span className="wh-badge wh-badge-code">{filteredZones.length}</span>
                     </h3>
                     {canManage && (
@@ -1323,7 +1323,7 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                 <div className="wh-master-card">
                   <div className="wh-master-card-header">
                     <h3>
-                      <span>🗄️ Danh mục Kệ & Dãy (Aisles / Racks)</span>
+                      <span>Danh mục Kệ & Dãy (Aisles / Racks)</span>
                       <span className="wh-badge wh-badge-code">{filteredRacks.length}</span>
                     </h3>
                     {canManage && (
@@ -1688,14 +1688,14 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                 {/* Thanh tiện ích tự động sinh mã */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8fafc', padding: '8px 12px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
                   <div style={{ fontSize: '13px', color: '#475569' }}>
-                    💡 Chọn nhanh <strong>Khu vực, Dãy kệ, Tầng, Ô chứa</strong> bên dưới, hệ thống sẽ tự động điền:
+                    Chọn nhanh <strong>Khu vực, Dãy kệ, Tầng, Ô chứa</strong> bên dưới, hệ thống sẽ tự động điền:
                   </div>
                   <button
                     type="button"
                     className="wh-helper-btn"
                     onClick={() => handleAutoGenerateLocationCodeAndName()}
                   >
-                    ⚡ Tự động tạo mã & tên gợi nhớ
+                    Tự động tạo mã & tên gợi nhớ
                   </button>
                 </div>
 
@@ -2110,7 +2110,7 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                     onChange={(e) => setAssignFormData({ ...assignFormData, quantity: Number(e.target.value) })}
                   />
                   <div style={{ fontSize: '12px', color: '#64748b' }}>
-                    💡 Nếu nhập 0, sản phẩm sẽ được gỡ khỏi vị trí kệ này.
+                    Nếu nhập 0, sản phẩm sẽ được gỡ khỏi vị trí kệ này.
                   </div>
                 </div>
               </div>
