@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import {
   cancelOrderApi,
   getOrderDetailApi,
+  getCloneOrderDataApi,
   OrderDetail,
   getOrderPickingLocationsApi,
   OrderPickingSummary,
@@ -22,6 +23,7 @@ interface OrderDetailsModalProps {
   onOpenPrint?: (orderCode: string, orderData?: OrderDetail | null) => void;
   currentUser?: User;
   onOrderCancelled?: () => void;
+  onCloneOrder?: (data: any) => void;
 }
 
 const formatCurrency = (amount: number) =>
@@ -44,6 +46,7 @@ export default function OrderDetailsModal({
   onOpenPrint,
   currentUser,
   onOrderCancelled,
+  onCloneOrder,
 }: OrderDetailsModalProps) {
   const [order, setOrder] = useState<OrderDetail | null>(null);
   const [pickingSummary, setPickingSummary] = useState<OrderPickingSummary | null>(null);
@@ -188,6 +191,42 @@ export default function OrderDetailsModal({
                 </svg>
                 In / Xuất PDF
               </button>
+
+              {onCloneOrder && (
+                <button
+                  type="button"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    backgroundColor: '#f0fdf4',
+                    color: '#166534',
+                    border: '1px solid #86efac',
+                    fontWeight: 600,
+                    fontSize: '13px',
+                    padding: '8px 14px',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                  }}
+                  onClick={async () => {
+                    try {
+                      const data = await getCloneOrderDataApi(token, orderCode);
+                      onClose();
+                      onCloneOrder(data);
+                    } catch (e: any) {
+                      alert(e.message || 'Lỗi khi sao chép đơn hàng');
+                    }
+                  }}
+                  title="Sao chép đơn hàng này thành đơn mới"
+                >
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                  </svg>
+                  Sao chép đơn này
+                </button>
+              )}
 
               {/* Nút Hủy đơn chỉ hiển thị với Nhóm Toàn Quyền (Sales / Sales Manager / Admin) */}
               {isFullAccess && !isAlreadyCancelled && (
@@ -488,3 +527,4 @@ export default function OrderDetailsModal({
     </>
   );
 }
+

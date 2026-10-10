@@ -707,6 +707,19 @@ export async function getOrderDetailApi(token: string, orderCode: string): Promi
   return data as OrderDetail;
 }
 
+export async function getCloneOrderDataApi(token: string, orderCode: string): Promise<any> {
+  const response = await authenticatedFetch(
+    `${API_BASE_URL}/orders/${encodeURIComponent(orderCode)}/clone-data`,
+    { method: 'GET' },
+    token
+  );
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi lấy dữ liệu sao chép đơn hàng (Mã lỗi ${response.status})`);
+  }
+  return data;
+}
+
 export async function getOrderDealersApi(token: string): Promise<OrderDealer[]> {
   const response = await authenticatedFetch(`${API_BASE_URL}/orders/dealers`, { method: 'GET' }, token);
   const data = await response.json().catch(() => ({}));
