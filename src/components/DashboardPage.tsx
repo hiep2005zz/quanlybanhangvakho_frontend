@@ -66,8 +66,8 @@ export default function DashboardPage({
   const canReadOrders = orderPermTier !== 'NO_ACCESS';
   const canCreateOrders = orderPermTier === 'FULL_ACCESS' && !isAccountant;
   const isSalesManager = user.role === 'sales_manager' || Boolean(user.roles && user.roles.includes('sales_manager'));
-  // Tất cả vai trò đều có thể xem chính sách chiết khấu (Read-only), chỉ Admin & Quản lý kinh doanh mới được thao tác
-  const canAccessDiscounts = Boolean(user);
+  // Chỉ Admin và Quản lý kinh doanh mới thấy và thao tác chức năng chiết khấu
+  const canAccessDiscounts = isAdmin || isSalesManager;
 
   // Quyền quản lý nhà cung cấp
   const SUPPLIER_ROLES = ['admin', 'warehouse', 'warehouse_manager'];
@@ -1378,8 +1378,8 @@ export default function DashboardPage({
             )}
           </div>
 
-          {/* CHÍNH SÁCH CHIẾT KHẤU - 1 Ô GỌN GÀNG */}
-          {(() => {
+          {/* CHÍNH SÁCH CHIẾT KHẤU - 1 Ô GỌN GÀNG (Chỉ hiển thị cho Admin và Quản lý kinh doanh) */}
+          {canAccessDiscounts && (() => {
             try {
               const savedPolicies = localStorage.getItem('discountPolicies');
               if (savedPolicies) {
