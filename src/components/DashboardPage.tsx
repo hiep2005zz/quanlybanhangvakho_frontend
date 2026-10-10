@@ -1378,8 +1378,8 @@ export default function DashboardPage({
             )}
           </div>
 
-          {/* CHÍNH SÁCH CHIẾT KHẤU - 1 Ô GỌN GÀNG (Chỉ hiển thị cho Admin và Quản lý kinh doanh) */}
-          {canAccessDiscounts && (() => {
+          {/* CHÍNH SÁCH CHIẾT KHẤU - 1 Ô GỌN GÀNG (Hiển thị ở tất cả các phân quyền) */}
+          {(() => {
             try {
               const savedPolicies = localStorage.getItem('discountPolicies');
               if (savedPolicies) {
