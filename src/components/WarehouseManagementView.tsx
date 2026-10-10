@@ -26,105 +26,7 @@ interface WarehouseManagementViewProps {
   onBackToHome?: () => void;
 }
 
-interface PaginationControlProps {
-  currentPage: number;
-  totalPages: number;
-  pageSize: number;
-  totalMatches: number;
-  itemName: string;
-  onPageChange: (page: number) => void;
-  onPageSizeChange: (size: number) => void;
-}
 
-const PaginationControl: React.FC<PaginationControlProps> = ({
-  currentPage,
-  totalPages,
-  pageSize,
-  totalMatches,
-  itemName,
-  onPageChange,
-  onPageSizeChange,
-}) => {
-  if (totalMatches === 0) return null;
-
-  return (
-    <div className="wh-pagination-bar" style={{ justifyContent: 'flex-end' }}>
-      <div className="wh-pagination-controls-wrap">
-        <div className="wh-pagination-size-wrap">
-          <span>Số dòng mỗi trang:</span>
-          <select
-            className="wh-pagination-select"
-            value={pageSize}
-            onChange={(e) => {
-              onPageSizeChange(Number(e.target.value));
-              onPageChange(1);
-            }}
-          >
-            <option value={5}>5</option>
-            <option value={10}>10</option>
-            <option value={20}>20</option>
-            <option value={50}>50</option>
-          </select>
-        </div>
-
-        <div className="wh-pagination-buttons">
-          <button
-            type="button"
-            className="wh-btn-page"
-            disabled={currentPage <= 1}
-            onClick={() => onPageChange(Math.max(1, currentPage - 1))}
-            title="Trang trước"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <polyline points="15 18 9 12 15 6"></polyline>
-            </svg>
-          </button>
-
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => {
-            if (
-              totalPages > 7 &&
-              pageNum !== 1 &&
-              pageNum !== totalPages &&
-              Math.abs(pageNum - currentPage) > 2
-            ) {
-              if (Math.abs(pageNum - currentPage) === 3) {
-                return (
-                  <span key={pageNum} style={{ padding: '0 4px', color: '#94a3b8' }}>
-                    ...
-                  </span>
-                );
-              }
-              return null;
-            }
-
-            return (
-              <button
-                key={pageNum}
-                type="button"
-                className={`wh-btn-page ${pageNum === currentPage ? 'active' : ''}`}
-                onClick={() => onPageChange(pageNum)}
-              >
-                {pageNum}
-              </button>
-            );
-          })}
-
-          <button
-            type="button"
-            className="wh-btn-page"
-            disabled={currentPage >= totalPages}
-            onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
-            title="Trang tiếp"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <polyline points="9 18 15 12 9 6"></polyline>
-            </svg>
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
 
 export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = ({
   token,
@@ -160,15 +62,7 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
   const [prodSearch, setProdSearch] = useState<string>('');
   const [allProducts, setAllProducts] = useState<Product[]>([]);
 
-  // --- PAGINATION STATE ---
 
-  // Phân trang danh sách vị trí kệ
-  const [locCurrentPage, setLocCurrentPage] = useState<number>(1);
-  const [locPageSize, setLocPageSize] = useState<number>(10);
-
-  // Phân trang sản phẩm theo vị trí kệ
-  const [prodCurrentPage, setProdCurrentPage] = useState<number>(1);
-  const [prodPageSize, setProdPageSize] = useState<number>(10);
 
   // --- MODALS STATE ---
   // Modal Kho
@@ -317,14 +211,10 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
     return warehouses;
   }, [warehouses]);
 
-  const locTotalMatches = locations.length;
-  const locTotalPages = Math.max(1, Math.ceil(locTotalMatches / locPageSize));
   const paginatedLocations = useMemo(() => {
     return locations;
   }, [locations]);
 
-  const prodTotalMatches = locationProducts.length;
-  const prodTotalPages = Math.max(1, Math.ceil(prodTotalMatches / prodPageSize));
   const paginatedLocationProducts = useMemo(() => {
     return locationProducts;
   }, [locationProducts]);
@@ -826,20 +716,14 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                     className="wh-search-input"
                     placeholder="Tìm mã vị trí, tên kệ, dãy..."
                     value={locSearch}
-                    onChange={(e) => {
-                      setLocSearch(e.target.value);
-                      setLocCurrentPage(1);
-                    }}
+                    onChange={(e) => setLocSearch(e.target.value)}
                   />
 
                   {uniqueZones.length > 0 && (
                     <select
                       className="wh-select"
                       value={locZoneFilter}
-                      onChange={(e) => {
-                        setLocZoneFilter(e.target.value);
-                        setLocCurrentPage(1);
-                      }}
+                      onChange={(e) => setLocZoneFilter(e.target.value)}
                     >
                       <option value="all">Tất cả khu vực</option>
                       {uniqueZones.map((z) => (
@@ -966,10 +850,7 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                     className="wh-search-input"
                     placeholder="Tìm theo mã SP, tên SP, vị trí kệ..."
                     value={prodSearch}
-                    onChange={(e) => {
-                      setProdSearch(e.target.value);
-                      setProdCurrentPage(1);
-                    }}
+                    onChange={(e) => setProdSearch(e.target.value)}
                   />
                 </div>
 
