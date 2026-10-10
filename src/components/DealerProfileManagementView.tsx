@@ -99,7 +99,7 @@ export default function DealerProfileManagementView({
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [totalMatches, setTotalMatches] = useState(0);
+  const [, setTotalMatches] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
 
   // Filter options from API
@@ -627,9 +627,6 @@ export default function DealerProfileManagementView({
     return { className: 'status-pill-pending', dotColor: '#64748b', text: 'Chưa kích hoạt' };
   };
 
-  // Tính toán thông tin hiển thị phân trang
-  const paginationStart = totalMatches === 0 ? 0 : (currentPage - 1) * pageSize + 1;
-  const paginationEnd = Math.min(currentPage * pageSize, totalMatches);
 
   return (
     <div className="dealer-profiles-container">
@@ -775,10 +772,6 @@ export default function DealerProfileManagementView({
         <div className="dealer-filter-grid">
           {/* Keyword Search có Debounce */}
           <div className="search-input-wrapper">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="11" cy="11" r="8"></circle>
-              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-            </svg>
             <input
               type="text"
               className="search-input"
@@ -936,17 +929,17 @@ export default function DealerProfileManagementView({
               <table className="dealer-table">
                 <thead>
                   <tr>
-                    <th style={{ width: '80px', minWidth: '75px' }} title="Mã định danh duy nhất của đại lý">Mã đại lý</th>
-                    <th style={{ width: '200px', minWidth: '170px' }} title="Tên đại lý và thông tin liên hệ">Tên đại lý</th>
-                    <th style={{ width: '110px', minWidth: '100px' }} title="Kho hàng được gán phục vụ mặc định">Kho phục vụ</th>
-                    <th style={{ width: '90px', minWidth: '85px' }} title="Mã số thuế doanh nghiệp">Mã số thuế</th>
-                    <th style={{ width: '95px', minWidth: '90px' }} title="Phân loại nhóm khách hàng">Nhóm KH</th>
-                    <th style={{ width: '130px', minWidth: '115px' }} title="Bảng giá bán đang áp dụng theo nhóm">Bảng giá áp dụng</th>
-                    <th style={{ width: '80px', minWidth: '70px' }} title="Khu vực địa lý của đại lý">Khu vực</th>
-                    <th style={{ width: '115px', minWidth: '105px' }} title="Nhân viên kinh doanh phụ trách">Người phụ trách</th>
-                    <th style={{ width: '65px', minWidth: '60px', textAlign: 'center' }} title="Số lượng đơn hàng/giao dịch đã phát sinh">Giao dịch</th>
-                    <th style={{ width: '115px', minWidth: '105px', textAlign: 'center' }} title="Trạng thái hoạt động giao dịch">Trạng thái</th>
-                    <th style={{ width: '65px', minWidth: '60px', textAlign: 'center' }} title="Các thao tác quản lý hồ sơ">Thao tác</th>
+                    <th style={{ width: '65px' }} title="Mã định danh duy nhất của đại lý">Mã đại lý</th>
+                    <th style={{ minWidth: '130px' }} title="Tên đại lý và thông tin liên hệ">Tên đại lý</th>
+                    <th style={{ width: '90px' }} title="Kho hàng được gán phục vụ mặc định">Kho phục vụ</th>
+                    <th style={{ width: '80px' }} title="Mã số thuế doanh nghiệp">Mã số thuế</th>
+                    <th style={{ width: '80px' }} title="Phân loại nhóm khách hàng">Nhóm KH</th>
+                    <th style={{ width: '105px' }} title="Bảng giá bán đang áp dụng theo nhóm">Bảng giá áp dụng</th>
+                    <th style={{ width: '65px' }} title="Khu vực địa lý của đại lý">Khu vực</th>
+                    <th style={{ width: '100px' }} title="Nhân viên kinh doanh phụ trách">Người phụ trách</th>
+                    <th style={{ width: '50px', textAlign: 'center' }} title="Số lượng đơn hàng/giao dịch đã phát sinh">Giao dịch</th>
+                    <th style={{ width: '95px', textAlign: 'center' }} title="Trạng thái hoạt động giao dịch">Trạng thái</th>
+                    <th style={{ width: '55px', textAlign: 'center' }} title="Các thao tác quản lý hồ sơ">Thao tác</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -995,12 +988,12 @@ export default function DealerProfileManagementView({
                               style={{
                                 display: 'inline-flex',
                                 alignItems: 'center',
-                                gap: '5px',
-                                padding: '3px 8px',
-                                borderRadius: '6px',
+                                gap: '4px',
+                                padding: '2px 6px',
+                                borderRadius: '5px',
                                 background: '#eff6ff',
                                 color: '#1d4ed8',
-                                fontSize: '12px',
+                                fontSize: '11px',
                                 fontWeight: '600',
                                 border: '1px solid #bfdbfe'
                               }}
@@ -1218,10 +1211,6 @@ export default function DealerProfileManagementView({
 
             {/* 5. Pagination Bar */}
             <div className="dealer-pagination-bar">
-              <div className="pagination-info">
-                Hiển thị <strong>{paginationStart}-{paginationEnd}</strong> / <strong>{totalMatches}</strong> đại lý
-              </div>
-
               <div className="pagination-controls-wrap">
                 <div className="pagination-size-select-wrap">
                   <span>Số dòng mỗi trang:</span>
@@ -1301,10 +1290,10 @@ export default function DealerProfileManagementView({
       {/* ============================================================ */}
       {isFormModalOpen && (
         <div className="modal-overlay" onClick={() => !isSubmitting && setIsFormModalOpen(false)}>
-          <div className="modal-content-card" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-content-card" style={{ maxWidth: '580px' }} onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                   {editingDealer ? (
                     <>
                       <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
@@ -1327,7 +1316,7 @@ export default function DealerProfileManagementView({
                 onClick={() => !isSubmitting && setIsFormModalOpen(false)}
                 title="Đóng"
               >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                   <line x1="18" y1="6" x2="6" y2="18" />
                   <line x1="6" y1="6" x2="18" y2="18" />
                 </svg>
@@ -1337,8 +1326,8 @@ export default function DealerProfileManagementView({
             <form onSubmit={handleSubmitForm}>
               <div className="modal-body">
                 {formError && (
-                  <div style={{ background: '#fef2f2', border: '1px solid #fecaca', color: '#b91c1c', padding: '12px 16px', borderRadius: '10px', marginBottom: '18px', fontSize: '13.5px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                  <div style={{ background: '#fef2f2', border: '1px solid #fecaca', color: '#b91c1c', padding: '10px 14px', borderRadius: '8px', marginBottom: '12px', fontSize: '12.5px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
                       <circle cx="12" cy="12" r="10" />
                       <line x1="12" y1="8" x2="12" y2="12" />
                       <line x1="12" y1="16" x2="12.01" y2="16" />
@@ -1353,7 +1342,7 @@ export default function DealerProfileManagementView({
                     <label>
                       Mã đại lý <span className="required">*</span>
                     </label>
-                    <div style={{ display: 'flex', gap: '8px' }}>
+                    <div style={{ display: 'flex', gap: '6px' }}>
                       <input
                         type="text"
                         className="form-input"
@@ -1367,7 +1356,7 @@ export default function DealerProfileManagementView({
                         <button
                           type="button"
                           className="btn-secondary-white"
-                          style={{ padding: '0 12px', fontSize: '12px', whiteSpace: 'nowrap' }}
+                          style={{ padding: '0 10px', height: '32px', fontSize: '11.5px', whiteSpace: 'nowrap' }}
                           onClick={() => {
                             const rand = Math.floor(1000 + Math.random() * 9000);
                             setFormData({ ...formData, code: `DL${rand}` });
@@ -1431,7 +1420,7 @@ export default function DealerProfileManagementView({
                 {/* Hộp hiển thị BẢNG GIÁ ÁP DỤNG (Quyết định bởi Nhóm khách hàng) */}
                 <div className="price-book-decision-card">
                   <div className="decision-card-icon">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                       <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/>
                     </svg>
                   </div>
@@ -1449,16 +1438,16 @@ export default function DealerProfileManagementView({
                             <span> • Hiệu lực: {modalAppliedPriceBook.valid_from.substring(0, 10)} đến {modalAppliedPriceBook.valid_to.substring(0, 10)}</span>
                           )}
                         </p>
-                        <div style={{ marginTop: '6px', fontSize: '12px', color: '#15803d', display: 'flex', alignItems: 'flex-start', gap: '6px' }}>
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: '2px' }}>
+                        <div style={{ marginTop: '3px', fontSize: '11px', color: '#15803d', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
                             <polyline points="20 6 9 17 4 12" />
                           </svg>
                           <span>Nhóm khách hàng quyết định bảng giá tự động kích hoạt khi lên đơn hàng.</span>
                         </div>
                       </div>
                     ) : (
-                      <p style={{ color: '#b45309', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                      <p style={{ color: '#b45309', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
                           <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
                           <line x1="12" y1="9" x2="12" y2="13" />
                           <line x1="12" y1="17" x2="12.01" y2="17" />
@@ -1540,7 +1529,7 @@ export default function DealerProfileManagementView({
                 <div className="form-group-item">
                   <label>
                     Kho phục vụ mặc định
-                    <span style={{ color: '#2563eb', fontSize: '12px', fontWeight: '500', marginLeft: '6px' }}>
+                    <span style={{ color: '#2563eb', fontSize: '11px', fontWeight: '500', marginLeft: '6px' }}>
                       (Đề xuất xuất kho khi lên đơn & tra cứu vị trí kệ)
                     </span>
                   </label>
@@ -1565,7 +1554,7 @@ export default function DealerProfileManagementView({
                     ))}
                   </select>
                   {formData.warehouse_name && (
-                    <div style={{ marginTop: '4px', fontSize: '12px', color: '#16a34a', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <div style={{ marginTop: '2px', fontSize: '11px', color: '#16a34a', display: 'flex', alignItems: 'center', gap: '4px' }}>
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <polyline points="20 6 9 17 4 12" />
                       </svg>
@@ -1575,12 +1564,12 @@ export default function DealerProfileManagementView({
                 </div>
 
                 {/* Hàng 6: Ràng buộc Số lượng giao dịch khi sửa & Địa chỉ */}
-                <div className={editingDealer ? 'form-grid-2' : 'form-group-item'}>
+                <div className={editingDealer ? 'form-grid-2' : ''}>
                   {editingDealer && (
                     <div className="form-group-item">
                       <label>
                         Số lượng giao dịch <span className="required">*</span>{' '}
-                        <span style={{ color: '#2563eb', fontSize: '12px', fontWeight: '500' }}>
+                        <span style={{ color: '#2563eb', fontSize: '11px', fontWeight: '500' }}>
                           (Ràng buộc &ge; 0)
                         </span>
                       </label>

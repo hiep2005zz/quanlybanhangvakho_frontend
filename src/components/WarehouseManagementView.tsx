@@ -1220,7 +1220,7 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                     <>
                       <button
                         type="button"
-                        className="wh-btn wh-btn-secondary"
+                        className="wh-btn wh-btn-primary"
                         onClick={handleOpenCreateZone}
                       >
                         + Thêm khu vực mới
@@ -1246,15 +1246,6 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                       <span>Danh mục Khu vực (Zones)</span>
                       <span className="wh-badge wh-badge-code">{filteredZones.length}</span>
                     </h3>
-                    {canManage && (
-                      <button
-                        type="button"
-                        className="wh-btn wh-btn-sm wh-btn-secondary"
-                        onClick={handleOpenCreateZone}
-                      >
-                        + Thêm khu vực
-                      </button>
-                    )}
                   </div>
 
                   <div className="wh-table-responsive" style={{ maxHeight: 'calc(100vh - 280px)' }}>
@@ -1324,15 +1315,6 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                       <span>Danh mục Kệ & Dãy (Aisles / Racks)</span>
                       <span className="wh-badge wh-badge-code">{filteredRacks.length}</span>
                     </h3>
-                    {canManage && (
-                      <button
-                        type="button"
-                        className="wh-btn wh-btn-sm wh-btn-primary"
-                        onClick={handleOpenCreateRack}
-                      >
-                        + Thêm kệ / dãy
-                      </button>
-                    )}
                   </div>
 
                   <div className="wh-table-responsive" style={{ maxHeight: 'calc(100vh - 280px)' }}>
