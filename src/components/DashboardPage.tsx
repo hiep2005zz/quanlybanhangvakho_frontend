@@ -681,6 +681,7 @@ export default function DashboardPage({
   const [isGoodsReceiptModalOpen, setIsGoodsReceiptModalOpen] = useState(false);
   const [goodsReceiptInitialTab, setGoodsReceiptInitialTab] = useState<'form' | 'list'>('form');
   const [isSalesOrderEntryOpen, setIsSalesOrderEntryOpen] = useState(false);
+  const [cloneOrderData, setCloneOrderData] = useState<any>(null);
   const [isDiscountExpanded, setIsDiscountExpanded] = useState(false);
   const availableCategories = useMemo(
     () => Array.from(new Set(['Thời trang', 'Giày dép', 'Phụ kiện', ...products.map((p) => p.category).filter(Boolean)])),
@@ -990,12 +991,15 @@ export default function DashboardPage({
             username={user.username}
             user={user}
             products={products}
+            cloneOrderData={cloneOrderData}
             onClose={() => {
               setIsSalesOrderEntryOpen(false);
+              setCloneOrderData(null);
               setActiveTab('orders');
             }}
             onCreated={() => {
               setIsSalesOrderEntryOpen(false);
+              setCloneOrderData(null);
               setActiveTab('orders');
               fetchProducts();
             }}
@@ -1017,6 +1021,10 @@ export default function DashboardPage({
             onBackToHome={() => setActiveTab('inventory')}
             onRefreshProducts={fetchProducts}
             onNavigateToPriceBooks={canAccessPriceBooks ? () => setActiveTab('price-books') : undefined}
+            onCloneOrder={(data) => {
+              setCloneOrderData(data);
+              setActiveTab('create-order');
+            }}
           />
         ) : (
           <AccessDeniedView
@@ -2854,3 +2862,4 @@ export default function DashboardPage({
     </DashboardLayout>
   );
 }
+
