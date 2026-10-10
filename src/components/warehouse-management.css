@@ -257,14 +257,31 @@
 }
 
 .wh-table-responsive {
-  flex: 1;
-  min-height: 0;
-  max-height: none;
   width: 100%;
+  flex: 1;
+  min-height: 250px;
+  max-height: calc(100vh - 250px);
   overflow-x: auto;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   position: relative;
+}
+
+/* Custom Scrollbar for crisp database browsing */
+.wh-table-responsive::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.wh-table-responsive::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 3px;
+}
+.wh-table-responsive::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+.wh-table-responsive::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
 }
 
 .wh-table {
@@ -278,7 +295,7 @@
 .wh-table thead {
   position: sticky;
   top: 0;
-  z-index: 30;
+  z-index: 35;
 }
 
 .wh-table th {
@@ -291,8 +308,8 @@
   white-space: nowrap;
   position: sticky;
   top: 0;
-  z-index: 30;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  z-index: 35;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
 }
 
 .wh-table td {
@@ -680,6 +697,13 @@
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
   overflow: hidden;
   min-height: 0;
+  flex: 1;
+}
+
+.wh-master-card .wh-table-responsive {
+  flex: 1;
+  min-height: 220px;
+  max-height: calc(100vh - 280px);
 }
 
 .wh-master-card-header {

@@ -216,7 +216,7 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
   useEffect(() => {
     getProductsApi(token)
       .then((res) => setAllProducts(res.items || []))
-      .catch(() => {});
+      .catch(() => { });
   }, [token]);
 
   // 2. Tải vị trí và tồn sản phẩm của kho đang chọn
@@ -847,13 +847,11 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
       {/* Toast Alert Messages */}
       {successMsg && (
         <div className="wh-info-banner" style={{ background: '#f0fdf4', borderColor: '#bbf7d0', color: '#15803d' }}>
-          <span>✓</span>
           <strong>{successMsg}</strong>
         </div>
       )}
       {errorMsg && (
         <div className="wh-info-banner" style={{ background: '#fef2f2', borderColor: '#fca5a5', color: '#b91c1c' }}>
-          <span>⚠️</span>
           <strong>{errorMsg}</strong>
         </div>
       )}
@@ -1646,7 +1644,7 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                 Bạn có chắc chắn muốn xóa kho <strong>{deletingWarehouse.name}</strong> (Mã: {deletingWarehouse.code}) không?
               </p>
               <div style={{ fontSize: '13px', color: '#64748b', background: '#f8fafc', padding: '10px 12px', borderRadius: '6px' }}>
-                ⚠️ Nếu kho đang có hàng tồn hoặc đang được phân công cho đại lý, hệ thống sẽ tự động chặn việc xóa để bảo vệ toàn vẹn dữ liệu.
+                Lưu ý: Nếu kho đang có hàng tồn hoặc đang được phân công cho đại lý, hệ thống sẽ tự động chặn việc xóa để bảo vệ toàn vẹn dữ liệu.
               </div>
             </div>
             <div className="wh-modal-footer">
@@ -2025,7 +2023,7 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                 Bạn có chắc chắn muốn xóa vị trí <strong>{deletingLocation.location_code}</strong> không?
               </p>
               <div style={{ fontSize: '13px', color: '#64748b', background: '#f8fafc', padding: '10px 12px', borderRadius: '6px' }}>
-                ⚠️ Vị trí chỉ được phép xóa khi số lượng sản phẩm lưu trữ tại vị trí này bằng 0.
+                Lưu ý: Vị trí chỉ được phép xóa khi số lượng sản phẩm lưu trữ tại vị trí này bằng 0.
               </div>
             </div>
             <div className="wh-modal-footer">
@@ -2301,7 +2299,7 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                 Bạn có chắc chắn muốn xóa khu vực <strong>{deletingZone.zone_name}</strong> (Mã: {deletingZone.zone_code}) không?
               </p>
               <div style={{ fontSize: '13px', color: '#64748b', background: '#f8fafc', padding: '10px 12px', borderRadius: '6px' }}>
-                ⚠️ Nếu khu vực đang có vị trí kệ sử dụng ({deletingZone.locations_count} vị trí), hệ thống sẽ chặn việc xóa.
+                Lưu ý: Nếu khu vực đang có vị trí kệ sử dụng ({deletingZone.locations_count} vị trí), hệ thống sẽ chặn việc xóa.
               </div>
             </div>
             <div className="wh-modal-footer">
@@ -2378,8 +2376,8 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                       value={rackFormData.rack_type}
                       onChange={(e) => setRackFormData({ ...rackFormData, rack_type: e.target.value })}
                     >
-                      <option value="aisle">Dãy kệ (Aisle)</option>
-                      <option value="rack">Tầng / Kệ (Rack)</option>
+                      <option value="aisle">Dãy kệ </option>
+                      <option value="rack">Tầng / Kệ </option>
                     </select>
                   </div>
 
@@ -2447,7 +2445,7 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                 Bạn có chắc chắn muốn xóa <strong>{deletingRack.rack_name}</strong> (Mã: {deletingRack.rack_code}) không?
               </p>
               <div style={{ fontSize: '13px', color: '#64748b', background: '#f8fafc', padding: '10px 12px', borderRadius: '6px' }}>
-                ⚠️ Nếu kệ đang được liên kết trong các vị trí ({deletingRack.locations_count} vị trí), hệ thống sẽ chặn việc xóa.
+                Lưu ý: Nếu kệ đang được liên kết trong các vị trí ({deletingRack.locations_count} vị trí), hệ thống sẽ chặn việc xóa.
               </div>
             </div>
             <div className="wh-modal-footer">
