@@ -27,6 +27,7 @@ import SalesOrderEntry from './SalesOrderEntry';
 import { ProductHistoryView } from './ProductHistoryView';
 import { ProductFormView } from './ProductFormView';
 import WarehouseManagementView from './WarehouseManagementView';
+import { StockAuditManagementView } from './StockAuditManagementView';
 import { ModalPortal } from './ModalPortal';
 
 import './dashboard.css';
@@ -114,6 +115,15 @@ export default function DashboardPage({
   // Quyền thao tác các nút trên dòng sản phẩm (Cấu hình ĐVT, Nhập/Xuất kho, Lịch sử)
   const canPerformProductAction = Boolean(canConfigUnit || canWriteInventory || isAdmin || isSalesManager);
 
+  // Quyền truy cập kiểm kê kho (Quản trị hệ thống, Quản lý kho, Thủ kho)
+  const canAccessStockAudit = Boolean(
+    isAdmin ||
+    officialRoles.includes('warehouse_manager') ||
+    user.role === 'warehouse_manager' ||
+    officialRoles.includes('warehouse') ||
+    user.role === 'warehouse'
+  );
+
   // 2. Khởi tạo State với Clean URL
   const [activeTab, setActiveTabState] = useState<TabType>(() => {
     const pathname = window.location.pathname.toLowerCase();
@@ -130,6 +140,7 @@ export default function DashboardPage({
     const isDeliveryPointsPath = pathname === '/delivery-points' || pathname.startsWith('/delivery-points/');
     const isProductHistoryPath = pathname === '/product-history' || pathname.startsWith('/product-history/');
     const isWarehousesPath = pathname === '/warehouses' || pathname.startsWith('/warehouses/');
+    const isStockAuditsPath = pathname === '/stock-audits' || pathname.startsWith('/stock-audits/');
 
     const params = new URLSearchParams(window.location.search);
     const hasOldTabParam = params.has('tab') || params.has('view');
@@ -140,6 +151,17 @@ export default function DashboardPage({
         try { window.history.replaceState({}, '', '/warehouses'); } catch {}
       }
       return 'warehouses';
+    }
+
+    if (isStockAuditsPath || oldTabVal === 'stock-audits' || oldTabVal === 'stock-audit') {
+      if (canAccessStockAudit) {
+        if (pathname !== '/stock-audits' || hasOldTabParam) {
+          try { window.history.replaceState({}, '', '/stock-audits'); } catch {}
+        }
+        return 'stock-audits';
+      }
+      try { window.history.replaceState({}, '', '/'); } catch {}
+      return 'inventory';
     }
 
     if (isDiscountsPath || oldTabVal === 'discounts' || oldTabVal === 'discount') {
@@ -265,6 +287,19 @@ export default function DashboardPage({
       } catch {
         // ignore
       }
+      return;
+    }
+
+    if (tab === 'stock-audits') {
+      if (!canAccessStockAudit) {
+        setActiveTabState('inventory');
+        try { window.history.replaceState({}, '', '/'); } catch {}
+        return;
+      }
+      setActiveTabState('stock-audits');
+      try {
+        window.history.pushState({}, '', '/stock-audits');
+      } catch {}
       return;
     }
 
@@ -410,6 +445,7 @@ export default function DashboardPage({
               : activeTab === 'suppliers' ? canManageSuppliers
                 : activeTab === 'discounts' ? canAccessDiscounts
                 : activeTab === 'product-history' ? (isAdmin || isSalesManager || canWriteInventory)
+                : activeTab === 'stock-audits' ? canAccessStockAudit
                   : true;
     if (!isAllowed) {
       setActiveTabState('inventory');
@@ -456,6 +492,20 @@ export default function DashboardPage({
       const isOrdersPath = pathname === '/orders' || pathname.startsWith('/orders/');
       const isProfilePath = pathname === '/profile' || pathname.startsWith('/profile/');
       const isProductHistoryPath = pathname === '/product-history' || pathname.startsWith('/product-history/');
+      const isStockAuditsPath = pathname === '/stock-audits' || pathname.startsWith('/stock-audits/');
+
+      if (isStockAuditsPath || tabParam === 'stock-audits' || tabParam === 'stock-audit') {
+        if (canAccessStockAudit) {
+          if (pathname !== '/stock-audits' || tabParam) {
+            try { window.history.replaceState({}, '', '/stock-audits'); } catch {}
+          }
+          setActiveTabState('stock-audits');
+        } else {
+          setActiveTabState('inventory');
+          try { window.history.replaceState({}, '', '/'); } catch {}
+        }
+        return;
+      }
 
       if (isProductHistoryPath || tabParam === 'product-history') {
         const code = params.get('code') || params.get('productCode');
@@ -839,7 +889,6 @@ export default function DashboardPage({
   const currentBadgeColor = roleBadgeColorMap[primaryRole] || '#64748b';
 
   const isProductFormOpen = productDrawerState.isOpen && activeTab === 'inventory';
-  const isSalesOrderOpen = activeTab === 'create-order' || isSalesOrderEntryOpen;
   const isLockedScrollTab = !isProductFormOpen && !isSalesOrderOpen && (
     activeTab === 'inventory' ||
     activeTab === 'dealers' ||
@@ -850,7 +899,8 @@ export default function DashboardPage({
     activeTab === 'price-books' ||
     activeTab === 'categories' ||
     activeTab === 'orders' ||
-    activeTab === 'product-history'
+    activeTab === 'product-history' ||
+    activeTab === 'stock-audits'
   ) && !isPendingCustomer;
 
   return (
@@ -893,6 +943,7 @@ export default function DashboardPage({
           canManageCategories={canManageCategories}
           canViewProductHistory={isAdmin || isSalesManager || canWriteInventory}
           canAccessDiscounts={canAccessDiscounts}
+          canAccessStockAudit={canAccessStockAudit}
           isAdmin={isAdmin}
           onLogout={() => {
             if (isLoggingOut) return;
@@ -1173,14 +1224,26 @@ export default function DashboardPage({
             onLogout={onLogout}
           />
         )
-
       ) : activeTab === 'warehouses' ? (
         <WarehouseManagementView
           token={token}
           currentUser={user}
           onBackToHome={() => setActiveTab('inventory')}
         />
-
+      ) : activeTab === 'stock-audits' ? (
+        canAccessStockAudit ? (
+          <StockAuditManagementView
+            token={token}
+            currentUser={user}
+          />
+        ) : (
+          <AccessDeniedView
+            currentUser={user}
+            requiredPermission="Quản lý kiểm kê kho (Quản trị hệ thống / Quản lý kho / Thủ kho)"
+            onBackToWorkflow={() => setActiveTab('inventory')}
+            onLogout={onLogout}
+          />
+        )
       ) : isPendingCustomer ? (
         <div style={{
           display: 'flex',

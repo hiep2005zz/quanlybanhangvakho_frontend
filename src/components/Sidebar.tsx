@@ -4,6 +4,7 @@ import { useLocation } from '../hooks/useLocation';
 export type TabType =
   | 'inventory'
   | 'warehouses'
+  | 'stock-audits'
   | 'orders'
   | 'create-order'
   | 'users'
@@ -33,6 +34,7 @@ export interface SidebarProps {
   canManageCategories?: boolean;
   canViewProductHistory?: boolean;
   canAccessDiscounts?: boolean;
+  canAccessStockAudit?: boolean;
   isAdmin?: boolean;
   onLogout?: () => void;
   isLoggingOut?: boolean;
@@ -51,7 +53,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   activeTab,
   onSelectTab,
   canManageProducts: _canManageProducts = true,
-  canCreateOrders: _canCreateOrders = false,
+  canCreateOrders = false,
   canReadOrders = false,
   canViewDealers = false,
   canManageDealerProfiles = false,
@@ -61,6 +63,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   canManageCategories = false,
   canViewProductHistory = false,
   canAccessDiscounts = false,
+  canAccessStockAudit = false,
   onLogout,
   isLoggingOut = false,
 }) => {
@@ -98,6 +101,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
       ),
     },
     {
+      id: 'btn-sidebar-stock-audits',
+      tab: 'stock-audits',
+      path: '/stock-audits',
+      label: 'Kiểm kê kho',
+      visible: canAccessStockAudit,
+      icon: (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2" />
+          <rect x="9" y="3" width="6" height="4" rx="1" />
+          <path d="m9 14 2 2 4-4" />
+        </svg>
+      ),
+    },
+    {
       id: 'btn-sidebar-product-history',
       tab: 'product-history',
       path: '/product-history',
@@ -115,7 +132,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       tab: 'create-order',
       path: '/create-order',
       label: 'Tạo đơn hàng',
-      visible: false, // Bỏ hiển thị mục tạo đơn hàng ở thanh menu
+      visible: canCreateOrders,
       icon: (
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />

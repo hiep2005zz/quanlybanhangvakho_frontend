@@ -97,23 +97,114 @@ body {
   color: var(--text-primary);
 }
 
-/* Custom Scrollbar */
+/* Custom Scrollbar (Thiết kế chuẩn Hình 5: Màu xám thanh lịch, có nút mũi tên điều hướng) */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 #f8fafc;
+}
+
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
 }
 
 ::-webkit-scrollbar-track {
-  background: transparent;
+  background: #f8fafc;
+  border-left: 1px solid #e2e8f0;
 }
 
+/* Nút trượt con nhộng (Thumb) với padding viền 2px chuẩn hình 5 */
 ::-webkit-scrollbar-thumb {
-  background: rgba(20, 184, 166, 0.4);
-  border-radius: var(--radius-pill);
+  background-color: #cbd5e1;
+  border-radius: 9999px;
+  border: 2px solid #f8fafc;
+  background-clip: padding-box;
+  min-height: 28px;
+  min-width: 28px;
+  transition: background-color 0.15s ease;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(15, 118, 110, 0.7);
+  background-color: #94a3b8;
+}
+
+::-webkit-scrollbar-thumb:active {
+  background-color: #64748b;
+}
+
+::-webkit-scrollbar-corner {
+  background: #f8fafc;
+  border-top: 1px solid #e2e8f0;
+  border-left: 1px solid #e2e8f0;
+}
+
+/* Nút mũi tên điều hướng (Scrollbar Buttons) */
+/* 1. Mũi tên lên (Vertical Up Arrow) */
+::-webkit-scrollbar-button:single-button:vertical:decrement {
+  height: 14px;
+  width: 10px;
+  background-color: #f8fafc;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 8px 8px;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='%2394a3b8'><polygon points='12,6 4,16 20,16'/></svg>");
+  border-left: 1px solid #e2e8f0;
+}
+
+::-webkit-scrollbar-button:single-button:vertical:decrement:hover {
+  background-color: #f1f5f9;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='%2364748b'><polygon points='12,6 4,16 20,16'/></svg>");
+}
+
+/* 2. Mũi tên xuống (Vertical Down Arrow) */
+::-webkit-scrollbar-button:single-button:vertical:increment {
+  height: 14px;
+  width: 10px;
+  background-color: #f8fafc;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 8px 8px;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='%2394a3b8'><polygon points='12,18 4,8 20,8'/></svg>");
+  border-left: 1px solid #e2e8f0;
+}
+
+::-webkit-scrollbar-button:single-button:vertical:increment:hover {
+  background-color: #f1f5f9;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='%2364748b'><polygon points='12,18 4,8 20,8'/></svg>");
+}
+
+/* 3. Mũi tên sang trái (Horizontal Left Arrow) */
+::-webkit-scrollbar-button:single-button:horizontal:decrement {
+  height: 10px;
+  width: 14px;
+  background-color: #f8fafc;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 8px 8px;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='%2394a3b8'><polygon points='6,12 16,4 16,20'/></svg>");
+  border-top: 1px solid #e2e8f0;
+}
+
+::-webkit-scrollbar-button:single-button:horizontal:decrement:hover {
+  background-color: #f1f5f9;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='%2364748b'><polygon points='6,12 16,4 16,20'/></svg>");
+}
+
+/* 4. Mũi tên sang phải (Horizontal Right Arrow) */
+::-webkit-scrollbar-button:single-button:horizontal:increment {
+  height: 10px;
+  width: 14px;
+  background-color: #f8fafc;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 8px 8px;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='%2394a3b8'><polygon points='18,12 8,4 8,20'/></svg>");
+  border-top: 1px solid #e2e8f0;
+}
+
+::-webkit-scrollbar-button:single-button:horizontal:increment:hover {
+  background-color: #f1f5f9;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='%2364748b'><polygon points='18,12 8,4 8,20'/></svg>");
 }
 
 :focus-visible {
