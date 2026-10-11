@@ -67,14 +67,8 @@ export default function DashboardPage({
   const canReadOrders = orderPermTier !== 'NO_ACCESS';
   const canCreateOrders = (orderPermTier === 'FULL_ACCESS' || isCustomer || user.role === 'agent' || Boolean(user.roles && user.roles.includes('agent'))) && !isAccountant;
   const isSalesManager = user.role === 'sales_manager' || Boolean(user.roles && user.roles.includes('sales_manager'));
-  const canAccessDiscounts =
-    isAdmin ||
-    isSalesManager ||
-    officialRoles.includes('sales') ||
-    user.role === 'sales' ||
-    officialRoles.includes('accountant') ||
-    user.role === 'accountant' ||
-    Boolean(user.permissions && (user.permissions.includes('discount:read') || user.permissions.includes('discount:manage')));
+  // Chỉ Admin và Quản lý kinh doanh mới thấy và thao tác chức năng chiết khấu
+  const canAccessDiscounts = isAdmin || isSalesManager;
 
   // Quyền quản lý nhà cung cấp
   const SUPPLIER_ROLES = ['admin', 'warehouse', 'warehouse_manager'];
@@ -1456,7 +1450,7 @@ export default function DashboardPage({
             )}
           </div>
 
-          {/* CHÍNH SÁCH CHIẾT KHẤU - 1 Ô GỌN GÀNG */}
+          {/* CHÍNH SÁCH CHIẾT KHẤU - 1 Ô GỌN GÀNG (Hiển thị ở tất cả các phân quyền) */}
           {(() => {
             try {
               const savedPolicies = localStorage.getItem('discountPolicies');
@@ -1502,7 +1496,11 @@ export default function DashboardPage({
                                 {p.target_group === 'all' ? 'Tất cả đại lý' : p.target_group === 'agent_tier_1' ? 'Đại lý Cấp 1' : 'Đại lý Cấp 2'}:
                               </span>
                               <span style={{ color: '#059669', fontWeight: '600' }}>
-                                {p.tiers?.map((t: any) => `≥${t.min_quantity}sp (-${t.discount_percent}%)`).join(', ')}
+                                {p.tiers?.map((t: any) => {
+                                  const isAmt = t.discount_type === 'amount' || (t.discount_amount && t.discount_amount > 0 && !t.discount_percent);
+                                  const valStr = isAmt ? `${Number(t.discount_amount).toLocaleString('vi-VN')}đ/sp` : `${t.discount_percent}%`;
+                                  return `≥${t.min_quantity}sp (-${valStr})`;
+                                }).join(', ')}
                               </span>
                             </div>
                           ))}
@@ -1547,11 +1545,15 @@ export default function DashboardPage({
                                   <td style={{ padding: '6px 10px', color: '#64748b' }}>{p.start_date} - {p.end_date || 'Vô thời hạn'}</td>
                                   <td style={{ padding: '6px 10px' }}>
                                     <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-                                      {p.tiers && p.tiers.map((t: any, idx: number) => (
-                                        <span key={idx} style={{ background: '#ecfdf5', color: '#059669', border: '1px solid #d1fae5', padding: '1px 5px', borderRadius: '4px', fontSize: '10.5px', fontWeight: '500' }}>
-                                          Từ {t.min_quantity}sp: -{t.discount_percent}%
-                                        </span>
-                                      ))}
+                                      {p.tiers && p.tiers.map((t: any, idx: number) => {
+                                        const isAmt = t.discount_type === 'amount' || (t.discount_amount && t.discount_amount > 0 && !t.discount_percent);
+                                        const valStr = isAmt ? `${Number(t.discount_amount).toLocaleString('vi-VN')}đ/sp` : `${t.discount_percent}%`;
+                                        return (
+                                          <span key={idx} style={{ background: '#ecfdf5', color: '#059669', border: '1px solid #d1fae5', padding: '1px 5px', borderRadius: '4px', fontSize: '10.5px', fontWeight: '500' }}>
+                                            Từ {t.min_quantity}sp: -{valStr}
+                                          </span>
+                                        );
+                                      })}
                                     </div>
                                   </td>
                                 </tr>
