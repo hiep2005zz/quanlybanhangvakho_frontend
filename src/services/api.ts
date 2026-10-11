@@ -2009,7 +2009,6 @@ export interface OrderResponseData {
   approved_at?: string | null;
   delivery_point?: string | null;
   delivery_point_id?: number | null;
-  delivery_point?: string | null;
   desired_delivery_date?: string | null;
   note?: string | null;
   discount_rate?: number;

@@ -37,7 +37,6 @@ export interface SidebarProps {
   canAccessDiscounts?: boolean;
   canAccessStockAudit?: boolean;
   isAdmin?: boolean;
-  isCustomer?: boolean;
   onLogout?: () => void;
   isLoggingOut?: boolean;
   isMobileOpen?: boolean;
@@ -70,7 +69,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
   canManageCategories = false,
   canViewProductHistory = false,
   canAccessDiscounts = false,
-  isCustomer = false,
   canAccessStockAudit = false,
   onLogout,
   isLoggingOut = false,

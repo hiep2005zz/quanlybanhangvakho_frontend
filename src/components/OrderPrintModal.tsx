@@ -2,7 +2,6 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { getOrderDetailApi, getOrderDealersApi, OrderDetail, OrderDealer } from '../services/api';
 import Barcode128 from './Barcode128';
-import { getOrderStatusLabel } from '../utils/orderPermissions';
 import './order-print.css';
 
 interface OrderPrintModalProps {

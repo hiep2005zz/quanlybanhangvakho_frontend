@@ -988,7 +988,6 @@ export default function DashboardPage({
           canAccessDiscounts={canAccessDiscounts}
           canAccessStockAudit={canAccessStockAudit}
           isAdmin={isAdmin}
-          isCustomer={isCustomer}
           onLogout={() => {
             if (isLoggingOut) return;
             setShowLogoutConfirm(true);

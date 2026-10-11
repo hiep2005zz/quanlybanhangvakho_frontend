@@ -20,7 +20,6 @@ import { OrderLifecycleTimeline } from './OrderLifecycleTimeline';
 import { OrderCancelModal } from './OrderCancelModal';
 import { getOrderPermissionTier, isOrderPastExported, isOrderCancelable } from '../utils/orderPermissions';
 import OrderPrintModal from './OrderPrintModal';
-import { emitStatusToast } from './StatusToast';
 
 
 interface OrderManagementViewProps {
@@ -991,8 +990,8 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
             >
               {isCustomerLocked ? 'Tạo Đơn Hàng Mới (Đã khóa)' : 'Tạo Đơn Hàng Mới'}
             </button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {/* Thẻ thống kê */}
