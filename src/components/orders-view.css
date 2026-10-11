@@ -260,6 +260,26 @@
   color: #b91c1c;
 }
 
+.orders-status--exported {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+.orders-status--picking {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.orders-status--delivered {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.orders-status--closed {
+  background: #f1f5f9;
+  color: #475569;
+}
+
 .orders-row-actions {
   text-align: right !important;
   white-space: nowrap;

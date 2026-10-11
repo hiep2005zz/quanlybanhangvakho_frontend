@@ -10,6 +10,7 @@ import {
   DeliveryPoint,
 } from '../services/api';
 import { emitStatusToast } from './StatusToast';
+import { getOrderStatusLabel } from '../utils/orderPermissions';
 
 interface CartItem {
   product: ProductItem;
@@ -297,9 +298,8 @@ export const CustomerPortalView: React.FC<CustomerPortalViewProps> = ({
               </div>
             </div>
 
-            <div className={`border rounded-xl p-3.5 shadow-xs ${
-              remainingCredit > 0 ? 'bg-emerald-50/40 border-emerald-200' : 'bg-rose-50 border-rose-200'
-            }`}>
+            <div className={`border rounded-xl p-3.5 shadow-xs ${remainingCredit > 0 ? 'bg-emerald-50/40 border-emerald-200' : 'bg-rose-50 border-rose-200'
+              }`}>
               <div className="text-sm font-medium flex items-center justify-between">
                 <span className={remainingCredit > 0 ? 'text-emerald-800' : 'text-rose-800'}>Hạn mức công nợ còn lại</span>
                 {remainingCredit > 0 && (
@@ -568,9 +568,8 @@ export const CustomerPortalView: React.FC<CustomerPortalViewProps> = ({
                   </span>
                 </div>
 
-                <div className={`flex justify-between items-center pt-1 font-semibold ${
-                  isOverCredit ? 'text-amber-700' : 'text-slate-600'
-                }`}>
+                <div className={`flex justify-between items-center pt-1 font-semibold ${isOverCredit ? 'text-amber-700' : 'text-slate-600'
+                  }`}>
                   <span className="font-medium text-gray-500">Hạn mức còn lại sau đơn:</span>
                   <span className="font-bold">
                     {remainingAfterOrder.toLocaleString('vi-VN')} đ
@@ -653,11 +652,10 @@ export const CustomerPortalView: React.FC<CustomerPortalViewProps> = ({
                 type="submit"
                 id="btn-submit-dealer-order"
                 disabled={isSubmitting || cart.length === 0}
-                className={`w-full py-3 px-4 rounded-xl text-sm font-bold text-white transition-all shadow-md flex items-center justify-center gap-2 ${
-                  isSubmitting || cart.length === 0
+                className={`w-full py-3 px-4 rounded-xl text-sm font-bold text-white transition-all shadow-md flex items-center justify-center gap-2 ${isSubmitting || cart.length === 0
                     ? 'bg-gray-400 cursor-not-allowed opacity-70'
                     : 'bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] cursor-pointer'
-                }`}
+                  }`}
               >
                 {isSubmitting ? (
                   <>
@@ -733,7 +731,7 @@ export const CustomerPortalView: React.FC<CustomerPortalViewProps> = ({
               <div className="flex justify-between">
                 <span className="text-gray-500">Trạng thái:</span>
                 <span className="font-semibold text-amber-600 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
-                  {submittedOrder.status === 'PENDING_APPROVAL' ? 'Chờ duyệt' : submittedOrder.status}
+                  {getOrderStatusLabel(submittedOrder.status)}
                 </span>
               </div>
               <div className="flex justify-between">

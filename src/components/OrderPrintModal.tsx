@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { getOrderDetailApi, getOrderDealersApi, OrderDetail, OrderDealer } from '../services/api';
 import Barcode128 from './Barcode128';
+import { getOrderStatusLabel } from '../utils/orderPermissions';
 import './order-print.css';
 
 interface OrderPrintModalProps {
@@ -480,13 +481,7 @@ export const OrderPrintModal: React.FC<OrderPrintModalProps> = ({
                   <span>
                     Trạng thái:{' '}
                     <strong style={{ color: order.status === 'CONFIRMED' ? '#16a34a' : '#ea580c' }}>
-                      {order.status === 'CONFIRMED'
-                        ? 'Đã xác nhận'
-                        : order.status === 'PENDING_APPROVAL'
-                        ? 'Chờ duyệt giá'
-                        : order.status === 'PENDING'
-                        ? 'Chờ xử lý'
-                        : order.status}
+                      {getOrderStatusLabel(order.status)}
                     </strong>
                   </span>
                 </div>
