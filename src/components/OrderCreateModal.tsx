@@ -904,7 +904,7 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
       const msg = err.message || 'Lỗi khi tạo đơn hàng';
       setErrorMsg(msg);
       emitStatusToast({
-        title: msg.includes('vượt quá tồn') ? 'Vượt tồn khả dụng' : 'Lỗi tạo đơn hàng',
+        title: msg.includes('quá hạn') ? 'Chặn tạo đơn do nợ quá hạn' : (msg.includes('vượt quá tồn') ? 'Vượt tồn khả dụng' : 'Lỗi tạo đơn hàng'),
         message: msg,
         type: 'error',
       });

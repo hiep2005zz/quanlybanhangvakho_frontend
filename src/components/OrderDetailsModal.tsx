@@ -1,9 +1,20 @@
 import { useEffect, useState } from 'react';
-import { cancelOrderApi, getOrderDetailApi, getCloneOrderDataApi, OrderDetail, User } from '../services/api';
+import {
+  cancelOrderApi,
+  getOrderDetailApi,
+  getCloneOrderDataApi,
+  OrderDetail,
+  getOrderPickingLocationsApi,
+  OrderPickingSummary,
+  OrderPickingItem,
+  ProductPickingLocationItem,
+  User,
+} from '../services/api';
 import { OrderLifecycleTimeline } from './OrderLifecycleTimeline';
 import { OrderCancelModal } from './OrderCancelModal';
-import { getOrderPermissionTier } from '../utils/orderPermissions';
+import { getOrderPermissionTier, isOrderPastExported, isOrderCancelable, getOrderStatusLabel } from '../utils/orderPermissions';
 import OrderPrintModal from './OrderPrintModal';
+import { emitStatusToast } from './StatusToast';
 import './orders-view.css';
 
 interface OrderDetailsModalProps {
@@ -39,6 +50,7 @@ export default function OrderDetailsModal({
   onCloneOrder,
 }: OrderDetailsModalProps) {
   const [order, setOrder] = useState<OrderDetail | null>(null);
+  const [pickingSummary, setPickingSummary] = useState<OrderPickingSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
@@ -53,14 +65,20 @@ export default function OrderDetailsModal({
   useEffect(() => {
     let isMounted = true;
     if (isNoAccess) {
-      setError('Truy cập bị từ chối: Nhân viên mua hàng không có quyền xem đơn hàng bán.');
+      setError('Truy cập bị từ chối (403 Forbidden): Chức năng chỉ dành cho Quản trị viên, Quản lý kinh doanh và Nhân viên kinh doanh.');
       setIsLoading(false);
       return;
     }
 
-    getOrderDetailApi(token, orderCode)
-      .then((details) => {
-        if (isMounted) setOrder(details);
+    Promise.all([
+      getOrderDetailApi(token, orderCode),
+      getOrderPickingLocationsApi(token, orderCode).catch(() => null),
+    ])
+      .then(([details, picking]) => {
+        if (isMounted) {
+          setOrder(details);
+          if (picking) setPickingSummary(picking);
+        }
       })
       .catch((loadError: unknown) => {
         if (isMounted) {
@@ -105,22 +123,20 @@ export default function OrderDetailsModal({
         onOrderCancelled();
       }
     } catch (err: any) {
-      alert(err.message || 'Lỗi khi hủy đơn hàng');
+      emitStatusToast({
+        type: 'error',
+        title: 'Lỗi hủy đơn hàng',
+        message: err.message || 'Lỗi khi hủy đơn hàng',
+      });
     } finally {
       setIsSubmittingCancel(false);
     }
   };
 
-  const currentStatus = (order?.status || '').toUpperCase();
-  const isExportedOrLater = [
-    'EXPORTED',
-    'DISPATCHED',
-    'SHIPPED',
-    'DELIVERED',
-    'CLOSED',
-    'COMPLETED',
-  ].includes(currentStatus);
-  const isAlreadyCancelled = ['CANCELLED', 'REJECTED'].includes(currentStatus);
+  const currentStatus = (order?.status || '').toUpperCase().trim();
+  const isExportedOrLater = isOrderPastExported(order?.status);
+  const isAlreadyCancelled = ['CANCELLED', 'REJECTED', 'ĐÃ HỦY', 'TỪ CHỐI'].includes(currentStatus);
+  const canCancel = isOrderCancelable(order?.status);
 
   return (
     <>
@@ -135,11 +151,11 @@ export default function OrderDetailsModal({
           role="dialog"
           aria-modal="true"
           aria-labelledby="order-detail-title"
-          style={{ maxWidth: '920px', width: '95%' }}
+          style={{ maxWidth: '950px', width: '95%' }}
         >
           <header className="orders-detail-heading">
             <div>
-              <p className="orders-page-eyebrow">CHI TIẾT VÀ VÒNG ĐỜI ĐƠN HÀNG</p>
+              <p className="orders-page-eyebrow">CHI TIẾT VÀ VÒNG ĐỜI ĐƠN HÀNG & SOẠN HÀNG THEO VỊ TRÍ KHO</p>
               <h2 id="order-detail-title">{orderCode}</h2>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -198,7 +214,11 @@ export default function OrderDetailsModal({
                       onClose();
                       onCloneOrder(data);
                     } catch (e: any) {
-                      alert(e.message || 'Lỗi khi sao chép đơn hàng');
+                      emitStatusToast({
+                        type: 'error',
+                        title: 'Lỗi sao chép đơn hàng',
+                        message: e.message || 'Lỗi khi sao chép đơn hàng',
+                      });
                     }
                   }}
                   title="Sao chép đơn hàng này thành đơn mới"
@@ -208,34 +228,6 @@ export default function OrderDetailsModal({
                     <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
                   </svg>
                   Sao chép đơn này
-                </button>
-              )}
-
-              {/* Nút Hủy đơn chỉ hiển thị với Nhóm Toàn Quyền (Sales / Sales Manager / Admin) */}
-              {isFullAccess && !isAlreadyCancelled && (
-                <button
-                  type="button"
-                  id={`btn-cancel-order-${orderCode}`}
-                  onClick={() => setIsCancelModalOpen(true)}
-                  disabled={isExportedOrLater}
-                  style={{
-                    padding: '8px 16px',
-                    background: isExportedOrLater ? '#e2e8f0' : '#dc2626',
-                    color: isExportedOrLater ? '#94a3b8' : '#ffffff',
-                    border: 'none',
-                    borderRadius: '8px',
-                    fontSize: '13px',
-                    fontWeight: 700,
-                    cursor: isExportedOrLater ? 'not-allowed' : 'pointer',
-                    transition: 'all 0.15s ease',
-                  }}
-                  title={
-                    isExportedOrLater
-                      ? 'Đơn hàng đã xuất kho, không thể hủy (phải đi đường trả hàng)'
-                      : 'Hủy đơn hàng và nhả tồn giữ chỗ'
-                  }
-                >
-                  {isExportedOrLater ? 'Không thể hủy (Đã xuất)' : 'Hủy đơn hàng'}
                 </button>
               )}
 
@@ -293,7 +285,7 @@ export default function OrderDetailsModal({
                   }}
                 >
                   <strong>Lưu ý nghiệp vụ: </strong>
-                  Đơn hàng đã xuất kho vận chuyển (trạng thái: {order.status}). Hệ thống vô hiệu hóa chức năng Hủy đơn. Trường hợp cần trả hàng hoặc đổi ý, vui lòng thực hiện quy trình trả hàng tại khâu kho vận.
+                  Đơn hàng đã xuất kho vận chuyển (trạng thái: {getOrderStatusLabel(order.status)}). Hệ thống vô hiệu hóa chức năng Hủy đơn. Trường hợp cần trả hàng hoặc đổi ý, vui lòng thực hiện quy trình trả hàng tại khâu kho vận.
                 </div>
               )}
 
@@ -323,43 +315,158 @@ export default function OrderDetailsModal({
                 </div>
               )}
 
-              <dl className="orders-detail-summary">
-                <div><dt>Đại lý</dt><dd>{order.dealer_name}</dd></div>
-                <div><dt>Người tạo</dt><dd>{order.created_by}</dd></div>
-                <div><dt>Ngày tạo</dt><dd>{formatDate(order.created_at)}</dd></div>
-                <div><dt>Trạng thái</dt><dd><strong>{order.status}</strong></dd></div>
-                <div><dt>Điểm giao hàng</dt><dd>{order.delivery_point || 'Chưa có thông tin'}</dd></div>
-                <div><dt>Ngày giao mong muốn</dt><dd>{formatDate(order.desired_delivery_date)}</dd></div>
-                {order.note && <div className="orders-detail-note"><dt>Ghi chú</dt><dd>{order.note}</dd></div>}
-              </dl>
+            {/* Thông tin kho xuất hàng phục vụ */}
+            {pickingSummary && (
+              <div
+                style={{
+                  background: '#f0f9ff',
+                  border: '1px solid #bae6fd',
+                  borderRadius: '10px',
+                  padding: '12px 16px',
+                  marginBottom: '16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  gap: '12px',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div
+                    style={{
+                      width: '36px',
+                      height: '36px',
+                      borderRadius: '8px',
+                      background: '#0284c7',
+                      color: '#ffffff',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M3 21V9l9-7 9 7v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '12px', color: '#0369a1', fontWeight: '600', textTransform: 'uppercase' }}>
+                      Kho xuất hàng mặc định (Đại lý {order.dealer_name})
+                    </div>
+                    <div style={{ fontSize: '15px', fontWeight: '700', color: '#0c4a6e' }}>
+                      {pickingSummary.warehouse_name} ({pickingSummary.warehouse_code})
+                    </div>
+                  </div>
+                </div>
+                {pickingSummary.warehouse_address && (
+                  <div style={{ fontSize: '12.5px', color: '#0369a1', background: '#e0f2fe', padding: '4px 10px', borderRadius: '6px' }}>
+                    Địa chỉ: {pickingSummary.warehouse_address}
+                  </div>
+                )}
+              </div>
+            )}
 
-              <div className="orders-detail-table-wrap">
-                <table className="orders-table orders-detail-table">
-                  <thead>
-                    <tr>
-                      <th>Sản phẩm</th>
-                      <th>Đơn vị</th>
-                      <th className="orders-detail-number">Số lượng</th>
-                      <th className="orders-detail-number">Đơn giá</th>
-                      <th className="orders-detail-number">Thành tiền</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {order.items.map((item, index) => (
+            <dl className="orders-detail-summary">
+              <div><dt>Đại lý</dt><dd>{order.dealer_name}</dd></div>
+              <div><dt>Người tạo</dt><dd>{order.created_by}</dd></div>
+              <div><dt>Ngày tạo</dt><dd>{formatDate(order.created_at)}</dd></div>
+              <div><dt>Trạng thái</dt><dd><strong>{getOrderStatusLabel(order.status)}</strong></dd></div>
+              <div><dt>Điểm giao hàng</dt><dd>{order.delivery_point || 'Chưa có thông tin'}</dd></div>
+              <div><dt>Ngày giao mong muốn</dt><dd>{formatDate(order.desired_delivery_date)}</dd></div>
+              {order.note && <div className="orders-detail-note"><dt>Ghi chú</dt><dd>{order.note}</dd></div>}
+            </dl>
+
+            <div className="orders-detail-table-wrap">
+              <table className="orders-table orders-detail-table">
+                <thead>
+                  <tr>
+                    <th>Sản phẩm</th>
+                    <th>Đơn vị</th>
+                    <th className="orders-detail-number">SL đặt</th>
+                    <th>Vị trí kệ lưu kho & Tồn khả dụng</th>
+                    <th className="orders-detail-number">Đơn giá</th>
+                    <th className="orders-detail-number">Thành tiền</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {order.items.map((item, index) => {
+                    const pickingItem = pickingSummary?.items.find((p: OrderPickingItem) => p.product_id === item.product_id);
+                    const totalAvailable = (pickingItem?.locations || []).reduce(
+                      (acc: number, l: ProductPickingLocationItem) => acc + (l.available_quantity || 0),
+                      0
+                    );
+                    const isSufficient = totalAvailable >= item.quantity;
+
+                    return (
                       <tr key={`${item.product_id}-${index}`}>
-                        <td>{item.product_code ? `${item.product_code} — ` : ''}{item.product_name}</td>
+                        <td>
+                          <strong>{item.product_code ? `${item.product_code} — ` : ''}{item.product_name}</strong>
+                        </td>
                         <td>{item.unit || item.unit_name || '—'}</td>
-                        <td className="orders-detail-number">{item.quantity}</td>
+                        <td className="orders-detail-number" style={{ fontWeight: '700', color: '#0f172a' }}>
+                          {item.quantity}
+                        </td>
+                        <td>
+                          {pickingItem && pickingItem.locations.length > 0 ? (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                              {pickingItem.locations.map((loc: ProductPickingLocationItem) => (
+                                <div
+                                  key={loc.location_id}
+                                  style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '6px',
+                                    background: '#f1f5f9',
+                                    border: '1px solid #cbd5e1',
+                                    borderRadius: '6px',
+                                    padding: '2px 8px',
+                                    fontSize: '12px',
+                                  }}
+                                >
+                                  <span style={{ fontWeight: '700', color: '#1e293b' }}>
+                                    {loc.location_code}
+                                  </span>
+                                  <span style={{ color: '#64748b', fontSize: '11px' }}>
+                                    (Khu {loc.zone} - Kệ {loc.aisle}/{loc.rack})
+                                  </span>
+                                  <span
+                                    style={{
+                                      marginLeft: 'auto',
+                                      color: loc.available_quantity >= item.quantity ? '#16a34a' : '#d97706',
+                                      fontWeight: '600',
+                                    }}
+                                  >
+                                    SL: {loc.available_quantity} {item.unit || 'Cái'}
+                                  </span>
+                                </div>
+                              ))}
+                              <div style={{ fontSize: '11px', color: isSufficient ? '#16a34a' : '#dc2626', fontWeight: '600', marginTop: '2px' }}>
+                                {isSufficient
+                                  ? `✓ Đủ hàng tại kho (${totalAvailable} ${item.unit || 'Cái'} khả dụng)`
+                                  : `⚠ Thiếu hàng (Chỉ có ${totalAvailable}/${item.quantity} ${item.unit || 'Cái'})`}
+                              </div>
+                            </div>
+                          ) : (
+                            <div style={{ color: '#b45309', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <circle cx="12" cy="12" r="10" />
+                                <line x1="12" y1="8" x2="12" y2="12" />
+                                <line x1="12" y1="16" x2="12.01" y2="16" />
+                              </svg>
+                              <span>Chưa phân bổ vị trí kệ</span>
+                            </div>
+                          )}
+                        </td>
                         <td className="orders-detail-number">{formatCurrency(item.price)}</td>
                         <td className="orders-detail-number">{formatCurrency(item.price * item.quantity)}</td>
                       </tr>
-                    ))}
-                    {order.items.length === 0 && (
-                      <tr><td colSpan={5} className="orders-detail-empty">Đơn hàng không có dữ liệu sản phẩm chi tiết.</td></tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
+                    );
+                  })}
+                  {order.items.length === 0 && (
+                    <tr><td colSpan={6} className="orders-detail-empty">Đơn hàng không có dữ liệu sản phẩm chi tiết.</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
 
               <div className="orders-detail-totals">
                 <div><span>Tổng tiền hàng</span><strong>{formatCurrency(order.subtotal_amount)}</strong></div>
@@ -367,6 +474,60 @@ export default function OrderDetailsModal({
                 <div className="orders-detail-grand-total"><span>Tổng thanh toán</span><strong>{formatCurrency(order.total_amount)}</strong></div>
               </div>
             </div>
+          )}
+
+          {/* Footer Modal: Chỉ hiển thị nút 'Hủy đơn hàng này' khi thuộc nhóm ['Nháp', 'Chờ duyệt', 'Đã duyệt', 'Đang soạn hàng'] */}
+          {order && (
+            <footer
+              style={{
+                display: 'flex',
+                justifyContent: 'flex-end',
+                alignItems: 'center',
+                gap: '12px',
+                padding: '16px 24px',
+                borderTop: '1px solid #e2e8f0',
+                background: '#f8fafc',
+                borderRadius: '0 0 12px 12px',
+              }}
+            >
+              {isFullAccess && canCancel && !isExportedOrLater && !isAlreadyCancelled && (
+                <button
+                  type="button"
+                  id={`btn-footer-cancel-order-${orderCode}`}
+                  onClick={() => setIsCancelModalOpen(true)}
+                  style={{
+                    padding: '8px 16px',
+                    background: '#fff1f2',
+                    border: '1px solid #fecdd3',
+                    borderRadius: '8px',
+                    color: '#e11d48',
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Hủy đơn hàng này
+                </button>
+              )}
+
+              <button
+                type="button"
+                className="orders-back-button"
+                onClick={onClose}
+                style={{
+                  padding: '8px 18px',
+                  background: '#f1f5f9',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: '8px',
+                  color: '#334155',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                Đóng
+              </button>
+            </footer>
           )}
         </section>
       </div>

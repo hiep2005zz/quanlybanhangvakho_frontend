@@ -1,0 +1,1280 @@
+/* frontend/src/components/warehouse-management.css */
+/* Thiết kế chuẩn Enterprise ERP - Deep Emerald & Royal Blue Theme */
+
+:root {
+  /* Brand & Primary Action Colors */
+  --wh-brand: #0F8A5F;
+  --wh-brand-hover: #0c734f;
+  --wh-brand-light: #ecfdf5;
+  --wh-primary: #0F8A5F;
+  --wh-primary-hover: #0c734f;
+  --wh-primary-light: #ecfdf5;
+  --wh-primary-border: #a7f3d0;
+
+  /* Status Colors */
+  --wh-success: #059669;
+  --wh-success-light: #ecfdf5;
+  --wh-success-border: #a7f3d0;
+  --wh-success-text: #065f46;
+
+  --wh-danger: #dc2626;
+  --wh-danger-light: #fef2f2;
+  --wh-danger-border: #fecaca;
+  --wh-danger-text: #991b1b;
+
+  --wh-warning: #d97706;
+  --wh-warning-light: #fffbeb;
+  --wh-warning-border: #fde68a;
+  --wh-warning-text: #92400e;
+
+  /* Neutral Slate Palette */
+  --wh-slate-50: #f8fafc;
+  --wh-slate-100: #f1f5f9;
+  --wh-slate-200: #e2e8f0;
+  --wh-slate-300: #cbd5e1;
+  --wh-slate-400: #94a3b8;
+  --wh-slate-500: #64748b;
+  --wh-slate-600: #475569;
+  --wh-slate-700: #334155;
+  --wh-slate-800: #1e293b;
+  --wh-slate-900: #0f172a;
+
+  /* Typography & Layout Metrics */
+  --wh-radius: 8px;
+  --wh-radius-sm: 6px;
+  --wh-btn-height: 38px;
+  --wh-input-height: 38px;
+  --wh-font-sans: 'Outfit', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --wh-font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
+}
+
+/* ==========================================================================
+   Main Container
+   ========================================================================== */
+.wh-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 0;
+  background-color: transparent;
+  height: 100%;
+  max-height: 100%;
+  overflow: hidden;
+  font-family: var(--wh-font-sans);
+  color: var(--wh-slate-800);
+  box-sizing: border-box;
+}
+
+/* ==========================================================================
+   Top Header Card
+   ========================================================================== */
+.wh-header {
+  flex-shrink: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  background: #ffffff;
+  padding: 14px 20px;
+  border-radius: var(--wh-radius);
+  border: 1px solid var(--wh-slate-200);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+}
+
+.wh-header-title-group h1 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--wh-slate-900);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  letter-spacing: -0.01em;
+}
+
+.wh-header-badge {
+  font-size: 11.5px;
+  font-weight: 600;
+  background: var(--wh-brand-light);
+  color: var(--wh-brand);
+  border: 1px solid #a7f3d0;
+  padding: 2px 8px;
+  border-radius: 999px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.wh-header-title-group p {
+  margin: 3px 0 0;
+  font-size: 13px;
+  color: var(--wh-slate-500);
+  line-height: 1.4;
+}
+
+.wh-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* ==========================================================================
+   Selected Warehouse Information Card
+   ========================================================================== */
+.wh-info-card {
+  flex-shrink: 0;
+  background: #ffffff;
+  padding: 14px 20px;
+  border-radius: var(--wh-radius);
+  border: 1px solid var(--wh-slate-200);
+  border-left: 4px solid var(--wh-brand);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.wh-info-card-left {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.wh-info-subtitle {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--wh-brand);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.wh-info-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.wh-info-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--wh-slate-900);
+  letter-spacing: -0.01em;
+}
+
+.wh-info-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 13px;
+  color: var(--wh-slate-600);
+  margin-top: 2px;
+  flex-wrap: wrap;
+}
+
+.wh-info-meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.wh-info-meta-item svg {
+  color: var(--wh-slate-400);
+  flex-shrink: 0;
+}
+
+/* ==========================================================================
+   Navigation Tabs (Segmented Control)
+   ========================================================================== */
+.wh-tabs {
+  flex-shrink: 0;
+  display: flex;
+  gap: 4px;
+  background: var(--wh-slate-100);
+  padding: 4px;
+  border-radius: var(--wh-radius);
+  border: 1px solid var(--wh-slate-200);
+  align-self: flex-start;
+}
+
+.wh-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--wh-slate-600);
+  background: transparent;
+  border: none;
+  border-radius: var(--wh-radius-sm);
+  cursor: pointer;
+  transition: all 0.15s ease-in-out;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.wh-tab-btn:hover {
+  color: var(--wh-slate-900);
+  background: rgba(255, 255, 255, 0.6);
+}
+
+.wh-tab-btn.active {
+  color: var(--wh-primary);
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+  font-weight: 700;
+}
+
+.wh-tab-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 6px;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 999px;
+  background: var(--wh-slate-200);
+  color: var(--wh-slate-700);
+  line-height: 1;
+}
+
+.wh-tab-btn.active .wh-tab-count {
+  background: var(--wh-primary-light);
+  color: var(--wh-primary);
+}
+
+/* ==========================================================================
+   Filter & Search Toolbar
+   ========================================================================== */
+.wh-filter-card {
+  flex-shrink: 0;
+  background: #ffffff;
+  padding: 10px 16px;
+  border-radius: var(--wh-radius);
+  border: 1px solid var(--wh-slate-200);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.wh-filter-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  flex: 1;
+}
+
+.wh-search-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 240px;
+  max-width: 420px;
+}
+
+.wh-search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--wh-slate-400);
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+}
+
+.wh-search-input {
+  width: 100%;
+  height: var(--wh-input-height);
+  padding: 0 12px 0 38px !important;
+  padding-left: 38px !important;
+  font-size: 13.5px;
+  font-family: inherit;
+  border: 1px solid var(--wh-slate-300);
+  border-radius: var(--wh-radius-sm);
+  background: #ffffff;
+  color: var(--wh-slate-800);
+  transition: all 0.15s ease-in-out;
+  box-sizing: border-box;
+}
+
+.wh-search-input:focus {
+  border-color: var(--wh-primary);
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(15, 138, 95, 0.2);
+}
+
+.wh-select {
+  height: var(--wh-input-height);
+  padding: 0 32px 0 12px;
+  font-size: 13.5px;
+  font-family: inherit;
+  border: 1px solid var(--wh-slate-300);
+  border-radius: var(--wh-radius-sm);
+  background: #ffffff;
+  color: var(--wh-slate-800);
+  cursor: pointer;
+  outline: none;
+  transition: all 0.15s ease-in-out;
+  box-sizing: border-box;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+}
+
+.wh-select:focus {
+  border-color: var(--wh-primary);
+  box-shadow: 0 0 0 2px rgba(15, 138, 95, 0.2);
+}
+
+.wh-filter-count {
+  font-size: 13px;
+  color: var(--wh-slate-500);
+  white-space: nowrap;
+}
+
+.wh-filter-count strong {
+  color: var(--wh-slate-800);
+  font-weight: 700;
+}
+
+/* ==========================================================================
+   Button System
+   ========================================================================== */
+.wh-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  height: var(--wh-btn-height);
+  padding: 0 16px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: var(--wh-radius-sm);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s ease-in-out;
+  white-space: nowrap;
+  outline: none;
+  user-select: none;
+  box-sizing: border-box;
+  font-family: inherit;
+}
+
+.wh-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  box-shadow: none !important;
+}
+
+/* Primary Action Button (Green Brand Theme) */
+.wh-btn-primary {
+  background-color: var(--wh-primary);
+  color: #ffffff;
+  border-color: var(--wh-primary);
+  box-shadow: none;
+}
+
+.wh-btn-primary:hover:not(:disabled) {
+  background-color: var(--wh-primary-hover);
+  border-color: var(--wh-primary-hover);
+  box-shadow: none;
+}
+
+/* Secondary Button */
+.wh-btn-secondary {
+  background-color: #ffffff;
+  color: var(--wh-slate-700);
+  border-color: var(--wh-slate-300);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.wh-btn-secondary:hover:not(:disabled) {
+  background-color: var(--wh-slate-50);
+  border-color: var(--wh-slate-400);
+  color: var(--wh-slate-900);
+}
+
+/* Success Button */
+.wh-btn-success {
+  background-color: var(--wh-brand);
+  color: #ffffff;
+  border-color: var(--wh-brand);
+}
+
+.wh-btn-success:hover:not(:disabled) {
+  background-color: var(--wh-brand-hover);
+}
+
+/* Danger Button */
+.wh-btn-danger {
+  background-color: var(--wh-danger);
+  color: #ffffff;
+  border-color: var(--wh-danger);
+}
+
+.wh-btn-danger:hover:not(:disabled) {
+  background-color: #b91c1c;
+}
+
+/* Table Row Action Ghost Buttons (Consistent standard sizes & rounded-md) */
+.wh-action-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  justify-content: center;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+}
+
+/* Sửa (Edit) - Subtle Gray/Blue-Ghost button with icon */
+.wh-action-btn-edit {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 30px;
+  padding: 0 10px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--wh-slate-700);
+  background: var(--wh-slate-100);
+  border: 1px solid var(--wh-slate-200);
+  border-radius: var(--wh-radius-sm);
+  cursor: pointer;
+  transition: all 0.15s ease-in-out;
+  outline: none;
+  font-family: inherit;
+}
+
+.wh-action-btn-edit svg {
+  color: var(--wh-slate-500);
+  transition: color 0.15s;
+}
+
+.wh-action-btn-edit:hover {
+  background: var(--wh-primary-light);
+  border-color: var(--wh-primary-border);
+  color: var(--wh-primary);
+}
+
+.wh-action-btn-edit:hover svg {
+  color: var(--wh-primary);
+}
+
+/* Xóa (Delete) - Subtle Red/Rose-Ghost button with trash icon */
+.wh-action-btn-delete {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 30px;
+  padding: 0 10px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--wh-danger);
+  background: var(--wh-danger-light);
+  border: 1px solid var(--wh-danger-border);
+  border-radius: var(--wh-radius-sm);
+  cursor: pointer;
+  transition: all 0.15s ease-in-out;
+  outline: none;
+  font-family: inherit;
+}
+
+.wh-action-btn-delete svg {
+  color: var(--wh-danger);
+  transition: color 0.15s;
+}
+
+.wh-action-btn-delete:hover {
+  background: #fee2e2;
+  border-color: #fca5a5;
+  color: #991b1b;
+}
+
+/* Quản lý vị trí - Button trong bảng */
+.wh-action-btn-manage {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  flex-shrink: 0;
+  gap: 6px;
+  height: 30px;
+  padding: 0 12px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--wh-primary);
+  background: var(--wh-primary-light);
+  border: 1px solid var(--wh-primary-border);
+  border-radius: var(--wh-radius-sm);
+  cursor: pointer;
+  transition: all 0.15s ease-in-out;
+  outline: none;
+  font-family: inherit;
+}
+
+.wh-action-btn-manage svg {
+  color: var(--wh-primary);
+  transition: color 0.15s;
+}
+
+.wh-action-btn-manage:hover {
+  background: var(--wh-primary);
+  color: #ffffff;
+  border-color: var(--wh-primary);
+  box-shadow: none;
+}
+
+.wh-action-btn-manage:hover svg {
+  color: #ffffff;
+}
+
+/* Chuyển kệ & Thêm hàng - Buttons trong bảng */
+.wh-action-btn-transfer {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 30px;
+  padding: 0 10px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--wh-slate-700);
+  background: var(--wh-slate-100);
+  border: 1px solid var(--wh-slate-300);
+  border-radius: var(--wh-radius-sm);
+  cursor: pointer;
+  transition: all 0.15s ease-in-out;
+  outline: none;
+  font-family: inherit;
+  white-space: nowrap;
+}
+
+.wh-action-btn-transfer:hover {
+  background: #ffffff;
+  border-color: var(--wh-slate-400);
+  color: var(--wh-slate-900);
+}
+
+.wh-action-btn-add-stock {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 30px;
+  padding: 0 10px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #047857;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  border-radius: var(--wh-radius-sm);
+  cursor: pointer;
+  transition: all 0.15s ease-in-out;
+  outline: none;
+  font-family: inherit;
+  white-space: nowrap;
+}
+
+.wh-action-btn-add-stock:hover {
+  background: #d1fae5;
+  border-color: #6ee7b7;
+  color: #065f46;
+}
+
+/* ==========================================================================
+   Tags & Badges (Monolithic & Desaturated)
+   ========================================================================== */
+.wh-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 9px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+/* Monolithic Code Badges (KHO_HN, HN-KA-D1-T1, KHU-A, DAY-01) */
+.wh-badge-code {
+  font-family: var(--wh-font-mono);
+  background-color: var(--wh-slate-100);
+  color: var(--wh-slate-800);
+  border: 1px solid var(--wh-slate-300);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2.5px 8px;
+  border-radius: var(--wh-radius-sm);
+  letter-spacing: 0.02em;
+}
+
+.wh-badge-location {
+  font-family: var(--wh-font-mono);
+  background-color: var(--wh-slate-100);
+  color: var(--wh-slate-800);
+  border: 1px solid var(--wh-slate-300);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2.5px 8px;
+  border-radius: var(--wh-radius-sm);
+  letter-spacing: 0.02em;
+}
+
+/* Status: "Đang hoạt động" / "Đang sử dụng" */
+.wh-badge-active {
+  background-color: var(--wh-success-light);
+  color: var(--wh-success-text);
+  border: 1px solid var(--wh-success-border);
+  font-weight: 500;
+}
+
+.wh-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: var(--wh-success);
+  flex-shrink: 0;
+}
+
+/* Status: "Ngừng hoạt động" */
+.wh-badge-inactive {
+  background-color: var(--wh-slate-100);
+  color: var(--wh-slate-600);
+  border: 1px solid var(--wh-slate-300);
+  font-weight: 500;
+}
+
+.wh-dot-gray {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: var(--wh-slate-400);
+  flex-shrink: 0;
+}
+
+/* Item Count Badge ("1 SP") */
+.wh-badge-number {
+  background-color: var(--wh-primary-light);
+  color: var(--wh-primary);
+  border: 1px solid var(--wh-primary-border);
+  font-weight: 600;
+  font-size: 11.5px;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+/* Quantities ("45 Chiếc", "70 Cái") - Clean dark text with light unit */
+.wh-quantity-text {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--wh-slate-800);
+}
+
+.wh-quantity-unit {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--wh-slate-500);
+  margin-left: 3px;
+}
+
+/* ==========================================================================
+   Table & Responsive Grid
+   ========================================================================== */
+.wh-table-card {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+  border-radius: var(--wh-radius);
+  border: 1px solid var(--wh-slate-200);
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03);
+}
+
+.wh-table-responsive {
+  width: 100%;
+  flex: 1;
+  min-height: 250px;
+  max-height: calc(100vh - 250px);
+  overflow-x: auto;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  position: relative;
+}
+
+.wh-table-responsive::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.wh-table-responsive::-webkit-scrollbar-track {
+  background: var(--wh-slate-50);
+}
+.wh-table-responsive::-webkit-scrollbar-thumb {
+  background: var(--wh-slate-300);
+  border-radius: 3px;
+}
+.wh-table-responsive::-webkit-scrollbar-thumb:hover {
+  background: var(--wh-slate-400);
+}
+
+.wh-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+
+.wh-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+
+.wh-table th {
+  background-color: var(--wh-slate-50);
+  color: var(--wh-slate-600);
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.03em;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--wh-slate-200);
+  white-space: nowrap;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+
+.wh-table td {
+  padding: 13px 16px;
+  border-bottom: 1px solid var(--wh-slate-100);
+  color: var(--wh-slate-700);
+  vertical-align: middle;
+}
+
+.wh-table tbody tr {
+  transition: background-color 0.12s ease;
+}
+
+.wh-table tbody tr:hover td {
+  background-color: #f8fafc;
+}
+
+.wh-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* Manager & Phone column format */
+.wh-manager-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.wh-manager-name {
+  font-weight: 500;
+  color: var(--wh-slate-800);
+}
+
+.wh-manager-phone {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--wh-slate-500);
+}
+
+.wh-manager-phone svg {
+  color: var(--wh-slate-400);
+  flex-shrink: 0;
+}
+
+/* ==========================================================================
+   Master Data 2-Column Grid (Zones & Racks)
+   ========================================================================== */
+.wh-master-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+@media (max-width: 1024px) {
+  .wh-master-grid {
+    grid-template-columns: 1fr;
+    overflow-y: auto;
+  }
+}
+
+.wh-master-card {
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+  border-radius: var(--wh-radius);
+  border: 1px solid var(--wh-slate-200);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03);
+  overflow: hidden;
+  min-height: 0;
+  flex: 1;
+}
+
+.wh-master-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--wh-slate-200);
+  background: var(--wh-slate-50);
+}
+
+.wh-master-card-header h3 {
+  margin: 0;
+  font-size: 14.5px;
+  font-weight: 700;
+  color: var(--wh-slate-900);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.wh-badge-type {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: var(--wh-radius-sm);
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.wh-badge-aisle {
+  background: var(--wh-brand-light);
+  color: var(--wh-brand);
+  border: 1px solid #a7f3d0;
+}
+
+.wh-badge-rack {
+  background: var(--wh-primary-light);
+  color: var(--wh-primary);
+  border: 1px solid var(--wh-primary-border);
+}
+
+/* ==========================================================================
+   Pagination Controls
+   ========================================================================== */
+.wh-pagination-bar {
+  flex-shrink: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 18px;
+  border-top: 1px solid var(--wh-slate-200);
+  background: #ffffff;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.wh-pagination-info {
+  font-size: 13px;
+  color: var(--wh-slate-500);
+}
+
+.wh-pagination-info strong {
+  color: var(--wh-slate-800);
+  font-weight: 700;
+}
+
+.wh-pagination-controls-wrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.wh-pagination-size-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--wh-slate-500);
+}
+
+.wh-pagination-select {
+  height: 32px;
+  padding: 0 8px;
+  border-radius: var(--wh-radius-sm);
+  border: 1px solid var(--wh-slate-300);
+  background: #ffffff;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--wh-slate-700);
+  outline: none;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.wh-pagination-buttons {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.wh-btn-page {
+  min-width: 32px;
+  height: 32px;
+  padding: 0 6px;
+  border-radius: var(--wh-radius-sm);
+  border: 1px solid var(--wh-slate-200);
+  background: #ffffff;
+  color: var(--wh-slate-700);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  user-select: none;
+  font-family: inherit;
+}
+
+.wh-btn-page:hover:not(:disabled):not(.active) {
+  background: var(--wh-slate-100);
+  border-color: var(--wh-slate-300);
+  color: var(--wh-slate-900);
+}
+
+.wh-btn-page.active {
+  background: var(--wh-primary);
+  border-color: var(--wh-primary);
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.wh-btn-page:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ==========================================================================
+   Modals
+   ========================================================================== */
+.wh-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(15, 23, 42, 0.5);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 16px;
+  animation: whFadeIn 0.15s ease-out;
+}
+
+.wh-modal-card {
+  background: #ffffff;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 580px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  border: 1px solid var(--wh-slate-200);
+  display: flex;
+  flex-direction: column;
+  max-height: 90vh;
+  overflow: hidden;
+}
+
+.wh-modal-card-lg {
+  max-width: 760px;
+}
+
+.wh-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 24px;
+  border-bottom: 1px solid var(--wh-slate-200);
+  background: #ffffff;
+}
+
+.wh-modal-header h3 {
+  margin: 0;
+  font-size: 16.5px;
+  font-weight: 700;
+  color: var(--wh-slate-900);
+  letter-spacing: -0.01em;
+}
+
+.wh-modal-close-btn {
+  background: transparent;
+  border: none;
+  font-size: 20px;
+  line-height: 1;
+  color: var(--wh-slate-400);
+  cursor: pointer;
+  padding: 6px;
+  border-radius: var(--wh-radius-sm);
+  transition: all 0.15s;
+}
+
+.wh-modal-close-btn:hover {
+  color: var(--wh-slate-700);
+  background: var(--wh-slate-100);
+}
+
+.wh-modal-body {
+  padding: 24px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.wh-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 16px 24px;
+  border-top: 1px solid var(--wh-slate-200);
+  background: var(--wh-slate-50);
+}
+
+/* Form Controls */
+.wh-form-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.wh-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.wh-form-group label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--wh-slate-700);
+}
+
+.wh-required-star {
+  color: var(--wh-danger);
+  margin-left: 2px;
+}
+
+.wh-form-input,
+.wh-form-select,
+.wh-form-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  height: var(--wh-btn-height);
+  padding: 0 12px;
+  font-size: 13.5px;
+  border: 1px solid var(--wh-slate-300);
+  border-radius: var(--wh-radius-sm);
+  background: #ffffff;
+  color: var(--wh-slate-900);
+  font-family: inherit;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.wh-form-textarea {
+  height: 72px;
+  padding: 8px 12px;
+  resize: vertical;
+}
+
+.wh-form-input:focus,
+.wh-form-select:focus,
+.wh-form-textarea:focus {
+  border-color: var(--wh-primary);
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(15, 138, 95, 0.2);
+}
+
+.wh-form-error {
+  color: var(--wh-danger);
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+/* Empty State */
+.wh-state-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 56px 24px;
+  text-align: center;
+  color: var(--wh-slate-500);
+}
+
+.wh-state-box svg {
+  color: var(--wh-slate-300);
+  margin-bottom: 14px;
+}
+
+.wh-state-box h4 {
+  margin: 0 0 6px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--wh-slate-700);
+}
+
+.wh-state-box p {
+  margin: 0;
+  font-size: 13.5px;
+  max-width: 420px;
+  line-height: 1.5;
+}
+
+@keyframes whFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* ==========================================================================
+   Capacity Progress Bar (Sức Chứa & Tải Trọng)
+   ========================================================================== */
+.wh-capacity-cell {
+  min-width: 160px;
+  max-width: 220px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.wh-capacity-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+}
+
+.wh-capacity-ratio {
+  font-weight: 600;
+  color: var(--wh-slate-800);
+}
+
+.wh-capacity-pct {
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.wh-progress-bar-bg {
+  width: 100%;
+  height: 6px;
+  background-color: var(--wh-slate-200);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.wh-progress-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}
+
+/* ==========================================================================
+   Icon Buttons (Sửa, Xóa Tinh Tế)
+   ========================================================================== */
+.wh-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--wh-radius-sm);
+  border: 1px solid var(--wh-slate-200);
+  background: #ffffff;
+  color: var(--wh-slate-500);
+  cursor: pointer;
+  transition: all 0.15s ease-in-out;
+  padding: 0;
+  outline: none;
+}
+
+.wh-icon-btn:hover {
+  background: var(--wh-slate-100);
+  color: var(--wh-slate-800);
+  border-color: var(--wh-slate-300);
+}
+
+.wh-icon-btn--edit:hover {
+  background: var(--wh-primary-light);
+  color: var(--wh-primary);
+  border-color: var(--wh-primary-border);
+}
+
+.wh-icon-btn--delete:hover {
+  background: var(--wh-danger-light);
+  color: var(--wh-danger);
+  border-color: var(--wh-danger-border);
+}
+
+/* ==========================================================================
+   Master - Detail Interactive Grid
+   ========================================================================== */
+.wh-master-row {
+  cursor: pointer;
+  transition: all 0.15s ease-in-out;
+}
+
+.wh-master-row:hover td {
+  background-color: #f8fafc !important;
+}
+
+.wh-master-row--active td {
+  background-color: #ecfdf5 !important;
+}
+
+.wh-master-row--active td:first-child {
+  border-left: 3px solid var(--wh-primary);
+  font-weight: 600;
+  color: #065f46;
+}
+
+/* Form Readonly Info Badge */
+.wh-form-readonly-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: var(--wh-input-height);
+  padding: 0 12px;
+  background: var(--wh-slate-50);
+  border: 1px solid var(--wh-slate-200);
+  border-radius: var(--wh-radius-sm);
+  font-size: 13px;
+  color: var(--wh-slate-800);
+}
+
+.wh-form-readonly-badge svg {
+  color: var(--wh-brand);
+}
