@@ -4,7 +4,6 @@ import { emitStatusToast } from './StatusToast';
 import OrderDetailsModal from './OrderDetailsModal';
 import OrderCancelConfirmModal from './OrderCancelConfirmModal';
 import { isOrderPastExported } from '../utils/orderPermissions';
-import OrderPrintModal from './OrderPrintModal';
 import './orders-view.css';
 
 interface OrdersViewProps {
@@ -93,7 +92,6 @@ export default function OrdersView({ token, username, currentUser, products, can
   const [cancellingOrderCode, setCancellingOrderCode] = useState<string | null>(null);
   const [orderToCancel, setOrderToCancel] = useState<OrderItem | null>(null);
   const [selectedOrderCode, setSelectedOrderCode] = useState<string | null>(null);
-  const [printingOrderCode, setPrintingOrderCode] = useState<string | null>(null);
 
   useEffect(() => {
     try {
@@ -669,10 +667,6 @@ export default function OrdersView({ token, username, currentUser, products, can
           onClose={() => setSelectedOrderCode(null)}
           currentUser={currentUser}
           onOrderCancelled={() => setReloadVersion((v) => v + 1)}
-          onOpenPrint={(code) => {
-            setSelectedOrderCode(null);
-            setPrintingOrderCode(code);
-          }}
         />
       )}
       {orderToCancel && (
@@ -683,13 +677,6 @@ export default function OrdersView({ token, username, currentUser, products, can
             if (!cancellingOrderCode) setOrderToCancel(null);
           }}
           onConfirm={(reason) => void handleCancelOrder(reason)}
-        />
-      )}
-      {printingOrderCode && (
-        <OrderPrintModal
-          token={token}
-          orderCode={printingOrderCode}
-          onClose={() => setPrintingOrderCode(null)}
         />
       )}
     </main>
