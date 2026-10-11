@@ -164,37 +164,9 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
   const isSales = currentUser.role === 'sales' || rawRoles.includes('sales');
   const isAccountant = currentUser.role === 'accountant' || rawRoles.includes('accountant');
   const canCreateOrders = !isAccountant && (isAdmin || isSalesManager || isSales);
-  const canApproveOrder = (ord: any) => {
-    if (!ord) return false;
-    if (isAdmin || isSalesManager) return true;
-    if (isSales) {
-      // 1. Tuyệt đối không cho nhân viên bán hàng duyệt đơn do Admin hoặc Quản lý cấp trên tạo
-      const createdByLower = (ord.created_by || '').toLowerCase();
-      if (
-        createdByLower === 'admin' ||
-        createdByLower === 'sales_manager' ||
-        createdByLower.includes('admin') ||
-        createdByLower.includes('manager')
-      ) {
-        return false;
-      }
-
-      // 2. Nhân viên bán hàng CHỈ ĐƯỢC DUYỆT đại lý do mình phụ trách
-      const isAssigned =
-        (ord.assigned_sale_id && ord.assigned_sale_id === currentUser.id) ||
-        (ord.assigned_sale_name &&
-          (ord.assigned_sale_name === currentUser.full_name ||
-            ord.assigned_sale_name === currentUser.username));
-      if (!isAssigned) return false;
-
-      // 3. Không cho tự duyệt đơn bán dưới giá sàn do chính sales tạo ra
-      const isFloorOrder = ord.approval_reason && ord.approval_reason.toLowerCase().includes('giá sàn');
-      const isSelfCreated = ord.created_by === currentUser.username;
-      if (isFloorOrder && isSelfCreated) return false;
-
-      return true;
-    }
-    return false;
+  const canApproveOrder = (_ord?: any) => {
+    // CHỈ ADMIN HOẶC SALES MANAGER MỚI CÓ QUYỀN/VAI TRÒ DUYỆT ĐƠN VÀ TỪ CHỐI ĐƠN
+    return isAdmin || isSalesManager;
   };
   const isCustomer = currentUser.role === 'customer' || Boolean(currentUser.roles && currentUser.roles.includes('customer'));
   const [customerDealer, setCustomerDealer] = useState<any | null>(null);
@@ -668,11 +640,19 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
   const renderOrderActions = (order: OrderResponseData) => {
     const isPending = order.status === 'PENDING_APPROVAL';
     const isDropdownOpen = openActionDropdownCode === order.order_code;
+    const canApprove = isPending && canApproveOrder(order);
+
+    const canCancel =
+      order.status !== 'CANCELLED' &&
+      order.status !== 'REJECTED' &&
+      !isOrderPastExported(order.status) &&
+      isOrderCancelable(order.status) &&
+      (isCustomer ? ['PENDING_APPROVAL', 'PENDING', 'DRAFT'].includes(order.status) : isFullAccess);
 
     return (
       <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px', whiteSpace: 'nowrap' }}>
-        {/* Menu Dropdown Trạng thái dành cho Admin/Sales/Quản lý */}
-        {!isCustomer && ((isPending && canApproveOrder(order)) || (isFullAccess && order.status !== 'CANCELLED' && order.status !== 'REJECTED')) && (
+        {/* Trường hợp 1: Người CÓ vai trò duyệt (Admin / Sales Manager) khi đơn chờ duyệt -> Dropdown Menu Trạng thái (Duyệt / Từ chối / Hủy) */}
+        {!isCustomer && canApprove && (
           <div
             className="order-action-dropdown-container order-status-dropdown-details relative inline-block text-left"
             style={{ position: 'relative', display: 'inline-block' }}
@@ -754,53 +734,89 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                   }}
                 >
                   {/* Duyệt đơn */}
-                  {isPending && canApproveOrder(order) && (
-                    <button
-                      type="button"
-                      id={`btn-approve-order-${order.order_code}`}
-                      onClick={() => {
-                        setOpenActionDropdownCode(null);
-                        setApprovingOrder(order);
-                      }}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '7px',
-                        width: '100%',
-                        padding: '7px 12px',
-                        borderRadius: '6px',
-                        border: 'none',
-                        background: 'transparent',
-                        color: '#16a34a',
-                        fontSize: '12.5px',
-                        fontWeight: '600',
-                        textAlign: 'left',
-                        cursor: 'pointer',
-                        whiteSpace: 'nowrap',
-                        transition: 'all 0.15s ease',
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.background = '#f0fdf4';
-                        e.currentTarget.style.color = '#15803d';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.background = 'transparent';
-                        e.currentTarget.style.color = '#16a34a';
-                      }}
-                    >
-                      <span style={{ fontSize: '13px', lineHeight: 1 }}>✓</span>
-                      <span>Duyệt đơn</span>
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    id={`btn-approve-order-${order.order_code}`}
+                    onClick={() => {
+                      setOpenActionDropdownCode(null);
+                      setApprovingOrder(order);
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '7px',
+                      width: '100%',
+                      padding: '7px 12px',
+                      borderRadius: '6px',
+                      border: 'none',
+                      background: 'transparent',
+                      color: '#16a34a',
+                      fontSize: '12.5px',
+                      fontWeight: '600',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap',
+                      transition: 'all 0.15s ease',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = '#f0fdf4';
+                      e.currentTarget.style.color = '#15803d';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'transparent';
+                      e.currentTarget.style.color = '#16a34a';
+                    }}
+                  >
+                    <span style={{ fontSize: '13px', lineHeight: 1 }}>✓</span>
+                    <span>Duyệt đơn</span>
+                  </button>
 
                   {/* Từ chối */}
-                  {isPending && canApproveOrder(order) && (
+                  <button
+                    type="button"
+                    id={`btn-reject-order-${order.order_code}`}
+                    onClick={() => {
+                      setOpenActionDropdownCode(null);
+                      setRejectingOrder(order);
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '7px',
+                      width: '100%',
+                      padding: '7px 12px',
+                      borderRadius: '6px',
+                      border: 'none',
+                      background: 'transparent',
+                      color: '#dc2626',
+                      fontSize: '12.5px',
+                      fontWeight: '600',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap',
+                      transition: 'all 0.15s ease',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = '#fef2f2';
+                      e.currentTarget.style.color = '#b91c1c';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'transparent';
+                      e.currentTarget.style.color = '#dc2626';
+                    }}
+                  >
+                    <span style={{ fontSize: '12px', lineHeight: 1 }}>✕</span>
+                    <span>Từ chối</span>
+                  </button>
+
+                  {/* Hủy đơn trong dropdown */}
+                  {canCancel && (
                     <button
                       type="button"
-                      id={`btn-reject-order-${order.order_code}`}
+                      id={`btn-dropdown-cancel-order-${order.order_code}`}
                       onClick={() => {
                         setOpenActionDropdownCode(null);
-                        setRejectingOrder(order);
+                        setCancellingOrder(order);
                       }}
                       style={{
                         display: 'flex',
@@ -811,7 +827,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                         borderRadius: '6px',
                         border: 'none',
                         background: 'transparent',
-                        color: '#dc2626',
+                        color: '#ea580c',
                         fontSize: '12.5px',
                         fontWeight: '600',
                         textAlign: 'left',
@@ -820,59 +836,12 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                         transition: 'all 0.15s ease',
                       }}
                       onMouseEnter={(e) => {
-                        e.currentTarget.style.background = '#fef2f2';
-                        e.currentTarget.style.color = '#b91c1c';
+                        e.currentTarget.style.background = '#fff7ed';
+                        e.currentTarget.style.color = '#c2410c';
                       }}
                       onMouseLeave={(e) => {
                         e.currentTarget.style.background = 'transparent';
-                        e.currentTarget.style.color = '#dc2626';
-                      }}
-                    >
-                      <span style={{ fontSize: '12px', lineHeight: 1 }}>✕</span>
-                      <span>Từ chối</span>
-                    </button>
-                  )}
-
-                  {/* Hủy đơn */}
-                  {isFullAccess && order.status !== 'CANCELLED' && order.status !== 'REJECTED' && (
-                    <button
-                      type="button"
-                      id={`btn-cancel-order-${order.order_code}`}
-                      disabled={isOrderPastExported(order.status) || !isOrderCancelable(order.status)}
-                      onClick={() => {
-                        if (!isOrderPastExported(order.status) && isOrderCancelable(order.status)) {
-                          setOpenActionDropdownCode(null);
-                          setCancellingOrder(order);
-                        }
-                      }}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '7px',
-                        width: '100%',
-                        padding: '7px 12px',
-                        borderRadius: '6px',
-                        border: 'none',
-                        background: 'transparent',
-                        color: isOrderPastExported(order.status) ? '#94a3b8' : '#ea580c',
-                        fontSize: '12.5px',
-                        fontWeight: '600',
-                        textAlign: 'left',
-                        cursor: isOrderPastExported(order.status) ? 'not-allowed' : 'pointer',
-                        whiteSpace: 'nowrap',
-                        transition: 'all 0.15s ease',
-                      }}
-                      onMouseEnter={(e) => {
-                        if (!isOrderPastExported(order.status)) {
-                          e.currentTarget.style.background = '#fff7ed';
-                          e.currentTarget.style.color = '#c2410c';
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        if (!isOrderPastExported(order.status)) {
-                          e.currentTarget.style.background = 'transparent';
-                          e.currentTarget.style.color = '#ea580c';
-                        }
+                        e.currentTarget.style.color = '#ea580c';
                       }}
                     >
                       <span style={{ fontSize: '12px', lineHeight: 1 }}>⊘</span>
@@ -885,11 +854,11 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
           </div>
         )}
 
-        {/* Tiêu chí cho Khách hàng/Đại lý: Chỉ hủy đơn khi chưa duyệt */}
-        {isCustomer && (order.status === 'PENDING_APPROVAL' || order.status === 'PENDING' || order.status === 'DRAFT') && (
+        {/* Trường hợp 2: Người không có vai trò duyệt (hoặc đơn không ở trạng thái chờ duyệt) -> Chỉ hiện nút Hủy đơn trực tiếp */}
+        {!canApprove && canCancel && (
           <button
             type="button"
-            id={`btn-customer-cancel-order-${order.order_code}`}
+            id={`btn-cancel-order-${order.order_code}`}
             onClick={() => setCancellingOrder(order)}
             style={{
               padding: '5px 10px',
@@ -904,6 +873,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
               display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',
+              gap: '4px',
               height: '28px',
               boxSizing: 'border-box',
               transition: 'all 0.15s ease',
@@ -916,9 +886,9 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
               e.currentTarget.style.background = '#fff1f2';
               e.currentTarget.style.color = '#e11d48';
             }}
-            title="Hủy đơn hàng chưa duyệt của đại lý"
+            title="Hủy đơn hàng này"
           >
-            Hủy đơn
+            <span>Hủy đơn</span>
           </button>
         )}
 
