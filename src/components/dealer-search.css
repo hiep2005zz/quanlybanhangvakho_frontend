@@ -288,8 +288,8 @@
 }
 
 .dealer-table-wrapper::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+    width: 10px;
+    height: 10px;
 }
 
 .dealer-table-wrapper::-webkit-scrollbar-track {
@@ -297,12 +297,14 @@
 }
 
 .dealer-table-wrapper::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
-    border-radius: 4px;
+    background-color: #cbd5e1;
+    border-radius: 9999px;
+    border: 2px solid #f8fafc;
+    background-clip: padding-box;
 }
 
 .dealer-table-wrapper::-webkit-scrollbar-thumb:hover {
-    background: #94a3b8;
+    background-color: #94a3b8;
 }
 
 .dealer-table-wrapper table {
@@ -906,7 +908,8 @@
 }
 
 .dealer-modal-body::-webkit-scrollbar {
-    width: 6px;
+    width: 10px;
+    height: 10px;
 }
 
 .dealer-modal-body::-webkit-scrollbar-track {
@@ -914,12 +917,14 @@
 }
 
 .dealer-modal-body::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
-    border-radius: 999px;
+    background-color: #cbd5e1;
+    border-radius: 9999px;
+    border: 2px solid #f8fafc;
+    background-clip: padding-box;
 }
 
 .dealer-modal-body::-webkit-scrollbar-thumb:hover {
-    background: #94a3b8;
+    background-color: #94a3b8;
 }
 
 .dealer-modal-form-grid {

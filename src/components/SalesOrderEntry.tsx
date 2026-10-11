@@ -109,12 +109,19 @@ const formatCurrency = (amount: number) =>
   new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(amount);
 const draftStorageKey = (username: string) => `sales-order-drafts:${encodeURIComponent(username.toLowerCase())}`;
 
-export default function SalesOrderEntry({ token, username, products, user, onClose: _onClose, onCreated,
+export default function SalesOrderEntry({
+  token,
+  username,
+  products,
+  user,
+  onClose: _onClose,
+  onCreated,
   cloneOrderData,
 }: SalesOrderEntryProps) {
-  // AC 5: Phân quyền - Chỉ cho phép Nhân viên kinh doanh (Role: sales, sales_manager, admin)
+  // AC 5 & User Story 46: Phân quyền - Cho phép Nhân viên kinh doanh và Đại lý (Customer/Agent) tự đặt hàng
   const userRoles = user ? (user.roles && user.roles.length > 0 ? user.roles : [user.role]) : [];
-  const isSalesRole = !user || userRoles.some((r) => ['sales', 'sales_manager', 'admin'].includes(r));
+  const isSalesRole = !user || userRoles.some((r) => ['sales', 'sales_manager', 'admin', 'customer', 'agent'].includes(r));
+  const isCustomer = Boolean(user && (user.role === 'customer' || user.role === 'agent' || userRoles.includes('customer') || userRoles.includes('agent')));
 
   const [dealers, setDealers] = useState<OrderDealer[]>([]);
   const [isLoadingDealers, setIsLoadingDealers] = useState(true);
@@ -778,7 +785,7 @@ export default function SalesOrderEntry({ token, username, products, user, onClo
                     const nextId = event.target.value;
                     setDealerId(nextId);
                   }}
-                  disabled={isLoadingDealers || !!dealerLoadError || (dealers.length === 1)}
+                  disabled={isLoadingDealers || !!dealerLoadError || (dealers.length === 1) || isCustomer}
                 >
                   <option value="">{isLoadingDealers ? 'Đang tải đại lý...' : 'Chọn đại lý'}</option>
                   {dealers.map((dealer) => {
@@ -794,6 +801,11 @@ export default function SalesOrderEntry({ token, username, products, user, onClo
                     );
                   })}
                 </select>
+                {isCustomer && (
+                  <p style={{ margin: '6px 0 0', fontSize: '12px', color: '#047857', fontWeight: 600 }}>
+                    ✓ Cổng Đại lý: Hệ thống tự động ghi nhận cho tài khoản đại lý của bạn
+                  </p>
+                )}
                 {isLockedDealer && (
                   <span className="sales-order-field-error" style={{ color: '#dc2626', background: '#fef2f2', border: '1px solid #fecaca', padding: '8px 12px', borderRadius: '6px', display: 'block', marginTop: '6px' }}>
                     <strong>Đại lý bị khóa giao dịch:</strong> Đại lý này hiện đang bị <strong>KHÓA giao dịch</strong>. Không thể tạo đơn hàng mới.
@@ -971,10 +983,10 @@ export default function SalesOrderEntry({ token, username, products, user, onClo
                                 <>
                                   <span
                                     className={`sales-order-stock-badge ${isExceeded
-                                        ? 'stock-badge-danger'
-                                        : maxOrderable === 0
-                                          ? 'stock-badge-out'
-                                          : 'stock-badge-ok'
+                                      ? 'stock-badge-danger'
+                                      : maxOrderable === 0
+                                        ? 'stock-badge-out'
+                                        : 'stock-badge-ok'
                                       }`}
                                     title={`Tồn thực tế: ${actualInUnit} ${line.unit} - Giữ chỗ: ${reservedInUnit} ${line.unit}`}
                                   >

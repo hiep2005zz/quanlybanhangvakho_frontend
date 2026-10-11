@@ -7,7 +7,6 @@ import {
   getDealersApi,
   resolvePriceApi,
   DealerItem,
-  getAvatarUrl,
   listDeliveryPointsApi,
   getDiscountPoliciesApi,
   DiscountPolicy,
@@ -30,6 +29,9 @@ interface OrderCreateModalProps {
   currentUser?: User;
   onSuccess: () => void;
   initialDealerId?: number;
+  initialOrderItems?: SelectedOrderItem[];
+  initialNote?: string;
+  initialDeliveryPointId?: number | null;
 }
 
 export interface SelectedOrderItem {
@@ -62,6 +64,9 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
   currentUser,
   onSuccess,
   initialDealerId = 1,
+  initialOrderItems,
+  initialNote,
+  initialDeliveryPointId,
 }) => {
   if (!isOpen) return null;
 
@@ -71,19 +76,36 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
   const [loadingDealers, setLoadingDealers] = useState(false);
 
   // Danh sách nhiều sản phẩm trong đơn hàng
-  const [orderItems, setOrderItems] = useState<SelectedOrderItem[]>([]);
+  const [orderItems, setOrderItems] = useState<SelectedOrderItem[]>(() => initialOrderItems || []);
 
   // Điểm giao hàng
   const [points, setPoints] = useState<DeliveryPoint[]>([]);
-  const [deliveryPointId, setDeliveryPointId] = useState<number | null>(null);
+  const [deliveryPointId, setDeliveryPointId] = useState<number | null>(() => initialDeliveryPointId !== undefined ? initialDeliveryPointId : null);
 
   // Chiết khấu sản lượng
   const [policies, setPolicies] = useState<DiscountPolicy[]>([]);
   const [discountPercent, setDiscountPercent] = useState<string>('0');
   const [isManualDiscount, setIsManualDiscount] = useState<boolean>(false);
-  const [note, setNote] = useState<string>('');
+  const [note, setNote] = useState<string>(() => initialNote || '');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      if (initialOrderItems && initialOrderItems.length > 0) {
+        setOrderItems(initialOrderItems);
+      }
+      if (initialDealerId) {
+        setDealerId(initialDealerId);
+      }
+      if (initialDeliveryPointId !== undefined) {
+        setDeliveryPointId(initialDeliveryPointId);
+      }
+      if (initialNote !== undefined) {
+        setNote(initialNote);
+      }
+    }
+  }, [isOpen, initialOrderItems, initialDealerId, initialDeliveryPointId, initialNote]);
 
   // AC 1 & 2: Quản lý tồn kho khả dụng theo kho phục vụ của đại lý
   const [stockSummary, setStockSummary] = useState<DealerStockSummaryResponse | null>(null);
@@ -93,13 +115,29 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
   const [creditInfo, setCreditInfo] = useState<DealerCreditInfo | null>(null);
   const [isLoadingCredit, setIsLoadingCredit] = useState<boolean>(false);
 
-  const isCustomer = currentUser?.role === 'customer' || Boolean(currentUser?.roles && currentUser.roles.includes('customer'));
+  const isCustomer = Boolean(
+    currentUser?.role === 'customer' ||
+    currentUser?.role === 'agent' ||
+    (currentUser?.roles && (currentUser.roles.includes('customer') || currentUser.roles.includes('agent')))
+  );
   const selectedDealer = dealers.find((d) => d.id === dealerId) || dealers[0];
   const isLockedDealer = Boolean(
     selectedDealer?.status &&
     (selectedDealer.status.toLowerCase().includes('khóa') ||
      selectedDealer.status.toLowerCase().includes('lock'))
   );
+
+  // Helper tìm đại lý tương ứng với tài khoản đại lý đang đăng nhập
+  const findCustomerOwnDealer = useCallback((itemsList: any[]) => {
+    if (!currentUser || !itemsList || itemsList.length === 0) return null;
+    return itemsList.find((d: any) =>
+      d.id === currentUser.id ||
+      (d.code && currentUser.username && d.code.toLowerCase() === currentUser.username.toLowerCase()) ||
+      (d.email && currentUser.email && d.email.toLowerCase() === currentUser.email.toLowerCase()) ||
+      (d.phone && currentUser.phone && d.phone === currentUser.phone) ||
+      (d.name && currentUser.full_name && d.name.toLowerCase() === currentUser.full_name.toLowerCase())
+    ) || itemsList[0];
+  }, [currentUser]);
 
   useEffect(() => {
     if (isOpen && token) {
@@ -130,13 +168,23 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
           const items = res.items || [];
           if (items.length > 0) {
             setDealers(items);
-            setDealerId((prev) => (items.some((d) => d.id === prev) ? prev : items[0].id));
+            if (isCustomer) {
+              const own = findCustomerOwnDealer(items);
+              if (own) setDealerId(own.id);
+            } else {
+              setDealerId((prev) => (items.some((d) => d.id === prev) ? prev : items[0].id));
+            }
           } else {
             getDealersApi(token)
               .then((dList) => {
                 if (dList && dList.length > 0) {
                   setDealers(dList);
-                  setDealerId((prev) => (dList.some((d) => d.id === prev) ? prev : dList[0].id));
+                  if (isCustomer) {
+                    const own = findCustomerOwnDealer(dList);
+                    if (own) setDealerId(own.id);
+                  } else {
+                    setDealerId((prev) => (dList.some((d) => d.id === prev) ? prev : dList[0].id));
+                  }
                 }
               })
               .catch(() => {});
@@ -147,7 +195,12 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
             .then((dList) => {
               if (dList && dList.length > 0) {
                 setDealers(dList);
-                setDealerId((prev) => (dList.some((d) => d.id === prev) ? prev : dList[0].id));
+                if (isCustomer) {
+                  const own = findCustomerOwnDealer(dList);
+                  if (own) setDealerId(own.id);
+                } else {
+                  setDealerId((prev) => (dList.some((d) => d.id === prev) ? prev : dList[0].id));
+                }
               }
             })
             .catch(() => {});
@@ -156,7 +209,7 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
           setLoadingDealers(false);
         });
     }
-  }, [isOpen, token]);
+  }, [isOpen, token, isCustomer, findCustomerOwnDealer]);
 
   // Tải điểm giao hàng theo Đại lý được chọn
   const loadPoints = useCallback(async () => {
@@ -488,9 +541,25 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
   const discountAmount = Math.round((subtotalAmount * safeDiscount) / 100);
   const totalAmount = subtotalAmount - discountAmount;
 
-  // AC 4: Phân quyền - Chỉ Sales / Admin được phép tạo đơn và kiểm tra công nợ
+  // AC 4 & User Story 46: Phân quyền mở rộng cho Đại lý (Customer / Agent) tự lên đơn
   const rawRoles = currentUser?.roles && currentUser.roles.length > 0 ? currentUser.roles : (currentUser?.role ? [currentUser.role] : []);
   const isSalesOrAdmin = !currentUser || rawRoles.some((r) => ['sales', 'sales_manager', 'admin'].includes(r));
+  const isCustomerRole = Boolean(
+    currentUser && (
+      currentUser.role === 'customer' ||
+      currentUser.role === 'agent' ||
+      rawRoles.includes('customer') ||
+      rawRoles.includes('agent')
+    )
+  );
+  // Tiếp tục chặn nghiêm ngặt các vai trò không liên quan: muahang, kho, ketoan
+  const isStrictlyBlockedRole = Boolean(
+    currentUser &&
+    rawRoles.some((r) => ['muahang', 'purchasing', 'kho', 'warehouse', 'warehouse_manager', 'ketoan', 'accountant'].includes(r)) &&
+    !isSalesOrAdmin &&
+    !isCustomerRole
+  );
+  const canCreateOrder = (isSalesOrAdmin || isCustomerRole) && !isStrictlyBlockedRole;
 
   // AC 2 & 3: Kiểm tra nợ quá hạn và vượt hạn mức
   const isOverdueBlocked = Boolean(
@@ -527,8 +596,8 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
       return;
     }
 
-    if (!isSalesOrAdmin) {
-      setErrorMsg('Bạn không có quyền tạo đơn hàng. Chỉ Nhân viên kinh doanh và Quản trị hệ thống mới được phép.');
+    if (!canCreateOrder) {
+      setErrorMsg('Bạn không có quyền tạo đơn hàng. Chức năng chỉ dành cho Nhân viên kinh doanh, Quản trị hệ thống và Đại lý.');
       return;
     }
 
@@ -688,31 +757,6 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
                     color: '#334155',
                   }}
                 >
-                  <div
-                    style={{
-                      width: '18px',
-                      height: '18px',
-                      borderRadius: '50%',
-                      background: currentUser.avatar_url ? '#f1f5f9' : '#2563eb',
-                      color: '#ffffff',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '10px',
-                      fontWeight: '700',
-                      overflow: 'hidden',
-                    }}
-                  >
-                    {currentUser.avatar_url ? (
-                      <img
-                        src={getAvatarUrl(currentUser.avatar_url)}
-                        alt=""
-                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                      />
-                    ) : (
-                      (currentUser.full_name || currentUser.username).charAt(0).toUpperCase()
-                    )}
-                  </div>
                   <span>
                     Người tạo: <strong>{currentUser.full_name || currentUser.username}</strong>
                   </span>
@@ -841,6 +885,26 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
               })}
             </select>
 
+            {isCustomer && (
+              <div
+                style={{
+                  marginTop: '8px',
+                  padding: '7px 12px',
+                  borderRadius: '6px',
+                  background: '#ecfdf5',
+                  border: '1px solid #a7f3d0',
+                  fontSize: '12.5px',
+                  color: '#065f46',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  fontWeight: 500,
+                }}
+              >
+                <span>✓ <strong>Cổng Đại lý tự đặt hàng:</strong> Hệ thống tự động gán đơn hàng cho tài khoản đại lý <strong>{selectedDealer?.name || currentUser?.full_name}</strong></span>
+              </div>
+            )}
+
             {/* AC 1: Hiển thị kho phục vụ riêng cho đại lý */}
             {stockSummary && (
               <div
@@ -965,7 +1029,6 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
                   fontSize: '13px',
                 }}
               >
-                <div style={{ fontSize: '24px', marginBottom: '6px' }}>📦</div>
                 Chưa có sản phẩm nào trong đơn hàng.
               </div>
             ) : (
@@ -1020,7 +1083,7 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
                             }}
                           >
                             {/* Tên sản phẩm */}
-                            <td style={{ padding: '10px 12px' }}>
+                            <td style={{ padding: '10px 12px', verticalAlign: 'middle' }}>
                               <div style={{ fontWeight: '600', color: '#0f172a' }}>{item.productName}</div>
                               <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
                                 Mã: <span style={{ fontFamily: 'monospace' }}>{item.productCode}</span>
@@ -1075,25 +1138,27 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
 
                               {item.priceNote && (
                                 <div style={{ fontSize: '11px', color: '#0284c7', marginTop: '2px' }}>
-                                  🏷️ {item.priceNote}
+                                  {item.priceNote}
                                 </div>
                               )}
                             </td>
 
                             {/* Đơn vị tính */}
-                            <td style={{ padding: '10px 8px', textAlign: 'center' }}>
+                            <td style={{ padding: '10px 8px', textAlign: 'center', verticalAlign: 'middle' }}>
                               {item.availableUnits.length > 1 ? (
                                 <select
                                   value={item.unitName}
                                   onChange={(e) => handleUnitChange(idx, e.target.value)}
                                   style={{
-                                    padding: '4px 6px',
+                                    height: '36px',
+                                    padding: '0 8px',
                                     borderRadius: '6px',
                                     border: '1px solid #cbd5e1',
-                                    fontSize: '12px',
+                                    fontSize: '13px',
                                     background: '#fff',
                                     outline: 'none',
                                     cursor: 'pointer',
+                                    boxSizing: 'border-box',
                                   }}
                                 >
                                   {item.availableUnits.map((u) => (
@@ -1105,13 +1170,17 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
                               ) : (
                                 <span
                                   style={{
-                                    display: 'inline-block',
-                                    padding: '2px 8px',
-                                    borderRadius: '4px',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    height: '36px',
+                                    padding: '0 10px',
+                                    borderRadius: '6px',
                                     background: '#f1f5f9',
                                     color: '#475569',
-                                    fontSize: '12px',
+                                    fontSize: '13px',
                                     fontWeight: '500',
+                                    boxSizing: 'border-box',
                                   }}
                                 >
                                   {item.unitName}
@@ -1120,7 +1189,7 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
                             </td>
 
                             {/* Số lượng */}
-                            <td style={{ padding: '10px 8px', textAlign: 'center' }}>
+                            <td style={{ padding: '10px 8px', textAlign: 'center', verticalAlign: 'middle' }}>
                               <input
                                 type="number"
                                 min="1"
@@ -1129,7 +1198,8 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
                                 onChange={(e) => handleQuantityChange(idx, e.target.value)}
                                 style={{
                                   width: '70px',
-                                  padding: '5px 8px',
+                                  height: '36px',
+                                  padding: '0 8px',
                                   borderRadius: '6px',
                                   border: isExceeded ? '1.5px solid #ef4444' : '1px solid #cbd5e1',
                                   background: isExceeded ? '#fef2f2' : '#ffffff',
@@ -1143,15 +1213,17 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
                             </td>
 
                             {/* Đơn giá bán thực tế */}
-                            <td style={{ padding: '10px 12px', textAlign: 'right' }}>
+                            <td style={{ padding: '10px 12px', textAlign: 'right', verticalAlign: 'middle' }}>
                               <input
                                 type="number"
                                 min="0"
                                 value={item.sellPrice}
                                 onChange={(e) => handlePriceChange(idx, parseFloat(e.target.value) || 0)}
+                                title={item.floorPrice !== null ? `Giá sàn: ${item.floorPrice.toLocaleString('vi-VN')} đ` : undefined}
                                 style={{
                                   width: '105px',
-                                  padding: '5px 8px',
+                                  height: '36px',
+                                  padding: '0 8px',
                                   borderRadius: '6px',
                                   border: isBelowFloor ? '1.5px solid #ef4444' : '1px solid #cbd5e1',
                                   fontSize: '13px',
@@ -1159,31 +1231,21 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
                                   textAlign: 'right',
                                   outline: 'none',
                                   color: isBelowFloor ? '#b91c1c' : '#0f172a',
-                                  background: isBelowFloor ? '#fff' : '#fff',
+                                  background: '#fff',
                                   boxSizing: 'border-box',
                                 }}
                               />
-                              {item.floorPrice !== null && (
-                                <div
-                                  style={{
-                                    fontSize: '10.5px',
-                                    color: isBelowFloor ? '#dc2626' : '#64748b',
-                                    fontWeight: isBelowFloor ? '700' : '400',
-                                    marginTop: '2px',
-                                  }}
-                                >
-                                  Sàn: {item.floorPrice.toLocaleString('vi-VN')} đ
-                                </div>
-                              )}
                             </td>
 
                             {/* Thành tiền (Số lượng x Đơn giá) */}
-                            <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: '700', color: '#0f172a' }}>
-                              {itemTotal.toLocaleString('vi-VN')} đ
+                            <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: '700', color: '#0f172a', verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
+                              <span style={{ display: 'inline-flex', alignItems: 'center', height: '36px' }}>
+                                {itemTotal.toLocaleString('vi-VN')} đ
+                              </span>
                             </td>
 
                             {/* Nút xóa sản phẩm */}
-                            <td style={{ padding: '10px 8px', textAlign: 'center' }}>
+                            <td style={{ padding: '10px 8px', textAlign: 'center', verticalAlign: 'middle' }}>
                               <button
                                 type="button"
                                 onClick={() => handleRemoveItem(idx)}
@@ -1192,8 +1254,11 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
                                   border: 'none',
                                   color: '#ef4444',
                                   cursor: 'pointer',
-                                  padding: '4px',
+                                  height: '36px',
+                                  padding: '0 6px',
                                   borderRadius: '4px',
+                                  fontSize: '12px',
+                                  fontWeight: '600',
                                   display: 'inline-flex',
                                   alignItems: 'center',
                                   justifyContent: 'center',
@@ -1201,21 +1266,7 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
                                 }}
                                 title="Xóa sản phẩm khỏi đơn"
                               >
-                                <svg
-                                  width="16"
-                                  height="16"
-                                  viewBox="0 0 24 24"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  strokeWidth="2.2"
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                >
-                                  <polyline points="3 6 5 6 21 6" />
-                                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                                  <line x1="10" y1="11" x2="10" y2="17" />
-                                  <line x1="14" y1="11" x2="14" y2="17" />
-                                </svg>
+                                Xóa
                               </button>
                             </td>
                           </tr>
@@ -1347,9 +1398,6 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
                   fontWeight: '600',
                 }}
               >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
                 <span>{discountEvaluation.label}</span>
               </div>
             )}
@@ -1366,7 +1414,7 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
                   fontSize: '11.5px',
                 }}
               >
-                ⚠️ Chiết khấu bạn nhập ({safeDiscount}%) cao hơn mức chính sách ({discountEvaluation.discountPercent}%). Đơn hàng sẽ cần Quản lý duyệt.
+                Chiết khấu bạn nhập ({safeDiscount}%) cao hơn mức chính sách ({discountEvaluation.discountPercent}%). Đơn hàng sẽ cần Quản lý duyệt.
               </div>
             )}
             <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px dashed #cbd5e1', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -1393,7 +1441,7 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
                 lineHeight: '1.4',
               }}
             >
-              ⚠️ Đơn hàng có sản phẩm có đơn giá bán thấp hơn giá niêm yết / giá sàn quy định. Đơn hàng sẽ được chuyển sang trạng thái Chờ quản lý phê duyệt.
+              Đơn hàng có sản phẩm có đơn giá bán thấp hơn giá niêm yết / giá sàn quy định. Đơn hàng sẽ được chuyển sang trạng thái Chờ quản lý phê duyệt.
             </div>
           )}
 
@@ -1531,39 +1579,41 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
             <button
               id="btn-submit-order"
               type="submit"
-              disabled={isSubmitting || orderItems.length === 0 || isLockedDealer || hasStockErrors || isOverdueBlocked || !isSalesOrAdmin}
+              disabled={isSubmitting || orderItems.length === 0 || isLockedDealer || hasStockErrors || isOverdueBlocked || !canCreateOrder}
               style={{
                 padding: '9px 22px',
                 borderRadius: '8px',
                 border: 'none',
-                background: orderItems.length === 0 || isLockedDealer || hasStockErrors || isOverdueBlocked || !isSalesOrAdmin ? '#94a3b8' : (isAnyBelowFloorPrice || isOverLimit) ? '#ea580c' : '#0fad89',
+                background: orderItems.length === 0 || isLockedDealer || hasStockErrors || isOverdueBlocked || !canCreateOrder ? '#94a3b8' : (isAnyBelowFloorPrice || isOverLimit || isCustomerRole) ? '#ea580c' : '#0fad89',
                 fontSize: '13.5px',
                 fontWeight: '700',
                 color: '#fff',
-                cursor: isSubmitting || orderItems.length === 0 || isLockedDealer || hasStockErrors || isOverdueBlocked || !isSalesOrAdmin ? 'not-allowed' : 'pointer',
+                cursor: isSubmitting || orderItems.length === 0 || isLockedDealer || hasStockErrors || isOverdueBlocked || !canCreateOrder ? 'not-allowed' : 'pointer',
                 opacity: isSubmitting ? 0.7 : 1,
                 boxShadow:
-                  orderItems.length === 0 || isLockedDealer || hasStockErrors || isOverdueBlocked || !isSalesOrAdmin
+                  orderItems.length === 0 || isLockedDealer || hasStockErrors || isOverdueBlocked || !canCreateOrder
                     ? 'none'
-                    : (isAnyBelowFloorPrice || isOverLimit)
+                    : (isAnyBelowFloorPrice || isOverLimit || isCustomerRole)
                     ? '0 4px 6px -1px rgba(234, 88, 12, 0.3)'
                     : '0 4px 6px -1px rgba(15, 173, 137, 0.3)',
               }}
               title={
-                !isSalesOrAdmin
-                  ? 'Chỉ Nhân viên kinh doanh và Quản trị hệ thống mới có quyền tạo đơn'
+                !canCreateOrder
+                  ? 'Chỉ Nhân viên kinh doanh, Quản trị hệ thống và Đại lý mới có quyền tạo đơn'
                   : isOverdueBlocked
                   ? `Đại lý "${selectedDealer?.name}" có khoản nợ quá hạn (${creditInfo?.max_debt_age} ngày), bị chặn tạo đơn hoàn toàn`
                   : isLockedDealer
                   ? `Đại lý "${selectedDealer?.name}" hiện đang bị khóa giao dịch, không thể tạo đơn hàng`
                   : hasStockErrors
                   ? 'Có sản phẩm vượt quá tồn khả dụng kho phục vụ. Vui lòng điều chỉnh số lượng trước khi đặt hàng'
+                  : isCustomerRole
+                  ? 'Tạo đơn hàng từ Cổng Đại lý (Đơn hàng gửi lên sẽ luôn ở trạng thái Chờ duyệt)'
                   : undefined
               }
             >
               {isSubmitting
                 ? 'Đang lưu đơn hàng...'
-                : !isSalesOrAdmin
+                : !canCreateOrder
                 ? 'Không có quyền tạo đơn'
                 : isOverdueBlocked
                 ? 'Bị chặn do nợ quá hạn'
@@ -1571,6 +1621,8 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
                 ? 'Đại lý bị khóa (Không thể tạo đơn)'
                 : hasStockErrors
                 ? 'Vượt tồn khả dụng (Không thể tạo đơn)'
+                : isCustomerRole
+                ? `Tạo đơn hàng (Chờ duyệt${orderItems.length > 0 ? ` - ${orderItems.length} SP` : ''})`
                 : isAnyBelowFloorPrice
                 ? 'Gửi duyệt (Dưới giá niêm yết / sàn)'
                 : isOverLimit
