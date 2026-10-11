@@ -8,6 +8,10 @@ import {
   supplementaryDeliveryApi,
   reorderOrderApi,
   getCloneOrderDataApi,
+  getWarehousePickingSummaryApi,
+  OrderPickingSummary,
+  OrderPickingItem,
+  ProductPickingLocationItem,
   OrderResponseData,
   User,
   ProductItem,
@@ -48,6 +52,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'PENDING_APPROVAL' | 'CONFIRMED' | 'DELIVERED' | 'REJECTED' | 'CANCELLED'>('ALL');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedOrderDetail, setSelectedOrderDetail] = useState<any | null>(null);
+  const [pickingSummary, setPickingSummary] = useState<OrderPickingSummary | null>(null);
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
   const [approvingOrder, setApprovingOrder] = useState<OrderResponseData | null>(null);
   const [rejectingOrder, setRejectingOrder] = useState<OrderResponseData | null>(null);
@@ -287,7 +292,8 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
 
       const continueToNewOrder = () => {
         setReorderResultModal(null);
-        setSelectedOrderDetail(null); // Đóng modal chi tiết đơn
+        setSelectedOrderDetail(null);
+    setPickingSummary(null); // Đóng modal chi tiết đơn
         setReorderInitialData({
           dealerId: res.dealer_id,
           items: mappedOrderItems,
@@ -363,6 +369,9 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
     try {
       const detail = await getOrderDetailApi(token, order.order_code);
       setSelectedOrderDetail(detail);
+      getWarehousePickingSummaryApi(token, order.order_code)
+        .then((res: OrderPickingSummary) => setPickingSummary(res))
+        .catch(() => setPickingSummary(null));
     } catch (err: any) {
       console.error('Không thể tải chi tiết đơn hàng:', err);
     } finally {
@@ -1693,7 +1702,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                 )}
                 <button
                   type="button"
-                  onClick={() => setSelectedOrderDetail(null)}
+                  onClick={() => { setSelectedOrderDetail(null); setPickingSummary(null); }}
                   style={{
                     background: 'transparent',
                     border: 'none',
@@ -1762,6 +1771,56 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                   </div>
                 </div>
               )}
+                        {/* Thông tin kho xuất hàng phục vụ */}
+            {pickingSummary && (
+              <div
+                style={{
+                  background: '#f0f9ff',
+                  border: '1px solid #bae6fd',
+                  borderRadius: '10px',
+                  padding: '12px 16px',
+                  marginBottom: '16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  gap: '12px',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div
+                    style={{
+                      width: '36px',
+                      height: '36px',
+                      borderRadius: '8px',
+                      background: '#0284c7',
+                      color: '#ffffff',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M3 21V9l9-7 9 7v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '12px', color: '#0369a1', fontWeight: '600', textTransform: 'uppercase' }}>
+                      Kho xuất hàng mặc định (Đại lý {selectedOrderDetail.dealer_name})
+                    </div>
+                    <div style={{ fontSize: '15px', fontWeight: '700', color: '#0c4a6e' }}>
+                      {pickingSummary.warehouse_name} ({pickingSummary.warehouse_code})
+                    </div>
+                  </div>
+                </div>
+                {pickingSummary.warehouse_address && (
+                  <div style={{ fontSize: '12.5px', color: '#0369a1', background: '#e0f2fe', padding: '4px 10px', borderRadius: '6px' }}>
+                    Địa chỉ: {pickingSummary.warehouse_address}
+                  </div>
+                )}
+              </div>
+            )}
+
             {selectedOrderDetail.approval_reason && (
               <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '8px', padding: '12px 14px', marginBottom: '16px', fontSize: '13px', color: '#b45309' }}>
                 <strong>Lý do yêu cầu phê duyệt:</strong> {selectedOrderDetail.approval_reason}
@@ -1905,6 +1964,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                       <th style={{ padding: '8px 12px', textAlign: 'center' }}>ĐVT</th>
                       <th style={{ padding: '8px 12px', textAlign: 'right' }}>SL Đặt</th>
                       <th style={{ padding: '8px 12px', textAlign: 'right' }}>SL Thực giao</th>
+                      <th style={{ padding: '8px 12px', textAlign: 'left' }}>Vị trí kệ & Khả dụng</th>
                       <th style={{ padding: '8px 12px', textAlign: 'right' }}>Đơn giá</th>
                       <th style={{ padding: '8px 12px', textAlign: 'right' }}>Thành tiền</th>
                       <th style={{ padding: '8px 12px', textAlign: 'center' }}>Thao tác</th>
@@ -1919,6 +1979,12 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                         ? (item.delivered_quantity !== undefined && item.delivered_quantity !== null ? Number(item.delivered_quantity) : qty)
                         : null;
                       const shortage = isCompletedDelivery && deliveredQty !== null ? Math.max(0, qty - deliveredQty) : 0;
+                      const pickingItem = pickingSummary?.items.find((p: OrderPickingItem) => p.product_id === item.product_id);
+                      const totalAvailable = (pickingItem?.locations || []).reduce(
+                        (acc: number, l: ProductPickingLocationItem) => acc + (l.available_quantity || 0),
+                        0
+                      );
+                      const isSufficient = totalAvailable >= qty;
                       const price = item.price || 0;
                       const lineTotal = qty * price;
                       return (
@@ -1967,6 +2033,43 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                               </div>
                             ) : (
                               <span style={{ color: '#94a3b8' }}>—</span>
+                            )}
+                          </td>
+                          <td style={{ padding: '10px 12px' }}>
+                            {pickingItem && pickingItem.locations.length > 0 ? (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                {pickingItem.locations.map((loc: ProductPickingLocationItem) => (
+                                  <div
+                                    key={loc.location_id}
+                                    style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '6px',
+                                      background: '#f1f5f9',
+                                      border: '1px solid #cbd5e1',
+                                      borderRadius: '6px',
+                                      padding: '2px 8px',
+                                      fontSize: '12px',
+                                    }}
+                                  >
+                                    <span style={{ fontWeight: '700', color: '#1e293b' }}>
+                                      {loc.location_code}
+                                    </span>
+                                    <span style={{ color: '#64748b', fontSize: '11px' }}>
+                                      (Khả dụng: {loc.available_quantity})
+                                    </span>
+                                  </div>
+                                ))}
+                                {!isSufficient && (
+                                  <span style={{ color: '#dc2626', fontSize: '11px', fontWeight: '600' }}>
+                                    ⚠️ Thiếu hàng khả dụng (Cần: {qty}, Có: {totalAvailable})
+                                  </span>
+                                )}
+                              </div>
+                            ) : (
+                              <span style={{ color: '#94a3b8', fontStyle: 'italic', fontSize: '12px' }}>
+                                Chưa phân bổ vị trí
+                              </span>
                             )}
                           </td>
                           <td style={{ padding: '10px 12px', textAlign: 'right', color: '#334155' }}>
@@ -2154,7 +2257,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                 </button>
                 <button
                   type="button"
-                  onClick={() => setSelectedOrderDetail(null)}
+                  onClick={() => { setSelectedOrderDetail(null); setPickingSummary(null); }}
                   style={{
                     padding: '8px 18px',
                     background: '#f1f5f9',
