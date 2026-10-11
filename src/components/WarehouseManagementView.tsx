@@ -1703,7 +1703,7 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                               >
                                 <td><span className="wh-badge wh-badge-code">{z.zone_code}</span></td>
                                 <td>
-                                  <strong style={{ color: isSelected ? '#1b49de' : '#0f172a' }}>{z.zone_name}</strong>
+                                  <strong style={{ color: isSelected ? 'var(--wh-primary)' : '#0f172a' }}>{z.zone_name}</strong>
                                 </td>
                                 <td style={{ textAlign: 'center' }}>
                                   <span className="wh-badge wh-badge-number">
@@ -1712,37 +1712,28 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                                 </td>
                                 {canManage && (
                                   <td style={{ textAlign: 'center' }}>
-                                    <div className="wh-action-group" style={{ justifyContent: 'center' }}>
+                                    <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
                                       <button
                                         type="button"
-                                        className="wh-icon-btn wh-icon-btn--edit"
+                                        className="wh-action-btn-edit"
                                         title="Sửa khu vực"
                                         onClick={(e) => {
                                           e.stopPropagation();
                                           handleOpenEditZone(z);
                                         }}
                                       >
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                          <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
-                                          <path d="m15 5 4 4" />
-                                        </svg>
+                                        Sửa
                                       </button>
                                       <button
                                         type="button"
-                                        className="wh-icon-btn wh-icon-btn--delete"
+                                        className="wh-action-btn-delete"
                                         title="Xóa khu vực"
                                         onClick={(e) => {
                                           e.stopPropagation();
                                           setDeletingZone(z);
                                         }}
                                       >
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                          <path d="M3 6h18" />
-                                          <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
-                                          <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
-                                          <line x1="10" x2="10" y1="11" y2="17" />
-                                          <line x1="14" x2="14" y1="11" y2="17" />
-                                        </svg>
+                                        Xóa
                                       </button>
                                     </div>
                                   </td>
@@ -1787,12 +1778,11 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                       <table className="wh-table">
                         <thead>
                           <tr>
-                            <th style={{ width: '90px' }}>Mã kệ</th>
+                            <th style={{ width: '100px' }}>Mã kệ</th>
                             <th>Tên kệ / dãy</th>
-                            <th>Phân loại</th>
-                            <th style={{ textAlign: 'center', width: '100px' }}>Vị trí dùng</th>
-                            <th style={{ textAlign: 'right', width: '120px' }}>Sức chứa tối đa</th>
-                            {canManage && <th style={{ textAlign: 'center', width: '90px' }}>Thao tác</th>}
+                            <th style={{ width: '120px' }}>Phân loại</th>
+                            <th style={{ textAlign: 'right', width: '140px' }}>Sức chứa tối đa</th>
+                            {canManage && <th style={{ textAlign: 'center', width: '120px' }}>Thao tác</th>}
                           </tr>
                         </thead>
                         <tbody>
@@ -1805,11 +1795,6 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                                   {r.rack_type === 'aisle' ? 'Dãy kệ' : 'Tầng / Kệ'}
                                 </span>
                               </td>
-                              <td style={{ textAlign: 'center' }}>
-                                <span className="wh-badge" style={{ background: '#ecfdf5', color: '#065f46', border: '1px solid #a7f3d0' }}>
-                                  {r.locations_count || 0} vị trí
-                                </span>
-                              </td>
                               <td style={{ textAlign: 'right' }}>
                                 <span className="wh-badge wh-badge-number">
                                   {r.max_capacity ? `${r.max_capacity.toLocaleString('vi-VN')} SP` : '500 SP'}
@@ -1817,31 +1802,22 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                               </td>
                               {canManage && (
                                 <td style={{ textAlign: 'center' }}>
-                                  <div className="wh-action-group" style={{ justifyContent: 'center' }}>
+                                  <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
                                     <button
                                       type="button"
-                                      className="wh-icon-btn wh-icon-btn--edit"
+                                      className="wh-action-btn-edit"
                                       title="Sửa kệ"
                                       onClick={() => handleOpenEditRack(r)}
                                     >
-                                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                        <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
-                                        <path d="m15 5 4 4" />
-                                      </svg>
+                                      Sửa
                                     </button>
                                     <button
                                       type="button"
-                                      className="wh-icon-btn wh-icon-btn--delete"
+                                      className="wh-action-btn-delete"
                                       title="Xóa kệ"
                                       onClick={() => setDeletingRack(r)}
                                     >
-                                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                        <path d="M3 6h18" />
-                                        <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
-                                        <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
-                                        <line x1="10" x2="10" y1="11" y2="17" />
-                                        <line x1="14" x2="14" y1="11" y2="17" />
-                                      </svg>
+                                      Xóa
                                     </button>
                                   </div>
                                 </td>
