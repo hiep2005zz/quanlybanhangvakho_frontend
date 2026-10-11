@@ -889,6 +889,7 @@ export default function DashboardPage({
   const currentBadgeColor = roleBadgeColorMap[primaryRole] || '#64748b';
 
   const isProductFormOpen = productDrawerState.isOpen && activeTab === 'inventory';
+  const isSalesOrderOpen = activeTab === 'create-order' || isSalesOrderEntryOpen;
   const isLockedScrollTab = !isProductFormOpen && !isSalesOrderOpen && (
     activeTab === 'inventory' ||
     activeTab === 'dealers' ||

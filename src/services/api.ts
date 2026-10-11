@@ -2724,6 +2724,9 @@ export async function getWarehouseMasterDataApi(
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
     throw new Error(errorData.detail || 'Lỗi nạp cấu hình danh mục kệ và khu vực');
+  }
+  return response.json();
+}
 
 // CHỨC NĂNG KIỂM KÊ KHO (STOCK AUDITS)
 // ==========================================
@@ -2795,7 +2798,6 @@ export async function getAuditWarehousesApi(token: string): Promise<{ id: string
   return response.json();
 }
 
-<<<<<<< HEAD
 export async function getWarehouseZonesApi(
   token: string,
   warehouseId: number
@@ -2807,46 +2809,10 @@ export async function getWarehouseZonesApi(
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
     throw new Error(errorData.detail || 'Lỗi tải danh mục khu vực');
-=======
-export async function previewAuditProductsApi(
-  token: string,
-  params: { warehouse_id: string; scope_type?: string; category_id?: number }
-): Promise<{
-  warehouse_id: string;
-  warehouse_name: string;
-  scope_type: string;
-  category_id?: number;
-  total_items: number;
-  items: {
-    product_id: number;
-    product_code: string;
-    product_name: string;
-    category_name: string;
-    base_unit: string;
-    system_stock: number;
-    reserved_stock: number;
-    available_stock: number;
-  }[];
-}> {
-  const query = new URLSearchParams({
-    warehouse_id: params.warehouse_id,
-    scope_type: params.scope_type || 'WAREHOUSE',
-  });
-  if (params.category_id) {
-    query.set('category_id', String(params.category_id));
-  }
-  const response = await authenticatedFetch(`${API_BASE_URL}/stock-audits/preview-products?${query.toString()}`, {
-    method: 'GET',
-  }, token);
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.detail || 'Không thể xem trước danh sách sản phẩm');
->>>>>>> origin/test
   }
   return response.json();
 }
 
-<<<<<<< HEAD
 export async function createWarehouseZoneApi(
   token: string,
   warehouseId: number,
@@ -2985,9 +2951,43 @@ export async function deleteWarehouseRackApi(token: string, rackId: number): Pro
   return data;
 }
 
+export async function previewAuditProductsApi(
+  token: string,
+  params: { warehouse_id: string; scope_type?: string; category_id?: number }
+): Promise<{
+  warehouse_id: string;
+  warehouse_name: string;
+  scope_type: string;
+  category_id?: number;
+  total_items: number;
+  items: {
+    product_id: number;
+    product_code: string;
+    product_name: string;
+    category_name: string;
+    base_unit: string;
+    system_stock: number;
+    reserved_stock: number;
+    available_stock: number;
+  }[];
+}> {
+  const query = new URLSearchParams({
+    warehouse_id: params.warehouse_id,
+    scope_type: params.scope_type || 'WAREHOUSE',
+  });
+  if (params.category_id) {
+    query.set('category_id', String(params.category_id));
+  }
+  const response = await authenticatedFetch(`${API_BASE_URL}/stock-audits/preview-products?${query.toString()}`, {
+    method: 'GET',
+  }, token);
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Không thể xem trước danh sách sản phẩm');
+  }
+  return response.json();
+}
 
-
-=======
 export async function getStockAuditsApi(
   token: string,
   params?: {
@@ -3098,6 +3098,3 @@ export async function cancelStockAuditApi(
   }
   return resData;
 }
-
-
->>>>>>> origin/test
