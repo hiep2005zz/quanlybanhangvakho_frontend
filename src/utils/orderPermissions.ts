@@ -21,9 +21,8 @@ export function getOrderPermissionTier(user?: User | null): OrderPermissionTier 
     .filter(Boolean)
     .map((r) => r.toLowerCase());
 
-  // Nhóm Không Liên Quan (No Access): muahang
+  // Nhóm Không Liên Quan (No Access): purchasing (nhân viên mua hàng)
   if (
-    username === 'muahang' ||
     rawRoles.includes('purchasing') ||
     user.role?.toLowerCase() === 'purchasing'
   ) {
