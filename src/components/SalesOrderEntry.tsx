@@ -832,7 +832,7 @@ export default function SalesOrderEntry({
     } catch (createError) {
       const errMsg = createError instanceof Error ? createError.message : 'Không thể tạo đơn hàng.';
       emitStatusToast({
-        title: errMsg.includes('vượt quá tồn') ? 'Vượt tồn khả dụng' : 'Lỗi tạo đơn hàng',
+        title: errMsg.includes('quá hạn') ? 'Chặn tạo đơn do nợ quá hạn' : (errMsg.includes('vượt quá tồn') ? 'Vượt tồn khả dụng' : 'Lỗi tạo đơn hàng'),
         message: errMsg,
         type: 'error',
       });

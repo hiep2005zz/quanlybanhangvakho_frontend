@@ -1,4 +1,5 @@
 import type { DeliveryPoint, DeliveryPointInput } from '../types/deliveryPoint';
+export type { DeliveryPoint, DeliveryPointInput };
 export const API_BASE_URL = typeof window !== 'undefined' && window.location.origin ? '/api/v1' : 'http://127.0.0.1:8000/api/v1';
 
 /**
@@ -2077,8 +2078,8 @@ export interface OrderResponseData {
   created_at: string;
   approved_by?: string | null;
   approved_at?: string | null;
-  delivery_point_id?: number | null;
   delivery_point?: string | null;
+  delivery_point_id?: number | null;
   desired_delivery_date?: string | null;
   note?: string | null;
   discount_rate?: number;

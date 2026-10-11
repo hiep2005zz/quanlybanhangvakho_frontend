@@ -100,7 +100,12 @@ export const DealerCreditBadge: React.FC<DealerCreditBadgeProps> = ({
             {formatVND(currentDebt)}
           </div>
           <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '2px' }}>
-            Tuổi nợ: <strong style={{ color: isOverdue ? '#dc2626' : '#475569' }}>{maxDebtAge} ngày</strong>
+            Tuổi nợ: <strong style={{ color: isOverdue ? '#dc2626' : '#15803d' }}>{maxDebtAge} ngày</strong>{' '}
+            {isOverdue ? (
+              <span style={{ color: '#dc2626', fontWeight: '700' }}>(Quá hạn &gt; {allowedDays} ngày)</span>
+            ) : (
+              <span style={{ color: '#16a34a', fontWeight: '600' }}>(Chưa quá hạn / {allowedDays} ngày)</span>
+            )}
           </div>
         </div>
 
@@ -220,6 +225,9 @@ export const DealerCreditBadge: React.FC<DealerCreditBadgeProps> = ({
               </>
             )}{' '}
             Đơn hàng sau khi lưu sẽ được đánh dấu <strong>Cần duyệt (Chờ duyệt)</strong> và cần Quản lý kinh doanh phê duyệt trước khi xuất kho.
+            <div style={{ marginTop: '5px', fontSize: '12px', color: '#b45309', borderTop: '1px dashed #fde68a', paddingTop: '4px' }}>
+              *(Lưu ý: Khoản nợ hiện tại có tuổi nợ là <strong>{maxDebtAge} ngày</strong>, chưa vượt quá số ngày cho phép (<strong>{allowedDays} ngày</strong>) nên không bị chặn hoàn toàn, mà được phép tạo đơn ở chế độ Cần duyệt).*
+            </div>
           </div>
         </div>
       )}

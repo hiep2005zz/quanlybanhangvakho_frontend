@@ -4,7 +4,7 @@
   padding: 16px 24px;
   max-width: 1600px;
   margin: 0 auto;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-family: 'Outfit', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   color: #1e293b;
   height: 100%;
   max-height: 100%;
@@ -13,6 +13,13 @@
   flex-direction: column;
   overflow: hidden;
   width: 100%;
+}
+
+.dealer-profiles-container button,
+.dealer-profiles-container input,
+.dealer-profiles-container select,
+.dealer-profiles-container textarea {
+  font-family: inherit;
 }
 
 /* Header Section */
@@ -51,8 +58,9 @@
 }
 
 .dealer-header-title {
-  font-size: 26px;
-  font-weight: 800;
+  font-family: 'Outfit', sans-serif;
+  font-size: 24px;
+  font-weight: 700;
   color: #0f172a;
   letter-spacing: -0.02em;
   margin: 0 0 8px 0;
@@ -62,7 +70,7 @@
 }
 
 .dealer-header-desc {
-  font-size: 14.5px;
+  font-size: 14px;
   color: #64748b;
   margin: 0;
   line-height: 1.5;
@@ -85,12 +93,13 @@
   border-radius: 10px;
   background: linear-gradient(135deg, #0fba90 0%, #0fad89 100%);
   color: #ffffff;
-  font-size: 14.5px;
+  font-size: 14px;
   font-weight: 600;
   border: none;
   cursor: pointer;
   box-shadow: 0 4px 12px rgba(15, 186, 144, 0.3);
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  font-family: inherit;
 }
 
 .btn-primary-gradient:hover {
@@ -112,6 +121,7 @@
   border: 1px solid #cbd5e1;
   cursor: pointer;
   transition: all 0.18s ease;
+  font-family: inherit;
 }
 
 .btn-secondary-white:hover {
@@ -157,8 +167,9 @@
 }
 
 .stat-number {
+  font-family: 'Outfit', sans-serif;
   font-size: 24px;
-  font-weight: 800;
+  font-weight: 700;
   color: #0f172a;
   line-height: 1.2;
 }
@@ -223,6 +234,7 @@
   border-radius: 10px;
   border: 1.5px solid #e2e8f0;
   font-size: 14px;
+  font-family: inherit;
   color: #0f172a;
   outline: none;
   background: #f8fafc;
@@ -243,6 +255,7 @@
   border-radius: 10px;
   border: 1.5px solid #e2e8f0;
   font-size: 13.5px;
+  font-family: inherit;
   color: #0f172a;
   background: #f8fafc;
   outline: none;
@@ -298,6 +311,9 @@
   padding: 12px 16px;
   border-bottom: 1.5px solid #e2e8f0;
   white-space: nowrap;
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
   position: sticky;
   top: 0;
   z-index: 10;
@@ -644,6 +660,14 @@
   border: 1px solid rgba(255, 255, 255, 0.2);
   display: flex;
   flex-direction: column;
+  font-family: 'Outfit', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.modal-content-card button,
+.modal-content-card input,
+.modal-content-card select,
+.modal-content-card textarea {
+  font-family: inherit;
 }
 
 .modal-header {
@@ -656,9 +680,11 @@
 
 .modal-header h3 {
   margin: 0;
-  font-size: 19px;
-  font-weight: 800;
+  font-family: 'Outfit', sans-serif;
+  font-size: 18px;
+  font-weight: 700;
   color: #0f172a;
+  letter-spacing: -0.01em;
 }
 
 .modal-close-btn {
@@ -731,6 +757,7 @@
   border-radius: 10px;
   border: 1.5px solid #cbd5e1;
   font-size: 14px;
+  font-family: inherit;
   color: #0f172a;
   outline: none;
   background: #ffffff;
@@ -769,8 +796,9 @@
 
 .decision-card-content h5 {
   margin: 0 0 4px 0;
+  font-family: 'Outfit', sans-serif;
   font-size: 14.5px;
-  font-weight: 800;
+  font-weight: 700;
   color: #14532d;
 }
 

@@ -5,6 +5,7 @@ export interface DashboardLayoutProps {
   sidebar?: React.ReactNode;
   children: React.ReactNode;
   noScroll?: boolean;
+  mainClassName?: string;
 }
 
 export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
@@ -12,6 +13,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   sidebar,
   children,
   noScroll = false,
+  mainClassName,
 }) => {
   return (
     <div className="flex flex-col h-screen w-full overflow-hidden bg-gray-50">
@@ -24,7 +26,15 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
         {sidebar}
 
         {/* Cột phải (Main Content) */}
-        <main className={`flex-1 min-w-0 ${noScroll ? 'overflow-hidden flex flex-col p-3 md:p-4' : 'overflow-y-auto p-6'}`}>
+        <main
+          className={`flex-1 min-w-0 ${
+            mainClassName
+              ? mainClassName
+              : noScroll
+              ? 'overflow-y-auto md:overflow-hidden flex flex-col p-2.5 sm:p-3 md:p-4'
+              : 'overflow-y-auto p-3 sm:p-4 md:p-6'
+          }`}
+        >
           {children}
         </main>
       </div>
