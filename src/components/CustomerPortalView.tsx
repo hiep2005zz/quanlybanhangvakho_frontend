@@ -653,8 +653,8 @@ export const CustomerPortalView: React.FC<CustomerPortalViewProps> = ({
                 id="btn-submit-dealer-order"
                 disabled={isSubmitting || cart.length === 0}
                 className={`w-full py-3 px-4 rounded-xl text-sm font-bold text-white transition-all shadow-md flex items-center justify-center gap-2 ${isSubmitting || cart.length === 0
-                    ? 'bg-gray-400 cursor-not-allowed opacity-70'
-                    : 'bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] cursor-pointer'
+                  ? 'bg-gray-400 cursor-not-allowed opacity-70'
+                  : 'bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] cursor-pointer'
                   }`}
               >
                 {isSubmitting ? (
