@@ -12,8 +12,9 @@ import {
 } from '../services/api';
 import { OrderLifecycleTimeline } from './OrderLifecycleTimeline';
 import { OrderCancelModal } from './OrderCancelModal';
-import { getOrderPermissionTier } from '../utils/orderPermissions';
+import { getOrderPermissionTier, isOrderPastExported, isOrderCancelable, getOrderStatusLabel } from '../utils/orderPermissions';
 import OrderPrintModal from './OrderPrintModal';
+import { emitStatusToast } from './StatusToast';
 import './orders-view.css';
 
 interface OrderDetailsModalProps {
@@ -122,22 +123,20 @@ export default function OrderDetailsModal({
         onOrderCancelled();
       }
     } catch (err: any) {
-      alert(err.message || 'Lỗi khi hủy đơn hàng');
+      emitStatusToast({
+        type: 'error',
+        title: 'Lỗi hủy đơn hàng',
+        message: err.message || 'Lỗi khi hủy đơn hàng',
+      });
     } finally {
       setIsSubmittingCancel(false);
     }
   };
 
-  const currentStatus = (order?.status || '').toUpperCase();
-  const isExportedOrLater = [
-    'EXPORTED',
-    'DISPATCHED',
-    'SHIPPED',
-    'DELIVERED',
-    'CLOSED',
-    'COMPLETED',
-  ].includes(currentStatus);
-  const isAlreadyCancelled = ['CANCELLED', 'REJECTED'].includes(currentStatus);
+  const currentStatus = (order?.status || '').toUpperCase().trim();
+  const isExportedOrLater = isOrderPastExported(order?.status);
+  const isAlreadyCancelled = ['CANCELLED', 'REJECTED', 'ĐÃ HỦY', 'TỪ CHỐI'].includes(currentStatus);
+  const canCancel = isOrderCancelable(order?.status);
 
   return (
     <>
@@ -215,7 +214,11 @@ export default function OrderDetailsModal({
                       onClose();
                       onCloneOrder(data);
                     } catch (e: any) {
-                      alert(e.message || 'Lỗi khi sao chép đơn hàng');
+                      emitStatusToast({
+                        type: 'error',
+                        title: 'Lỗi sao chép đơn hàng',
+                        message: e.message || 'Lỗi khi sao chép đơn hàng',
+                      });
                     }
                   }}
                   title="Sao chép đơn hàng này thành đơn mới"
@@ -225,34 +228,6 @@ export default function OrderDetailsModal({
                     <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
                   </svg>
                   Sao chép đơn này
-                </button>
-              )}
-
-              {/* Nút Hủy đơn chỉ hiển thị với Nhóm Toàn Quyền (Sales / Sales Manager / Admin) */}
-              {isFullAccess && !isAlreadyCancelled && (
-                <button
-                  type="button"
-                  id={`btn-cancel-order-${orderCode}`}
-                  onClick={() => setIsCancelModalOpen(true)}
-                  disabled={isExportedOrLater}
-                  style={{
-                    padding: '8px 16px',
-                    background: isExportedOrLater ? '#e2e8f0' : '#dc2626',
-                    color: isExportedOrLater ? '#94a3b8' : '#ffffff',
-                    border: 'none',
-                    borderRadius: '8px',
-                    fontSize: '13px',
-                    fontWeight: 700,
-                    cursor: isExportedOrLater ? 'not-allowed' : 'pointer',
-                    transition: 'all 0.15s ease',
-                  }}
-                  title={
-                    isExportedOrLater
-                      ? 'Đơn hàng đã xuất kho, không thể hủy (phải đi đường trả hàng)'
-                      : 'Hủy đơn hàng và nhả tồn giữ chỗ'
-                  }
-                >
-                  {isExportedOrLater ? 'Không thể hủy (Đã xuất)' : 'Hủy đơn hàng'}
                 </button>
               )}
 
@@ -310,7 +285,7 @@ export default function OrderDetailsModal({
                   }}
                 >
                   <strong>Lưu ý nghiệp vụ: </strong>
-                  Đơn hàng đã xuất kho vận chuyển (trạng thái: {order.status}). Hệ thống vô hiệu hóa chức năng Hủy đơn. Trường hợp cần trả hàng hoặc đổi ý, vui lòng thực hiện quy trình trả hàng tại khâu kho vận.
+                  Đơn hàng đã xuất kho vận chuyển (trạng thái: {getOrderStatusLabel(order.status)}). Hệ thống vô hiệu hóa chức năng Hủy đơn. Trường hợp cần trả hàng hoặc đổi ý, vui lòng thực hiện quy trình trả hàng tại khâu kho vận.
                 </div>
               )}
 
@@ -394,7 +369,7 @@ export default function OrderDetailsModal({
               <div><dt>Đại lý</dt><dd>{order.dealer_name}</dd></div>
               <div><dt>Người tạo</dt><dd>{order.created_by}</dd></div>
               <div><dt>Ngày tạo</dt><dd>{formatDate(order.created_at)}</dd></div>
-              <div><dt>Trạng thái</dt><dd>{order.status}</dd></div>
+              <div><dt>Trạng thái</dt><dd><strong>{getOrderStatusLabel(order.status)}</strong></dd></div>
               <div><dt>Điểm giao hàng</dt><dd>{order.delivery_point || 'Chưa có thông tin'}</dd></div>
               <div><dt>Ngày giao mong muốn</dt><dd>{formatDate(order.desired_delivery_date)}</dd></div>
               {order.note && <div className="orders-detail-note"><dt>Ghi chú</dt><dd>{order.note}</dd></div>}
@@ -499,6 +474,60 @@ export default function OrderDetailsModal({
                 <div className="orders-detail-grand-total"><span>Tổng thanh toán</span><strong>{formatCurrency(order.total_amount)}</strong></div>
               </div>
             </div>
+          )}
+
+          {/* Footer Modal: Chỉ hiển thị nút 'Hủy đơn hàng này' khi thuộc nhóm ['Nháp', 'Chờ duyệt', 'Đã duyệt', 'Đang soạn hàng'] */}
+          {order && (
+            <footer
+              style={{
+                display: 'flex',
+                justifyContent: 'flex-end',
+                alignItems: 'center',
+                gap: '12px',
+                padding: '16px 24px',
+                borderTop: '1px solid #e2e8f0',
+                background: '#f8fafc',
+                borderRadius: '0 0 12px 12px',
+              }}
+            >
+              {isFullAccess && canCancel && !isExportedOrLater && !isAlreadyCancelled && (
+                <button
+                  type="button"
+                  id={`btn-footer-cancel-order-${orderCode}`}
+                  onClick={() => setIsCancelModalOpen(true)}
+                  style={{
+                    padding: '8px 16px',
+                    background: '#fff1f2',
+                    border: '1px solid #fecdd3',
+                    borderRadius: '8px',
+                    color: '#e11d48',
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Hủy đơn hàng này
+                </button>
+              )}
+
+              <button
+                type="button"
+                className="orders-back-button"
+                onClick={onClose}
+                style={{
+                  padding: '8px 18px',
+                  background: '#f1f5f9',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: '8px',
+                  color: '#334155',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                Đóng
+              </button>
+            </footer>
           )}
         </section>
       </div>
