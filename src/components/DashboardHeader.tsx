@@ -57,8 +57,8 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
     <header
       style={{
         height: '52px',
-        background: 'linear-gradient(90deg, #0F8A5F 0%, #0c7651 100%)',
-        backgroundColor: '#0F8A5F',
+        background: 'linear-gradient(90deg, #0fba90 0%, #0fa786 100%)',
+        backgroundColor: '#0fad89',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
