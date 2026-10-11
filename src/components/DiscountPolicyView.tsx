@@ -571,33 +571,6 @@ export default function DiscountPolicyView({ token, user, onBackToHome }: Discou
         )}
       </div>
 
-      {/* Tài liệu & Quy tắc áp dụng chính sách chiết khấu */}
-      <div
-        style={{
-          background: '#f8fafc',
-          border: '1px solid #e2e8f0',
-          borderLeft: '4px solid #0fba90',
-          borderRadius: '8px',
-          padding: '14px 18px',
-          marginBottom: '20px',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-          <strong style={{ fontSize: '14px', color: '#0f172a' }}>Tài liệu & Quy tắc áp dụng chính sách chiết khấu:</strong>
-        </div>
-        <ul style={{ margin: 0, paddingLeft: '20px', fontSize: '13px', color: '#475569', lineHeight: '1.65' }}>
-          <li>
-            <strong>Phạm vi mốc sản lượng:</strong> Bậc chiết khấu tự động áp dụng theo số lượng mua của một SKU sản phẩm lẻ, một nhóm hàng hoặc toàn hệ thống.
-          </li>
-          <li>
-            <strong>Hình thức chiết khấu:</strong> Hỗ trợ tính theo tỷ lệ phần trăm (<strong>%</strong>) hoặc số tiền giảm cố định trên mỗi đơn vị sản phẩm (<strong>đ/sản phẩm</strong>).
-          </li>
-          <li>
-            <strong>Quy tắc ưu tiên (Best Discount Rule):</strong> Trường hợp có nhiều chính sách cùng thỏa mãn áp dụng cho đơn hàng hoặc sản phẩm, hệ thống sẽ <strong>tự động chọn chính sách có lợi nhất cho khách hàng</strong> (chính sách đem lại mức tiền giảm chiết khấu cao nhất) mà không cần phải thỏa thuận miệng từng lần.
-          </li>
-        </ul>
-      </div>
-
       {/* Danh sách chính sách hiện tại (Khối liền nhau) */}
       <div
         style={{
