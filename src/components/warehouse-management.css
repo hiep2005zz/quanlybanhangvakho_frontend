@@ -6,10 +6,10 @@
   --wh-brand: #0F8A5F;
   --wh-brand-hover: #0c734f;
   --wh-brand-light: #ecfdf5;
-  --wh-primary: #1B49DE;
-  --wh-primary-hover: #153bc0;
-  --wh-primary-light: #eff6ff;
-  --wh-primary-border: #bfdbfe;
+  --wh-primary: #0F8A5F;
+  --wh-primary-hover: #0c734f;
+  --wh-primary-light: #ecfdf5;
+  --wh-primary-border: #a7f3d0;
 
   /* Status Colors */
   --wh-success: #059669;
@@ -288,17 +288,21 @@
 .wh-search-icon {
   position: absolute;
   left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
   color: var(--wh-slate-400);
   pointer-events: none;
   display: flex;
   align-items: center;
   justify-content: center;
+  z-index: 2;
 }
 
 .wh-search-input {
   width: 100%;
   height: var(--wh-input-height);
-  padding: 0 12px 0 36px;
+  padding: 0 12px 0 38px !important;
+  padding-left: 38px !important;
   font-size: 13.5px;
   font-family: inherit;
   border: 1px solid var(--wh-slate-300);
@@ -312,7 +316,7 @@
 .wh-search-input:focus {
   border-color: var(--wh-primary);
   outline: none;
-  box-shadow: 0 0 0 3px rgba(27, 73, 222, 0.12);
+  box-shadow: 0 0 0 2px rgba(15, 138, 95, 0.2);
 }
 
 .wh-select {
@@ -336,7 +340,7 @@
 
 .wh-select:focus {
   border-color: var(--wh-primary);
-  box-shadow: 0 0 0 3px rgba(27, 73, 222, 0.12);
+  box-shadow: 0 0 0 2px rgba(15, 138, 95, 0.2);
 }
 
 .wh-filter-count {
@@ -379,18 +383,18 @@
   box-shadow: none !important;
 }
 
-/* Primary Action Button (Vibrant Royal Blue) */
+/* Primary Action Button (Green Brand Theme) */
 .wh-btn-primary {
   background-color: var(--wh-primary);
   color: #ffffff;
   border-color: var(--wh-primary);
-  box-shadow: 0 1px 2px rgba(27, 73, 222, 0.2);
+  box-shadow: none;
 }
 
 .wh-btn-primary:hover:not(:disabled) {
   background-color: var(--wh-primary-hover);
   border-color: var(--wh-primary-hover);
-  box-shadow: 0 2px 6px rgba(27, 73, 222, 0.25);
+  box-shadow: none;
 }
 
 /* Secondary Button */
@@ -534,7 +538,7 @@
   background: var(--wh-primary);
   color: #ffffff;
   border-color: var(--wh-primary);
-  box-shadow: 0 2px 4px rgba(27, 73, 222, 0.2);
+  box-shadow: none;
 }
 
 .wh-action-btn-manage:hover svg {
@@ -1106,7 +1110,7 @@
 .wh-form-textarea:focus {
   border-color: var(--wh-primary);
   outline: none;
-  box-shadow: 0 0 0 3px rgba(27, 73, 222, 0.12);
+  box-shadow: 0 0 0 2px rgba(15, 138, 95, 0.2);
 }
 
 .wh-form-error {
@@ -1248,12 +1252,13 @@
 }
 
 .wh-master-row--active td {
-  background-color: #eff6ff !important;
+  background-color: #ecfdf5 !important;
 }
 
 .wh-master-row--active td:first-child {
   border-left: 3px solid var(--wh-primary);
   font-weight: 600;
+  color: #065f46;
 }
 
 /* Form Readonly Info Badge */

@@ -1790,7 +1790,8 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                             <th style={{ width: '90px' }}>Mã kệ</th>
                             <th>Tên kệ / dãy</th>
                             <th>Phân loại</th>
-                            <th style={{ textAlign: 'right', width: '130px' }}>Sức chứa tối đa</th>
+                            <th style={{ textAlign: 'center', width: '100px' }}>Vị trí dùng</th>
+                            <th style={{ textAlign: 'right', width: '120px' }}>Sức chứa tối đa</th>
                             {canManage && <th style={{ textAlign: 'center', width: '90px' }}>Thao tác</th>}
                           </tr>
                         </thead>
@@ -1802,6 +1803,11 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                               <td>
                                 <span className={`wh-badge-type ${r.rack_type === 'aisle' ? 'wh-badge-aisle' : 'wh-badge-rack'}`}>
                                   {r.rack_type === 'aisle' ? 'Dãy kệ' : 'Tầng / Kệ'}
+                                </span>
+                              </td>
+                              <td style={{ textAlign: 'center' }}>
+                                <span className="wh-badge" style={{ background: '#ecfdf5', color: '#065f46', border: '1px solid #a7f3d0' }}>
+                                  {r.locations_count || 0} vị trí
                                 </span>
                               </td>
                               <td style={{ textAlign: 'right' }}>
