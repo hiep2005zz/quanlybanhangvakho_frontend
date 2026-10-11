@@ -500,64 +500,33 @@ export function StockAuditManagementView({ token, currentUser }: StockAuditManag
             type="button"
             id="btn-create-stock-audit"
             onClick={() => setIsCreateModalOpen(true)}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold text-white bg-[#0fad89] hover:bg-[#0c8a6d] shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-[#0fad89] focus:ring-offset-2 cursor-pointer border-0"
+            className="inline-flex items-center px-4 py-2.5 rounded-lg text-sm font-semibold text-white bg-[#0fad89] hover:bg-[#0c8a6d] shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-[#0fad89] focus:ring-offset-2 cursor-pointer border-0"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            Tạo phiếu kiểm kê
+            + Tạo phiếu kiểm kê
           </button>
         )}
       </div>
 
       {/* Thẻ thống kê tổng quan */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 shrink-0">
-        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-          </div>
-          <div>
-            <p className="text-xs text-gray-500 font-medium">Tổng số phiếu</p>
-            <p className="text-xl font-bold text-gray-900">{stats.total}</p>
-          </div>
+        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+          <p className="text-xs text-gray-500 font-medium">Tổng số phiếu</p>
+          <p className="text-2xl font-bold text-gray-900 mt-1">{stats.total}</p>
         </div>
 
-        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center font-bold">
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </div>
-          <div>
-            <p className="text-xs text-gray-500 font-medium">Đang kiểm kê</p>
-            <p className="text-xl font-bold text-amber-600">{stats.inProgress}</p>
-          </div>
+        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+          <p className="text-xs text-gray-500 font-medium">Đang kiểm kê</p>
+          <p className="text-2xl font-bold text-amber-600 mt-1">{stats.inProgress}</p>
         </div>
 
-        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-green-50 text-green-600 flex items-center justify-center font-bold">
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
-          </div>
-          <div>
-            <p className="text-xs text-gray-500 font-medium">Đã hoàn tất</p>
-            <p className="text-xl font-bold text-green-600">{stats.confirmed}</p>
-          </div>
+        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+          <p className="text-xs text-gray-500 font-medium">Đã hoàn tất</p>
+          <p className="text-2xl font-bold text-green-600 mt-1">{stats.confirmed}</p>
         </div>
 
-        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center font-bold">
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
-          </div>
-          <div>
-            <p className="text-xs text-gray-500 font-medium">Có chênh lệch</p>
-            <p className="text-xl font-bold text-rose-600">{stats.withDiscrepancy}</p>
-          </div>
+        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+          <p className="text-xs text-gray-500 font-medium">Có chênh lệch</p>
+          <p className="text-2xl font-bold text-rose-600 mt-1">{stats.withDiscrepancy}</p>
         </div>
       </div>
 
@@ -575,18 +544,8 @@ export function StockAuditManagementView({ token, currentUser }: StockAuditManag
                 setSearchCode(e.target.value);
                 setPage(1);
               }}
-              style={{ paddingLeft: '38px' }}
-              className="w-full h-10 pr-3 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0fad89] focus:border-transparent bg-white text-gray-800 placeholder-gray-400 transition-all"
+              className="w-full h-10 px-3 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0fad89] focus:border-transparent bg-white text-gray-800 placeholder-gray-400 transition-all"
             />
-            <svg
-              className="w-4 h-4 text-gray-400 absolute pointer-events-none"
-              style={{ left: '12px', top: '50%', transform: 'translateY(-50%)' }}
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
           </div>
 
           {/* 2. Lọc theo kho */}
@@ -649,12 +608,9 @@ export function StockAuditManagementView({ token, currentUser }: StockAuditManag
             type="button"
             onClick={() => fetchAudits()}
             title="Làm mới danh sách phiếu kiểm kê"
-            className="h-10 px-4 text-sm font-medium rounded-lg border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 flex items-center justify-center gap-2 cursor-pointer transition-colors shrink-0 shadow-2xs"
+            className="h-10 px-4 text-sm font-medium rounded-lg border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 flex items-center justify-center cursor-pointer transition-colors shrink-0 shadow-2xs"
           >
-            <svg className={`w-4 h-4 text-gray-500 ${loading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-            <span>Làm mới</span>
+            <span>{loading ? 'Đang tải...' : 'Làm mới'}</span>
           </button>
         </div>
       </div>
@@ -689,9 +645,6 @@ export function StockAuditManagementView({ token, currentUser }: StockAuditManag
               ) : audits.length === 0 ? (
                 <tr>
                   <td colSpan={9} className="py-12 text-center text-gray-500 whitespace-nowrap">
-                    <svg className="w-12 h-12 mx-auto text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                    </svg>
                     <p className="font-medium text-gray-600">Chưa có phiếu kiểm kê nào phù hợp</p>
                   </td>
                 </tr>
@@ -804,26 +757,19 @@ export function StockAuditManagementView({ token, currentUser }: StockAuditManag
                           <button
                             type="button"
                             onClick={() => handleOpenDetail(a.id)}
-                            className="px-3 py-1.5 text-xs font-bold rounded-lg bg-[#0fad89] hover:bg-[#0c8a6d] text-white shadow-xs transition-colors cursor-pointer border-0 whitespace-nowrap inline-flex items-center gap-1"
+                            className="px-3 py-1.5 text-xs font-bold rounded-lg bg-[#0fad89] hover:bg-[#0c8a6d] text-white shadow-xs transition-colors cursor-pointer border-0 whitespace-nowrap inline-flex items-center justify-center"
                             title="Kiểm đếm & Xác nhận kết quả kiểm kê"
                           >
-                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-                            </svg>
-                            <span>Kiểm đếm & Xác nhận</span>
+                            Kiểm đếm & Xác nhận
                           </button>
                         ) : (
                           <button
                             type="button"
                             onClick={() => handleOpenDetail(a.id)}
-                            className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 transition-colors cursor-pointer border-0 whitespace-nowrap inline-flex items-center gap-1"
+                            className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 transition-colors cursor-pointer border-0 whitespace-nowrap inline-flex items-center justify-center"
                             title="Xem chi tiết phiếu kiểm kê"
                           >
-                            <svg className="w-3.5 h-3.5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                            </svg>
-                            <span>Xem chi tiết</span>
+                            Xem chi tiết
                           </button>
                         )}
                       </td>
@@ -868,11 +814,15 @@ export function StockAuditManagementView({ token, currentUser }: StockAuditManag
       {/* ========================================================= */}
       {isCreateModalOpen && (
         <ModalPortal>
-          <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-gray-100">
-              <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+          <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
+            <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[92vh] flex flex-col shadow-2xl border border-gray-100 overflow-hidden">
+              {/* Header */}
+              <div className="px-5 py-3.5 border-b border-gray-100 flex items-center justify-between shrink-0 bg-white">
                 <div>
-                  <h2 className="text-xl font-bold text-gray-900">Tạo phiếu kiểm kê kho</h2>
+                  <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#0fad89]"></span>
+                    Tạo phiếu kiểm kê kho
+                  </h2>
                   <p className="text-xs text-gray-500 mt-0.5">
                     Chốt tồn kho căn cứ tại thời điểm tạo phiếu cho phạm vi được chọn
                   </p>
@@ -880,171 +830,187 @@ export function StockAuditManagementView({ token, currentUser }: StockAuditManag
                 <button
                   type="button"
                   onClick={() => setIsCreateModalOpen(false)}
-                  className="text-gray-400 hover:text-gray-600 cursor-pointer bg-transparent border-0"
+                  className="text-gray-400 hover:text-gray-600 cursor-pointer bg-transparent border-0 p-1 rounded-lg hover:bg-gray-100 transition-colors text-lg font-bold leading-none"
+                  title="Đóng"
                 >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
+                  ✕
                 </button>
               </div>
 
-              <form onSubmit={handleCreateAudit} className="p-6 space-y-5">
-                {/* 1. Chọn phạm vi kiểm kê */}
-                <div>
-                  <label className="block text-sm font-semibold text-gray-800 mb-2">
-                    Phạm vi kiểm kê <span className="text-red-500">*</span>
-                  </label>
-                  <div className="grid grid-cols-2 gap-3">
-                    <label
-                      className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
-                        createScopeType === 'WAREHOUSE'
-                          ? 'border-[#0fad89] bg-emerald-50/50 text-[#0fad89] font-semibold'
-                          : 'border-gray-200 hover:bg-gray-50 text-gray-700'
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name="scope_type"
-                        value="WAREHOUSE"
-                        checked={createScopeType === 'WAREHOUSE'}
-                        onChange={() => setCreateScopeType('WAREHOUSE')}
-                        className="text-[#0fad89] focus:ring-[#0fad89]"
-                      />
-                      <span>Kiểm kê theo kho</span>
-                    </label>
+              {/* Form Body - 2 Columns Layout to fit on screen without scrolling at 100% zoom */}
+              <form onSubmit={handleCreateAudit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+                <div className="p-5 flex-1 min-h-0 overflow-y-auto grid grid-cols-1 md:grid-cols-12 gap-5">
+                  {/* Cột trái: Cấu hình phiếu kiểm kê */}
+                  <div className="md:col-span-5 flex flex-col gap-3.5">
+                    {/* 1. Chọn phạm vi kiểm kê */}
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+                        Phạm vi kiểm kê <span className="text-red-500">*</span>
+                      </label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <label
+                          className={`flex items-center gap-2 p-2 rounded-lg border text-xs cursor-pointer transition-all ${
+                            createScopeType === 'WAREHOUSE'
+                              ? 'border-[#0fad89] bg-emerald-50 text-[#0fad89] font-bold shadow-xs'
+                              : 'border-gray-200 hover:bg-gray-50 text-gray-700'
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="scope_type"
+                            value="WAREHOUSE"
+                            checked={createScopeType === 'WAREHOUSE'}
+                            onChange={() => setCreateScopeType('WAREHOUSE')}
+                            className="text-[#0fad89] focus:ring-[#0fad89] w-3.5 h-3.5"
+                          />
+                          <span>Theo kho</span>
+                        </label>
 
-                    <label
-                      className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
-                        createScopeType === 'CATEGORY'
-                          ? 'border-[#0fad89] bg-emerald-50/50 text-[#0fad89] font-semibold'
-                          : 'border-gray-200 hover:bg-gray-50 text-gray-700'
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name="scope_type"
-                        value="CATEGORY"
-                        checked={createScopeType === 'CATEGORY'}
-                        onChange={() => setCreateScopeType('CATEGORY')}
-                        className="text-[#0fad89] focus:ring-[#0fad89]"
-                      />
-                      <span>Kiểm kê theo nhóm hàng</span>
-                    </label>
-                  </div>
-                </div>
-
-                {/* 2. Chọn kho kiểm kê */}
-                <div>
-                  <label className="block text-sm font-semibold text-gray-800 mb-1.5">
-                    Kho áp dụng <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    id="select-create-warehouse"
-                    value={createWarehouseId}
-                    onChange={(e) => setCreateWarehouseId(e.target.value)}
-                    required
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0fad89] bg-white"
-                  >
-                    {warehouses.map((wh) => (
-                      <option key={wh.id} value={wh.id}>
-                        {wh.name} ({wh.id})
-                      </option>
-                    ))}
-                  </select>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Số tồn kho căn cứ sẽ được lấy chính xác từ dữ liệu của kho này.
-                  </p>
-                </div>
-
-                {/* 3. Chọn nhóm hàng (nếu phạm vi CATEGORY) */}
-                {createScopeType === 'CATEGORY' && (
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-800 mb-1.5">
-                      Nhóm hàng cần kiểm kê <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      id="select-create-category"
-                      value={createCategoryId}
-                      onChange={(e) => setCreateCategoryId(e.target.value ? Number(e.target.value) : '')}
-                      required
-                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0fad89] bg-white"
-                    >
-                      <option value="">-- Chọn nhóm hàng --</option>
-                      {categories.map((c: any) => (
-                        <option key={c.id} value={c.id}>
-                          {c.level ? `${'\u00A0'.repeat(c.level * 4)}└─ ${c.name}` : c.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-
-                {/* 4. Ghi chú chung */}
-                <div>
-                  <label className="block text-sm font-semibold text-gray-800 mb-1.5">Ghi chú chung</label>
-                  <textarea
-                    id="textarea-create-note"
-                    value={createNote}
-                    onChange={(e) => setCreateNote(e.target.value)}
-                    placeholder="Lý do kiểm kê, đợt kiểm kê cuối quý..."
-                    rows={2}
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0fad89]"
-                  />
-                </div>
-
-                {/* 5. Xem trước danh sách sản phẩm thuộc phạm vi */}
-                <div className="border border-gray-200 rounded-xl p-3 bg-gray-50/70">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-bold text-gray-700 uppercase tracking-wider">
-                      Xem trước sản phẩm ({createPreviewItems.length} mặt hàng)
-                    </span>
-                    {createPreviewLoading && (
-                      <span className="text-xs text-gray-500 flex items-center gap-1">
-                        <div className="w-3 h-3 border-2 border-[#0fad89] border-t-transparent rounded-full animate-spin" />
-                        Đang lấy dữ liệu tồn kho...
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="max-h-48 overflow-y-auto divide-y divide-gray-200 text-xs bg-white rounded-lg border border-gray-200">
-                    {createPreviewItems.length === 0 ? (
-                      <div className="p-4 text-center text-gray-400">
-                        {createScopeType === 'CATEGORY' && !createCategoryId
-                          ? 'Vui lòng chọn nhóm hàng để xem danh sách sản phẩm'
-                          : 'Không có sản phẩm nào thuộc phạm vi đã chọn'}
+                        <label
+                          className={`flex items-center gap-2 p-2 rounded-lg border text-xs cursor-pointer transition-all ${
+                            createScopeType === 'CATEGORY'
+                              ? 'border-[#0fad89] bg-emerald-50 text-[#0fad89] font-bold shadow-xs'
+                              : 'border-gray-200 hover:bg-gray-50 text-gray-700'
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="scope_type"
+                            value="CATEGORY"
+                            checked={createScopeType === 'CATEGORY'}
+                            onChange={() => setCreateScopeType('CATEGORY')}
+                            className="text-[#0fad89] focus:ring-[#0fad89] w-3.5 h-3.5"
+                          />
+                          <span>Theo nhóm hàng</span>
+                        </label>
                       </div>
-                    ) : (
-                      createPreviewItems.map((p) => (
-                        <div key={p.product_id} className="p-2.5 flex items-center justify-between">
-                          <div>
-                            <span className="font-semibold text-gray-900">{p.product_name}</span>
-                            <span className="text-gray-400 ml-2">({p.product_code})</span>
-                          </div>
-                          <div className="text-right">
-                            <span className="font-bold text-gray-800">Tồn chốt: {p.system_stock}</span>{' '}
-                            <span className="text-gray-500">{p.base_unit}</span>
-                          </div>
-                        </div>
-                      ))
+                    </div>
+
+                    {/* 2. Chọn kho kiểm kê */}
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
+                        Kho áp dụng <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        id="select-create-warehouse"
+                        value={createWarehouseId}
+                        onChange={(e) => setCreateWarehouseId(e.target.value)}
+                        required
+                        className="w-full px-3 py-1.5 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0fad89] bg-white font-medium"
+                      >
+                        {warehouses.map((wh) => (
+                          <option key={wh.id} value={wh.id}>
+                            {wh.name} ({wh.id})
+                          </option>
+                        ))}
+                      </select>
+                      <p className="text-[11px] text-gray-400 mt-1">
+                        Số tồn kho căn cứ sẽ được lấy chính xác từ dữ liệu của kho này.
+                      </p>
+                    </div>
+
+                    {/* 3. Chọn nhóm hàng (nếu phạm vi CATEGORY) */}
+                    {createScopeType === 'CATEGORY' && (
+                      <div>
+                        <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
+                          Nhóm hàng cần kiểm kê <span className="text-red-500">*</span>
+                        </label>
+                        <select
+                          id="select-create-category"
+                          value={createCategoryId}
+                          onChange={(e) => setCreateCategoryId(e.target.value ? Number(e.target.value) : '')}
+                          required
+                          className="w-full px-3 py-1.5 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0fad89] bg-white"
+                        >
+                          <option value="">-- Chọn nhóm hàng --</option>
+                          {categories.map((c: any) => (
+                            <option key={c.id} value={c.id}>
+                              {c.level ? `${'\u00A0'.repeat(c.level * 4)}└─ ${c.name}` : c.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
                     )}
+
+                    {/* 4. Ghi chú chung */}
+                    <div className="flex-1 flex flex-col min-h-0">
+                      <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
+                        Ghi chú chung
+                      </label>
+                      <textarea
+                        id="textarea-create-note"
+                        value={createNote}
+                        onChange={(e) => setCreateNote(e.target.value)}
+                        placeholder="Lý do kiểm kê, đợt kiểm kê cuối quý..."
+                        rows={createScopeType === 'CATEGORY' ? 2 : 3}
+                        className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0fad89] resize-none flex-1"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Cột phải: Xem trước danh sách sản phẩm thuộc phạm vi */}
+                  <div className="md:col-span-7 flex flex-col min-h-0 border border-gray-200 rounded-xl bg-gray-50/70 p-3">
+                    <div className="flex items-center justify-between mb-2 shrink-0">
+                      <span className="text-xs font-bold text-gray-700 uppercase tracking-wider">
+                        Xem trước sản phẩm ({createPreviewItems.length} mặt hàng)
+                      </span>
+                      {createPreviewLoading && (
+                        <span className="text-[11px] text-gray-500 flex items-center gap-1">
+                          <div className="w-3 h-3 border-2 border-[#0fad89] border-t-transparent rounded-full animate-spin" />
+                          Đang lấy tồn kho...
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex-1 min-h-[180px] max-h-[280px] overflow-y-auto divide-y divide-gray-100 text-xs bg-white rounded-lg border border-gray-200 shadow-2xs">
+                      {createPreviewItems.length === 0 ? (
+                        <div className="p-6 text-center text-gray-400 flex flex-col items-center justify-center h-full">
+                          <span>
+                            {createScopeType === 'CATEGORY' && !createCategoryId
+                              ? 'Vui lòng chọn nhóm hàng để xem danh sách sản phẩm'
+                              : 'Không có sản phẩm nào thuộc phạm vi đã chọn'}
+                          </span>
+                        </div>
+                      ) : (
+                        createPreviewItems.map((p) => (
+                          <div key={p.product_id} className="p-2.5 px-3 flex items-center justify-between hover:bg-gray-50 transition-colors">
+                            <div className="min-w-0 pr-2">
+                              <span className="font-semibold text-gray-900 block truncate">{p.product_name}</span>
+                              <span className="text-[11px] text-gray-400">Mã: {p.product_code}</span>
+                            </div>
+                            <div className="text-right shrink-0">
+                              <span className="font-bold text-gray-800">Tồn chốt: {p.system_stock}</span>{' '}
+                              <span className="text-gray-500 text-[11px]">{p.base_unit}</span>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
                   </div>
                 </div>
 
-                {/* Các nút hành động */}
-                <div className="pt-4 border-t border-gray-100 flex items-center justify-end gap-3">
+                {/* Footer với các nút hành động */}
+                <div className="px-5 py-3 border-t border-gray-100 flex items-center justify-end gap-3 bg-gray-50/50 shrink-0">
                   <button
                     type="button"
                     onClick={() => setIsCreateModalOpen(false)}
-                    className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg cursor-pointer border-0 bg-transparent"
+                    className="px-4 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-200/70 rounded-lg cursor-pointer border-0 bg-transparent transition-colors"
                   >
                     Hủy bỏ
                   </button>
                   <button
                     type="submit"
                     disabled={isSubmittingCreate || createPreviewItems.length === 0}
-                    className="px-5 py-2 text-sm font-semibold text-white bg-[#0fad89] hover:bg-[#0c8a6d] rounded-lg shadow-sm disabled:opacity-50 cursor-pointer border-0"
+                    className="px-5 py-2 text-xs font-bold text-white bg-[#0fad89] hover:bg-[#0c8a6d] rounded-lg shadow-sm disabled:opacity-50 cursor-pointer border-0 transition-all flex items-center gap-1.5"
                   >
-                    {isSubmittingCreate ? 'Đang tạo...' : 'Xác nhận tạo phiếu'}
+                    {isSubmittingCreate ? (
+                      <>
+                        <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        Đang tạo...
+                      </>
+                    ) : (
+                      'Xác nhận tạo phiếu'
+                    )}
                   </button>
                 </div>
               </form>
@@ -1105,11 +1071,10 @@ export function StockAuditManagementView({ token, currentUser }: StockAuditManag
                 <button
                   type="button"
                   onClick={() => setIsDetailModalOpen(false)}
-                  className="text-gray-400 hover:text-gray-600 p-1 bg-transparent border-0 cursor-pointer"
+                  className="text-gray-400 hover:text-gray-600 p-1 bg-transparent border-0 cursor-pointer text-lg font-bold leading-none"
+                  title="Đóng"
                 >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
+                  ✕
                 </button>
               </div>
 
@@ -1379,18 +1344,11 @@ export function StockAuditManagementView({ token, currentUser }: StockAuditManag
         <ModalPortal>
           <div className="fixed inset-0 z-60 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
             <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-gray-100">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-12 h-12 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center flex-shrink-0">
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                  </svg>
-                </div>
-                <div>
-                  <h3 className="text-lg font-bold text-gray-900">
-                    Xác nhận kết quả & Điều chỉnh tồn kho
-                  </h3>
-                  <p className="text-xs text-gray-500">Phiếu kiểm kê: {selectedAudit.code}</p>
-                </div>
+              <div className="mb-4">
+                <h3 className="text-lg font-bold text-gray-900">
+                  Xác nhận kết quả & Điều chỉnh tồn kho
+                </h3>
+                <p className="text-xs text-gray-500">Phiếu kiểm kê: {selectedAudit.code}</p>
               </div>
 
               {/* Tóm tắt kết quả kiểm kê */}

@@ -3,6 +3,7 @@ import { useLocation } from '../hooks/useLocation';
 
 export type TabType =
   | 'inventory'
+  | 'warehouses'
   | 'stock-book'
   | 'stock-audits'
   | 'stock-transfers'
@@ -24,6 +25,7 @@ export type TabType =
 export interface SidebarProps {
   activeTab?: TabType;
   onSelectTab: (tab: TabType) => void;
+  isCustomer?: boolean;
   canManageProducts?: boolean;
   canCreateOrders?: boolean;
   canReadOrders?: boolean;
@@ -38,9 +40,10 @@ export interface SidebarProps {
   canAccessStockAudit?: boolean;
   canAccessStockTransfer?: boolean;
   isAdmin?: boolean;
-  isCustomer?: boolean;
   onLogout?: () => void;
   isLoggingOut?: boolean;
+  isMobileOpen?: boolean;
+  onCloseMobile?: () => void;
 }
 
 interface MenuItemConfig {
@@ -55,6 +58,9 @@ interface MenuItemConfig {
 export const Sidebar: React.FC<SidebarProps> = ({
   activeTab,
   onSelectTab,
+  isCustomer = false,
+  isMobileOpen = false,
+  onCloseMobile,
   canManageProducts: _canManageProducts = true,
   canCreateOrders = false,
   canReadOrders = false,
@@ -66,7 +72,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
   canManageCategories = false,
   canViewProductHistory = false,
   canAccessDiscounts = false,
-  isCustomer = false,
   canAccessStockAudit = false,
   canAccessStockTransfer = false,
   onLogout,
@@ -75,6 +80,195 @@ export const Sidebar: React.FC<SidebarProps> = ({
   // Lấy pathname hiện tại từ hook useLocation
   const location = useLocation();
   const currentPath = location.pathname.toLowerCase();
+
+  // TIÊU CHÍ CHẤP NHẬN 1: Nếu user là Customer, ẨN HOÀN TOÀN các menu:
+  // Quản lý Kho, Nhập/Xuất tồn, Duyệt đơn hàng, Báo cáo, Quản lý người dùng.
+  // CHỈ HIỂN THỊ: Danh sách Sản phẩm, Đơn hàng của tôi, Công nợ & Hóa đơn.
+  if (isCustomer) {
+    const customerMenuItems: MenuItemConfig[] = [
+      {
+        id: 'btn-sidebar-products',
+        tab: 'inventory',
+        path: '/',
+        label: 'Danh sách Sản phẩm',
+        visible: true,
+        icon: (
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" />
+            <path d="M3 6h18" />
+            <path d="M16 10a4 4 0 0 1-8 0" />
+          </svg>
+        ),
+      },
+      {
+        id: 'btn-sidebar-orders',
+        tab: 'orders',
+        path: '/orders',
+        label: 'Đơn hàng của tôi',
+        visible: true,
+        icon: (
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="2" />
+            <path d="M8 8h8M8 12h8M8 16h4" />
+          </svg>
+        ),
+      },
+      {
+        id: 'btn-sidebar-dealers',
+        tab: 'dealers',
+        path: '/dealers',
+        label: 'Danh bạ đại lý & Khách hàng',
+        visible: true,
+        icon: (
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+            <circle cx="9" cy="7" r="4" />
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+            <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+          </svg>
+        ),
+      },
+    ];
+
+    return (
+      <>
+        {/* Desktop Sidebar (Ẩn trên mobile, hiện trên md+) */}
+        <aside className="hidden md:flex md:w-64 bg-white border-r border-gray-200 flex-col h-full flex-shrink-0 select-none">
+          <div className="px-4 py-3 bg-emerald-50 border-b border-emerald-100 flex items-center gap-2">
+            <span className="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span className="text-xs font-semibold uppercase tracking-wider text-emerald-800">Cổng Đặt Hàng Đại Lý</span>
+          </div>
+          <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1" aria-label="Menu đại lý">
+            {customerMenuItems.map((item) => {
+              const isActive = activeTab === item.tab;
+              return (
+                <button
+                  key={item.tab}
+                  type="button"
+                  id={item.id}
+                  onClick={() => onSelectTab(item.tab)}
+                  style={{
+                    backgroundImage: 'none',
+                    boxShadow: 'none',
+                    marginTop: 0,
+                  }}
+                  className={`group w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm transition-colors text-left border-0 cursor-pointer ${
+                    isActive
+                      ? 'bg-emerald-50 text-emerald-800 font-semibold'
+                      : 'bg-transparent text-gray-700 hover:bg-gray-100 hover:text-gray-900 font-medium'
+                  }`}
+                >
+                  <span
+                    className={`flex-shrink-0 transition-colors ${
+                      isActive ? 'text-[#0fad89]' : 'text-gray-500 group-hover:text-gray-700'
+                    }`}
+                  >
+                    {item.icon}
+                  </span>
+                  <span className="truncate">{item.label}</span>
+                </button>
+              );
+            })}
+          </nav>
+          {onLogout && (
+            <div className="p-3 border-t border-gray-200 bg-white flex-shrink-0">
+              <button
+                type="button"
+                onClick={onLogout}
+                disabled={isLoggingOut}
+                className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm font-medium text-gray-600 hover:bg-red-50 hover:text-red-600 transition-colors disabled:opacity-50 text-left bg-transparent border-0 cursor-pointer"
+              >
+                <span className="text-gray-500 hover:text-red-600 transition-colors flex-shrink-0">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                    <polyline points="16 17 21 12 16 7" />
+                    <line x1="21" y1="12" x2="9" y2="12" />
+                  </svg>
+                </span>
+                <span className="truncate">{isLoggingOut ? 'Đang đăng xuất...' : 'Đăng xuất'}</span>
+              </button>
+            </div>
+          )}
+        </aside>
+
+        {/* Mobile Drawer (Hiện khi bấm nút Hamburger trên mobile) */}
+        {isMobileOpen && (
+          <div className="fixed inset-0 z-50 md:hidden flex">
+            {/* Backdrop */}
+            <div
+              className="fixed inset-0 bg-black/50 backdrop-blur-xs transition-opacity"
+              onClick={onCloseMobile}
+            />
+            {/* Drawer Panel */}
+            <div className="relative w-72 max-w-[80vw] bg-white flex flex-col h-full z-10 shadow-2xl animate-in slide-in-from-left duration-200">
+              <div className="px-4 py-3 bg-emerald-50 border-b border-emerald-100 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                  <span className="text-xs font-semibold uppercase tracking-wider text-emerald-800">Cổng Đặt Hàng Đại Lý</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={onCloseMobile}
+                  className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-500 hover:bg-emerald-100 text-lg cursor-pointer border-0 bg-transparent"
+                  title="Đóng menu"
+                >
+                  ✕
+                </button>
+              </div>
+              <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1" aria-label="Menu đại lý mobile">
+                {customerMenuItems.map((item) => {
+                  const isActive = activeTab === item.tab;
+                  return (
+                    <button
+                      key={item.tab}
+                      type="button"
+                      id={`mobile-${item.id}`}
+                      onClick={() => {
+                        onSelectTab(item.tab);
+                        onCloseMobile?.();
+                      }}
+                      className={`group w-full flex items-center gap-3 px-3.5 py-3 rounded-lg text-sm transition-colors text-left border-0 cursor-pointer ${
+                        isActive
+                          ? 'bg-emerald-50 text-emerald-800 font-semibold'
+                          : 'bg-transparent text-gray-700 hover:bg-gray-100 hover:text-gray-900 font-medium'
+                      }`}
+                    >
+                      <span className={`flex-shrink-0 transition-colors ${isActive ? 'text-[#0fad89]' : 'text-gray-500'}`}>
+                        {item.icon}
+                      </span>
+                      <span className="truncate">{item.label}</span>
+                    </button>
+                  );
+                })}
+              </nav>
+              {onLogout && (
+                <div className="p-3 border-t border-gray-200 bg-white flex-shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onCloseMobile?.();
+                      onLogout();
+                    }}
+                    disabled={isLoggingOut}
+                    className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm font-medium text-gray-600 hover:bg-red-50 hover:text-red-600 transition-colors disabled:opacity-50 text-left bg-transparent border-0 cursor-pointer"
+                  >
+                    <span className="text-gray-500 hover:text-red-600 transition-colors flex-shrink-0">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                        <polyline points="16 17 21 12 16 7" />
+                        <line x1="21" y1="12" x2="9" y2="12" />
+                      </svg>
+                    </span>
+                    <span className="truncate">{isLoggingOut ? 'Đang đăng xuất...' : 'Đăng xuất'}</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </>
+    );
+  }
 
   // Cấu hình danh sách mục menu điều hướng
   const menuItems: MenuItemConfig[] = [
@@ -89,6 +283,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
           <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
           <line x1="12" y1="22.08" x2="12" y2="12" />
+        </svg>
+      ),
+    },
+    {
+      id: 'btn-sidebar-warehouses',
+      tab: 'warehouses',
+      path: '/warehouses',
+      label: 'Danh sách kho & Vị trí',
+      visible: !isCustomer,
+      icon: (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+          <polyline points="9 22 9 12 15 12 15 22" />
         </svg>
       ),
     },
@@ -108,6 +315,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
       ),
     },
     {
+      id: 'btn-sidebar-stock-transfers',
+      tab: 'stock-transfers',
+      path: '/stock-transfers',
+      label: 'Chuyển kho nội bộ',
+      visible: canAccessStockTransfer,
+      icon: (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="17 1 21 5 17 9" />
+          <path d="M3 11V9a4 4 0 0 1 4-4h14" />
+          <polyline points="7 23 3 19 7 15" />
+          <path d="M21 13v2a4 4 0 0 1-4 4H3" />
+        </svg>
+      ),
+    },
+    {
       id: 'btn-sidebar-stock-audits',
       tab: 'stock-audits',
       path: '/stock-audits',
@@ -118,22 +340,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2" />
           <rect x="9" y="3" width="6" height="4" rx="1" />
           <path d="m9 14 2 2 4-4" />
-        </svg>
-      ),
-    },
-    {
-      id: 'btn-sidebar-stock-transfers',
-      tab: 'stock-transfers',
-      path: '/stock-transfers',
-      label: 'Chuyển kho nội bộ',
-      visible: canAccessStockTransfer,
-      icon: (
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M16 3h5v5" />
-          <path d="M4 20L21 3" />
-          <path d="M21 16v5h-5" />
-          <path d="M15 15l6 6" />
-          <path d="M4 4l5 5" />
         </svg>
       ),
     },
@@ -278,87 +484,160 @@ export const Sidebar: React.FC<SidebarProps> = ({
   ];
 
   return (
-    <aside className="w-64 bg-white border-r border-gray-200 flex flex-col h-full flex-shrink-0 select-none">
-      {/* Danh sách mục điều hướng Sidebar */}
-      <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1" aria-label="Menu chính">
-        {menuItems
-          .filter((item) => item.visible)
-          .map((item) => {
-            // Logic so sánh URL hiện tại (từ useLocation) với path của từng menu item
-            const isPathMatched =
-              item.path === '/'
-                ? currentPath === '/' || currentPath === '' || currentPath === '/inventory' || currentPath === '/index.html'
-                : currentPath === item.path.toLowerCase() || currentPath.startsWith(`${item.path.toLowerCase()}/`);
+    <>
+      <aside className="hidden md:flex md:w-64 bg-white border-r border-gray-200 flex-col h-full flex-shrink-0 select-none">
+        {/* Danh sách mục điều hướng Sidebar */}
+        <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1" aria-label="Menu chính">
+          {menuItems
+            .filter((item) => item.visible)
+            .map((item) => {
+              const isPathMatched =
+                item.path === '/'
+                  ? currentPath === '/' || currentPath === '' || currentPath === '/inventory' || currentPath === '/index.html'
+                  : currentPath === item.path.toLowerCase() || currentPath.startsWith(`${item.path.toLowerCase()}/`);
 
-            // Trạng thái trang hiện hành (Active State): so sánh URL hiện tại với path, hỗ trợ fallback theo activeTab
-            const isAnyPathMatched = menuItems.some((m) =>
-              m.path === '/'
-                ? currentPath === '/' || currentPath === '' || currentPath === '/inventory' || currentPath === '/index.html'
-                : currentPath === m.path.toLowerCase() || currentPath.startsWith(`${m.path.toLowerCase()}/`)
-            );
+              const isAnyPathMatched = menuItems.some((m) =>
+                m.path === '/'
+                  ? currentPath === '/' || currentPath === '' || currentPath === '/inventory' || currentPath === '/index.html'
+                  : currentPath === m.path.toLowerCase() || currentPath.startsWith(`${m.path.toLowerCase()}/`)
+              );
 
-            const isActive = isAnyPathMatched
-              ? isPathMatched
-              : activeTab
-              ? activeTab === item.tab
-              : isPathMatched;
+              const isActive = isAnyPathMatched
+                ? isPathMatched
+                : activeTab
+                ? activeTab === item.tab
+                : isPathMatched;
 
-            return (
-              <button
-                key={item.tab}
-                type="button"
-                id={item.id}
-                onClick={() => onSelectTab(item.tab)}
-                style={{
-                  backgroundImage: 'none',
-                  boxShadow: 'none',
-                  marginTop: 0,
-                }}
-                className={`group w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm transition-colors text-left border-0 cursor-pointer ${
-                  isActive
-                    ? 'bg-emerald-50 text-emerald-800 font-semibold'
-                    : 'bg-transparent text-gray-700 hover:bg-gray-100 hover:text-gray-900 font-medium'
-                }`}
-              >
-                <span
-                  className={`flex-shrink-0 transition-colors ${
-                    isActive ? 'text-[#0fad89]' : 'text-gray-500 group-hover:text-gray-700'
+              return (
+                <button
+                  key={item.tab}
+                  type="button"
+                  id={item.id}
+                  onClick={() => onSelectTab(item.tab)}
+                  style={{
+                    backgroundImage: 'none',
+                    boxShadow: 'none',
+                    marginTop: 0,
+                  }}
+                  className={`group w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm transition-colors text-left border-0 cursor-pointer ${
+                    isActive
+                      ? 'bg-emerald-50 text-emerald-800 font-semibold'
+                      : 'bg-transparent text-gray-700 hover:bg-gray-100 hover:text-gray-900 font-medium'
                   }`}
                 >
-                  {item.icon}
-                </span>
-                <span className="truncate">{item.label}</span>
-              </button>
-            );
-          })}
-      </nav>
+                  <span
+                    className={`flex-shrink-0 transition-colors ${
+                      isActive ? 'text-[#0fad89]' : 'text-gray-500 group-hover:text-gray-700'
+                    }`}
+                  >
+                    {item.icon}
+                  </span>
+                  <span className="truncate">{item.label}</span>
+                </button>
+              );
+            })}
+        </nav>
 
-      {/* Footer Sidebar: Nút Đăng xuất */}
-      {onLogout && (
-        <div className="p-3 border-t border-gray-200 bg-white flex-shrink-0">
-          <button
-            type="button"
-            onClick={onLogout}
-            disabled={isLoggingOut}
-            style={{
-              backgroundImage: 'none',
-              boxShadow: 'none',
-              marginTop: 0,
-            }}
-            className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm font-medium text-gray-600 hover:bg-red-50 hover:text-red-600 transition-colors disabled:opacity-50 text-left bg-transparent border-0 cursor-pointer"
-          >
-            <span className="text-gray-500 hover:text-red-600 transition-colors flex-shrink-0">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                <polyline points="16 17 21 12 16 7" />
-                <line x1="21" y1="12" x2="9" y2="12" />
-              </svg>
-            </span>
-            <span className="truncate">{isLoggingOut ? 'Đang đăng xuất...' : 'Đăng xuất'}</span>
-          </button>
+        {/* Footer Sidebar: Nút Đăng xuất */}
+        {onLogout && (
+          <div className="p-3 border-t border-gray-200 bg-white flex-shrink-0">
+            <button
+              type="button"
+              onClick={onLogout}
+              disabled={isLoggingOut}
+              style={{
+                backgroundImage: 'none',
+                boxShadow: 'none',
+                marginTop: 0,
+              }}
+              className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm font-medium text-gray-600 hover:bg-red-50 hover:text-red-600 transition-colors disabled:opacity-50 text-left bg-transparent border-0 cursor-pointer"
+            >
+              <span className="text-gray-500 hover:text-red-600 transition-colors flex-shrink-0">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                  <polyline points="16 17 21 12 16 7" />
+                  <line x1="21" y1="12" x2="9" y2="12" />
+                </svg>
+              </span>
+              <span className="truncate">{isLoggingOut ? 'Đang đăng xuất...' : 'Đăng xuất'}</span>
+            </button>
+          </div>
+        )}
+      </aside>
+
+      {/* Mobile Drawer cho Admin/Sales khi bấm Hamburger */}
+      {isMobileOpen && (
+        <div className="fixed inset-0 z-50 md:hidden flex">
+          <div
+            className="fixed inset-0 bg-black/50 backdrop-blur-xs transition-opacity"
+            onClick={onCloseMobile}
+          />
+          <div className="relative w-72 max-w-[80vw] bg-white flex flex-col h-full z-10 shadow-2xl animate-in slide-in-from-left duration-200">
+            <div className="px-4 py-3 bg-emerald-700 text-white flex items-center justify-between">
+              <span className="text-sm font-bold">Hệ Thống Quản Lý</span>
+              <button
+                type="button"
+                onClick={onCloseMobile}
+                className="w-8 h-8 flex items-center justify-center rounded-lg text-white hover:bg-white/20 text-lg cursor-pointer border-0 bg-transparent"
+                title="Đóng menu"
+              >
+                ✕
+              </button>
+            </div>
+            <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1" aria-label="Menu mobile">
+              {menuItems
+                .filter((item) => item.visible)
+                .map((item) => {
+                  const isActive = activeTab === item.tab;
+                  return (
+                    <button
+                      key={item.tab}
+                      type="button"
+                      id={`mobile-${item.id}`}
+                      onClick={() => {
+                        onSelectTab(item.tab);
+                        onCloseMobile?.();
+                      }}
+                      className={`group w-full flex items-center gap-3 px-3.5 py-3 rounded-lg text-sm transition-colors text-left border-0 cursor-pointer ${
+                        isActive
+                          ? 'bg-emerald-50 text-emerald-800 font-semibold'
+                          : 'bg-transparent text-gray-700 hover:bg-gray-100 hover:text-gray-900 font-medium'
+                      }`}
+                    >
+                      <span className={`flex-shrink-0 transition-colors ${isActive ? 'text-[#0fad89]' : 'text-gray-500'}`}>
+                        {item.icon}
+                      </span>
+                      <span className="truncate">{item.label}</span>
+                    </button>
+                  );
+                })}
+            </nav>
+            {onLogout && (
+              <div className="p-3 border-t border-gray-200 bg-white flex-shrink-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    onCloseMobile?.();
+                    onLogout();
+                  }}
+                  disabled={isLoggingOut}
+                  className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm font-medium text-gray-600 hover:bg-red-50 hover:text-red-600 transition-colors disabled:opacity-50 text-left bg-transparent border-0 cursor-pointer"
+                >
+                  <span className="text-gray-500 hover:text-red-600 transition-colors flex-shrink-0">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                      <polyline points="16 17 21 12 16 7" />
+                      <line x1="21" y1="12" x2="9" y2="12" />
+                    </svg>
+                  </span>
+                  <span className="truncate">{isLoggingOut ? 'Đang đăng xuất...' : 'Đăng xuất'}</span>
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       )}
-    </aside>
+    </>
   );
 };
 
