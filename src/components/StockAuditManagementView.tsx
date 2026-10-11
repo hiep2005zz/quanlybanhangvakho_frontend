@@ -885,11 +885,15 @@ export function StockAuditManagementView({ token, currentUser }: StockAuditManag
       {/* ========================================================= */}
       {isCreateModalOpen && (
         <ModalPortal>
-          <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-gray-100">
-              <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+          <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
+            <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[92vh] flex flex-col shadow-2xl border border-gray-100 overflow-hidden">
+              {/* Header */}
+              <div className="px-5 py-3.5 border-b border-gray-100 flex items-center justify-between shrink-0 bg-white">
                 <div>
-                  <h2 className="text-xl font-bold text-gray-900">Tạo phiếu kiểm kê kho</h2>
+                  <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#0fad89]"></span>
+                    Tạo phiếu kiểm kê kho
+                  </h2>
                   <p className="text-xs text-gray-500 mt-0.5">
                     Chốt tồn kho căn cứ tại thời điểm tạo phiếu cho phạm vi được chọn
                   </p>
@@ -897,171 +901,194 @@ export function StockAuditManagementView({ token, currentUser }: StockAuditManag
                 <button
                   type="button"
                   onClick={() => setIsCreateModalOpen(false)}
-                  className="text-gray-400 hover:text-gray-600 cursor-pointer bg-transparent border-0"
+                  className="text-gray-400 hover:text-gray-600 cursor-pointer bg-transparent border-0 p-1 rounded-lg hover:bg-gray-100 transition-colors"
                 >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
               </div>
 
-              <form onSubmit={handleCreateAudit} className="p-6 space-y-5">
-                {/* 1. Chọn phạm vi kiểm kê */}
-                <div>
-                  <label className="block text-sm font-semibold text-gray-800 mb-2">
-                    Phạm vi kiểm kê <span className="text-red-500">*</span>
-                  </label>
-                  <div className="grid grid-cols-2 gap-3">
-                    <label
-                      className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
-                        createScopeType === 'WAREHOUSE'
-                          ? 'border-[#0fad89] bg-emerald-50/50 text-[#0fad89] font-semibold'
-                          : 'border-gray-200 hover:bg-gray-50 text-gray-700'
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name="scope_type"
-                        value="WAREHOUSE"
-                        checked={createScopeType === 'WAREHOUSE'}
-                        onChange={() => setCreateScopeType('WAREHOUSE')}
-                        className="text-[#0fad89] focus:ring-[#0fad89]"
-                      />
-                      <span>Kiểm kê theo kho</span>
-                    </label>
+              {/* Form Body - 2 Columns Layout to fit on screen without scrolling at 100% zoom */}
+              <form onSubmit={handleCreateAudit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+                <div className="p-5 flex-1 min-h-0 overflow-y-auto grid grid-cols-1 md:grid-cols-12 gap-5">
+                  {/* Cột trái: Cấu hình phiếu kiểm kê */}
+                  <div className="md:col-span-5 flex flex-col gap-3.5">
+                    {/* 1. Chọn phạm vi kiểm kê */}
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+                        Phạm vi kiểm kê <span className="text-red-500">*</span>
+                      </label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <label
+                          className={`flex items-center gap-2 p-2 rounded-lg border text-xs cursor-pointer transition-all ${
+                            createScopeType === 'WAREHOUSE'
+                              ? 'border-[#0fad89] bg-emerald-50 text-[#0fad89] font-bold shadow-xs'
+                              : 'border-gray-200 hover:bg-gray-50 text-gray-700'
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="scope_type"
+                            value="WAREHOUSE"
+                            checked={createScopeType === 'WAREHOUSE'}
+                            onChange={() => setCreateScopeType('WAREHOUSE')}
+                            className="text-[#0fad89] focus:ring-[#0fad89] w-3.5 h-3.5"
+                          />
+                          <span>Theo kho</span>
+                        </label>
 
-                    <label
-                      className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
-                        createScopeType === 'CATEGORY'
-                          ? 'border-[#0fad89] bg-emerald-50/50 text-[#0fad89] font-semibold'
-                          : 'border-gray-200 hover:bg-gray-50 text-gray-700'
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name="scope_type"
-                        value="CATEGORY"
-                        checked={createScopeType === 'CATEGORY'}
-                        onChange={() => setCreateScopeType('CATEGORY')}
-                        className="text-[#0fad89] focus:ring-[#0fad89]"
-                      />
-                      <span>Kiểm kê theo nhóm hàng</span>
-                    </label>
-                  </div>
-                </div>
-
-                {/* 2. Chọn kho kiểm kê */}
-                <div>
-                  <label className="block text-sm font-semibold text-gray-800 mb-1.5">
-                    Kho áp dụng <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    id="select-create-warehouse"
-                    value={createWarehouseId}
-                    onChange={(e) => setCreateWarehouseId(e.target.value)}
-                    required
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0fad89] bg-white"
-                  >
-                    {warehouses.map((wh) => (
-                      <option key={wh.id} value={wh.id}>
-                        {wh.name} ({wh.id})
-                      </option>
-                    ))}
-                  </select>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Số tồn kho căn cứ sẽ được lấy chính xác từ dữ liệu của kho này.
-                  </p>
-                </div>
-
-                {/* 3. Chọn nhóm hàng (nếu phạm vi CATEGORY) */}
-                {createScopeType === 'CATEGORY' && (
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-800 mb-1.5">
-                      Nhóm hàng cần kiểm kê <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      id="select-create-category"
-                      value={createCategoryId}
-                      onChange={(e) => setCreateCategoryId(e.target.value ? Number(e.target.value) : '')}
-                      required
-                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0fad89] bg-white"
-                    >
-                      <option value="">-- Chọn nhóm hàng --</option>
-                      {categories.map((c: any) => (
-                        <option key={c.id} value={c.id}>
-                          {c.level ? `${'\u00A0'.repeat(c.level * 4)}└─ ${c.name}` : c.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-
-                {/* 4. Ghi chú chung */}
-                <div>
-                  <label className="block text-sm font-semibold text-gray-800 mb-1.5">Ghi chú chung</label>
-                  <textarea
-                    id="textarea-create-note"
-                    value={createNote}
-                    onChange={(e) => setCreateNote(e.target.value)}
-                    placeholder="Lý do kiểm kê, đợt kiểm kê cuối quý..."
-                    rows={2}
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0fad89]"
-                  />
-                </div>
-
-                {/* 5. Xem trước danh sách sản phẩm thuộc phạm vi */}
-                <div className="border border-gray-200 rounded-xl p-3 bg-gray-50/70">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-bold text-gray-700 uppercase tracking-wider">
-                      Xem trước sản phẩm ({createPreviewItems.length} mặt hàng)
-                    </span>
-                    {createPreviewLoading && (
-                      <span className="text-xs text-gray-500 flex items-center gap-1">
-                        <div className="w-3 h-3 border-2 border-[#0fad89] border-t-transparent rounded-full animate-spin" />
-                        Đang lấy dữ liệu tồn kho...
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="max-h-48 overflow-y-auto divide-y divide-gray-200 text-xs bg-white rounded-lg border border-gray-200">
-                    {createPreviewItems.length === 0 ? (
-                      <div className="p-4 text-center text-gray-400">
-                        {createScopeType === 'CATEGORY' && !createCategoryId
-                          ? 'Vui lòng chọn nhóm hàng để xem danh sách sản phẩm'
-                          : 'Không có sản phẩm nào thuộc phạm vi đã chọn'}
+                        <label
+                          className={`flex items-center gap-2 p-2 rounded-lg border text-xs cursor-pointer transition-all ${
+                            createScopeType === 'CATEGORY'
+                              ? 'border-[#0fad89] bg-emerald-50 text-[#0fad89] font-bold shadow-xs'
+                              : 'border-gray-200 hover:bg-gray-50 text-gray-700'
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="scope_type"
+                            value="CATEGORY"
+                            checked={createScopeType === 'CATEGORY'}
+                            onChange={() => setCreateScopeType('CATEGORY')}
+                            className="text-[#0fad89] focus:ring-[#0fad89] w-3.5 h-3.5"
+                          />
+                          <span>Theo nhóm hàng</span>
+                        </label>
                       </div>
-                    ) : (
-                      createPreviewItems.map((p) => (
-                        <div key={p.product_id} className="p-2.5 flex items-center justify-between">
-                          <div>
-                            <span className="font-semibold text-gray-900">{p.product_name}</span>
-                            <span className="text-gray-400 ml-2">({p.product_code})</span>
-                          </div>
-                          <div className="text-right">
-                            <span className="font-bold text-gray-800">Tồn chốt: {p.system_stock}</span>{' '}
-                            <span className="text-gray-500">{p.base_unit}</span>
-                          </div>
-                        </div>
-                      ))
+                    </div>
+
+                    {/* 2. Chọn kho kiểm kê */}
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
+                        Kho áp dụng <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        id="select-create-warehouse"
+                        value={createWarehouseId}
+                        onChange={(e) => setCreateWarehouseId(e.target.value)}
+                        required
+                        className="w-full px-3 py-1.5 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0fad89] bg-white font-medium"
+                      >
+                        {warehouses.map((wh) => (
+                          <option key={wh.id} value={wh.id}>
+                            {wh.name} ({wh.id})
+                          </option>
+                        ))}
+                      </select>
+                      <p className="text-[11px] text-gray-400 mt-1">
+                        Số tồn kho căn cứ sẽ được lấy chính xác từ dữ liệu của kho này.
+                      </p>
+                    </div>
+
+                    {/* 3. Chọn nhóm hàng (nếu phạm vi CATEGORY) */}
+                    {createScopeType === 'CATEGORY' && (
+                      <div>
+                        <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
+                          Nhóm hàng cần kiểm kê <span className="text-red-500">*</span>
+                        </label>
+                        <select
+                          id="select-create-category"
+                          value={createCategoryId}
+                          onChange={(e) => setCreateCategoryId(e.target.value ? Number(e.target.value) : '')}
+                          required
+                          className="w-full px-3 py-1.5 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0fad89] bg-white"
+                        >
+                          <option value="">-- Chọn nhóm hàng --</option>
+                          {categories.map((c: any) => (
+                            <option key={c.id} value={c.id}>
+                              {c.level ? `${'\u00A0'.repeat(c.level * 4)}└─ ${c.name}` : c.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
                     )}
+
+                    {/* 4. Ghi chú chung */}
+                    <div className="flex-1 flex flex-col min-h-0">
+                      <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
+                        Ghi chú chung
+                      </label>
+                      <textarea
+                        id="textarea-create-note"
+                        value={createNote}
+                        onChange={(e) => setCreateNote(e.target.value)}
+                        placeholder="Lý do kiểm kê, đợt kiểm kê cuối quý..."
+                        rows={createScopeType === 'CATEGORY' ? 2 : 3}
+                        className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0fad89] resize-none flex-1"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Cột phải: Xem trước danh sách sản phẩm thuộc phạm vi */}
+                  <div className="md:col-span-7 flex flex-col min-h-0 border border-gray-200 rounded-xl bg-gray-50/70 p-3">
+                    <div className="flex items-center justify-between mb-2 shrink-0">
+                      <span className="text-xs font-bold text-gray-700 uppercase tracking-wider flex items-center gap-1.5">
+                        <svg className="w-4 h-4 text-[#0fad89]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                        </svg>
+                        Xem trước sản phẩm ({createPreviewItems.length} mặt hàng)
+                      </span>
+                      {createPreviewLoading && (
+                        <span className="text-[11px] text-gray-500 flex items-center gap-1">
+                          <div className="w-3 h-3 border-2 border-[#0fad89] border-t-transparent rounded-full animate-spin" />
+                          Đang lấy tồn kho...
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex-1 min-h-[180px] max-h-[280px] overflow-y-auto divide-y divide-gray-100 text-xs bg-white rounded-lg border border-gray-200 shadow-2xs">
+                      {createPreviewItems.length === 0 ? (
+                        <div className="p-6 text-center text-gray-400 flex flex-col items-center justify-center h-full">
+                          <svg className="w-8 h-8 text-gray-300 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                          </svg>
+                          <span>
+                            {createScopeType === 'CATEGORY' && !createCategoryId
+                              ? 'Vui lòng chọn nhóm hàng để xem danh sách sản phẩm'
+                              : 'Không có sản phẩm nào thuộc phạm vi đã chọn'}
+                          </span>
+                        </div>
+                      ) : (
+                        createPreviewItems.map((p) => (
+                          <div key={p.product_id} className="p-2.5 px-3 flex items-center justify-between hover:bg-gray-50 transition-colors">
+                            <div className="min-w-0 pr-2">
+                              <span className="font-semibold text-gray-900 block truncate">{p.product_name}</span>
+                              <span className="text-[11px] text-gray-400">Mã: {p.product_code}</span>
+                            </div>
+                            <div className="text-right shrink-0">
+                              <span className="font-bold text-gray-800">Tồn chốt: {p.system_stock}</span>{' '}
+                              <span className="text-gray-500 text-[11px]">{p.base_unit}</span>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
                   </div>
                 </div>
 
-                {/* Các nút hành động */}
-                <div className="pt-4 border-t border-gray-100 flex items-center justify-end gap-3">
+                {/* Footer với các nút hành động */}
+                <div className="px-5 py-3 border-t border-gray-100 flex items-center justify-end gap-3 bg-gray-50/50 shrink-0">
                   <button
                     type="button"
                     onClick={() => setIsCreateModalOpen(false)}
-                    className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg cursor-pointer border-0 bg-transparent"
+                    className="px-4 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-200/70 rounded-lg cursor-pointer border-0 bg-transparent transition-colors"
                   >
                     Hủy bỏ
                   </button>
                   <button
                     type="submit"
                     disabled={isSubmittingCreate || createPreviewItems.length === 0}
-                    className="px-5 py-2 text-sm font-semibold text-white bg-[#0fad89] hover:bg-[#0c8a6d] rounded-lg shadow-sm disabled:opacity-50 cursor-pointer border-0"
+                    className="px-5 py-2 text-xs font-bold text-white bg-[#0fad89] hover:bg-[#0c8a6d] rounded-lg shadow-sm disabled:opacity-50 cursor-pointer border-0 transition-all flex items-center gap-1.5"
                   >
-                    {isSubmittingCreate ? 'Đang tạo...' : 'Xác nhận tạo phiếu'}
+                    {isSubmittingCreate ? (
+                      <>
+                        <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        Đang tạo...
+                      </>
+                    ) : (
+                      'Xác nhận tạo phiếu'
+                    )}
                   </button>
                 </div>
               </form>
