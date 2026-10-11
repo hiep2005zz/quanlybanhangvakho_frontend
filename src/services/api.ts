@@ -2365,6 +2365,7 @@ export interface ProductPickingLocationItem {
   rack?: string;
   bin?: string;
   available_quantity: number;
+  actual_quantity?: number;
 }
 
 export interface OrderPickingItem {
@@ -2673,6 +2674,8 @@ export async function getOrderPickingLocationsApi(
     items,
   };
 }
+
+export const getWarehousePickingSummaryApi = getOrderPickingLocationsApi;
 
 // ==========================================================
 // MASTER DATA: KHU VỰC (ZONES) & KỆ / DÃY (RACKS / AISLES)
@@ -3363,3 +3366,107 @@ export async function getStockBookApi(
 // ==========================================
 // CHỨC NĂNG KIỂM KÊ KHO (STOCK AUDITS)
 // ==========================================
+
+
+// ==========================================
+// ORDER ADVANCED FILTERING & KPIS (nhánh hieuhieu)
+// ==========================================
+export interface OrderFilterParams {
+  status?: string;
+  dealer_id?: number;
+  sales_rep_id?: number;
+  region?: string;
+  start_date?: string;
+  end_date?: string;
+  search?: string;
+  page?: number;
+  page_size?: number;
+  format?: string;
+}
+
+export interface OrderListFilteredResponse {
+  items: any[];
+  total: number;
+  total_count: number;
+  filtered_total_amount: number;
+  pending_count: number;
+  confirmed_count: number;
+  page: number;
+  page_size: number;
+}
+
+export async function getOrdersFilteredApi(
+  token: string,
+  params?: OrderFilterParams
+): Promise<OrderListFilteredResponse> {
+  const query = new URLSearchParams();
+  if (params) {
+    if (params.status && params.status !== 'ALL') query.append('status', params.status);
+    if (params.dealer_id) query.append('dealer_id', String(params.dealer_id));
+    if (params.sales_rep_id) query.append('sales_rep_id', String(params.sales_rep_id));
+    if (params.region && params.region !== 'ALL') query.append('region', params.region);
+    if (params.start_date) query.append('start_date', params.start_date);
+    if (params.end_date) query.append('end_date', params.end_date);
+    if (params.search && params.search.trim()) query.append('search', params.search.trim());
+    if (params.page) query.append('page', String(params.page));
+    if (params.page_size) query.append('page_size', String(params.page_size));
+    if (params.format) query.append('format', params.format);
+    else query.append('format', 'summary');
+  } else {
+    query.append('format', 'summary');
+    query.append('page', '1');
+    query.append('page_size', '20');
+  }
+  const queryString = query.toString();
+  const url = `${API_BASE_URL}/orders${queryString ? `?${queryString}` : ''}`;
+  const response = await authenticatedFetch(url, { method: 'GET' }, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi tải danh sách đơn hàng (Mã lỗi ${response.status})`);
+  }
+  if (Array.isArray(data)) {
+    return {
+      items: data,
+      total: data.length,
+      total_count: data.length,
+      pending_count: data.filter((o: any) => o.status === 'PENDING_APPROVAL' || o.status === 'PENDING').length,
+      confirmed_count: data.filter((o: any) => o.status === 'CONFIRMED').length,
+      page: 1,
+      page_size: data.length,
+      filtered_total_amount: data.reduce((sum: number, o: any) => sum + (o.total_amount || 0), 0),
+    };
+  }
+  return data as OrderListFilteredResponse;
+}
+
+export interface SalesRepItem {
+  id: number;
+  username: string;
+  full_name: string;
+  role: string;
+}
+
+export async function getFilteredOrdersApi(
+  token: string,
+  params?: OrderFilterParams
+): Promise<OrderListFilteredResponse> {
+  return getOrdersFilteredApi(token, params);
+}
+
+export async function getOrderSalesRepsApi(token: string): Promise<SalesRepItem[]> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/orders/sales-reps`, { method: 'GET' }, token);
+  const data = await response.json().catch(() => []);
+  if (!response.ok) {
+    return [];
+  }
+  return Array.isArray(data) ? data : [];
+}
+
+export async function getOrderRegionsApi(token: string): Promise<string[]> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/orders/regions`, { method: 'GET' }, token);
+  const data = await response.json().catch(() => []);
+  if (!response.ok) {
+    return [];
+  }
+  return Array.isArray(data) ? data : [];
+}

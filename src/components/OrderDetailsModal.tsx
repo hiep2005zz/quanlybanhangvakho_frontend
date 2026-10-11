@@ -64,7 +64,7 @@ export default function OrderDetailsModal({
   useEffect(() => {
     let isMounted = true;
     if (isNoAccess) {
-      setError('Truy cập bị từ chối: Nhân viên mua hàng không có quyền xem đơn hàng bán.');
+      setError('Truy cập bị từ chối (403 Forbidden): Chức năng chỉ dành cho Quản trị viên, Quản lý kinh doanh và Nhân viên kinh doanh.');
       setIsLoading(false);
       return;
     }
