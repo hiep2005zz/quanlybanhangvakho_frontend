@@ -21,6 +21,17 @@ export function getOrderPermissionTier(user?: User | null): OrderPermissionTier 
     .filter(Boolean)
     .map((r) => r.toLowerCase());
 
+  const isCustomer =
+    user.role?.toLowerCase() === 'customer' ||
+    rawRoles.includes('customer') ||
+    user.role?.toLowerCase() === 'agent' ||
+    rawRoles.includes('agent');
+
+  // Đại lý (Customer) luôn có quyền xem đơn hàng và đặt lại đơn
+  if (isCustomer) {
+    return 'READ_ONLY';
+  }
+
   // Nhóm Không Liên Quan (No Access): purchasing (nhân viên mua hàng)
   if (
     rawRoles.includes('purchasing') ||
