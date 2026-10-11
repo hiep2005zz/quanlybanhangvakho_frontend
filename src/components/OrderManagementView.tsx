@@ -60,6 +60,17 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
   const [supplementaryNote, setSupplementaryNote] = useState('Giao bổ sung đợt 2 - hoàn tất đơn hàng');
   const [supplementaryError, setSupplementaryError] = useState<string | null>(null);
   const [supplementarySuccessMsg, setSupplementarySuccessMsg] = useState<string | null>(null);
+  const [openDropdownOrderCode, setOpenDropdownOrderCode] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handleOutsideClick = () => {
+      setOpenDropdownOrderCode(null);
+    };
+    document.addEventListener('click', handleOutsideClick);
+    return () => {
+      document.removeEventListener('click', handleOutsideClick);
+    };
+  }, []);
 
   const handleConfirmSupplementary = async () => {
     if (!supplementaryOrder) return;
@@ -1091,22 +1102,17 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                         <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px', whiteSpace: 'nowrap' }}>
                           {/* Menu Dropdown Trạng thái: Gộp Duyệt đơn, Từ chối, Hủy đơn (Chỉ dùng Text có màu, Không dùng Icon) */}
                           {((isPending && canApprove) || (isFullAccess && order.status !== 'CANCELLED' && order.status !== 'REJECTED')) && (
-                            <details
-                              className="order-status-dropdown-details group relative inline-block text-left [&::-webkit-details-marker]:hidden"
-                              style={{ position: 'relative', display: 'inline-block' }}
-                              onMouseEnter={(e) => {
-                                (e.currentTarget as HTMLDetailsElement).open = true;
-                              }}
-                              onMouseLeave={(e) => {
-                                (e.currentTarget as HTMLDetailsElement).open = false;
-                              }}
-                            >
-                              <summary
+                            <div style={{ position: 'relative', display: 'inline-block' }}>
+                              <button
+                                type="button"
                                 id={`btn-status-dropdown-${order.order_code}`}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setOpenDropdownOrderCode((prev) => (prev === order.order_code ? null : order.order_code));
+                                }}
                                 style={{
-                                  listStyle: 'none',
                                   padding: '5px 10px',
-                                  background: '#16a34a',
+                                  background: openDropdownOrderCode === order.order_code ? '#15803d' : '#16a34a',
                                   border: 'none',
                                   borderRadius: '6px',
                                   color: '#ffffff',
@@ -1128,159 +1134,164 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                                   e.currentTarget.style.background = '#15803d';
                                 }}
                                 onMouseLeave={(e) => {
-                                  e.currentTarget.style.background = '#16a34a';
+                                  if (openDropdownOrderCode !== order.order_code) {
+                                    e.currentTarget.style.background = '#16a34a';
+                                  }
                                 }}
                                 title="Thao tác xử lý trạng thái đơn hàng"
                               >
                                 Trạng thái ▾
-                              </summary>
+                              </button>
 
-                              <div
-                                style={{
-                                  position: 'absolute',
-                                  right: 0,
-                                  top: 'calc(100% + 4px)',
-                                  background: '#ffffff',
-                                  border: '1px solid #e2e8f0',
-                                  borderRadius: '8px',
-                                  boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1)',
-                                  padding: '4px',
-                                  minWidth: '130px',
-                                  zIndex: 50,
-                                  display: 'flex',
-                                  flexDirection: 'column',
-                                  gap: '2px',
-                                }}
-                              >
-                                {/* 1. Duyệt đơn: Chữ màu xanh lá, tuyệt đối không dùng icon */}
-                                {isPending && canApprove && (
-                                  <button
-                                    type="button"
-                                    id={`btn-approve-order-${order.order_code}`}
-                                    onClick={(e) => {
-                                      e.currentTarget.closest('details')?.removeAttribute('open');
-                                      setApprovingOrder(order);
-                                    }}
-                                    style={{
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      width: '100%',
-                                      padding: '7px 12px',
-                                      borderRadius: '6px',
-                                      border: 'none',
-                                      background: 'transparent',
-                                      color: '#16a34a',
-                                      fontSize: '12px',
-                                      fontWeight: '600',
-                                      textAlign: 'left',
-                                      cursor: 'pointer',
-                                      whiteSpace: 'nowrap',
-                                      transition: 'all 0.15s ease',
-                                    }}
-                                    onMouseEnter={(e) => {
-                                      e.currentTarget.style.background = '#f0fdf4';
-                                      e.currentTarget.style.color = '#15803d';
-                                    }}
-                                    onMouseLeave={(e) => {
-                                      e.currentTarget.style.background = 'transparent';
-                                      e.currentTarget.style.color = '#16a34a';
-                                    }}
-                                    title="Phê duyệt đơn hàng bán dưới giá sàn"
-                                  >
-                                    Duyệt đơn
-                                  </button>
-                                )}
-
-                                {/* 2. Từ chối: Chữ màu đỏ, tuyệt đối không dùng icon */}
-                                {isPending && canApprove && (
-                                  <button
-                                    type="button"
-                                    id={`btn-reject-order-${order.order_code}`}
-                                    onClick={(e) => {
-                                      e.currentTarget.closest('details')?.removeAttribute('open');
-                                      setRejectingOrder(order);
-                                    }}
-                                    style={{
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      width: '100%',
-                                      padding: '7px 12px',
-                                      borderRadius: '6px',
-                                      border: 'none',
-                                      background: 'transparent',
-                                      color: '#dc2626',
-                                      fontSize: '12px',
-                                      fontWeight: '600',
-                                      textAlign: 'left',
-                                      cursor: 'pointer',
-                                      whiteSpace: 'nowrap',
-                                      transition: 'all 0.15s ease',
-                                    }}
-                                    onMouseEnter={(e) => {
-                                      e.currentTarget.style.background = '#fef2f2';
-                                      e.currentTarget.style.color = '#b91c1c';
-                                    }}
-                                    onMouseLeave={(e) => {
-                                      e.currentTarget.style.background = 'transparent';
-                                      e.currentTarget.style.color = '#dc2626';
-                                    }}
-                                    title="Từ chối đơn hàng bán dưới giá sàn"
-                                  >
-                                    Từ chối
-                                  </button>
-                                )}
-
-                                {/* 3. Hủy đơn: Chữ màu đỏ nhạt/cam, tuyệt đối không dùng icon */}
-                                {isFullAccess && order.status !== 'CANCELLED' && order.status !== 'REJECTED' && (
-                                  <button
-                                    type="button"
-                                    id={`btn-cancel-order-${order.order_code}`}
-                                    disabled={isOrderPastExported(order.status)}
-                                    onClick={(e) => {
-                                      if (!isOrderPastExported(order.status)) {
-                                        e.currentTarget.closest('details')?.removeAttribute('open');
-                                        setCancellingOrder(order);
-                                      }
-                                    }}
-                                    style={{
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      width: '100%',
-                                      padding: '7px 12px',
-                                      borderRadius: '6px',
-                                      border: 'none',
-                                      background: 'transparent',
-                                      color: isOrderPastExported(order.status) ? '#94a3b8' : '#ea580c',
-                                      fontSize: '12px',
-                                      fontWeight: '600',
-                                      textAlign: 'left',
-                                      cursor: isOrderPastExported(order.status) ? 'not-allowed' : 'pointer',
-                                      whiteSpace: 'nowrap',
-                                      transition: 'all 0.15s ease',
-                                    }}
-                                    onMouseEnter={(e) => {
-                                      if (!isOrderPastExported(order.status)) {
-                                        e.currentTarget.style.background = '#fff7ed';
-                                        e.currentTarget.style.color = '#c2410c';
-                                      }
-                                    }}
-                                    onMouseLeave={(e) => {
-                                      if (!isOrderPastExported(order.status)) {
+                              {openDropdownOrderCode === order.order_code && (
+                                <div
+                                  style={{
+                                    position: 'absolute',
+                                    right: 0,
+                                    top: 'calc(100% + 4px)',
+                                    background: '#ffffff',
+                                    border: '1px solid #e2e8f0',
+                                    borderRadius: '8px',
+                                    boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1)',
+                                    padding: '4px',
+                                    minWidth: '130px',
+                                    zIndex: 50,
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: '2px',
+                                  }}
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  {/* 1. Duyệt đơn: Chữ màu xanh lá, tuyệt đối không dùng icon */}
+                                  {isPending && canApprove && (
+                                    <button
+                                      type="button"
+                                      id={`btn-approve-order-${order.order_code}`}
+                                      onClick={() => {
+                                        setOpenDropdownOrderCode(null);
+                                        setApprovingOrder(order);
+                                      }}
+                                      style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        width: '100%',
+                                        padding: '7px 12px',
+                                        borderRadius: '6px',
+                                        border: 'none',
+                                        background: 'transparent',
+                                        color: '#16a34a',
+                                        fontSize: '12px',
+                                        fontWeight: '600',
+                                        textAlign: 'left',
+                                        cursor: 'pointer',
+                                        whiteSpace: 'nowrap',
+                                        transition: 'all 0.15s ease',
+                                      }}
+                                      onMouseEnter={(e) => {
+                                        e.currentTarget.style.background = '#f0fdf4';
+                                        e.currentTarget.style.color = '#15803d';
+                                      }}
+                                      onMouseLeave={(e) => {
                                         e.currentTarget.style.background = 'transparent';
-                                        e.currentTarget.style.color = '#ea580c';
+                                        e.currentTarget.style.color = '#16a34a';
+                                      }}
+                                      title="Phê duyệt đơn hàng bán dưới giá sàn"
+                                    >
+                                      Duyệt đơn
+                                    </button>
+                                  )}
+
+                                  {/* 2. Từ chối: Chữ màu đỏ, tuyệt đối không dùng icon */}
+                                  {isPending && canApprove && (
+                                    <button
+                                      type="button"
+                                      id={`btn-reject-order-${order.order_code}`}
+                                      onClick={() => {
+                                        setOpenDropdownOrderCode(null);
+                                        setRejectingOrder(order);
+                                      }}
+                                      style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        width: '100%',
+                                        padding: '7px 12px',
+                                        borderRadius: '6px',
+                                        border: 'none',
+                                        background: 'transparent',
+                                        color: '#dc2626',
+                                        fontSize: '12px',
+                                        fontWeight: '600',
+                                        textAlign: 'left',
+                                        cursor: 'pointer',
+                                        whiteSpace: 'nowrap',
+                                        transition: 'all 0.15s ease',
+                                      }}
+                                      onMouseEnter={(e) => {
+                                        e.currentTarget.style.background = '#fef2f2';
+                                        e.currentTarget.style.color = '#b91c1c';
+                                      }}
+                                      onMouseLeave={(e) => {
+                                        e.currentTarget.style.background = 'transparent';
+                                        e.currentTarget.style.color = '#dc2626';
+                                      }}
+                                      title="Từ chối đơn hàng bán dưới giá sàn"
+                                    >
+                                      Từ chối
+                                    </button>
+                                  )}
+
+                                  {/* 3. Hủy đơn: Chữ màu đỏ nhạt/cam, tuyệt đối không dùng icon */}
+                                  {isFullAccess && order.status !== 'CANCELLED' && order.status !== 'REJECTED' && (
+                                    <button
+                                      type="button"
+                                      id={`btn-cancel-order-${order.order_code}`}
+                                      disabled={isOrderPastExported(order.status)}
+                                      onClick={() => {
+                                        if (!isOrderPastExported(order.status)) {
+                                          setOpenDropdownOrderCode(null);
+                                          setCancellingOrder(order);
+                                        }
+                                      }}
+                                      style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        width: '100%',
+                                        padding: '7px 12px',
+                                        borderRadius: '6px',
+                                        border: 'none',
+                                        background: 'transparent',
+                                        color: isOrderPastExported(order.status) ? '#94a3b8' : '#ea580c',
+                                        fontSize: '12px',
+                                        fontWeight: '600',
+                                        textAlign: 'left',
+                                        cursor: isOrderPastExported(order.status) ? 'not-allowed' : 'pointer',
+                                        whiteSpace: 'nowrap',
+                                        transition: 'all 0.15s ease',
+                                      }}
+                                      onMouseEnter={(e) => {
+                                        if (!isOrderPastExported(order.status)) {
+                                          e.currentTarget.style.background = '#fff7ed';
+                                          e.currentTarget.style.color = '#c2410c';
+                                        }
+                                      }}
+                                      onMouseLeave={(e) => {
+                                        if (!isOrderPastExported(order.status)) {
+                                          e.currentTarget.style.background = 'transparent';
+                                          e.currentTarget.style.color = '#ea580c';
+                                        }
+                                      }}
+                                      title={
+                                        isOrderPastExported(order.status)
+                                          ? 'Đơn đã xuất kho, không thể hủy (phải xử lý trả hàng)'
+                                          : 'Hủy đơn hàng'
                                       }
-                                    }}
-                                    title={
-                                      isOrderPastExported(order.status)
-                                        ? 'Đơn đã xuất kho, không thể hủy (phải xử lý trả hàng)'
-                                        : 'Hủy đơn hàng'
-                                    }
-                                  >
-                                    Hủy đơn
-                                  </button>
-                                )}
-                              </div>
-                            </details>
+                                    >
+                                      Hủy đơn
+                                    </button>
+                                  )}
+                                </div>
+                              )}
+                            </div>
                           )}
 
                           <button

@@ -914,7 +914,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                     <th style={{ padding: '14px 16px', fontWeight: '700', textAlign: 'left' }}>Email & SĐT</th>
                     <th style={{ padding: '14px 16px', fontWeight: '700', textAlign: 'left' }}>Vai trò hệ thống</th>
                     <th style={{ padding: '14px 16px', fontWeight: '700', textAlign: 'left' }}>Kho / Địa bàn</th>
-                    <th style={{ padding: '14px 16px', fontWeight: '700', textAlign: 'center' }}>Trạng thái</th>
+                    <th style={{ padding: '14px 16px', fontWeight: '700', textAlign: 'center', minWidth: '125px', whiteSpace: 'nowrap' }}>Trạng thái</th>
                     <th style={{ padding: '14px 16px', fontWeight: '700', textAlign: 'left' }}>Quyền bảo mật</th>
                     <th style={{ padding: '14px 16px', fontWeight: '700', textAlign: 'center', width: '80px' }}>Thao tác</th>
                   </tr>
@@ -1053,7 +1053,13 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                                   </span>
                                 ];
                               }
-                              const allRoles = (u.roles && u.roles.length > 0) ? u.roles : (u.role ? [u.role] : []);
+                              let allRoles = (u.roles && u.roles.length > 0) ? u.roles : (u.role ? [u.role] : []);
+                              if (allRoles.length === 1 && typeof allRoles[0] === 'string' && allRoles[0].trim().startsWith('[')) {
+                                try {
+                                  const parsed = JSON.parse(allRoles[0]);
+                                  if (Array.isArray(parsed)) allRoles = parsed;
+                                } catch {}
+                              }
                               const validRoleCodes = ROLES_LIST.map((item) => item.role);
                               const recognizedRoles = allRoles.filter((r) => validRoleCodes.includes(r));
                               
@@ -1145,32 +1151,52 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                               <span style={{
                                 display: 'inline-flex',
                                 alignItems: 'center',
-                                gap: '5px',
-                                color: '#15803d',
-                                background: '#dcfce7',
-                                border: '1px solid #bbf7d0',
-                                padding: '3px 10px',
+                                gap: '6px',
+                                color: '#166534',
+                                background: 'linear-gradient(180deg, #f0fdf4 0%, #dcfce7 100%)',
+                                border: '1px solid #86efac',
+                                padding: '4px 12px',
                                 borderRadius: '999px',
                                 fontSize: '12px',
-                                fontWeight: '700'
+                                fontWeight: '700',
+                                whiteSpace: 'nowrap',
+                                boxShadow: '0 1px 2px rgba(22, 101, 52, 0.06)',
+                                letterSpacing: '0.01em',
                               }}>
-                                <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#16a34a' }} />
+                                <span style={{
+                                  width: '7px',
+                                  height: '7px',
+                                  borderRadius: '50%',
+                                  background: '#16a34a',
+                                  boxShadow: '0 0 0 2.5px rgba(34, 197, 94, 0.25)',
+                                  flexShrink: 0,
+                                }} />
                                 Hoạt động
                               </span>
                             ) : (
                               <span style={{
                                 display: 'inline-flex',
                                 alignItems: 'center',
-                                gap: '5px',
-                                color: '#b91c1c',
-                                background: '#fee2e2',
-                                border: '1px solid #fecaca',
-                                padding: '3px 10px',
+                                gap: '6px',
+                                color: '#991b1b',
+                                background: 'linear-gradient(180deg, #fef2f2 0%, #fee2e2 100%)',
+                                border: '1px solid #fca5a5',
+                                padding: '4px 12px',
                                 borderRadius: '999px',
                                 fontSize: '12px',
-                                fontWeight: '700'
+                                fontWeight: '700',
+                                whiteSpace: 'nowrap',
+                                boxShadow: '0 1px 2px rgba(153, 27, 27, 0.06)',
+                                letterSpacing: '0.01em',
                               }}>
-                                <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#dc2626' }} />
+                                <span style={{
+                                  width: '7px',
+                                  height: '7px',
+                                  borderRadius: '50%',
+                                  background: '#dc2626',
+                                  boxShadow: '0 0 0 2.5px rgba(239, 68, 68, 0.25)',
+                                  flexShrink: 0,
+                                }} />
                                 Tạm khóa
                               </span>
                             )}

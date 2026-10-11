@@ -59,11 +59,10 @@ export default function DashboardPage({
   const officialRoles: string[] = rawRoles.filter(Boolean) as string[];
   const isCustomer = user.role === 'customer' || Boolean(user.roles && user.roles.includes('customer'));
 
-  // Tài khoản bị khóa màn hình chờ chỉ khi chưa được phân công kho/địa bàn VÀ chưa có vai trò hợp lệ (không áp dụng cho tài khoản đại lý)
+  // Tài khoản chưa được phân vai trò hoặc đại lý chưa được kích hoạt/phân công địa bàn
   const isPendingCustomer =
-    !isCustomer &&
-    officialRoles.length === 0 &&
-    (!user.branch || user.branch === 'Chưa phân công');
+    (!isCustomer && officialRoles.length === 0) ||
+    (isCustomer && (!user.branch || user.branch === 'Chưa phân công'));
   const isAdmin = user.role === 'admin' || Boolean(user.roles && user.roles.includes('admin'));
   const isAccountant = user.role === 'accountant' || Boolean(user.roles && user.roles.includes('accountant'));
   const orderPermTier = getOrderPermissionTier(user);
@@ -153,25 +152,17 @@ export default function DashboardPage({
     }
 
     if (isStockAuditsPath || oldTabVal === 'stock-audits' || oldTabVal === 'stock-audit') {
-      if (canAccessStockAudit) {
-        if (pathname !== '/stock-audits' || hasOldTabParam) {
-          try { window.history.replaceState({}, '', '/stock-audits'); } catch {}
-        }
-        return 'stock-audits';
+      if (hasOldTabParam || pathname !== '/stock-audits') {
+        try { window.history.replaceState({}, '', '/stock-audits'); } catch {}
       }
-      try { window.history.replaceState({}, '', '/'); } catch {}
-      return 'inventory';
+      return 'stock-audits';
     }
 
     if (isDiscountsPath || oldTabVal === 'discounts' || oldTabVal === 'discount') {
-      if (canAccessDiscounts) {
-        if (pathname !== '/discounts' || hasOldTabParam) {
-          try { window.history.replaceState({}, '', '/discounts'); } catch {}
-        }
-        return 'discounts';
+      if (hasOldTabParam || pathname !== '/discounts') {
+        try { window.history.replaceState({}, '', '/discounts'); } catch {}
       }
-      try { window.history.replaceState({}, '', '/'); } catch {}
-      return 'inventory';
+      return 'discounts';
     }
 
     if (isProductHistoryPath || oldTabVal === 'product-history') {
@@ -179,13 +170,10 @@ export default function DashboardPage({
     }
 
     if (isCreateOrderPath || oldTabVal === 'create-order') {
-      if (canCreateOrders) return 'create-order';
-      if (canReadOrders) {
-        try { window.history.replaceState({}, '', '/orders'); } catch {}
-        return 'orders';
+      if (hasOldTabParam || pathname !== '/create-order') {
+        try { window.history.replaceState({}, '', '/create-order'); } catch {}
       }
-      try { window.history.replaceState({}, '', '/'); } catch {}
-      return 'inventory';
+      return 'create-order';
     }
     if (isPriceBooksPath) {
       return 'price-books';
@@ -194,9 +182,10 @@ export default function DashboardPage({
       return 'suppliers';
     }
     if (isOrdersPath || oldTabVal === 'orders') {
-      if (canReadOrders) return 'orders';
-      window.history.replaceState({}, '', '/');
-      return 'inventory';
+      if (hasOldTabParam || pathname !== '/orders') {
+        try { window.history.replaceState({}, '', '/orders'); } catch {}
+      }
+      return 'orders';
     }
     if (isDeliveryPointsPath || oldTabVal === 'delivery-points') {
       if (hasOldTabParam || pathname !== '/delivery-points') {
@@ -290,11 +279,6 @@ export default function DashboardPage({
     }
 
     if (tab === 'stock-audits') {
-      if (!canAccessStockAudit) {
-        setActiveTabState('inventory');
-        try { window.history.replaceState({}, '', '/'); } catch {}
-        return;
-      }
       setActiveTabState('stock-audits');
       try {
         window.history.pushState({}, '', '/stock-audits');
@@ -303,27 +287,12 @@ export default function DashboardPage({
     }
 
     if (tab === 'create-order') {
-      if (!canCreateOrders) {
-        setActiveTabState('orders');
-        try {
-          window.history.replaceState({}, '', '/orders');
-        } catch {
-          // ignore
-        }
-        return;
-      }
       setActiveTabState('create-order');
       try {
         window.history.pushState({}, '', '/create-order');
       } catch {
         // ignore
       }
-      return;
-    }
-
-    if (tab === 'orders' && !canReadOrders) {
-      setActiveTabState('inventory');
-      window.history.replaceState({}, '', '/');
       return;
     }
 
@@ -356,15 +325,6 @@ export default function DashboardPage({
         // ignore
       }
     } else if (tab === 'dealer-profiles') {
-      if (!canManageDealerProfiles) {
-        setActiveTabState('inventory');
-        try {
-          window.history.replaceState({}, '', '/');
-        } catch {
-          // ignore
-        }
-        return;
-      }
       setActiveTabState('dealer-profiles');
       try {
         window.history.pushState({}, '', '/dealer-profiles');
@@ -412,15 +372,6 @@ export default function DashboardPage({
         // ignore
       }
     } else if (tab === 'discounts') {
-      if (!canAccessDiscounts) {
-        setActiveTabState('inventory');
-        try {
-          window.history.replaceState({}, '', '/');
-        } catch {
-          // ignore
-        }
-        return;
-      }
       setActiveTabState('discounts');
       try {
         window.history.pushState({}, '', '/discounts');
@@ -433,46 +384,6 @@ export default function DashboardPage({
       return;
     }
   };
-
-  useEffect(() => {
-    const tabRequiresAdmin = activeTab === 'users' || activeTab === 'audit-logs';
-    const isAllowed =
-      tabRequiresAdmin ? isAdmin
-        : activeTab === 'categories' ? canManageCategories
-          : activeTab === 'orders' ? canReadOrders
-            : activeTab === 'create-order' ? canCreateOrders
-              : activeTab === 'suppliers' ? canManageSuppliers
-                : activeTab === 'discounts' ? canAccessDiscounts
-                : activeTab === 'product-history' ? (isAdmin || isSalesManager || canWriteInventory)
-                : activeTab === 'stock-audits' ? canAccessStockAudit
-                  : true;
-    if (!isAllowed) {
-      setActiveTabState('inventory');
-      window.history.replaceState({}, '', '/');
-    }
-    if (activeTab === 'dealer-profiles' && !canManageDealerProfiles) {
-      setActiveTabState('inventory');
-      try {
-        window.history.replaceState({}, '', '/');
-      } catch {}
-    }
-    if (activeTab === 'dealers' && !canViewDealers) {
-      setActiveTabState('inventory');
-      try {
-        window.history.replaceState({}, '', '/');
-      } catch {
-        // ignore
-      }
-    }
-    if (activeTab === 'delivery-points' && !canManageDeliveryPoints) {
-      setActiveTabState('inventory');
-      try {
-        window.history.replaceState({}, '', '/');
-      } catch {
-        // ignore
-      }
-    }
-  }, [activeTab, canManageCategories, canViewDealers, canManageDealerProfiles, canManageDeliveryPoints, canAccessDiscounts, user.username]);
 
   useEffect(() => {
     const syncFromUrl = () => {
@@ -492,17 +403,21 @@ export default function DashboardPage({
       const isProfilePath = pathname === '/profile' || pathname.startsWith('/profile/');
       const isProductHistoryPath = pathname === '/product-history' || pathname.startsWith('/product-history/');
       const isStockAuditsPath = pathname === '/stock-audits' || pathname.startsWith('/stock-audits/');
+      const isCreateOrderPath = pathname === '/create-order' || pathname.startsWith('/create-order/');
+
+      if (isCreateOrderPath || tabParam === 'create-order') {
+        if (pathname !== '/create-order' || tabParam) {
+          try { window.history.replaceState({}, '', '/create-order'); } catch {}
+        }
+        setActiveTabState('create-order');
+        return;
+      }
 
       if (isStockAuditsPath || tabParam === 'stock-audits' || tabParam === 'stock-audit') {
-        if (canAccessStockAudit) {
-          if (pathname !== '/stock-audits' || tabParam) {
-            try { window.history.replaceState({}, '', '/stock-audits'); } catch {}
-          }
-          setActiveTabState('stock-audits');
-        } else {
-          setActiveTabState('inventory');
-          try { window.history.replaceState({}, '', '/'); } catch {}
+        if (pathname !== '/stock-audits' || tabParam) {
+          try { window.history.replaceState({}, '', '/stock-audits'); } catch {}
         }
+        setActiveTabState('stock-audits');
         return;
       }
 
@@ -529,27 +444,19 @@ export default function DashboardPage({
       if (isPriceBooksPath) { setActiveTabState('price-books'); return; }
 
       if (isOrdersPath || tabParam === 'orders') {
-        if (canReadOrders) {
-          if (pathname !== '/orders' || tabParam) window.history.replaceState({}, '', '/orders');
-          setActiveTabState('orders');
-        } else {
-          setActiveTabState('inventory');
-          window.history.replaceState({}, '', '/');
+        if (pathname !== '/orders' || tabParam) {
+          try { window.history.replaceState({}, '', '/orders'); } catch {}
         }
+        setActiveTabState('orders');
         return;
       }
 
       const isDiscountsPath = pathname === '/discounts' || pathname.startsWith('/discounts/');
       if (isDiscountsPath || tabParam === 'discounts' || tabParam === 'discount') {
-        if (canAccessDiscounts) {
-          if (pathname !== '/discounts' || tabParam) {
-            try { window.history.replaceState({}, '', '/discounts'); } catch {}
-          }
-          setActiveTabState('discounts');
-        } else {
-          setActiveTabState('inventory');
-          try { window.history.replaceState({}, '', '/'); } catch {}
+        if (pathname !== '/discounts' || tabParam) {
+          try { window.history.replaceState({}, '', '/discounts'); } catch {}
         }
+        setActiveTabState('discounts');
         return;
       }
 

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import {
   createOrderApi,
   getOrderDealersApi,
@@ -16,6 +16,7 @@ import {
   User,
   DealerCreditInfo,
   getDealerCreditInfoApi,
+  calculateLineItemPricingApi,
 } from '../services/api';
 import type { DeliveryPoint } from '../types/deliveryPoint';
 import { evaluateBestDiscountPolicy, parseStoredPolicies } from '../utils/discountEngine';
@@ -40,9 +41,15 @@ interface OrderLine {
   code: string;
   name: string;
   price: number;
+  rawPrice?: string;
   unit: string;
   conversionRate: number;
   quantity: number;
+  floorPrice?: number;
+  isBelowFloor?: boolean;
+  discountRate?: number;
+  discountAmount?: number;
+  lineTotal?: number;
 }
 
 interface OrderDraft {
@@ -126,6 +133,13 @@ export default function SalesOrderEntry({
   const isSalesRole = !user || userRoles.some((r) => ['sales', 'sales_manager', 'admin', 'customer', 'agent'].includes(r));
   const isCustomer = Boolean(user && (user.role === 'customer' || user.role === 'agent' || userRoles.includes('customer') || userRoles.includes('agent')));
 
+  // RBAC Guard: Chỉ Sales (sales, sales_manager) và Admin (admin) mới được sửa giá & xem cảnh báo giá sàn
+  const canEditPrice = Boolean(
+    user && ['admin', 'sales_manager', 'sales'].some((r) => user.role === r || (user.roles && user.roles.includes(r)))
+  );
+
+  const pricingDebounceTimer = useRef<{ [key: number]: any }>({});
+
   const [dealers, setDealers] = useState<OrderDealer[]>([]);
   const [isLoadingDealers, setIsLoadingDealers] = useState(true);
   const [dealerLoadError, setDealerLoadError] = useState<string | null>(null);
@@ -197,6 +211,9 @@ export default function SalesOrderEntry({
     order_code: string;
     dealer_name: string;
     total_amount: number;
+    status?: string;
+    requires_approval?: boolean;
+    approval_reason?: string | null;
   } | null>(null);
   const [createdOrderCodeToPrint, setCreatedOrderCodeToPrint] = useState<string | null>(null);
 
@@ -451,8 +468,12 @@ export default function SalesOrderEntry({
       .slice(0, 6);
   }, [productQuery, products]);
 
-  const subtotal = lines.reduce((total, line) => total + line.quantity * line.price, 0);
+  const subtotal = lines.reduce((total, line) => total + (line.lineTotal ?? (line.quantity * line.price)), 0);
   const totalQuantity = lines.reduce((total, line) => total + line.quantity, 0);
+
+  const hasBelowFloorLine = useMemo(() => {
+    return lines.some((line) => line.isBelowFloor || (line.floorPrice && line.floorPrice > 0 && line.price < line.floorPrice));
+  }, [lines]);
 
   // Tự động kiểm tra danh sách chính sách chiết khấu đang áp dụng theo Best Price Rule
   const discountEvaluation = useMemo(() => {
@@ -564,7 +585,7 @@ export default function SalesOrderEntry({
     setDiscountPercent(draft.discountPercent || '0');
     setIsManualOverride(true);
     setNote(draft.note || '');
-    setLines(draft.lines || []);
+    setLines((draft.lines || []).map((l) => ({ ...l, rawPrice: l.rawPrice !== undefined ? l.rawPrice : String(l.price) })));
     setActiveDraftId(draft.id);
     emitStatusToast({
       title: 'Mở bản nháp thành công',
@@ -586,26 +607,141 @@ export default function SalesOrderEntry({
     }
   };
 
-  const addProduct = (product: ProductItem) => {
-    const baseUnit = product.base_unit || 'Cái';
-    setLines((current) => {
-      const existingIndex = current.findIndex((line) => line.productId === product.id && line.unit === baseUnit);
-      if (existingIndex >= 0) {
-        return current.map((line, index) =>
-          index === existingIndex ? { ...line, quantity: line.quantity + 1 } : line
-        );
+  const handleQuantityChange = (index: number, newQty: number) => {
+    const qty = Math.max(1, Math.floor(newQty || 1));
+    setLines((current) => current.map((line, idx) => {
+      if (idx !== index) return line;
+      const sub = qty * line.price;
+      const disc = line.discountRate ? Math.round(sub * (line.discountRate / 100)) : 0;
+      return {
+        ...line,
+        quantity: qty,
+        discountAmount: disc,
+        lineTotal: sub - disc,
+      };
+    }));
+
+    if (pricingDebounceTimer.current[index]) {
+      clearTimeout(pricingDebounceTimer.current[index]);
+    }
+    pricingDebounceTimer.current[index] = setTimeout(async () => {
+      const currentLine = lines[index];
+      if (!currentLine || !dealerId) return;
+      try {
+        const res = await calculateLineItemPricingApi(token, {
+          dealer_id: Number(dealerId),
+          product_id: currentLine.productId,
+          quantity: qty,
+          unit_price_override: canEditPrice ? currentLine.price : undefined,
+        });
+        setLines((current) => current.map((l, idx) =>
+          idx === index ? {
+            ...l,
+            price: res.unit_price,
+            rawPrice: String(res.unit_price),
+            floorPrice: res.floor_price,
+            isBelowFloor: res.is_below_floor,
+            discountRate: res.discount_rate,
+            discountAmount: res.discount_amount,
+            lineTotal: res.line_total,
+          } : l
+        ));
+      } catch (e) {
+        console.warn('Lỗi tính chiết khấu bậc:', e);
       }
-      return [...current, {
-        productId: product.id,
-        code: product.code,
-        name: product.name,
-        price: product.sell_price,
-        unit: baseUnit,
-        conversionRate: 1,
+    }, 250);
+  };
+
+  const handlePriceInputChange = (index: number, val: string) => {
+    if (!canEditPrice) return;
+    const numericVal = val === '' ? 0 : parseFloat(val);
+    const priceNum = isNaN(numericVal) ? 0 : Math.max(0, numericVal);
+    setLines((current) => current.map((line, idx) => {
+      if (idx !== index) return line;
+      const floor = line.floorPrice || 0;
+      const isBelow = floor > 0 && priceNum < floor;
+      const sub = line.quantity * priceNum;
+      const disc = line.discountRate ? Math.round(sub * (line.discountRate / 100)) : 0;
+      return {
+        ...line,
+        price: priceNum,
+        rawPrice: val,
+        isBelowFloor: isBelow,
+        discountAmount: disc,
+        lineTotal: sub - disc,
+      };
+    }));
+  };
+
+  const handlePriceBlur = (index: number) => {
+    setLines((current) => current.map((line, idx) => {
+      if (idx !== index) return line;
+      return {
+        ...line,
+        rawPrice: String(line.price),
+      };
+    }));
+  };
+
+  const addProduct = async (product: ProductItem) => {
+    if (!dealerId) {
+      emitStatusToast({
+        title: 'Chưa chọn đại lý',
+        message: 'Vui lòng chọn đại lý trước khi thêm sản phẩm.',
+        type: 'error',
+      });
+      return;
+    }
+    const baseUnit = product.base_unit || 'Cái';
+
+    // AC1: Tra cứu đơn giá & giá sàn theo Bảng giá hiệu lực (Price Book Lookup)
+    try {
+      const priceRes = await calculateLineItemPricingApi(token, {
+        dealer_id: Number(dealerId),
+        product_id: product.id,
         quantity: 1,
-      }];
-    });
-    setProductQuery('');
+      });
+
+      setLines((current) => {
+        const existingIndex = current.findIndex((line) => line.productId === product.id && line.unit === baseUnit);
+        if (existingIndex >= 0) {
+          const newQty = current[existingIndex].quantity + 1;
+          const updated = current.map((line, index) =>
+            index === existingIndex ? {
+              ...line,
+              quantity: newQty,
+            } : line
+          );
+          setTimeout(() => handleQuantityChange(existingIndex, newQty), 50);
+          return updated;
+        }
+        return [...current, {
+          productId: product.id,
+          code: product.code,
+          name: product.name,
+          price: priceRes.unit_price,
+          rawPrice: String(priceRes.unit_price),
+          unit: baseUnit,
+          conversionRate: 1,
+          quantity: 1,
+          floorPrice: priceRes.floor_price,
+          isBelowFloor: priceRes.is_below_floor,
+          discountRate: priceRes.discount_rate,
+          discountAmount: priceRes.discount_amount,
+          lineTotal: priceRes.line_total,
+        }];
+      });
+      setProductQuery('');
+    } catch (err: any) {
+      // Hard Validation AC1: Nếu SKU chưa có bảng giá hiệu lực: Chặn thêm dòng hàng
+      const errMsg = err?.message || `Sản phẩm [${product.code}] chưa có bảng giá đang hiệu lực cho nhóm khách hàng này. Vui lòng kiểm tra lại cấu hình giá.`;
+      emitStatusToast({
+        title: 'Chặn thêm sản phẩm',
+        message: errMsg,
+        type: 'error',
+      });
+      setProductQuery('');
+    }
   };
 
   const handleAddAllPreviousItems = () => {
@@ -647,6 +783,7 @@ export default function SalesOrderEntry({
             code: item.product_code,
             name: item.product_name,
             price: item.price,
+            rawPrice: String(item.price),
             unit: itemUnit,
             conversionRate: item.conversion_rate || 1,
             quantity: qtyToAdd,
@@ -679,6 +816,7 @@ export default function SalesOrderEntry({
           code: item.product_code,
           name: item.product_name,
           price: item.price,
+          rawPrice: String(item.price),
           unit: itemUnit,
           conversionRate: item.conversion_rate || 1,
           quantity: qtyToAdd,
@@ -803,6 +941,7 @@ export default function SalesOrderEntry({
           product_id: line.productId,
           quantity: line.quantity,
           price: line.price,
+          unit_price_override: line.price,
           unit: line.unit,
           conversion_rate: line.conversionRate,
         })),
@@ -828,6 +967,9 @@ export default function SalesOrderEntry({
         order_code: created.order_code,
         dealer_name: selectedDealer.name,
         total_amount: created.total_amount,
+        status: created.status,
+        requires_approval: created.requires_approval,
+        approval_reason: created.approval_reason,
       });
     } catch (createError) {
       const errMsg = createError instanceof Error ? createError.message : 'Không thể tạo đơn hàng.';
@@ -1282,14 +1424,64 @@ export default function SalesOrderEntry({
                             step={1}
                             className={isExceeded ? 'input-stock-error' : ''}
                             value={line.quantity}
-                            onChange={(event) => updateLine(index, { quantity: Math.max(1, Math.floor(Number(event.target.value) || 1)) })}
+                            onFocus={(event) => event.target.select()}
+                            onChange={(event) => handleQuantityChange(index, Number(event.target.value) || 1)}
                           />
+                        </label>
+                        <label className="sales-order-field">
+                          <span>Đơn giá</span>
+                          {canEditPrice ? (
+                            <>
+                              <input
+                                type="number"
+                                min={0}
+                                step="any"
+                                className={line.isBelowFloor ? 'input-price-floor-warning' : ''}
+                                value={line.rawPrice !== undefined ? line.rawPrice : line.price}
+                                onFocus={(event) => event.target.select()}
+                                onChange={(event) => handlePriceInputChange(index, event.target.value)}
+                                onBlur={() => handlePriceBlur(index)}
+                                placeholder="0"
+                                title="Nhân viên kinh doanh / Admin có thể sửa đơn giá"
+                              />
+                              {line.floorPrice !== undefined && line.floorPrice > 0 && (
+                                <span style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
+                                  Giá sàn: {formatCurrency(line.floorPrice)}
+                                </span>
+                              )}
+                            </>
+                          ) : (
+                            <input
+                              type="number"
+                              value={line.price}
+                              disabled
+                              readOnly
+                              className="input-price-disabled"
+                              title="Chỉ Sales và Admin được sửa giá dòng hàng"
+                            />
+                          )}
                         </label>
                         <div className="sales-order-line-total">
                           <span>Thành tiền</span>
-                          <strong>{formatCurrency(line.price * line.quantity)}</strong>
+                          <strong>{formatCurrency(line.lineTotal ?? (line.price * line.quantity))}</strong>
+                          {line.discountRate !== undefined && line.discountRate > 0 && (
+                            <div className="sales-order-discount-badge" title={`Đã trừ chiết khấu sản lượng ${line.discountRate}%`}>
+                              Giảm {line.discountRate}% {line.discountAmount ? `(-${formatCurrency(line.discountAmount)})` : ''}
+                            </div>
+                          )}
                         </div>
                       </div>
+
+                      {/* AC3: Cảnh báo giá sàn */}
+                      {canEditPrice && (line.isBelowFloor || (line.floorPrice && line.floorPrice > 0 && line.price < line.floorPrice)) && (
+                        <div className="sales-order-price-floor-warning">
+                          <span>⚠️</span>
+                          <span>
+                            Sản phẩm <strong>{line.name}</strong> ({line.code}) có đơn giá bán nhỏ hơn giá sàn quy định (<strong>{formatCurrency(line.floorPrice || 0)}</strong>).
+                            Đơn hàng sẽ chuyển sang trạng thái <strong>CHỜ QUẢN LÝ DUYỆT</strong> và phải chờ cấp trên duyệt trước khi được xuất kho!
+                          </span>
+                        </div>
+                      )}
 
                       {/* AC 3: Cảnh báo vượt tồn khả dụng và nút gợi ý đặt tối đa */}
                       {isExceeded && maxOrderable !== undefined && (
@@ -1319,6 +1511,16 @@ export default function SalesOrderEntry({
         <aside className="sales-order-sidebar">
           <section className="sales-order-card sales-order-summary">
             <h2>Tổng kết đơn hàng</h2>
+
+            {canEditPrice && hasBelowFloorLine && (
+              <div className="sales-order-approval-banner">
+                <span style={{ fontSize: '18px' }}>⚠️</span>
+                <div>
+                  <strong>Cảnh báo Giá sàn:</strong> Đơn hàng có dòng sản phẩm bán dưới giá sàn quy định. Khi tạo, đơn sẽ tự động chuyển sang trạng thái <strong>CHỜ QUẢN LÝ DUYỆT</strong> và chờ cấp trên phê duyệt.
+                </div>
+              </div>
+            )}
+
             <div className="sales-order-summary-row">
               <span>Tổng tiền hàng</span><strong>{formatCurrency(subtotal)}</strong>
             </div>
@@ -1326,7 +1528,7 @@ export default function SalesOrderEntry({
               <label className="sales-order-discount">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
                   <span>Chiết khấu (%)</span>
-                  {isManualOverride && discountEvaluation.isQualified && (
+                  {canEditPrice && isManualOverride && discountEvaluation.isQualified && (
                     <button
                       type="button"
                       className="sales-order-discount-override-btn"
@@ -1345,8 +1547,12 @@ export default function SalesOrderEntry({
                   min={0}
                   max={100}
                   step="0.1"
+                  disabled={!canEditPrice}
+                  readOnly={!canEditPrice}
+                  className={!canEditPrice ? 'input-price-disabled' : ''}
                   value={discountPercent}
                   onChange={(event) => {
+                    if (!canEditPrice) return;
                     setIsManualOverride(true);
                     setDiscountPercent(event.target.value);
                   }}
@@ -1354,7 +1560,7 @@ export default function SalesOrderEntry({
                 />
               </label>
 
-              {discountEvaluation.isQualified && (
+              {canEditPrice && discountEvaluation.isQualified && (
                 <div
                   className="sales-order-policy-badge"
                   title={discountEvaluation.label || 'Chính sách chiết khấu tự động'}
@@ -1367,7 +1573,7 @@ export default function SalesOrderEntry({
                 </div>
               )}
 
-              {isManualOverride && safeDiscount > discountEvaluation.discountPercent && (
+              {canEditPrice && isManualOverride && safeDiscount > discountEvaluation.discountPercent && (
                 <div className="sales-order-discount-warning">
                   ⚠️ Chiết khấu bạn nhập ({safeDiscount}%) cao hơn mức chính sách ({discountEvaluation.discountPercent}%). Đơn hàng sẽ cần Quản lý phê duyệt.
                 </div>
@@ -1497,9 +1703,55 @@ export default function SalesOrderEntry({
               <br />
               Đại lý: <strong>{successCreatedOrder.dealer_name}</strong>
             </p>
-            <p style={{ margin: '0 0 22px 0', fontSize: '16px', fontWeight: '800', color: '#16a34a' }}>
+            <p style={{ margin: '0 0 14px 0', fontSize: '16px', fontWeight: '800', color: '#16a34a' }}>
               Tổng thanh toán: {formatCurrency(successCreatedOrder.total_amount)}
             </p>
+
+            {successCreatedOrder.status === 'PENDING_APPROVAL' || successCreatedOrder.requires_approval ? (
+              <div style={{
+                background: '#fffbeb',
+                border: '1px solid #fde68a',
+                borderRadius: '10px',
+                padding: '12px 14px',
+                margin: '0 0 20px 0',
+                textAlign: 'left',
+                fontSize: '13px',
+                color: '#92400e',
+                lineHeight: 1.5,
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: '700', marginBottom: '4px', color: '#b45309' }}>
+                  <span>⏳ Trạng thái:</span>
+                  <span style={{
+                    display: 'inline-block',
+                    padding: '2px 8px',
+                    borderRadius: '999px',
+                    background: '#fef3c7',
+                    border: '1px solid #fcd34d',
+                    color: '#b45309',
+                    fontSize: '12px',
+                  }}>
+                    CHỜ QUẢN LÝ DUYỆT
+                  </span>
+                </div>
+                <div style={{ fontSize: '12.5px', color: '#78350f' }}>
+                  {successCreatedOrder.approval_reason || 'Đơn hàng có sản phẩm bán dưới giá sàn quy định, cần Quản lý kinh doanh phê duyệt trước khi được xuất kho.'}
+                </div>
+              </div>
+            ) : (
+              <div style={{
+                background: '#f0fdf4',
+                border: '1px solid #bbf7d0',
+                borderRadius: '10px',
+                padding: '8px 14px',
+                margin: '0 0 20px 0',
+                textAlign: 'center',
+                fontSize: '13px',
+                color: '#15803d',
+                fontWeight: '600',
+              }}>
+                ✅ Trạng thái: ĐÃ XÁC NHẬN
+              </div>
+            )}
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               <button

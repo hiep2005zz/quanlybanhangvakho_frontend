@@ -128,6 +128,15 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
     currentUser?.role === 'agent' ||
     (currentUser?.roles && (currentUser.roles.includes('customer') || currentUser.roles.includes('agent')))
   );
+
+  // RBAC Guard: Chỉ Sales và Admin mới được sửa giá và xem cảnh báo giá sàn
+  const canEditPrice = Boolean(
+    currentUser &&
+    ['admin', 'sales_manager', 'sales'].some((r) =>
+      currentUser.role === r || (currentUser.roles && currentUser.roles.includes(r))
+    )
+  );
+
   const selectedDealer = dealers.find((d) => d.id === dealerId) || dealers[0];
   const isLockedDealer = Boolean(
     selectedDealer?.status &&
@@ -465,9 +474,13 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
         itemSellPrice = res.sale_price;
         itemFloorPrice = res.floor_price;
         itemNote = res.price_book_name || res.price_book_code;
-      } catch {
-        itemSellPrice = prod.sell_price || 0;
-        itemFloorPrice = prod.sell_price || 0;
+      } catch (err: any) {
+        emitStatusToast({
+          title: 'Chặn thêm sản phẩm',
+          message: `Sản phẩm [${prod.code}] chưa có bảng giá đang hiệu lực cho nhóm khách hàng này. Vui lòng kiểm tra lại cấu hình giá.`,
+          type: 'error',
+        });
+        return;
       }
     }
 
@@ -871,9 +884,12 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
       });
 
       if (res.status === 'PENDING_APPROVAL' || (res as any).requires_approval) {
+        const reasonText = (res as any).approval_reason
+          ? `: ${(res as any).approval_reason}.`
+          : ' do có chiết khấu hoặc đơn giá bán vượt mức quy định.';
         emitStatusToast({
           title: 'Đơn hàng chuyển sang Chờ quản lý duyệt',
-          message: `Đơn ${res.order_code} đã được tạo thành công với ${orderItems.length} sản phẩm và chuyển sang trạng thái Chờ quản lý duyệt do có đơn giá bán thấp hơn giá niêm yết / giá sàn quy định.`,
+          message: `Đơn ${res.order_code} đã được tạo thành công và chuyển sang trạng thái Chờ quản lý duyệt${reasonText}`,
         });
       } else {
         emitStatusToast({
@@ -1433,7 +1449,7 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
                         const itemQty =
                           typeof item.quantity === 'number' ? item.quantity : parseFloat(item.quantity) || 0;
                         const itemTotal = itemQty * item.sellPrice;
-                        const isBelowFloor = item.floorPrice !== null && item.sellPrice < item.floorPrice;
+                        const isBelowFloor = canEditPrice && item.floorPrice !== null && item.sellPrice < item.floorPrice;
                         const stockItem = stockMap.get(item.productId);
                         const rate = item.conversionRate || 1;
                         const maxOrderable = stockItem ? Math.max(0, Math.floor(stockItem.available_stock / rate)) : undefined;
@@ -1562,6 +1578,7 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
                                 min="1"
                                 step="1"
                                 value={item.quantity}
+                                onFocus={(e) => e.target.select()}
                                 onChange={(e) => handleQuantityChange(idx, e.target.value)}
                                 style={{
                                   width: '70px',
@@ -1584,9 +1601,13 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
                               <input
                                 type="number"
                                 min="0"
+                                step="any"
+                                disabled={!canEditPrice}
+                                readOnly={!canEditPrice}
                                 value={item.sellPrice}
-                                onChange={(e) => handlePriceChange(idx, parseFloat(e.target.value) || 0)}
-                                title={item.floorPrice !== null ? `Giá sàn: ${item.floorPrice.toLocaleString('vi-VN')} đ` : undefined}
+                                onFocus={(e) => e.target.select()}
+                                onChange={(e) => canEditPrice && handlePriceChange(idx, parseFloat(e.target.value) || 0)}
+                                title={!canEditPrice ? 'Chỉ Sales và Admin được sửa giá' : (item.floorPrice !== null ? `Giá sàn: ${item.floorPrice.toLocaleString('vi-VN')} đ` : undefined)}
                                 style={{
                                   width: '105px',
                                   height: '36px',
@@ -1598,7 +1619,8 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
                                   textAlign: 'right',
                                   outline: 'none',
                                   color: isBelowFloor ? '#b91c1c' : '#0f172a',
-                                  background: '#fff',
+                                  background: !canEditPrice ? '#f1f5f9' : '#fff',
+                                  cursor: !canEditPrice ? 'not-allowed' : 'text',
                                   boxSizing: 'border-box',
                                 }}
                               />
