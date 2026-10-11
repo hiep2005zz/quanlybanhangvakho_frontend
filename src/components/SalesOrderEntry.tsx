@@ -7,6 +7,9 @@ import {
   listDeliveryPointsApi,
   OrderDealer,
   ProductItem,
+  getDealerPurchaseHistoryApi,
+  DealerPurchaseHistory,
+  PurchaseHistoryItem,
   getDealerStockSummaryApi,
   DealerStockSummaryResponse,
   ProductStockSummaryItem,
@@ -187,6 +190,9 @@ export default function SalesOrderEntry({
   const [drafts, setDrafts] = useState<OrderDraft[]>([]);
   const [activeDraftId, setActiveDraftId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [purchaseHistory, setPurchaseHistory] = useState<DealerPurchaseHistory | null>(null);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [historyForbidden, setHistoryForbidden] = useState(false);
   const [successCreatedOrder, setSuccessCreatedOrder] = useState<{
     order_code: string;
     dealer_name: string;
@@ -351,6 +357,38 @@ export default function SalesOrderEntry({
       isMounted = false;
     };
   }, [dealerId, token, dealers]);
+  useEffect(() => {
+    if (!dealerId) {
+      setPurchaseHistory(null);
+      setHistoryForbidden(false);
+      setIsLoadingHistory(false);
+      return;
+    }
+    let isMounted = true;
+    setIsLoadingHistory(true);
+    setHistoryForbidden(false);
+
+    getDealerPurchaseHistoryApi(token, Number(dealerId))
+      .then((history) => {
+        if (!isMounted) return;
+        setPurchaseHistory(history);
+        setHistoryForbidden(false);
+      })
+      .catch((err: unknown) => {
+        if (!isMounted) return;
+        setPurchaseHistory(null);
+        if (err instanceof Error && err.message.includes('phân công')) {
+          setHistoryForbidden(true);
+        }
+      })
+      .finally(() => {
+        if (isMounted) setIsLoadingHistory(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [dealerId, token]);
 
   useEffect(() => {
     try {
@@ -479,6 +517,8 @@ export default function SalesOrderEntry({
     setLines([]);
     setProductQuery('');
     setActiveDraftId(null);
+    setPurchaseHistory(null);
+    setHistoryForbidden(false);
   };
 
   const storeDrafts = (updatedDrafts: OrderDraft[]) => {
@@ -566,6 +606,89 @@ export default function SalesOrderEntry({
       }];
     });
     setProductQuery('');
+  };
+
+  const handleAddAllPreviousItems = () => {
+    if (!purchaseHistory) return;
+    const itemsToAdd = (purchaseHistory.last_order_items && purchaseHistory.last_order_items.length > 0)
+      ? purchaseHistory.last_order_items
+      : purchaseHistory.items.map((it) => ({
+          product_id: it.product_id,
+          product_code: it.product_code,
+          product_name: it.product_name,
+          quantity: it.last_order_quantity || it.avg_quantity || 1,
+          price: it.price,
+          unit: it.unit,
+          conversion_rate: it.conversion_rate || 1,
+        }));
+
+    if (itemsToAdd.length === 0) {
+      emitStatusToast({
+        title: 'Thông báo',
+        message: 'Không tìm thấy nhóm hàng từ lần mua trước để thêm.',
+      });
+      return;
+    }
+
+    setLines((current) => {
+      const updated = [...current];
+      itemsToAdd.forEach((item) => {
+        const itemUnit = item.unit || 'Cái';
+        const existingIndex = updated.findIndex((line) => line.productId === item.product_id && line.unit === itemUnit);
+        const qtyToAdd = Math.max(1, Math.round(item.quantity || 1));
+        if (existingIndex >= 0) {
+          updated[existingIndex] = {
+            ...updated[existingIndex],
+            quantity: updated[existingIndex].quantity + qtyToAdd,
+          };
+        } else {
+          updated.push({
+            productId: item.product_id,
+            code: item.product_code,
+            name: item.product_name,
+            price: item.price,
+            unit: itemUnit,
+            conversionRate: item.conversion_rate || 1,
+            quantity: qtyToAdd,
+          });
+        }
+      });
+      return updated;
+    });
+
+    emitStatusToast({
+      title: 'Đã thêm nhóm hàng',
+      message: `Đã thêm nhanh cả nhóm ${itemsToAdd.length} mặt hàng đã mua lần trước vào đơn mới!`,
+    });
+  };
+
+  const handleAddHistoryItem = (item: PurchaseHistoryItem) => {
+    const itemUnit = item.unit || 'Cái';
+    const qtyToAdd = Math.max(1, Math.round(item.last_order_quantity || item.avg_quantity || 1));
+    setLines((current) => {
+      const existingIndex = current.findIndex((line) => line.productId === item.product_id && line.unit === itemUnit);
+      if (existingIndex >= 0) {
+        return current.map((line, idx) =>
+          idx === existingIndex ? { ...line, quantity: line.quantity + qtyToAdd } : line
+        );
+      }
+      return [
+        ...current,
+        {
+          productId: item.product_id,
+          code: item.product_code,
+          name: item.product_name,
+          price: item.price,
+          unit: itemUnit,
+          conversionRate: item.conversion_rate || 1,
+          quantity: qtyToAdd,
+        },
+      ];
+    });
+    emitStatusToast({
+      title: 'Đã thêm sản phẩm',
+      message: `Đã thêm ${item.product_name} (${qtyToAdd} ${itemUnit}) vào đơn hàng.`,
+    });
   };
 
   const updateLine = (index: number, changes: Partial<OrderLine>) => {
@@ -930,6 +1053,120 @@ export default function SalesOrderEntry({
               </label>
             </div>
           </section>
+
+          {/* SCRUM-52 / SCRUM-57: Lịch sử mua hàng của đại lý & Gợi ý mặt hàng */}
+          {selectedDealer && !historyForbidden && (
+            <section className="sales-order-card sales-order-history-card">
+              <div className="sales-order-history-header">
+                <div className="sales-order-history-title-group">
+                  <div className="sales-order-history-badge">
+                    <span>Gợi ý theo lịch sử mua hàng</span>
+                  </div>
+                  <h2 className="sales-order-history-title">
+                    Mặt hàng đại lý thường lấy (3 tháng gần nhất)
+                  </h2>
+                  <p className="sales-order-history-subtitle">
+                    {isLoadingHistory ? (
+                      'Đang tra cứu lịch sử mua hàng của đại lý...'
+                    ) : purchaseHistory && purchaseHistory.has_history ? (
+                      <>
+                        Đại lý <strong>{selectedDealer.name}</strong> đã đặt <strong>{purchaseHistory.total_orders_3_months} đơn hàng</strong> trong 3 tháng qua.
+                        {purchaseHistory.last_order && (
+                          <span className="history-last-order-tag">
+                            {' '}• Lần mua gần nhất: <strong>{purchaseHistory.last_order.order_code}</strong> ({purchaseHistory.last_order.created_at})
+                          </span>
+                        )}
+                      </>
+                    ) : (
+                      <>Đại lý <strong>{selectedDealer.name}</strong> chưa có lịch sử mua hàng trong 3 tháng gần nhất.</>
+                    )}
+                  </p>
+                </div>
+
+                {purchaseHistory && purchaseHistory.has_history && (
+                  <div className="sales-order-history-actions">
+                    <button
+                      type="button"
+                      className="sales-order-btn-add-batch"
+                      onClick={handleAddAllPreviousItems}
+                      title="Thêm toàn bộ nhóm hàng đã mua ở đơn gần nhất vào đơn mới"
+                    >
+                      <span>Thêm nhanh cả nhóm hàng đã mua lần trước vào đơn mới</span>
+                      <span className="batch-count-badge">
+                        {purchaseHistory.last_order_items?.length || purchaseHistory.items.length} món
+                      </span>
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {isLoadingHistory && (
+                <div className="sales-order-history-loading">
+                  <div className="history-loading-spinner" />
+                  <span>Đang tải dữ liệu sản lượng bình quân...</span>
+                </div>
+              )}
+
+              {!isLoadingHistory && purchaseHistory && purchaseHistory.has_history && (
+                <div className="sales-order-history-table-wrapper">
+                  <table className="sales-order-history-table">
+                    <thead>
+                      <tr>
+                        <th>Mã SP</th>
+                        <th>Tên mặt hàng</th>
+                        <th>ĐVT</th>
+                        <th style={{ textAlign: 'center' }}>SL bình quân (3 tháng)</th>
+                        <th style={{ textAlign: 'center' }}>SL lần trước</th>
+                        <th style={{ textAlign: 'right' }}>Đơn giá</th>
+                        <th style={{ textAlign: 'center' }}>Hành động</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {purchaseHistory.items.map((item) => (
+                        <tr key={item.product_id} className="history-row">
+                          <td className="history-col-code">
+                            <span className="code-badge">{item.product_code}</span>
+                          </td>
+                          <td className="history-col-name">
+                            <div className="product-name-text">{item.product_name}</div>
+                            {item.last_purchased_date && (
+                              <span className="product-last-date">Mua gần nhất: {item.last_purchased_date}</span>
+                            )}
+                          </td>
+                          <td className="history-col-unit">{item.unit}</td>
+                          <td className="history-col-avg" style={{ textAlign: 'center' }}>
+                            <span className="avg-qty-badge" title={`Tổng ${item.total_quantity} ${item.unit} qua ${item.order_count} đơn hàng`}>
+                              <strong>{item.avg_quantity}</strong> {item.unit}/đơn
+                            </span>
+                          </td>
+                          <td className="history-col-last" style={{ textAlign: 'center' }}>
+                            {item.last_order_quantity > 0 ? (
+                              <span className="last-qty-text">{item.last_order_quantity} {item.unit}</span>
+                            ) : (
+                              <span className="text-muted">—</span>
+                            )}
+                          </td>
+                          <td className="history-col-price" style={{ textAlign: 'right' }}>
+                            {formatCurrency(item.price)}
+                          </td>
+                          <td className="history-col-action" style={{ textAlign: 'center' }}>
+                            <button
+                              type="button"
+                              className="btn-add-single-history"
+                              onClick={() => handleAddHistoryItem(item)}
+                              title={`Thêm ${item.product_name} vào đơn`}
+                            >
+                              + Thêm
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </section>
+          )}
 
           <section className="sales-order-card">
             <h2>Sản phẩm</h2>

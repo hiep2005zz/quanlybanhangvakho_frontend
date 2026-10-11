@@ -1184,13 +1184,9 @@ export default function DeliveryPointsView({
                                 fontSize: '11.5px',
                                 color: '#64748b',
                                 fontStyle: 'italic',
-                                display: 'flex',
-                                alignItems: 'flex-start',
-                                gap: '4px',
                               }}
                             >
-                              <span>📝</span>
-                              <span>{p.route_note}</span>
+                              {p.route_note}
                             </div>
                           )}
                         </div>
@@ -1530,7 +1526,7 @@ export default function DeliveryPointsView({
                             </div>
                             {item.route_note && (
                               <div style={{ fontSize: '12px', color: '#64748b', fontStyle: 'italic', marginTop: '3px' }}>
-                                📝 {item.route_note}
+                                {item.route_note}
                               </div>
                             )}
                           </td>
@@ -1926,7 +1922,7 @@ export default function DeliveryPointsView({
                             <strong style={{ color: '#0f172a', fontSize: '14px' }}>{item.label}</strong>
                             {item.route_note && (
                               <div style={{ fontSize: '12px', color: '#64748b', fontStyle: 'italic', marginTop: '3px' }}>
-                                📝 {item.route_note}
+                                {item.route_note}
                               </div>
                             )}
                           </td>

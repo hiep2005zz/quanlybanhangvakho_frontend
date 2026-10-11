@@ -99,23 +99,37 @@ export function evaluateBestDiscountPolicy(
       const minQ = Number(tier.min_quantity) || 0;
       const maxQ = tier.max_quantity !== null && tier.max_quantity !== undefined ? Number(tier.max_quantity) : null;
       const tierPct = Number(tier.discount_percent) || 0;
+      const tierAmt = Number(tier.discount_amount) || 0;
+      const tierType = tier.discount_type || (tierAmt > 0 && tierPct === 0 ? 'amount' : 'percent');
 
       if (qtyToCheck >= minQ && (maxQ === null || qtyToCheck <= maxQ)) {
-        const tierDiscountAmount = Math.round((subtotal * tierPct) / 100);
+        let tierDiscountAmount = 0;
+        let effectivePct = 0;
+        let discountLabel = '';
 
-        // Best Price Rule: Chọn chính sách có mức tiền giảm cao nhất (hoặc tỷ lệ % cao nhất)
+        if (tierType === 'amount' || (tierAmt > 0 && tierPct === 0)) {
+          tierDiscountAmount = Math.round(qtyToCheck * tierAmt);
+          effectivePct = subtotal > 0 ? Number(((tierDiscountAmount / subtotal) * 100).toFixed(2)) : 0;
+          discountLabel = `${tierAmt.toLocaleString('vi-VN')} đ/sp`;
+        } else {
+          tierDiscountAmount = Math.round((subtotal * tierPct) / 100);
+          effectivePct = tierPct;
+          discountLabel = `${tierPct}%`;
+        }
+
+        // Best Price Rule: Chọn chính sách có mức tiền giảm cao nhất (có lợi nhất cho khách hàng)
         if (
           tierDiscountAmount > bestResult.discountAmount ||
-          (tierDiscountAmount === bestResult.discountAmount && tierPct > bestResult.discountPercent)
+          (tierDiscountAmount === bestResult.discountAmount && effectivePct > bestResult.discountPercent)
         ) {
           const tierRangeStr = maxQ ? `từ ${minQ} đến ${maxQ} sp` : `từ ${minQ} sp`;
           const policyCode = policy.code || 'CK';
-          const label = `Đã áp dụng ${policyCode}: Giảm ${tierPct}% cho đơn ${tierRangeStr}`;
+          const label = `Đã áp dụng ${policyCode}: Giảm ${discountLabel} cho đơn ${tierRangeStr}`;
 
           bestResult = {
             policy,
             tier,
-            discountPercent: tierPct,
+            discountPercent: effectivePct,
             discountAmount: tierDiscountAmount,
             label,
             isQualified: true,

@@ -80,6 +80,55 @@ function numberToVietnameseWords(amount: number): string {
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
+const getOrderStatusLabel = (status?: string): string => {
+  if (!status) return '';
+  switch (status.toUpperCase()) {
+    case 'CONFIRMED':
+    case 'APPROVED':
+      return 'Đã xác nhận';
+    case 'DELIVERED':
+      return 'Đã giao hàng';
+    case 'COMPLETED':
+      return 'Đã hoàn tất';
+    case 'CLOSED':
+      return 'Đã đóng';
+    case 'EXPORTED':
+      return 'Đã xuất kho';
+    case 'SHIPPED':
+    case 'DISPATCHED':
+      return 'Đang vận chuyển';
+    case 'PICKING':
+    case 'PREPARING':
+    case 'PACKING':
+      return 'Đang chuẩn bị hàng';
+    case 'PENDING_APPROVAL':
+      return 'Chờ duyệt giá';
+    case 'PENDING':
+      return 'Chờ xử lý';
+    case 'REJECTED':
+      return 'Bị từ chối';
+    case 'CANCELLED':
+      return 'Đã hủy';
+    default:
+      return status;
+  }
+};
+
+const getOrderStatusColor = (status?: string): string => {
+  if (!status) return '#ea580c';
+  const st = status.toUpperCase();
+  if (['CONFIRMED', 'APPROVED', 'DELIVERED', 'COMPLETED', 'CLOSED'].includes(st)) {
+    return '#16a34a';
+  }
+  if (['EXPORTED', 'SHIPPED', 'DISPATCHED'].includes(st)) {
+    return '#0284c7';
+  }
+  if (['REJECTED', 'CANCELLED'].includes(st)) {
+    return '#dc2626';
+  }
+  return '#ea580c';
+};
+
 export const OrderPrintModal: React.FC<OrderPrintModalProps> = ({
   token,
   orderCode,
@@ -480,7 +529,7 @@ export const OrderPrintModal: React.FC<OrderPrintModalProps> = ({
                   <span>&bull;</span>
                   <span>
                     Trạng thái:{' '}
-                    <strong style={{ color: order.status === 'CONFIRMED' ? '#16a34a' : '#ea580c' }}>
+                    <strong style={{ color: getOrderStatusColor(order.status) }}>
                       {getOrderStatusLabel(order.status)}
                     </strong>
                   </span>

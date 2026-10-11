@@ -3,6 +3,8 @@ import { useLocation } from '../hooks/useLocation';
 
 export type TabType =
   | 'inventory'
+  | 'stock-book'
+  | 'stock-audits'
   | 'orders'
   | 'create-order'
   | 'users'
@@ -33,7 +35,9 @@ export interface SidebarProps {
   canManageCategories?: boolean;
   canViewProductHistory?: boolean;
   canAccessDiscounts?: boolean;
+  canAccessStockAudit?: boolean;
   isAdmin?: boolean;
+  isCustomer?: boolean;
   onLogout?: () => void;
   isLoggingOut?: boolean;
   isMobileOpen?: boolean;
@@ -56,7 +60,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isMobileOpen = false,
   onCloseMobile,
   canManageProducts: _canManageProducts = true,
-  canCreateOrders: _canCreateOrders = false,
+  canCreateOrders = false,
   canReadOrders = false,
   canViewDealers = false,
   canManageDealerProfiles = false,
@@ -66,6 +70,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   canManageCategories = false,
   canViewProductHistory = false,
   canAccessDiscounts = false,
+  isCustomer = false,
+  canAccessStockAudit = false,
   onLogout,
   isLoggingOut = false,
 }) => {
@@ -279,6 +285,35 @@ export const Sidebar: React.FC<SidebarProps> = ({
       ),
     },
     {
+      id: 'btn-sidebar-stock-book',
+      tab: 'stock-book',
+      path: '/stock-book',
+      label: 'Hàng tồn kho',
+      visible: !isCustomer,
+      icon: (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+          <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+          <line x1="9" y1="7" x2="15" y2="7" />
+          <line x1="9" y1="11" x2="15" y2="11" />
+        </svg>
+      ),
+    },
+    {
+      id: 'btn-sidebar-stock-audits',
+      tab: 'stock-audits',
+      path: '/stock-audits',
+      label: 'Kiểm kê kho',
+      visible: canAccessStockAudit,
+      icon: (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2" />
+          <rect x="9" y="3" width="6" height="4" rx="1" />
+          <path d="m9 14 2 2 4-4" />
+        </svg>
+      ),
+    },
+    {
       id: 'btn-sidebar-product-history',
       tab: 'product-history',
       path: '/product-history',
@@ -296,7 +331,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       tab: 'create-order',
       path: '/create-order',
       label: 'Tạo đơn hàng',
-      visible: false, // Bỏ hiển thị mục tạo đơn hàng ở thanh menu
+      visible: canCreateOrders,
       icon: (
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
@@ -308,7 +343,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       id: 'btn-sidebar-orders',
       tab: 'orders',
       path: '/orders',
-      label: 'Quản lý đơn hàng',
+      label: isCustomer ? 'Đơn hàng của tôi' : 'Quản lý đơn hàng',
       visible: canReadOrders,
       icon: (
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
