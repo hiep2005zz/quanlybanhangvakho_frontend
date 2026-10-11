@@ -473,9 +473,21 @@ export function StockAuditManagementView({ token, currentUser }: StockAuditManag
   }, [auditItemsState]);
 
   return (
-    <div className="space-y-6">
+    <div
+      style={{
+        width: '100%',
+        maxWidth: '1680px',
+        margin: '0 auto',
+        padding: 0,
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+        gap: '12px',
+      }}
+    >
       {/* Header khu vực kiểm kê */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-gray-200">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-gray-200 shrink-0">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
             <svg
@@ -515,7 +527,7 @@ export function StockAuditManagementView({ token, currentUser }: StockAuditManag
       </div>
 
       {/* Thẻ thống kê tổng quan */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 shrink-0">
         <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex items-center gap-3">
           <div className="w-10 h-10 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -566,7 +578,7 @@ export function StockAuditManagementView({ token, currentUser }: StockAuditManag
       </div>
 
       {/* Thanh tìm kiếm & bộ lọc */}
-      <div className="bg-white p-3.5 rounded-xl border border-gray-200 shadow-sm">
+      <div className="bg-white p-3 rounded-xl border border-gray-200 shadow-sm shrink-0">
         <div className="flex flex-wrap items-center gap-3">
           {/* 1. Tìm kiếm mã phiếu */}
           <div className="relative flex-1 min-w-[240px]">
@@ -664,20 +676,20 @@ export function StockAuditManagementView({ token, currentUser }: StockAuditManag
       </div>
 
       {/* Bảng danh sách phiếu kiểm kê */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col flex-1 min-h-0">
+        <div className="overflow-x-auto overflow-y-auto flex-1 min-h-0">
           <table className="w-full divide-y divide-gray-200 text-xs whitespace-nowrap">
-            <thead className="bg-gray-50 text-gray-700 font-bold uppercase tracking-wider text-[11px] whitespace-nowrap">
+            <thead className="bg-gray-50 text-gray-700 font-bold uppercase tracking-wider text-[11px] whitespace-nowrap sticky top-0 z-20 shadow-xs">
               <tr>
-                <th className="py-3 px-3 text-left whitespace-nowrap">Mã phiếu</th>
-                <th className="py-3 px-3 text-left whitespace-nowrap">Kho / Phạm vi</th>
-                <th className="py-3 px-2.5 text-left whitespace-nowrap">Thời điểm tạo</th>
-                <th className="py-3 px-2.5 text-left whitespace-nowrap">Người tạo</th>
-                <th className="py-3 px-2 text-center whitespace-nowrap">Tổng SP</th>
-                <th className="py-3 px-2 text-center whitespace-nowrap">SP lệch</th>
-                <th className="py-3 px-2.5 text-center whitespace-nowrap">Trạng thái</th>
-                <th className="py-3 px-2.5 text-left whitespace-nowrap">Người xác nhận</th>
-                <th className="py-3 px-3 text-center whitespace-nowrap sticky right-0 bg-gray-50 shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.06)] z-10">Thao tác</th>
+                <th className="py-2.5 px-3 text-left whitespace-nowrap bg-gray-50">Mã phiếu</th>
+                <th className="py-2.5 px-3 text-left whitespace-nowrap bg-gray-50">Kho / Phạm vi</th>
+                <th className="py-2.5 px-2.5 text-left whitespace-nowrap bg-gray-50">Thời điểm tạo</th>
+                <th className="py-2.5 px-2.5 text-left whitespace-nowrap bg-gray-50">Người tạo</th>
+                <th className="py-2.5 px-2 text-center whitespace-nowrap bg-gray-50">Tổng SP</th>
+                <th className="py-2.5 px-2 text-center whitespace-nowrap bg-gray-50">SP lệch</th>
+                <th className="py-2.5 px-2.5 text-center whitespace-nowrap bg-gray-50">Trạng thái</th>
+                <th className="py-2.5 px-2.5 text-left whitespace-nowrap bg-gray-50">Người xác nhận</th>
+                <th className="py-2.5 px-3 text-center whitespace-nowrap sticky right-0 bg-gray-50 shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.06)] z-30">Thao tác</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 text-gray-800 whitespace-nowrap text-xs">
@@ -842,7 +854,7 @@ export function StockAuditManagementView({ token, currentUser }: StockAuditManag
 
         {/* Phân trang */}
         {totalPages > 1 && (
-          <div className="p-4 border-t border-gray-200 flex items-center justify-between text-sm">
+          <div className="p-3 border-t border-gray-200 flex items-center justify-between text-sm shrink-0 bg-gray-50/50">
             <span className="text-gray-500">
               Hiển thị trang {page} / {totalPages} (Tổng {totalCount} phiếu)
             </span>
