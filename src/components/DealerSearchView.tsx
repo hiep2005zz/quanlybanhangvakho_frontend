@@ -929,7 +929,7 @@ export default function DealerSearchView({
                                     <div className="dealer-card-header" style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '16px', marginBottom: '16px' }}>
                                         <div>
                                             <span className="dealer-code-badge">{dealer.code}</span>
-                                            <h3 className="dealer-card-name" style={{ fontSize: '20px', marginTop: '6px' }}>{dealer.name}</h3>
+                                            <h3 className="dealer-card-name" style={{ fontSize: '18px', marginTop: '6px' }}>{dealer.name}</h3>
                                         </div>
                                         <div className="dealer-status-cell">
                                             <span
@@ -1205,15 +1205,15 @@ export default function DealerSearchView({
                                             <td>{dealer.region || '-'}</td>
                                             <td>
                                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                                    <span style={{ fontSize: '0.85rem' }}>
+                                                    <span style={{ fontSize: '13px' }}>
                                                         <strong>Nợ:</strong>{' '}
                                                         {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(dealer.current_debt ?? 0)}
                                                     </span>
-                                                    <span style={{ fontSize: '0.85rem' }}>
+                                                    <span style={{ fontSize: '13px' }}>
                                                         <strong>Hạn mức:</strong>{' '}
                                                         {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(dealer.credit_limit ?? 50000000)}
                                                     </span>
-                                                    <span style={{ fontSize: '0.85rem', color: '#64748b' }}>
+                                                    <span style={{ fontSize: '12px', color: '#64748b' }}>
                                                         Tối đa: {dealer.max_debt_days ?? 30} ngày
                                                     </span>
                                                 </div>
@@ -1954,14 +1954,14 @@ export default function DealerSearchView({
                                             }).length;
                                             if (alreadyCount === selectedDealerIds.length) {
                                                 return (
-                                                    <div style={{ marginTop: '8px', padding: '8px 12px', background: '#fef3c7', borderRadius: '6px', color: '#92400e', fontSize: '0.85rem' }}>
+                                                    <div style={{ marginTop: '8px', padding: '8px 12px', background: '#fef3c7', borderRadius: '6px', color: '#92400e', fontSize: '13px' }}>
                                                         ⚠️ Tất cả {selectedDealerIds.length} đại lý được chọn đều đang do nhân viên này phụ trách. Vui lòng chọn nhân viên khác.
                                                     </div>
                                                 );
                                             }
                                             if (alreadyCount > 0) {
                                                 return (
-                                                    <div style={{ marginTop: '8px', padding: '8px 12px', background: '#eff6ff', borderRadius: '6px', color: '#1e40af', fontSize: '0.85rem' }}>
+                                                    <div style={{ marginTop: '8px', padding: '8px 12px', background: '#eff6ff', borderRadius: '6px', color: '#1e40af', fontSize: '13px' }}>
                                                         ℹ️ Có {alreadyCount} đại lý đã do nhân viên này phụ trách, hệ thống sẽ chuyển giao {selectedDealerIds.length - alreadyCount} đại lý còn lại.
                                                     </div>
                                                 );
@@ -2027,7 +2027,7 @@ export default function DealerSearchView({
                                     <div className="dealer-modal-title-wrap">
                                         <div>
                                             <h3>Lịch sử chuyển giao &amp; biến động</h3>
-                                            <p style={{ margin: '4px 0 0 0', color: '#475569', fontSize: '0.88rem' }}>
+                                            <p style={{ margin: '4px 0 0 0', color: '#475569', fontSize: '13.5px' }}>
                                                 Đại lý: <strong>{historyTargetDealer.name}</strong> ({historyTargetDealer.code}) &bull; NV phụ trách hiện tại: <strong>{historyTargetDealer.assigned_sale_name || 'Chưa phân công'}</strong>
                                             </p>
                                         </div>
@@ -2043,7 +2043,7 @@ export default function DealerSearchView({
                                                 padding: '6px 14px',
                                                 borderRadius: '6px',
                                                 border: historyFilterTab === 'ALL' ? '1px solid #0f766e' : '1px solid #cbd5e1',
-                                                fontSize: '0.85rem',
+                                                fontSize: '13px',
                                                 fontWeight: historyFilterTab === 'ALL' ? '600' : '500',
                                                 background: historyFilterTab === 'ALL' ? '#0f766e' : '#ffffff',
                                                 color: historyFilterTab === 'ALL' ? '#ffffff' : '#334155',
@@ -2060,7 +2060,7 @@ export default function DealerSearchView({
                                                 padding: '6px 14px',
                                                 borderRadius: '6px',
                                                 border: historyFilterTab === 'ASSIGNMENT' ? '1px solid #0f766e' : '1px solid #cbd5e1',
-                                                fontSize: '0.85rem',
+                                                fontSize: '13px',
                                                 fontWeight: historyFilterTab === 'ASSIGNMENT' ? '600' : '500',
                                                 background: historyFilterTab === 'ASSIGNMENT' ? '#0f766e' : '#ffffff',
                                                 color: historyFilterTab === 'ASSIGNMENT' ? '#ffffff' : '#334155',
@@ -2077,7 +2077,7 @@ export default function DealerSearchView({
                                                 padding: '6px 14px',
                                                 borderRadius: '6px',
                                                 border: historyFilterTab === 'STATUS' ? '1px solid #0f766e' : '1px solid #cbd5e1',
-                                                fontSize: '0.85rem',
+                                                fontSize: '13px',
                                                 fontWeight: historyFilterTab === 'STATUS' ? '600' : '500',
                                                 background: historyFilterTab === 'STATUS' ? '#0f766e' : '#ffffff',
                                                 color: historyFilterTab === 'STATUS' ? '#ffffff' : '#334155',
@@ -2094,7 +2094,7 @@ export default function DealerSearchView({
                                                 padding: '6px 14px',
                                                 borderRadius: '6px',
                                                 border: historyFilterTab === 'DEBT' ? '1px solid #0f766e' : '1px solid #cbd5e1',
-                                                fontSize: '0.85rem',
+                                                fontSize: '13px',
                                                 fontWeight: historyFilterTab === 'DEBT' ? '600' : '500',
                                                 background: historyFilterTab === 'DEBT' ? '#0f766e' : '#ffffff',
                                                 color: historyFilterTab === 'DEBT' ? '#ffffff' : '#334155',
@@ -2121,7 +2121,7 @@ export default function DealerSearchView({
                                         </p>
                                     ) : (
                                         <div style={{ maxHeight: '420px', overflowY: 'auto' }}>
-                                            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.88rem' }}>
+                                            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
                                                 <thead>
                                                     <tr style={{ borderBottom: '2px solid #cbd5e1', background: '#f8fafc' }}>
                                                         <th style={{ padding: '10px 8px', color: '#334155', fontWeight: '600' }}>Thời gian</th>
@@ -2185,7 +2185,7 @@ export default function DealerSearchView({
                                                                         border: `1px solid ${badgeBorder}`,
                                                                         padding: '3px 8px',
                                                                         borderRadius: '4px',
-                                                                        fontSize: '0.8rem',
+                                                                        fontSize: '12px',
                                                                         fontWeight: '600',
                                                                         display: 'inline-block'
                                                                     }}>
@@ -2357,7 +2357,7 @@ export default function DealerSearchView({
                                 ⚠️
                             </div>
 
-                            <h3 style={{ fontSize: '20px', fontWeight: '800', margin: '0 0 10px', color: '#0f172a' }}>
+                            <h3 style={{ fontSize: '18px', fontWeight: '700', fontFamily: "'Outfit', sans-serif", margin: '0 0 10px', color: '#0f172a' }}>
                                 Xác Nhận Xóa Đại Lý?
                             </h3>
 

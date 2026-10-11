@@ -8,6 +8,7 @@
     flex-direction: column;
     overflow: hidden;
     box-sizing: border-box;
+    font-family: 'Outfit', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 .dealer-search-header {
@@ -17,9 +18,11 @@
 
 .dealer-search-header h2 {
     margin: 0;
+    font-family: 'Outfit', sans-serif;
     font-size: 24px;
     font-weight: 700;
     color: #0f172a;
+    letter-spacing: -0.02em;
 }
 
 .dealer-search-header p {
@@ -172,7 +175,11 @@
 .dealer-search-page button,
 .dealer-search-page input,
 .dealer-search-page select,
-.dealer-search-page textarea {
+.dealer-search-page textarea,
+.dealer-modal-box button,
+.dealer-modal-box input,
+.dealer-modal-box select,
+.dealer-modal-box textarea {
     font-family: inherit;
 }
 
@@ -582,6 +589,7 @@
 
 .dealer-card-name {
     margin: 4px 0 0 0;
+    font-family: 'Outfit', sans-serif;
     font-size: 16px;
     font-weight: 700;
     color: #0f172a;
@@ -819,6 +827,7 @@
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
     overflow: hidden;
     animation: zoomInModal 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    font-family: 'Outfit', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 @keyframes zoomInModal {
@@ -871,9 +880,11 @@
 
 .dealer-modal-title-wrap h3 {
     margin: 0;
-    font-size: 17px;
+    font-family: 'Outfit', sans-serif;
+    font-size: 18px;
     font-weight: 700;
     color: #0f172a;
+    letter-spacing: -0.01em;
 }
 
 .dealer-modal-title-wrap p {
@@ -1074,6 +1085,7 @@
     display: flex;
     flex-direction: column;
     gap: 2px;
+    font-family: 'Outfit', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 .dealer-dropdown-item {
@@ -1085,11 +1097,12 @@
     border: none;
     background: transparent;
     color: #334155;
-    font-size: 0.85rem;
+    font-size: 13px;
     border-radius: 6px;
     cursor: pointer;
     transition: all 0.15s;
     font-weight: 500;
+    font-family: inherit;
 }
 
 .dealer-dropdown-item:hover {

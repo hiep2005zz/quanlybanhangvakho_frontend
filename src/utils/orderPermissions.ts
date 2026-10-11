@@ -21,11 +21,14 @@ export function getOrderPermissionTier(user?: User | null): OrderPermissionTier 
     .filter(Boolean)
     .map((r) => r.toLowerCase());
 
-  // Nhóm Không Liên Quan (No Access): muahang
+  const isCustomerRole = user.role?.toLowerCase() === 'customer' || rawRoles.includes('customer');
+
+  // Nhóm Không Liên Quan (No Access): purchasing (chỉ chặn nếu không phải là Customer)
   if (
-    username === 'muahang' ||
-    rawRoles.includes('purchasing') ||
-    user.role?.toLowerCase() === 'purchasing'
+    !isCustomerRole &&
+    (username === 'muahang' ||
+     rawRoles.includes('purchasing') ||
+     user.role?.toLowerCase() === 'purchasing')
   ) {
     return 'NO_ACCESS';
   }

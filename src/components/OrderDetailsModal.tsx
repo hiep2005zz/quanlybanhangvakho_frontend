@@ -4,6 +4,7 @@ import { OrderLifecycleTimeline } from './OrderLifecycleTimeline';
 import { OrderCancelModal } from './OrderCancelModal';
 import { getOrderPermissionTier } from '../utils/orderPermissions';
 import OrderPrintModal from './OrderPrintModal';
+import { emitStatusToast } from './StatusToast';
 import './orders-view.css';
 
 interface OrderDetailsModalProps {
@@ -105,7 +106,11 @@ export default function OrderDetailsModal({
         onOrderCancelled();
       }
     } catch (err: any) {
-      alert(err.message || 'Lỗi khi hủy đơn hàng');
+      emitStatusToast({
+        type: 'error',
+        title: 'Lỗi hủy đơn hàng',
+        message: err.message || 'Lỗi khi hủy đơn hàng',
+      });
     } finally {
       setIsSubmittingCancel(false);
     }
@@ -198,7 +203,11 @@ export default function OrderDetailsModal({
                       onClose();
                       onCloneOrder(data);
                     } catch (e: any) {
-                      alert(e.message || 'Lỗi khi sao chép đơn hàng');
+                      emitStatusToast({
+                        type: 'error',
+                        title: 'Lỗi sao chép đơn hàng',
+                        message: e.message || 'Lỗi khi sao chép đơn hàng',
+                      });
                     }
                   }}
                   title="Sao chép đơn hàng này thành đơn mới"

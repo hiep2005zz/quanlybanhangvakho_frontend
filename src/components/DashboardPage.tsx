@@ -27,6 +27,8 @@ import SalesOrderEntry from './SalesOrderEntry';
 import { ProductHistoryView } from './ProductHistoryView';
 import { ProductFormView } from './ProductFormView';
 import { ModalPortal } from './ModalPortal';
+import CustomerPortalView from './CustomerPortalView';
+import CustomerDebtView from './CustomerDebtView';
 
 import './dashboard.css';
 import { Sidebar, type TabType } from './Sidebar';
@@ -589,6 +591,7 @@ export default function DashboardPage({
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isSecurityModalOpen, setIsSecurityModalOpen] = useState(false);
   const [isCreateAccountModalOpen, setIsCreateAccountModalOpen] = useState(false);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [productAuditDrawerState, setProductAuditDrawerState] = useState<{
     isOpen: boolean;
     productCode: string;
@@ -824,7 +827,7 @@ export default function DashboardPage({
 
   const isProductFormOpen = productDrawerState.isOpen && activeTab === 'inventory';
   const isSalesOrderOpen = activeTab === 'create-order' || isSalesOrderEntryOpen;
-  const isLockedScrollTab = !isProductFormOpen && !isSalesOrderOpen && (activeTab === 'inventory' || activeTab === 'dealers' || activeTab === 'delivery-points' || activeTab === 'suppliers' || activeTab === 'price-books' || activeTab === 'categories' || activeTab === 'orders' || activeTab === 'product-history') && !isPendingCustomer;
+  const isLockedScrollTab = !isCustomer && !isProductFormOpen && !isSalesOrderOpen && (activeTab === 'inventory' || activeTab === 'dealers' || activeTab === 'delivery-points' || activeTab === 'suppliers' || activeTab === 'price-books' || activeTab === 'categories' || activeTab === 'orders' || activeTab === 'product-history') && !isPendingCustomer;
 
   return (
     <DashboardLayout
@@ -848,13 +851,19 @@ export default function DashboardPage({
           roleBadgeColorMap={roleBadgeColorMap}
           primaryRole={primaryRole}
           currentBadgeColor={currentBadgeColor}
+          onToggleMobileSidebar={() => setIsMobileSidebarOpen((prev) => !prev)}
         />
       }
       noScroll={isLockedScrollTab}
+      mainClassName={isCustomer ? 'flex-1 min-w-0 overflow-y-auto p-0 flex flex-col bg-slate-50' : undefined}
       sidebar={
         <Sidebar
           activeTab={activeTab}
-          onSelectTab={setActiveTab}
+          onSelectTab={(tab) => {
+            setActiveTab(tab);
+            setIsMobileSidebarOpen(false);
+          }}
+          isCustomer={isCustomer}
           canManageProducts={canManageProducts}
           canCreateOrders={canCreateOrders}
           canReadOrders={canReadOrders}
@@ -872,12 +881,19 @@ export default function DashboardPage({
             setShowLogoutConfirm(true);
           }}
           isLoggingOut={isLoggingOut}
+          isMobileOpen={isMobileSidebarOpen}
+          onCloseMobile={() => setIsMobileSidebarOpen(false)}
         />
       }
     >
       <div
         className="dashboard-main-container"
-        style={isLockedScrollTab ? {
+        style={isCustomer ? {
+          width: '100%',
+          display: 'flex',
+          flexDirection: 'column',
+          flex: 1,
+        } : isLockedScrollTab ? {
           height: '100%',
           maxHeight: '100%',
           display: 'flex',
@@ -1084,7 +1100,14 @@ export default function DashboardPage({
           />
         )
       ) : activeTab === 'dealer-profiles' ? (
-        canManageDealerProfiles ? (
+        isCustomer ? (
+          <CustomerDebtView
+            currentUser={user}
+            token={token}
+            onBackToPortal={() => setActiveTab('inventory')}
+            onNavigateToOrders={() => setActiveTab('orders')}
+          />
+        ) : canManageDealerProfiles ? (
           <DealerProfileManagementView
             currentUser={user}
             token={token}
@@ -1292,6 +1315,15 @@ export default function DashboardPage({
             </div>
           </div>
         </div>
+      ) : isCustomer ? (
+        <CustomerPortalView
+          currentUser={user}
+          token={token}
+          products={products}
+          onRefreshProducts={fetchProducts}
+          onNavigateToOrders={() => setActiveTab('orders')}
+          onNavigateToDebt={() => setActiveTab('dealer-profiles')}
+        />
       ) : (
         <>
           {error && (
