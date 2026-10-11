@@ -26,6 +26,7 @@ import OrderPrintModal from './OrderPrintModal';
 import './sales-order-entry.css';
 
 interface SalesOrderEntryProps {
+  cloneOrderData?: any;
   token: string;
   username: string;
   products: ProductItem[];
@@ -111,10 +112,19 @@ const formatCurrency = (amount: number) =>
   new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(amount);
 const draftStorageKey = (username: string) => `sales-order-drafts:${encodeURIComponent(username.toLowerCase())}`;
 
-export default function SalesOrderEntry({ token, username, products, user, onClose: _onClose, onCreated }: SalesOrderEntryProps) {
-  // AC 5: Phân quyền - Chỉ cho phép Nhân viên kinh doanh (Role: sales, sales_manager, admin)
+export default function SalesOrderEntry({
+  token,
+  username,
+  products,
+  user,
+  onClose: _onClose,
+  onCreated,
+  cloneOrderData,
+}: SalesOrderEntryProps) {
+  // AC 5 & User Story 46: Phân quyền - Cho phép Nhân viên kinh doanh và Đại lý (Customer/Agent) tự đặt hàng
   const userRoles = user ? (user.roles && user.roles.length > 0 ? user.roles : [user.role]) : [];
-  const isSalesRole = !user || userRoles.some((r) => ['sales', 'sales_manager', 'admin'].includes(r));
+  const isSalesRole = !user || userRoles.some((r) => ['sales', 'sales_manager', 'admin', 'customer', 'agent'].includes(r));
+  const isCustomer = Boolean(user && (user.role === 'customer' || user.role === 'agent' || userRoles.includes('customer') || userRoles.includes('agent')));
 
   const [dealers, setDealers] = useState<OrderDealer[]>([]);
   const [isLoadingDealers, setIsLoadingDealers] = useState(true);
@@ -132,6 +142,50 @@ export default function SalesOrderEntry({ token, username, products, user, onClo
   const [isManualOverride, setIsManualOverride] = useState(false);
   const [note, setNote] = useState('');
   const [lines, setLines] = useState<OrderLine[]>([]);
+  /* Init clone order data */
+  useEffect(() => {
+    if (!cloneOrderData) return;
+    if (cloneOrderData.dealer_id) {
+      setDealerId(String(cloneOrderData.dealer_id));
+    }
+    if (cloneOrderData.delivery_point) {
+      setDeliveryPoint(cloneOrderData.delivery_point);
+    }
+    if (cloneOrderData.delivery_point_id) {
+      setDeliveryPointId(Number(cloneOrderData.delivery_point_id));
+    }
+    if (cloneOrderData.note || cloneOrderData.notes) {
+      setNote(cloneOrderData.note || cloneOrderData.notes || '');
+    }
+    if (Array.isArray(cloneOrderData.items) && cloneOrderData.items.length > 0) {
+      const clonedLines: OrderLine[] = cloneOrderData.items.map((it: any) => {
+        const prod = products.find(
+          (p) =>
+            p.id === it.product_id ||
+            (it.product_code && p.code.toLowerCase() === String(it.product_code).toLowerCase()) ||
+            (it.code && p.code.toLowerCase() === String(it.code).toLowerCase())
+        );
+        // Bắt buộc đối chiếu mã sản phẩm (SKU/ID) với danh sách sản phẩm hiện hành.
+        // Gán lại đơn giá theo currentProduct.sell_price, tuyệt đối KHÔNG lấy price cũ từ đơn gốc nếu sản phẩm có giá niêm yết hiện hành.
+        const currentPrice =
+          prod && typeof prod.sell_price === 'number' && prod.sell_price >= 0
+            ? prod.sell_price
+            : (it.unit_price ?? it.price ?? 0);
+        return {
+          productId: prod ? prod.id : it.product_id,
+          code: it.product_code || (prod ? prod.code : ''),
+          name: it.product_name || (prod ? prod.name : ''),
+          price: currentPrice,
+          unit: it.unit || (prod ? prod.base_unit : 'Cái'),
+          conversionRate: 1,
+          quantity: it.quantity || 1,
+        };
+      });
+      setLines(clonedLines);
+      setIsManualOverride(false);
+    }
+  }, [cloneOrderData, products]);
+
   const [productQuery, setProductQuery] = useState('');
   const [drafts, setDrafts] = useState<OrderDraft[]>([]);
   const [activeDraftId, setActiveDraftId] = useState<string | null>(null);
@@ -854,7 +908,7 @@ export default function SalesOrderEntry({ token, username, products, user, onClo
                     const nextId = event.target.value;
                     setDealerId(nextId);
                   }}
-                  disabled={isLoadingDealers || !!dealerLoadError || (dealers.length === 1)}
+                  disabled={isLoadingDealers || !!dealerLoadError || (dealers.length === 1) || isCustomer}
                 >
                   <option value="">{isLoadingDealers ? 'Đang tải đại lý...' : 'Chọn đại lý'}</option>
                   {dealers.map((dealer) => {
@@ -870,6 +924,11 @@ export default function SalesOrderEntry({ token, username, products, user, onClo
                     );
                   })}
                 </select>
+                {isCustomer && (
+                  <p style={{ margin: '6px 0 0', fontSize: '12px', color: '#047857', fontWeight: 600 }}>
+                    ✓ Cổng Đại lý: Hệ thống tự động ghi nhận cho tài khoản đại lý của bạn
+                  </p>
+                )}
                 {isLockedDealer && (
                   <span className="sales-order-field-error" style={{ color: '#dc2626', background: '#fef2f2', border: '1px solid #fecaca', padding: '8px 12px', borderRadius: '6px', display: 'block', marginTop: '6px' }}>
                     <strong>Đại lý bị khóa giao dịch:</strong> Đại lý này hiện đang bị <strong>KHÓA giao dịch</strong>. Không thể tạo đơn hàng mới.
@@ -1161,10 +1220,10 @@ export default function SalesOrderEntry({ token, username, products, user, onClo
                                 <>
                                   <span
                                     className={`sales-order-stock-badge ${isExceeded
-                                        ? 'stock-badge-danger'
-                                        : maxOrderable === 0
-                                          ? 'stock-badge-out'
-                                          : 'stock-badge-ok'
+                                      ? 'stock-badge-danger'
+                                      : maxOrderable === 0
+                                        ? 'stock-badge-out'
+                                        : 'stock-badge-ok'
                                       }`}
                                     title={`Tồn thực tế: ${actualInUnit} ${line.unit} - Giữ chỗ: ${reservedInUnit} ${line.unit}`}
                                   >
@@ -1526,3 +1585,4 @@ export default function SalesOrderEntry({ token, username, products, user, onClo
     </div>
   );
 }
+
