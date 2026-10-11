@@ -489,25 +489,9 @@ export function StockAuditManagementView({ token, currentUser }: StockAuditManag
       {/* Header khu vực kiểm kê */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-gray-200 shrink-0">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <svg
-              className="w-7 h-7 text-[#0fad89]"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
-              />
-            </svg>
+          <h1 className="text-2xl font-bold text-gray-900">
             Kiểm kê kho
           </h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Đối chiếu số lượng thực tế với tồn kho hệ thống và điều chỉnh chênh lệch chính xác
-          </p>
         </div>
 
         {/* Nút Tạo phiếu kiểm kê */}
@@ -709,7 +693,6 @@ export function StockAuditManagementView({ token, currentUser }: StockAuditManag
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                     </svg>
                     <p className="font-medium text-gray-600">Chưa có phiếu kiểm kê nào phù hợp</p>
-                    <p className="text-xs text-gray-400 mt-1">Nhấn &quot;Tạo phiếu kiểm kê&quot; để bắt đầu đợt kiểm kho mới</p>
                   </td>
                 </tr>
               ) : (

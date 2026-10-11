@@ -5,6 +5,7 @@ export type TabType =
   | 'inventory'
   | 'stock-book'
   | 'stock-audits'
+  | 'stock-transfers'
   | 'orders'
   | 'create-order'
   | 'users'
@@ -35,6 +36,7 @@ export interface SidebarProps {
   canViewProductHistory?: boolean;
   canAccessDiscounts?: boolean;
   canAccessStockAudit?: boolean;
+  canAccessStockTransfer?: boolean;
   isAdmin?: boolean;
   isCustomer?: boolean;
   onLogout?: () => void;
@@ -66,6 +68,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   canAccessDiscounts = false,
   isCustomer = false,
   canAccessStockAudit = false,
+  canAccessStockTransfer = false,
   onLogout,
   isLoggingOut = false,
 }) => {
@@ -115,6 +118,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2" />
           <rect x="9" y="3" width="6" height="4" rx="1" />
           <path d="m9 14 2 2 4-4" />
+        </svg>
+      ),
+    },
+    {
+      id: 'btn-sidebar-stock-transfers',
+      tab: 'stock-transfers',
+      path: '/stock-transfers',
+      label: 'Chuyển kho nội bộ',
+      visible: canAccessStockTransfer,
+      icon: (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M16 3h5v5" />
+          <path d="M4 20L21 3" />
+          <path d="M21 16v5h-5" />
+          <path d="M15 15l6 6" />
+          <path d="M4 4l5 5" />
         </svg>
       ),
     },

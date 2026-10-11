@@ -6,6 +6,7 @@ import {
   adjustStockApi,
   Supplier,
   getSuppliersApi,
+  formatErrorMessage,
 } from '../services/api';
 import { emitStatusToast } from './StatusToast';
 import { ModalPortal } from './ModalPortal';
@@ -136,17 +137,50 @@ export const StockActionModal: React.FC<StockActionModalProps> = ({
       return;
     }
 
-    if (actionType === 'receipt' && !partnerOrDest.trim()) {
-      setErrorMsg('Vui lòng nhập tên Nhà cung cấp.');
-      return;
+    if (actionType === 'receipt') {
+      const trimmed = partnerOrDest.trim();
+      if (!trimmed) {
+        setErrorMsg('Vui lòng nhập tên Nhà cung cấp.');
+        return;
+      }
+      if (trimmed.length < 2) {
+        setErrorMsg('Tên Nhà cung cấp phải có ít nhất 2 ký tự.');
+        return;
+      }
+      if (trimmed.length > 150) {
+        setErrorMsg('Tên Nhà cung cấp không được vượt quá 150 ký tự.');
+        return;
+      }
     }
-    if (actionType === 'issue' && !partnerOrDest.trim()) {
-      setErrorMsg('Vui lòng nhập điểm đến / Khách hàng nhận.');
-      return;
+    if (actionType === 'issue') {
+      const trimmed = partnerOrDest.trim();
+      if (!trimmed) {
+        setErrorMsg('Vui lòng nhập Nơi nhận / Khách hàng.');
+        return;
+      }
+      if (trimmed.length < 2) {
+        setErrorMsg('Nơi nhận / Khách hàng phải có ít nhất 2 ký tự.');
+        return;
+      }
+      if (trimmed.length > 150) {
+        setErrorMsg('Nơi nhận / Khách hàng không được vượt quá 150 ký tự.');
+        return;
+      }
     }
-    if (actionType === 'adjust' && !noteOrReason.trim()) {
-      setErrorMsg('Vui lòng nhập lý do kiểm kê / điều chỉnh.');
-      return;
+    if (actionType === 'adjust') {
+      const trimmed = noteOrReason.trim();
+      if (!trimmed) {
+        setErrorMsg('Vui lòng nhập lý do kiểm kê / điều chỉnh.');
+        return;
+      }
+      if (trimmed.length < 2) {
+        setErrorMsg('Lý do kiểm kê / điều chỉnh phải có ít nhất 2 ký tự.');
+        return;
+      }
+      if (trimmed.length > 200) {
+        setErrorMsg('Lý do kiểm kê / điều chỉnh không được vượt quá 200 ký tự.');
+        return;
+      }
     }
 
     if (!currentProduct) {
@@ -207,7 +241,7 @@ export const StockActionModal: React.FC<StockActionModalProps> = ({
       onSuccess();
       onClose();
     } catch (err: any) {
-      setErrorMsg(err.message || 'Lỗi khi xử lý thao tác kho');
+      setErrorMsg(formatErrorMessage(err?.message || err, 'Lỗi khi xử lý thao tác kho'));
     } finally {
       setIsSubmitting(false);
     }
@@ -286,7 +320,7 @@ export const StockActionModal: React.FC<StockActionModalProps> = ({
                 marginBottom: '16px',
               }}
             >
-              ⚠️ {errorMsg}
+              {errorMsg}
             </div>
           )}
 
@@ -357,11 +391,13 @@ export const StockActionModal: React.FC<StockActionModalProps> = ({
                   }}
                 >
                   <option value="">-- Chọn Nhà cung cấp nguồn hàng từ danh mục --</option>
-                  {suppliersList.map((sup) => (
-                    <option key={sup.id} value={sup.code}>
-                      [{sup.code}] {sup.name} {sup.tax_code ? `(MST: ${sup.tax_code})` : ''}
-                    </option>
-                  ))}
+                  {suppliersList
+                    .filter((sup) => !sup.has_receipts || sup.code === selectedSupplierCode)
+                    .map((sup) => (
+                      <option key={sup.id} value={sup.code}>
+                        [{sup.code}] {sup.name} {sup.tax_code ? `(MST: ${sup.tax_code})` : ''}
+                      </option>
+                    ))}
                   <option value="CUSTOM">-- Tự nhập nhà cung cấp khác --</option>
                 </select>
 

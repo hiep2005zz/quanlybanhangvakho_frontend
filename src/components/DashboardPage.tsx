@@ -30,6 +30,7 @@ import { ProductHistoryView } from './ProductHistoryView';
 import { ProductFormView } from './ProductFormView';
 import { WarehouseStockBookView } from './WarehouseStockBookView';
 import { StockAuditManagementView } from './StockAuditManagementView';
+import { StockTransferManagementView } from './StockTransferManagementView';
 import { ModalPortal } from './ModalPortal';
 
 import './dashboard.css';
@@ -122,6 +123,15 @@ export default function DashboardPage({
     user.role === 'warehouse'
   );
 
+  // Quyền truy cập chuyển kho nội bộ (Quản trị hệ thống, Quản lý kho, Thủ kho)
+  const canAccessStockTransfer = Boolean(
+    isAdmin ||
+    officialRoles.includes('warehouse_manager') ||
+    user.role === 'warehouse_manager' ||
+    officialRoles.includes('warehouse') ||
+    user.role === 'warehouse'
+  );
+
   // 2. Khởi tạo State với Clean URL
   const [activeTab, setActiveTabState] = useState<TabType>(() => {
     const pathname = window.location.pathname.toLowerCase();
@@ -139,6 +149,7 @@ export default function DashboardPage({
     const isProductHistoryPath = pathname === '/product-history' || pathname.startsWith('/product-history/');
     const isStockBookPath = pathname === '/stock-book' || pathname.startsWith('/stock-book/');
     const isStockAuditsPath = pathname === '/stock-audits' || pathname.startsWith('/stock-audits/');
+    const isStockTransfersPath = pathname === '/stock-transfers' || pathname.startsWith('/stock-transfers/');
 
     const params = new URLSearchParams(window.location.search);
     const hasOldTabParam = params.has('tab') || params.has('view');
@@ -156,6 +167,13 @@ export default function DashboardPage({
         try { window.history.replaceState({}, '', '/stock-audits'); } catch {}
       }
       return 'stock-audits';
+    }
+
+    if (isStockTransfersPath || oldTabVal === 'stock-transfers' || oldTabVal === 'stock-transfer') {
+      if (hasOldTabParam || pathname !== '/stock-transfers') {
+        try { window.history.replaceState({}, '', '/stock-transfers'); } catch {}
+      }
+      return 'stock-transfers';
     }
 
     if (isDiscountsPath || oldTabVal === 'discounts' || oldTabVal === 'discount') {
@@ -282,6 +300,14 @@ export default function DashboardPage({
       setActiveTabState('stock-audits');
       try {
         window.history.pushState({}, '', '/stock-audits');
+      } catch {}
+      return;
+    }
+
+    if (tab === 'stock-transfers') {
+      setActiveTabState('stock-transfers');
+      try {
+        window.history.pushState({}, '', '/stock-transfers');
       } catch {}
       return;
     }
@@ -418,6 +444,15 @@ export default function DashboardPage({
           try { window.history.replaceState({}, '', '/stock-audits'); } catch {}
         }
         setActiveTabState('stock-audits');
+        return;
+      }
+
+      const isStockTransfersPath = pathname === '/stock-transfers' || pathname.startsWith('/stock-transfers/');
+      if (isStockTransfersPath || tabParam === 'stock-transfers' || tabParam === 'stock-transfer') {
+        if (pathname !== '/stock-transfers' || tabParam) {
+          try { window.history.replaceState({}, '', '/stock-transfers'); } catch {}
+        }
+        setActiveTabState('stock-transfers');
         return;
       }
 
@@ -842,7 +877,7 @@ export default function DashboardPage({
 
   const isProductFormOpen = productDrawerState.isOpen && activeTab === 'inventory';
   const isSalesOrderOpen = activeTab === 'create-order' || isSalesOrderEntryOpen;
-  const isLockedScrollTab = !isProductFormOpen && !isSalesOrderOpen && (activeTab === 'inventory' || activeTab === 'dealers' || activeTab === 'dealer-profiles' || activeTab === 'delivery-points' || activeTab === 'suppliers' || activeTab === 'price-books' || activeTab === 'categories' || activeTab === 'orders' || activeTab === 'product-history' || activeTab === 'stock-book' || activeTab === 'stock-audits') && !isPendingCustomer;
+  const isLockedScrollTab = !isProductFormOpen && !isSalesOrderOpen && (activeTab === 'inventory' || activeTab === 'dealers' || activeTab === 'dealer-profiles' || activeTab === 'delivery-points' || activeTab === 'suppliers' || activeTab === 'price-books' || activeTab === 'categories' || activeTab === 'orders' || activeTab === 'product-history' || activeTab === 'stock-book' || activeTab === 'stock-audits' || activeTab === 'stock-transfers') && !isPendingCustomer;
 
   return (
     <DashboardLayout
@@ -885,6 +920,7 @@ export default function DashboardPage({
           canViewProductHistory={isAdmin || isSalesManager || canWriteInventory}
           canAccessDiscounts={canAccessDiscounts}
           canAccessStockAudit={canAccessStockAudit}
+          canAccessStockTransfer={canAccessStockTransfer}
           isAdmin={isAdmin}
           isCustomer={isCustomer}
           onLogout={() => {
@@ -1181,6 +1217,21 @@ export default function DashboardPage({
           <AccessDeniedView
             currentUser={user}
             requiredPermission="Quản lý kiểm kê kho (Quản trị hệ thống / Quản lý kho / Thủ kho)"
+            onBackToWorkflow={() => setActiveTab('inventory')}
+            onLogout={onLogout}
+          />
+        )
+      ) : activeTab === 'stock-transfers' ? (
+        canAccessStockTransfer ? (
+          <StockTransferManagementView
+            token={token}
+            currentUser={user}
+            onBackToHome={() => setActiveTab('inventory')}
+          />
+        ) : (
+          <AccessDeniedView
+            currentUser={user}
+            requiredPermission="Quản lý chuyển kho nội bộ (Quản trị hệ thống / Quản lý kho / Thủ kho)"
             onBackToWorkflow={() => setActiveTab('inventory')}
             onLogout={onLogout}
           />
@@ -2201,10 +2252,13 @@ export default function DashboardPage({
 
                             return (
                               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '3px' }}>
-                                <span style={{
-                                  fontWeight: '600',
-                                  color: isBelowGlobal ? '#dc2626' : '#0f172a',
-                                }}>
+                                <span
+                                  style={{
+                                    fontWeight: '600',
+                                    color: isBelowGlobal ? '#dc2626' : '#0f172a',
+                                  }}
+                                  title={`Tổng tồn của tất cả các kho: ${item.stock.toLocaleString()} ${item.base_unit || 'cái'}`}
+                                >
                                   {item.stock.toLocaleString()} {item.base_unit || 'cái'}
                                 </span>
                                 {isBelowGlobal ? (
@@ -2224,7 +2278,7 @@ export default function DashboardPage({
                                     }}
                                     title={`Tồn hiện tại (${item.stock}) <= Định mức tối thiểu (${minVal})`}
                                   >
-                                    ⚠️ Dưới định mức ({minVal})
+                                    Dưới định mức ({minVal})
                                   </span>
                                 ) : hasBranchShortage ? (
                                   <span
@@ -2243,7 +2297,7 @@ export default function DashboardPage({
                                     }}
                                     title={`Tồn tổng công ty (${item.stock}) > định mức (${minVal}) nhưng đang bị thiếu tại: ${branchText}`}
                                   >
-                                    ⚠️ Thiếu tại {branchText}
+                                    Thiếu tại {branchText}
                                   </span>
                                 ) : null}
                               </div>

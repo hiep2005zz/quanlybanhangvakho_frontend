@@ -1831,11 +1831,13 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
                     }}
                   >
                     <option value="">-- Chọn nhà cung cấp --</option>
-                    {suppliers.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        [{s.code}] {s.name}
-                      </option>
-                    ))}
+                    {suppliers
+                      .filter((s) => !s.has_receipts || s.id === supplierId)
+                      .map((s) => (
+                        <option key={s.id} value={s.id}>
+                          [{s.code}] {s.name}
+                        </option>
+                      ))}
                   </select>
                   {fieldErrors['supplier_id'] && (
                     <div style={{ fontSize: '11px', color: '#dc2626', marginTop: '4px', fontWeight: '500' }}>
