@@ -87,6 +87,7 @@ export interface ProductItem {
   images?: string[];
   status?: 'active' | 'inactive';
   is_batch_managed?: boolean;
+  min_stock?: number;
   transaction_count?: number; // Số giao dịch đã phát sinh (đơn hàng, nhập/xuất kho)
 }
 
@@ -1559,6 +1560,8 @@ export interface DiscountTier {
   min_quantity: number;
   max_quantity?: number | null;
   discount_percent: number;
+  discount_amount?: number;
+  discount_type?: 'percent' | 'amount';
 }
 
 export interface DiscountPolicy {
@@ -1861,6 +1864,8 @@ export interface OrderResponseData {
   approved_by?: string | null;
   approved_at?: string | null;
   delivery_point_id?: number | null;
+  delivery_point?: string | null;
+  desired_delivery_date?: string | null;
   note?: string | null;
   discount_rate?: number;
   discount_percent?: number;
@@ -3098,3 +3103,263 @@ export async function cancelStockAuditApi(
   }
   return resData;
 }
+
+// ==================== BỔ SUNG CÁC API TỪ NHÁNH HIEUHIEU / TEST ====================
+
+export function formatErrorMessage(detail: any, fallback: string = 'Đã có lỗi xảy ra'): string {
+  if (!detail) return fallback;
+  if (typeof detail === 'string') return detail;
+  if (Array.isArray(detail)) {
+    return detail
+      .map((d: any) => {
+        if (typeof d === 'string') return d;
+        if (d && typeof d === 'object') {
+          const msg = d.msg || d.message || JSON.stringify(d);
+          const loc = Array.isArray(d.loc) ? d.loc.filter((x: any) => x !== 'body').join('.') : '';
+          return loc ? `${loc}: ${msg}` : msg;
+        }
+        return String(d);
+      })
+      .join('; ');
+  }
+  if (typeof detail === 'object') {
+    return detail.message || detail.msg || detail.detail || JSON.stringify(detail);
+  }
+  return String(detail);
+}
+
+export interface PurchaseHistoryItem {
+  product_id: number;
+  product_code: string;
+  product_name: string;
+  unit: string;
+  conversion_rate: number;
+  price: number;
+  total_quantity: number;
+  order_count: number;
+  avg_quantity: number;
+  last_order_quantity: number;
+  last_purchased_date?: string | null;
+}
+
+export interface LastOrderItem {
+  product_id: number;
+  product_code: string;
+  product_name: string;
+  quantity: number;
+  price: number;
+  unit: string;
+  conversion_rate: number;
+}
+
+export interface LastOrderSummary {
+  order_code: string;
+  created_at: string;
+  items: LastOrderItem[];
+}
+
+export interface DealerPurchaseHistory {
+  dealer_id: number;
+  dealer_name: string;
+  period: string;
+  has_history: boolean;
+  total_orders_3_months: number;
+  items: PurchaseHistoryItem[];
+  last_order?: LastOrderSummary | null;
+  last_order_items: LastOrderItem[];
+}
+
+export interface WarehouseInfo {
+  warehouse_id: string;
+  warehouse_name: string;
+}
+
+export interface WarehouseThresholdItem {
+  warehouse_id: string;
+  warehouse_name: string;
+  product_id: number;
+  product_code: string;
+  product_name: string;
+  category?: string;
+  base_unit: string;
+  actual_stock: number;
+  reserved_stock: number;
+  available_stock: number;
+  min_stock: number;
+  is_low_stock: boolean;
+  shortage_quantity: number;
+}
+
+export interface UpdateThresholdPayload {
+  warehouse_id: string;
+  product_id: number;
+  min_stock: number;
+}
+
+export interface LowStockAlertSummary {
+  total_low_stock: number;
+  total_products: number;
+  warehouses: Array<{
+    warehouse_id: string;
+    warehouse_name: string;
+    low_stock_count: number;
+  }>;
+  items: WarehouseThresholdItem[];
+}
+
+export async function getDealerPurchaseHistoryApi(
+  token: string,
+  dealerId: number
+): Promise<DealerPurchaseHistory> {
+  const response = await authenticatedFetch(
+    `${API_BASE_URL}/orders/dealers/${dealerId}/purchase-history`,
+    { method: 'GET' },
+    token
+  );
+  if (!response.ok) {
+    if (response.status === 403) {
+      throw new Error('Chỉ hiển thị với đại lý mà nhân viên được phân công.');
+    }
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data.detail || `Lỗi tải lịch sử mua hàng (Mã lỗi ${response.status})`);
+  }
+  return response.json();
+}
+
+export async function supplementaryDeliveryApi(
+  token: string,
+  orderCode: string,
+  payload?: { note?: string; delivered_quantities?: Record<string, number> }
+): Promise<any> {
+  const response = await authenticatedFetch(
+    `${API_BASE_URL}/orders/${encodeURIComponent(orderCode)}/supplementary-delivery`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload || { note: 'Giao bổ sung đợt 2 - hoàn tất đơn hàng' }),
+    },
+    token
+  );
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi giao bổ sung đơn hàng (Mã lỗi ${response.status})`);
+  }
+  return data;
+}
+
+export async function getInventoryWarehousesApi(token: string): Promise<WarehouseInfo[]> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/inventory/warehouses`, { method: 'GET' }, token);
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Lỗi tải danh sách kho hàng');
+  }
+  return response.json();
+}
+
+export async function getWarehouseThresholdsApi(
+  token: string,
+  warehouseId?: string
+): Promise<WarehouseThresholdItem[]> {
+  const url = warehouseId
+    ? `${API_BASE_URL}/inventory/thresholds?warehouse_id=${encodeURIComponent(warehouseId)}`
+    : `${API_BASE_URL}/inventory/thresholds`;
+  const response = await authenticatedFetch(url, { method: 'GET' }, token);
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Lỗi tải định mức tồn tối thiểu');
+  }
+  return response.json();
+}
+
+export async function updateWarehouseThresholdApi(
+  token: string,
+  payload: UpdateThresholdPayload
+): Promise<WarehouseThresholdItem> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/inventory/thresholds`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  }, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || 'Lỗi cập nhật định mức tồn tối thiểu');
+  }
+  return data;
+}
+
+export async function getLowStockAlertsApi(token: string): Promise<LowStockAlertSummary> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/inventory/low-stock-alerts`, { method: 'GET' }, token);
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Lỗi tải cảnh báo tồn tối thiểu');
+  }
+  return response.json();
+}
+
+export interface StockBookItem {
+  warehouse_id: string;
+  warehouse_name: string;
+  product_id: number;
+  product_code: string;
+  product_name: string;
+  category: string;
+  base_unit: string;
+  actual_stock: number;
+  reserved_stock: number;
+  available_stock: number;
+  min_stock: number;
+  is_low_stock: boolean;
+  status: 'available' | 'out_of_stock' | 'low_stock' | string;
+}
+
+export interface StockBookSummary {
+  total_actual_stock: number;
+  total_reserved_stock: number;
+  total_available_stock: number;
+  total_skus: number;
+}
+
+export interface StockBookResponse {
+  summary: StockBookSummary;
+  items: StockBookItem[];
+  warehouses: WarehouseInfo[];
+  categories: string[];
+}
+
+export interface StockBookFilterParams {
+  warehouse_id?: string;
+  category?: string;
+  stock_status?: string;
+  search?: string;
+}
+
+export async function getStockBookApi(
+  token: string,
+  params?: StockBookFilterParams
+): Promise<StockBookResponse> {
+  const query = new URLSearchParams();
+  if (params?.warehouse_id && params.warehouse_id !== 'all') {
+    query.set('warehouse_id', params.warehouse_id);
+  }
+  if (params?.category && params.category !== 'all') {
+    query.set('category', params.category);
+  }
+  if (params?.stock_status && params.stock_status !== 'all') {
+    query.set('stock_status', params.stock_status);
+  }
+  if (params?.search && params.search.trim()) {
+    query.set('search', params.search.trim());
+  }
+
+  const url = `${API_BASE_URL}/inventory/stock-book${query.toString() ? `?${query.toString()}` : ''}`;
+  const response = await authenticatedFetch(url, { method: 'GET' }, token);
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Lỗi tải dữ liệu sổ tồn kho');
+  }
+  return response.json();
+}
+// ==========================================
+// CHỨC NĂNG KIỂM KÊ KHO (STOCK AUDITS)
+// ==========================================

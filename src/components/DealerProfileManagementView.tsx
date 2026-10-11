@@ -756,6 +756,7 @@ export default function DealerProfileManagementView({
             <input
               type="text"
               className="search-input"
+              style={{ paddingLeft: '44px' }}
               placeholder="Tìm theo Mã đại lý, Tên, Mã số thuế, SĐT..."
               value={keywordInput}
               onChange={(e) => setKeywordInput(e.target.value)}
