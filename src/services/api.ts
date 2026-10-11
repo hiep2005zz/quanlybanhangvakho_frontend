@@ -250,6 +250,10 @@ export interface OrderCreateResponse {
   total_amount: number;
   status: string;
   created_at: string;
+  requires_approval?: boolean;
+  approval_reason?: string | null;
+  items?: any[];
+  note?: string | null;
 }
 
 export type CreatedOrder = OrderCreateResponse;
@@ -3470,4 +3474,122 @@ export async function getOrderRegionsApi(token: string): Promise<string[]> {
     return [];
   }
   return Array.isArray(data) ? data : [];
+}
+
+// ===================================
+// DYNAMIC PRICING & FLOOR VALIDATION APIS (from test branch)
+// ===================================
+export interface LineItemPricingPayload {
+  dealer_id?: number;
+  customer_group?: string;
+  product_id: number;
+  quantity: number;
+  unit_price_override?: number;
+}
+
+export interface LineItemPricingResult {
+  product_id: number;
+  product_code: string;
+  product_name: string;
+  quantity: number;
+  unit_price: number;
+  book_price: number;
+  floor_price: number;
+  is_below_floor: boolean;
+  requires_approval: boolean;
+  approval_reason?: string | null;
+  discount_rate: number;
+  discount_amount: number;
+  applied_policy_code?: string | null;
+  applied_policy_name?: string | null;
+  line_total: number;
+}
+
+export interface EffectivePriceResult {
+  price_book_id: number;
+  price_book_code: string;
+  price_book_name: string;
+  customer_group: string;
+  product_id: number;
+  product_code: string;
+  product_name: string;
+  sale_price: number;
+  floor_price: number;
+  unit_price: number;
+}
+
+export interface ValidateOrderPriceFloorPayload {
+  dealer_id?: number;
+  customer_group?: string;
+  items: Array<{
+    product_id: number;
+    price: number;
+    quantity: number;
+  }>;
+}
+
+export interface ValidateOrderPriceFloorResult {
+  requires_approval: boolean;
+  approval_reasons: string[];
+  approval_reason?: string | null;
+  items_evaluation: Array<{
+    product_id: number;
+    product_code?: string;
+    product_name?: string;
+    unit_price: number;
+    book_price: number;
+    floor_price: number;
+    is_below_floor: boolean;
+    quantity: number;
+    error?: string;
+  }>;
+}
+
+export async function calculateLineItemPricingApi(
+  token: string,
+  payload: LineItemPricingPayload
+): Promise<LineItemPricingResult> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/pricing/calculate-line-item`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  }, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(getApiErrorMessage(data, `Lỗi tính giá dòng hàng (Mã lỗi ${response.status})`));
+  }
+  return data as LineItemPricingResult;
+}
+
+export async function getEffectivePriceApi(
+  token: string,
+  params: { product_id: number; dealer_id?: number; customer_group?: string }
+): Promise<EffectivePriceResult> {
+  const query = new URLSearchParams({ product_id: String(params.product_id) });
+  if (params.dealer_id) query.set('dealer_id', String(params.dealer_id));
+  if (params.customer_group) query.set('customer_group', params.customer_group);
+  const response = await authenticatedFetch(`${API_BASE_URL}/pricing/effective-price?${query.toString()}`, {
+    method: 'GET',
+  }, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(getApiErrorMessage(data, `Lỗi tra cứu bảng giá (Mã lỗi ${response.status})`));
+  }
+  return data as EffectivePriceResult;
+}
+
+export async function validateOrderPriceFloorApi(
+  token: string,
+  payload: ValidateOrderPriceFloorPayload
+): Promise<ValidateOrderPriceFloorResult> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/pricing/validate-floor`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  }, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(getApiErrorMessage(data, `Lỗi kiểm tra giá sàn (Mã lỗi ${response.status})`));
+  }
+  return data as ValidateOrderPriceFloorResult;
 }
