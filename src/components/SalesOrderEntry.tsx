@@ -23,6 +23,7 @@ import OrderPrintModal from './OrderPrintModal';
 import './sales-order-entry.css';
 
 interface SalesOrderEntryProps {
+  cloneOrderData?: any;
   token: string;
   username: string;
   products: ProductItem[];
@@ -108,7 +109,9 @@ const formatCurrency = (amount: number) =>
   new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(amount);
 const draftStorageKey = (username: string) => `sales-order-drafts:${encodeURIComponent(username.toLowerCase())}`;
 
-export default function SalesOrderEntry({ token, username, products, user, onClose: _onClose, onCreated }: SalesOrderEntryProps) {
+export default function SalesOrderEntry({ token, username, products, user, onClose: _onClose, onCreated,
+  cloneOrderData,
+}: SalesOrderEntryProps) {
   // AC 5: Phân quyền - Chỉ cho phép Nhân viên kinh doanh (Role: sales, sales_manager, admin)
   const userRoles = user ? (user.roles && user.roles.length > 0 ? user.roles : [user.role]) : [];
   const isSalesRole = !user || userRoles.some((r) => ['sales', 'sales_manager', 'admin'].includes(r));
@@ -129,6 +132,50 @@ export default function SalesOrderEntry({ token, username, products, user, onClo
   const [isManualOverride, setIsManualOverride] = useState(false);
   const [note, setNote] = useState('');
   const [lines, setLines] = useState<OrderLine[]>([]);
+  /* Init clone order data */
+  useEffect(() => {
+    if (!cloneOrderData) return;
+    if (cloneOrderData.dealer_id) {
+      setDealerId(String(cloneOrderData.dealer_id));
+    }
+    if (cloneOrderData.delivery_point) {
+      setDeliveryPoint(cloneOrderData.delivery_point);
+    }
+    if (cloneOrderData.delivery_point_id) {
+      setDeliveryPointId(Number(cloneOrderData.delivery_point_id));
+    }
+    if (cloneOrderData.note || cloneOrderData.notes) {
+      setNote(cloneOrderData.note || cloneOrderData.notes || '');
+    }
+    if (Array.isArray(cloneOrderData.items) && cloneOrderData.items.length > 0) {
+      const clonedLines: OrderLine[] = cloneOrderData.items.map((it: any) => {
+        const prod = products.find(
+          (p) =>
+            p.id === it.product_id ||
+            (it.product_code && p.code.toLowerCase() === String(it.product_code).toLowerCase()) ||
+            (it.code && p.code.toLowerCase() === String(it.code).toLowerCase())
+        );
+        // Bắt buộc đối chiếu mã sản phẩm (SKU/ID) với danh sách sản phẩm hiện hành.
+        // Gán lại đơn giá theo currentProduct.sell_price, tuyệt đối KHÔNG lấy price cũ từ đơn gốc nếu sản phẩm có giá niêm yết hiện hành.
+        const currentPrice =
+          prod && typeof prod.sell_price === 'number' && prod.sell_price >= 0
+            ? prod.sell_price
+            : (it.unit_price ?? it.price ?? 0);
+        return {
+          productId: prod ? prod.id : it.product_id,
+          code: it.product_code || (prod ? prod.code : ''),
+          name: it.product_name || (prod ? prod.name : ''),
+          price: currentPrice,
+          unit: it.unit || (prod ? prod.base_unit : 'Cái'),
+          conversionRate: 1,
+          quantity: it.quantity || 1,
+        };
+      });
+      setLines(clonedLines);
+      setIsManualOverride(false);
+    }
+  }, [cloneOrderData, products]);
+
   const [productQuery, setProductQuery] = useState('');
   const [drafts, setDrafts] = useState<OrderDraft[]>([]);
   const [activeDraftId, setActiveDraftId] = useState<string | null>(null);
@@ -1289,3 +1336,4 @@ export default function SalesOrderEntry({ token, username, products, user, onClo
     </div>
   );
 }
+
