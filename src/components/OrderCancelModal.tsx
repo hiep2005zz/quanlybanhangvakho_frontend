@@ -71,7 +71,7 @@ export const OrderCancelModal: React.FC<OrderCancelModalProps> = ({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: 9999,
+        zIndex: 100005,
         padding: '16px',
       }}
       onClick={(e) => {

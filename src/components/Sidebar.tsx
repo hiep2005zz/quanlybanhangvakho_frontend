@@ -3,6 +3,7 @@ import { useLocation } from '../hooks/useLocation';
 
 export type TabType =
   | 'inventory'
+  | 'stock-book'
   | 'stock-audits'
   | 'orders'
   | 'create-order'
@@ -35,6 +36,7 @@ export interface SidebarProps {
   canAccessDiscounts?: boolean;
   canAccessStockAudit?: boolean;
   isAdmin?: boolean;
+  isCustomer?: boolean;
   onLogout?: () => void;
   isLoggingOut?: boolean;
 }
@@ -62,6 +64,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   canManageCategories = false,
   canViewProductHistory = false,
   canAccessDiscounts = false,
+  isCustomer = false,
   canAccessStockAudit = false,
   onLogout,
   isLoggingOut = false,
@@ -83,6 +86,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
           <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
           <line x1="12" y1="22.08" x2="12" y2="12" />
+        </svg>
+      ),
+    },
+    {
+      id: 'btn-sidebar-stock-book',
+      tab: 'stock-book',
+      path: '/stock-book',
+      label: 'Hàng tồn kho',
+      visible: !isCustomer,
+      icon: (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+          <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+          <line x1="9" y1="7" x2="15" y2="7" />
+          <line x1="9" y1="11" x2="15" y2="11" />
         </svg>
       ),
     },
@@ -130,7 +148,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       id: 'btn-sidebar-orders',
       tab: 'orders',
       path: '/orders',
-      label: 'Quản lý đơn hàng',
+      label: isCustomer ? 'Đơn hàng của tôi' : 'Quản lý đơn hàng',
       visible: canReadOrders,
       icon: (
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
