@@ -31,6 +31,7 @@ import {
   deleteWarehouseRackApi,
 } from '../services/api';
 import './warehouse-management.css';
+import { emitStatusToast } from './StatusToast';
 
 interface WarehouseManagementViewProps {
   token: string;
@@ -51,8 +52,19 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
   // --- STATE CHÍNH ---
   const [warehouses, setWarehouses] = useState<WarehouseItem[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+  // Thông báo đẩy nổi ở góc phải qua StatusToast
+  const setErrorMsg = useCallback((msg: string | null) => {
+    if (msg) {
+      emitStatusToast({ message: msg, type: 'error', title: 'Thông báo hệ thống' });
+    }
+  }, []);
+
+  const setSuccessMsg = useCallback((msg: string | null) => {
+    if (msg) {
+      emitStatusToast({ message: msg, type: 'success', title: 'Thông báo hệ thống' });
+    }
+  }, []);
 
   // Bộ lọc danh sách kho
   const [whSearch, setWhSearch] = useState<string>('');
@@ -75,7 +87,7 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
   const [allProducts, setAllProducts] = useState<Product[]>([]);
 
   // State Danh mục Master Data: Kệ, Dãy, Khu vực
-  const [masterData, setMasterData] = useState<WarehouseMasterData>({
+  const [, setMasterData] = useState<WarehouseMasterData>({
     zones: [],
     aisles: [],
     racks: [],
@@ -87,11 +99,25 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
   const [masterRackFilter, setMasterRackFilter] = useState<string>('all');
   const [masterSearch, setMasterSearch] = useState<string>('');
 
-  // Tùy chọn nhập tay khi chọn "+ Tùy chỉnh..." trong Modal Vị trí
-  const [isCustomZone, setIsCustomZone] = useState<boolean>(false);
-  const [isCustomAisle, setIsCustomAisle] = useState<boolean>(false);
-  const [isCustomRack, setIsCustomRack] = useState<boolean>(false);
-  const [isCustomBin, setIsCustomBin] = useState<boolean>(false);
+  // Modal Thêm Hàng vào Vị Trí Kệ
+  const [isAddStockModalOpen, setIsAddStockModalOpen] = useState<boolean>(false);
+  const [addStockItem, setAddStockItem] = useState<LocationProductStockItem | null>(null);
+  const [addStockQuantity, setAddStockQuantity] = useState<number>(10);
+  const [isAddStockSubmitting, setIsAddStockSubmitting] = useState<boolean>(false);
+
+  // Modal Cảnh Báo Sức Chứa & Tải Trọng Kệ / Kho Đầy
+  const [isCapacityWarningModalOpen, setIsCapacityWarningModalOpen] = useState<boolean>(false);
+  const [capacityWarningData, setCapacityWarningData] = useState<{
+    zoneName: string;
+    locationCode?: string;
+    currentStock: number;
+    maxCapacity: number;
+    attemptedAdd: number;
+    availableSpace?: number;
+    warningType?: 'rack' | 'zone';
+    title?: string;
+    message?: string;
+  } | null>(null);
 
   // --- MODALS STATE ---
   // Modal Kho
@@ -121,12 +147,15 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
     aisle: '',
     rack: '',
     bin: '',
-    max_capacity: 1000,
+    max_capacity: 500,
+    initial_quantity: 0,
+    unit: 'Cái',
     status: 'Đang sử dụng',
     note: '',
   });
   const [locFormErrors, setLocFormErrors] = useState<Record<string, string>>({});
   const [isLocSubmitting, setIsLocSubmitting] = useState<boolean>(false);
+  const [selectedZoneIdForDetail, setSelectedZoneIdForDetail] = useState<number | null>(null);
 
   // Modal Xóa Vị trí
   const [deletingLocation, setDeletingLocation] = useState<WarehouseLocationItem | null>(null);
@@ -152,8 +181,10 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
     rack_name: '',
     rack_type: 'rack',
     zone_id: 0,
-    max_capacity: 1000,
+    max_capacity: 500,
     is_active: true,
+    aisle_input: '',
+    rack_input: '',
   });
   const [rackFormErrors, setRackFormErrors] = useState<Record<string, string>>({});
   const [isRackSubmitting, setIsRackSubmitting] = useState<boolean>(false);
@@ -180,21 +211,6 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
   });
   const [isTransferSubmitting, setIsTransferSubmitting] = useState<boolean>(false);
 
-  // Toast auto-hide
-  useEffect(() => {
-    if (successMsg) {
-      const timer = setTimeout(() => setSuccessMsg(null), 4000);
-      return () => clearTimeout(timer);
-    }
-  }, [successMsg]);
-
-  useEffect(() => {
-    if (errorMsg) {
-      const timer = setTimeout(() => setErrorMsg(null), 6000);
-      return () => clearTimeout(timer);
-    }
-  }, [errorMsg]);
-
   // 1. Tải danh sách kho
   const fetchWarehouses = useCallback(async () => {
     setIsLoading(true);
@@ -213,11 +229,16 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
   }, [fetchWarehouses]);
 
   // Tải danh mục sản phẩm dùng khi gán vị trí
-  useEffect(() => {
-    getProductsApi(token)
-      .then((res) => setAllProducts(res.items || []))
-      .catch(() => { });
+  const fetchProductsList = useCallback(async () => {
+    try {
+      const res = await getProductsApi(token);
+      setAllProducts(res.items || []);
+    } catch { }
   }, [token]);
+
+  useEffect(() => {
+    fetchProductsList();
+  }, [fetchProductsList]);
 
   // 2. Tải vị trí và tồn sản phẩm của kho đang chọn
   const fetchLocations = useCallback(async (whId: number) => {
@@ -266,9 +287,8 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
   useEffect(() => {
     if (selectedWarehouse) {
       fetchMasterData(selectedWarehouse.id);
-      if (subTab === 'locations') {
-        fetchLocations(selectedWarehouse.id);
-      } else if (subTab === 'products') {
+      fetchLocations(selectedWarehouse.id);
+      if (subTab === 'products') {
         fetchLocationProducts(selectedWarehouse.id);
       }
     }
@@ -308,6 +328,21 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
     );
   }, [zonesList, masterSearch]);
 
+  // Tự động chọn khu vực đầu tiên cho Master-Detail nếu chưa chọn
+  useEffect(() => {
+    if (zonesList.length > 0) {
+      if (selectedZoneIdForDetail === null || !zonesList.some((z) => z.id === selectedZoneIdForDetail)) {
+        setSelectedZoneIdForDetail(zonesList[0].id);
+      }
+    } else {
+      setSelectedZoneIdForDetail(null);
+    }
+  }, [zonesList, selectedZoneIdForDetail]);
+
+  const activeZone = useMemo(() => {
+    return zonesList.find((z) => z.id === selectedZoneIdForDetail) || zonesList[0] || null;
+  }, [zonesList, selectedZoneIdForDetail]);
+
   const filteredRacks = useMemo(() => {
     let list = racksList;
     if (masterRackFilter !== 'all') {
@@ -324,6 +359,28 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
     }
     return list;
   }, [racksList, masterRackFilter, masterSearch]);
+
+  // Danh mục Kệ & Dãy thuộc khu vực đang được chọn ở cột trái (Master-Detail)
+  const detailRacks = useMemo(() => {
+    if (!activeZone) return filteredRacks;
+    return filteredRacks.filter(
+      (r) =>
+        (r.zone_id && r.zone_id === activeZone.id) ||
+        (r.zone_name && r.zone_name.toLowerCase() === activeZone.zone_name.toLowerCase())
+    );
+  }, [filteredRacks, activeZone]);
+
+  // Đếm số lượng kệ trực thuộc khu vực
+  const getZoneRacksCount = useCallback(
+    (zone: WarehouseZoneItem) => {
+      return racksList.filter(
+        (r) =>
+          (r.zone_id && r.zone_id === zone.id) ||
+          (r.zone_name && r.zone_name.toLowerCase() === zone.zone_name.toLowerCase())
+      ).length;
+    },
+    [racksList]
+  );
 
   // --- XỬ LÝ SUBMIT KHO ---
   const handleOpenCreateWarehouse = () => {
@@ -421,15 +478,14 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
   const handleAutoGenerateLocationCodeAndName = (
     zVal?: string,
     aVal?: string,
-    rVal?: string,
-    bVal?: string
+    rVal?: string
   ) => {
     const zone = zVal !== undefined ? zVal : locFormData.zone;
     const aisle = aVal !== undefined ? aVal : locFormData.aisle;
     const rack = rVal !== undefined ? rVal : locFormData.rack;
-    const bin = bVal !== undefined ? bVal : locFormData.bin;
 
-    const whPrefix = selectedWarehouse?.code?.replace(/^KHO_/, '') || 'KHO';
+    const rawWhCode = selectedWarehouse?.code || 'HN';
+    const whPrefix = rawWhCode.replace(/^KHO[-_]?/i, '') || rawWhCode;
 
     let zPart = '';
     if (zone) {
@@ -452,19 +508,10 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
       else rPart = rack.replace(/[^a-zA-Z0-9]/g, '').slice(0, 3).toUpperCase();
     }
 
-    let bPart = '';
-    if (bin) {
-      const mo = bin.match(/ô\s+([a-zA-Z0-9]+)/i);
-      const mh = bin.match(/hộc\s+([a-zA-Z0-9]+)/i);
-      if (mo) bPart = `O${mo[1].toUpperCase()}`;
-      else if (mh) bPart = `H${mh[1].toUpperCase()}`;
-      else bPart = bin.replace(/[^a-zA-Z0-9]/g, '').slice(0, 3).toUpperCase();
-    }
-
-    const codeParts = [whPrefix, zPart, aPart, rPart, bPart].filter(Boolean);
+    const codeParts = [whPrefix, zPart, aPart, rPart].filter(Boolean);
     const genCode = codeParts.join('-');
 
-    const nameParts = [zone, aisle, rack, bin ? `(${bin})` : ''].filter(Boolean);
+    const nameParts = [zone, aisle, rack].filter(Boolean);
     const genName = nameParts.join(' - ');
 
     setLocFormData((prev) => ({
@@ -475,43 +522,9 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
   };
 
   // --- XỬ LÝ SUBMIT VỊ TRÍ ---
-  const handleOpenCreateLocation = () => {
-    setEditingLocation(null);
-    setIsCustomZone(false);
-    setIsCustomAisle(false);
-    setIsCustomRack(false);
-    setIsCustomBin(false);
-
-    const defaultZone = masterData.zones[0]?.name || '';
-    const defaultAisle = masterData.aisles[0]?.name || '';
-    const defaultRack = masterData.racks[0]?.name || '';
-    const defaultBin = masterData.bins[0]?.name || '';
-
-    setLocFormData({
-      location_code: '',
-      location_name: '',
-      zone: defaultZone,
-      aisle: defaultAisle,
-      rack: defaultRack,
-      bin: defaultBin,
-      max_capacity: 1000,
-      status: 'Đang sử dụng',
-      note: '',
-    });
-    setLocFormErrors({});
-    setIsLocModalOpen(true);
-
-    setTimeout(() => {
-      handleAutoGenerateLocationCodeAndName(defaultZone, defaultAisle, defaultRack, defaultBin);
-    }, 0);
-  };
 
   const handleOpenEditLocation = (loc: WarehouseLocationItem) => {
     setEditingLocation(loc);
-    setIsCustomZone(Boolean(loc.zone && !masterData.zones.some((z) => z.name === loc.zone)));
-    setIsCustomAisle(Boolean(loc.aisle && !masterData.aisles.some((a) => a.name === loc.aisle)));
-    setIsCustomRack(Boolean(loc.rack && !masterData.racks.some((r) => r.name === loc.rack)));
-    setIsCustomBin(Boolean(loc.bin && !masterData.bins.some((b) => b.name === loc.bin)));
 
     setLocFormData({
       location_code: loc.location_code,
@@ -520,7 +533,9 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
       aisle: loc.aisle || '',
       rack: loc.rack || '',
       bin: loc.bin || '',
-      max_capacity: loc.max_capacity || 1000,
+      max_capacity: loc.max_capacity || 500,
+      initial_quantity: loc.total_quantity || 0,
+      unit: 'Cái',
       status: loc.status || 'Đang sử dụng',
       note: loc.note || '',
     });
@@ -607,16 +622,21 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
   };
 
   // --- MASTER DATA: QUẢN LÝ KỆ / DÃY (RACK / AISLE HANDLERS) ---
-  const handleOpenCreateRack = () => {
+  const handleOpenCreateRack = (preselectedZoneId?: number) => {
     setEditingRack(null);
-    const nextCode = `KE-${String(racksList.length + 1).padStart(2, '0')}`;
+    const targetZoneId = preselectedZoneId || selectedZoneIdForDetail || zonesList[0]?.id || 0;
+    const targetZoneObj = zonesList.find((z) => z.id === targetZoneId) || zonesList[0];
+    const cleanZ = (targetZoneObj?.zone_code || 'KC').replace(/[^a-zA-Z0-9]/g, '').slice(-2).toUpperCase() || 'K';
+    const nextCode = `${cleanZ}-D1-T1`;
     setRackFormData({
       rack_code: nextCode,
       rack_name: '',
       rack_type: 'rack',
-      zone_id: zonesList[0]?.id || 0,
-      max_capacity: 1000,
+      zone_id: targetZoneId,
+      max_capacity: 500,
       is_active: true,
+      aisle_input: '',
+      rack_input: '',
     });
     setRackFormErrors({});
     setIsRackModalOpen(true);
@@ -624,13 +644,22 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
 
   const handleOpenEditRack = (rack: WarehouseRackItem) => {
     setEditingRack(rack);
+    let aPart = '';
+    let rPart = rack.rack_name;
+    if (rack.rack_name.includes(' - ')) {
+      const parts = rack.rack_name.split(' - ');
+      aPart = parts[0].trim();
+      rPart = parts[1].trim();
+    }
     setRackFormData({
       rack_code: rack.rack_code,
       rack_name: rack.rack_name,
       rack_type: rack.rack_type,
       zone_id: rack.zone_id || 0,
-      max_capacity: rack.max_capacity || 1000,
+      max_capacity: rack.max_capacity || 500,
       is_active: rack.is_active,
+      aisle_input: aPart,
+      rack_input: rPart,
     });
     setRackFormErrors({});
     setIsRackModalOpen(true);
@@ -640,8 +669,10 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
     e.preventDefault();
     if (!selectedWarehouse) return;
     const errors: Record<string, string> = {};
+    const finalName = rackFormData.rack_name.trim() ||
+      [rackFormData.aisle_input.trim(), rackFormData.rack_input.trim()].filter(Boolean).join(' - ');
     if (!rackFormData.rack_code.trim()) errors.rack_code = 'Mã kệ/dãy không được để trống.';
-    if (!rackFormData.rack_name.trim()) errors.rack_name = 'Tên kệ/dãy không được để trống.';
+    if (!finalName) errors.rack_name = 'Vui lòng điền Dãy kệ và Tầng / Kệ.';
     if (Object.keys(errors).length > 0) {
       setRackFormErrors(errors);
       return;
@@ -651,27 +682,29 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
       if (editingRack) {
         await updateWarehouseRackApi(token, editingRack.id, {
           rack_code: rackFormData.rack_code.trim().toUpperCase(),
-          rack_name: rackFormData.rack_name.trim(),
+          rack_name: finalName,
           rack_type: rackFormData.rack_type,
           zone_id: rackFormData.zone_id > 0 ? rackFormData.zone_id : undefined,
-          max_capacity: Number(rackFormData.max_capacity) || 1000,
+          max_capacity: Number(rackFormData.max_capacity) || 500,
           is_active: rackFormData.is_active,
         });
-        setSuccessMsg(`Cập nhật kệ/dãy '${rackFormData.rack_name}' thành công.`);
+        setSuccessMsg(`Cập nhật kệ/dãy '${finalName}' thành công.`);
       } else {
         await createWarehouseRackApi(token, selectedWarehouse.id, {
           rack_code: rackFormData.rack_code.trim().toUpperCase(),
-          rack_name: rackFormData.rack_name.trim(),
+          rack_name: finalName,
           rack_type: rackFormData.rack_type,
           zone_id: rackFormData.zone_id > 0 ? rackFormData.zone_id : undefined,
-          max_capacity: Number(rackFormData.max_capacity) || 1000,
+          max_capacity: Number(rackFormData.max_capacity) || 500,
           is_active: rackFormData.is_active,
         });
-        setSuccessMsg(`Thêm kệ/dãy mới '${rackFormData.rack_name}' thành công.`);
+        setSuccessMsg(`Thêm kệ/dãy mới '${finalName}' thành công. Vị trí đã tự động hiển thị ở Danh sách vị trí kệ.`);
       }
       setIsRackModalOpen(false);
-      fetchMasterData(selectedWarehouse.id);
-      fetchLocations(selectedWarehouse.id);
+      await Promise.all([
+        fetchMasterData(selectedWarehouse.id),
+        fetchLocations(selectedWarehouse.id),
+      ]);
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : 'Lỗi lưu thông tin kệ/dãy');
     } finally {
@@ -685,7 +718,10 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
       await deleteWarehouseRackApi(token, deletingRack.id);
       setSuccessMsg(`Đã xóa kệ/dãy '${deletingRack.rack_name}'.`);
       setDeletingRack(null);
-      fetchMasterData(selectedWarehouse.id);
+      await Promise.all([
+        fetchMasterData(selectedWarehouse.id),
+        fetchLocations(selectedWarehouse.id),
+      ]);
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : 'Không thể xóa kệ/dãy');
       setDeletingRack(null);
@@ -698,6 +734,12 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
     const errors: Record<string, string> = {};
     if (!locFormData.location_code.trim()) {
       errors.location_code = 'Mã vị trí / kệ không được để trống.';
+    }
+    if (!locFormData.max_capacity || Number(locFormData.max_capacity) < 1) {
+      errors.max_capacity = 'Sức chứa tối đa phải từ 1 trở lên.';
+    }
+    if (!locFormData.aisle || !locFormData.rack) {
+      errors.aisle_rack = 'Vui lòng chọn dãy kệ và tầng.';
     }
     if (Object.keys(errors).length > 0) {
       setLocFormErrors(errors);
@@ -714,7 +756,7 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
           aisle: locFormData.aisle.trim() || undefined,
           rack: locFormData.rack.trim() || undefined,
           bin: locFormData.bin.trim() || undefined,
-          max_capacity: Number(locFormData.max_capacity) || 1000,
+          max_capacity: Number(locFormData.max_capacity) || 500,
           status: locFormData.status,
           note: locFormData.note.trim() || undefined,
         });
@@ -727,7 +769,7 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
           aisle: locFormData.aisle.trim() || undefined,
           rack: locFormData.rack.trim() || undefined,
           bin: locFormData.bin.trim() || undefined,
-          max_capacity: Number(locFormData.max_capacity) || 1000,
+          max_capacity: Number(locFormData.max_capacity) || 500,
           status: locFormData.status,
           note: locFormData.note.trim() || undefined,
         });
@@ -771,6 +813,81 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
     setIsAssignModalOpen(true);
   };
 
+  // --- KIỂM TRA SỨC CHỨA VỊ TRÍ KỆ (RACK LEVEL) ---
+  const checkRackCapacity = (
+    locationId: number,
+    productId: number,
+    targetQtyForThisProduct: number
+  ): {
+    ok: boolean;
+    locationCode: string;
+    currentStock: number;
+    maxCapacity: number;
+    attemptedAdd: number;
+    availableSpace: number;
+  } => {
+    const targetLoc = locations.find((l) => l.id === locationId);
+    const locCode = targetLoc?.location_code || 'Kệ';
+    const maxCap = Number(targetLoc?.max_capacity) || 500;
+
+    // Tổng số lượng của các sản phẩm KHÁC tại vị trí này
+    const otherProductsStock = locationProducts
+      .filter((lp) => lp.location_id === locationId && lp.product_id !== productId)
+      .reduce((sum, lp) => sum + (Number(lp.quantity) || 0), 0);
+
+    const curProductStock = locationProducts
+      .find((lp) => lp.location_id === locationId && lp.product_id === productId)
+      ?.quantity || 0;
+
+    const curLocTotal = otherProductsStock + curProductStock;
+    const newLocTotal = otherProductsStock + targetQtyForThisProduct;
+    const netIncrease = targetQtyForThisProduct - curProductStock;
+    const available = Math.max(0, maxCap - curLocTotal);
+
+    if (maxCap > 0 && newLocTotal > maxCap) {
+      return {
+        ok: false,
+        locationCode: locCode,
+        currentStock: curLocTotal,
+        maxCapacity: maxCap,
+        attemptedAdd: Math.max(0, netIncrease),
+        availableSpace: available,
+      };
+    }
+    return {
+      ok: true,
+      locationCode: locCode,
+      currentStock: curLocTotal,
+      maxCapacity: maxCap,
+      attemptedAdd: Math.max(0, netIncrease),
+      availableSpace: available,
+    };
+  };
+
+  // --- KIỂM TRA SỨC CHỨA KHU VỰC (ZONE LEVEL) ---
+  const checkZoneCapacity = (
+    zoneName: string,
+    addedQuantity: number
+  ): { ok: boolean; currentStock: number; maxCapacity: number } => {
+    const trimmedZone = (zoneName || '').trim().toLowerCase();
+    const zoneLocs = locations.filter(
+      (l) => (l.zone || '').trim().toLowerCase() === trimmedZone
+    );
+    const totalCap = zoneLocs.reduce(
+      (sum, l) => sum + (Number(l.max_capacity) || 0),
+      0
+    );
+    const curStock = zoneLocs.reduce(
+      (sum, l) => sum + (Number(l.total_quantity) || 0),
+      0
+    );
+
+    if (totalCap > 0 && curStock + addedQuantity > totalCap) {
+      return { ok: false, currentStock: curStock, maxCapacity: totalCap };
+    }
+    return { ok: true, currentStock: curStock, maxCapacity: totalCap };
+  };
+
   const handleSaveAssignProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedWarehouse) return;
@@ -778,22 +895,236 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
       setErrorMsg('Vui lòng chọn vị trí và sản phẩm hợp lệ.');
       return;
     }
+    const targetQty = Number(assignFormData.quantity);
+    if (targetQty < 0) {
+      setErrorMsg('Số lượng gán không được nhỏ hơn 0.');
+      return;
+    }
+
+    const targetLoc = locations.find((l) => l.id === assignFormData.location_id);
+    const targetLocCode = targetLoc?.location_code || 'Kệ';
+    const zoneName = targetLoc?.zone || 'Khu A';
+    const existingStock = locationProducts.find(
+      (lp) => lp.location_id === assignFormData.location_id && lp.product_id === assignFormData.product_id
+    );
+    const oldQty = existingStock ? existingStock.quantity : 0;
+    const netIncrease = targetQty - oldQty;
+
+    if (netIncrease > 0) {
+      // 1. Kiểm tra tải trọng và sức chứa của vị trí kệ
+      const rackCheck = checkRackCapacity(assignFormData.location_id, assignFormData.product_id, targetQty);
+      if (!rackCheck.ok) {
+        setCapacityWarningData({
+          warningType: 'rack',
+          title: 'Vượt Tải Trọng Kệ! Cảnh Báo Sức Chứa',
+          message: `Vị trí kệ ${targetLocCode} chỉ có sức chứa tối đa là ${rackCheck.maxCapacity} SP. Số lượng hàng vượt quá tải trọng cho phép. Vui lòng giảm số lượng nhập hoặc chuyển sang kệ khác.`,
+          zoneName,
+          locationCode: targetLocCode,
+          currentStock: rackCheck.currentStock,
+          maxCapacity: rackCheck.maxCapacity,
+          attemptedAdd: netIncrease,
+          availableSpace: rackCheck.availableSpace,
+        });
+        setIsCapacityWarningModalOpen(true);
+        emitStatusToast({
+          message: `Vượt quá sức chứa và tải trọng của kệ ${targetLocCode}! Chỉ còn chỗ cho ${rackCheck.availableSpace} SP.`,
+          type: 'warning',
+          title: 'Cảnh báo quá tải kệ',
+        });
+        return;
+      }
+
+      // 2. Kiểm tra sức chứa khu vực
+      const capCheck = checkZoneCapacity(zoneName, netIncrease);
+      if (!capCheck.ok) {
+        setCapacityWarningData({
+          warningType: 'zone',
+          title: 'Kho Đầy! Cảnh Báo Vượt Sức Chứa',
+          message: `Kho đầy! Khu vực ${zoneName} đã đạt giới hạn sức chứa tối đa. Vui lòng sắp xếp vị trí khác hoặc mở thêm kho mới.`,
+          zoneName,
+          locationCode: targetLocCode,
+          currentStock: capCheck.currentStock,
+          maxCapacity: capCheck.maxCapacity,
+          attemptedAdd: netIncrease,
+        });
+        setIsCapacityWarningModalOpen(true);
+        emitStatusToast({
+          message: `Kho đầy! Khu vực ${zoneName} đã đạt giới hạn sức chứa tối đa. Vui lòng sắp xếp vị trí khác hoặc mở thêm kho mới.`,
+          type: 'warning',
+          title: 'Cảnh báo đầy kho',
+        });
+        return;
+      }
+    }
+
     setIsAssignSubmitting(true);
     try {
       const res = await assignProductToLocationApi(
         token,
         assignFormData.location_id,
         assignFormData.product_id,
-        assignFormData.quantity
+        targetQty
       );
       setSuccessMsg(res.message || 'Đã gán sản phẩm vào vị trí thành công.');
       setIsAssignModalOpen(false);
-      fetchLocationProducts(selectedWarehouse.id);
-      fetchWarehouses();
+      await Promise.all([
+        fetchLocationProducts(selectedWarehouse.id),
+        fetchLocations(selectedWarehouse.id),
+        fetchWarehouses(),
+        fetchProductsList(),
+      ]);
     } catch (err) {
-      setErrorMsg(err instanceof Error ? err.message : 'Lỗi gán sản phẩm');
+      const errMsg = err instanceof Error ? err.message : 'Lỗi gán sản phẩm';
+      if (errMsg.includes('sức chứa') || errMsg.includes('tải trọng')) {
+        setCapacityWarningData({
+          warningType: 'rack',
+          title: 'Vượt Tải Trọng Kệ! Cảnh Báo Sức Chứa',
+          message: errMsg,
+          zoneName,
+          locationCode: targetLocCode,
+          currentStock: targetLoc?.total_quantity || 0,
+          maxCapacity: targetLoc?.max_capacity || 500,
+          attemptedAdd: netIncrease,
+          availableSpace: Math.max(0, (targetLoc?.max_capacity || 500) - (targetLoc?.total_quantity || 0)),
+        });
+        setIsCapacityWarningModalOpen(true);
+      } else if (errMsg.includes('Kho đầy')) {
+        setCapacityWarningData({
+          warningType: 'zone',
+          title: 'Kho Đầy! Cảnh Báo Vượt Sức Chứa',
+          message: errMsg,
+          zoneName,
+          locationCode: targetLocCode,
+          currentStock: targetLoc?.total_quantity || 0,
+          maxCapacity: targetLoc?.max_capacity || 500,
+          attemptedAdd: netIncrease,
+        });
+        setIsCapacityWarningModalOpen(true);
+      }
+      setErrorMsg(errMsg);
     } finally {
       setIsAssignSubmitting(false);
+    }
+  };
+
+  // --- THAO TÁC THÊM HÀNG VÀO VỊ TRÍ KỆ HIỆN TẠI ---
+  const handleOpenAddStock = (item: LocationProductStockItem) => {
+    setAddStockItem(item);
+    setAddStockQuantity(10);
+    setIsAddStockModalOpen(true);
+  };
+
+  const handleSaveAddStock = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedWarehouse || !addStockItem) return;
+
+    const qtyToAdd = Number(addStockQuantity);
+    if (qtyToAdd <= 0) {
+      setErrorMsg('Số lượng hàng nhập thêm phải lớn hơn 0.');
+      return;
+    }
+
+    const targetLoc = locations.find((l) => l.id === addStockItem.location_id);
+    const targetLocCode = targetLoc?.location_code || addStockItem.location_code;
+    const zoneName = targetLoc?.zone || addStockItem.zone || 'Khu A';
+    const newTotalForThisProduct = addStockItem.quantity + qtyToAdd;
+
+    // 1. Kiểm tra sức chứa & tải trọng kệ cụ thể
+    const rackCheck = checkRackCapacity(addStockItem.location_id, addStockItem.product_id, newTotalForThisProduct);
+    if (!rackCheck.ok) {
+      setCapacityWarningData({
+        warningType: 'rack',
+        title: 'Vượt Tải Trọng Kệ! Cảnh Báo Sức Chứa',
+        message: `Vị trí kệ ${targetLocCode} chỉ có sức chứa tối đa là ${rackCheck.maxCapacity} SP (hiện đang chứa ${rackCheck.currentStock} SP, chỉ còn chỗ cho ${rackCheck.availableSpace} SP). Không thể nhập thêm ${qtyToAdd} SP vượt tải trọng.`,
+        zoneName,
+        locationCode: targetLocCode,
+        currentStock: rackCheck.currentStock,
+        maxCapacity: rackCheck.maxCapacity,
+        attemptedAdd: qtyToAdd,
+        availableSpace: rackCheck.availableSpace,
+      });
+      setIsCapacityWarningModalOpen(true);
+      emitStatusToast({
+        message: `Vượt quá sức chứa và tải trọng của kệ ${targetLocCode}! Vui lòng giảm số lượng nhập hoặc chuyển sang kệ khác.`,
+        type: 'warning',
+        title: 'Cảnh báo quá tải kệ',
+      });
+      return;
+    }
+
+    // 2. Kiểm tra giới hạn sức chứa toàn Khu vực
+    const zoneCheck = checkZoneCapacity(zoneName, qtyToAdd);
+    if (!zoneCheck.ok) {
+      setCapacityWarningData({
+        warningType: 'zone',
+        title: 'Kho Đầy! Cảnh Báo Vượt Sức Chứa',
+        message: `Kho đầy! Khu vực ${zoneName} đã đạt giới hạn sức chứa tối đa. Vui lòng sắp xếp vị trí khác hoặc mở thêm kho mới.`,
+        zoneName,
+        locationCode: targetLocCode,
+        currentStock: zoneCheck.currentStock,
+        maxCapacity: zoneCheck.maxCapacity,
+        attemptedAdd: qtyToAdd,
+      });
+      setIsCapacityWarningModalOpen(true);
+      emitStatusToast({
+        message: `Kho đầy! Khu vực ${zoneName} đã đạt giới hạn sức chứa tối đa. Vui lòng sắp xếp vị trí khác hoặc mở thêm kho mới.`,
+        type: 'warning',
+        title: 'Cảnh báo đầy kho',
+      });
+      return;
+    }
+
+    setIsAddStockSubmitting(true);
+    try {
+      const res = await assignProductToLocationApi(
+        token,
+        addStockItem.location_id,
+        addStockItem.product_id,
+        newTotalForThisProduct
+      );
+      setSuccessMsg(
+        res.message ||
+          `Đã thêm thành công ${qtyToAdd.toLocaleString('vi-VN')} ${addStockItem.base_unit || 'Cái'} vào vị trí ${targetLocCode}.`
+      );
+      setIsAddStockModalOpen(false);
+      setAddStockItem(null);
+      await Promise.all([
+        fetchLocationProducts(selectedWarehouse.id),
+        fetchLocations(selectedWarehouse.id),
+        fetchWarehouses(),
+        fetchProductsList(),
+      ]);
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : 'Lỗi nhập thêm hàng';
+      if (errMsg.includes('sức chứa') || errMsg.includes('tải trọng')) {
+        setCapacityWarningData({
+          warningType: 'rack',
+          title: 'Vượt Tải Trọng Kệ! Cảnh Báo Sức Chứa',
+          message: errMsg,
+          zoneName,
+          locationCode: targetLocCode,
+          currentStock: rackCheck.currentStock,
+          maxCapacity: rackCheck.maxCapacity,
+          attemptedAdd: qtyToAdd,
+          availableSpace: rackCheck.availableSpace,
+        });
+        setIsCapacityWarningModalOpen(true);
+      } else if (errMsg.includes('Kho đầy')) {
+        setCapacityWarningData({
+          warningType: 'zone',
+          title: 'Kho Đầy! Cảnh Báo Vượt Sức Chứa',
+          message: errMsg,
+          zoneName,
+          locationCode: targetLocCode,
+          currentStock: zoneCheck.currentStock,
+          maxCapacity: zoneCheck.maxCapacity,
+          attemptedAdd: qtyToAdd,
+        });
+        setIsCapacityWarningModalOpen(true);
+      }
+      setErrorMsg(errMsg);
+    } finally {
+      setIsAddStockSubmitting(false);
     }
   };
 
@@ -844,28 +1175,21 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
 
   return (
     <div className="wh-container">
-      {/* Toast Alert Messages */}
-      {successMsg && (
-        <div className="wh-info-banner" style={{ background: '#f0fdf4', borderColor: '#bbf7d0', color: '#15803d' }}>
-          <strong>{successMsg}</strong>
-        </div>
-      )}
-      {errorMsg && (
-        <div className="wh-info-banner" style={{ background: '#fef2f2', borderColor: '#fca5a5', color: '#b91c1c' }}>
-          <strong>{errorMsg}</strong>
-        </div>
-      )}
 
       {/* Main Header */}
       <div className="wh-header">
         <div className="wh-header-title-group">
-          <h1>Quản Lý Danh Sách Kho Hàng & Vị Trí Kệ</h1>
+          <h1>
+            Quản Lý Danh Sách Kho Hàng & Vị Trí Kệ
+            <span className="wh-header-badge">Quản lý kho</span>
+          </h1>
+          <p>Hệ thống quản lý cấu trúc kho hàng, phân bổ vị trí kệ và theo dõi tồn kho theo từng vị trí chi tiết</p>
         </div>
 
         <div className="wh-header-actions">
           {canManage && (
             <button type="button" className="wh-btn wh-btn-primary" onClick={handleOpenCreateWarehouse}>
-              + Thêm kho mới
+              Thêm kho mới
             </button>
           )}
         </div>
@@ -877,13 +1201,21 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
           {/* Filter Bar Danh sách kho */}
           <div className="wh-filter-card">
             <div className="wh-filter-group">
-              <input
-                type="text"
-                className="wh-search-input"
-                placeholder="Tìm kiếm theo mã kho, tên kho, địa chỉ..."
-                value={whSearch}
-                onChange={(e) => setWhSearch(e.target.value)}
-              />
+              <div className="wh-search-wrap">
+                <span className="wh-search-icon">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="11" cy="11" r="8" />
+                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                  </svg>
+                </span>
+                <input
+                  type="text"
+                  className="wh-search-input"
+                  placeholder="Tìm kiếm theo mã kho, tên kho, địa chỉ..."
+                  value={whSearch}
+                  onChange={(e) => setWhSearch(e.target.value)}
+                />
+              </div>
 
               <select
                 className="wh-select"
@@ -896,7 +1228,7 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
               </select>
             </div>
 
-            <div style={{ fontSize: '13px', color: '#64748b' }}>
+            <div className="wh-filter-count">
               Tổng số: <strong>{warehouses.length}</strong> kho hàng
             </div>
           </div>
@@ -921,7 +1253,7 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                     style={{ marginTop: '16px' }}
                     onClick={handleOpenCreateWarehouse}
                   >
-                    + Khai báo kho đầu tiên
+                    Thêm kho mới
                   </button>
                 )}
               </div>
@@ -931,12 +1263,12 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                   <table className="wh-table">
                     <thead>
                       <tr>
-                        <th style={{ width: '110px' }}>Mã kho</th>
+                        <th style={{ width: '120px' }}>Mã kho</th>
                         <th>Tên kho hàng</th>
                         <th>Địa chỉ</th>
                         <th>Người phụ trách</th>
-                        <th style={{ textAlign: 'center' }}>Trạng thái</th>
-                        <th style={{ textAlign: 'center', width: '220px' }}>Thao tác</th>
+                        <th style={{ textAlign: 'center', width: '150px' }}>Trạng thái</th>
+                        <th style={{ textAlign: 'center', width: '280px', minWidth: '280px' }}>Thao tác</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -948,47 +1280,74 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                           <td>
                             <strong style={{ color: '#0f172a' }}>{wh.name}</strong>
                           </td>
-                          <td style={{ maxWidth: '280px', color: '#475569' }}>
+                          <td style={{ maxWidth: '300px', color: '#475569' }}>
                             {wh.address || '—'}
                           </td>
                           <td>
-                            <div>{wh.manager_name || 'Chưa chỉ định'}</div>
-                            {wh.phone && <div style={{ fontSize: '12px', color: '#64748b' }}>SĐT: {wh.phone}</div>}
+                            <div className="wh-manager-wrap">
+                              <span className="wh-manager-name">{wh.manager_name || 'Chưa chỉ định'}</span>
+                              {wh.phone && (
+                                <span className="wh-manager-phone">
+                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+                                  </svg>
+                                  {wh.phone}
+                                </span>
+                              )}
+                            </div>
                           </td>
                           <td style={{ textAlign: 'center' }}>
                             <span className={`wh-badge ${wh.is_active ? 'wh-badge-active' : 'wh-badge-inactive'}`}>
+                              <span className={wh.is_active ? 'wh-dot' : 'wh-dot-gray'} />
                               {wh.status || (wh.is_active ? 'Đang hoạt động' : 'Ngừng hoạt động')}
                             </span>
                           </td>
-                          <td style={{ textAlign: 'center' }}>
-                            <div style={{ display: 'inline-flex', gap: '6px' }}>
+                          <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
+                            <div className="wh-action-group" style={{ flexWrap: 'nowrap', whiteSpace: 'nowrap' }}>
                               <button
                                 type="button"
-                                className="wh-btn wh-btn-sm wh-btn-primary"
+                                className="wh-action-btn-manage"
+                                style={{ whiteSpace: 'nowrap' }}
                                 title="Quản lý sơ đồ vị trí kệ và phân bổ sản phẩm"
                                 onClick={() => {
                                   setSelectedWarehouse(wh);
                                   setSubTab('locations');
                                 }}
                               >
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <polygon points="12 2 2 7 12 12 22 7 12 2" />
+                                  <polyline points="2 17 12 22 22 17" />
+                                  <polyline points="2 12 12 17 22 12" />
+                                </svg>
                                 Quản lý vị trí
                               </button>
                               {canManage && (
                                 <>
                                   <button
                                     type="button"
-                                    className="wh-btn wh-btn-sm wh-btn-secondary"
+                                    className="wh-action-btn-edit"
                                     title="Chỉnh sửa thông tin kho"
                                     onClick={() => handleOpenEditWarehouse(wh)}
                                   >
+                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                      <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+                                      <path d="m15 5 4 4" />
+                                    </svg>
                                     Sửa
                                   </button>
                                   <button
                                     type="button"
-                                    className="wh-btn wh-btn-sm wh-btn-danger"
+                                    className="wh-action-btn-delete"
                                     title="Xóa kho hàng"
                                     onClick={() => setDeletingWarehouse(wh)}
                                   >
+                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                      <path d="M3 6h18" />
+                                      <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+                                      <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                                      <line x1="10" x2="10" y1="11" y2="17" />
+                                      <line x1="14" x2="14" y1="11" y2="17" />
+                                    </svg>
                                     Xóa
                                   </button>
                                 </>
@@ -1008,26 +1367,60 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
         /* Màn hình Chi tiết: Quản lý Vị trí lưu trữ & Phân bổ hàng hóa của Kho được chọn */
         <>
           {/* Breadcrumb & Kho Info Card */}
-          <div className="wh-filter-card" style={{ background: '#ffffff', borderLeft: '4px solid #2563eb' }}>
-            <div>
-              <div style={{ fontSize: '12.5px', color: '#64748b', marginBottom: '4px' }}>
+          <div className="wh-info-card">
+            <div className="wh-info-card-left">
+              <div className="wh-info-subtitle">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+                </svg>
                 DANH MỤC VỊ TRÍ LƯU KHO & SOẠN ĐƠN
               </div>
-              <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 700, color: '#0f172a' }}>
-                {selectedWarehouse.name} {selectedWarehouse.code ? `- ${selectedWarehouse.code}` : ''}
-              </h2>
-              <div style={{ fontSize: '13px', color: '#475569', marginTop: '4px' }}>
-                Địa chỉ: {selectedWarehouse.address || 'Chưa cập nhật'} | Phụ trách: {selectedWarehouse.manager_name || '—'} {selectedWarehouse.phone ? `| SĐT: ${selectedWarehouse.phone}` : ''}
+              <div className="wh-info-title-row">
+                <h2 className="wh-info-title">{selectedWarehouse.name}</h2>
+                {selectedWarehouse.code && (
+                  <span className="wh-badge wh-badge-code">{selectedWarehouse.code}</span>
+                )}
+                <span className={`wh-badge ${selectedWarehouse.is_active ? 'wh-badge-active' : 'wh-badge-inactive'}`}>
+                  <span className={selectedWarehouse.is_active ? 'wh-dot' : 'wh-dot-gray'} />
+                  {selectedWarehouse.status || (selectedWarehouse.is_active ? 'Đang hoạt động' : 'Ngừng hoạt động')}
+                </span>
+              </div>
+              <div className="wh-info-meta-row">
+                <span className="wh-info-meta-item">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" />
+                    <circle cx="12" cy="10" r="3" />
+                  </svg>
+                  {selectedWarehouse.address || 'Chưa cập nhật địa chỉ'}
+                </span>
+                <span className="wh-info-meta-item">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+                    <circle cx="12" cy="7" r="4" />
+                  </svg>
+                  {selectedWarehouse.manager_name || 'Chưa chỉ định quản lý'}
+                </span>
+                {selectedWarehouse.phone && (
+                  <span className="wh-info-meta-item">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+                    </svg>
+                    {selectedWarehouse.phone}
+                  </span>
+                )}
               </div>
             </div>
 
-            <div style={{ display: 'flex', gap: '10px' }}>
+            <div>
               <button
                 type="button"
                 className="wh-btn wh-btn-secondary"
                 onClick={() => setSelectedWarehouse(null)}
               >
-                ← Quay lại danh sách kho
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="15 18 9 12 15 6" />
+                </svg>
+                Quay lại danh sách kho
               </button>
             </div>
           </div>
@@ -1040,6 +1433,7 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
               onClick={() => setSubTab('locations')}
             >
               Danh sách vị trí kệ
+              <span className="wh-tab-count">{locations.length}</span>
             </button>
             <button
               type="button"
@@ -1047,6 +1441,7 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
               onClick={() => setSubTab('master-data')}
             >
               Quản lý Kệ & Khu vực
+              <span className="wh-tab-count">{racksList.length}</span>
             </button>
             <button
               type="button"
@@ -1054,6 +1449,7 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
               onClick={() => setSubTab('products')}
             >
               Sản phẩm theo vị trí kệ
+              <span className="wh-tab-count">{locationProducts.length}</span>
             </button>
           </div>
 
@@ -1062,13 +1458,21 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
             <>
               <div className="wh-filter-card">
                 <div className="wh-filter-group">
-                  <input
-                    type="text"
-                    className="wh-search-input"
-                    placeholder="Tìm mã vị trí, tên kệ, dãy..."
-                    value={locSearch}
-                    onChange={(e) => setLocSearch(e.target.value)}
-                  />
+                  <div className="wh-search-wrap">
+                    <span className="wh-search-icon">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="11" cy="11" r="8" />
+                        <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                      </svg>
+                    </span>
+                    <input
+                      type="text"
+                      className="wh-search-input"
+                      placeholder="Tìm mã vị trí, tên kệ, dãy..."
+                      value={locSearch}
+                      onChange={(e) => setLocSearch(e.target.value)}
+                    />
+                  </div>
 
                   {uniqueZones.length > 0 && (
                     <select
@@ -1085,12 +1489,6 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                     </select>
                   )}
                 </div>
-
-                {canManage && (
-                  <button type="button" className="wh-btn wh-btn-primary" onClick={handleOpenCreateLocation}>
-                    + Khai báo vị trí kệ mới
-                  </button>
-                )}
               </div>
 
               <div className="wh-table-card">
@@ -1101,15 +1499,15 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                 ) : locations.length === 0 ? (
                   <div className="wh-state-box">
                     <h4>Kho này chưa có vị trí kệ nào được khai báo</h4>
-                    <p>Hãy khai báo khu vực, dãy kệ, tầng và ô chứa để phân bổ hàng hóa cho việc soạn đơn.</p>
+                    <p>Hãy chuyển sang tab "Quản lý Kệ & Khu vực" để thêm khu vực, dãy kệ và tầng cho kho hàng.</p>
                     {canManage && (
                       <button
                         type="button"
                         className="wh-btn wh-btn-primary"
                         style={{ marginTop: '14px' }}
-                        onClick={handleOpenCreateLocation}
+                        onClick={() => setSubTab('master-data')}
                       >
-                        + Khai báo vị trí đầu tiên
+                        Quản lý Kệ & Khu vực
                       </button>
                     )}
                   </div>
@@ -1123,65 +1521,93 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                             <th>Tên vị trí kệ</th>
                             <th>Khu vực</th>
                             <th>Dãy kệ</th>
-                            <th>Tầng/Kệ</th>
-                            <th>Ô chứa</th>
-                            <th style={{ textAlign: 'center' }}>Sức chứa</th>
-                            <th style={{ textAlign: 'center' }}>Mặt hàng</th>
-                            <th style={{ textAlign: 'right' }}>Lượng hàng chứa</th>
-                            <th style={{ textAlign: 'center' }}>Trạng thái</th>
-                            {canManage && <th style={{ textAlign: 'center', width: '140px' }}>Thao tác</th>}
+                            <th>Tầng / Kệ</th>
+                            <th style={{ minWidth: '180px' }}>Sức chứa & Tải trọng</th>
+                            <th style={{ textAlign: 'center', width: '100px' }}>Mặt hàng</th>
+                            <th style={{ textAlign: 'center', width: '130px' }}>Trạng thái</th>
+                            {canManage && <th style={{ textAlign: 'center', width: '100px' }}>Thao tác</th>}
                           </tr>
                         </thead>
                         <tbody>
-                          {paginatedLocations.map((loc) => (
-                            <tr key={loc.id}>
-                              <td>
-                                <span className="wh-badge wh-badge-location">{loc.location_code}</span>
-                              </td>
-                              <td>
-                                <strong>{loc.location_name || loc.location_code}</strong>
-                                {loc.note && <div style={{ fontSize: '12px', color: '#64748b' }}>{loc.note}</div>}
-                              </td>
-                              <td>{loc.zone || '—'}</td>
-                              <td>{loc.aisle || '—'}</td>
-                              <td>{loc.rack || '—'}</td>
-                              <td>{loc.bin || '—'}</td>
-                              <td style={{ textAlign: 'center' }}>
-                                {loc.max_capacity?.toLocaleString('vi-VN')}
-                              </td>
-                              <td style={{ textAlign: 'center' }}>
-                                <span className="wh-badge wh-badge-number">{loc.items_count} SP</span>
-                              </td>
-                              <td style={{ textAlign: 'right', fontWeight: 600 }}>
-                                {loc.total_quantity.toLocaleString('vi-VN')}
-                              </td>
-                              <td style={{ textAlign: 'center' }}>
-                                <span className="wh-badge wh-badge-active">
-                                  {loc.status || 'Đang sử dụng'}
-                                </span>
-                              </td>
-                              {canManage && (
-                                <td style={{ textAlign: 'center' }}>
-                                  <div style={{ display: 'inline-flex', gap: '6px' }}>
-                                    <button
-                                      type="button"
-                                      className="wh-btn wh-btn-sm wh-btn-secondary"
-                                      onClick={() => handleOpenEditLocation(loc)}
-                                    >
-                                      Sửa
-                                    </button>
-                                    <button
-                                      type="button"
-                                      className="wh-btn wh-btn-sm wh-btn-danger"
-                                      onClick={() => setDeletingLocation(loc)}
-                                    >
-                                      Xóa
-                                    </button>
+                          {paginatedLocations.map((loc) => {
+                            const maxCap = loc.max_capacity || 0;
+                            const currQty = loc.total_quantity || 0;
+                            const percent = maxCap > 0 ? Math.min(Math.round((currQty / maxCap) * 100), 100) : 0;
+                            const barColor = percent >= 100 ? '#ef4444' : percent >= 80 ? '#f59e0b' : '#10b981';
+
+                            return (
+                              <tr key={loc.id}>
+                                <td>
+                                  <span className="wh-badge wh-badge-location">{loc.location_code}</span>
+                                </td>
+                                <td>
+                                  <strong style={{ color: '#0f172a', fontWeight: 600 }}>{loc.location_name || loc.location_code}</strong>
+                                </td>
+                                <td>
+                                  <span style={{ fontWeight: 500, color: '#334155' }}>{loc.zone || '—'}</span>
+                                </td>
+                                <td>{loc.aisle || '—'}</td>
+                                <td>{loc.rack || '—'}</td>
+                                <td>
+                                  <div className="wh-capacity-cell">
+                                    <div className="wh-capacity-label">
+                                      <span><strong>{currQty.toLocaleString('vi-VN')}</strong> / {maxCap.toLocaleString('vi-VN')} SP</span>
+                                      <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 600 }}>{percent}%</span>
+                                    </div>
+                                    <div className="wh-progress-bar-bg">
+                                      <div
+                                        className="wh-progress-bar-fill"
+                                        style={{
+                                          width: `${percent}%`,
+                                          backgroundColor: barColor,
+                                        }}
+                                      />
+                                    </div>
                                   </div>
                                 </td>
-                              )}
-                            </tr>
-                          ))}
+                                <td style={{ textAlign: 'center' }}>
+                                  <span className="wh-badge wh-badge-number">{loc.items_count} SP</span>
+                                </td>
+                                <td style={{ textAlign: 'center' }}>
+                                  <span className="wh-badge wh-badge-active">
+                                    <span className="wh-dot" />
+                                    {loc.status || 'Đang sử dụng'}
+                                  </span>
+                                </td>
+                                {canManage && (
+                                  <td style={{ textAlign: 'center' }}>
+                                    <div className="wh-action-group" style={{ justifyContent: 'center' }}>
+                                      <button
+                                        type="button"
+                                        className="wh-icon-btn wh-icon-btn--edit"
+                                        title="Chỉnh sửa vị trí"
+                                        onClick={() => handleOpenEditLocation(loc)}
+                                      >
+                                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                          <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+                                          <path d="m15 5 4 4" />
+                                        </svg>
+                                      </button>
+                                      <button
+                                        type="button"
+                                        className="wh-icon-btn wh-icon-btn--delete"
+                                        title="Xóa vị trí"
+                                        onClick={() => setDeletingLocation(loc)}
+                                      >
+                                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                          <path d="M3 6h18" />
+                                          <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+                                          <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                                          <line x1="10" x2="10" y1="11" y2="17" />
+                                          <line x1="14" x2="14" y1="11" y2="17" />
+                                        </svg>
+                                      </button>
+                                    </div>
+                                  </td>
+                                )}
+                              </tr>
+                            );
+                          })}
                         </tbody>
                       </table>
                     </div>
@@ -1196,13 +1622,21 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
             <>
               <div className="wh-filter-card">
                 <div className="wh-filter-group">
-                  <input
-                    type="text"
-                    className="wh-search-input"
-                    placeholder="Tìm nhanh mã hoặc tên khu vực, kệ..."
-                    value={masterSearch}
-                    onChange={(e) => setMasterSearch(e.target.value)}
-                  />
+                  <div className="wh-search-wrap">
+                    <span className="wh-search-icon">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="11" cy="11" r="8" />
+                        <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                      </svg>
+                    </span>
+                    <input
+                      type="text"
+                      className="wh-search-input"
+                      placeholder="Tìm nhanh mã hoặc tên khu vực, kệ..."
+                      value={masterSearch}
+                      onChange={(e) => setMasterSearch(e.target.value)}
+                    />
+                  </div>
 
                   <select
                     className="wh-select"
@@ -1214,38 +1648,27 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                     <option value="rack">Chỉ Tầng / Kệ (Rack)</option>
                   </select>
                 </div>
-
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  {canManage && (
-                    <>
-                      <button
-                        type="button"
-                        className="wh-btn wh-btn-primary"
-                        onClick={handleOpenCreateZone}
-                      >
-                        + Thêm khu vực mới
-                      </button>
-                      <button
-                        type="button"
-                        className="wh-btn wh-btn-primary"
-                        onClick={handleOpenCreateRack}
-                      >
-                        + Thêm kệ / dãy mới
-                      </button>
-                    </>
-                  )}
-                </div>
               </div>
 
-              {/* Bố cục 2 cột: Cột 1 = Quản lý Khu vực, Cột 2 = Quản lý Kệ & Dãy */}
+              {/* Bố cục 2 cột liên kết: Cột trái (Master: Khu vực) - Cột phải (Detail: Kệ & Dãy thuộc Khu vực) */}
               <div className="wh-master-grid">
-                {/* CỘT 1: DANH MỤC KHU VỰC */}
+                {/* CỘT TRÁI (MASTER): DANH MỤC KHU VỰC */}
                 <div className="wh-master-card">
-                  <div className="wh-master-card-header">
-                    <h3>
-                      <span>Danh mục Khu vực (Zones)</span>
+                  <div className="wh-master-card-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px' }}>
+                    <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span>Danh mục Khu vực</span>
                       <span className="wh-badge wh-badge-code">{filteredZones.length}</span>
                     </h3>
+                    {canManage && (
+                      <button
+                        type="button"
+                        className="wh-btn wh-btn-primary"
+                        style={{ fontSize: '13px', padding: '6px 12px' }}
+                        onClick={handleOpenCreateZone}
+                      >
+                        Thêm khu vực
+                      </button>
+                    )}
                   </div>
 
                   <div className="wh-table-responsive" style={{ maxHeight: 'calc(100vh - 280px)' }}>
@@ -1262,67 +1685,102 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                           <tr>
                             <th style={{ width: '90px' }}>Mã KV</th>
                             <th>Tên khu vực</th>
-                            <th>Mô tả / Hàng hóa</th>
-                            <th style={{ textAlign: 'center' }}>Vị trí dùng</th>
-                            {canManage && <th style={{ textAlign: 'center', width: '110px' }}>Thao tác</th>}
+                            <th style={{ textAlign: 'center', width: '110px' }}>Số lượng kệ</th>
+                            {canManage && <th style={{ textAlign: 'center', width: '90px' }}>Thao tác</th>}
                           </tr>
                         </thead>
                         <tbody>
-                          {filteredZones.map((z) => (
-                            <tr key={z.id}>
-                              <td><span className="wh-badge wh-badge-code">{z.zone_code}</span></td>
-                              <td><strong>{z.zone_name}</strong></td>
-                              <td style={{ fontSize: '12.5px', color: '#64748b' }}>{z.description || '—'}</td>
-                              <td style={{ textAlign: 'center' }}>
-                                <span className="wh-badge" style={{ background: '#f1f5f9', color: '#334155' }}>
-                                  {z.locations_count} vị trí
-                                </span>
-                              </td>
-                              {canManage && (
-                                <td style={{ textAlign: 'center' }}>
-                                  <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
-                                    <button
-                                      type="button"
-                                      className="wh-action-btn edit"
-                                      title="Sửa khu vực"
-                                      onClick={() => handleOpenEditZone(z)}
-                                    >
-                                      Sửa
-                                    </button>
-                                    <button
-                                      type="button"
-                                      className="wh-action-btn delete"
-                                      title="Xóa khu vực"
-                                      onClick={() => setDeletingZone(z)}
-                                    >
-                                      Xóa
-                                    </button>
-                                  </div>
+                          {filteredZones.map((z) => {
+                            const isSelected = activeZone?.id === z.id;
+                            const racksCount = getZoneRacksCount(z);
+
+                            return (
+                              <tr
+                                key={z.id}
+                                className={`wh-master-row ${isSelected ? 'wh-master-row--active' : ''}`}
+                                onClick={() => setSelectedZoneIdForDetail(z.id)}
+                                title="Click để xem các kệ thuộc khu vực này"
+                              >
+                                <td><span className="wh-badge wh-badge-code">{z.zone_code}</span></td>
+                                <td>
+                                  <strong style={{ color: isSelected ? '#1b49de' : '#0f172a' }}>{z.zone_name}</strong>
                                 </td>
-                              )}
-                            </tr>
-                          ))}
+                                <td style={{ textAlign: 'center' }}>
+                                  <span className="wh-badge wh-badge-number">
+                                    {racksCount} kệ
+                                  </span>
+                                </td>
+                                {canManage && (
+                                  <td style={{ textAlign: 'center' }}>
+                                    <div className="wh-action-group" style={{ justifyContent: 'center' }}>
+                                      <button
+                                        type="button"
+                                        className="wh-icon-btn wh-icon-btn--edit"
+                                        title="Sửa khu vực"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleOpenEditZone(z);
+                                        }}
+                                      >
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                          <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+                                          <path d="m15 5 4 4" />
+                                        </svg>
+                                      </button>
+                                      <button
+                                        type="button"
+                                        className="wh-icon-btn wh-icon-btn--delete"
+                                        title="Xóa khu vực"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setDeletingZone(z);
+                                        }}
+                                      >
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                          <path d="M3 6h18" />
+                                          <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+                                          <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                                          <line x1="10" x2="10" y1="11" y2="17" />
+                                          <line x1="14" x2="14" y1="11" y2="17" />
+                                        </svg>
+                                      </button>
+                                    </div>
+                                  </td>
+                                )}
+                              </tr>
+                            );
+                          })}
                         </tbody>
                       </table>
                     )}
                   </div>
                 </div>
 
-                {/* CỘT 2: DANH MỤC KỆ & DÃY */}
+                {/* CỘT PHẢI (DETAIL): DANH MỤC KỆ & DÃY THUỘC KHU VỰC ĐƯỢC CHỌN */}
                 <div className="wh-master-card">
-                  <div className="wh-master-card-header">
-                    <h3>
-                      <span>Danh mục Kệ & Dãy (Aisles / Racks)</span>
-                      <span className="wh-badge wh-badge-code">{filteredRacks.length}</span>
+                  <div className="wh-master-card-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px' }}>
+                    <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span>Danh mục Kệ & Dãy thuộc {activeZone ? activeZone.zone_name : 'Khu vực'}</span>
+                      <span className="wh-badge wh-badge-code">{detailRacks.length}</span>
                     </h3>
+                    {canManage && (
+                      <button
+                        type="button"
+                        className="wh-btn wh-btn-primary"
+                        style={{ fontSize: '13px', padding: '6px 12px' }}
+                        onClick={() => handleOpenCreateRack(activeZone?.id)}
+                      >
+                        Thêm kệ vào khu vực này
+                      </button>
+                    )}
                   </div>
 
                   <div className="wh-table-responsive" style={{ maxHeight: 'calc(100vh - 280px)' }}>
                     {isMasterLoading ? (
                       <div className="wh-state-box"><div>Đang tải danh mục kệ...</div></div>
-                    ) : filteredRacks.length === 0 ? (
+                    ) : detailRacks.length === 0 ? (
                       <div className="wh-state-box">
-                        <h4>Chưa có kệ / dãy nào</h4>
+                        <h4>Chưa có kệ / dãy nào thuộc {activeZone ? activeZone.zone_name : 'khu vực này'}</h4>
                         <p>Khai báo Dãy kệ và Tầng/Kệ để chọn nhanh khi tạo vị trí.</p>
                       </div>
                     ) : (
@@ -1331,46 +1789,53 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                           <tr>
                             <th style={{ width: '90px' }}>Mã kệ</th>
                             <th>Tên kệ / dãy</th>
-                            <th>Loại</th>
-                            <th>Khu vực</th>
-                            <th style={{ textAlign: 'center' }}>Vị trí dùng</th>
-                            {canManage && <th style={{ textAlign: 'center', width: '110px' }}>Thao tác</th>}
+                            <th>Phân loại</th>
+                            <th style={{ textAlign: 'right', width: '130px' }}>Sức chứa tối đa</th>
+                            {canManage && <th style={{ textAlign: 'center', width: '90px' }}>Thao tác</th>}
                           </tr>
                         </thead>
                         <tbody>
-                          {filteredRacks.map((r) => (
+                          {detailRacks.map((r) => (
                             <tr key={r.id}>
                               <td><span className="wh-badge wh-badge-code">{r.rack_code}</span></td>
-                              <td><strong>{r.rack_name}</strong></td>
+                              <td><strong style={{ color: '#0f172a' }}>{r.rack_name}</strong></td>
                               <td>
                                 <span className={`wh-badge-type ${r.rack_type === 'aisle' ? 'wh-badge-aisle' : 'wh-badge-rack'}`}>
                                   {r.rack_type === 'aisle' ? 'Dãy kệ' : 'Tầng / Kệ'}
                                 </span>
                               </td>
-                              <td style={{ fontSize: '12.5px', color: '#475569' }}>{r.zone_name || 'Dùng chung'}</td>
-                              <td style={{ textAlign: 'center' }}>
-                                <span className="wh-badge" style={{ background: '#f1f5f9', color: '#334155' }}>
-                                  {r.locations_count} vị trí
+                              <td style={{ textAlign: 'right' }}>
+                                <span className="wh-badge wh-badge-number">
+                                  {r.max_capacity ? `${r.max_capacity.toLocaleString('vi-VN')} SP` : '500 SP'}
                                 </span>
                               </td>
                               {canManage && (
                                 <td style={{ textAlign: 'center' }}>
-                                  <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
+                                  <div className="wh-action-group" style={{ justifyContent: 'center' }}>
                                     <button
                                       type="button"
-                                      className="wh-action-btn edit"
+                                      className="wh-icon-btn wh-icon-btn--edit"
                                       title="Sửa kệ"
                                       onClick={() => handleOpenEditRack(r)}
                                     >
-                                      Sửa
+                                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+                                        <path d="m15 5 4 4" />
+                                      </svg>
                                     </button>
                                     <button
                                       type="button"
-                                      className="wh-action-btn delete"
+                                      className="wh-icon-btn wh-icon-btn--delete"
                                       title="Xóa kệ"
                                       onClick={() => setDeletingRack(r)}
                                     >
-                                      Xóa
+                                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M3 6h18" />
+                                        <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+                                        <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                                        <line x1="10" x2="10" y1="11" y2="17" />
+                                        <line x1="14" x2="14" y1="11" y2="17" />
+                                      </svg>
                                     </button>
                                   </div>
                                 </td>
@@ -1391,18 +1856,26 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
             <>
               <div className="wh-filter-card">
                 <div className="wh-filter-group">
-                  <input
-                    type="text"
-                    className="wh-search-input"
-                    placeholder="Tìm theo mã SP, tên SP, vị trí kệ..."
-                    value={prodSearch}
-                    onChange={(e) => setProdSearch(e.target.value)}
-                  />
+                  <div className="wh-search-wrap">
+                    <span className="wh-search-icon">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="11" cy="11" r="8" />
+                        <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                      </svg>
+                    </span>
+                    <input
+                      type="text"
+                      className="wh-search-input"
+                      placeholder="Tìm theo mã SP, tên SP, vị trí kệ..."
+                      value={prodSearch}
+                      onChange={(e) => setProdSearch(e.target.value)}
+                    />
+                  </div>
                 </div>
 
                 {canManage && (
                   <button type="button" className="wh-btn wh-btn-primary" onClick={handleOpenAssignProduct}>
-                    + Gán sản phẩm vào kệ
+                    Gán sản phẩm vào kệ
                   </button>
                 )}
               </div>
@@ -1423,7 +1896,7 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                         style={{ marginTop: '14px' }}
                         onClick={handleOpenAssignProduct}
                       >
-                        + Gán sản phẩm vào kệ ngay
+                        Gán sản phẩm vào kệ
                       </button>
                     )}
                   </div>
@@ -1433,14 +1906,14 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                       <table className="wh-table">
                         <thead>
                           <tr>
-                            <th style={{ width: '100px' }}>Mã SP</th>
+                            <th style={{ width: '110px' }}>Mã SP</th>
                             <th>Tên sản phẩm</th>
-                            <th>ĐVT</th>
+                            <th style={{ width: '70px' }}>ĐVT</th>
                             <th>Vị trí kệ lưu trữ</th>
                             <th>Khu vực / Dãy</th>
-                            <th style={{ textAlign: 'right' }}>Số lượng tại kệ này</th>
-                            <th style={{ textAlign: 'right' }}>Tổng tồn tại kho</th>
-                            {canManage && <th style={{ textAlign: 'center', width: '130px' }}>Thao tác</th>}
+                            <th style={{ textAlign: 'right', width: '150px' }}>Số lượng tại kệ này</th>
+                            <th style={{ textAlign: 'right', width: '150px' }}>Tổng tồn tại kho</th>
+                            {canManage && <th style={{ textAlign: 'center', width: '220px' }}>Thao tác</th>}
                           </tr>
                         </thead>
                         <tbody>
@@ -1450,7 +1923,7 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                                 <span className="wh-badge wh-badge-code">{item.product_code}</span>
                               </td>
                               <td>
-                                <strong>{item.product_name}</strong>
+                                <strong style={{ color: '#0f172a' }}>{item.product_name}</strong>
                               </td>
                               <td>{item.base_unit || 'Cái'}</td>
                               <td>
@@ -1464,24 +1937,49 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                                 )}
                               </td>
                               <td>
-                                {[item.zone, item.aisle, item.rack, item.bin].filter(Boolean).join(' - ') || '—'}
+                                <span style={{ fontWeight: 500, color: '#334155' }}>
+                                  {[item.zone, item.aisle].filter(Boolean).join(' - ') || '—'}
+                                </span>
                               </td>
-                              <td style={{ textAlign: 'right', fontWeight: 700, color: '#16a34a' }}>
-                                {item.quantity.toLocaleString('vi-VN')} {item.base_unit}
+                              <td style={{ textAlign: 'right' }}>
+                                <span className="wh-quantity-text">{item.quantity.toLocaleString('vi-VN')}</span>
+                                <span className="wh-quantity-unit">{item.base_unit}</span>
                               </td>
-                              <td style={{ textAlign: 'right', fontWeight: 600, color: '#0f172a' }}>
-                                {item.warehouse_total_stock.toLocaleString('vi-VN')} {item.base_unit}
+                              <td style={{ textAlign: 'right' }}>
+                                <span className="wh-quantity-text">{item.warehouse_total_stock.toLocaleString('vi-VN')}</span>
+                                <span className="wh-quantity-unit">{item.base_unit}</span>
                               </td>
                               {canManage && (
                                 <td style={{ textAlign: 'center' }}>
-                                  <button
-                                    type="button"
-                                    className="wh-btn wh-btn-sm wh-btn-secondary"
-                                    title="Chuyển một phần hoặc toàn bộ sang vị trí kệ khác"
-                                    onClick={() => handleOpenTransferProduct(item)}
-                                  >
-                                    ⇄ Chuyển kệ
-                                  </button>
+                                  <div style={{ display: 'inline-flex', gap: '6px', alignItems: 'center', justifyContent: 'center' }}>
+                                    <button
+                                      type="button"
+                                      className="wh-action-btn-add-stock"
+                                      title="Nhập thêm hàng vào vị trí kệ này"
+                                      onClick={() => handleOpenAddStock(item)}
+                                    >
+                                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+                                        <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+                                        <line x1="12" y1="22.08" x2="12" y2="12" />
+                                      </svg>
+                                      Thêm hàng
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="wh-action-btn-transfer"
+                                      title="Chuyển một phần hoặc toàn bộ sang vị trí kệ khác"
+                                      onClick={() => handleOpenTransferProduct(item)}
+                                    >
+                                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <polyline points="17 1 21 5 17 9" />
+                                        <path d="M3 11V9a4 4 0 0 1 4-4h14" />
+                                        <polyline points="7 23 3 19 7 15" />
+                                        <path d="M21 13v2a4 4 0 0 1-4 4H3" />
+                                      </svg>
+                                      Chuyển kệ
+                                    </button>
+                                  </div>
                                 </td>
                               )}
                             </tr>
@@ -1665,248 +2163,129 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
 
             <form onSubmit={handleSaveLocation}>
               <div className="wh-modal-body">
-                {/* Thanh tiện ích tự động sinh mã */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8fafc', padding: '8px 12px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
-                  <div style={{ fontSize: '13px', color: '#475569' }}>
-                    Chọn nhanh <strong>Khu vực, Dãy kệ, Tầng, Ô chứa</strong> bên dưới, hệ thống sẽ tự động điền:
+                {/* Lựa chọn liên kết Bước 1: Kho hàng -> Khu vực */}
+                <div className="wh-form-grid-2">
+                  <div className="wh-form-group">
+                    <label>Kho hàng</label>
+                    <div className="wh-form-readonly-badge">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                        <polyline points="9 22 9 12 15 12 15 22" />
+                      </svg>
+                      <strong>{selectedWarehouse?.name}</strong> ({selectedWarehouse?.code})
+                    </div>
                   </div>
-                  <button
-                    type="button"
-                    className="wh-helper-btn"
-                    onClick={() => handleAutoGenerateLocationCodeAndName()}
+
+                  <div className="wh-form-group">
+                    <label>
+                      Khu vực (Zone) <span className="wh-required-star">*</span>
+                    </label>
+                    <select
+                      className="wh-form-select"
+                      value={locFormData.zone}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setLocFormData((prev) => ({ ...prev, zone: val }));
+                        handleAutoGenerateLocationCodeAndName(val, undefined, undefined);
+                      }}
+                    >
+                      <option value="">-- Chọn khu vực lưu kho --</option>
+                      {zonesList.length > 0 ? (
+                        zonesList.map((z) => (
+                          <option key={z.id} value={z.zone_name}>
+                            {z.zone_name} ({z.zone_code})
+                          </option>
+                        ))
+                      ) : (
+                        <>
+                          <option value="Khu A">Khu A (KHU-A)</option>
+                          <option value="Khu B">Khu B (KHU-B)</option>
+                          <option value="Khu C">Khu C (KHU-C)</option>
+                        </>
+                      )}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Lựa chọn liên kết Bước 2: Dãy kệ & Tầng/Kệ */}
+                <div className="wh-form-group">
+                  <label>
+                    Dãy kệ và Tầng / Kệ <span className="wh-required-star">*</span>
+                  </label>
+                  <select
+                    className="wh-form-select"
+                    value={
+                      locFormData.aisle && locFormData.rack
+                        ? `${locFormData.aisle} - ${locFormData.rack}`
+                        : ''
+                    }
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (!val) {
+                        setLocFormData((prev) => ({ ...prev, aisle: '', rack: '' }));
+                        return;
+                      }
+                      const parts = val.split(' - ');
+                      const newAisle = parts[0] || '';
+                      const newRack = parts[1] || '';
+                      setLocFormData((prev) => ({ ...prev, aisle: newAisle, rack: newRack }));
+                      handleAutoGenerateLocationCodeAndName(undefined, newAisle, newRack);
+                    }}
                   >
-                    Tự động tạo mã & tên gợi nhớ
-                  </button>
+                    <option value="">-- Chọn dãy kệ và tầng --</option>
+                    {[
+                      'Dãy 1 - Tầng 1',
+                      'Dãy 1 - Tầng 2',
+                      'Dãy 2 - Tầng 1',
+                      'Dãy 2 - Tầng 2',
+                      'Dãy 3 - Tầng 1',
+                      'Dãy 3 - Tầng 2',
+                    ].map((opt) => (
+                      <option key={opt} value={opt}>
+                        {opt}
+                      </option>
+                    ))}
+                  </select>
+                  {locFormErrors.aisle_rack && (
+                    <div className="wh-form-error">{locFormErrors.aisle_rack}</div>
+                  )}
                 </div>
 
+                {/* Sức chứa tối đa & Đơn vị tính */}
                 <div className="wh-form-grid-2">
                   <div className="wh-form-group">
                     <label>
-                      Khu vực (Zone) {!isCustomZone && <span style={{ fontSize: '11px', color: '#16a34a', fontWeight: 600 }}>• Chọn danh mục</span>}
+                      Sức chứa tối đa (Max Capacity) <span className="wh-required-star">*</span>
                     </label>
-                    {!isCustomZone ? (
-                      <select
-                        className="wh-form-select"
-                        value={locFormData.zone}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          if (val === '__custom__') {
-                            setIsCustomZone(true);
-                            setLocFormData({ ...locFormData, zone: '' });
-                          } else {
-                            setLocFormData({ ...locFormData, zone: val });
-                            handleAutoGenerateLocationCodeAndName(val, undefined, undefined, undefined);
-                          }
-                        }}
-                      >
-                        <option value="">-- Chọn khu vực lưu kho --</option>
-                        {masterData.zones.map((z) => (
-                          <option key={z.code} value={z.name}>
-                            {z.name} ({z.code})
-                          </option>
-                        ))}
-                        <option value="__custom__">+ Nhập khu vực khác (Tùy chỉnh)...</option>
-                      </select>
-                    ) : (
-                      <div style={{ display: 'flex', gap: '6px' }}>
-                        <input
-                          type="text"
-                          className="wh-form-input"
-                          placeholder="Nhập tên khu vực mới..."
-                          value={locFormData.zone}
-                          onChange={(e) => {
-                            setLocFormData({ ...locFormData, zone: e.target.value });
-                            handleAutoGenerateLocationCodeAndName(e.target.value, undefined, undefined, undefined);
-                          }}
-                        />
-                        <button
-                          type="button"
-                          className="wh-btn wh-btn-sm wh-btn-secondary"
-                          title="Quay lại chọn từ danh mục"
-                          onClick={() => {
-                            setIsCustomZone(false);
-                            const def = masterData.zones[0]?.name || '';
-                            setLocFormData({ ...locFormData, zone: def });
-                            handleAutoGenerateLocationCodeAndName(def, undefined, undefined, undefined);
-                          }}
-                        >
-                          Chọn
-                        </button>
-                      </div>
+                    <input
+                      type="number"
+                      min="1"
+                      required
+                      className="wh-form-input"
+                      value={locFormData.max_capacity}
+                      onChange={(e) => setLocFormData((prev) => ({ ...prev, max_capacity: Number(e.target.value) }))}
+                    />
+                    {locFormErrors.max_capacity && (
+                      <div className="wh-form-error">{locFormErrors.max_capacity}</div>
                     )}
                   </div>
 
                   <div className="wh-form-group">
-                    <label>
-                      Dãy kệ (Aisle) {!isCustomAisle && <span style={{ fontSize: '11px', color: '#16a34a', fontWeight: 600 }}>• Chọn danh mục</span>}
-                    </label>
-                    {!isCustomAisle ? (
-                      <select
-                        className="wh-form-select"
-                        value={locFormData.aisle}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          if (val === '__custom__') {
-                            setIsCustomAisle(true);
-                            setLocFormData({ ...locFormData, aisle: '' });
-                          } else {
-                            setLocFormData({ ...locFormData, aisle: val });
-                            handleAutoGenerateLocationCodeAndName(undefined, val, undefined, undefined);
-                          }
-                        }}
-                      >
-                        <option value="">-- Chọn dãy kệ --</option>
-                        {masterData.aisles.map((a) => (
-                          <option key={a.code} value={a.name}>
-                            {a.name}
-                          </option>
-                        ))}
-                        <option value="__custom__">+ Nhập dãy khác (Tùy chỉnh)...</option>
-                      </select>
-                    ) : (
-                      <div style={{ display: 'flex', gap: '6px' }}>
-                        <input
-                          type="text"
-                          className="wh-form-input"
-                          placeholder="VD: Dãy A1, Dãy 02..."
-                          value={locFormData.aisle}
-                          onChange={(e) => {
-                            setLocFormData({ ...locFormData, aisle: e.target.value });
-                            handleAutoGenerateLocationCodeAndName(undefined, e.target.value, undefined, undefined);
-                          }}
-                        />
-                        <button
-                          type="button"
-                          className="wh-btn wh-btn-sm wh-btn-secondary"
-                          title="Quay lại chọn từ danh mục"
-                          onClick={() => {
-                            setIsCustomAisle(false);
-                            const def = masterData.aisles[0]?.name || '';
-                            setLocFormData({ ...locFormData, aisle: def });
-                            handleAutoGenerateLocationCodeAndName(undefined, def, undefined, undefined);
-                          }}
-                        >
-                          Chọn
-                        </button>
-                      </div>
-                    )}
+                    <label>Đơn vị tính</label>
+                    <select
+                      className="wh-form-select"
+                      value={locFormData.unit}
+                      onChange={(e) => setLocFormData((prev) => ({ ...prev, unit: e.target.value }))}
+                    >
+                      <option value="Cái">Cái</option>
+                      <option value="Chiếc">Chiếc</option>
+                      <option value="Thùng">Thùng</option>
+                      <option value="Hộp">Hộp</option>
+                    </select>
                   </div>
                 </div>
 
-                <div className="wh-form-grid-2">
-                  <div className="wh-form-group">
-                    <label>
-                      Tầng/Kệ (Rack) {!isCustomRack && <span style={{ fontSize: '11px', color: '#16a34a', fontWeight: 600 }}>• Chọn danh mục</span>}
-                    </label>
-                    {!isCustomRack ? (
-                      <select
-                        className="wh-form-select"
-                        value={locFormData.rack}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          if (val === '__custom__') {
-                            setIsCustomRack(true);
-                            setLocFormData({ ...locFormData, rack: '' });
-                          } else {
-                            setLocFormData({ ...locFormData, rack: val });
-                            handleAutoGenerateLocationCodeAndName(undefined, undefined, val, undefined);
-                          }
-                        }}
-                      >
-                        <option value="">-- Chọn tầng / kệ --</option>
-                        {masterData.racks.map((r) => (
-                          <option key={r.code} value={r.name}>
-                            {r.name}
-                          </option>
-                        ))}
-                        <option value="__custom__">+ Nhập tầng/kệ khác...</option>
-                      </select>
-                    ) : (
-                      <div style={{ display: 'flex', gap: '6px' }}>
-                        <input
-                          type="text"
-                          className="wh-form-input"
-                          placeholder="VD: Tầng 1, Tầng 2..."
-                          value={locFormData.rack}
-                          onChange={(e) => {
-                            setLocFormData({ ...locFormData, rack: e.target.value });
-                            handleAutoGenerateLocationCodeAndName(undefined, undefined, e.target.value, undefined);
-                          }}
-                        />
-                        <button
-                          type="button"
-                          className="wh-btn wh-btn-sm wh-btn-secondary"
-                          title="Quay lại chọn từ danh mục"
-                          onClick={() => {
-                            setIsCustomRack(false);
-                            const def = masterData.racks[0]?.name || '';
-                            setLocFormData({ ...locFormData, rack: def });
-                            handleAutoGenerateLocationCodeAndName(undefined, undefined, def, undefined);
-                          }}
-                        >
-                          Chọn
-                        </button>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="wh-form-group">
-                    <label>
-                      Ô chứa hàng / Hộc (Bin) {!isCustomBin && <span style={{ fontSize: '11px', color: '#16a34a', fontWeight: 600 }}>• Chọn danh mục</span>}
-                    </label>
-                    {!isCustomBin ? (
-                      <select
-                        className="wh-form-select"
-                        value={locFormData.bin}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          if (val === '__custom__') {
-                            setIsCustomBin(true);
-                            setLocFormData({ ...locFormData, bin: '' });
-                          } else {
-                            setLocFormData({ ...locFormData, bin: val });
-                            handleAutoGenerateLocationCodeAndName(undefined, undefined, undefined, val);
-                          }
-                        }}
-                      >
-                        <option value="">-- Chọn ô chứa / hộc --</option>
-                        {masterData.bins.map((b) => (
-                          <option key={b.code} value={b.name}>
-                            {b.name}
-                          </option>
-                        ))}
-                        <option value="__custom__">+ Nhập ô khác...</option>
-                      </select>
-                    ) : (
-                      <div style={{ display: 'flex', gap: '6px' }}>
-                        <input
-                          type="text"
-                          className="wh-form-input"
-                          placeholder="VD: Ô 01, Hộc B..."
-                          value={locFormData.bin}
-                          onChange={(e) => {
-                            setLocFormData({ ...locFormData, bin: e.target.value });
-                            handleAutoGenerateLocationCodeAndName(undefined, undefined, undefined, e.target.value);
-                          }}
-                        />
-                        <button
-                          type="button"
-                          className="wh-btn wh-btn-sm wh-btn-secondary"
-                          title="Quay lại chọn từ danh mục"
-                          onClick={() => {
-                            setIsCustomBin(false);
-                            const def = masterData.bins[0]?.name || '';
-                            setLocFormData({ ...locFormData, bin: def });
-                            handleAutoGenerateLocationCodeAndName(undefined, undefined, undefined, def);
-                          }}
-                        >
-                          Chọn
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
+                {/* Mã vị trí & Tên vị trí kệ */}
                 <div className="wh-form-grid-2">
                   <div className="wh-form-group">
                     <label>
@@ -1915,58 +2294,48 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                     <input
                       type="text"
                       className="wh-form-input"
-                      placeholder="VD: KE-A1-T2, KHU-A-01..."
+                      placeholder="VD: KA-D1-T1-O01..."
                       value={locFormData.location_code}
-                      onChange={(e) => setLocFormData({ ...locFormData, location_code: e.target.value })}
+                      onChange={(e) => setLocFormData((prev) => ({ ...prev, location_code: e.target.value }))}
                     />
                     {locFormErrors.location_code && <div className="wh-form-error">{locFormErrors.location_code}</div>}
                   </div>
 
                   <div className="wh-form-group">
-                    <label>Tên gợi nhớ vị trí</label>
+                    <label>Tên vị trí kệ</label>
                     <input
                       type="text"
                       className="wh-form-input"
-                      placeholder="VD: Kệ A1 Tầng 2 Ô 01"
+                      placeholder="VD: Khu A - Dãy 1 - Tầng 1 - Ô 01"
                       value={locFormData.location_name}
-                      onChange={(e) => setLocFormData({ ...locFormData, location_name: e.target.value })}
+                      onChange={(e) => setLocFormData((prev) => ({ ...prev, location_name: e.target.value }))}
                     />
                   </div>
                 </div>
 
                 <div className="wh-form-grid-2">
                   <div className="wh-form-group">
-                    <label>Sức chứa tối đa</label>
-                    <input
-                      type="number"
-                      min="0"
-                      className="wh-form-input"
-                      value={locFormData.max_capacity}
-                      onChange={(e) => setLocFormData({ ...locFormData, max_capacity: Number(e.target.value) })}
-                    />
-                  </div>
-
-                  <div className="wh-form-group">
                     <label>Trạng thái</label>
                     <select
                       className="wh-form-select"
                       value={locFormData.status}
-                      onChange={(e) => setLocFormData({ ...locFormData, status: e.target.value })}
+                      onChange={(e) => setLocFormData((prev) => ({ ...prev, status: e.target.value }))}
                     >
                       <option value="Đang sử dụng">Đang sử dụng</option>
                       <option value="Tạm ngưng">Tạm ngưng</option>
                     </select>
                   </div>
-                </div>
 
-                <div className="wh-form-group">
-                  <label>Ghi chú</label>
-                  <textarea
-                    className="wh-form-textarea"
-                    placeholder="Ghi chú thêm về vị trí kệ này..."
-                    value={locFormData.note}
-                    onChange={(e) => setLocFormData({ ...locFormData, note: e.target.value })}
-                  />
+                  <div className="wh-form-group">
+                    <label>Ghi chú</label>
+                    <input
+                      type="text"
+                      className="wh-form-input"
+                      placeholder="Ghi chú thêm về vị trí kệ này..."
+                      value={locFormData.note}
+                      onChange={(e) => setLocFormData((prev) => ({ ...prev, note: e.target.value }))}
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -1979,7 +2348,11 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                 >
                   Hủy bỏ
                 </button>
-                <button type="submit" className="wh-btn wh-btn-primary" disabled={isLocSubmitting}>
+                <button
+                  type="submit"
+                  className="wh-btn wh-btn-primary"
+                  disabled={isLocSubmitting || Number(locFormData.max_capacity) < 1}
+                >
                   {isLocSubmitting ? 'Đang lưu...' : editingLocation ? 'Cập nhật vị trí' : 'Khai báo vị trí'}
                 </button>
               </div>
@@ -2190,6 +2563,319 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
       )}
 
       {/* ==================================================== */}
+      {/* MODAL 6B: THÊM HÀNG VÀO VỊ TRÍ KỆ                     */}
+      {/* ==================================================== */}
+      {isAddStockModalOpen && addStockItem && (
+        <div className="wh-modal-backdrop">
+          <div className="wh-modal-card" style={{ maxWidth: '480px' }}>
+            <div className="wh-modal-header">
+              <h3>Thêm Hàng Vào Vị Trí Kệ</h3>
+              <button
+                type="button"
+                className="wh-modal-close-btn"
+                onClick={() => {
+                  setIsAddStockModalOpen(false);
+                  setAddStockItem(null);
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveAddStock}>
+              <div className="wh-modal-body">
+                {/* Thông tin vị trí kệ hiện tại của sản phẩm */}
+                <div
+                  style={{
+                    background: '#f8fafc',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '8px',
+                    padding: '14px',
+                    marginBottom: '16px',
+                    fontSize: '13.5px',
+                  }}
+                >
+                  <div style={{ marginBottom: '8px' }}>
+                    <span style={{ color: '#64748b' }}>Sản phẩm:</span>{' '}
+                    <strong style={{ color: '#0f172a' }}>{addStockItem.product_name}</strong>{' '}
+                    <span className="wh-badge wh-badge-code" style={{ fontSize: '11px', padding: '1px 6px' }}>
+                      {addStockItem.product_code}
+                    </span>
+                  </div>
+                  <div style={{ marginBottom: '8px' }}>
+                    <span style={{ color: '#64748b' }}>Vị trí kệ hiện tại:</span>{' '}
+                    <span className="wh-badge wh-badge-location" style={{ fontWeight: 600 }}>
+                      {addStockItem.location_code}
+                    </span>{' '}
+                    {addStockItem.location_name && (
+                      <span style={{ color: '#475569' }}>({addStockItem.location_name})</span>
+                    )}
+                  </div>
+                  <div style={{ marginBottom: '8px' }}>
+                    <span style={{ color: '#64748b' }}>Khu vực / Dãy:</span>{' '}
+                    <span style={{ fontWeight: 500, color: '#334155' }}>
+                      {[addStockItem.zone, addStockItem.aisle, addStockItem.rack].filter(Boolean).join(' - ') || '—'}
+                    </span>
+                  </div>
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: '1fr 1fr',
+                      gap: '8px',
+                      marginTop: '10px',
+                      paddingTop: '10px',
+                      borderTop: '1px dashed #cbd5e1',
+                    }}
+                  >
+                    <div>
+                      <span style={{ color: '#64748b', fontSize: '12px' }}>Số lượng tại kệ này:</span>
+                      <div style={{ fontSize: '15px', fontWeight: 600, color: '#0f172a' }}>
+                        {addStockItem.quantity.toLocaleString('vi-VN')} {addStockItem.base_unit || 'Cái'}
+                      </div>
+                    </div>
+                    <div>
+                      <span style={{ color: '#64748b', fontSize: '12px' }}>Tổng tồn tại kho:</span>
+                      <div style={{ fontSize: '15px', fontWeight: 600, color: '#0f172a' }}>
+                        {addStockItem.warehouse_total_stock.toLocaleString('vi-VN')} {addStockItem.base_unit || 'Cái'}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="wh-form-group">
+                  <label>
+                    Số lượng hàng cần nhập thêm <span className="wh-required-star">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    required
+                    className="wh-form-input"
+                    value={addStockQuantity}
+                    onChange={(e) => setAddStockQuantity(Math.max(1, Number(e.target.value) || 0))}
+                    placeholder="Nhập số lượng hàng..."
+                  />
+                </div>
+
+                {/* Dự kiến cập nhật */}
+                <div
+                  style={{
+                    background: '#f0fdf4',
+                    border: '1px solid #bbf7d0',
+                    borderRadius: '6px',
+                    padding: '10px 12px',
+                    fontSize: '12.5px',
+                    color: '#166534',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                    <span>Số lượng tại kệ này sau khi thêm:</span>
+                    <strong>{(addStockItem.quantity + Number(addStockQuantity || 0)).toLocaleString('vi-VN')} {addStockItem.base_unit || 'Cái'}</strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Tổng tồn tại kho sau khi thêm:</span>
+                    <strong>{(addStockItem.warehouse_total_stock + Number(addStockQuantity || 0)).toLocaleString('vi-VN')} {addStockItem.base_unit || 'Cái'}</strong>
+                  </div>
+                </div>
+              </div>
+
+              <div className="wh-modal-footer">
+                <button
+                  type="button"
+                  className="wh-btn wh-btn-secondary"
+                  onClick={() => {
+                    setIsAddStockModalOpen(false);
+                    setAddStockItem(null);
+                  }}
+                  disabled={isAddStockSubmitting}
+                >
+                  Hủy bỏ
+                </button>
+                <button
+                  type="submit"
+                  className="wh-btn wh-btn-primary"
+                  disabled={isAddStockSubmitting || Number(addStockQuantity) <= 0}
+                >
+                  {isAddStockSubmitting ? 'Đang lưu...' : 'Lưu và Cập nhật tồn'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ==================================================== */}
+      {/* MODAL 6C: CẢNH BÁO SỨC CHỨA & TẢI TRỌNG / ĐẦY KHO   */}
+      {/* ==================================================== */}
+      {isCapacityWarningModalOpen && capacityWarningData && (
+        <div className="wh-modal-backdrop" style={{ zIndex: 1200 }}>
+          <div className="wh-modal-card" style={{ maxWidth: '500px', borderTop: '4px solid #ef4444' }}>
+            <div className="wh-modal-header" style={{ background: '#fef2f2' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div
+                  style={{
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '50%',
+                    background: '#fee2e2',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#dc2626',
+                  }}
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="8" x2="12" y2="12" />
+                    <line x1="12" y1="16" x2="12.01" y2="16" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, color: '#b91c1c', fontSize: '16.5px' }}>
+                    {capacityWarningData.warningType === 'rack'
+                      ? 'Vượt Tải Trọng Kệ! Cảnh Báo Sức Chứa'
+                      : 'Kho Đầy! Cảnh Báo Vượt Sức Chứa'}
+                  </h3>
+                  <span style={{ fontSize: '12px', color: '#7f1d1d' }}>
+                    {capacityWarningData.warningType === 'rack'
+                      ? 'Giới hạn sức chứa và tải trọng tối đa của vị trí kệ'
+                      : 'Giới hạn dung lượng lưu trữ của toàn khu vực'}
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="wh-modal-close-btn"
+                onClick={() => setIsCapacityWarningModalOpen(false)}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="wh-modal-body" style={{ padding: '20px' }}>
+              <div
+                style={{
+                  background: '#fff1f2',
+                  border: '1px solid #fecdd3',
+                  borderRadius: '8px',
+                  padding: '14px 16px',
+                  marginBottom: '16px',
+                  color: '#9f1239',
+                  fontWeight: 600,
+                  fontSize: '14px',
+                  lineHeight: 1.5,
+                }}
+              >
+                {capacityWarningData.message ||
+                  (capacityWarningData.warningType === 'rack'
+                    ? `Vượt quá sức chứa và tải trọng của kệ! Vị trí ${capacityWarningData.locationCode || ''} chỉ có sức chứa tối đa là ${capacityWarningData.maxCapacity.toLocaleString('vi-VN')} SP. Vui lòng giảm số lượng nhập hoặc xếp sang kệ khác.`
+                    : `Kho đầy! Khu vực ${capacityWarningData.zoneName} đã đạt giới hạn sức chứa tối đa. Vui lòng sắp xếp vị trí khác hoặc mở thêm kho mới.`)}
+              </div>
+
+              <div
+                style={{
+                  background: '#f8fafc',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '8px',
+                  padding: '12px 14px',
+                  fontSize: '13px',
+                  color: '#334155',
+                }}
+              >
+                {capacityWarningData.locationCode && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                    <span>Vị trí kệ kiểm tra:</span>
+                    <strong style={{ color: '#0f172a' }}>{capacityWarningData.locationCode}</strong>
+                  </div>
+                )}
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                  <span>
+                    {capacityWarningData.warningType === 'rack' ? 'Tồn hiện tại trên kệ:' : 'Tồn hiện tại của Khu vực:'}
+                  </span>
+                  <strong>{capacityWarningData.currentStock.toLocaleString('vi-VN')} SP</strong>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                  <span>Số lượng cần nhập thêm:</span>
+                  <strong style={{ color: '#dc2626' }}>+{capacityWarningData.attemptedAdd.toLocaleString('vi-VN')} SP</strong>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                  <span>
+                    {capacityWarningData.warningType === 'rack' ? 'Sức chứa / Tải trọng tối đa của kệ:' : 'Tổng sức chứa tối đa của Khu:'}
+                  </span>
+                  <strong>{capacityWarningData.maxCapacity.toLocaleString('vi-VN')} SP</strong>
+                </div>
+                {capacityWarningData.availableSpace !== undefined && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', color: '#166534' }}>
+                    <span>Chỗ còn trống có thể nhận:</span>
+                    <strong>{capacityWarningData.availableSpace.toLocaleString('vi-VN')} SP</strong>
+                  </div>
+                )}
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    paddingTop: '8px',
+                    borderTop: '1px dashed #cbd5e1',
+                    color: '#b91c1c',
+                    fontWeight: 700,
+                  }}
+                >
+                  <span>Vượt quá giới hạn tải trọng:</span>
+                  <span>
+                    +{(
+                      capacityWarningData.currentStock +
+                      capacityWarningData.attemptedAdd -
+                      capacityWarningData.maxCapacity
+                    ).toLocaleString('vi-VN')}{' '}
+                    SP
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="wh-modal-footer" style={{ justifyContent: 'space-between' }}>
+              <button
+                type="button"
+                className="wh-btn wh-btn-secondary"
+                onClick={() => setIsCapacityWarningModalOpen(false)}
+              >
+                Đóng
+              </button>
+              {capacityWarningData.warningType === 'rack' ? (
+                <button
+                  type="button"
+                  className="wh-btn wh-btn-primary"
+                  style={{ background: '#2563eb' }}
+                  onClick={() => {
+                    setIsCapacityWarningModalOpen(false);
+                    setIsAddStockModalOpen(false);
+                    setIsAssignModalOpen(false);
+                    handleOpenAssignProduct();
+                  }}
+                >
+                  Chọn vị trí kệ khác
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="wh-btn wh-btn-primary"
+                  style={{ background: '#2563eb' }}
+                  onClick={() => {
+                    setIsCapacityWarningModalOpen(false);
+                    setIsAddStockModalOpen(false);
+                    setIsAssignModalOpen(false);
+                    handleOpenCreateWarehouse();
+                  }}
+                >
+                  Mở thêm kho mới
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ==================================================== */}
       {/* MODAL 7: THÊM / SỬA KHU VỰC                          */}
       {/* ==================================================== */}
       {isZoneModalOpen && (
@@ -2320,6 +3006,126 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
 
             <form onSubmit={handleSaveRack}>
               <div className="wh-modal-body">
+                <div className="wh-form-group" style={{ marginBottom: '14px' }}>
+                  <label>Khu vực trực thuộc <span className="wh-required-star">*</span></label>
+                  <select
+                    className="wh-form-select"
+                    value={rackFormData.zone_id}
+                    onChange={(e) => {
+                      const zId = Number(e.target.value);
+                      const targetZ = zonesList.find((z) => z.id === zId);
+                      const cleanZ = (targetZ?.zone_code || 'KC').replace(/[^a-zA-Z0-9]/g, '').slice(-2).toUpperCase() || 'K';
+                      setRackFormData((prev) => ({
+                        ...prev,
+                        zone_id: zId,
+                        rack_code: prev.rack_code ? `${cleanZ}-${prev.rack_code.split('-').slice(1).join('-') || 'D1-T1'}` : `${cleanZ}-D1-T1`,
+                      }));
+                    }}
+                  >
+                    {zonesList.map((z) => (
+                      <option key={z.id} value={z.id}>
+                        {z.zone_name} ({z.zone_code})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Điền Dãy kệ và Tầng / Kệ thủ công */}
+                <div className="wh-form-grid-2" style={{ marginBottom: '14px' }}>
+                  <div className="wh-form-group">
+                    <label>
+                      Dãy kệ <span className="wh-required-star">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      className="wh-form-input"
+                      placeholder="VD: Dãy 1, Dãy 2, Dãy A..."
+                      value={rackFormData.aisle_input}
+                      onChange={(e) => {
+                        const newAisle = e.target.value;
+                        const newName = [newAisle.trim(), rackFormData.rack_input.trim()].filter(Boolean).join(' - ');
+                        const activeZoneObj = zonesList.find((z) => z.id === rackFormData.zone_id) || zonesList[0];
+                        const cleanZ = (activeZoneObj?.zone_code || 'KC').replace(/[^a-zA-Z0-9]/g, '').slice(-2).toUpperCase() || 'K';
+                        const dNum = newAisle.replace(/\D/g, '') || '1';
+                        const tNum = rackFormData.rack_input.replace(/\D/g, '') || '1';
+                        setRackFormData((prev) => ({
+                          ...prev,
+                          aisle_input: newAisle,
+                          rack_name: newName,
+                          rack_code: `${cleanZ}-D${dNum}-T${tNum}`,
+                        }));
+                      }}
+                    />
+                  </div>
+
+                  <div className="wh-form-group">
+                    <label>
+                      Tầng / Kệ <span className="wh-required-star">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      className="wh-form-input"
+                      placeholder="VD: Tầng 1, Tầng 2, Kệ 01..."
+                      value={rackFormData.rack_input}
+                      onChange={(e) => {
+                        const newRack = e.target.value;
+                        const newName = [rackFormData.aisle_input.trim(), newRack.trim()].filter(Boolean).join(' - ');
+                        const activeZoneObj = zonesList.find((z) => z.id === rackFormData.zone_id) || zonesList[0];
+                        const cleanZ = (activeZoneObj?.zone_code || 'KC').replace(/[^a-zA-Z0-9]/g, '').slice(-2).toUpperCase() || 'K';
+                        const dNum = rackFormData.aisle_input.replace(/\D/g, '') || '1';
+                        const tNum = newRack.replace(/\D/g, '') || '1';
+                        setRackFormData((prev) => ({
+                          ...prev,
+                          rack_input: newRack,
+                          rack_name: newName,
+                          rack_code: `${cleanZ}-D${dNum}-T${tNum}`,
+                        }));
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <div className="wh-form-group" style={{ marginBottom: '14px' }}>
+                  <label style={{ color: '#64748b', fontSize: '12px' }}>Hoặc chọn nhanh cấu trúc chuẩn (gợi ý)</label>
+                  <select
+                    className="wh-form-select"
+                    value={
+                      ['Dãy 1 - Tầng 1', 'Dãy 1 - Tầng 2', 'Dãy 2 - Tầng 1', 'Dãy 2 - Tầng 2', 'Dãy 3 - Tầng 1', 'Dãy 3 - Tầng 2'].includes(rackFormData.rack_name)
+                        ? rackFormData.rack_name
+                        : ''
+                    }
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (!val) return;
+                      const parts = val.split(' - ');
+                      const aPart = parts[0]?.trim() || '';
+                      const rPart = parts[1]?.trim() || '';
+                      const activeZoneObj = zonesList.find((z) => z.id === rackFormData.zone_id) || zonesList[0];
+                      const cleanZ = (activeZoneObj?.zone_code || 'KC').replace(/[^a-zA-Z0-9]/g, '').slice(-2).toUpperCase() || 'K';
+                      const dNum = aPart.replace(/\D/g, '') || '1';
+                      const tNum = rPart.replace(/\D/g, '') || '1';
+                      const autoCode = `${cleanZ}-D${dNum}-T${tNum}`;
+                      setRackFormData((prev) => ({
+                        ...prev,
+                        aisle_input: aPart,
+                        rack_input: rPart,
+                        rack_name: val,
+                        rack_code: autoCode,
+                        rack_type: 'rack',
+                        max_capacity: 500,
+                      }));
+                    }}
+                  >
+                    <option value="">-- Tùy chọn: Chọn nhanh Dãy & Tầng chuẩn --</option>
+                    <option value="Dãy 1 - Tầng 1">Dãy 1 - Tầng 1</option>
+                    <option value="Dãy 1 - Tầng 2">Dãy 1 - Tầng 2</option>
+                    <option value="Dãy 2 - Tầng 1">Dãy 2 - Tầng 1</option>
+                    <option value="Dãy 2 - Tầng 2">Dãy 2 - Tầng 2</option>
+                    <option value="Dãy 3 - Tầng 1">Dãy 3 - Tầng 1</option>
+                    <option value="Dãy 3 - Tầng 2">Dãy 3 - Tầng 2</option>
+                  </select>
+                </div>
+
                 <div className="wh-form-grid-2">
                   <div className="wh-form-group">
                     <label>
@@ -2328,7 +3134,7 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                     <input
                       type="text"
                       className="wh-form-input"
-                      placeholder="VD: DAY-01, TANG-1, KE-01..."
+                      placeholder="VD: KA-D1-T1, DAY-01..."
                       value={rackFormData.rack_code}
                       onChange={(e) => setRackFormData({ ...rackFormData, rack_code: e.target.value })}
                     />
@@ -2342,7 +3148,7 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                     <input
                       type="text"
                       className="wh-form-input"
-                      placeholder="VD: Dãy 1, Tầng 1, Kệ 01..."
+                      placeholder="VD: Dãy 1 - Tầng 1..."
                       value={rackFormData.rack_name}
                       onChange={(e) => setRackFormData({ ...rackFormData, rack_name: e.target.value })}
                     />
@@ -2358,33 +3164,28 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                       value={rackFormData.rack_type}
                       onChange={(e) => setRackFormData({ ...rackFormData, rack_type: e.target.value })}
                     >
-                      <option value="aisle">Dãy kệ </option>
-                      <option value="rack">Tầng / Kệ </option>
+                      <option value="rack">Tầng / Kệ</option>
+                      <option value="aisle">Dãy kệ</option>
                     </select>
                   </div>
 
                   <div className="wh-form-group">
-                    <label>Khu vực trực thuộc</label>
-                    <select
-                      className="wh-form-select"
-                      value={rackFormData.zone_id}
-                      onChange={(e) => setRackFormData({ ...rackFormData, zone_id: Number(e.target.value) })}
-                    >
-                      <option value={0}>Dùng chung toàn kho</option>
-                      {zonesList.map((z) => (
-                        <option key={z.id} value={z.id}>
-                          {z.zone_name} ({z.zone_code})
-                        </option>
-                      ))}
-                    </select>
+                    <label>Sức chứa & Tải trọng tối đa (ĐVT)</label>
+                    <input
+                      type="number"
+                      min="1"
+                      className="wh-form-input"
+                      value={rackFormData.max_capacity}
+                      onChange={(e) => setRackFormData({ ...rackFormData, max_capacity: Number(e.target.value) })}
+                    />
                   </div>
                 </div>
 
                 <div className="wh-form-group">
-                  <label>Sức chứa khuyến nghị (ĐVT)</label>
+                  <label>Sức chứa & Tải trọng tối đa (ĐVT)</label>
                   <input
                     type="number"
-                    min="0"
+                    min="1"
                     className="wh-form-input"
                     value={rackFormData.max_capacity}
                     onChange={(e) => setRackFormData({ ...rackFormData, max_capacity: Number(e.target.value) })}
