@@ -17,6 +17,8 @@ interface DiscountTier {
   min_quantity: number;
   max_quantity: number | null; // null = Không giới hạn (Từ X sản phẩm trở lên)
   discount_percent: number;
+  discount_amount?: number;
+  discount_type?: 'percent' | 'amount';
 }
 
 interface DiscountPolicy {
@@ -120,7 +122,9 @@ export default function DiscountPolicyView({ token, user, onBackToHome }: Discou
             id: String(t.id || Math.random()),
             min_quantity: t.min_quantity,
             max_quantity: t.max_quantity ?? null,
-            discount_percent: t.discount_percent,
+            discount_percent: t.discount_percent || 0,
+            discount_amount: t.discount_amount || 0,
+            discount_type: t.discount_type || (t.discount_amount && t.discount_amount > 0 && !t.discount_percent ? 'amount' : 'percent'),
           })),
         }));
         setPolicies(mapped);
@@ -149,7 +153,7 @@ export default function DiscountPolicyView({ token, user, onBackToHome }: Discou
     status: 'active',
     note: '',
     tiers: [
-      { id: Date.now().toString(), min_quantity: 50, max_quantity: 100, discount_percent: 3 },
+      { id: Date.now().toString(), min_quantity: 50, max_quantity: 100, discount_percent: 3, discount_amount: 0, discount_type: 'percent' },
     ],
   });
 
@@ -215,7 +219,7 @@ export default function DiscountPolicyView({ token, user, onBackToHome }: Discou
       ...formData,
       tiers: [
         ...nextTiers,
-        { id: Date.now().toString(), min_quantity: newMin, max_quantity: null, discount_percent: 5 },
+        { id: Date.now().toString(), min_quantity: newMin, max_quantity: null, discount_percent: 5, discount_amount: 0, discount_type: 'percent' },
       ],
     });
   };
@@ -238,7 +242,13 @@ export default function DiscountPolicyView({ token, user, onBackToHome }: Discou
       ...formData,
       tiers: formData.tiers.map((t) => {
         if (t.id === id) {
-          return { ...t, [field]: value === '' ? null : Number(value) };
+          if (field === 'discount_type') {
+            return { ...t, discount_type: value as 'percent' | 'amount' };
+          }
+          if (field === 'max_quantity') {
+            return { ...t, max_quantity: value === '' ? null : Number(value) };
+          }
+          return { ...t, [field]: value === '' ? 0 : Number(value) };
         }
         return t;
       }),
@@ -274,9 +284,18 @@ export default function DiscountPolicyView({ token, user, onBackToHome }: Discou
         emitStatusToast({ title: 'Lỗi nhập liệu', message: `Mốc ${i + 1}: Số lượng tối đa (${t.max_quantity}) phải lớn hơn hoặc bằng số lượng tối thiểu (${t.min_quantity})!`, type: 'error' });
         return;
       }
-      if (isNaN(t.discount_percent) || t.discount_percent < 0 || t.discount_percent > 100) {
-        emitStatusToast({ title: 'Lỗi nhập liệu', message: `Mốc ${i + 1}: Tỷ lệ chiết khấu phải từ 0% đến 100%!`, type: 'error' });
-        return;
+      const tType = t.discount_type || (t.discount_amount && t.discount_amount > 0 ? 'amount' : 'percent');
+      if (tType === 'percent') {
+        if (isNaN(t.discount_percent) || t.discount_percent < 0 || t.discount_percent > 100) {
+          emitStatusToast({ title: 'Lỗi nhập liệu', message: `Mốc ${i + 1}: Tỷ lệ chiết khấu phải từ 0% đến 100%!`, type: 'error' });
+          return;
+        }
+      } else {
+        const amt = Number(t.discount_amount) || 0;
+        if (isNaN(amt) || amt < 0) {
+          emitStatusToast({ title: 'Lỗi nhập liệu', message: `Mốc ${i + 1}: Số tiền chiết khấu trên đơn vị phải lớn hơn hoặc bằng 0 đ!`, type: 'error' });
+          return;
+        }
       }
       if (i > 0) {
         const prev = sortedTiers[i - 1];
@@ -318,7 +337,9 @@ export default function DiscountPolicyView({ token, user, onBackToHome }: Discou
       tiers: sortedTiers.map((t) => ({
         min_quantity: t.min_quantity,
         max_quantity: t.max_quantity,
-        discount_percent: t.discount_percent,
+        discount_percent: t.discount_type === 'amount' ? 0 : (t.discount_percent || 0),
+        discount_amount: t.discount_type === 'amount' ? (t.discount_amount || 0) : 0,
+        discount_type: t.discount_type || 'percent',
       })),
     };
 
@@ -550,6 +571,33 @@ export default function DiscountPolicyView({ token, user, onBackToHome }: Discou
         )}
       </div>
 
+      {/* Tài liệu & Quy tắc áp dụng chính sách chiết khấu */}
+      <div
+        style={{
+          background: '#f8fafc',
+          border: '1px solid #e2e8f0',
+          borderLeft: '4px solid #0fba90',
+          borderRadius: '8px',
+          padding: '14px 18px',
+          marginBottom: '20px',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+          <strong style={{ fontSize: '14px', color: '#0f172a' }}>Tài liệu & Quy tắc áp dụng chính sách chiết khấu:</strong>
+        </div>
+        <ul style={{ margin: 0, paddingLeft: '20px', fontSize: '13px', color: '#475569', lineHeight: '1.65' }}>
+          <li>
+            <strong>Phạm vi mốc sản lượng:</strong> Bậc chiết khấu tự động áp dụng theo số lượng mua của một SKU sản phẩm lẻ, một nhóm hàng hoặc toàn hệ thống.
+          </li>
+          <li>
+            <strong>Hình thức chiết khấu:</strong> Hỗ trợ tính theo tỷ lệ phần trăm (<strong>%</strong>) hoặc số tiền giảm cố định trên mỗi đơn vị sản phẩm (<strong>đ/sản phẩm</strong>).
+          </li>
+          <li>
+            <strong>Quy tắc ưu tiên (Best Discount Rule):</strong> Trường hợp có nhiều chính sách cùng thỏa mãn áp dụng cho đơn hàng hoặc sản phẩm, hệ thống sẽ <strong>tự động chọn chính sách có lợi nhất cho khách hàng</strong> (chính sách đem lại mức tiền giảm chiết khấu cao nhất) mà không cần phải thỏa thuận miệng từng lần.
+          </li>
+        </ul>
+      </div>
+
       {/* Danh sách chính sách hiện tại (Khối liền nhau) */}
       <div
         style={{
@@ -771,7 +819,11 @@ export default function DiscountPolicyView({ token, user, onBackToHome }: Discou
                     <span style={{ color: '#64748b' }}>Từ </span>
                     <strong style={{ color: '#0f172a' }}>{tier.min_quantity}</strong>
                     <span style={{ color: '#64748b' }}> {tier.max_quantity ? `đến ${tier.max_quantity}` : '+'} sp: </span>
-                    <strong style={{ color: '#16a34a', fontSize: '14px' }}>Giảm {tier.discount_percent}%</strong>
+                    <strong style={{ color: '#16a34a', fontSize: '14px' }}>
+                      Giảm {tier.discount_type === 'amount' || (tier.discount_amount && tier.discount_amount > 0 && !tier.discount_percent)
+                        ? `${Number(tier.discount_amount).toLocaleString('vi-VN')} đ/sp`
+                        : `${tier.discount_percent}%`}
+                    </strong>
                   </div>
                 ))}
               </div>
@@ -1127,17 +1179,50 @@ export default function DiscountPolicyView({ token, user, onBackToHome }: Discou
                             }}
                           />
                           <span style={{ fontSize: '13px', color: '#64748b' }}>sp ➔ Giảm</span>
-                          <input
-                            type="number"
-                            min="0"
-                            max="100"
-                            step="0.5"
-                            placeholder="%"
-                            value={tier.discount_percent}
-                            onChange={(e) => handleTierChange(tier.id, 'discount_percent', e.target.value)}
-                            style={{ width: '80px', padding: '6px 8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontWeight: '700' }}
-                          />
-                          <span style={{ fontSize: '13px', fontWeight: '700' }}>%</span>
+                          <select
+                            value={tier.discount_type || (tier.discount_amount && tier.discount_amount > 0 ? 'amount' : 'percent')}
+                            onChange={(e) => handleTierChange(tier.id, 'discount_type', e.target.value)}
+                            style={{
+                              padding: '6px 8px',
+                              borderRadius: '6px',
+                              border: '1px solid #cbd5e1',
+                              fontSize: '12px',
+                              fontWeight: '600',
+                              backgroundColor: '#ffffff',
+                            }}
+                          >
+                            <option value="percent">Phần trăm (%)</option>
+                            <option value="amount">Số tiền (đ/sp)</option>
+                          </select>
+
+                          {(tier.discount_type === 'amount' || (tier.discount_amount && tier.discount_amount > 0 && !tier.discount_percent)) ? (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              <input
+                                type="number"
+                                min="0"
+                                step="1000"
+                                placeholder="VNĐ/sp"
+                                value={tier.discount_amount || ''}
+                                onChange={(e) => handleTierChange(tier.id, 'discount_amount', e.target.value)}
+                                style={{ width: '110px', padding: '6px 8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontWeight: '700' }}
+                              />
+                              <span style={{ fontSize: '12px', fontWeight: '600', color: '#475569' }}>đ/sp</span>
+                            </div>
+                          ) : (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              <input
+                                type="number"
+                                min="0"
+                                max="100"
+                                step="0.5"
+                                placeholder="%"
+                                value={tier.discount_percent || ''}
+                                onChange={(e) => handleTierChange(tier.id, 'discount_percent', e.target.value)}
+                                style={{ width: '75px', padding: '6px 8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontWeight: '700' }}
+                              />
+                              <span style={{ fontSize: '13px', fontWeight: '700' }}>%</span>
+                            </div>
+                          )}
 
                           <button
                             type="button"

@@ -1629,6 +1629,8 @@ export interface DiscountTier {
   min_quantity: number;
   max_quantity?: number | null;
   discount_percent: number;
+  discount_amount?: number;
+  discount_type?: 'percent' | 'amount';
 }
 
 export interface DiscountPolicy {
