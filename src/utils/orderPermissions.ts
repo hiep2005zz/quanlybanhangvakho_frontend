@@ -2,63 +2,38 @@ import { User } from '../services/api';
 
 export type OrderPermissionTier = 'FULL_ACCESS' | 'READ_ONLY' | 'NO_ACCESS';
 
+export const ORDER_ALLOWED_ROLES = ['admin', 'sales_manager', 'sales'];
+
 /**
- * Xác định nhóm phân quyền quản lý đơn hàng bán theo 3 cấp độ bắt buộc:
- * 1. Nhóm Toàn Quyền (View & Action): admin, sales_manager, sales
- *    - Xem UI Timeline vòng đời đơn hàng
- *    - Hiển thị nút "Hủy đơn" và thực hiện thao tác gọi API hủy
- * 2. Nhóm Chỉ Xem (Read-Only): kho, warehouse_mgr, ketoan
- *    - Xem UI Timeline vòng đời đơn hàng
- *    - ẨN HOÀN TOÀN nút "Hủy đơn"
- * 3. Nhóm Không Liên Quan (No Access): muahang
- *    - Chặn và ẩn hoàn toàn toàn bộ UI liên quan đến Đơn hàng bán & vòng đời đơn hàng
+ * Kiểm tra người dùng có quyền xem/truy cập đơn hàng bán hay không.
+ * Chỉ trả về true cho 3 vai trò: admin, sales_manager, sales.
+ * Toàn bộ các vai trò còn lại (kho, warehouse_mgr, ketoan, muahang, ...) nhận false.
  */
-export function getOrderPermissionTier(user?: User | null): OrderPermissionTier {
-  if (!user) return 'NO_ACCESS';
+export function canUserReadOrders(user?: User | null): boolean {
+  if (!user) return false;
 
   const username = (user.username || '').toLowerCase();
   const rawRoles = (user.roles && user.roles.length > 0 ? user.roles : [user.role])
     .filter(Boolean)
     .map((r) => r.toLowerCase());
 
-  // Nhóm Không Liên Quan (No Access): muahang
-  if (
-    username === 'muahang' ||
-    rawRoles.includes('purchasing') ||
-    user.role?.toLowerCase() === 'purchasing'
-  ) {
-    return 'NO_ACCESS';
-  }
+  return (
+    ORDER_ALLOWED_ROLES.includes(user.role?.toLowerCase() || '') ||
+    rawRoles.some((r) => ORDER_ALLOWED_ROLES.includes(r)) ||
+    ORDER_ALLOWED_ROLES.includes(username)
+  );
+}
 
-  // Nhóm Toàn Quyền (View & Action): admin, sales_manager, sales
-  const fullAccessRoles = ['admin', 'sales_manager', 'sales'];
-  const isFullAccess =
-    fullAccessRoles.includes(user.role?.toLowerCase()) ||
-    rawRoles.some((r) => fullAccessRoles.includes(r)) ||
-    fullAccessRoles.includes(username);
+/**
+ * Xác định nhóm phân quyền quản lý đơn hàng bán:
+ * 1. Nhóm Toàn Quyền: admin, sales_manager, sales -> FULL_ACCESS
+ * 2. Tất cả vai trò còn lại (kho, warehouse_mgr, ketoan, muahang) -> NO_ACCESS
+ */
+export function getOrderPermissionTier(user?: User | null): OrderPermissionTier {
+  if (!user) return 'NO_ACCESS';
 
-  if (isFullAccess) {
+  if (canUserReadOrders(user)) {
     return 'FULL_ACCESS';
-  }
-
-  // Nhóm Chỉ Xem (Read-Only): kho, warehouse_mgr, ketoan
-  const readOnlyRoles = [
-    'warehouse',
-    'warehouse_manager',
-    'accountant',
-    'kho',
-    'warehouse_mgr',
-    'ketoan',
-  ];
-  const isReadOnly =
-    readOnlyRoles.includes(user.role?.toLowerCase()) ||
-    rawRoles.some((r) => readOnlyRoles.includes(r)) ||
-    ['kho', 'warehouse_mgr', 'ketoan'].includes(username) ||
-    user.role?.toLowerCase() === 'customer' ||
-    rawRoles.includes('customer');
-
-  if (isReadOnly) {
-    return 'READ_ONLY';
   }
 
   return 'NO_ACCESS';

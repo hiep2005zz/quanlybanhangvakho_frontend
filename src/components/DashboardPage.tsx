@@ -33,7 +33,7 @@ import './dashboard.css';
 import { Sidebar, type TabType } from './Sidebar';
 import { DashboardHeader } from './DashboardHeader';
 import { DashboardLayout } from '../layouts/DashboardLayout';
-import { getOrderPermissionTier } from '../utils/orderPermissions';
+import { getOrderPermissionTier, canUserReadOrders } from '../utils/orderPermissions';
 
 interface DashboardProps {
   user: User;
@@ -64,7 +64,7 @@ export default function DashboardPage({
   const isAdmin = user.role === 'admin' || Boolean(user.roles && user.roles.includes('admin'));
   const isAccountant = user.role === 'accountant' || Boolean(user.roles && user.roles.includes('accountant'));
   const orderPermTier = getOrderPermissionTier(user);
-  const canReadOrders = orderPermTier !== 'NO_ACCESS';
+  const canReadOrders = canUserReadOrders(user);
   const canCreateOrders = (orderPermTier === 'FULL_ACCESS' || isCustomer || user.role === 'agent' || Boolean(user.roles && user.roles.includes('agent'))) && !isAccountant;
   const isSalesManager = user.role === 'sales_manager' || Boolean(user.roles && user.roles.includes('sales_manager'));
   const canAccessDiscounts =

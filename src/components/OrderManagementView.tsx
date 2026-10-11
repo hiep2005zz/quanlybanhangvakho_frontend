@@ -448,7 +448,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
           Không có quyền truy cập Đơn hàng bán
         </h3>
         <p style={{ margin: 0, fontSize: '14px', color: '#64748b', lineHeight: '1.6' }}>
-          Tài khoản của bạn ({currentUser.username || currentUser.role}) thuộc bộ phận Mua hàng, chỉ được quyền thao tác với Hóa đơn mua vào và Nhà cung cấp.
+          Chức năng quản lý đơn hàng bán chỉ dành cho Quản trị viên, Quản lý kinh doanh và Nhân viên kinh doanh.
         </p>
       </div>
     );

@@ -1944,25 +1944,6 @@ export interface OrderResponseData {
   cancelled_at?: string | null;
 }
 
-export interface OrderFilterParams {
-  status?: string;
-  dealer_id?: number;
-  sales_rep_id?: number;
-  region?: string;
-  start_date?: string;
-  end_date?: string;
-  page?: number;
-  page_size?: number;
-}
-
-export interface OrderListFilteredResponse {
-  items: OrderResponseData[];
-  total: number;
-  page: number;
-  page_size: number;
-  filtered_total_amount: number;
-}
-
 export interface SalesRepItem {
   id: number;
   username: string;
@@ -1996,6 +1977,9 @@ export async function getFilteredOrdersApi(
     return {
       items: data,
       total: data.length,
+      total_count: data.length,
+      pending_count: data.filter((o: any) => o.status === 'PENDING_APPROVAL' || o.status === 'PENDING').length,
+      confirmed_count: data.filter((o: any) => o.status === 'CONFIRMED').length,
       page: 1,
       page_size: data.length || 20,
       filtered_total_amount: data.reduce((sum: number, o: any) => sum + (o.total_amount || 0), 0),
