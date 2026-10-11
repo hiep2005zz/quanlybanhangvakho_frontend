@@ -81,6 +81,14 @@ const ROLES_LIST = [
     costPerm: false,
     invPerm: false,
   },
+  {
+    role: 'customer',
+    title: 'Đại lý',
+    badgeColor: '#0284c7',
+    description: '(Khách hàng đại lý sỉ, đặt hàng qua hệ thống và theo dõi công nợ)',
+    costPerm: false,
+    invPerm: false,
+  },
 ];
 
 const BRANCH_OPTIONS = [
@@ -1093,6 +1101,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                                 warehouse_manager: 'Quản lý kho',
                                 accountant: 'Kế toán công nợ',
                                 purchasing: 'Nhân viên mua hàng',
+                                customer: 'Đại lý',
                               };
                               return displayRoles.map((rCode) => {
                                 const rMeta = ROLES_LIST.find((item) => item.role === rCode);
@@ -2312,7 +2321,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
               lineHeight: '1.6'
             }}>
               <div>• Vai trò: <strong style={{ color: userToDelete.badge_color }}>
-                {ROLES_LIST.find((r) => r.role === userToDelete.role)?.title || (userToDelete.role_title && userToDelete.role_title !== 'sales' && userToDelete.role_title !== 'warehouse' && userToDelete.role_title !== 'admin' && userToDelete.role_title !== 'purchasing' && userToDelete.role_title !== 'accountant' ? userToDelete.role_title : undefined) || 'Nhân viên'}
+                {ROLES_LIST.find((r) => r.role === userToDelete.role)?.title || (userToDelete.role_title && userToDelete.role_title !== 'sales' && userToDelete.role_title !== 'warehouse' && userToDelete.role_title !== 'admin' && userToDelete.role_title !== 'purchasing' && userToDelete.role_title !== 'accountant' && userToDelete.role_title !== 'customer' ? userToDelete.role_title : undefined) || 'Nhân viên'}
               </strong></div>
               <div>• Địa bàn: <strong style={{ color: '#0f172a' }}>{userToDelete.branch}</strong></div>
               <div style={{ color: '#dc2626', marginTop: '4px', fontWeight: '500' }}>
