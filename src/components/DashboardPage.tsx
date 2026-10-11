@@ -1,5 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { getProductsApi, ProductItem, User } from '../services/api';
+import { getProductsApi, getLowStockAlertsApi, LowStockAlertSummary, ProductItem, User } from '../services/api';
+import { StockThresholdModal } from './StockThresholdModal';
+import { LowStockAlertModal } from './LowStockAlertModal';
 import { sessionManager, SessionState } from '../services/sessionManager';
 import SecurityModal from './SecurityModal';
 import { UserManagementView } from './UserManagementView';
@@ -26,6 +28,7 @@ import { OrderManagementView } from './OrderManagementView';
 import SalesOrderEntry from './SalesOrderEntry';
 import { ProductHistoryView } from './ProductHistoryView';
 import { ProductFormView } from './ProductFormView';
+import { WarehouseStockBookView } from './WarehouseStockBookView';
 import { ModalPortal } from './ModalPortal';
 
 import './dashboard.css';
@@ -110,6 +113,9 @@ export default function DashboardPage({
   // Quyền Cấu hình ĐVT quy đổi (Chỉ Quản trị hệ thống và Quản lý kho)
   const canConfigUnit = isAdmin || officialRoles.some((r) => ['admin', 'warehouse_manager'].includes(r));
 
+  // Quyền Cấu hình Định mức tồn tối thiểu (Chỉ Quản trị hệ thống và Quản lý kho, Thủ kho không có quyền)
+  const canManageThreshold = isAdmin || officialRoles.some((r) => ['admin', 'warehouse_manager'].includes(r));
+
   // Quyền thao tác các nút trên dòng sản phẩm (Cấu hình ĐVT, Nhập/Xuất kho, Lịch sử)
   const canPerformProductAction = Boolean(canConfigUnit || canWriteInventory || isAdmin || isSalesManager);
 
@@ -128,10 +134,18 @@ export default function DashboardPage({
     const isDealersPath = pathname === '/dealers' || pathname.startsWith('/dealers/');
     const isDeliveryPointsPath = pathname === '/delivery-points' || pathname.startsWith('/delivery-points/');
     const isProductHistoryPath = pathname === '/product-history' || pathname.startsWith('/product-history/');
+    const isStockBookPath = pathname === '/stock-book' || pathname.startsWith('/stock-book/');
 
     const params = new URLSearchParams(window.location.search);
     const hasOldTabParam = params.has('tab') || params.has('view');
     const oldTabVal = (params.get('tab') || params.get('view') || '').toLowerCase();
+
+    if (isStockBookPath || oldTabVal === 'stock-book') {
+      if (hasOldTabParam || pathname !== '/stock-book') {
+        try { window.history.replaceState({}, '', '/stock-book'); } catch {}
+      }
+      return 'stock-book';
+    }
 
     if (isDiscountsPath || oldTabVal === 'discounts' || oldTabVal === 'discount') {
       if (canAccessDiscounts) {
@@ -284,7 +298,14 @@ export default function DashboardPage({
       return;
     }
 
-    if (tab === 'orders') {
+    if (tab === 'stock-book') {
+      setActiveTabState('stock-book');
+      try {
+        window.history.pushState({}, '', '/stock-book');
+      } catch {
+        // ignore
+      }
+    } else if (tab === 'orders') {
       setActiveTabState('orders');
       try {
         window.history.pushState({}, '', '/orders');
@@ -632,6 +653,10 @@ export default function DashboardPage({
   const [goodsReceiptInitialTab, setGoodsReceiptInitialTab] = useState<'form' | 'list'>('form');
   const [isSalesOrderEntryOpen, setIsSalesOrderEntryOpen] = useState(false);
   const [isDiscountExpanded, setIsDiscountExpanded] = useState(false);
+  const [isThresholdModalOpen, setIsThresholdModalOpen] = useState(false);
+  const [isLowStockAlertModalOpen, setIsLowStockAlertModalOpen] = useState(false);
+  const [lowStockSummary, setLowStockSummary] = useState<LowStockAlertSummary | null>(null);
+  const [onlyLowStockFilter, setOnlyLowStockFilter] = useState(false);
   const availableCategories = useMemo(
     () => Array.from(new Set(['Thời trang', 'Giày dép', 'Phụ kiện', ...products.map((p) => p.category).filter(Boolean)])),
     [products]
@@ -697,6 +722,7 @@ export default function DashboardPage({
         setProducts(data.items);
         setIsCostVisible(data.is_cost_price_visible);
         setIsLoading(false);
+        fetchLowStockAlerts();
       })
       .catch((err) => {
         setError(err.message || 'Lỗi khi tải dữ liệu sản phẩm từ Backend.');
@@ -704,8 +730,20 @@ export default function DashboardPage({
       });
   };
 
+  const fetchLowStockAlerts = () => {
+    if (isPendingCustomer || !token) return;
+    getLowStockAlertsApi(token)
+      .then((data) => {
+        setLowStockSummary(data);
+      })
+      .catch((err) => {
+        console.warn('Lỗi tải cảnh báo tồn tối thiểu:', err);
+      });
+  };
+
   useEffect(() => {
     fetchProducts();
+    fetchLowStockAlerts();
   }, [token, isPendingCustomer, activeTab]);
 
   // Tính toán số liệu thống kê
@@ -717,12 +755,41 @@ export default function DashboardPage({
   const totalCostValue = isCostAvailable ? products.reduce((acc, p) => acc + (p.cost_price || 0) * p.stock, 0) : 0;
   const totalProfit = totalSellValue - totalCostValue;
 
+  const lowStockBranchesMap = useMemo(() => {
+    const map = new Map<number, { minStock: number; warehouseNames: string[] }>();
+    (lowStockSummary?.items || []).forEach((it) => {
+      const existing = map.get(it.product_id);
+      if (existing) {
+        if (!existing.warehouseNames.includes(it.warehouse_name)) {
+          existing.warehouseNames.push(it.warehouse_name);
+        }
+      } else {
+        map.set(it.product_id, {
+          minStock: it.min_stock,
+          warehouseNames: [it.warehouse_name],
+        });
+      }
+    });
+    return map;
+  }, [lowStockSummary]);
+
+  const lowStockProductMap = useMemo(() => {
+    const map = new Map<number, number>();
+    lowStockBranchesMap.forEach((val, pid) => {
+      map.set(pid, val.minStock);
+    });
+    return map;
+  }, [lowStockBranchesMap]);
+
   // Lọc sản phẩm
   const filteredProducts = products.filter((p) => {
     const q = productSearchTerm.trim().toLowerCase();
     const matchQuery = !q || p.name.toLowerCase().includes(q) || p.code.toLowerCase().includes(q);
     const matchCat = selectedCategory === 'all' || p.category === selectedCategory;
-    return matchQuery && matchCat;
+    const thresholdVal = lowStockProductMap.get(p.id) ?? (p.min_stock ?? 10);
+    const isBelowMin = lowStockProductMap.has(p.id) || p.stock <= thresholdVal;
+    const matchLowStock = !onlyLowStockFilter || isBelowMin;
+    return matchQuery && matchCat && matchLowStock;
   });
 
   // Phân trang sản phẩm (mặc định 20 cái)
@@ -823,7 +890,7 @@ export default function DashboardPage({
 
   const isProductFormOpen = productDrawerState.isOpen && activeTab === 'inventory';
   const isSalesOrderOpen = activeTab === 'create-order' || isSalesOrderEntryOpen;
-  const isLockedScrollTab = !isProductFormOpen && !isSalesOrderOpen && (activeTab === 'inventory' || activeTab === 'dealers' || activeTab === 'delivery-points' || activeTab === 'suppliers' || activeTab === 'price-books' || activeTab === 'categories' || activeTab === 'orders' || activeTab === 'product-history') && !isPendingCustomer;
+  const isLockedScrollTab = !isProductFormOpen && !isSalesOrderOpen && (activeTab === 'inventory' || activeTab === 'dealers' || activeTab === 'dealer-profiles' || activeTab === 'delivery-points' || activeTab === 'suppliers' || activeTab === 'price-books' || activeTab === 'categories' || activeTab === 'orders' || activeTab === 'product-history' || activeTab === 'stock-book') && !isPendingCustomer;
 
   return (
     <DashboardLayout
@@ -866,6 +933,7 @@ export default function DashboardPage({
           canViewProductHistory={isAdmin || isSalesManager || canWriteInventory}
           canAccessDiscounts={canAccessDiscounts}
           isAdmin={isAdmin}
+          isCustomer={isCustomer}
           onLogout={() => {
             if (isLoggingOut) return;
             setShowLogoutConfirm(true);
@@ -1138,7 +1206,11 @@ export default function DashboardPage({
             onLogout={onLogout}
           />
         )
-
+      ) : activeTab === 'stock-book' ? (
+        <WarehouseStockBookView
+          token={token}
+          onBackToHome={() => setActiveTab('inventory')}
+        />
       ) : isPendingCustomer ? (
         <div style={{
           display: 'flex',
@@ -1382,6 +1454,41 @@ export default function DashboardPage({
                 </div>
               </div>
             )}
+
+            {/* Thẻ Cảnh báo tồn tối thiểu */}
+            <div
+              className="kpi-stat-card"
+              id="btn-kpi-low-stock-alert"
+              onClick={() => setIsLowStockAlertModalOpen(true)}
+              style={{
+                padding: '10px 14px',
+                borderRadius: '10px',
+                cursor: 'pointer',
+                border: (lowStockSummary?.total_low_stock || 0) > 0 ? '1.5px solid #fca5a5' : '1px solid #e2e8f0',
+                background: (lowStockSummary?.total_low_stock || 0) > 0 ? 'linear-gradient(135deg, #fff5f5, #ffffff)' : '#ffffff',
+                transition: 'all 0.15s ease',
+              }}
+              title="Nhấn để xem danh sách chi tiết các mặt hàng dưới định mức tồn cần đặt hàng NCC"
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
+                <span style={{ fontSize: '11.5px', color: (lowStockSummary?.total_low_stock || 0) > 0 ? '#b91c1c' : '#64748b', fontWeight: '700' }}>
+                  Tồn dưới định mức
+                </span>
+                <span style={{ fontSize: '10px', color: (lowStockSummary?.total_low_stock || 0) > 0 ? '#dc2626' : '#15803d', fontWeight: '700' }}>
+                  {(lowStockSummary?.total_low_stock || 0) > 0 ? 'Cần đặt NCC' : 'An toàn'}
+                </span>
+              </div>
+              <div style={{
+                fontSize: '18px',
+                fontWeight: '800',
+                letterSpacing: '-0.02em',
+                color: (lowStockSummary?.total_low_stock || 0) > 0 ? '#dc2626' : '#0f172a',
+                fontVariantNumeric: 'tabular-nums',
+                lineHeight: 1.2,
+              }}>
+                {isLoading ? '...' : `${lowStockSummary?.total_low_stock || 0} mặt hàng`}
+              </div>
+            </div>
           </div>
 
           {/* CHÍNH SÁCH CHIẾT KHẤU - 1 Ô GỌN GÀNG */}
@@ -1571,12 +1678,78 @@ export default function DashboardPage({
                     </option>
                   ))}
                 </select>
+
+                {/* Nút lọc nhanh hàng dưới định mức */}
+                <button
+                  type="button"
+                  id="btn-filter-low-stock"
+                  onClick={() => {
+                    setOnlyLowStockFilter(!onlyLowStockFilter);
+                    setCurrentPage(1);
+                  }}
+                  style={{
+                    padding: '7px 12px',
+                    borderRadius: '8px',
+                    border: onlyLowStockFilter ? '1.5px solid #dc2626' : '1px solid #cbd5e1',
+                    background: onlyLowStockFilter ? '#fee2e2' : '#ffffff',
+                    color: onlyLowStockFilter ? '#b91c1c' : '#475569',
+                    fontSize: '12.5px',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    transition: 'all 0.15s ease',
+                  }}
+                  title="Lọc nhanh danh sách các mặt hàng đang bị thiếu hoặc chạm định mức tồn tối thiểu"
+                >
+                  <span>Dưới định mức</span>
+                  <span
+                    style={{
+                      background: onlyLowStockFilter ? '#b91c1c' : '#f1f5f9',
+                      color: onlyLowStockFilter ? '#ffffff' : '#64748b',
+                      padding: '1px 6px',
+                      borderRadius: '999px',
+                      fontSize: '11px',
+                      fontWeight: '750',
+                    }}
+                  >
+                    {lowStockSummary?.total_low_stock || 0}
+                  </span>
+                </button>
               </div>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span style={{ fontSize: '12.5px', color: '#64748b', marginRight: '4px' }}>
                   Hiển thị <strong style={{ color: '#0f172a' }}>{filteredProducts.length}</strong> / {products.length} SP
                 </span>
+
+                {/* Nút Khai báo định mức tồn tối thiểu cho Quản lý kho và Admin */}
+                {canManageThreshold && (
+                  <button
+                    type="button"
+                    id="btn-stock-threshold-modal"
+                    onClick={() => setIsThresholdModalOpen(true)}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      background: '#ffffff',
+                      border: '1px solid #cbd5e1',
+                      padding: '7px 12px',
+                      borderRadius: '8px',
+                      fontSize: '12.5px',
+                      fontWeight: '600',
+                      color: '#334155',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                    }}
+                    title="Khai báo định mức tồn tối thiểu theo từng SKU và từng kho"
+                  >
+                    Định mức tồn
+                  </button>
+                )}
+
 
 
                 {/* Dropdown Excel ▾ */}
@@ -2069,12 +2242,63 @@ export default function DashboardPage({
                         </td>
 
                         <td style={{ padding: '13px 18px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-                          <span style={{
-                            fontWeight: '600',
-                            color: '#0f172a',
-                          }}>
-                            {item.stock.toLocaleString()} {item.base_unit || 'cái'}
-                          </span>
+                          {(() => {
+                            const branchInfo = lowStockBranchesMap.get(item.id);
+                            const minVal = branchInfo?.minStock ?? (item.min_stock ?? 10);
+                            const isBelowGlobal = item.stock <= minVal;
+                            const hasBranchShortage = Boolean(branchInfo && branchInfo.warehouseNames.length > 0);
+                            const branchText = branchInfo?.warehouseNames.join(', ') || 'chi nhánh';
+
+                            return (
+                              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '3px' }}>
+                                <span style={{
+                                  fontWeight: '600',
+                                  color: isBelowGlobal ? '#dc2626' : '#0f172a',
+                                }}>
+                                  {item.stock.toLocaleString()} {item.base_unit || 'cái'}
+                                </span>
+                                {isBelowGlobal ? (
+                                  <span
+                                    style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '3px',
+                                      background: '#fee2e2',
+                                      color: '#b91c1c',
+                                      border: '1px solid #fca5a5',
+                                      borderRadius: '4px',
+                                      padding: '1px 6px',
+                                      fontSize: '10.5px',
+                                      fontWeight: '700',
+                                      whiteSpace: 'nowrap',
+                                    }}
+                                    title={`Tồn hiện tại (${item.stock}) <= Định mức tối thiểu (${minVal})`}
+                                  >
+                                    ⚠️ Dưới định mức ({minVal})
+                                  </span>
+                                ) : hasBranchShortage ? (
+                                  <span
+                                    style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '3px',
+                                      background: '#fef3c7',
+                                      color: '#b45309',
+                                      border: '1px solid #fcd34d',
+                                      borderRadius: '4px',
+                                      padding: '1px 6px',
+                                      fontSize: '10.5px',
+                                      fontWeight: '700',
+                                      whiteSpace: 'nowrap',
+                                    }}
+                                    title={`Tồn tổng công ty (${item.stock}) > định mức (${minVal}) nhưng đang bị thiếu tại: ${branchText}`}
+                                  >
+                                    ⚠️ Thiếu tại {branchText}
+                                  </span>
+                                ) : null}
+                              </div>
+                            );
+                          })()}
                         </td>
 
                         <td style={{ padding: '13px 18px', color: '#0f172a', fontWeight: '600', fontSize: '13.5px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
@@ -2785,6 +3009,26 @@ export default function DashboardPage({
           }}
         />
       )}
+      {/* Modals Cảnh Báo Tồn Kho Tối Thiểu */}
+      <StockThresholdModal
+        isOpen={isThresholdModalOpen}
+        token={token}
+        canManageThresholds={canManageThreshold}
+        onClose={() => setIsThresholdModalOpen(false)}
+        onThresholdsUpdated={() => {
+          fetchProducts();
+          fetchLowStockAlerts();
+        }}
+      />
+
+      <LowStockAlertModal
+        isOpen={isLowStockAlertModalOpen}
+        items={lowStockSummary?.items || []}
+        onClose={() => setIsLowStockAlertModalOpen(false)}
+        onOpenThresholdConfig={canManageThreshold ? () => setIsThresholdModalOpen(true) : undefined}
+        onOpenGoodsReceipt={canWriteInventory ? () => setIsGoodsReceiptModalOpen(true) : undefined}
+      />
+
       <StatusToastHost />
     </div>
     </DashboardLayout>

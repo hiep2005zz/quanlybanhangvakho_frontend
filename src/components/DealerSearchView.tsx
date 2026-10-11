@@ -724,13 +724,13 @@ export default function DealerSearchView({
         };
     }, []);
 
-    // Phân trang danh sách đại lý (Mặc định 10 hoặc 20 đại lý/trang)
+    // Phân trang danh sách đại lý (Mặc định 20 đại lý/trang)
     const [currentPage, setCurrentPage] = useState<number>(1);
-    const [pageSize, setPageSize] = useState<number>(10);
+    const pageSize = 20;
 
     useEffect(() => {
         setCurrentPage(1);
-    }, [dealers.length, keyword, region, customerGroup, assignedSaleId, status, onlyMyDealers, pageSize]);
+    }, [dealers.length, keyword, region, customerGroup, assignedSaleId, status, onlyMyDealers]);
 
     const totalPages = Math.max(1, Math.ceil(dealers.length / pageSize));
     const safePage = Math.min(Math.max(1, currentPage), totalPages);
@@ -1499,7 +1499,7 @@ export default function DealerSearchView({
                             style={{
                                 padding: '10px 18px',
                                 display: 'flex',
-                                justifyContent: 'space-between',
+                                justifyContent: 'flex-end',
                                 alignItems: 'center',
                                 flexWrap: 'wrap',
                                 gap: '12px',
@@ -1510,77 +1510,8 @@ export default function DealerSearchView({
                                 flexShrink: 0,
                             }}
                         >
-                            {/* Bên trái: Chọn số lượng dòng / trang */}
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <span>Hiển thị</span>
-                                <select
-                                    value={pageSize}
-                                    onChange={(e) => {
-                                        setPageSize(Number(e.target.value));
-                                        setCurrentPage(1);
-                                    }}
-                                    style={{
-                                        padding: '3px 8px',
-                                        borderRadius: '6px',
-                                        border: '1px solid #cbd5e1',
-                                        background: '#ffffff',
-                                        color: '#0f172a',
-                                        fontSize: '12px',
-                                        cursor: 'pointer',
-                                        outline: 'none',
-                                    }}
-                                >
-                                    <option value={5}>5 đại lý/trang</option>
-                                    <option value={10}>10 đại lý/trang</option>
-                                    <option value={20}>20 đại lý/trang</option>
-                                    <option value={50}>50 đại lý/trang</option>
-                                </select>
-                                <span>(Tổng {dealers.length} đại lý)</span>
-                            </div>
-
-                            {/* Bên phải: Điều hướng phân trang */}
-                            <div
-                                style={{
-                                    display: 'inline-flex',
-                                    alignItems: 'stretch',
-                                    border: '1px solid #d1d5db',
-                                    borderRadius: '5px',
-                                    overflow: 'hidden',
-                                    background: '#ffffff',
-                                    boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
-                                    height: '24px',
-                                }}
-                            >
-                                {/* Nút trang trước (<) - hiển thị khi trang > 1 */}
-                                {safePage > 1 && (
-                                    <button
-                                        type="button"
-                                        onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                                        style={{
-                                            minWidth: '24px',
-                                            height: '100%',
-                                            padding: '0 6px',
-                                            border: 'none',
-                                            borderRight: '1px solid #e5e7eb',
-                                            background: '#ffffff',
-                                            color: '#4b5563',
-                                            cursor: 'pointer',
-                                            display: 'inline-flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            transition: 'background-color 0.15s ease',
-                                        }}
-                                        onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f9fafb')}
-                                        onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#ffffff')}
-                                        title="Trang trước"
-                                    >
-                                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
-                                            <polyline points="15 18 9 12 15 6" />
-                                        </svg>
-                                    </button>
-                                )}
-
-                                {/* Danh sách các số trang */}
+                            {/* Bộ nút số trang theo phong cách thương hiệu */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                                 {Array.from({ length: totalPages }, (_, i) => i + 1)
                                     .filter((p) => p === 1 || p === totalPages || Math.abs(p - safePage) <= 1)
                                     .reduce<(number | string)[]>((acc, p, idx, arr) => {
@@ -1590,32 +1521,14 @@ export default function DealerSearchView({
                                         acc.push(p);
                                         return acc;
                                     }, [])
-                                    .map((p, idx, arr) => {
-                                        const hasNext = safePage < totalPages;
-                                        const isLastItem = idx === arr.length - 1 && !hasNext;
+                                    .map((p, idx) => {
                                         if (typeof p === 'string') {
                                             return (
-                                                <span
-                                                    key={`ellipsis-${idx}`}
-                                                    style={{
-                                                        minWidth: '22px',
-                                                        height: '100%',
-                                                        padding: '0 4px',
-                                                        borderRight: isLastItem ? 'none' : '1px solid #e5e7eb',
-                                                        background: '#ffffff',
-                                                        color: '#6b7280',
-                                                        display: 'inline-flex',
-                                                        alignItems: 'center',
-                                                        justifyContent: 'center',
-                                                        fontSize: '11px',
-                                                        userSelect: 'none',
-                                                    }}
-                                                >
+                                                <span key={`dots-${idx}`} style={{ padding: '0 4px', color: '#94a3b8', fontSize: '12px' }}>
                                                     ...
                                                 </span>
                                             );
                                         }
-
                                         const isActive = p === safePage;
                                         return (
                                             <button
@@ -1623,60 +1536,27 @@ export default function DealerSearchView({
                                                 type="button"
                                                 onClick={() => setCurrentPage(p)}
                                                 style={{
-                                                    minWidth: '24px',
-                                                    height: '100%',
-                                                    padding: '0 7px',
-                                                    border: 'none',
-                                                    borderRight: isLastItem ? 'none' : '1px solid #e5e7eb',
-                                                    background: isActive ? '#2ba1f4' : '#ffffff',
-                                                    color: isActive ? '#ffffff' : '#374151',
-                                                    cursor: isActive ? 'default' : 'pointer',
-                                                    fontSize: '11.5px',
-                                                    fontWeight: isActive ? '700' : '500',
                                                     display: 'inline-flex',
                                                     alignItems: 'center',
                                                     justifyContent: 'center',
-                                                    transition: 'background-color 0.15s ease',
-                                                }}
-                                                onMouseEnter={(e) => {
-                                                    if (!isActive) e.currentTarget.style.backgroundColor = '#f9fafb';
-                                                }}
-                                                onMouseLeave={(e) => {
-                                                    if (!isActive) e.currentTarget.style.backgroundColor = '#ffffff';
+                                                    minWidth: '30px',
+                                                    height: '30px',
+                                                    padding: '0 6px',
+                                                    borderRadius: '6px',
+                                                    border: isActive ? '1px solid #0fad89' : '1px solid #e2e8f0',
+                                                    backgroundColor: isActive ? '#0fad89' : '#ffffff',
+                                                    color: isActive ? '#ffffff' : '#334155',
+                                                    fontSize: '13px',
+                                                    fontWeight: '700',
+                                                    cursor: 'pointer',
+                                                    boxShadow: isActive ? '0 1px 3px rgba(15, 173, 137, 0.25)' : 'none',
+                                                    transition: 'all 0.15s ease',
                                                 }}
                                             >
                                                 {p}
                                             </button>
                                         );
                                     })}
-
-                                {/* Nút trang sau (>) - hiển thị khi chưa tới trang cuối */}
-                                {safePage < totalPages && (
-                                    <button
-                                        type="button"
-                                        onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                                        style={{
-                                            minWidth: '24px',
-                                            height: '100%',
-                                            padding: '0 6px',
-                                            border: 'none',
-                                            background: '#ffffff',
-                                            color: '#4b5563',
-                                            cursor: 'pointer',
-                                            display: 'inline-flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            transition: 'background-color 0.15s ease',
-                                        }}
-                                        onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f9fafb')}
-                                        onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#ffffff')}
-                                        title="Trang sau"
-                                    >
-                                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
-                                            <polyline points="9 18 15 12 9 6" />
-                                        </svg>
-                                    </button>
-                                )}
                             </div>
                         </div>
                     )}

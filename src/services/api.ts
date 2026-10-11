@@ -87,6 +87,7 @@ export interface ProductItem {
   images?: string[];
   status?: 'active' | 'inactive';
   is_batch_managed?: boolean;
+  min_stock?: number;
   transaction_count?: number; // Số giao dịch đã phát sinh (đơn hàng, nhập/xuất kho)
 }
 
@@ -322,6 +323,44 @@ export interface DealerStockSummaryResponse {
   warehouse_id: string;
   warehouse_name: string;
   items: ProductStockSummaryItem[];
+}
+
+export interface WarehouseInfo {
+  warehouse_id: string;
+  warehouse_name: string;
+}
+
+export interface WarehouseThresholdItem {
+  warehouse_id: string;
+  warehouse_name: string;
+  product_id: number;
+  product_code: string;
+  product_name: string;
+  category?: string;
+  base_unit: string;
+  actual_stock: number;
+  reserved_stock: number;
+  available_stock: number;
+  min_stock: number;
+  is_low_stock: boolean;
+  shortage_quantity: number;
+}
+
+export interface UpdateThresholdPayload {
+  warehouse_id: string;
+  product_id: number;
+  min_stock: number;
+}
+
+export interface LowStockAlertSummary {
+  total_low_stock: number;
+  total_products: number;
+  warehouses: Array<{
+    warehouse_id: string;
+    warehouse_name: string;
+    low_stock_count: number;
+  }>;
+  items: WarehouseThresholdItem[];
 }
 
 
@@ -767,6 +806,28 @@ export async function cancelOrderApi(
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
     throw new Error(data.detail || `Lỗi hủy đơn hàng (Mã lỗi ${response.status})`);
+  }
+  return data;
+}
+
+export async function supplementaryDeliveryApi(
+  token: string,
+  orderCode: string,
+  payload?: { note?: string; delivered_quantities?: Record<string, number> }
+): Promise<any> {
+  const response = await authenticatedFetch(
+    `${API_BASE_URL}/orders/${encodeURIComponent(orderCode)}/supplementary-delivery`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload || { note: 'Giao bổ sung đợt 2 - hoàn tất đơn hàng' }),
+    },
+    token
+  );
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi giao bổ sung đơn hàng (Mã lỗi ${response.status})`);
   }
   return data;
 }
@@ -1848,6 +1909,8 @@ export interface OrderResponseData {
   approved_by?: string | null;
   approved_at?: string | null;
   delivery_point_id?: number | null;
+  delivery_point?: string | null;
+  desired_delivery_date?: string | null;
   note?: string | null;
   discount_rate?: number;
   discount_percent?: number;
@@ -2222,4 +2285,118 @@ export async function deleteGoodsReceiptApi(token: string, id: number): Promise<
     throw new Error(errorData.detail || `Lỗi xóa phiếu nhập kho (${response.status})`);
   }
 }
+
+export async function getInventoryWarehousesApi(token: string): Promise<WarehouseInfo[]> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/inventory/warehouses`, { method: 'GET' }, token);
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Lỗi tải danh sách kho hàng');
+  }
+  return response.json();
+}
+
+export async function getWarehouseThresholdsApi(
+  token: string,
+  warehouseId?: string
+): Promise<WarehouseThresholdItem[]> {
+  const url = warehouseId
+    ? `${API_BASE_URL}/inventory/thresholds?warehouse_id=${encodeURIComponent(warehouseId)}`
+    : `${API_BASE_URL}/inventory/thresholds`;
+  const response = await authenticatedFetch(url, { method: 'GET' }, token);
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Lỗi tải định mức tồn tối thiểu');
+  }
+  return response.json();
+}
+
+export async function updateWarehouseThresholdApi(
+  token: string,
+  payload: UpdateThresholdPayload
+): Promise<WarehouseThresholdItem> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/inventory/thresholds`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  }, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || 'Lỗi cập nhật định mức tồn tối thiểu');
+  }
+  return data;
+}
+
+export async function getLowStockAlertsApi(token: string): Promise<LowStockAlertSummary> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/inventory/low-stock-alerts`, { method: 'GET' }, token);
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Lỗi tải cảnh báo tồn tối thiểu');
+  }
+  return response.json();
+}
+
+export interface StockBookItem {
+  warehouse_id: string;
+  warehouse_name: string;
+  product_id: number;
+  product_code: string;
+  product_name: string;
+  category: string;
+  base_unit: string;
+  actual_stock: number;
+  reserved_stock: number;
+  available_stock: number;
+  min_stock: number;
+  is_low_stock: boolean;
+  status: 'available' | 'out_of_stock' | 'low_stock' | string;
+}
+
+export interface StockBookSummary {
+  total_actual_stock: number;
+  total_reserved_stock: number;
+  total_available_stock: number;
+  total_skus: number;
+}
+
+export interface StockBookResponse {
+  summary: StockBookSummary;
+  items: StockBookItem[];
+  warehouses: WarehouseInfo[];
+  categories: string[];
+}
+
+export interface StockBookFilterParams {
+  warehouse_id?: string;
+  category?: string;
+  stock_status?: string;
+  search?: string;
+}
+
+export async function getStockBookApi(
+  token: string,
+  params?: StockBookFilterParams
+): Promise<StockBookResponse> {
+  const query = new URLSearchParams();
+  if (params?.warehouse_id && params.warehouse_id !== 'all') {
+    query.set('warehouse_id', params.warehouse_id);
+  }
+  if (params?.category && params.category !== 'all') {
+    query.set('category', params.category);
+  }
+  if (params?.stock_status && params.stock_status !== 'all') {
+    query.set('stock_status', params.stock_status);
+  }
+  if (params?.search && params.search.trim()) {
+    query.set('search', params.search.trim());
+  }
+
+  const url = `${API_BASE_URL}/inventory/stock-book${query.toString() ? `?${query.toString()}` : ''}`;
+  const response = await authenticatedFetch(url, { method: 'GET' }, token);
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Lỗi tải dữ liệu sổ tồn kho');
+  }
+  return response.json();
+}
+
 
