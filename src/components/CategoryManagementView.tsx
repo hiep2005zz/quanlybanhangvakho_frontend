@@ -602,7 +602,7 @@ export function CategoryManagementView({ token, onBackToHome: _onBackToHome }: C
             height: '240px',
             maxHeight: '240px',
             scrollbarWidth: 'thin',
-            scrollbarColor: '#0fad89 #f1f5f9',
+            scrollbarColor: '#cbd5e1 #f8fafc',
           }}
         >
           {displayedProducts.length === 0 ? (
@@ -866,23 +866,24 @@ export function CategoryManagementView({ token, onBackToHome: _onBackToHome }: C
           overflow-y: auto !important;
           overflow-x: hidden !important;
           scrollbar-width: thin !important;
-          scrollbar-color: #0fad89 #f1f5f9 !important;
+          scrollbar-color: #cbd5e1 #f8fafc !important;
           scroll-behavior: smooth;
         }
         .custom-product-scrollbar::-webkit-scrollbar {
-          width: 8px;
+          width: 10px;
         }
         .custom-product-scrollbar::-webkit-scrollbar-track {
-          background: #f1f5f9;
-          border-radius: 8px;
+          background: #f8fafc;
+          border-left: 1px solid #e2e8f0;
         }
         .custom-product-scrollbar::-webkit-scrollbar-thumb {
-          background: #0fad89;
-          border-radius: 8px;
-          border: 1px solid #f1f5f9;
+          background-color: #cbd5e1;
+          border-radius: 9999px;
+          border: 2px solid #f8fafc;
+          background-clip: padding-box;
         }
         .custom-product-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: #0d8b6e;
+          background-color: #94a3b8;
         }
       `}</style>
       
@@ -1041,7 +1042,7 @@ export function CategoryManagementView({ token, onBackToHome: _onBackToHome }: C
                   height: '280px',
                   maxHeight: '280px',
                   scrollbarWidth: 'thin',
-                  scrollbarColor: '#0fad89 #f1f5f9',
+                  scrollbarColor: '#cbd5e1 #f8fafc',
                 }}
               >
                 {isLoading ? (

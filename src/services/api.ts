@@ -1899,7 +1899,64 @@ export async function rejectOrderApi(token: string, orderIdOrCode: number | stri
   return data;
 }
 
+export interface ReorderItemDetail {
+  product_id: number;
+  product_code: string;
+  product_name: string;
+  quantity: number;
+  price: number;
+  old_price?: number;
+  unit: string;
+  unit_name?: string;
+  conversion_rate: number;
+  base_unit: string;
+  stock: number;
+  available_units: Array<{ unit_name: string; conversion_rate: number; is_base: boolean }>;
+  price_note?: string;
+}
 
+export interface ExcludedItemDetail {
+  product_id: number;
+  product_code?: string;
+  product_name: string;
+  reason: string;
+}
+
+export interface ReorderResponseData {
+  order_id: number;
+  order_code: string;
+  dealer_id: number;
+  dealer_name: string;
+  valid_items: ReorderItemDetail[];
+  excluded_items: ExcludedItemDetail[];
+  total_valid: number;
+  total_excluded: number;
+  can_reorder: boolean;
+  message: string;
+  created_order?: any;
+}
+
+export async function reorderOrderApi(
+  token: string,
+  orderIdOrCode: number | string,
+  payload?: { product_id?: number; create_immediate?: boolean; note?: string }
+): Promise<ReorderResponseData> {
+  const response = await authenticatedFetch(
+    `${API_BASE_URL}/orders/${encodeURIComponent(orderIdOrCode)}/reorder`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload || {}),
+    },
+    token
+  );
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi khi đặt lại đơn hàng (Mã lỗi ${response.status})`);
+  }
+  return data;
+}
 
 export async function getDealersApi(token: string): Promise<DealerItem[]> {
   const response = await authenticatedFetch(`${API_BASE_URL}/dealers`, {
@@ -2235,4 +2292,224 @@ export async function deleteGoodsReceiptApi(token: string, id: number): Promise<
     throw new Error(errorData.detail || `Lỗi xóa phiếu nhập kho (${response.status})`);
   }
 }
+
+// ==========================================
+// CHỨC NĂNG KIỂM KÊ KHO (STOCK AUDITS)
+// ==========================================
+
+export interface StockAuditItem {
+  product_id: number;
+  product_code: string;
+  product_name: string;
+  category_name?: string | null;
+  base_unit: string;
+  system_stock: number;
+  actual_stock?: number | null;
+  discrepancy?: number | null;
+  result_status: 'MATCH' | 'DEFICIT' | 'SURPLUS' | 'PENDING';
+  result_label: string;
+  reason?: string | null;
+  reserved_stock: number;
+  current_actual_stock?: number;
+}
+
+export interface StockAudit {
+  id: number;
+  code: string;
+  warehouse_id: string;
+  warehouse_name: string;
+  category_id?: number | null;
+  category_name?: string | null;
+  scope_type: 'WAREHOUSE' | 'CATEGORY';
+  status: 'IN_PROGRESS' | 'CONFIRMED' | 'CANCELLED';
+  status_label: string;
+  note?: string | null;
+  total_items: number;
+  discrepancy_items_count: number;
+  total_discrepancy_qty: number;
+  items: StockAuditItem[];
+  created_by: string;
+  confirmed_by?: string | null;
+  confirmed_at?: string | null;
+  cancelled_by?: string | null;
+  cancelled_at?: string | null;
+  created_at: string;
+  updated_at?: string | null;
+}
+
+export interface StockAuditListResponse {
+  items: StockAudit[];
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+}
+
+export interface StockAuditCreateInput {
+  scope_type: 'WAREHOUSE' | 'CATEGORY';
+  warehouse_id: string;
+  category_id?: number | null;
+  note?: string;
+  product_ids?: number[];
+}
+
+export async function getAuditWarehousesApi(token: string): Promise<{ id: string; name: string }[]> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/stock-audits/warehouses`, {
+    method: 'GET',
+  }, token);
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Không thể lấy danh sách kho kiểm kê');
+  }
+  return response.json();
+}
+
+export async function previewAuditProductsApi(
+  token: string,
+  params: { warehouse_id: string; scope_type?: string; category_id?: number }
+): Promise<{
+  warehouse_id: string;
+  warehouse_name: string;
+  scope_type: string;
+  category_id?: number;
+  total_items: number;
+  items: {
+    product_id: number;
+    product_code: string;
+    product_name: string;
+    category_name: string;
+    base_unit: string;
+    system_stock: number;
+    reserved_stock: number;
+    available_stock: number;
+  }[];
+}> {
+  const query = new URLSearchParams({
+    warehouse_id: params.warehouse_id,
+    scope_type: params.scope_type || 'WAREHOUSE',
+  });
+  if (params.category_id) {
+    query.set('category_id', String(params.category_id));
+  }
+  const response = await authenticatedFetch(`${API_BASE_URL}/stock-audits/preview-products?${query.toString()}`, {
+    method: 'GET',
+  }, token);
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Không thể xem trước danh sách sản phẩm');
+  }
+  return response.json();
+}
+
+export async function getStockAuditsApi(
+  token: string,
+  params?: {
+    search?: string;
+    warehouse_id?: string;
+    status?: string;
+    scope_type?: string;
+    page?: number;
+    page_size?: number;
+  }
+): Promise<StockAuditListResponse> {
+  const query = new URLSearchParams();
+  if (params?.search) query.set('search', params.search);
+  if (params?.warehouse_id) query.set('warehouse_id', params.warehouse_id);
+  if (params?.status) query.set('status', params.status);
+  if (params?.scope_type) query.set('scope_type', params.scope_type);
+  if (params?.page) query.set('page', String(params.page));
+  if (params?.page_size) query.set('page_size', String(params.page_size));
+
+  const qs = query.toString();
+  const url = `${API_BASE_URL}/stock-audits${qs ? `?${qs}` : ''}`;
+  const response = await authenticatedFetch(url, {
+    method: 'GET',
+  }, token);
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Không thể tải danh sách phiếu kiểm kê');
+  }
+  return response.json();
+}
+
+export async function getStockAuditDetailApi(token: string, auditId: number): Promise<StockAudit> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/stock-audits/${auditId}`, {
+    method: 'GET',
+  }, token);
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Không thể tải chi tiết phiếu kiểm kê');
+  }
+  return response.json();
+}
+
+export async function createStockAuditApi(
+  token: string,
+  data: StockAuditCreateInput
+): Promise<StockAudit> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/stock-audits`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  }, token);
+  const resData = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(resData.detail || `Lỗi tạo phiếu kiểm kê (${response.status})`);
+  }
+  return resData;
+}
+
+export async function updateStockAuditResultsApi(
+  token: string,
+  auditId: number,
+  data: {
+    items: { product_id: number; actual_stock?: number | null; reason?: string }[];
+    note?: string;
+  }
+): Promise<StockAudit> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/stock-audits/${auditId}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  }, token);
+  const resData = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(resData.detail || `Lỗi cập nhật kết quả kiểm kê (${response.status})`);
+  }
+  return resData;
+}
+
+export async function confirmStockAuditApi(
+  token: string,
+  auditId: number,
+  data?: {
+    items?: { product_id: number; actual_stock?: number | null; reason?: string }[];
+    note?: string;
+  }
+): Promise<StockAudit> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/stock-audits/${auditId}/confirm`, {
+    method: 'POST',
+    body: data ? JSON.stringify(data) : undefined,
+  }, token);
+  const resData = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(resData.detail || `Lỗi xác nhận phiếu kiểm kê (${response.status})`);
+  }
+  return resData;
+}
+
+export async function cancelStockAuditApi(
+  token: string,
+  auditId: number,
+  reason?: string
+): Promise<StockAudit> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/stock-audits/${auditId}/cancel`, {
+    method: 'POST',
+    body: JSON.stringify({ reason }),
+  }, token);
+  const resData = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(resData.detail || `Lỗi hủy phiếu kiểm kê (${response.status})`);
+  }
+  return resData;
+}
+
 
