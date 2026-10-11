@@ -1152,50 +1152,17 @@ export default function DiscountPolicyView({ token, user, onBackToHome }: Discou
                             }}
                           />
                           <span style={{ fontSize: '13px', color: '#64748b' }}>sp ➔ Giảm</span>
-                          <select
-                            value={tier.discount_type || (tier.discount_amount && tier.discount_amount > 0 ? 'amount' : 'percent')}
-                            onChange={(e) => handleTierChange(tier.id, 'discount_type', e.target.value)}
-                            style={{
-                              padding: '6px 8px',
-                              borderRadius: '6px',
-                              border: '1px solid #cbd5e1',
-                              fontSize: '12px',
-                              fontWeight: '600',
-                              backgroundColor: '#ffffff',
-                            }}
-                          >
-                            <option value="percent">Phần trăm (%)</option>
-                            <option value="amount">Số tiền (đ/sp)</option>
-                          </select>
-
-                          {(tier.discount_type === 'amount' || (tier.discount_amount && tier.discount_amount > 0 && !tier.discount_percent)) ? (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                              <input
-                                type="number"
-                                min="0"
-                                step="1000"
-                                placeholder="VNĐ/sp"
-                                value={tier.discount_amount || ''}
-                                onChange={(e) => handleTierChange(tier.id, 'discount_amount', e.target.value)}
-                                style={{ width: '110px', padding: '6px 8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontWeight: '700' }}
-                              />
-                              <span style={{ fontSize: '12px', fontWeight: '600', color: '#475569' }}>đ/sp</span>
-                            </div>
-                          ) : (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                              <input
-                                type="number"
-                                min="0"
-                                max="100"
-                                step="0.5"
-                                placeholder="%"
-                                value={tier.discount_percent || ''}
-                                onChange={(e) => handleTierChange(tier.id, 'discount_percent', e.target.value)}
-                                style={{ width: '75px', padding: '6px 8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontWeight: '700' }}
-                              />
-                              <span style={{ fontSize: '13px', fontWeight: '700' }}>%</span>
-                            </div>
-                          )}
+                          <input
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="0.5"
+                            placeholder="%"
+                            value={tier.discount_percent}
+                            onChange={(e) => handleTierChange(tier.id, 'discount_percent', e.target.value)}
+                            style={{ width: '80px', padding: '6px 8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontWeight: '700' }}
+                          />
+                          <span style={{ fontSize: '13px', fontWeight: '700' }}>%</span>
 
                           <button
                             type="button"
