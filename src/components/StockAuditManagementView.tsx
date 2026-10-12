@@ -492,9 +492,6 @@ export function StockAuditManagementView({ token, currentUser }: StockAuditManag
           <h1 className="text-2xl font-bold text-gray-900">
             Kiểm kê kho
           </h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Đối chiếu số lượng thực tế với tồn kho hệ thống và điều chỉnh chênh lệch chính xác
-          </p>
         </div>
 
         {/* Nút Tạo phiếu kiểm kê */}
@@ -649,7 +646,6 @@ export function StockAuditManagementView({ token, currentUser }: StockAuditManag
                 <tr>
                   <td colSpan={9} className="py-12 text-center text-gray-500 whitespace-nowrap">
                     <p className="font-medium text-gray-600">Chưa có phiếu kiểm kê nào phù hợp</p>
-                    <p className="text-xs text-gray-400 mt-1">Nhấn &quot;Tạo phiếu kiểm kê&quot; để bắt đầu đợt kiểm kho mới</p>
                   </td>
                 </tr>
               ) : (

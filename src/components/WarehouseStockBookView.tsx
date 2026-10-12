@@ -301,8 +301,8 @@ export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
             }}
           >
             <option value="all">Tất cả trạng thái</option>
-            <option value="available">Còn hàng bán (Khả dụng &gt; 0)</option>
-            <option value="low_stock">Dưới định mức tối thiểu</option>
+            <option value="available">Còn hàng (Khả dụng &gt; 0)</option>
+            <option value="low_stock">Thiếu hàng (Dưới định mức)</option>
             <option value="out_of_stock">Hết hàng bán (Khả dụng = 0)</option>
           </select>
         </div>
@@ -495,11 +495,12 @@ export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
                   style={{
                     padding: '10px 12px',
                     fontWeight: '700',
-                    width: '105px',
-                    minWidth: '95px',
+                    width: '125px',
+                    minWidth: '115px',
                     textAlign: 'right',
                     backgroundColor: '#f1f5f9',
                     color: '#334155',
+                    whiteSpace: 'nowrap',
                   }}
                 >
                   Đang giữ chỗ
@@ -515,7 +516,7 @@ export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
                     color: '#334155',
                   }}
                 >
-                  Tồn khả dụng (Bán được)
+                  Tồn khả dụng
                 </th>
                 <th style={{ padding: '10px 14px', fontWeight: '700', width: '115px', minWidth: '105px', textAlign: 'center', backgroundColor: '#f1f5f9' }}>
                   Trạng thái
@@ -620,13 +621,20 @@ export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
                         {isAvailableZero ? (
                           <span
                             style={{
-                              display: 'inline-block',
-                              padding: '2px 8px',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              textAlign: 'center',
+                              padding: '4px 10px',
+                              minWidth: '80px',
+                              minHeight: '34px',
                               borderRadius: '4px',
-                              fontSize: '11px',
+                              fontSize: '11.5px',
                               fontWeight: '700',
+                              lineHeight: '1.3',
                               backgroundColor: '#fee2e2',
                               color: '#991b1b',
+                              boxSizing: 'border-box',
                             }}
                           >
                             Hết hàng bán
@@ -634,30 +642,46 @@ export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
                         ) : isLow ? (
                           <span
                             style={{
-                              display: 'inline-block',
-                              padding: '2px 8px',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              textAlign: 'center',
+                              padding: '4px 10px',
+                              minWidth: '80px',
+                              minHeight: '34px',
                               borderRadius: '4px',
-                              fontSize: '11px',
+                              fontSize: '11.5px',
                               fontWeight: '700',
+                              lineHeight: '1.3',
                               backgroundColor: '#fef3c7',
-                              color: '#92400e',
+                              color: '#b45309',
+                              border: '1px solid #fcd34d',
+                              boxSizing: 'border-box',
                             }}
+                            title={`Tồn thực tế (${it.actual_stock}) <= Định mức tối thiểu (${it.min_stock})`}
                           >
-                            Dưới định mức
+                            Thiếu hàng
                           </span>
                         ) : (
                           <span
                             style={{
-                              display: 'inline-block',
-                              padding: '2px 8px',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              textAlign: 'center',
+                              padding: '4px 10px',
+                              minWidth: '80px',
+                              minHeight: '34px',
                               borderRadius: '4px',
-                              fontSize: '11px',
+                              fontSize: '11.5px',
                               fontWeight: '700',
+                              lineHeight: '1.3',
                               backgroundColor: '#dcfce7',
                               color: '#166534',
+                              boxSizing: 'border-box',
                             }}
                           >
-                            Còn hàng bán
+                            Còn hàng
                           </span>
                         )}
                       </td>
