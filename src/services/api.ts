@@ -3593,3 +3593,117 @@ export async function validateOrderPriceFloorApi(
   }
   return data as ValidateOrderPriceFloorResult;
 }
+
+// ==========================================
+
+export interface StockTransferItem {
+  product_id: number;
+  product_code: string;
+  product_name: string;
+  category?: string;
+  unit?: string;
+  transfer_qty: number;
+  received_qty?: number | null;
+  discrepancy_qty: number;
+  reason?: string | null;
+}
+
+export interface StockTransfer {
+  id: number;
+  code: string;
+  from_warehouse_id: string;
+  from_warehouse_name: string;
+  to_warehouse_id: string;
+  to_warehouse_name: string;
+  status: 'DRAFT' | 'IN_TRANSIT' | 'COMPLETED' | 'CANCELLED';
+  note?: string | null;
+  total_items: number;
+  total_transfer_qty: number;
+  total_received_qty: number;
+  discrepancy_qty: number;
+  discrepancy_reason?: string | null;
+  items: StockTransferItem[];
+  created_by: string;
+  dispatched_by?: string | null;
+  dispatched_at?: string | null;
+  received_by?: string | null;
+  received_at?: string | null;
+  cancelled_by?: string | null;
+  cancelled_at?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateStockTransferPayload {
+  from_warehouse_id: string;
+  to_warehouse_id: string;
+  items: { product_id: number; transfer_qty: number }[];
+  note?: string;
+}
+
+export interface ReceiveStockTransferPayload {
+  items: { product_id: number; received_qty: number; reason?: string }[];
+  discrepancy_reason?: string;
+}
+
+export async function getStockTransfersApi(token: string, status?: string, warehouseId?: string): Promise<StockTransfer[]> {
+  const params = new URLSearchParams();
+  if (status) params.append('status', status);
+  if (warehouseId) params.append('warehouse_id', warehouseId);
+  const queryStr = params.toString() ? `?${params.toString()}` : '';
+  const response = await authenticatedFetch(`${API_BASE_URL}/inventory/transfers${queryStr}`, {
+    method: 'GET',
+  }, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi tải danh sách chuyển kho (${response.status})`);
+  }
+  return data;
+}
+
+export async function getStockTransferDetailApi(token: string, code: string): Promise<StockTransfer> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/inventory/transfers/${code}`, {
+    method: 'GET',
+  }, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi tải chi tiết phiếu chuyển kho (${response.status})`);
+  }
+  return data;
+}
+
+export async function createStockTransferApi(token: string, payload: CreateStockTransferPayload): Promise<StockTransfer> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/inventory/transfers`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  }, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi lập phiếu chuyển kho (${response.status})`);
+  }
+  return data;
+}
+
+export async function receiveStockTransferApi(token: string, code: string, payload: ReceiveStockTransferPayload): Promise<StockTransfer> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/inventory/transfers/${code}/receive`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  }, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi xác nhận nhận hàng chuyển kho (${response.status})`);
+  }
+  return data;
+}
+
+export async function cancelStockTransferApi(token: string, code: string, reason?: string): Promise<StockTransfer> {
+  const query = reason ? `?cancel_reason=${encodeURIComponent(reason)}` : '';
+  const response = await authenticatedFetch(`${API_BASE_URL}/inventory/transfers/${code}/cancel${query}`, {
+    method: 'POST',
+  }, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi hủy phiếu chuyển kho (${response.status})`);
+  }
+  return data;
+}
