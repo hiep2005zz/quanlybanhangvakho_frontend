@@ -20,6 +20,7 @@ export const LowStockAlertModal: React.FC<LowStockAlertModalProps> = ({
   if (!isOpen) return null;
 
   const lowItems = items.filter((it) => it.is_low_stock);
+  const uniqueProductsCount = new Set(lowItems.map((it) => it.product_id)).size;
 
   return (
     <ModalPortal>
@@ -88,7 +89,7 @@ export const LowStockAlertModal: React.FC<LowStockAlertModalProps> = ({
                   Cảnh Báo Tồn Kho Dưới Định Mức Tối Thiểu
                 </h3>
                 <p style={{ margin: '3px 0 0', fontSize: '13px', color: '#b91c1c' }}>
-                  Có <strong>{lowItems.length}</strong> mặt hàng đang dưới ngưỡng an toàn cần đặt hàng NCC ngay trước khi đứt hàng
+                  Có <strong>{uniqueProductsCount}</strong> mặt hàng {lowItems.length > uniqueProductsCount ? `(tổng ${lowItems.length} cảnh báo tại các chi nhánh kho)` : ''} đang dưới ngưỡng an toàn cần đặt hàng NCC ngay trước khi đứt hàng
                 </p>
               </div>
             </div>

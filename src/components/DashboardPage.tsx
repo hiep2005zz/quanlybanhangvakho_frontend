@@ -790,13 +790,14 @@ export default function DashboardPage({
       setIsLoading(false);
       return;
     }
-    setIsLoading(true);
+    if (products.length === 0) {
+      setIsLoading(true);
+    }
     getProductsApi(token)
       .then((data) => {
         setProducts(data.items);
         setIsCostVisible(data.is_cost_price_visible);
         setIsLoading(false);
-        fetchLowStockAlerts();
       })
       .catch((err) => {
         setError(err.message || 'Lỗi khi tải dữ liệu sản phẩm từ Backend.');
@@ -816,18 +817,40 @@ export default function DashboardPage({
   };
 
   useEffect(() => {
-    fetchProducts();
-    fetchLowStockAlerts();
+    if (activeTab === 'inventory') {
+      fetchProducts();
+      fetchLowStockAlerts();
+    }
   }, [token, isPendingCustomer, activeTab]);
 
-  // Tính toán số liệu thống kê
-  const totalStock = products.reduce((acc, p) => acc + p.stock, 0);
-  const totalSellValue = products.reduce((acc, p) => acc + p.sell_price * p.stock, 0);
+  // Tính toán số liệu thống kê (Memoized để không tính lại mỗi giây khi đếm ngược phiên làm việc)
+  const { totalStock, totalSellValue, totalCostValue, totalProfit, isCostAvailable } = useMemo(() => {
+    let stock = 0;
+    let sellVal = 0;
+    let costVal = 0;
+    let hasCost = isCostVisible;
 
-  // Tính giá vốn và lợi nhuận
-  const isCostAvailable = isCostVisible && products.length > 0 && products.every((p) => p.cost_price !== null && p.cost_price !== undefined);
-  const totalCostValue = isCostAvailable ? products.reduce((acc, p) => acc + (p.cost_price || 0) * p.stock, 0) : 0;
-  const totalProfit = totalSellValue - totalCostValue;
+    for (let i = 0; i < products.length; i++) {
+      const p = products[i];
+      const s = p.stock || 0;
+      stock += s;
+      sellVal += (p.sell_price || 0) * s;
+      if (hasCost && p.cost_price !== null && p.cost_price !== undefined) {
+        costVal += p.cost_price * s;
+      } else {
+        hasCost = false;
+      }
+    }
+
+    const profit = hasCost ? sellVal - costVal : 0;
+    return {
+      totalStock: stock,
+      totalSellValue: sellVal,
+      totalCostValue: hasCost ? costVal : 0,
+      totalProfit: profit,
+      isCostAvailable: hasCost && products.length > 0,
+    };
+  }, [products, isCostVisible]);
 
   const lowStockBranchesMap = useMemo(() => {
     const map = new Map<number, { minStock: number; warehouseNames: string[] }>();
@@ -855,16 +878,23 @@ export default function DashboardPage({
     return map;
   }, [lowStockBranchesMap]);
 
-  // Lọc sản phẩm
-  const filteredProducts = products.filter((p) => {
+  // Số lượng mặt hàng độc nhất thực tế dưới định mức
+  const uniqueLowStockCount = useMemo(() => {
+    return lowStockBranchesMap.size;
+  }, [lowStockBranchesMap]);
+
+  // Lọc sản phẩm (Memoized theo điều kiện tìm kiếm và danh mục)
+  const filteredProducts = useMemo(() => {
     const q = productSearchTerm.trim().toLowerCase();
-    const matchQuery = !q || p.name.toLowerCase().includes(q) || p.code.toLowerCase().includes(q);
-    const matchCat = selectedCategory === 'all' || p.category === selectedCategory;
-    const thresholdVal = lowStockProductMap.get(p.id) ?? (p.min_stock ?? 10);
-    const isBelowMin = lowStockProductMap.has(p.id) || p.stock <= thresholdVal;
-    const matchLowStock = !onlyLowStockFilter || isBelowMin;
-    return matchQuery && matchCat && matchLowStock;
-  });
+    return products.filter((p) => {
+      const matchQuery = !q || p.name.toLowerCase().includes(q) || p.code.toLowerCase().includes(q);
+      const matchCat = selectedCategory === 'all' || p.category === selectedCategory;
+      const thresholdVal = lowStockProductMap.get(p.id) ?? (p.min_stock ?? 10);
+      const isBelowMin = lowStockProductMap.has(p.id) || p.stock <= thresholdVal;
+      const matchLowStock = !onlyLowStockFilter || isBelowMin;
+      return matchQuery && matchCat && matchLowStock;
+    });
+  }, [products, productSearchTerm, selectedCategory, onlyLowStockFilter, lowStockProductMap]);
 
   // Phân trang sản phẩm (mặc định 20 cái)
   const totalPages = Math.max(1, Math.ceil(filteredProducts.length / pageSize));
@@ -1610,29 +1640,37 @@ export default function DashboardPage({
                   padding: '10px 14px',
                   borderRadius: '10px',
                   cursor: 'pointer',
-                  border: (lowStockSummary?.total_low_stock || 0) > 0 ? '1.5px solid #fca5a5' : '1px solid #e2e8f0',
-                  background: (lowStockSummary?.total_low_stock || 0) > 0 ? 'linear-gradient(135deg, #fff5f5, #ffffff)' : '#ffffff',
+                  border: uniqueLowStockCount > 0 ? '1.5px solid #fca5a5' : '1px solid #e2e8f0',
+                  background: uniqueLowStockCount > 0 ? 'linear-gradient(135deg, #fff5f5, #ffffff)' : '#ffffff',
                   transition: 'all 0.15s ease',
                 }}
                 title="Nhấn để xem danh sách chi tiết các mặt hàng dưới định mức tồn cần đặt hàng NCC"
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
-                  <span style={{ fontSize: '11.5px', color: (lowStockSummary?.total_low_stock || 0) > 0 ? '#b91c1c' : '#64748b', fontWeight: '700' }}>
+                  <span style={{ fontSize: '11.5px', color: uniqueLowStockCount > 0 ? '#b91c1c' : '#64748b', fontWeight: '700' }}>
                     Tồn dưới định mức
                   </span>
-                  <span style={{ fontSize: '10px', color: (lowStockSummary?.total_low_stock || 0) > 0 ? '#dc2626' : '#15803d', fontWeight: '700' }}>
-                    {(lowStockSummary?.total_low_stock || 0) > 0 ? 'Cần đặt NCC' : 'An toàn'}
+                  <span style={{ fontSize: '10px', color: uniqueLowStockCount > 0 ? '#dc2626' : '#15803d', fontWeight: '700' }}>
+                    {uniqueLowStockCount > 0 ? 'Cần đặt NCC' : 'An toàn'}
                   </span>
                 </div>
                 <div style={{
                   fontSize: '18px',
                   fontWeight: '800',
                   letterSpacing: '-0.02em',
-                  color: (lowStockSummary?.total_low_stock || 0) > 0 ? '#dc2626' : '#0f172a',
+                  color: uniqueLowStockCount > 0 ? '#dc2626' : '#0f172a',
                   fontVariantNumeric: 'tabular-nums',
                   lineHeight: 1.2,
+                  display: 'flex',
+                  alignItems: 'baseline',
+                  gap: '6px',
                 }}>
-                  {isLoading ? '...' : `${lowStockSummary?.total_low_stock || 0} mặt hàng`}
+                  {isLoading ? '...' : `${uniqueLowStockCount} mặt hàng`}
+                  {!isLoading && (lowStockSummary?.items?.length || 0) > uniqueLowStockCount && (
+                    <span style={{ fontSize: '11px', fontWeight: '600', color: '#e11d48' }}>
+                      ({lowStockSummary?.items?.length} kho thiếu)
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
@@ -1868,7 +1906,7 @@ export default function DashboardPage({
                         fontWeight: '750',
                       }}
                     >
-                      {lowStockSummary?.total_low_stock || 0}
+                      {uniqueLowStockCount}
                     </span>
                   </button>
                 </div>

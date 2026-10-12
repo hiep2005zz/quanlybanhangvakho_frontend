@@ -3206,6 +3206,7 @@ export interface UpdateThresholdPayload {
 
 export interface LowStockAlertSummary {
   total_low_stock: number;
+  total_alerts?: number;
   total_products: number;
   warehouses: Array<{
     warehouse_id: string;
@@ -3333,6 +3334,9 @@ export interface StockBookResponse {
   items: StockBookItem[];
   warehouses: WarehouseInfo[];
   categories: string[];
+  total?: number;
+  page?: number;
+  page_size?: number;
 }
 
 export interface StockBookFilterParams {
@@ -3340,6 +3344,8 @@ export interface StockBookFilterParams {
   category?: string;
   stock_status?: string;
   search?: string;
+  page?: number;
+  page_size?: number;
 }
 
 export async function getStockBookApi(
@@ -3358,6 +3364,12 @@ export async function getStockBookApi(
   }
   if (params?.search && params.search.trim()) {
     query.set('search', params.search.trim());
+  }
+  if (params?.page) {
+    query.set('page', String(params.page));
+  }
+  if (params?.page_size) {
+    query.set('page_size', String(params.page_size));
   }
 
   const url = `${API_BASE_URL}/inventory/stock-book${query.toString() ? `?${query.toString()}` : ''}`;

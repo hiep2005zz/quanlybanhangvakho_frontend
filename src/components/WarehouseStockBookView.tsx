@@ -26,6 +26,10 @@ export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
   const [debouncedSearch, setDebouncedSearch] = useState<string>('');
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
 
+  // Phân trang
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const pageSize = 10;
+
   // Debounce tìm kiếm 300ms để không gọi API và render liên tục theo từng phím gõ
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -46,6 +50,8 @@ export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
         category: selectedCategory,
         stock_status: selectedStatus,
         search: debouncedSearch,
+        page: currentPage,
+        page_size: pageSize,
       };
       const res = await getStockBookApi(token, params);
       setData(res);
@@ -56,7 +62,7 @@ export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
       setIsLoading(false);
       setIsRefreshing(false);
     }
-  }, [token, selectedWarehouse, selectedCategory, selectedStatus, debouncedSearch]);
+  }, [token, selectedWarehouse, selectedCategory, selectedStatus, debouncedSearch, currentPage, pageSize]);
 
   useEffect(() => {
     loadStockBook();
@@ -67,10 +73,6 @@ export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
     if (val === undefined || val === null) return '0';
     return Number(val).toLocaleString('vi-VN');
   };
-
-  // Phân trang
-  const [currentPage, setCurrentPage] = useState<number>(1);
-  const pageSize = 10;
 
   const summary = data?.summary || {
     total_actual_stock: 0,
@@ -83,13 +85,13 @@ export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
   const warehouses = data?.warehouses || [];
   const categories = data?.categories || [];
 
-  // Tính toán dữ liệu phân trang
-  const totalItems = items.length;
+  // Tính toán dữ liệu phân trang (Hỗ trợ cả phân trang server-side 4KB lẫn client-side fallback)
+  const totalItems = data?.total !== undefined && data?.total !== null ? data.total : (summary.total_skus || items.length);
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
   const safePage = Math.min(Math.max(1, currentPage), totalPages);
   const startIndex = (safePage - 1) * pageSize;
   const endIndex = Math.min(startIndex + pageSize, totalItems);
-  const pageItems = items.slice(startIndex, endIndex);
+  const pageItems = items.length > pageSize ? items.slice(startIndex, endIndex) : items;
 
   return (
     <div
