@@ -911,17 +911,17 @@ export default function DealerProfileManagementView({
               <table className="dealer-table">
                 <thead>
                   <tr>
-                    <th style={{ width: '65px' }} title="Mã định danh duy nhất của đại lý">Mã đại lý</th>
-                    <th style={{ minWidth: '130px' }} title="Tên đại lý và thông tin liên hệ">Tên đại lý</th>
-                    <th style={{ width: '90px' }} title="Kho hàng được gán phục vụ mặc định">Kho phục vụ</th>
-                    <th style={{ width: '80px' }} title="Mã số thuế doanh nghiệp">Mã số thuế</th>
-                    <th style={{ width: '80px' }} title="Phân loại nhóm khách hàng">Nhóm KH</th>
-                    <th style={{ width: '105px' }} title="Bảng giá bán đang áp dụng theo nhóm">Bảng giá áp dụng</th>
-                    <th style={{ width: '65px' }} title="Khu vực địa lý của đại lý">Khu vực</th>
-                    <th style={{ width: '100px' }} title="Nhân viên kinh doanh phụ trách">Người phụ trách</th>
-                    <th style={{ width: '50px', textAlign: 'center' }} title="Số lượng đơn hàng/giao dịch đã phát sinh">Giao dịch</th>
-                    <th style={{ width: '95px', textAlign: 'center' }} title="Trạng thái hoạt động giao dịch">Trạng thái</th>
-                    <th style={{ width: '55px', textAlign: 'center' }} title="Các thao tác quản lý hồ sơ">Thao tác</th>
+                    <th style={{ width: '70px', minWidth: '70px' }} title="Mã định danh duy nhất của đại lý">Mã đại lý</th>
+                    <th style={{ minWidth: '150px' }} title="Tên đại lý và thông tin liên hệ">Tên đại lý</th>
+                    <th style={{ width: '110px', minWidth: '110px' }} title="Kho hàng được gán phục vụ mặc định">Kho phục vụ</th>
+                    <th style={{ width: '90px', minWidth: '90px' }} title="Mã số thuế doanh nghiệp">Mã số thuế</th>
+                    <th style={{ width: '95px', minWidth: '95px' }} title="Phân loại nhóm khách hàng">Nhóm KH</th>
+                    <th style={{ width: '135px', minWidth: '135px' }} title="Bảng giá bán đang áp dụng theo nhóm">Bảng giá áp dụng</th>
+                    <th style={{ width: '100px', minWidth: '100px' }} title="Khu vực địa lý của đại lý">Khu vực</th>
+                    <th style={{ width: '140px', minWidth: '140px' }} title="Nhân viên kinh doanh phụ trách">Người phụ trách</th>
+                    <th style={{ width: '65px', minWidth: '65px', textAlign: 'center' }} title="Số lượng đơn hàng/giao dịch đã phát sinh">Giao dịch</th>
+                    <th style={{ width: '120px', minWidth: '120px', textAlign: 'center' }} title="Trạng thái hoạt động giao dịch">Trạng thái</th>
+                    <th style={{ width: '75px', minWidth: '75px', textAlign: 'center' }} title="Các thao tác quản lý hồ sơ">Thao tác</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1009,8 +1009,8 @@ export default function DealerProfileManagementView({
                           </span>
                         </td>
 
-                        {/* 5. Bảng giá áp dụng (Rút gọn tên, xem đầy đủ khi hover hoặc click) */}
-                        <td>
+                        {/* 5. Bảng giá áp dụng (Rút gọn tên và mã, xem đầy đủ khi hover hoặc click) */}
+                        <td style={{ maxWidth: '140px', overflow: 'hidden' }}>
                           {dealer.applied_price_book ? (
                             <button
                               type="button"
@@ -1035,10 +1035,10 @@ export default function DealerProfileManagementView({
                                 <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
                                 <line x1="7" y1="7" x2="7.01" y2="7" />
                               </svg>
-                              <span className="price-book-text-truncate">
+                              <span className="price-book-text-truncate" title={dealer.applied_price_book.name}>
                                 {dealer.applied_price_book.name}
                               </span>
-                              <span className="price-book-tag-code">
+                              <span className="price-book-tag-code" title={dealer.applied_price_book.code}>
                                 {dealer.applied_price_book.code}
                               </span>
                             </button>
@@ -1049,8 +1049,8 @@ export default function DealerProfileManagementView({
                           )}
                         </td>
 
-                        {/* 6. Khu vực */}
-                        <td>
+                        {/* 6. Khu vực (Hiển thị nguyên dòng, không ngắt chữ) */}
+                        <td style={{ whiteSpace: 'nowrap' }}>
                           <span style={{ fontWeight: '600', color: '#334155' }}>
                             {dealer.region || 'Chưa xác định'}
                           </span>
@@ -1137,15 +1137,14 @@ export default function DealerProfileManagementView({
                           </div>
                         </td>
 
-                        {/* 10. Thao tác: Sửa & Xóa có tooltip khi rê chuột */}
+                        {/* 10. Thao tác: Sửa & Xóa sử dụng tooltip tự nhiên không bị tràn mép hay che chữ */}
                         <td style={{ textAlign: 'center' }}>
                           <div className="action-btn-group">
                             {/* Nút Chỉnh sửa */}
                             <button
                               type="button"
-                              className="btn-icon-action edit has-tooltip"
+                              className="btn-icon-action edit"
                               onClick={() => handleOpenEditModal(dealer)}
-                              data-tooltip="Chỉnh sửa hồ sơ đại lý"
                               title="Chỉnh sửa hồ sơ đại lý"
                             >
                               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
@@ -1157,16 +1156,11 @@ export default function DealerProfileManagementView({
                             {/* Nút Xóa (Khóa nếu đã có giao dịch) */}
                             <button
                               type="button"
-                              className={`btn-icon-action delete has-tooltip ${hasTx ? 'has-tx-locked' : ''}`}
+                              className={`btn-icon-action delete ${hasTx ? 'has-tx-locked' : ''}`}
                               onClick={() => handleDeleteClick(dealer)}
-                              data-tooltip={
-                                hasTx
-                                  ? `Đã có ${txCount} GD: Không thể xóa trực tiếp`
-                                  : 'Xóa đại lý khỏi hệ thống'
-                              }
                               title={
                                 hasTx
-                                  ? `Đại lý đã có ${txCount} giao dịch: Không thể xóa trực tiếp, chỉ cho chuyển sang Ngừng giao dịch`
+                                  ? `Đã có ${txCount} GD: Không thể xóa trực tiếp (chỉ cho chuyển sang Ngừng giao dịch)`
                                   : 'Xóa đại lý khỏi hệ thống'
                               }
                             >

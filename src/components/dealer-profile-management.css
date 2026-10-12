@@ -497,6 +497,7 @@
 
 .dealer-table {
   width: 100%;
+  min-width: 1180px;
   border-collapse: separate;
   border-spacing: 0;
   font-size: 12px;
@@ -505,13 +506,7 @@
 .dealer-table thead {
   position: sticky;
   top: 0;
-  z-index: 30;
-}
-
-.dealer-table thead {
-  position: sticky;
-  top: 0;
-  z-index: 10;
+  z-index: 20;
 }
 
 .dealer-table th {
@@ -643,10 +638,13 @@
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-  max-width: 115px;
+  max-width: 130px;
+  width: auto;
+  overflow: hidden;
   text-align: left;
   outline: none;
   font-family: inherit;
+  box-sizing: border-box;
 }
 
 .price-book-pill-btn:hover {
@@ -665,17 +663,23 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   max-width: 55px;
+  min-width: 0;
+  flex-shrink: 1;
 }
 
 .price-book-tag-code {
   font-size: 9.5px;
   background: #dcfce7;
-  padding: 1px 3px;
+  padding: 1px 4px;
   border-radius: 3px;
   font-family: ui-monospace, SFMono-Regular, monospace;
   font-weight: 700;
   color: #166534;
-  flex-shrink: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 55px;
+  flex-shrink: 1;
 }
 
 /* Sales Staff Cell (Never wraps) */
@@ -864,8 +868,9 @@
   content: attr(data-tooltip);
   position: absolute;
   bottom: calc(100% + 8px);
-  left: 50%;
-  transform: translateX(-50%);
+  right: 0;
+  left: auto;
+  transform: none;
   background: #0f172a;
   color: #ffffff;
   padding: 5px 10px;
@@ -883,8 +888,9 @@
   content: '';
   position: absolute;
   bottom: calc(100% + 2px);
-  left: 50%;
-  transform: translateX(-50%);
+  right: 8px;
+  left: auto;
+  transform: none;
   border: 4px solid transparent;
   border-top-color: #0f172a;
   pointer-events: none;
