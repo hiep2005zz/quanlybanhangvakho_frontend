@@ -48,7 +48,6 @@ export default function OrderDetailsModal({
   const [isPrintOpen, setIsPrintOpen] = useState(false);
 
   const permTier = getOrderPermissionTier(currentUser);
-  const isFullAccess = permTier === 'FULL_ACCESS';
   const isNoAccess = permTier === 'NO_ACCESS';
 
   useEffect(() => {
@@ -116,10 +115,7 @@ export default function OrderDetailsModal({
     }
   };
 
-  const currentStatus = (order?.status || '').toUpperCase().trim();
   const isExportedOrLater = isOrderPastExported(order?.status);
-  const isAlreadyCancelled = ['CANCELLED', 'REJECTED', 'ĐÃ HỦY', 'TỪ CHỐI'].includes(currentStatus);
-  const canCancel = isOrderCancelable(order?.status);
 
   return (
     <>
@@ -358,25 +354,47 @@ export default function OrderDetailsModal({
                 borderRadius: '0 0 12px 12px',
               }}
             >
-              {isFullAccess && canCancel && !isExportedOrLater && !isAlreadyCancelled && (
-                <button
-                  type="button"
-                  id={`btn-footer-cancel-order-${orderCode}`}
-                  onClick={() => setIsCancelModalOpen(true)}
-                  style={{
-                    padding: '8px 16px',
-                    background: '#fff1f2',
-                    border: '1px solid #fecdd3',
-                    borderRadius: '8px',
-                    color: '#e11d48',
-                    fontSize: '13px',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                  }}
-                >
-                  Hủy đơn hàng này
-                </button>
-              )}
+              {/* Nút Hủy đơn hàng này ở Footer: CHỈ khả dụng khi order.status thuộc nhóm ['Nháp', 'Chờ duyệt', 'Đã duyệt', 'Đang soạn hàng'] */}
+              {/* NẾU trạng thái thuộc nhóm ['Đã xuất', 'Đã giao', 'Đóng']: BẮT BUỘC ẩn nút này đi */}
+              {(() => {
+                const cancelableStatuses = [
+                  'DRAFT', 'PENDING', 'PENDING_APPROVAL', 'CONFIRMED', 'APPROVED', 'PICKING', 'PREPARING', 'PACKING',
+                  'NHÁP', 'CHỜ DUYỆT', 'ĐÃ DUYỆT', 'ĐANG SOẠN HÀNG',
+                  'Nháp', 'Chờ duyệt', 'Đã duyệt', 'Đang soạn hàng'
+                ];
+                const uncancelableStatuses = [
+                  'EXPORTED', 'SHIPPED', 'DISPATCHED', 'DELIVERED', 'CLOSED', 'COMPLETED', 'CANCELLED', 'REJECTED',
+                  'ĐÃ XUẤT', 'ĐÃ GIAO', 'ĐÓNG', 'HOÀN THÀNH', 'ĐÃ HỦY', 'BỊ TỪ CHỐI',
+                  'Đã xuất', 'Đã giao', 'Đóng'
+                ];
+                const normalizedStatus = (order.status || '').toUpperCase().trim();
+                const canShowCancel = (
+                  isOrderCancelable(order.status) ||
+                  cancelableStatuses.map((s) => s.toUpperCase()).includes(normalizedStatus)
+                ) && !uncancelableStatuses.map((s) => s.toUpperCase()).includes(normalizedStatus);
+
+                if (!canShowCancel) return null;
+
+                return (
+                  <button
+                    type="button"
+                    id={`btn-footer-cancel-order-${orderCode}`}
+                    onClick={() => setIsCancelModalOpen(true)}
+                    style={{
+                      padding: '8px 16px',
+                      background: '#fff1f2',
+                      border: '1px solid #fecdd3',
+                      borderRadius: '8px',
+                      color: '#e11d48',
+                      fontSize: '13px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Hủy đơn hàng này
+                  </button>
+                );
+              })()}
 
               <button
                 type="button"
