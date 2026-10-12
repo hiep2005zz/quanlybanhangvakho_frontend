@@ -1831,13 +1831,11 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
                     }}
                   >
                     <option value="">-- Chọn nhà cung cấp --</option>
-                    {suppliers
-                      .filter((s) => !s.has_receipts || s.id === supplierId)
-                      .map((s) => (
-                        <option key={s.id} value={s.id}>
-                          [{s.code}] {s.name}
-                        </option>
-                      ))}
+                    {suppliers.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        [{s.code}] {s.name}
+                      </option>
+                    ))}
                   </select>
                   {fieldErrors['supplier_id'] && (
                     <div style={{ fontSize: '11px', color: '#dc2626', marginTop: '4px', fontWeight: '500' }}>
@@ -2096,12 +2094,14 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
                             background: idx % 2 === 0 ? '#ffffff' : '#fcfdfd',
                           }}
                         >
-                          <td style={{ padding: '10px 12px', color: '#94a3b8', fontWeight: '600' }}>
-                            {idx + 1}
+                          <td style={{ padding: '10px 12px', color: '#94a3b8', fontWeight: '600', verticalAlign: 'top' }}>
+                            <div style={{ height: '34px', display: 'flex', alignItems: 'center' }}>
+                              {idx + 1}
+                            </div>
                           </td>
 
                           {/* Chọn sản phẩm */}
-                          <td style={{ padding: '10px 12px' }}>
+                          <td style={{ padding: '10px 12px', verticalAlign: 'top' }}>
                             <select
                               value={row.product_id}
                               disabled={isConfirmed}
@@ -2111,6 +2111,8 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
                               }}
                               style={{
                                 width: '100%',
+                                height: '34px',
+                                boxSizing: 'border-box',
                                 padding: '6px 8px',
                                 borderRadius: '6px',
                                 border: isConfirmed
@@ -2174,7 +2176,7 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
                           </td>
 
                           {/* ĐVT nhập */}
-                          <td style={{ padding: '10px 12px' }}>
+                          <td style={{ padding: '10px 12px', verticalAlign: 'top' }}>
                             <select
                               value={row.unit_name}
                               onChange={(e) => {
@@ -2184,6 +2186,8 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
                               disabled={isConfirmed || !row.product_id}
                               style={{
                                 width: '100%',
+                                height: '34px',
+                                boxSizing: 'border-box',
                                 padding: '6px 8px',
                                 borderRadius: '6px',
                                 border: isConfirmed
@@ -2222,7 +2226,7 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
                           </td>
 
                           {/* Số lượng nhập */}
-                          <td style={{ padding: '10px 12px' }}>
+                          <td style={{ padding: '10px 12px', verticalAlign: 'top' }}>
                             <input
                               type="number"
                               min="0.001"
@@ -2245,6 +2249,8 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
                               }}
                               style={{
                                 width: '100%',
+                                height: '34px',
+                                boxSizing: 'border-box',
                                 padding: '6px 8px',
                                 borderRadius: '6px',
                                 border: isConfirmed
@@ -2264,7 +2270,6 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
                                 color: '#0f172a',
                                 fontWeight: '600',
                                 cursor: isConfirmed ? 'not-allowed' : 'text',
-                                boxSizing: 'border-box',
                                 outline: 'none',
                               }}
                             />
@@ -2276,9 +2281,9 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
                           </td>
 
                           {/* Quy đổi cơ sở */}
-                          <td style={{ padding: '10px 12px' }}>
+                          <td style={{ padding: '10px 12px', verticalAlign: 'top' }}>
                             {row.product_id ? (
-                              <>
+                              <div style={{ minHeight: '34px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                                 <div style={{ fontWeight: '700', color: '#059669', fontSize: '13px' }}>
                                   {calculatedBaseQty.toLocaleString('vi-VN')} {row.base_unit}
                                 </div>
@@ -2287,16 +2292,18 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
                                     1 {row.unit_name} = {row.conversion_rate} {row.base_unit}
                                   </div>
                                 )}
-                              </>
+                              </div>
                             ) : (
-                              <span style={{ color: '#94a3b8' }}>--</span>
+                              <div style={{ height: '34px', display: 'flex', alignItems: 'center', color: '#94a3b8' }}>
+                                --
+                              </div>
                             )}
                           </td>
 
                           {/* Quản lý Lô & Hạn sử dụng (Dynamic Validation) */}
-                          <td style={{ padding: '10px 12px' }}>
+                          <td style={{ padding: '10px 12px', verticalAlign: 'top' }}>
                             {!row.product_id ? (
-                              <div style={{ color: '#94a3b8', fontSize: '12px', fontStyle: 'italic', padding: '6px 0' }}>
+                              <div style={{ height: '34px', display: 'flex', alignItems: 'center', color: '#94a3b8', fontSize: '12px', fontStyle: 'italic' }}>
                                 --
                               </div>
                             ) : row.is_batch_managed ? (
@@ -2323,6 +2330,8 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
                                   }}
                                   style={{
                                     width: '100%',
+                                    height: '34px',
+                                    boxSizing: 'border-box',
                                     padding: '5px 8px',
                                     borderRadius: '5px',
                                     border: isConfirmed
@@ -2336,7 +2345,6 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
                                     fontSize: '12px',
                                     color: '#0f172a',
                                     cursor: isConfirmed ? 'not-allowed' : 'text',
-                                    boxSizing: 'border-box',
                                     outline: 'none',
                                   }}
                                 />
@@ -2367,6 +2375,8 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
                                   }}
                                   style={{
                                     width: '100%',
+                                    height: '34px',
+                                    boxSizing: 'border-box',
                                     padding: '4px 8px',
                                     borderRadius: '5px',
                                     border: isConfirmed
@@ -2380,7 +2390,6 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
                                     fontSize: '12px',
                                     color: '#0f172a',
                                     cursor: isConfirmed ? 'not-allowed' : 'text',
-                                    boxSizing: 'border-box',
                                     outline: 'none',
                                   }}
                                 />
@@ -2393,10 +2402,12 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
                             ) : (
                               <div
                                 style={{
+                                  height: '34px',
+                                  display: 'flex',
+                                  alignItems: 'center',
                                   color: '#94a3b8',
                                   fontSize: '12px',
                                   fontStyle: 'italic',
-                                  padding: '8px 0',
                                 }}
                               >
                                 Không quản lý lô
@@ -2406,37 +2417,39 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
 
                           {/* Cột thao tác / xóa dòng */}
                           {!isConfirmed && (
-                            <td style={{ padding: '10px 12px', textAlign: 'center' }}>
-                              <button
-                                type="button"
-                                onClick={() => handleRemoveItemRow(idx)}
-                                disabled={items.length <= 1}
-                                style={{
-                                  background: 'transparent',
-                                  border: 'none',
-                                  color: items.length <= 1 ? '#cbd5e1' : '#ef4444',
-                                  cursor: items.length <= 1 ? 'not-allowed' : 'pointer',
-                                  padding: '5px 8px',
-                                  borderRadius: '6px',
-                                  fontSize: '12px',
-                                  fontWeight: '600',
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '4px',
-                                  transition: 'all 0.15s ease',
-                                }}
-                                onMouseEnter={(e) => {
-                                  if (items.length > 1) {
-                                    e.currentTarget.style.background = '#fee2e2';
-                                  }
-                                }}
-                                onMouseLeave={(e) => {
-                                  e.currentTarget.style.background = 'transparent';
-                                }}
-                                title={items.length <= 1 ? 'Phải có ít nhất 1 mặt hàng' : 'Xóa mặt hàng này'}
-                              >
-                                <span>Xóa</span>
-                              </button>
+                            <td style={{ padding: '10px 12px', textAlign: 'center', verticalAlign: 'top' }}>
+                              <div style={{ height: '34px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveItemRow(idx)}
+                                  disabled={items.length <= 1}
+                                  style={{
+                                    background: 'transparent',
+                                    border: 'none',
+                                    color: items.length <= 1 ? '#cbd5e1' : '#ef4444',
+                                    cursor: items.length <= 1 ? 'not-allowed' : 'pointer',
+                                    padding: '5px 8px',
+                                    borderRadius: '6px',
+                                    fontSize: '12px',
+                                    fontWeight: '600',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '4px',
+                                    transition: 'all 0.15s ease',
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    if (items.length > 1) {
+                                      e.currentTarget.style.background = '#fee2e2';
+                                    }
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    e.currentTarget.style.background = 'transparent';
+                                  }}
+                                  title={items.length <= 1 ? 'Phải có ít nhất 1 mặt hàng' : 'Xóa mặt hàng này'}
+                                >
+                                  <span>Xóa</span>
+                                </button>
+                              </div>
                             </td>
                           )}
                         </tr>

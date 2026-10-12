@@ -391,13 +391,11 @@ export const StockActionModal: React.FC<StockActionModalProps> = ({
                   }}
                 >
                   <option value="">-- Chọn Nhà cung cấp nguồn hàng từ danh mục --</option>
-                  {suppliersList
-                    .filter((sup) => !sup.has_receipts || sup.code === selectedSupplierCode)
-                    .map((sup) => (
-                      <option key={sup.id} value={sup.code}>
-                        [{sup.code}] {sup.name} {sup.tax_code ? `(MST: ${sup.tax_code})` : ''}
-                      </option>
-                    ))}
+                  {suppliersList.map((sup) => (
+                    <option key={sup.id} value={sup.code}>
+                      [{sup.code}] {sup.name} {sup.tax_code ? `(MST: ${sup.tax_code})` : ''}
+                    </option>
+                  ))}
                   <option value="CUSTOM">-- Tự nhập nhà cung cấp khác --</option>
                 </select>
 
