@@ -26,6 +26,10 @@ export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
   const [debouncedSearch, setDebouncedSearch] = useState<string>('');
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
 
+  // Phân trang
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const pageSize = 10;
+
   // Debounce tìm kiếm 300ms để không gọi API và render liên tục theo từng phím gõ
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -46,6 +50,8 @@ export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
         category: selectedCategory,
         stock_status: selectedStatus,
         search: debouncedSearch,
+        page: currentPage,
+        page_size: pageSize,
       };
       const res = await getStockBookApi(token, params);
       setData(res);
@@ -56,7 +62,7 @@ export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
       setIsLoading(false);
       setIsRefreshing(false);
     }
-  }, [token, selectedWarehouse, selectedCategory, selectedStatus, debouncedSearch]);
+  }, [token, selectedWarehouse, selectedCategory, selectedStatus, debouncedSearch, currentPage, pageSize]);
 
   useEffect(() => {
     loadStockBook();
@@ -67,10 +73,6 @@ export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
     if (val === undefined || val === null) return '0';
     return Number(val).toLocaleString('vi-VN');
   };
-
-  // Phân trang
-  const [currentPage, setCurrentPage] = useState<number>(1);
-  const pageSize = 10;
 
   const summary = data?.summary || {
     total_actual_stock: 0,
@@ -83,13 +85,13 @@ export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
   const warehouses = data?.warehouses || [];
   const categories = data?.categories || [];
 
-  // Tính toán dữ liệu phân trang
-  const totalItems = items.length;
+  // Tính toán dữ liệu phân trang (Hỗ trợ cả phân trang server-side 4KB lẫn client-side fallback)
+  const totalItems = data?.total !== undefined && data?.total !== null ? data.total : (summary.total_skus || items.length);
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
   const safePage = Math.min(Math.max(1, currentPage), totalPages);
   const startIndex = (safePage - 1) * pageSize;
   const endIndex = Math.min(startIndex + pageSize, totalItems);
-  const pageItems = items.slice(startIndex, endIndex);
+  const pageItems = items.length > pageSize ? items.slice(startIndex, endIndex) : items;
 
   return (
     <div
@@ -301,8 +303,8 @@ export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
             }}
           >
             <option value="all">Tất cả trạng thái</option>
-            <option value="available">Còn hàng bán (Khả dụng &gt; 0)</option>
-            <option value="low_stock">Dưới định mức tối thiểu</option>
+            <option value="available">Còn hàng (Khả dụng &gt; 0)</option>
+            <option value="low_stock">Thiếu hàng (Dưới định mức)</option>
             <option value="out_of_stock">Hết hàng bán (Khả dụng = 0)</option>
           </select>
         </div>
@@ -495,11 +497,12 @@ export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
                   style={{
                     padding: '10px 12px',
                     fontWeight: '700',
-                    width: '105px',
-                    minWidth: '95px',
+                    width: '125px',
+                    minWidth: '115px',
                     textAlign: 'right',
                     backgroundColor: '#f1f5f9',
                     color: '#334155',
+                    whiteSpace: 'nowrap',
                   }}
                 >
                   Đang giữ chỗ
@@ -515,7 +518,7 @@ export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
                     color: '#334155',
                   }}
                 >
-                  Tồn khả dụng (Bán được)
+                  Tồn khả dụng
                 </th>
                 <th style={{ padding: '10px 14px', fontWeight: '700', width: '115px', minWidth: '105px', textAlign: 'center', backgroundColor: '#f1f5f9' }}>
                   Trạng thái
@@ -620,13 +623,20 @@ export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
                         {isAvailableZero ? (
                           <span
                             style={{
-                              display: 'inline-block',
-                              padding: '2px 8px',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              textAlign: 'center',
+                              padding: '4px 10px',
+                              minWidth: '80px',
+                              minHeight: '34px',
                               borderRadius: '4px',
-                              fontSize: '11px',
+                              fontSize: '11.5px',
                               fontWeight: '700',
+                              lineHeight: '1.3',
                               backgroundColor: '#fee2e2',
                               color: '#991b1b',
+                              boxSizing: 'border-box',
                             }}
                           >
                             Hết hàng bán
@@ -634,30 +644,46 @@ export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
                         ) : isLow ? (
                           <span
                             style={{
-                              display: 'inline-block',
-                              padding: '2px 8px',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              textAlign: 'center',
+                              padding: '4px 10px',
+                              minWidth: '80px',
+                              minHeight: '34px',
                               borderRadius: '4px',
-                              fontSize: '11px',
+                              fontSize: '11.5px',
                               fontWeight: '700',
+                              lineHeight: '1.3',
                               backgroundColor: '#fef3c7',
-                              color: '#92400e',
+                              color: '#b45309',
+                              border: '1px solid #fcd34d',
+                              boxSizing: 'border-box',
                             }}
+                            title={`Tồn thực tế (${it.actual_stock}) <= Định mức tối thiểu (${it.min_stock})`}
                           >
-                            Dưới định mức
+                            Thiếu hàng
                           </span>
                         ) : (
                           <span
                             style={{
-                              display: 'inline-block',
-                              padding: '2px 8px',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              textAlign: 'center',
+                              padding: '4px 10px',
+                              minWidth: '80px',
+                              minHeight: '34px',
                               borderRadius: '4px',
-                              fontSize: '11px',
+                              fontSize: '11.5px',
                               fontWeight: '700',
+                              lineHeight: '1.3',
                               backgroundColor: '#dcfce7',
                               color: '#166534',
+                              boxSizing: 'border-box',
                             }}
                           >
-                            Còn hàng bán
+                            Còn hàng
                           </span>
                         )}
                       </td>

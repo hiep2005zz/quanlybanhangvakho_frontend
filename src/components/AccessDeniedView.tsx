@@ -43,9 +43,9 @@ export const AccessDeniedView: React.FC<AccessDeniedViewProps> = ({
     customer: isDealer ? '#0284c7' : '#94a3b8',
   };
 
-  const primaryRole = officialRoles[0] || currentUser.role || 'customer';
-  const roleName = roleLabelMap[primaryRole] || primaryRole;
-  const badgeColor = roleBadgeColorMap[primaryRole] || '#64748b';
+  const primaryRole = officialRoles[0] || currentUser.role || 'unassigned';
+  const roleName = roleLabelMap[primaryRole] || (primaryRole === 'unassigned' ? 'Chưa Phân Quyền' : primaryRole);
+  const badgeColor = roleBadgeColorMap[primaryRole] || '#94a3b8';
 
   const [adminEmail, setAdminEmail] = useState<string>('daongochiep645@gmail.com');
 
@@ -99,7 +99,7 @@ export const AccessDeniedView: React.FC<AccessDeniedViewProps> = ({
           maxWidth: '640px',
           margin: '0 auto 28px auto',
         }}>
-          Chức năng <strong>Phân quyền & Quản lý người dùng</strong> yêu cầu quyền hạn cấp cao{' '}
+          Khu vực / Chức năng này yêu cầu quyền hạn:{' '}
           <span style={{ color: '#b91c1c', fontWeight: '700' }}>{requiredPermission}</span>.
           Tài khoản của bạn hiện không thuộc danh sách được phân quyền thực thi nghiệp vụ này.
         </p>
