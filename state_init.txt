@@ -1,0 +1,27 @@
+const [activeTab, setActiveTabState] = useState<'inventory' | 'orders' | 'users' | 'categories' | 'audit-logs' | 'profile' | 'suppliers' | 'dealers' | 'discounts'>(() => {
+
+    const pathname = window.location.pathname.toLowerCase();
+    
+    const hasOldTabParam = params.has('tab') || params.has('view');
+    const oldTabVal = tabParam;
+
+    const isUsersPath = pathname === '/users' || pathname.startsWith('/users/') || pathname === '/admin' || pathname.startsWith('/admin/');
+    const isCategoriesPath = pathname === '/categories';
+    const isAuditPath = pathname === '/audit-logs' || pathname.startsWith('/audit-logs/');
+    const isOrdersPath = pathname === '/orders' || pathname.startsWith('/orders/');
+    const isProfilePath = pathname === '/profile' || pathname.startsWith('/profile/');
+    const isDiscountsPath = pathname === '/discounts' || pathname.startsWith('/discounts/');
+      if (isDiscountsPath || tabParam === 'discounts' || tabParam === 'discount') {
+        if (canAccessDiscounts) {
+          if (pathname !== '/discounts' || tabParam) {
+            try { window.history.replaceState({}, '', '/discounts'); } catch {}
+          }
+          setActiveTabState('discounts');
+        } else {
+          setActiveTabState('inventory');
+          try { window.history.replaceState({}, '', '/'); } catch {}
+        }
+        return;
+      }
+      const isDealersPath = pathname === '/dealers' || pathname.startsWith('/dealers/');
+    // Dọn sạch tàn dư query parameter cũ (?tab=us
