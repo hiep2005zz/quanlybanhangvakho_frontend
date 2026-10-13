@@ -697,6 +697,24 @@ export default function DashboardPage({
       const isProfilePath = pathname === '/profile' || pathname.startsWith('/profile/');
       const isProductHistoryPath = pathname === '/product-history' || pathname.startsWith('/product-history/');
       const isStockTransfersPath = pathname === '/stock-transfers' || pathname.startsWith('/stock-transfers/');
+      const isWarehousesPath = pathname === '/warehouses' || pathname.startsWith('/warehouses/');
+      const isStockBookPath = pathname === '/stock-book' || pathname.startsWith('/stock-book/');
+
+      if (isWarehousesPath || tabParam === 'warehouses') {
+        if (pathname !== '/warehouses' || tabParam) {
+          try { window.history.replaceState({}, '', '/warehouses'); } catch {}
+        }
+        setActiveTabState('warehouses');
+        return;
+      }
+
+      if (isStockBookPath || tabParam === 'stock-book') {
+        if (pathname !== '/stock-book' || tabParam) {
+          try { window.history.replaceState({}, '', '/stock-book'); } catch {}
+        }
+        setActiveTabState('stock-book');
+        return;
+      }
       if (isProductsImportPath || tabParam === 'products-import') {
         if (pathname !== '/products/import' || tabParam) {
           try { window.history.replaceState({}, '', '/products/import'); } catch {}
