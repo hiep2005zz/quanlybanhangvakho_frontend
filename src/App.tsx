@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback, FormEvent } from 'react';
 import LoginPage from './features/auth/LoginPage';
 import DashboardPage from './components/DashboardPage';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { User, logoutApi, subscribeSessionExpired, getClientSession, saveClientSession, clearClientSession, AUTH_STORAGE, getMeApi } from './services/api';
 import { sessionManager } from './services/sessionManager';
 import { requestPasswordReset, resetPassword } from './services/auth';
@@ -237,7 +238,7 @@ function App() {
   // Nếu đã đăng nhập thành công
   if (currentUser && authToken) {
     return (
-      <>
+      <ErrorBoundary>
         {videoBackground}
         <DashboardPage
           user={currentUser}
@@ -256,7 +257,7 @@ function App() {
             saveClientSession(updatedUser, authToken);
           }}
         />
-      </>
+      </ErrorBoundary>
     );
   }
 
