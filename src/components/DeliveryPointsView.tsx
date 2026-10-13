@@ -266,6 +266,7 @@ export default function DeliveryPointsView({
     setDeselectingPointId(item.id);
     try {
       await deleteDeliveryPointApi(token, selectedDealerId, assignedId);
+      setPoints((prev) => prev.filter((p) => p.id !== assignedId));
       emitStatusToast({
         title: 'Đã bỏ chọn',
         message: `Đã bỏ chọn điểm giao "${item.label}" khỏi đại lý "${selectedDealer?.name || ''}"`,
@@ -468,12 +469,15 @@ export default function DeliveryPointsView({
     if (!deletingPoint) return;
     const targetDealerId = deletingPoint.dealer_id || selectedDealerId;
     if (!targetDealerId) return;
+    const targetPointId = deletingPoint.id;
+    const targetPointLabel = deletingPoint.label;
     setIsDeleting(true);
     try {
-      await deleteDeliveryPointApi(token, targetDealerId, deletingPoint.id);
+      await deleteDeliveryPointApi(token, targetDealerId, targetPointId);
+      setPoints((prev) => prev.filter((p) => p.id !== targetPointId));
       emitStatusToast({
         title: 'Đã gỡ điểm giao',
-        message: `Đã gỡ điểm giao "${deletingPoint.label}" khỏi đại lý`,
+        message: `Đã gỡ điểm giao "${targetPointLabel}" khỏi đại lý`,
         type: 'success',
       });
       setDeletingPoint(null);
@@ -490,12 +494,15 @@ export default function DeliveryPointsView({
   // Delete from Master Catalog
   const handleDeleteMaster = async () => {
     if (!deletingMasterPoint) return;
+    const targetMasterId = deletingMasterPoint.id;
+    const targetMasterLabel = deletingMasterPoint.label;
     setIsDeletingMaster(true);
     try {
-      await deleteMasterDeliveryPointApi(token, deletingMasterPoint.id);
+      await deleteMasterDeliveryPointApi(token, targetMasterId);
+      setAllPoints((prev) => prev.filter((p) => p.id !== targetMasterId));
       emitStatusToast({
         title: 'Đã xóa',
-        message: `Đã xóa điểm giao "${deletingMasterPoint.label}" khỏi danh sách chung`,
+        message: `Đã xóa điểm giao "${targetMasterLabel}" khỏi danh sách chung`,
         type: 'success',
       });
       setDeletingMasterPoint(null);

@@ -3,8 +3,10 @@ import { useLocation } from '../hooks/useLocation';
 
 export type TabType =
   | 'inventory'
+  | 'warehouses'
   | 'stock-book'
   | 'stock-audits'
+  | 'stock-transfers'
   | 'orders'
   | 'create-order'
   | 'users'
@@ -36,6 +38,7 @@ export interface SidebarProps {
   canViewProductHistory?: boolean;
   canAccessDiscounts?: boolean;
   canAccessStockAudit?: boolean;
+  canAccessStockTransfer?: boolean;
   isAdmin?: boolean;
   onLogout?: () => void;
   isLoggingOut?: boolean;
@@ -70,6 +73,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   canViewProductHistory = false,
   canAccessDiscounts = false,
   canAccessStockAudit = false,
+  canAccessStockTransfer = false,
   onLogout,
   isLoggingOut = false,
 }) => {
@@ -283,6 +287,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
       ),
     },
     {
+      id: 'btn-sidebar-warehouses',
+      tab: 'warehouses',
+      path: '/warehouses',
+      label: 'Danh sách kho & Vị trí',
+      visible: !isCustomer,
+      icon: (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+          <polyline points="9 22 9 12 15 12 15 22" />
+        </svg>
+      ),
+    },
+    {
       id: 'btn-sidebar-stock-book',
       tab: 'stock-book',
       path: '/stock-book',
@@ -294,6 +311,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
           <line x1="9" y1="7" x2="15" y2="7" />
           <line x1="9" y1="11" x2="15" y2="11" />
+        </svg>
+      ),
+    },
+    {
+      id: 'btn-sidebar-stock-transfers',
+      tab: 'stock-transfers',
+      path: '/stock-transfers',
+      label: 'Chuyển kho nội bộ',
+      visible: canAccessStockTransfer,
+      icon: (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="17 1 21 5 17 9" />
+          <path d="M3 11V9a4 4 0 0 1 4-4h14" />
+          <polyline points="7 23 3 19 7 15" />
+          <path d="M21 13v2a4 4 0 0 1-4 4H3" />
         </svg>
       ),
     },

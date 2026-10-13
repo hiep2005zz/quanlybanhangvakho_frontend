@@ -8,6 +8,10 @@ import {
   supplementaryDeliveryApi,
   reorderOrderApi,
   getCloneOrderDataApi,
+  getWarehousePickingSummaryApi,
+  OrderPickingSummary,
+  OrderPickingItem,
+  ProductPickingLocationItem,
   OrderResponseData,
   User,
   ProductItem,
@@ -48,6 +52,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'PENDING_APPROVAL' | 'CONFIRMED' | 'DELIVERED' | 'REJECTED' | 'CANCELLED'>('ALL');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedOrderDetail, setSelectedOrderDetail] = useState<any | null>(null);
+  const [pickingSummary, setPickingSummary] = useState<OrderPickingSummary | null>(null);
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
   const [approvingOrder, setApprovingOrder] = useState<OrderResponseData | null>(null);
   const [rejectingOrder, setRejectingOrder] = useState<OrderResponseData | null>(null);
@@ -159,37 +164,9 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
   const isSales = currentUser.role === 'sales' || rawRoles.includes('sales');
   const isAccountant = currentUser.role === 'accountant' || rawRoles.includes('accountant');
   const canCreateOrders = !isAccountant && (isAdmin || isSalesManager || isSales);
-  const canApproveOrder = (ord: any) => {
-    if (!ord) return false;
-    if (isAdmin || isSalesManager) return true;
-    if (isSales) {
-      // 1. Tuyệt đối không cho nhân viên bán hàng duyệt đơn do Admin hoặc Quản lý cấp trên tạo
-      const createdByLower = (ord.created_by || '').toLowerCase();
-      if (
-        createdByLower === 'admin' ||
-        createdByLower === 'sales_manager' ||
-        createdByLower.includes('admin') ||
-        createdByLower.includes('manager')
-      ) {
-        return false;
-      }
-
-      // 2. Nhân viên bán hàng CHỈ ĐƯỢC DUYỆT đại lý do mình phụ trách
-      const isAssigned =
-        (ord.assigned_sale_id && ord.assigned_sale_id === currentUser.id) ||
-        (ord.assigned_sale_name &&
-          (ord.assigned_sale_name === currentUser.full_name ||
-            ord.assigned_sale_name === currentUser.username));
-      if (!isAssigned) return false;
-
-      // 3. Không cho tự duyệt đơn bán dưới giá sàn do chính sales tạo ra
-      const isFloorOrder = ord.approval_reason && ord.approval_reason.toLowerCase().includes('giá sàn');
-      const isSelfCreated = ord.created_by === currentUser.username;
-      if (isFloorOrder && isSelfCreated) return false;
-
-      return true;
-    }
-    return false;
+  const canApproveOrder = (_ord?: any) => {
+    // CHỈ ADMIN HOẶC SALES MANAGER MỚI CÓ QUYỀN/VAI TRÒ DUYỆT ĐƠN VÀ TỪ CHỐI ĐƠN
+    return isAdmin || isSalesManager;
   };
   const isCustomer = currentUser.role === 'customer' || Boolean(currentUser.roles && currentUser.roles.includes('customer'));
   const [customerDealer, setCustomerDealer] = useState<any | null>(null);
@@ -287,7 +264,8 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
 
       const continueToNewOrder = () => {
         setReorderResultModal(null);
-        setSelectedOrderDetail(null); // Đóng modal chi tiết đơn
+        setSelectedOrderDetail(null);
+    setPickingSummary(null); // Đóng modal chi tiết đơn
         setReorderInitialData({
           dealerId: res.dealer_id,
           items: mappedOrderItems,
@@ -363,6 +341,9 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
     try {
       const detail = await getOrderDetailApi(token, order.order_code);
       setSelectedOrderDetail(detail);
+      getWarehousePickingSummaryApi(token, order.order_code)
+        .then((res: OrderPickingSummary) => setPickingSummary(res))
+        .catch(() => setPickingSummary(null));
     } catch (err: any) {
       console.error('Không thể tải chi tiết đơn hàng:', err);
     } finally {
@@ -659,11 +640,19 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
   const renderOrderActions = (order: OrderResponseData) => {
     const isPending = order.status === 'PENDING_APPROVAL';
     const isDropdownOpen = openActionDropdownCode === order.order_code;
+    const canApprove = isPending && canApproveOrder(order);
+
+    const canCancel =
+      order.status !== 'CANCELLED' &&
+      order.status !== 'REJECTED' &&
+      !isOrderPastExported(order.status) &&
+      isOrderCancelable(order.status) &&
+      (isCustomer ? ['PENDING_APPROVAL', 'PENDING', 'DRAFT'].includes(order.status) : isFullAccess);
 
     return (
       <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px', whiteSpace: 'nowrap' }}>
-        {/* Menu Dropdown Trạng thái dành cho Admin/Sales/Quản lý */}
-        {!isCustomer && ((isPending && canApproveOrder(order)) || (isFullAccess && order.status !== 'CANCELLED' && order.status !== 'REJECTED')) && (
+        {/* Trường hợp 1: Người CÓ vai trò duyệt (Admin / Sales Manager) khi đơn chờ duyệt -> Dropdown Menu Trạng thái (Duyệt / Từ chối / Hủy) */}
+        {!isCustomer && canApprove && (
           <div
             className="order-action-dropdown-container order-status-dropdown-details relative inline-block text-left"
             style={{ position: 'relative', display: 'inline-block' }}
@@ -745,53 +734,89 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                   }}
                 >
                   {/* Duyệt đơn */}
-                  {isPending && canApproveOrder(order) && (
-                    <button
-                      type="button"
-                      id={`btn-approve-order-${order.order_code}`}
-                      onClick={() => {
-                        setOpenActionDropdownCode(null);
-                        setApprovingOrder(order);
-                      }}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '7px',
-                        width: '100%',
-                        padding: '7px 12px',
-                        borderRadius: '6px',
-                        border: 'none',
-                        background: 'transparent',
-                        color: '#16a34a',
-                        fontSize: '12.5px',
-                        fontWeight: '600',
-                        textAlign: 'left',
-                        cursor: 'pointer',
-                        whiteSpace: 'nowrap',
-                        transition: 'all 0.15s ease',
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.background = '#f0fdf4';
-                        e.currentTarget.style.color = '#15803d';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.background = 'transparent';
-                        e.currentTarget.style.color = '#16a34a';
-                      }}
-                    >
-                      <span style={{ fontSize: '13px', lineHeight: 1 }}>✓</span>
-                      <span>Duyệt đơn</span>
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    id={`btn-approve-order-${order.order_code}`}
+                    onClick={() => {
+                      setOpenActionDropdownCode(null);
+                      setApprovingOrder(order);
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '7px',
+                      width: '100%',
+                      padding: '7px 12px',
+                      borderRadius: '6px',
+                      border: 'none',
+                      background: 'transparent',
+                      color: '#16a34a',
+                      fontSize: '12.5px',
+                      fontWeight: '600',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap',
+                      transition: 'all 0.15s ease',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = '#f0fdf4';
+                      e.currentTarget.style.color = '#15803d';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'transparent';
+                      e.currentTarget.style.color = '#16a34a';
+                    }}
+                  >
+                    <span style={{ fontSize: '13px', lineHeight: 1 }}>✓</span>
+                    <span>Duyệt đơn</span>
+                  </button>
 
                   {/* Từ chối */}
-                  {isPending && canApproveOrder(order) && (
+                  <button
+                    type="button"
+                    id={`btn-reject-order-${order.order_code}`}
+                    onClick={() => {
+                      setOpenActionDropdownCode(null);
+                      setRejectingOrder(order);
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '7px',
+                      width: '100%',
+                      padding: '7px 12px',
+                      borderRadius: '6px',
+                      border: 'none',
+                      background: 'transparent',
+                      color: '#dc2626',
+                      fontSize: '12.5px',
+                      fontWeight: '600',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap',
+                      transition: 'all 0.15s ease',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = '#fef2f2';
+                      e.currentTarget.style.color = '#b91c1c';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'transparent';
+                      e.currentTarget.style.color = '#dc2626';
+                    }}
+                  >
+                    <span style={{ fontSize: '12px', lineHeight: 1 }}>✕</span>
+                    <span>Từ chối</span>
+                  </button>
+
+                  {/* Hủy đơn trong dropdown */}
+                  {canCancel && (
                     <button
                       type="button"
-                      id={`btn-reject-order-${order.order_code}`}
+                      id={`btn-dropdown-cancel-order-${order.order_code}`}
                       onClick={() => {
                         setOpenActionDropdownCode(null);
-                        setRejectingOrder(order);
+                        setCancellingOrder(order);
                       }}
                       style={{
                         display: 'flex',
@@ -802,7 +827,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                         borderRadius: '6px',
                         border: 'none',
                         background: 'transparent',
-                        color: '#dc2626',
+                        color: '#ea580c',
                         fontSize: '12.5px',
                         fontWeight: '600',
                         textAlign: 'left',
@@ -811,59 +836,12 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                         transition: 'all 0.15s ease',
                       }}
                       onMouseEnter={(e) => {
-                        e.currentTarget.style.background = '#fef2f2';
-                        e.currentTarget.style.color = '#b91c1c';
+                        e.currentTarget.style.background = '#fff7ed';
+                        e.currentTarget.style.color = '#c2410c';
                       }}
                       onMouseLeave={(e) => {
                         e.currentTarget.style.background = 'transparent';
-                        e.currentTarget.style.color = '#dc2626';
-                      }}
-                    >
-                      <span style={{ fontSize: '12px', lineHeight: 1 }}>✕</span>
-                      <span>Từ chối</span>
-                    </button>
-                  )}
-
-                  {/* Hủy đơn */}
-                  {isFullAccess && order.status !== 'CANCELLED' && order.status !== 'REJECTED' && (
-                    <button
-                      type="button"
-                      id={`btn-cancel-order-${order.order_code}`}
-                      disabled={isOrderPastExported(order.status) || !isOrderCancelable(order.status)}
-                      onClick={() => {
-                        if (!isOrderPastExported(order.status) && isOrderCancelable(order.status)) {
-                          setOpenActionDropdownCode(null);
-                          setCancellingOrder(order);
-                        }
-                      }}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '7px',
-                        width: '100%',
-                        padding: '7px 12px',
-                        borderRadius: '6px',
-                        border: 'none',
-                        background: 'transparent',
-                        color: isOrderPastExported(order.status) ? '#94a3b8' : '#ea580c',
-                        fontSize: '12.5px',
-                        fontWeight: '600',
-                        textAlign: 'left',
-                        cursor: isOrderPastExported(order.status) ? 'not-allowed' : 'pointer',
-                        whiteSpace: 'nowrap',
-                        transition: 'all 0.15s ease',
-                      }}
-                      onMouseEnter={(e) => {
-                        if (!isOrderPastExported(order.status)) {
-                          e.currentTarget.style.background = '#fff7ed';
-                          e.currentTarget.style.color = '#c2410c';
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        if (!isOrderPastExported(order.status)) {
-                          e.currentTarget.style.background = 'transparent';
-                          e.currentTarget.style.color = '#ea580c';
-                        }
+                        e.currentTarget.style.color = '#ea580c';
                       }}
                     >
                       <span style={{ fontSize: '12px', lineHeight: 1 }}>⊘</span>
@@ -876,11 +854,11 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
           </div>
         )}
 
-        {/* Tiêu chí cho Khách hàng/Đại lý: Chỉ hủy đơn khi chưa duyệt */}
-        {isCustomer && (order.status === 'PENDING_APPROVAL' || order.status === 'PENDING' || order.status === 'DRAFT') && (
+        {/* Trường hợp 2: Người không có vai trò duyệt (hoặc đơn không ở trạng thái chờ duyệt) -> Chỉ hiện nút Hủy đơn trực tiếp */}
+        {!canApprove && canCancel && (
           <button
             type="button"
-            id={`btn-customer-cancel-order-${order.order_code}`}
+            id={`btn-cancel-order-${order.order_code}`}
             onClick={() => setCancellingOrder(order)}
             style={{
               padding: '5px 10px',
@@ -895,6 +873,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
               display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',
+              gap: '4px',
               height: '28px',
               boxSizing: 'border-box',
               transition: 'all 0.15s ease',
@@ -907,9 +886,9 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
               e.currentTarget.style.background = '#fff1f2';
               e.currentTarget.style.color = '#e11d48';
             }}
-            title="Hủy đơn hàng chưa duyệt của đại lý"
+            title="Hủy đơn hàng này"
           >
-            Hủy đơn
+            <span>Hủy đơn</span>
           </button>
         )}
 
@@ -1693,7 +1672,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                 )}
                 <button
                   type="button"
-                  onClick={() => setSelectedOrderDetail(null)}
+                  onClick={() => { setSelectedOrderDetail(null); setPickingSummary(null); }}
                   style={{
                     background: 'transparent',
                     border: 'none',
@@ -1762,6 +1741,56 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                   </div>
                 </div>
               )}
+                        {/* Thông tin kho xuất hàng phục vụ */}
+            {pickingSummary && (
+              <div
+                style={{
+                  background: '#f0f9ff',
+                  border: '1px solid #bae6fd',
+                  borderRadius: '10px',
+                  padding: '12px 16px',
+                  marginBottom: '16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  gap: '12px',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div
+                    style={{
+                      width: '36px',
+                      height: '36px',
+                      borderRadius: '8px',
+                      background: '#0284c7',
+                      color: '#ffffff',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M3 21V9l9-7 9 7v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '12px', color: '#0369a1', fontWeight: '600', textTransform: 'uppercase' }}>
+                      Kho xuất hàng mặc định (Đại lý {selectedOrderDetail.dealer_name})
+                    </div>
+                    <div style={{ fontSize: '15px', fontWeight: '700', color: '#0c4a6e' }}>
+                      {pickingSummary.warehouse_name} ({pickingSummary.warehouse_code})
+                    </div>
+                  </div>
+                </div>
+                {pickingSummary.warehouse_address && (
+                  <div style={{ fontSize: '12.5px', color: '#0369a1', background: '#e0f2fe', padding: '4px 10px', borderRadius: '6px' }}>
+                    Địa chỉ: {pickingSummary.warehouse_address}
+                  </div>
+                )}
+              </div>
+            )}
+
             {selectedOrderDetail.approval_reason && (
               <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '8px', padding: '12px 14px', marginBottom: '16px', fontSize: '13px', color: '#b45309' }}>
                 <strong>Lý do yêu cầu phê duyệt:</strong> {selectedOrderDetail.approval_reason}
@@ -1905,6 +1934,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                       <th style={{ padding: '8px 12px', textAlign: 'center' }}>ĐVT</th>
                       <th style={{ padding: '8px 12px', textAlign: 'right' }}>SL Đặt</th>
                       <th style={{ padding: '8px 12px', textAlign: 'right' }}>SL Thực giao</th>
+                      <th style={{ padding: '8px 12px', textAlign: 'left' }}>Vị trí kệ & Khả dụng</th>
                       <th style={{ padding: '8px 12px', textAlign: 'right' }}>Đơn giá</th>
                       <th style={{ padding: '8px 12px', textAlign: 'right' }}>Thành tiền</th>
                       <th style={{ padding: '8px 12px', textAlign: 'center' }}>Thao tác</th>
@@ -1919,6 +1949,12 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                         ? (item.delivered_quantity !== undefined && item.delivered_quantity !== null ? Number(item.delivered_quantity) : qty)
                         : null;
                       const shortage = isCompletedDelivery && deliveredQty !== null ? Math.max(0, qty - deliveredQty) : 0;
+                      const pickingItem = pickingSummary?.items.find((p: OrderPickingItem) => p.product_id === item.product_id);
+                      const totalAvailable = (pickingItem?.locations || []).reduce(
+                        (acc: number, l: ProductPickingLocationItem) => acc + (l.available_quantity || 0),
+                        0
+                      );
+                      const isSufficient = totalAvailable >= qty;
                       const price = item.price || 0;
                       const lineTotal = qty * price;
                       return (
@@ -1967,6 +2003,43 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                               </div>
                             ) : (
                               <span style={{ color: '#94a3b8' }}>—</span>
+                            )}
+                          </td>
+                          <td style={{ padding: '10px 12px' }}>
+                            {pickingItem && pickingItem.locations.length > 0 ? (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                {pickingItem.locations.map((loc: ProductPickingLocationItem) => (
+                                  <div
+                                    key={loc.location_id}
+                                    style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '6px',
+                                      background: '#f1f5f9',
+                                      border: '1px solid #cbd5e1',
+                                      borderRadius: '6px',
+                                      padding: '2px 8px',
+                                      fontSize: '12px',
+                                    }}
+                                  >
+                                    <span style={{ fontWeight: '700', color: '#1e293b' }}>
+                                      {loc.location_code}
+                                    </span>
+                                    <span style={{ color: '#64748b', fontSize: '11px' }}>
+                                      (Khả dụng: {loc.available_quantity})
+                                    </span>
+                                  </div>
+                                ))}
+                                {!isSufficient && (
+                                  <span style={{ color: '#dc2626', fontSize: '11px', fontWeight: '600' }}>
+                                    ⚠️ Thiếu hàng khả dụng (Cần: {qty}, Có: {totalAvailable})
+                                  </span>
+                                )}
+                              </div>
+                            ) : (
+                              <span style={{ color: '#94a3b8', fontStyle: 'italic', fontSize: '12px' }}>
+                                Chưa phân bổ vị trí
+                              </span>
                             )}
                           </td>
                           <td style={{ padding: '10px 12px', textAlign: 'right', color: '#334155' }}>
@@ -2171,7 +2244,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                 </button>
                 <button
                   type="button"
-                  onClick={() => setSelectedOrderDetail(null)}
+                  onClick={() => { setSelectedOrderDetail(null); setPickingSummary(null); }}
                   style={{
                     padding: '8px 18px',
                     background: '#f1f5f9',
