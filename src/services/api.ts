@@ -14,6 +14,18 @@ export function getAvatarUrl(url?: string | null): string {
   return `${backendOrigin}${url.startsWith('/') ? '' : '/'}${url}`;
 }
 
+/**
+ * Trả về URL hợp lệ để hiển thị ảnh sản phẩm (hỗ trợ cả đường dẫn tĩnh /uploads/..., base64 data:, blob: và HTTP)
+ */
+export function getProductImageUrl(url?: string | null): string {
+  if (!url) return '';
+  if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:') || url.startsWith('blob:')) {
+    return url;
+  }
+  const backendOrigin = API_BASE_URL.replace(/\/api\/v1\/?$/, '');
+  return `${backendOrigin}${url.startsWith('/') ? '' : '/'}${url}`;
+}
+
 export const AUTH_STORAGE = {
   TOKEN: 'auth_token',
   USER: 'auth_user',
@@ -240,6 +252,11 @@ export interface ProductListResponse {
   user_role: string;
   is_cost_price_visible: boolean;
   summary?: ProductFinancialSummary;
+  applied_price_book?: string | null;
+  data?: ProductItem[];
+  page?: number;
+  limit?: number;
+  total_pages?: number;
 }
 
 export interface OrderCreateResponse {
@@ -621,8 +638,19 @@ export async function logoutApi(token: string): Promise<void> {
   }
 }
 
-export async function getProductsApi(token: string): Promise<ProductListResponse> {
-  const response = await authenticatedFetch(`${API_BASE_URL}/products`, {
+export async function getProductsApi(
+  token: string,
+  params?: { page?: number; limit?: number; search?: string; category?: string }
+): Promise<ProductListResponse> {
+  const queryParams = new URLSearchParams();
+  if (params?.page) queryParams.set('page', params.page.toString());
+  if (params?.limit) queryParams.set('limit', params.limit.toString());
+  if (params?.search && params.search.trim()) queryParams.set('search', params.search.trim());
+  if (params?.category && params.category !== 'ALL' && params.category !== 'all') {
+    queryParams.set('category', params.category);
+  }
+  const queryString = queryParams.toString() ? `?${queryParams.toString()}` : '';
+  const response = await authenticatedFetch(`${API_BASE_URL}/products${queryString}`, {
     method: 'GET',
   }, token);
 
