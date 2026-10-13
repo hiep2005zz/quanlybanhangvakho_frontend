@@ -517,43 +517,6 @@ export default function DiscountPolicyView({ token, user }: DiscountPolicyViewPr
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsModalOpen(false);
-                      setEditingPolicyId(null);
-                    }}
-                    style={{
-                      padding: '7px 16px',
-                      borderRadius: '7px',
-                      border: '1px solid #cbd5e1',
-                      background: '#ffffff',
-                      color: '#475569',
-                      fontWeight: '600',
-                      fontSize: '13px',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    Hủy bỏ
-                  </button>
-                  <button
-                    type="submit"
-                    style={{
-                      padding: '7px 20px',
-                      borderRadius: '7px',
-                      border: 'none',
-                      background: 'linear-gradient(135deg, #0fba90 0%, #0fad89 100%)',
-                      color: '#fff',
-                      fontWeight: '700',
-                      fontSize: '13px',
-                      cursor: 'pointer',
-                      boxShadow: '0 2px 6px rgba(15, 186, 144, 0.3)',
-                    }}
-                  >
-                    Lưu & Áp Dụng
-                  </button>
-                </div>
               </div>
 
               {/* Thân trang: Bố cục 2 cột gọn gàng để hiển thị trọn vẹn ở zoom 100% */}
