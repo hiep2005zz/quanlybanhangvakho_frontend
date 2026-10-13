@@ -119,7 +119,6 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
   };
 
 
-
   const permTier = getOrderPermissionTier(currentUser);
   const isFullAccess = permTier === 'FULL_ACCESS';
   const isNoAccess = permTier === 'NO_ACCESS';
@@ -502,10 +501,6 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
     );
   };
 
-<<<<<<< HEAD
-=======
-
->>>>>>> de1048e83c228fece5b437c04256e4d6ea51d2bc
   const renderOrderActions = (order: OrderResponseData) => {
     const isPending = order.status === 'PENDING_APPROVAL';
     const isApprovedOrConfirmed = ['CONFIRMED', 'APPROVED'].includes(order.status);

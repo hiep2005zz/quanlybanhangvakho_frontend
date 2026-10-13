@@ -150,7 +150,7 @@ export const OrderDetailPage: React.FC<OrderDetailPageProps> = ({
           productName: item.product_name,
           productCode: item.product_code || `SP${item.product_id}`,
           unit: item.unit,
-          conversionRate: 1,
+          conversionRate: item.conversion_rate || 1,
           quantity: item.quantity,
           rawQuantity: String(item.quantity),
           price: itemPrice,
