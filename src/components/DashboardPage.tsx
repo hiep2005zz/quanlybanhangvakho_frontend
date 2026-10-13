@@ -708,7 +708,8 @@ export default function DashboardPage({
       if (isPriceBooksPath) { setActiveTabState('price-books'); return; }
 
       const isOrdersCreatePath = pathname === '/orders/create' || pathname.startsWith('/orders/create');
-      if (isOrdersCreatePath) {
+      const isOrdersDetailPath = pathname.startsWith('/orders/') && !isOrdersCreatePath && pathname !== '/orders';
+      if (isOrdersCreatePath || isOrdersDetailPath) {
         setActiveTabState('orders');
         return;
       }
