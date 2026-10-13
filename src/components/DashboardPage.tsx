@@ -1,9 +1,14 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-<<<<<<< HEAD
-import { getProductsApi, getLowStockAlertsApi, LowStockAlertSummary, ProductItem, User, getProductImageUrl } from '../services/api';
-=======
-import { getProductsApi, getLowStockAlertsApi, LowStockAlertSummary, ProductItem, User, ProductFinancialSummary, getCategoryTreeApi } from '../services/api';
->>>>>>> origin/test
+import {
+  getProductsApi,
+  getLowStockAlertsApi,
+  LowStockAlertSummary,
+  ProductItem,
+  User,
+  ProductFinancialSummary,
+  getCategoryTreeApi,
+  getProductImageUrl,
+} from '../services/api';
 import { StockThresholdModal } from './StockThresholdModal';
 import { LowStockAlertModal } from './LowStockAlertModal';
 import { sessionManager, SessionState } from '../services/sessionManager';
@@ -804,9 +809,7 @@ export default function DashboardPage({
     return () => window.removeEventListener('popstate', syncFromUrl);
   }, [canManageCategories, canManageSuppliers, canReadOrders, isAdmin, canAccessDiscounts]);
   const [products, setProducts] = useState<ProductItem[]>([]);
-<<<<<<< HEAD
   const [appliedPriceBook, setAppliedPriceBook] = useState<string | null>(null);
-=======
   const [serverTotalCount, setServerTotalCount] = useState<number>(0);
   const [serverTotalPages, setServerTotalPages] = useState<number>(1);
   const [financialSummary, setFinancialSummary] = useState<ProductFinancialSummary | null>(null);
@@ -815,7 +818,6 @@ export default function DashboardPage({
     'Giày dép',
     'Phụ kiện',
   ]);
->>>>>>> origin/test
   const [productSearchInput, setProductSearchInput] = useState('');
   const [productSearchTerm, setProductSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -971,15 +973,10 @@ export default function DashboardPage({
   const remainingSeconds = sessionInfo.remainingSeconds;
   const isWarningZone = remainingSeconds > 0 && remainingSeconds <= 120;
 
-<<<<<<< HEAD
-  const fetchProducts = () => {
+  const fetchProducts = (targetPage?: number) => {
     // Đại lý (Customer) sử dụng cơ chế Server-side Pagination riêng (20 sp/trang) tại CustomerPortalView,
     // tuyệt đối không tải toàn bộ 10.000 sản phẩm vào DashboardPage.
     if (isPendingCustomer || isCustomer) {
-=======
-  const fetchProducts = (targetPage?: number) => {
-    if (isPendingCustomer) {
->>>>>>> origin/test
       setIsLoading(false);
       return;
     }
