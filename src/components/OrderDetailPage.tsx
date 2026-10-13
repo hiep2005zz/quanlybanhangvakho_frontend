@@ -143,21 +143,24 @@ export const OrderDetailPage: React.FC<OrderDetailPageProps> = ({
     setReorderLoading(true);
     try {
       const res = await reorderOrderApi(token, code, productId ? { product_id: productId } : undefined);
-      const mappedOrderItems = res.valid_items.map((item) => ({
-        productId: item.product_id,
-        productName: item.product_name,
-        productCode: item.product_code || `SP${item.product_id}`,
-        unit: item.unit,
-        conversionRate: 1,
-        quantity: item.quantity,
-        rawQuantity: String(item.quantity),
-        price: item.current_price,
-        rawPrice: String(item.current_price),
-        floorPrice: item.current_price,
-        discountRate: 0,
-        discountAmount: 0,
-        lineTotal: item.subtotal,
-      }));
+      const mappedOrderItems = res.valid_items.map((item) => {
+        const itemPrice = item.price ?? (item as any).current_price ?? 0;
+        return {
+          productId: item.product_id,
+          productName: item.product_name,
+          productCode: item.product_code || `SP${item.product_id}`,
+          unit: item.unit,
+          conversionRate: 1,
+          quantity: item.quantity,
+          rawQuantity: String(item.quantity),
+          price: itemPrice,
+          rawPrice: String(itemPrice),
+          floorPrice: itemPrice,
+          discountRate: 0,
+          discountAmount: 0,
+          lineTotal: (item as any).subtotal ?? (item.quantity * itemPrice),
+        };
+      });
 
       if (res.total_valid === 0) {
         if (productId) {
@@ -690,7 +693,6 @@ export const OrderDetailPage: React.FC<OrderDetailPageProps> = ({
       {/* Modals */}
       {printingOrder && (
         <OrderPrintModal
-          isOpen={Boolean(printingOrder)}
           orderCode={printingOrder.order_code}
           token={token}
           onClose={() => setPrintingOrder(null)}
