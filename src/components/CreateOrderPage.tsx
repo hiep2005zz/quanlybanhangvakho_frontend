@@ -50,6 +50,49 @@ export interface CreateOrderPageProps {
   initialDeliveryPointId?: number | null;
 }
 
+export const normalizeOrderItem = (raw: any, productsList: ProductItem[] = []): SelectedOrderItem => {
+  const prodId = Number(raw.productId ?? raw.product_id ?? 0);
+  const prod = productsList.find((p) => p.id === prodId);
+  const baseUnit = prod?.base_unit || raw.baseUnit || raw.base_unit || raw.unitName || raw.unit_name || raw.unit || 'Cái';
+  const unitName = raw.unitName || raw.unit_name || raw.unit || baseUnit;
+  const conversionRate = Number(raw.conversionRate ?? raw.conversion_rate ?? 1.0) || 1.0;
+
+  const availableUnits = (raw.availableUnits && Array.isArray(raw.availableUnits) && raw.availableUnits.length > 0)
+    ? raw.availableUnits
+    : prod
+      ? [
+          { unit_name: baseUnit, conversion_rate: 1.0, is_base: true },
+          ...(prod.units || []).map((u) => ({
+            unit_name: u.unit_name,
+            conversion_rate: u.conversion_rate,
+            is_base: false,
+          })),
+        ]
+      : [{ unit_name: unitName, conversion_rate: conversionRate, is_base: true }];
+
+  const rawPrice = raw.sellPrice ?? raw.unit_price ?? raw.price ?? prod?.sell_price ?? 0;
+  const sellPrice = Number(rawPrice) || 0;
+  const rawFloor = raw.floorPrice ?? raw.floor_price;
+  const floorPrice = (rawFloor !== undefined && rawFloor !== null)
+    ? Number(rawFloor)
+    : (prod?.sell_price !== undefined && prod?.sell_price !== null ? Number(prod.sell_price) : null);
+
+  return {
+    productId: prodId,
+    productCode: raw.productCode || raw.product_code || prod?.code || '',
+    productName: raw.productName || raw.product_name || prod?.name || '',
+    stock: prod?.stock ?? raw.stock ?? 999,
+    baseUnit,
+    unitName,
+    conversionRate,
+    availableUnits,
+    quantity: raw.quantity ?? 1,
+    sellPrice,
+    floorPrice,
+    priceNote: raw.priceNote || raw.price_note,
+  };
+};
+
 const FALLBACK_DEALERS: DealerItem[] = [
   { id: 1, code: 'DL001', name: 'Đại Lý Phân Phối Miền Bắc - Sao Mai', customer_group: 'Đại lý cấp 1' },
   { id: 2, code: 'DL002', name: 'Đại Lý Thời Trang Tân Bình', customer_group: 'Đại lý cấp 2' },
@@ -71,6 +114,9 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({
   const navigate = useNavigate();
 
   const handleCancelNavigation = useCallback(() => {
+    try {
+      sessionStorage.removeItem('clone_order_draft');
+    } catch {}
     if (onClose) {
       onClose();
     } else {
@@ -84,7 +130,21 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({
   const [loadingDealers, setLoadingDealers] = useState(false);
 
   // 2. Danh sách sản phẩm trong giỏ hàng đặt hàng
-  const [orderItems, setOrderItems] = useState<SelectedOrderItem[]>(() => initialOrderItems || []);
+  const [orderItems, setOrderItems] = useState<SelectedOrderItem[]>(() => {
+    if (initialOrderItems && Array.isArray(initialOrderItems) && initialOrderItems.length > 0) {
+      return initialOrderItems.map((it) => normalizeOrderItem(it, products));
+    }
+    try {
+      const cloneDraft = sessionStorage.getItem('clone_order_draft');
+      if (cloneDraft) {
+        const parsed = JSON.parse(cloneDraft);
+        if (parsed.items && Array.isArray(parsed.items)) {
+          return parsed.items.map((it: any) => normalizeOrderItem(it, products));
+        }
+      }
+    } catch {}
+    return [];
+  });
 
   // 3. Điểm giao hàng
   const [points, setPoints] = useState<DeliveryPoint[]>([]);
@@ -116,12 +176,28 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({
   // Cập nhật khi có props khởi tạo ban đầu hoặc draft từ sessionStorage
   useEffect(() => {
     try {
+      const cloneDraftStr = sessionStorage.getItem('clone_order_draft');
+      if (cloneDraftStr) {
+        const cloneDraft = JSON.parse(cloneDraftStr);
+        if (cloneDraft.dealerId || cloneDraft.dealer_id) {
+          setDealerId(cloneDraft.dealerId || cloneDraft.dealer_id);
+        }
+        if (cloneDraft.items && Array.isArray(cloneDraft.items) && cloneDraft.items.length > 0) {
+          setOrderItems(cloneDraft.items.map((it: any) => normalizeOrderItem(it, products)));
+        }
+        if (cloneDraft.note) setNote(cloneDraft.note);
+        if (cloneDraft.deliveryPointId !== undefined) setDeliveryPointId(cloneDraft.deliveryPointId);
+        return;
+      }
+
       const draftStr = sessionStorage.getItem('reorder_draft');
       if (draftStr) {
         sessionStorage.removeItem('reorder_draft');
         const draft = JSON.parse(draftStr);
         if (draft.dealerId) setDealerId(draft.dealerId);
-        if (draft.items && draft.items.length > 0) setOrderItems(draft.items);
+        if (draft.items && draft.items.length > 0) {
+          setOrderItems(draft.items.map((it: any) => normalizeOrderItem(it, products)));
+        }
         if (draft.note) setNote(draft.note);
         if (draft.deliveryPointId !== undefined) setDeliveryPointId(draft.deliveryPointId);
         return;
@@ -131,7 +207,7 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({
     }
 
     if (initialOrderItems && initialOrderItems.length > 0) {
-      setOrderItems(initialOrderItems);
+      setOrderItems(initialOrderItems.map((it) => normalizeOrderItem(it, products)));
     }
     if (initialDealerId) {
       setDealerId(initialDealerId);
@@ -142,7 +218,7 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({
     if (initialNote !== undefined) {
       setNote(initialNote);
     }
-  }, [initialOrderItems, initialDealerId, initialDeliveryPointId, initialNote]);
+  }, [initialOrderItems, initialDealerId, initialDeliveryPointId, initialNote, products]);
 
   const isCustomer = Boolean(
     currentUser?.role === 'customer' ||
@@ -711,7 +787,8 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({
     setOrderItems((prev) =>
       prev.map((item, idx) => {
         if (idx !== index) return item;
-        const targetUnit = item.availableUnits.find((u) => u.unit_name === unitName);
+        const available = item.availableUnits || [];
+        const targetUnit = available.find((u) => u.unit_name === unitName);
         return {
           ...item,
           unitName,
@@ -728,17 +805,20 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({
   // Tính toán tiền hàng và số lượng
   const subtotalAmount = orderItems.reduce((sum, item) => {
     const qty = typeof item.quantity === 'number' ? item.quantity : parseFloat(item.quantity) || 0;
-    return sum + qty * item.sellPrice;
+    const price = typeof item.sellPrice === 'number' ? item.sellPrice : parseFloat(item.sellPrice as any) || 0;
+    return sum + (Number.isFinite(qty * price) ? qty * price : 0);
   }, 0);
 
   const totalQuantity = orderItems.reduce((sum, item) => {
     const qty = typeof item.quantity === 'number' ? item.quantity : parseFloat(item.quantity) || 0;
-    return sum + qty;
+    return sum + (Number.isFinite(qty) ? qty : 0);
   }, 0);
 
-  const isAnyBelowFloorPrice = orderItems.some(
-    (item) => item.floorPrice !== null && item.sellPrice < item.floorPrice
-  );
+  const isAnyBelowFloorPrice = orderItems.some((item) => {
+    const floorVal = item.floorPrice !== null && item.floorPrice !== undefined ? Number(item.floorPrice) : null;
+    const price = typeof item.sellPrice === 'number' ? item.sellPrice : parseFloat(item.sellPrice as any) || 0;
+    return floorVal !== null && price < floorVal;
+  });
 
   const discountEvaluation = useMemo(() => {
     const itemsForEvaluation = orderItems.map((item) => {
@@ -1269,8 +1349,10 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({
                       <tbody className="divide-y divide-slate-100">
                         {orderItems.map((item, idx) => {
                           const itemQty = typeof item.quantity === 'number' ? item.quantity : parseFloat(item.quantity) || 0;
-                          const itemTotal = itemQty * item.sellPrice;
-                          const isBelowFloor = canEditPrice && item.floorPrice !== null && item.sellPrice < item.floorPrice;
+                          const itemPrice = typeof item.sellPrice === 'number' ? item.sellPrice : parseFloat(item.sellPrice as any) || 0;
+                          const itemTotal = Number.isFinite(itemQty * itemPrice) ? itemQty * itemPrice : 0;
+                          const floorVal = item.floorPrice !== null && item.floorPrice !== undefined ? Number(item.floorPrice) : null;
+                          const isBelowFloor = canEditPrice && floorVal !== null && itemPrice < floorVal;
                           const stockItem = stockMap.get(item.productId);
                           const rate = item.conversionRate || 1;
                           const maxOrderable = stockItem ? Math.max(0, Math.floor(stockItem.available_stock / rate)) : undefined;
@@ -1280,17 +1362,17 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({
 
                           return (
                             <tr
-                              key={item.productId}
+                              key={item.productId || idx}
                               className={`transition-colors ${isExceeded ? 'bg-red-50/60' : isBelowFloor ? 'bg-amber-50/40' : 'hover:bg-slate-50/70'
                                 }`}
                             >
                               {/* Cột 1: Thông tin sản phẩm & Kho */}
                               <td className="py-3.5 px-4 align-top">
                                 <div className="font-bold text-slate-900 text-sm leading-snug">
-                                  {item.productName}
+                                  {item.productName || 'Sản phẩm chưa rõ tên'}
                                 </div>
                                 <div className="text-xs text-slate-500 font-mono mt-0.5">
-                                  Mã: {item.productCode}
+                                  Mã: {item.productCode || '---'}
                                 </div>
 
                                 {/* Tồn kho chi tiết */}
@@ -1304,7 +1386,7 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({
                                           : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                                         }`}
                                     >
-                                      Khả dụng: <strong>{maxOrderable ?? 0}</strong> {item.unitName}
+                                      Khả dụng: <strong>{maxOrderable ?? 0}</strong> {item.unitName || item.baseUnit || 'Cái'}
                                     </span>
                                     <span className="text-slate-400">
                                       (Thực tế: {actualInUnit ?? 0} | Đặt giữ: {reservedInUnit ?? 0})
@@ -1330,7 +1412,7 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({
                                     onChange={(e) => handleUnitChange(idx, e.target.value)}
                                     className="px-2 py-1 rounded-lg border border-slate-300 text-xs font-semibold text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
                                   >
-                                    {item.availableUnits.map((u) => (
+                                    {(item.availableUnits || []).map((u) => (
                                       <option key={u.unit_name} value={u.unit_name}>
                                         {u.unit_name} (x{u.conversion_rate})
                                       </option>
@@ -1338,7 +1420,7 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({
                                   </select>
                                 ) : (
                                   <span className="inline-block px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 font-semibold text-xs">
-                                    {item.unitName}
+                                    {item.unitName || item.baseUnit || 'Cái'}
                                   </span>
                                 )}
                               </td>
@@ -1389,14 +1471,14 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({
                                   title={
                                     !canEditPrice
                                       ? 'Chỉ Sales và Admin được sửa giá'
-                                      : item.floorPrice !== null
-                                        ? `Giá sàn: ${item.floorPrice.toLocaleString('vi-VN')} đ`
+                                      : floorVal !== null
+                                        ? `Giá sàn: ${floorVal.toLocaleString('vi-VN')} đ`
                                         : undefined
                                   }
                                 />
                                 {isBelowFloor && (
                                   <div className="text-[10.5px] text-amber-600 font-semibold mt-1">
-                                    Dưới giá sàn ({item.floorPrice?.toLocaleString('vi-VN')} đ)
+                                    Dưới giá sàn ({floorVal !== null ? floorVal.toLocaleString('vi-VN') : 0} đ)
                                   </div>
                                 )}
                               </td>
