@@ -368,6 +368,33 @@ export const OrderLifecycleTimeline: React.FC<OrderLifecycleTimelineProps> = ({
           {approvedAt && <span> vào {formatDate(approvedAt)}</span>}
         </div>
       )}
+
+      {/* Thông báo nghiệp vụ khi đơn đã xuất kho trở lên (bước 5, 6, 7) */}
+      {currentStepIndex >= 4 && !isInterrupted && (
+        <div
+          style={{
+            marginTop: '14px',
+            fontSize: '12.5px',
+            color: '#b45309',
+            background: '#fffbeb',
+            padding: '10px 16px',
+            borderRadius: '8px',
+            border: '1.5px solid #fde68a',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+          }}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="8" x2="12" y2="12" />
+            <line x1="12" y1="16" x2="12.01" y2="16" />
+          </svg>
+          <span>
+            <strong>Quy tắc nghiệp vụ:</strong> Đơn đã xuất kho thì không huỷ được, phải đi đường trả hàng.
+          </span>
+        </div>
+      )}
     </div>
   );
 };

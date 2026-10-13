@@ -1,0 +1,60 @@
+v>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '6px' }}>
+                    Sản phẩm áp dụng *
+                  </label>
+                  <select
+                    required
+                    value={formData.title}
+                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', backgroundColor: 'white' }}
+                  >
+                    <option value="">-- Chọn sản phẩm --</option>
+                    <option value="Tất cả sản phẩm">Tất cả sản phẩm</option>
+                    {products.map(p => (
+                      <option key={p.id} value={`${p.sku} - ${p.name}`}>{p.sku} - {p.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '6px' }}>
+                    Mã chính sách *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.code}
+                    onChange={(e) => setFormData({ ...formData, code: e.target.value })}
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px s
+
+---
+
+iv>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '6px' }}>
+                    Đối tượng áp dụng
+                  </label>
+                  <select
+                    value={formData.target_group}
+                    onChange={(e) => setFormData({ ...formData, target_group: e.target.value as any })}
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1' }}
+                  >
+                    <option value="all">Tất cả Đại lý</option>
+                    <option value="agent_tier_1">Đại lý Cấp 1</option>
+                    <option value="agent_tier_2">Đại lý Cấp 2</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '6px' }}>
+                    Ngày bắt đầu
+                  </label>
+                  <input
+                    type="date"
+                    value={formData.start_date}
+                    onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1' }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', font
+
+---
+

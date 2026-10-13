@@ -15,6 +15,7 @@ import {
 import { User, getProductsApi, ProductItem } from '../services/api';
 import { emitStatusToast } from './StatusToast';
 import { OrderCreateModal } from './OrderCreateModal';
+import DeliveryPointManager from './DeliveryPointManager';
 import { ModalPortal } from './ModalPortal';
 import './dealer-search.css';
 
@@ -137,6 +138,10 @@ export default function DealerSearchView({
     // State cho Tạo đơn hàng đại lý (Customer portal)
     const [isCreateOrderModalOpen, setIsCreateOrderModalOpen] = useState(false);
     const [productsForOrder, setProductsForOrder] = useState<ProductItem[]>([]);
+
+    // State cho Modal Điểm giao hàng
+    const [isDeliveryPointModalOpen, setIsDeliveryPointModalOpen] = useState(false);
+    const [deliveryPointTargetDealer, setDeliveryPointTargetDealer] = useState<DealerSearchItem | null>(null);
 
     // State cho Phân công
     const [selectedDealerIds, setSelectedDealerIds] = useState<number[]>([]);
@@ -724,13 +729,13 @@ export default function DealerSearchView({
         };
     }, []);
 
-    // Phân trang danh sách đại lý (Mặc định 10 hoặc 20 đại lý/trang)
+    // Phân trang danh sách đại lý (Mặc định 20 đại lý/trang)
     const [currentPage, setCurrentPage] = useState<number>(1);
-    const [pageSize, setPageSize] = useState<number>(10);
+    const pageSize = 20;
 
     useEffect(() => {
         setCurrentPage(1);
-    }, [dealers.length, keyword, region, customerGroup, assignedSaleId, status, onlyMyDealers, pageSize]);
+    }, [dealers.length, keyword, region, customerGroup, assignedSaleId, status, onlyMyDealers]);
 
     const totalPages = Math.max(1, Math.ceil(dealers.length / pageSize));
     const safePage = Math.min(Math.max(1, currentPage), totalPages);
@@ -924,7 +929,7 @@ export default function DealerSearchView({
                                     <div className="dealer-card-header" style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '16px', marginBottom: '16px' }}>
                                         <div>
                                             <span className="dealer-code-badge">{dealer.code}</span>
-                                            <h3 className="dealer-card-name" style={{ fontSize: '20px', marginTop: '6px' }}>{dealer.name}</h3>
+                                            <h3 className="dealer-card-name" style={{ fontSize: '18px', marginTop: '6px' }}>{dealer.name}</h3>
                                         </div>
                                         <div className="dealer-status-cell">
                                             <span
@@ -1200,15 +1205,15 @@ export default function DealerSearchView({
                                             <td>{dealer.region || '-'}</td>
                                             <td>
                                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                                    <span style={{ fontSize: '0.85rem' }}>
+                                                    <span style={{ fontSize: '13px' }}>
                                                         <strong>Nợ:</strong>{' '}
                                                         {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(dealer.current_debt ?? 0)}
                                                     </span>
-                                                    <span style={{ fontSize: '0.85rem' }}>
+                                                    <span style={{ fontSize: '13px' }}>
                                                         <strong>Hạn mức:</strong>{' '}
                                                         {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(dealer.credit_limit ?? 50000000)}
                                                     </span>
-                                                    <span style={{ fontSize: '0.85rem', color: '#64748b' }}>
+                                                    <span style={{ fontSize: '12px', color: '#64748b' }}>
                                                         Tối đa: {dealer.max_debt_days ?? 30} ngày
                                                     </span>
                                                 </div>
@@ -1334,6 +1339,18 @@ export default function DealerSearchView({
                                                                     Chuyển giao
                                                                 </button>
                                                             )}
+                                                            <button
+                                                                type="button"
+                                                                className="dealer-dropdown-item"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    setDeliveryPointTargetDealer(dealer);
+                                                                    setIsDeliveryPointModalOpen(true);
+                                                                    setOpenDropdownId(null);
+                                                                }}
+                                                            >
+                                                                Điểm giao hàng
+                                                            </button>
                                                             <button
                                                                 type="button"
                                                                 className="dealer-dropdown-item"
@@ -1499,7 +1516,7 @@ export default function DealerSearchView({
                             style={{
                                 padding: '10px 18px',
                                 display: 'flex',
-                                justifyContent: 'space-between',
+                                justifyContent: 'flex-end',
                                 alignItems: 'center',
                                 flexWrap: 'wrap',
                                 gap: '12px',
@@ -1510,77 +1527,8 @@ export default function DealerSearchView({
                                 flexShrink: 0,
                             }}
                         >
-                            {/* Bên trái: Chọn số lượng dòng / trang */}
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <span>Hiển thị</span>
-                                <select
-                                    value={pageSize}
-                                    onChange={(e) => {
-                                        setPageSize(Number(e.target.value));
-                                        setCurrentPage(1);
-                                    }}
-                                    style={{
-                                        padding: '3px 8px',
-                                        borderRadius: '6px',
-                                        border: '1px solid #cbd5e1',
-                                        background: '#ffffff',
-                                        color: '#0f172a',
-                                        fontSize: '12px',
-                                        cursor: 'pointer',
-                                        outline: 'none',
-                                    }}
-                                >
-                                    <option value={5}>5 đại lý/trang</option>
-                                    <option value={10}>10 đại lý/trang</option>
-                                    <option value={20}>20 đại lý/trang</option>
-                                    <option value={50}>50 đại lý/trang</option>
-                                </select>
-                                <span>(Tổng {dealers.length} đại lý)</span>
-                            </div>
-
-                            {/* Bên phải: Điều hướng phân trang */}
-                            <div
-                                style={{
-                                    display: 'inline-flex',
-                                    alignItems: 'stretch',
-                                    border: '1px solid #d1d5db',
-                                    borderRadius: '5px',
-                                    overflow: 'hidden',
-                                    background: '#ffffff',
-                                    boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
-                                    height: '24px',
-                                }}
-                            >
-                                {/* Nút trang trước (<) - hiển thị khi trang > 1 */}
-                                {safePage > 1 && (
-                                    <button
-                                        type="button"
-                                        onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                                        style={{
-                                            minWidth: '24px',
-                                            height: '100%',
-                                            padding: '0 6px',
-                                            border: 'none',
-                                            borderRight: '1px solid #e5e7eb',
-                                            background: '#ffffff',
-                                            color: '#4b5563',
-                                            cursor: 'pointer',
-                                            display: 'inline-flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            transition: 'background-color 0.15s ease',
-                                        }}
-                                        onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f9fafb')}
-                                        onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#ffffff')}
-                                        title="Trang trước"
-                                    >
-                                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
-                                            <polyline points="15 18 9 12 15 6" />
-                                        </svg>
-                                    </button>
-                                )}
-
-                                {/* Danh sách các số trang */}
+                            {/* Bộ nút số trang theo phong cách thương hiệu */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                                 {Array.from({ length: totalPages }, (_, i) => i + 1)
                                     .filter((p) => p === 1 || p === totalPages || Math.abs(p - safePage) <= 1)
                                     .reduce<(number | string)[]>((acc, p, idx, arr) => {
@@ -1590,32 +1538,14 @@ export default function DealerSearchView({
                                         acc.push(p);
                                         return acc;
                                     }, [])
-                                    .map((p, idx, arr) => {
-                                        const hasNext = safePage < totalPages;
-                                        const isLastItem = idx === arr.length - 1 && !hasNext;
+                                    .map((p, idx) => {
                                         if (typeof p === 'string') {
                                             return (
-                                                <span
-                                                    key={`ellipsis-${idx}`}
-                                                    style={{
-                                                        minWidth: '22px',
-                                                        height: '100%',
-                                                        padding: '0 4px',
-                                                        borderRight: isLastItem ? 'none' : '1px solid #e5e7eb',
-                                                        background: '#ffffff',
-                                                        color: '#6b7280',
-                                                        display: 'inline-flex',
-                                                        alignItems: 'center',
-                                                        justifyContent: 'center',
-                                                        fontSize: '11px',
-                                                        userSelect: 'none',
-                                                    }}
-                                                >
+                                                <span key={`dots-${idx}`} style={{ padding: '0 4px', color: '#94a3b8', fontSize: '12px' }}>
                                                     ...
                                                 </span>
                                             );
                                         }
-
                                         const isActive = p === safePage;
                                         return (
                                             <button
@@ -1623,60 +1553,27 @@ export default function DealerSearchView({
                                                 type="button"
                                                 onClick={() => setCurrentPage(p)}
                                                 style={{
-                                                    minWidth: '24px',
-                                                    height: '100%',
-                                                    padding: '0 7px',
-                                                    border: 'none',
-                                                    borderRight: isLastItem ? 'none' : '1px solid #e5e7eb',
-                                                    background: isActive ? '#2ba1f4' : '#ffffff',
-                                                    color: isActive ? '#ffffff' : '#374151',
-                                                    cursor: isActive ? 'default' : 'pointer',
-                                                    fontSize: '11.5px',
-                                                    fontWeight: isActive ? '700' : '500',
                                                     display: 'inline-flex',
                                                     alignItems: 'center',
                                                     justifyContent: 'center',
-                                                    transition: 'background-color 0.15s ease',
-                                                }}
-                                                onMouseEnter={(e) => {
-                                                    if (!isActive) e.currentTarget.style.backgroundColor = '#f9fafb';
-                                                }}
-                                                onMouseLeave={(e) => {
-                                                    if (!isActive) e.currentTarget.style.backgroundColor = '#ffffff';
+                                                    minWidth: '30px',
+                                                    height: '30px',
+                                                    padding: '0 6px',
+                                                    borderRadius: '6px',
+                                                    border: isActive ? '1px solid #0fad89' : '1px solid #e2e8f0',
+                                                    backgroundColor: isActive ? '#0fad89' : '#ffffff',
+                                                    color: isActive ? '#ffffff' : '#334155',
+                                                    fontSize: '13px',
+                                                    fontWeight: '700',
+                                                    cursor: 'pointer',
+                                                    boxShadow: isActive ? '0 1px 3px rgba(15, 173, 137, 0.25)' : 'none',
+                                                    transition: 'all 0.15s ease',
                                                 }}
                                             >
                                                 {p}
                                             </button>
                                         );
                                     })}
-
-                                {/* Nút trang sau (>) - hiển thị khi chưa tới trang cuối */}
-                                {safePage < totalPages && (
-                                    <button
-                                        type="button"
-                                        onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                                        style={{
-                                            minWidth: '24px',
-                                            height: '100%',
-                                            padding: '0 6px',
-                                            border: 'none',
-                                            background: '#ffffff',
-                                            color: '#4b5563',
-                                            cursor: 'pointer',
-                                            display: 'inline-flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            transition: 'background-color 0.15s ease',
-                                        }}
-                                        onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f9fafb')}
-                                        onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#ffffff')}
-                                        title="Trang sau"
-                                    >
-                                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
-                                            <polyline points="9 18 15 12 9 6" />
-                                        </svg>
-                                    </button>
-                                )}
                             </div>
                         </div>
                     )}
@@ -1937,14 +1834,14 @@ export default function DealerSearchView({
                                             }).length;
                                             if (alreadyCount === selectedDealerIds.length) {
                                                 return (
-                                                    <div style={{ marginTop: '8px', padding: '8px 12px', background: '#fef3c7', borderRadius: '6px', color: '#92400e', fontSize: '0.85rem' }}>
+                                                    <div style={{ marginTop: '8px', padding: '8px 12px', background: '#fef3c7', borderRadius: '6px', color: '#92400e', fontSize: '13px' }}>
                                                         ⚠️ Tất cả {selectedDealerIds.length} đại lý được chọn đều đang do nhân viên này phụ trách. Vui lòng chọn nhân viên khác.
                                                     </div>
                                                 );
                                             }
                                             if (alreadyCount > 0) {
                                                 return (
-                                                    <div style={{ marginTop: '8px', padding: '8px 12px', background: '#eff6ff', borderRadius: '6px', color: '#1e40af', fontSize: '0.85rem' }}>
+                                                    <div style={{ marginTop: '8px', padding: '8px 12px', background: '#eff6ff', borderRadius: '6px', color: '#1e40af', fontSize: '13px' }}>
                                                         ℹ️ Có {alreadyCount} đại lý đã do nhân viên này phụ trách, hệ thống sẽ chuyển giao {selectedDealerIds.length - alreadyCount} đại lý còn lại.
                                                     </div>
                                                 );
@@ -2010,7 +1907,7 @@ export default function DealerSearchView({
                                     <div className="dealer-modal-title-wrap">
                                         <div>
                                             <h3>Lịch sử chuyển giao &amp; biến động</h3>
-                                            <p style={{ margin: '4px 0 0 0', color: '#475569', fontSize: '0.88rem' }}>
+                                            <p style={{ margin: '4px 0 0 0', color: '#475569', fontSize: '13.5px' }}>
                                                 Đại lý: <strong>{historyTargetDealer.name}</strong> ({historyTargetDealer.code}) &bull; NV phụ trách hiện tại: <strong>{historyTargetDealer.assigned_sale_name || 'Chưa phân công'}</strong>
                                             </p>
                                         </div>
@@ -2026,7 +1923,7 @@ export default function DealerSearchView({
                                                 padding: '6px 14px',
                                                 borderRadius: '6px',
                                                 border: historyFilterTab === 'ALL' ? '1px solid #0f766e' : '1px solid #cbd5e1',
-                                                fontSize: '0.85rem',
+                                                fontSize: '13px',
                                                 fontWeight: historyFilterTab === 'ALL' ? '600' : '500',
                                                 background: historyFilterTab === 'ALL' ? '#0f766e' : '#ffffff',
                                                 color: historyFilterTab === 'ALL' ? '#ffffff' : '#334155',
@@ -2043,7 +1940,7 @@ export default function DealerSearchView({
                                                 padding: '6px 14px',
                                                 borderRadius: '6px',
                                                 border: historyFilterTab === 'ASSIGNMENT' ? '1px solid #0f766e' : '1px solid #cbd5e1',
-                                                fontSize: '0.85rem',
+                                                fontSize: '13px',
                                                 fontWeight: historyFilterTab === 'ASSIGNMENT' ? '600' : '500',
                                                 background: historyFilterTab === 'ASSIGNMENT' ? '#0f766e' : '#ffffff',
                                                 color: historyFilterTab === 'ASSIGNMENT' ? '#ffffff' : '#334155',
@@ -2060,7 +1957,7 @@ export default function DealerSearchView({
                                                 padding: '6px 14px',
                                                 borderRadius: '6px',
                                                 border: historyFilterTab === 'STATUS' ? '1px solid #0f766e' : '1px solid #cbd5e1',
-                                                fontSize: '0.85rem',
+                                                fontSize: '13px',
                                                 fontWeight: historyFilterTab === 'STATUS' ? '600' : '500',
                                                 background: historyFilterTab === 'STATUS' ? '#0f766e' : '#ffffff',
                                                 color: historyFilterTab === 'STATUS' ? '#ffffff' : '#334155',
@@ -2077,7 +1974,7 @@ export default function DealerSearchView({
                                                 padding: '6px 14px',
                                                 borderRadius: '6px',
                                                 border: historyFilterTab === 'DEBT' ? '1px solid #0f766e' : '1px solid #cbd5e1',
-                                                fontSize: '0.85rem',
+                                                fontSize: '13px',
                                                 fontWeight: historyFilterTab === 'DEBT' ? '600' : '500',
                                                 background: historyFilterTab === 'DEBT' ? '#0f766e' : '#ffffff',
                                                 color: historyFilterTab === 'DEBT' ? '#ffffff' : '#334155',
@@ -2104,7 +2001,7 @@ export default function DealerSearchView({
                                         </p>
                                     ) : (
                                         <div style={{ maxHeight: '420px', overflowY: 'auto' }}>
-                                            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.88rem' }}>
+                                            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
                                                 <thead>
                                                     <tr style={{ borderBottom: '2px solid #cbd5e1', background: '#f8fafc' }}>
                                                         <th style={{ padding: '10px 8px', color: '#334155', fontWeight: '600' }}>Thời gian</th>
@@ -2168,7 +2065,7 @@ export default function DealerSearchView({
                                                                         border: `1px solid ${badgeBorder}`,
                                                                         padding: '3px 8px',
                                                                         borderRadius: '4px',
-                                                                        fontSize: '0.8rem',
+                                                                        fontSize: '12px',
                                                                         fontWeight: '600',
                                                                         display: 'inline-block'
                                                                     }}>
@@ -2340,7 +2237,7 @@ export default function DealerSearchView({
                                 ⚠️
                             </div>
 
-                            <h3 style={{ fontSize: '20px', fontWeight: '800', margin: '0 0 10px', color: '#0f172a' }}>
+                            <h3 style={{ fontSize: '18px', fontWeight: '700', fontFamily: "'Outfit', sans-serif", margin: '0 0 10px', color: '#0f172a' }}>
                                 Xác Nhận Xóa Đại Lý?
                             </h3>
 
@@ -2545,6 +2442,35 @@ export default function DealerSearchView({
                                 disabled={isSubmitting}
                             >
                                 {isSubmitting ? 'Đang xử lý...' : 'Xác nhận mở khóa'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal Quản lý Điểm giao hàng */}
+            {isDeliveryPointModalOpen && deliveryPointTargetDealer && (
+                <div className="dealer-modal-overlay" onClick={() => setIsDeliveryPointModalOpen(false)}>
+                    <div className="dealer-modal-box" style={{ maxWidth: '640px', width: '95%' }} onClick={(e) => e.stopPropagation()}>
+                        <div className="dealer-modal-header" style={{ borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
+                            <div className="dealer-modal-title-wrap">
+                                <div>
+                                    <h3 style={{ color: '#0f172a' }}>Điểm giao hàng — {deliveryPointTargetDealer.name}</h3>
+                                    <p style={{ color: '#64748b' }}>Mã: {deliveryPointTargetDealer.code} | Địa chỉ đại lý: {deliveryPointTargetDealer.address || 'Chưa cập nhật'}</p>
+                                </div>
+                            </div>
+                            <button type="button" className="dealer-modal-close-btn" onClick={() => setIsDeliveryPointModalOpen(false)} title="Đóng">✕</button>
+                        </div>
+                        <div className="dealer-modal-body" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+                            <DeliveryPointManager
+                                token={token || ''}
+                                dealerId={deliveryPointTargetDealer.id}
+                                onChanged={handleSearch}
+                            />
+                        </div>
+                        <div className="dealer-modal-footer">
+                            <button type="button" className="dealer-btn-cancel" onClick={() => setIsDeliveryPointModalOpen(false)}>
+                                Đóng
                             </button>
                         </div>
                     </div>

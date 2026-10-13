@@ -206,7 +206,7 @@ export const ProductBulkImportModal: React.FC<ProductBulkImportModalProps> = ({
                 Nhập danh mục sản phẩm hàng loạt từ Excel
               </h2>
               <p style={{ margin: 0, fontSize: '12.5px', color: '#64748b' }}>
-                Tải lên file danh mục hàng hóa (hỗ trợ đến 5.000 dòng). Tự động cập nhật nếu SKU đã có.
+                Tải lên file danh mục hàng hóa (hỗ trợ đến 10.000 dòng). Tự động cập nhật nếu SKU đã có.
               </p>
             </div>
           </div>

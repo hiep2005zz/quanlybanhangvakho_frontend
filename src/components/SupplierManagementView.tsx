@@ -275,9 +275,6 @@ export const SupplierManagementView: React.FC<SupplierManagementViewProps> = ({ 
           <h2 style={{ fontSize: '20px', fontWeight: '700', margin: 0, color: '#0f172a', letterSpacing: '-0.02em' }}>
             Quản Lý Nhà Cung Cấp
           </h2>
-          <span style={{ fontSize: '12.5px', color: '#64748b' }}>
-            Danh mục nguồn hàng để gắn vào phiếu nhập kho và truy nguyên khi có lô lỗi
-          </span>
         </div>
         <button
           type="button"
@@ -294,7 +291,7 @@ export const SupplierManagementView: React.FC<SupplierManagementViewProps> = ({ 
             boxShadow: '0 2px 8px rgba(15, 173, 137, 0.3)',
           }}
         >
-          + Thêm nhà cung cấp
+          Thêm nhà cung cấp
         </button>
       </div>
 
@@ -393,7 +390,7 @@ export const SupplierManagementView: React.FC<SupplierManagementViewProps> = ({ 
             </div>
             <div style={{ fontSize: '13px', marginTop: '4px' }}>
               {suppliers.length === 0
-                ? 'Bấm "+ Thêm nhà cung cấp" để khai báo nguồn hàng đầu tiên.'
+                ? 'Bấm "Thêm nhà cung cấp" để khai báo nguồn hàng đầu tiên.'
                 : 'Hãy thử đổi từ khóa tìm kiếm hoặc bộ lọc trạng thái.'}
             </div>
           </div>

@@ -3,7 +3,7 @@ import { cancelOrderApi, createOrderApi, getOrderDealersApi, getOrdersApi, Order
 import { emitStatusToast } from './StatusToast';
 import OrderDetailsModal from './OrderDetailsModal';
 import OrderCancelConfirmModal from './OrderCancelConfirmModal';
-import { isOrderPastExported } from '../utils/orderPermissions';
+import { isOrderPastExported, isOrderCancelable } from '../utils/orderPermissions';
 import OrderPrintModal from './OrderPrintModal';
 import './orders-view.css';
 
@@ -56,11 +56,28 @@ const formatDate = (value: string) => {
 const getStatusLabel = (status: string) => {
   switch (status.toUpperCase()) {
     case 'CONFIRMED':
+    case 'APPROVED':
       return 'Đã xác nhận';
     case 'PENDING':
+    case 'PENDING_APPROVAL':
       return 'Chờ xử lý';
+    case 'EXPORTED':
+    case 'SHIPPED':
+    case 'DISPATCHED':
+      return 'Đã xuất kho';
+    case 'PICKING':
+    case 'PREPARING':
+    case 'PACKING':
+      return 'Đang soạn hàng';
+    case 'DELIVERED':
+      return 'Đã giao hàng';
+    case 'CLOSED':
+    case 'COMPLETED':
+      return 'Đóng đơn';
     case 'CANCELLED':
       return 'Đã hủy';
+    case 'REJECTED':
+      return 'Bị từ chối';
     case 'EDITED':
       return 'Đã chỉnh sửa';
     default:
@@ -605,10 +622,10 @@ export default function OrdersView({ token, username, currentUser, products, can
                           <button
                             type="button"
                             className="orders-delete-button"
-                            onClick={() => !isOrderPastExported(order.status) && setOrderToCancel(order)}
-                            disabled={cancellingOrderCode === order.order_code || isOrderPastExported(order.status)}
-                            title={isOrderPastExported(order.status) ? 'Đơn đã xuất kho, không thể hủy' : 'Hủy đơn hàng'}
-                            style={isOrderPastExported(order.status) ? { opacity: 0.5, cursor: 'not-allowed', background: '#94a3b8' } : undefined}
+                            onClick={() => !isOrderPastExported(order.status) && isOrderCancelable(order.status) && setOrderToCancel(order)}
+                            disabled={cancellingOrderCode === order.order_code || isOrderPastExported(order.status) || !isOrderCancelable(order.status)}
+                            title={isOrderPastExported(order.status) ? 'Đơn hàng đã xuất kho, không thể hủy. Vui lòng đi đường trả hàng.' : !isOrderCancelable(order.status) ? 'Đơn hàng không ở trạng thái được phép hủy' : 'Hủy đơn hàng'}
+                            style={(isOrderPastExported(order.status) || !isOrderCancelable(order.status)) ? { opacity: 0.5, cursor: 'not-allowed', background: '#94a3b8' } : undefined}
                           >
                             {cancellingOrderCode === order.order_code ? 'Đang hủy...' : 'Hủy đơn'}
                           </button>
