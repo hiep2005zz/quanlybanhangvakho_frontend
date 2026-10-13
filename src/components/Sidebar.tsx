@@ -10,6 +10,7 @@ export type TabType =
   | 'orders'
   | 'create-order'
   | 'users'
+  | 'users-import'
   | 'categories'
   | 'audit-logs'
   | 'profile'
@@ -20,7 +21,9 @@ export type TabType =
   | 'delivery-points'
   | 'product-history'
   | 'discounts'
-  | 'add-product';
+  | 'goods-receipt'
+  | 'add-product'
+  | 'products-import';
 
 export interface SidebarProps {
   activeTab?: TabType;
@@ -40,6 +43,7 @@ export interface SidebarProps {
   canAccessStockAudit?: boolean;
   canAccessStockTransfer?: boolean;
   canAccessWarehouses?: boolean;
+  canWriteInventory?: boolean;
   isAdmin?: boolean;
   onLogout?: () => void;
   isLoggingOut?: boolean;
@@ -76,6 +80,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   canAccessStockAudit = false,
   canAccessStockTransfer = false,
   canAccessWarehouses = false,
+  canWriteInventory = false,
   onLogout,
   isLoggingOut = false,
 }) => {
@@ -313,6 +318,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
           <line x1="9" y1="7" x2="15" y2="7" />
           <line x1="9" y1="11" x2="15" y2="11" />
+        </svg>
+      ),
+    },
+    {
+      id: 'btn-sidebar-goods-receipt',
+      tab: 'goods-receipt',
+      path: '/goods-receipt',
+      label: 'Nhập kho từ NCC',
+      visible: canWriteInventory,
+      icon: (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M12 3v12" />
+          <polyline points="8 11 12 15 16 11" />
+          <path d="M20 16.5v2.5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-2.5" />
         </svg>
       ),
     },

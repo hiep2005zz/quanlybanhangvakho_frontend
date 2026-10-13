@@ -360,19 +360,35 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
     try {
       if (isEditing && product) {
         const updated = await updateProductApi(token, product.id, payload);
-        emitStatusToast({ message: `Đã cập nhật sản phẩm ${updated.code} thành công.`, title: 'Cập nhật thành công' });
-        onSuccess(updated);
-        onClose();
+        emitStatusToast({
+          message: `Đã cập nhật sản phẩm ${updated.code} thành công.`,
+          title: 'Cập nhật thành công',
+          type: 'success',
+        });
+        try {
+          onSuccess(updated);
+          onClose();
+        } catch (cbErr) {
+          console.warn('onSuccess callback error:', cbErr);
+        }
       } else {
         const created = await createProductApi(token, payload);
-        emitStatusToast({ message: `Đã thêm mới sản phẩm ${created.code} thành công.`, title: 'Thêm mới thành công' });
-        onSuccess(created);
-        onClose();
+        emitStatusToast({
+          message: `Đã thêm mới sản phẩm ${created.code} thành công.`,
+          title: 'Thêm mới thành công',
+          type: 'success',
+        });
+        try {
+          onSuccess(created);
+          onClose();
+        } catch (cbErr) {
+          console.warn('onSuccess callback error:', cbErr);
+        }
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Có lỗi xảy ra khi lưu sản phẩm.';
       setGeneralError(msg);
-      emitStatusToast({ message: msg, title: 'Lỗi lưu sản phẩm' });
+      emitStatusToast({ message: msg, title: 'Lỗi lưu sản phẩm', type: 'error' });
     } finally {
       setIsSubmitting(false);
     }

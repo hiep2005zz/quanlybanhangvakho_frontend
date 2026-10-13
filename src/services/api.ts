@@ -256,7 +256,17 @@ export interface ProductListResponse {
   data?: ProductItem[];
   page?: number;
   limit?: number;
+  page_size?: number;
   total_pages?: number;
+}
+
+export interface GetProductsParams {
+  page?: number;
+  page_size?: number;
+  limit?: number;
+  search?: string;
+  category?: string;
+  only_low_stock?: boolean;
 }
 
 export interface OrderCreateResponse {
@@ -640,17 +650,20 @@ export async function logoutApi(token: string): Promise<void> {
 
 export async function getProductsApi(
   token: string,
-  params?: { page?: number; limit?: number; search?: string; category?: string }
+  params?: GetProductsParams & { limit?: number }
 ): Promise<ProductListResponse> {
-  const queryParams = new URLSearchParams();
-  if (params?.page) queryParams.set('page', params.page.toString());
-  if (params?.limit) queryParams.set('limit', params.limit.toString());
-  if (params?.search && params.search.trim()) queryParams.set('search', params.search.trim());
-  if (params?.category && params.category !== 'ALL' && params.category !== 'all') {
-    queryParams.set('category', params.category);
-  }
-  const queryString = queryParams.toString() ? `?${queryParams.toString()}` : '';
-  const response = await authenticatedFetch(`${API_BASE_URL}/products${queryString}`, {
+  const query = new URLSearchParams();
+  if (params?.page) query.append('page', params.page.toString());
+  const pageSize = params?.page_size || params?.limit;
+  if (pageSize) query.append('page_size', pageSize.toString());
+  if (params?.search && params.search.trim()) query.append('search', params.search.trim());
+  if (params?.category && params.category.toLowerCase() !== 'all') query.append('category', params.category);
+  if (params?.only_low_stock) query.append('only_low_stock', 'true');
+
+  const queryString = query.toString();
+  const url = `${API_BASE_URL}/products${queryString ? `?${queryString}` : ''}`;
+
+  const response = await authenticatedFetch(url, {
     method: 'GET',
   }, token);
 

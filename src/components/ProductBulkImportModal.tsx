@@ -32,9 +32,9 @@ export const ProductBulkImportModal: React.FC<ProductBulkImportModalProps> = ({
     failed: number;
   } | null>(null);
 
-  // Phân trang danh sách preview
+  // Phân trang danh sách preview (20 dòng/trang mặc định)
   const [currentPage, setCurrentPage] = useState<number>(1);
-  const pageSize = 10;
+  const pageSize = 20;
 
   // Filter xem theo trạng thái: all | new | update | error
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'NEW' | 'UPDATE' | 'ERROR'>('ALL');
