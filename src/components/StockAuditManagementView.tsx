@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   StockAudit,
   StockAuditItem,
@@ -71,6 +71,12 @@ export function StockAuditManagementView({ token, currentUser }: StockAuditManag
   const [createPreviewLoading, setCreatePreviewLoading] = useState(false);
   const [createPreviewItems, setCreatePreviewItems] = useState<any[]>([]);
   const [isSubmittingCreate, setIsSubmittingCreate] = useState(false);
+  const [createPage, setCreatePage] = useState(1);
+  const createPageSize = 20;
+  const [createTotalItems, setCreateTotalItems] = useState(0);
+  const [createTotalPages, setCreateTotalPages] = useState(1);
+  const previewCacheRef = useRef<Record<string, { items: any[]; total_items: number; total_pages: number }>>({});
+  const lastSearchRef = useRef('');
 
   // Chi tiết & Nhập kết quả
   const [selectedAudit, setSelectedAudit] = useState<StockAudit | null>(null);
@@ -158,42 +164,112 @@ export function StockAuditManagementView({ token, currentUser }: StockAuditManag
     fetchAudits();
   }, [fetchAudits]);
 
-  // Xem trước danh sách sản phẩm khi tạo phiếu
+  // Xem trước danh sách sản phẩm khi tạo phiếu (phân trang tức thì, có bộ nhớ đệm cache và prefetch)
   useEffect(() => {
     if (viewMode !== 'create' || !createWarehouseId) return;
     if (createScopeType === 'CATEGORY' && !createCategoryId) {
       setCreatePreviewItems([]);
+      setCreateTotalItems(0);
+      setCreateTotalPages(1);
       return;
     }
 
-    setCreatePreviewLoading(true);
-    previewAuditProductsApi(token, {
-      warehouse_id: createWarehouseId,
-      scope_type: createScopeType,
-      category_id: createCategoryId ? Number(createCategoryId) : undefined,
-    })
-      .then((res) => {
-        setCreatePreviewItems(res.items || []);
-      })
-      .catch(() => {
-        setCreatePreviewItems([]);
-      })
-      .finally(() => {
-        setCreatePreviewLoading(false);
-      });
-  }, [viewMode, createWarehouseId, createScopeType, createCategoryId, token]);
+    const searchTrimmed = createSearchProduct.trim();
+    const isSearchChange = lastSearchRef.current !== searchTrimmed;
+    lastSearchRef.current = searchTrimmed;
 
-  // Lọc sản phẩm trong danh sách xem trước khi tạo phiếu
-  const filteredPreviewItems = useMemo(() => {
-    if (!createSearchProduct.trim()) return createPreviewItems;
-    const kw = createSearchProduct.toLowerCase().trim();
-    return createPreviewItems.filter(
-      (p) =>
-        p.product_name?.toLowerCase().includes(kw) ||
-        p.product_code?.toLowerCase().includes(kw) ||
-        (p.category_name && p.category_name.toLowerCase().includes(kw))
-    );
-  }, [createPreviewItems, createSearchProduct]);
+    const cacheKey = `${createWarehouseId}_${createScopeType}_${createCategoryId}_${searchTrimmed}_${createPage}`;
+
+    // 1. Nếu trang đã có sẵn trong cache -> Chuyển sang trang khác NGAY LẬP TỨC (0ms), không loading xoay tròn
+    if (previewCacheRef.current[cacheKey]) {
+      const cached = previewCacheRef.current[cacheKey];
+      setCreatePreviewItems(cached.items);
+      setCreateTotalItems(cached.total_items);
+      setCreateTotalPages(cached.total_pages);
+      setCreatePreviewLoading(false);
+      return;
+    }
+
+    // 2. Nếu chưa có trong cache:
+    // Nếu gõ ô tìm kiếm -> debounce 200ms; nếu bấm chuyển trang -> gửi request ngay lập tức (0ms)
+    const delay = isSearchChange ? 200 : 0;
+    setCreatePreviewLoading(true);
+
+    const timer = setTimeout(() => {
+      previewAuditProductsApi(token, {
+        warehouse_id: createWarehouseId,
+        scope_type: createScopeType,
+        category_id: createCategoryId ? Number(createCategoryId) : undefined,
+        page: createPage,
+        page_size: createPageSize,
+        search: searchTrimmed || undefined,
+      })
+        .then((res) => {
+          const totalItems = res.total_items ?? 0;
+          const totalPages = res.total_pages ?? Math.max(1, Math.ceil(totalItems / createPageSize));
+          const items = res.items || [];
+
+          previewCacheRef.current[cacheKey] = {
+            items,
+            total_items: totalItems,
+            total_pages: totalPages,
+          };
+
+          setCreatePreviewItems(items);
+          setCreateTotalItems(totalItems);
+          setCreateTotalPages(totalPages);
+
+          // Tải trước (Prefetch) trang kế tiếp và trang trước vào cache để người dùng bấm trang nào là hiện luôn trang đó
+          const nextPage = createPage + 1;
+          const nextKey = `${createWarehouseId}_${createScopeType}_${createCategoryId}_${searchTrimmed}_${nextPage}`;
+          if (nextPage <= totalPages && !previewCacheRef.current[nextKey]) {
+            previewAuditProductsApi(token, {
+              warehouse_id: createWarehouseId,
+              scope_type: createScopeType,
+              category_id: createCategoryId ? Number(createCategoryId) : undefined,
+              page: nextPage,
+              page_size: createPageSize,
+              search: searchTrimmed || undefined,
+            }).then((nextRes) => {
+              previewCacheRef.current[nextKey] = {
+                items: nextRes.items || [],
+                total_items: nextRes.total_items ?? 0,
+                total_pages: nextRes.total_pages ?? Math.max(1, Math.ceil((nextRes.total_items ?? 0) / createPageSize)),
+              };
+            }).catch(() => {});
+          }
+
+          const prevPage = createPage - 1;
+          const prevKey = `${createWarehouseId}_${createScopeType}_${createCategoryId}_${searchTrimmed}_${prevPage}`;
+          if (prevPage >= 1 && !previewCacheRef.current[prevKey]) {
+            previewAuditProductsApi(token, {
+              warehouse_id: createWarehouseId,
+              scope_type: createScopeType,
+              category_id: createCategoryId ? Number(createCategoryId) : undefined,
+              page: prevPage,
+              page_size: createPageSize,
+              search: searchTrimmed || undefined,
+            }).then((prevRes) => {
+              previewCacheRef.current[prevKey] = {
+                items: prevRes.items || [],
+                total_items: prevRes.total_items ?? 0,
+                total_pages: prevRes.total_pages ?? Math.max(1, Math.ceil((prevRes.total_items ?? 0) / createPageSize)),
+              };
+            }).catch(() => {});
+          }
+        })
+        .catch(() => {
+          setCreatePreviewItems([]);
+          setCreateTotalItems(0);
+          setCreateTotalPages(1);
+        })
+        .finally(() => {
+          setCreatePreviewLoading(false);
+        });
+    }, delay);
+
+    return () => clearTimeout(timer);
+  }, [viewMode, createWarehouseId, createScopeType, createCategoryId, createPage, createSearchProduct, token]);
 
   // Thống kê nhanh từ danh sách
   const stats = useMemo(() => {
@@ -498,8 +574,6 @@ export function StockAuditManagementView({ token, currentUser }: StockAuditManag
   // GIAO DIỆN TRANG TẠO PHIẾU KIỂM KÊ (FULL PAGE VIEW)
   // =========================================================
   if (viewMode === 'create') {
-    const selectedWarehouse = warehouses.find((w) => w.id === createWarehouseId);
-
     return (
       <div
         style={{
@@ -565,7 +639,7 @@ export function StockAuditManagementView({ token, currentUser }: StockAuditManag
               type="button"
               id="btn-submit-create-audit-page"
               onClick={() => handleCreateAudit()}
-              disabled={isSubmittingCreate || createPreviewItems.length === 0}
+              disabled={isSubmittingCreate || createTotalItems === 0}
               className="px-5 py-2 text-xs font-bold text-white bg-[#0fad89] hover:bg-[#0c8a6d] rounded-lg shadow-sm disabled:opacity-50 cursor-pointer border-0 transition-all flex items-center gap-2"
             >
               {isSubmittingCreate ? (
@@ -613,7 +687,10 @@ export function StockAuditManagementView({ token, currentUser }: StockAuditManag
                       name="scope_type_page"
                       value="WAREHOUSE"
                       checked={createScopeType === 'WAREHOUSE'}
-                      onChange={() => setCreateScopeType('WAREHOUSE')}
+                      onChange={() => {
+                        setCreateScopeType('WAREHOUSE');
+                        setCreatePage(1);
+                      }}
                       className="text-[#0fad89] focus:ring-[#0fad89] mt-0.5"
                     />
                     <div>
@@ -638,6 +715,8 @@ export function StockAuditManagementView({ token, currentUser }: StockAuditManag
                         setCreateScopeType('CATEGORY');
                         setCreateCategoryId('');
                         setCreatePreviewItems([]);
+                        setCreateTotalItems(0);
+                        setCreatePage(1);
                       }}
                       className="text-[#0fad89] focus:ring-[#0fad89] mt-0.5"
                     />
@@ -657,7 +736,10 @@ export function StockAuditManagementView({ token, currentUser }: StockAuditManag
                 <select
                   id="select-create-warehouse-page"
                   value={createWarehouseId}
-                  onChange={(e) => setCreateWarehouseId(e.target.value)}
+                  onChange={(e) => {
+                    setCreateWarehouseId(e.target.value);
+                    setCreatePage(1);
+                  }}
                   required
                   className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0fad89] bg-white font-medium text-gray-800"
                 >
@@ -681,7 +763,10 @@ export function StockAuditManagementView({ token, currentUser }: StockAuditManag
                   <select
                     id="select-create-category-page"
                     value={createCategoryId}
-                    onChange={(e) => setCreateCategoryId(e.target.value ? Number(e.target.value) : '')}
+                    onChange={(e) => {
+                      setCreateCategoryId(e.target.value ? Number(e.target.value) : '');
+                      setCreatePage(1);
+                    }}
                     required
                     className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0fad89] bg-white text-gray-800"
                   >
@@ -738,33 +823,53 @@ export function StockAuditManagementView({ token, currentUser }: StockAuditManag
                 <span className="w-2 h-2 rounded-full bg-[#0fad89]" />
                 <h3 className="text-sm font-bold text-gray-900">2. Danh sách sản phẩm chốt tồn căn cứ</h3>
                 <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
-                  {createPreviewItems.length} mặt hàng
+                  {createTotalItems} mặt hàng
                 </span>
               </div>
 
               {/* Ô tìm kiếm trong danh sách xem trước */}
-              <div className="relative w-full sm:w-64">
+              <div className="relative w-full sm:w-72">
+                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                  <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </div>
                 <input
                   type="text"
                   placeholder="Tìm mã hoặc tên sản phẩm..."
                   value={createSearchProduct}
-                  onChange={(e) => setCreateSearchProduct(e.target.value)}
-                  className="w-full pl-8 pr-3 py-1.5 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0fad89] bg-white"
+                  onChange={(e) => {
+                    setCreateSearchProduct(e.target.value);
+                    setCreatePage(1);
+                  }}
+                  style={{ paddingLeft: '36px' }}
+                  className="w-full pr-8 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0fad89] focus:border-[#0fad89] bg-white transition-all shadow-xs"
                 />
-                <svg className="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
+                {createSearchProduct && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCreateSearchProduct('');
+                      setCreatePage(1);
+                    }}
+                    className="absolute inset-y-0 right-0 flex items-center pr-2.5 text-gray-400 hover:text-gray-600 cursor-pointer"
+                    title="Xóa tìm kiếm"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                )}
               </div>
             </div>
 
             {/* Bảng danh sách sản phẩm */}
-            <div className="flex-1 min-h-[300px] overflow-y-auto">
-              {createPreviewLoading ? (
-                <div className="p-12 text-center text-gray-500 flex flex-col items-center justify-center h-full">
-                  <div className="w-8 h-8 border-3 border-[#0fad89] border-t-transparent rounded-full animate-spin mb-3" />
-                  <span className="text-xs font-semibold">Đang lấy dữ liệu tồn kho căn cứ từ hệ thống...</span>
-                </div>
-              ) : createPreviewItems.length === 0 ? (
+            <div className="flex-1 min-h-[300px] overflow-y-auto relative">
+              {/* Thanh tiến trình loading mảnh ở mép trên (không che bảng hay xoay tròn) */}
+              {createPreviewLoading && (
+                <div className="sticky top-0 left-0 right-0 h-0.5 bg-[#0fad89] animate-pulse z-20" />
+              )}
+              {createPreviewItems.length === 0 ? (
                 <div className="p-12 text-center text-gray-400 flex flex-col items-center justify-center h-full">
                   <svg className="w-12 h-12 text-gray-300 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
@@ -789,37 +894,115 @@ export function StockAuditManagementView({ token, currentUser }: StockAuditManag
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
-                    {filteredPreviewItems.map((p, idx) => (
-                      <tr key={p.product_id} className="hover:bg-emerald-50/30 transition-colors">
-                        <td className="py-2.5 px-3 text-center text-gray-400 font-mono text-[11px]">{idx + 1}</td>
-                        <td className="py-2.5 px-3 font-semibold text-gray-900 font-mono">{p.product_code}</td>
-                        <td className="py-2.5 px-3">
-                          <div className="font-semibold text-gray-900">{p.product_name}</div>
-                          {p.category_name && (
-                            <div className="text-[10px] text-gray-500 mt-0.5">{p.category_name}</div>
-                          )}
-                        </td>
-                        <td className="py-2.5 px-3 text-center text-gray-600 font-medium">{p.base_unit || 'Cái'}</td>
-                        <td className="py-2.5 px-3 text-center font-bold text-gray-900 bg-emerald-50/40 text-sm">
-                          {p.system_stock}
-                        </td>
-                        <td className="py-2.5 px-3 text-center text-gray-500 font-medium">
-                          {p.reserved_stock ?? 0}
-                        </td>
-                        <td className="py-2.5 px-3 text-center font-semibold text-emerald-700">
-                          {p.available_stock ?? p.system_stock}
-                        </td>
-                      </tr>
-                    ))}
+                    {createPreviewItems.map((p, idx) => {
+                      const stt = (createPage - 1) * createPageSize + idx + 1;
+                      return (
+                        <tr key={p.product_id} className="hover:bg-emerald-50/30 transition-colors">
+                          <td className="py-2.5 px-3 text-center text-gray-400 font-mono text-[11px]">{stt}</td>
+                          <td className="py-2.5 px-3 font-semibold text-gray-900 font-mono">{p.product_code}</td>
+                          <td className="py-2.5 px-3">
+                            <div className="font-semibold text-gray-900">{p.product_name}</div>
+                            {p.category_name && (
+                              <div className="text-[10px] text-gray-500 mt-0.5">{p.category_name}</div>
+                            )}
+                          </td>
+                          <td className="py-2.5 px-3 text-center text-gray-600 font-medium">{p.base_unit || 'Cái'}</td>
+                          <td className="py-2.5 px-3 text-center font-bold text-gray-900 bg-emerald-50/40 text-sm">
+                            {p.system_stock}
+                          </td>
+                          <td className="py-2.5 px-3 text-center text-gray-500 font-medium">
+                            {p.reserved_stock ?? 0}
+                          </td>
+                          <td className="py-2.5 px-3 text-center font-semibold text-emerald-700">
+                            {p.available_stock ?? p.system_stock}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               )}
             </div>
 
-            {/* Footer của bảng xem trước */}
-            <div className="p-3 border-t border-gray-200 bg-gray-50 text-xs flex items-center justify-between text-gray-600 shrink-0">
-              <span>Hiển thị <strong>{filteredPreviewItems.length}</strong> / <strong>{createPreviewItems.length}</strong> sản phẩm</span>
-              <span className="text-[11px] text-gray-500 italic">Số lượng tồn kho căn cứ được ghi nhận chính xác tại kho {selectedWarehouse?.name || createWarehouseId}</span>
+            {/* Footer của bảng xem trước kèm bộ phân trang 20 SP/trang */}
+            <div className="p-3 border-t border-gray-200 bg-gray-50 text-xs flex items-center justify-between gap-3 text-gray-600 shrink-0">
+              <div className="text-[11px] text-gray-500 font-medium">
+                Trang {createPage} / {createTotalPages} ({createTotalItems.toLocaleString('vi-VN')} mặt hàng)
+              </div>
+
+              {/* Điều khiển phân trang */}
+              {createTotalPages > 1 && (
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setCreatePage(1)}
+                    disabled={createPage <= 1}
+                    className="px-2 py-1 text-xs border border-gray-300 rounded hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed bg-gray-100 transition-colors font-mono cursor-pointer"
+                    title="Trang đầu"
+                  >
+                    «
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCreatePage((p) => Math.max(1, p - 1))}
+                    disabled={createPage <= 1}
+                    className="px-2.5 py-1 text-xs border border-gray-300 rounded hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed bg-gray-100 transition-colors cursor-pointer"
+                    title="Trang trước"
+                  >
+                    ‹ Trước
+                  </button>
+
+                  {/* Danh sách các nút số trang */}
+                  {Array.from({ length: createTotalPages }, (_, i) => i + 1)
+                    .filter((p) => p === 1 || p === createTotalPages || Math.abs(p - createPage) <= 2)
+                    .reduce((acc: (number | string)[], p, i, arr) => {
+                      if (i > 0 && p - (arr[i - 1] as number) > 1) {
+                        acc.push('...');
+                      }
+                      acc.push(p);
+                      return acc;
+                    }, [])
+                    .map((item, idx) =>
+                      typeof item === 'string' ? (
+                        <span key={`dots-${idx}`} className="px-1 text-gray-400">
+                          ...
+                        </span>
+                      ) : (
+                        <button
+                          key={item}
+                          type="button"
+                          onClick={() => setCreatePage(item)}
+                          className={`min-w-[28px] h-7 px-1.5 text-xs rounded border transition-colors font-medium cursor-pointer ${
+                            createPage === item
+                              ? 'bg-[#0fad89] text-white border-[#0fad89] font-bold shadow-xs'
+                              : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'
+                          }`}
+                        >
+                          {item}
+                        </button>
+                      )
+                    )}
+
+                  <button
+                    type="button"
+                    onClick={() => setCreatePage((p) => Math.min(createTotalPages, p + 1))}
+                    disabled={createPage >= createTotalPages}
+                    className="px-2.5 py-1 text-xs border border-gray-300 rounded hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed bg-gray-100 transition-colors cursor-pointer"
+                    title="Trang sau"
+                  >
+                    Sau ›
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCreatePage(createTotalPages)}
+                    disabled={createPage >= createTotalPages}
+                    className="px-2 py-1 text-xs border border-gray-300 rounded hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed bg-gray-100 transition-colors font-mono cursor-pointer"
+                    title="Trang cuối"
+                  >
+                    »
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -1182,11 +1365,8 @@ export function StockAuditManagementView({ token, currentUser }: StockAuditManag
 
                   {/* Chi tiết từng sản phẩm Thiếu hàng */}
                   <div className="pb-2 border-b border-gray-200">
-                    <div className="flex justify-between items-center mb-1">
+                    <div className="mb-1">
                       <span className="text-rose-700 font-bold">Thiếu hàng:</span>
-                      <span className="font-extrabold text-rose-700">
-                        {detailStats.deficitCount} SP (-{detailStats.totalDeficitQty})
-                      </span>
                     </div>
                     {auditItemsState.filter((it) => typeof it.discrepancy === 'number' && it.discrepancy < 0).length > 0 ? (
                       <div className="mt-2 space-y-1.5 max-h-40 overflow-y-auto pr-1">
@@ -1213,11 +1393,8 @@ export function StockAuditManagementView({ token, currentUser }: StockAuditManag
 
                   {/* Chi tiết từng sản phẩm Thừa hàng */}
                   <div>
-                    <div className="flex justify-between items-center mb-1">
+                    <div className="mb-1">
                       <span className="text-blue-700 font-bold">Thừa hàng:</span>
-                      <span className="font-extrabold text-blue-700">
-                        {detailStats.surplusCount} SP (+{detailStats.totalSurplusQty})
-                      </span>
                     </div>
                     {auditItemsState.filter((it) => typeof it.discrepancy === 'number' && it.discrepancy > 0).length > 0 ? (
                       <div className="mt-2 space-y-1.5 max-h-40 overflow-y-auto pr-1">

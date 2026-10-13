@@ -199,9 +199,49 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
   const isOnlySales = isSales && !isAdmin && !isSalesManager;
   const isAccountant = currentUser.role === 'accountant' || rawRoles.includes('accountant');
   const canCreateOrders = !isAccountant && (isAdmin || isSalesManager || isSales);
-  const canApproveOrder = (_ord?: any) => {
-    // CHỈ ADMIN HOẶC SALES MANAGER MỚI CÓ QUYỀN/VAI TRÒ DUYỆT ĐƠN VÀ TỪ CHỐI ĐƠN
-    return isAdmin || isSalesManager;
+  const canApproveOrder = (ord?: any) => {
+    if (isAdmin || isSalesManager) return true;
+    if (isSales && ord) {
+      // 1. Tuyệt đối không cho sales duyệt đơn do Admin hoặc Quản lý cấp trên tạo
+      const createdBy = (ord.created_by || '').trim().toLowerCase();
+      if (['admin', 'sales_manager'].includes(createdBy)) {
+        return false;
+      }
+
+      // 2. Không cho sales tự duyệt đơn do chính mình tạo cần phê duyệt
+      const curUsername = (currentUser.username || '').trim().toLowerCase();
+      if (['sales', curUsername].includes(createdBy)) {
+        return false;
+      }
+
+      // 3. Cho phép duyệt khi đơn hàng hoặc đại lý do nhân viên kinh doanh này phụ trách
+      const curId = currentUser.id;
+      const curFullName = (currentUser.full_name || '').trim().toLowerCase();
+
+      const ordSaleId = ord.assigned_sale_id;
+      const ordSaleName = (ord.assigned_sale_name || '').trim().toLowerCase();
+
+      if (
+        (ordSaleId != null && ordSaleId === curId) ||
+        (ordSaleName && (ordSaleName === curFullName || ordSaleName === curUsername))
+      ) {
+        return true;
+      }
+
+      // Fallback kiểm tra qua danh sách đại lý được gán người phụ trách
+      const matchedDealer = dealers.find((d) => Number(d.id) === Number(ord.dealer_id));
+      if (matchedDealer) {
+        const dealerSaleId = (matchedDealer as any).assigned_sale_id;
+        const dealerSaleName = ((matchedDealer as any).assigned_sale_name || '').trim().toLowerCase();
+        if (
+          (dealerSaleId != null && dealerSaleId === curId) ||
+          (dealerSaleName && (dealerSaleName === curFullName || dealerSaleName === curUsername))
+        ) {
+          return true;
+        }
+      }
+    }
+    return false;
   };
   const isCustomer = currentUser.role === 'customer' || Boolean(currentUser.roles && currentUser.roles.includes('customer'));
   const [customerDealer, setCustomerDealer] = useState<any | null>(null);

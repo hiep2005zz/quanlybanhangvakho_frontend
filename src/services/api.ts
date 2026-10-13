@@ -3007,13 +3007,23 @@ export async function deleteWarehouseRackApi(token: string, rackId: number): Pro
 
 export async function previewAuditProductsApi(
   token: string,
-  params: { warehouse_id: string; scope_type?: string; category_id?: number }
+  params: {
+    warehouse_id: string;
+    scope_type?: string;
+    category_id?: number;
+    page?: number;
+    page_size?: number;
+    search?: string;
+  }
 ): Promise<{
   warehouse_id: string;
   warehouse_name: string;
   scope_type: string;
   category_id?: number;
   total_items: number;
+  page?: number;
+  page_size?: number;
+  total_pages?: number;
   items: {
     product_id: number;
     product_code: string;
@@ -3031,6 +3041,15 @@ export async function previewAuditProductsApi(
   });
   if (params.category_id) {
     query.set('category_id', String(params.category_id));
+  }
+  if (params.page !== undefined) {
+    query.set('page', String(params.page));
+  }
+  if (params.page_size !== undefined) {
+    query.set('page_size', String(params.page_size));
+  }
+  if (params.search && params.search.trim()) {
+    query.set('search', params.search.trim());
   }
   const response = await authenticatedFetch(`${API_BASE_URL}/stock-audits/preview-products?${query.toString()}`, {
     method: 'GET',
