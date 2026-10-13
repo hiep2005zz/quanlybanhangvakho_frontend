@@ -1503,27 +1503,27 @@ export default function SalesOrderEntry({
                           />
                         </label>
                         <label className="sales-order-field">
-                          <span>Đơn giá</span>
+                          <div className="sales-order-field-header">
+                            <span>Đơn giá</span>
+                            {line.floorPrice !== undefined && line.floorPrice > 0 && (
+                              <span className="sales-order-floor-hint" title={`Giá sàn: ${formatCurrency(line.floorPrice)}`}>
+                                Sàn: {formatCurrency(line.floorPrice)}
+                              </span>
+                            )}
+                          </div>
                           {canEditPrice ? (
-                            <>
-                              <input
-                                type="number"
-                                min={0}
-                                step="any"
-                                className={line.isBelowFloor ? 'input-price-floor-warning' : ''}
-                                value={line.rawPrice !== undefined ? line.rawPrice : line.price}
-                                onFocus={(event) => event.target.select()}
-                                onChange={(event) => handlePriceInputChange(index, event.target.value)}
-                                onBlur={() => handlePriceBlur(index)}
-                                placeholder="0"
-                                title="Nhân viên kinh doanh / Admin có thể sửa đơn giá"
-                              />
-                              {line.floorPrice !== undefined && line.floorPrice > 0 && (
-                                <span style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
-                                  Giá sàn: {formatCurrency(line.floorPrice)}
-                                </span>
-                              )}
-                            </>
+                            <input
+                              type="number"
+                              min={0}
+                              step="any"
+                              className={line.isBelowFloor ? 'input-price-floor-warning' : ''}
+                              value={line.rawPrice !== undefined ? line.rawPrice : line.price}
+                              onFocus={(event) => event.target.select()}
+                              onChange={(event) => handlePriceInputChange(index, event.target.value)}
+                              onBlur={() => handlePriceBlur(index)}
+                              placeholder="0"
+                              title="Nhân viên kinh doanh / Admin có thể sửa đơn giá"
+                            />
                           ) : (
                             <input
                               type="number"
