@@ -829,96 +829,10 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
       isOrderCancelable(order.status) &&
       (isCustomer ? ['PENDING_APPROVAL', 'PENDING', 'DRAFT', 'REVISION_REQUIRED'].includes(order.status) : isFullAccess);
 
-    const hasDropdownActions = !isCustomer;
-
     return (
-      <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', gap: '5px', whiteSpace: 'nowrap' }}>
-        {/* Nút thao tác trực tiếp: Duyệt, Trả lại sửa, Từ chối dành cho Quản lý kinh doanh / Admin */}
-        {canApprove && (
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-            <button
-              type="button"
-              id={`btn-approve-order-${order.order_code}`}
-              onClick={() => setApprovingOrder(order)}
-              style={{
-                padding: '4px 8px',
-                background: '#16a34a',
-                border: 'none',
-                borderRadius: '6px',
-                color: '#ffffff',
-                fontSize: '12px',
-                fontWeight: '700',
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-                display: 'inline-flex',
-                alignItems: 'center',
-                height: '28px',
-                boxSizing: 'border-box',
-                transition: 'all 0.15s ease',
-              }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = '#15803d'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = '#16a34a'; }}
-              title="Phê duyệt đơn hàng để chuyển sang giữ chỗ tồn kho và chờ xuất hàng"
-            >
-              Duyệt
-            </button>
-            <button
-              type="button"
-              id={`btn-return-order-${order.order_code}`}
-              onClick={() => setReturningOrder(order)}
-              style={{
-                padding: '4px 8px',
-                background: '#ea580c',
-                border: 'none',
-                borderRadius: '6px',
-                color: '#ffffff',
-                fontSize: '12px',
-                fontWeight: '700',
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-                display: 'inline-flex',
-                alignItems: 'center',
-                height: '28px',
-                boxSizing: 'border-box',
-                transition: 'all 0.15s ease',
-              }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = '#c2410c'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = '#ea580c'; }}
-              title="Trả lại yêu cầu nhân viên sửa (bắt buộc nhập ý kiến)"
-            >
-              Trả lại
-            </button>
-            <button
-              type="button"
-              id={`btn-reject-order-${order.order_code}`}
-              onClick={() => setRejectingOrder(order)}
-              style={{
-                padding: '4px 8px',
-                background: '#dc2626',
-                border: 'none',
-                borderRadius: '6px',
-                color: '#ffffff',
-                fontSize: '12px',
-                fontWeight: '700',
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-                display: 'inline-flex',
-                alignItems: 'center',
-                height: '28px',
-                boxSizing: 'border-box',
-                transition: 'all 0.15s ease',
-              }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = '#b91c1c'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = '#dc2626'; }}
-              title="Từ chối đơn hàng (bắt buộc nhập ý kiến)"
-            >
-              Từ chối
-            </button>
-          </div>
-        )}
-
-        {/* Menu Thao tác Dropdown dành cho Nhân viên / Quản lý / Admin */}
-        {hasDropdownActions && (
+      <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px', whiteSpace: 'nowrap' }}>
+        {/* Trường hợp 1: Người CÓ vai trò duyệt (Admin / Sales Manager) khi đơn chờ duyệt -> Dropdown Menu Trạng thái (Duyệt / Trả lại / Từ chối / Sao chép / Hủy) */}
+        {!isCustomer && canApprove && (
           <div
             className="order-action-dropdown-container order-status-dropdown-details relative inline-block text-left"
             style={{ position: 'relative', display: 'inline-block' }}
@@ -931,34 +845,37 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
               onClick={(e) => handleDropdownToggle(e, order.order_code)}
               style={{
                 listStyle: 'none',
-                padding: '4px 8px',
-                background: canApprove ? '#f8fafc' : (isDropdownOpen ? '#e2e8f0' : '#f8fafc'),
-                border: '1px solid #cbd5e1',
+                padding: '4px 9px',
+                background: isDropdownOpen ? '#15803d' : '#16a34a',
+                border: 'none',
                 borderRadius: '6px',
-                color: '#334155',
+                color: '#ffffff',
                 fontSize: '12px',
-                fontWeight: '600',
+                fontWeight: '700',
                 cursor: 'pointer',
                 whiteSpace: 'nowrap',
                 display: 'inline-flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: '3px',
+                gap: '4px',
                 height: '28px',
                 boxSizing: 'border-box',
                 userSelect: 'none',
                 outline: 'none',
                 transition: 'all 0.15s ease',
+                boxShadow: isDropdownOpen ? '0 0 0 2px rgba(22, 163, 74, 0.35)' : 'none',
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.background = '#f1f5f9';
+                e.currentTarget.style.background = '#15803d';
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.background = '#f8fafc';
+                if (!isDropdownOpen) {
+                  e.currentTarget.style.background = '#16a34a';
+                }
               }}
-              title="Các thao tác khác"
+              title="Thao tác xử lý trạng thái đơn hàng"
             >
-              <span>{canApprove ? 'Khác' : 'Thao tác'}</span>
+              <span>Trạng thái</span>
               <span
                 style={{
                   fontSize: '9px',
@@ -997,160 +914,155 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                     gap: '2px',
                   }}
                 >
-                  {/* 1. Duyệt đơn (khi đơn chờ duyệt và có quyền duyệt) */}
-                  {canApprove && (
-                    <button
-                      type="button"
-                      id={`btn-approve-order-${order.order_code}`}
-                      onClick={() => {
-                        setOpenActionDropdownCode(null);
-                        setApprovingOrder(order);
-                      }}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        width: '100%',
-                        padding: '6px 10px',
-                        borderRadius: '5px',
-                        border: 'none',
-                        background: 'transparent',
-                        color: '#16a34a',
-                        fontSize: '12.5px',
-                        fontWeight: '600',
-                        textAlign: 'left',
-                        cursor: 'pointer',
-                        whiteSpace: 'nowrap',
-                        transition: 'all 0.15s ease',
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.background = '#f0fdf4';
-                        e.currentTarget.style.color = '#15803d';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.background = 'transparent';
-                        e.currentTarget.style.color = '#16a34a';
-                      }}
-                    >
-                      <span>Duyệt đơn</span>
-                    </button>
-                  )}
+                  {/* 1. Duyệt đơn */}
+                  <button
+                    type="button"
+                    id={`btn-approve-order-${order.order_code}`}
+                    onClick={() => {
+                      setOpenActionDropdownCode(null);
+                      setApprovingOrder(order);
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      width: '100%',
+                      padding: '7px 12px',
+                      borderRadius: '6px',
+                      border: 'none',
+                      background: 'transparent',
+                      color: '#16a34a',
+                      fontSize: '12.5px',
+                      fontWeight: '700',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap',
+                      transition: 'all 0.15s ease',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = '#f0fdf4';
+                      e.currentTarget.style.color = '#15803d';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'transparent';
+                      e.currentTarget.style.color = '#16a34a';
+                    }}
+                    title="Phê duyệt đơn hàng"
+                  >
+                    <span>Duyệt đơn</span>
+                  </button>
 
                   {/* 2. Trả lại sửa */}
-                  {canApprove && (
-                    <button
-                      type="button"
-                      id={`btn-return-order-${order.order_code}`}
-                      onClick={() => {
-                        setOpenActionDropdownCode(null);
-                        setReturningOrder(order);
-                      }}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        width: '100%',
-                        padding: '6px 10px',
-                        borderRadius: '5px',
-                        border: 'none',
-                        background: 'transparent',
-                        color: '#ea580c',
-                        fontSize: '12.5px',
-                        fontWeight: '600',
-                        textAlign: 'left',
-                        cursor: 'pointer',
-                        whiteSpace: 'nowrap',
-                        transition: 'all 0.15s ease',
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.background = '#fff7ed';
-                        e.currentTarget.style.color = '#c2410c';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.background = 'transparent';
-                        e.currentTarget.style.color = '#ea580c';
-                      }}
-                    >
-                      <span>Trả lại sửa</span>
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    id={`btn-return-order-${order.order_code}`}
+                    onClick={() => {
+                      setOpenActionDropdownCode(null);
+                      setReturningOrder(order);
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      width: '100%',
+                      padding: '7px 12px',
+                      borderRadius: '6px',
+                      border: 'none',
+                      background: 'transparent',
+                      color: '#ea580c',
+                      fontSize: '12.5px',
+                      fontWeight: '700',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap',
+                      transition: 'all 0.15s ease',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = '#fff7ed';
+                      e.currentTarget.style.color = '#c2410c';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'transparent';
+                      e.currentTarget.style.color = '#ea580c';
+                    }}
+                    title="Trả lại yêu cầu nhân viên sửa"
+                  >
+                    <span>Trả lại sửa</span>
+                  </button>
 
                   {/* 3. Từ chối */}
-                  {canApprove && (
-                    <button
-                      type="button"
-                      id={`btn-reject-order-${order.order_code}`}
-                      onClick={() => {
-                        setOpenActionDropdownCode(null);
-                        setRejectingOrder(order);
-                      }}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        width: '100%',
-                        padding: '6px 10px',
-                        borderRadius: '5px',
-                        border: 'none',
-                        background: 'transparent',
-                        color: '#dc2626',
-                        fontSize: '12.5px',
-                        fontWeight: '600',
-                        textAlign: 'left',
-                        cursor: 'pointer',
-                        whiteSpace: 'nowrap',
-                        transition: 'all 0.15s ease',
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.background = '#fef2f2';
-                        e.currentTarget.style.color = '#b91c1c';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.background = 'transparent';
-                        e.currentTarget.style.color = '#dc2626';
-                      }}
-                    >
-                      <span>Từ chối</span>
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    id={`btn-reject-order-${order.order_code}`}
+                    onClick={() => {
+                      setOpenActionDropdownCode(null);
+                      setRejectingOrder(order);
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      width: '100%',
+                      padding: '7px 12px',
+                      borderRadius: '6px',
+                      border: 'none',
+                      background: 'transparent',
+                      color: '#dc2626',
+                      fontSize: '12.5px',
+                      fontWeight: '700',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap',
+                      transition: 'all 0.15s ease',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = '#fef2f2';
+                      e.currentTarget.style.color = '#b91c1c';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'transparent';
+                      e.currentTarget.style.color = '#dc2626';
+                    }}
+                    title="Từ chối đơn hàng"
+                  >
+                    <span>Từ chối</span>
+                  </button>
 
                   {/* 4. Sao chép đơn */}
-                  {!isCustomer && (
-                    <button
-                      type="button"
-                      id={`btn-dropdown-clone-order-${order.order_code}`}
-                      onClick={() => {
-                        setOpenActionDropdownCode(null);
-                        handleCloneOrder(order.order_code);
-                      }}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        width: '100%',
-                        padding: '6px 10px',
-                        borderRadius: '5px',
-                        border: 'none',
-                        background: 'transparent',
-                        color: '#059669',
-                        fontSize: '12.5px',
-                        fontWeight: '600',
-                        textAlign: 'left',
-                        cursor: 'pointer',
-                        whiteSpace: 'nowrap',
-                        transition: 'all 0.15s ease',
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.background = '#ecfdf5';
-                        e.currentTarget.style.color = '#047857';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.background = 'transparent';
-                        e.currentTarget.style.color = '#059669';
-                      }}
-                      title="Sao chép đơn hàng này thành đơn mới"
-                    >
-                      <span>Sao chép đơn</span>
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    id={`btn-dropdown-clone-order-${order.order_code}`}
+                    onClick={() => {
+                      setOpenActionDropdownCode(null);
+                      handleCloneOrder(order.order_code);
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      width: '100%',
+                      padding: '7px 12px',
+                      borderRadius: '6px',
+                      border: 'none',
+                      background: 'transparent',
+                      color: '#059669',
+                      fontSize: '12.5px',
+                      fontWeight: '700',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap',
+                      transition: 'all 0.15s ease',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = '#ecfdf5';
+                      e.currentTarget.style.color = '#047857';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'transparent';
+                      e.currentTarget.style.color = '#059669';
+                    }}
+                    title="Sao chép đơn hàng này thành đơn mới"
+                  >
+                    <span>Sao chép đơn</span>
+                  </button>
 
-                  {/* 5. Hủy đơn trong dropdown */}
+                  {/* 5. Hủy đơn */}
                   {canCancel && (
                     <button
                       type="button"
@@ -1163,13 +1075,13 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                         display: 'flex',
                         alignItems: 'center',
                         width: '100%',
-                        padding: '6px 10px',
-                        borderRadius: '5px',
+                        padding: '7px 12px',
+                        borderRadius: '6px',
                         border: 'none',
                         background: 'transparent',
                         color: '#ea580c',
                         fontSize: '12.5px',
-                        fontWeight: '600',
+                        fontWeight: '700',
                         textAlign: 'left',
                         cursor: 'pointer',
                         whiteSpace: 'nowrap',
@@ -1183,6 +1095,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                         e.currentTarget.style.background = 'transparent';
                         e.currentTarget.style.color = '#ea580c';
                       }}
+                      title="Hủy đơn hàng"
                     >
                       <span>Hủy đơn</span>
                     </button>
@@ -1193,11 +1106,11 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
           </div>
         )}
 
-        {/* Nút Hủy đơn trực tiếp dành cho Khách hàng khi có quyền hủy */}
-        {isCustomer && canCancel && (
+        {/* Trường hợp 2: Khi không có quyền duyệt (hoặc đơn không ở trạng thái chờ duyệt) nhưng có quyền hủy đơn */}
+        {!canApprove && canCancel && (
           <button
             type="button"
-            id={`btn-customer-cancel-order-${order.order_code}`}
+            id={`btn-cancel-order-${order.order_code}`}
             onClick={() => setCancellingOrder(order)}
             style={{
               padding: '4px 9px',
@@ -1224,7 +1137,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
               e.currentTarget.style.background = '#fff1f2';
               e.currentTarget.style.color = '#e11d48';
             }}
-            title="Hủy đơn hàng chưa duyệt của đại lý"
+            title="Hủy đơn hàng này"
           >
             Hủy đơn
           </button>
@@ -1237,7 +1150,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
           onClick={() => handleOpenOrderDetail(order)}
           style={{
             padding: '4px 9px',
-            background: '#f1f5f9',
+            background: '#f8fafc',
             border: '1px solid #cbd5e1',
             borderRadius: '6px',
             color: '#334155',
@@ -1256,7 +1169,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
             e.currentTarget.style.background = '#e2e8f0';
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.background = '#f1f5f9';
+            e.currentTarget.style.background = '#f8fafc';
           }}
           title="Xem chi tiết các mặt hàng"
         >
@@ -1923,7 +1836,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                     <th style={{ padding: '9px 12px', fontWeight: '700', textAlign: 'right', background: '#f8fafc', whiteSpace: 'nowrap' }}>Tổng Giá Trị</th>
                     <th style={{ padding: '9px 12px', fontWeight: '700', textAlign: 'center', background: '#f8fafc', whiteSpace: 'nowrap', minWidth: '155px' }}>Trạng Thái Duyệt</th>
                     <th style={{ padding: '9px 12px', fontWeight: '700', background: '#f8fafc' }}>Lý Do Cần Duyệt & Mức Vi Phạm</th>
-                    <th style={{ padding: '9px 14px', fontWeight: '700', textAlign: 'right', background: '#f8fafc', whiteSpace: 'nowrap', minWidth: '240px' }}>Thao Tác</th>
+                    <th style={{ padding: '9px 14px', fontWeight: '700', textAlign: 'right', background: '#f8fafc', whiteSpace: 'nowrap', minWidth: '160px' }}>Thao Tác</th>
                   </tr>
                 </thead>
                 <tbody>
