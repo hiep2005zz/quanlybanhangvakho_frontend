@@ -599,7 +599,7 @@ export default function DiscountPolicyView({ token, user }: DiscountPolicyViewPr
                           transition: 'all 0.15s ease',
                         }}
                       >
-                        🌐 Tất cả SP
+                         Tất cả SP
                       </button>
 
                       <button
@@ -629,7 +629,7 @@ export default function DiscountPolicyView({ token, user }: DiscountPolicyViewPr
                           transition: 'all 0.15s ease',
                         }}
                       >
-                        📁 1 Nhóm hàng
+                         1 Nhóm hàng
                       </button>
 
                       <button
@@ -659,7 +659,7 @@ export default function DiscountPolicyView({ token, user }: DiscountPolicyViewPr
                           transition: 'all 0.15s ease',
                         }}
                       >
-                        🏷️ 1 SP lẻ
+                         1 SP lẻ
                       </button>
                     </div>
                   </div>
@@ -983,10 +983,6 @@ export default function DiscountPolicyView({ token, user }: DiscountPolicyViewPr
                         </div>
                       );
                     })}
-                  </div>
-
-                  <div style={{ marginTop: 'auto', paddingTop: '10px', fontSize: '11.5px', color: '#64748b' }}>
-                    💡 <em>Để trống ô "đến" để áp dụng cho mọi số lượng từ mốc đó trở lên (không giới hạn tối đa).</em>
                   </div>
                 </div>
               </div>
