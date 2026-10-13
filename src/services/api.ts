@@ -1928,17 +1928,6 @@ export interface OrderResponseData {
   cancelled_at?: string | null;
 }
 
-export interface ApprovalHistoryItem {
-  id: number;
-  user_id?: number | null;
-  user_name: string;
-  user_avatar?: string | null;
-  action_type: string;
-  action_label: string;
-  reason?: string | null;
-  created_at: string;
-}
-
 export async function approveOrderApi(token: string, orderIdOrCode: number | string): Promise<OrderResponseData> {
   const response = await authenticatedFetch(`${API_BASE_URL}/orders/${orderIdOrCode}/approve`, {
     method: 'POST',
@@ -1952,11 +1941,11 @@ export async function approveOrderApi(token: string, orderIdOrCode: number | str
   return data;
 }
 
-export async function rejectOrderApi(token: string, orderIdOrCode: number | string, reason: string): Promise<OrderResponseData> {
+export async function rejectOrderApi(token: string, orderIdOrCode: number | string, reason?: string): Promise<OrderResponseData> {
   const response = await authenticatedFetch(`${API_BASE_URL}/orders/${orderIdOrCode}/reject`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ reason }),
+    body: JSON.stringify({ reason: reason || 'Từ chối duyệt đơn hàng' }),
   }, token);
 
   const data = await response.json().catch(() => ({}));
@@ -1964,33 +1953,6 @@ export async function rejectOrderApi(token: string, orderIdOrCode: number | stri
     throw new Error(data.detail || `Lỗi từ chối đơn hàng (Mã lỗi ${response.status})`);
   }
   return data;
-}
-
-export async function returnOrderApi(token: string, orderIdOrCode: number | string, reason: string): Promise<OrderResponseData> {
-  const response = await authenticatedFetch(`${API_BASE_URL}/orders/${orderIdOrCode}/return-for-edit`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ reason }),
-  }, token);
-
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(data.detail || `Lỗi trả lại đơn hàng (Mã lỗi ${response.status})`);
-  }
-  return data;
-}
-
-export async function getOrderApprovalHistoryApi(token: string, orderIdOrCode: number | string): Promise<ApprovalHistoryItem[]> {
-  const response = await authenticatedFetch(`${API_BASE_URL}/orders/${orderIdOrCode}/approval-history`, {
-    method: 'GET',
-    headers: { 'Content-Type': 'application/json' },
-  }, token);
-
-  const data = await response.json().catch(() => []);
-  if (!response.ok) {
-    throw new Error((data && data.detail) || `Lỗi tải lịch sử duyệt đơn (Mã lỗi ${response.status})`);
-  }
-  return Array.isArray(data) ? data : [];
 }
 
 export interface ReorderItemDetail {
