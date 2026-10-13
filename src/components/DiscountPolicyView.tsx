@@ -14,10 +14,10 @@ import { emitStatusToast } from './StatusToast';
 
 interface DiscountTier {
   id: string;
-  min_quantity: number;
-  max_quantity: number | null; // null = Không giới hạn (Từ X sản phẩm trở lên)
-  discount_percent: number;
-  discount_amount?: number;
+  min_quantity: number | string;
+  max_quantity: number | string | null; // null = Không giới hạn (Từ X sản phẩm trở lên)
+  discount_percent: number | string;
+  discount_amount?: number | string;
   discount_type?: 'percent' | 'amount';
 }
 
@@ -163,11 +163,11 @@ export default function DiscountPolicyView({ token, user }: DiscountPolicyViewPr
   // Kiểm tra chính sách có bị chồng chéo số lượng không
   const hasOverlappingTiers = (tiers?: DiscountTier[]) => {
     if (!tiers || tiers.length < 2) return false;
-    const sorted = [...tiers].sort((a, b) => a.min_quantity - b.min_quantity);
+    const sorted = [...tiers].sort((a, b) => Number(a.min_quantity) - Number(b.min_quantity));
     for (let i = 1; i < sorted.length; i++) {
       const prev = sorted[i - 1];
       const curr = sorted[i];
-      if (prev.max_quantity === null || prev.max_quantity === undefined || curr.min_quantity <= prev.max_quantity) {
+      if (prev.max_quantity === null || prev.max_quantity === undefined || prev.max_quantity === '' || Number(curr.min_quantity) <= Number(prev.max_quantity)) {
         return true;
       }
     }
@@ -204,13 +204,13 @@ export default function DiscountPolicyView({ token, user }: DiscountPolicyViewPr
   // Xử lý thêm mốc sản lượng (Tier) tự động tính toán không để chồng chéo
   const handleAddTier = () => {
     const lastTier = formData.tiers[formData.tiers.length - 1];
-    let newMin = 100;
+    let newMin: number | string = 100;
     let nextTiers = [...formData.tiers];
     if (lastTier) {
-      if (lastTier.max_quantity !== null && lastTier.max_quantity !== undefined) {
+      if (lastTier.max_quantity !== null && lastTier.max_quantity !== undefined && lastTier.max_quantity !== '') {
         newMin = Number(lastTier.max_quantity) + 1;
       } else {
-        const autoMax = Number(lastTier.min_quantity) + 49;
+        const autoMax = Number(lastTier.min_quantity || 0) + 49;
         nextTiers = nextTiers.map((t, idx) =>
           idx === nextTiers.length - 1 ? { ...t, max_quantity: autoMax } : t
         );
@@ -249,9 +249,9 @@ export default function DiscountPolicyView({ token, user }: DiscountPolicyViewPr
             return { ...t, discount_type: value as 'percent' | 'amount' };
           }
           if (field === 'max_quantity') {
-            return { ...t, max_quantity: value === '' ? null : Number(value) };
+            return { ...t, max_quantity: value === '' ? null : value };
           }
-          return { ...t, [field]: value === '' ? 0 : Number(value) };
+          return { ...t, [field]: value === '' ? '' : value };
         }
         return t;
       }),
@@ -275,8 +275,17 @@ export default function DiscountPolicyView({ token, user }: DiscountPolicyViewPr
       return;
     }
 
+    // Chuyển đổi và chuẩn hóa các mốc chiết khấu
+    const parsedTiers = formData.tiers.map((t) => ({
+      ...t,
+      min_quantity: t.min_quantity === '' ? 0 : Number(t.min_quantity),
+      max_quantity: t.max_quantity === '' || t.max_quantity === null || t.max_quantity === undefined ? null : Number(t.max_quantity),
+      discount_percent: t.discount_percent === '' ? 0 : Number(t.discount_percent),
+      discount_amount: t.discount_amount === '' ? 0 : Number(t.discount_amount || 0),
+    }));
+
     // Kiểm tra từng mốc chiết khấu và chống chồng chéo số lượng (overlapping)
-    const sortedTiers = [...formData.tiers].sort((a, b) => a.min_quantity - b.min_quantity);
+    const sortedTiers = [...parsedTiers].sort((a, b) => a.min_quantity - b.min_quantity);
     for (let i = 0; i < sortedTiers.length; i++) {
       const t = sortedTiers[i];
       if (t.min_quantity < 0 || isNaN(t.min_quantity)) {
@@ -834,11 +843,11 @@ export default function DiscountPolicyView({ token, user }: DiscountPolicyViewPr
                     {formData.tiers.map((tier, index) => {
                       const prevTier = index > 0 ? formData.tiers[index - 1] : null;
                       const isOverlapping = prevTier !== null && (
-                        prevTier.max_quantity === null || prevTier.max_quantity === undefined
+                        prevTier.max_quantity === null || prevTier.max_quantity === undefined || prevTier.max_quantity === ''
                           ? true
-                          : tier.min_quantity <= prevTier.max_quantity
+                          : (tier.min_quantity !== '' && Number(tier.min_quantity) <= Number(prevTier.max_quantity))
                       );
-                      const isInvalidMax = tier.max_quantity !== null && tier.max_quantity !== undefined && tier.max_quantity < tier.min_quantity;
+                      const isInvalidMax = tier.max_quantity !== null && tier.max_quantity !== undefined && tier.max_quantity !== '' && tier.min_quantity !== '' && Number(tier.max_quantity) < Number(tier.min_quantity);
 
                       return (
                         <div
@@ -860,7 +869,7 @@ export default function DiscountPolicyView({ token, user }: DiscountPolicyViewPr
                                 type="number"
                                 min="0"
                                 placeholder="Từ"
-                                value={tier.min_quantity}
+                                value={tier.min_quantity ?? ''}
                                 onChange={(e) => handleTierChange(tier.id, 'min_quantity', e.target.value)}
                                 style={{
                                   width: '75px',
@@ -899,7 +908,7 @@ export default function DiscountPolicyView({ token, user }: DiscountPolicyViewPr
                                 max="100"
                                 step="0.5"
                                 placeholder="%"
-                                value={tier.discount_percent}
+                                value={tier.discount_percent ?? ''}
                                 onChange={(e) => handleTierChange(tier.id, 'discount_percent', e.target.value)}
                                 style={{
                                   width: '65px',
@@ -1295,7 +1304,7 @@ export default function DiscountPolicyView({ token, user }: DiscountPolicyViewPr
                         <strong style={{ color: '#0f172a' }}>{tier.min_quantity}</strong>
                         <span style={{ color: '#64748b' }}> {tier.max_quantity ? `đến ${tier.max_quantity}` : '+'} sp: </span>
                         <strong style={{ color: '#16a34a', fontSize: '14px' }}>
-                          Giảm {tier.discount_type === 'amount' || (tier.discount_amount && tier.discount_amount > 0 && !tier.discount_percent)
+                          Giảm {tier.discount_type === 'amount' || (tier.discount_amount && Number(tier.discount_amount) > 0 && !tier.discount_percent)
                             ? `${Number(tier.discount_amount).toLocaleString('vi-VN')} đ/sp`
                             : `${tier.discount_percent}%`}
                         </strong>
