@@ -654,10 +654,12 @@ export async function getProductsApi(
 ): Promise<ProductListResponse> {
   const query = new URLSearchParams();
   if (params?.page) query.append('page', params.page.toString());
-  const pageSize = params?.page_size || params?.limit;
-  if (pageSize) query.append('page_size', pageSize.toString());
+  const pageSizeVal = params?.page_size || params?.limit;
+  if (pageSizeVal) query.append('page_size', pageSizeVal.toString());
   if (params?.search && params.search.trim()) query.append('search', params.search.trim());
-  if (params?.category && params.category.toLowerCase() !== 'all') query.append('category', params.category);
+  if (params?.category && params.category.toLowerCase() !== 'all') {
+    query.append('category', params.category);
+  }
   if (params?.only_low_stock) query.append('only_low_stock', 'true');
 
   const queryString = query.toString();
@@ -2000,6 +2002,8 @@ export interface ReorderItemDetail {
   product_name: string;
   quantity: number;
   price: number;
+  current_price?: number;
+  subtotal?: number;
   old_price?: number;
   unit: string;
   unit_name?: string;
