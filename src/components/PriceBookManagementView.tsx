@@ -5,7 +5,6 @@ import {
   createPriceBookApi,
   updatePriceBookApi,
   clonePriceBookApi,
-  fetchPriceBookDetailApi,
   PriceBookItem,
   getProductsApi,
   ProductItem,
@@ -70,7 +69,7 @@ export function PriceBookManagementView({
   const [activeTab, setActiveTab] = useState<'info' | 'items'>('info');
 
   // Selected item
-  const [selectedBook, setSelectedBook] = useState<PriceBook | null>(null);
+  const [selectedBook] = useState<PriceBook | null>(null);
 
   // Form State
   const [formData, setFormData] = useState({
@@ -148,6 +147,8 @@ export function PriceBookManagementView({
   const paginatedBooks = filteredBooks.slice((safePage - 1) * pageSize, safePage * pageSize);
 
 
+  // Các hàm mở modal cũ - hiện tại đã chuyển sang điều hướng router (/price-books/:id)
+  /*
   const handleOpenEdit = async (id: number) => {
     try {
       const detail = await fetchPriceBookDetailApi(token, id);
@@ -188,6 +189,7 @@ export function PriceBookManagementView({
       emitStatusToast({ message: err.message || 'Lỗi tải chi tiết', title: 'Lỗi' });
     }
   };
+  */
 
   const handleClonePriceBook = async (pb: PriceBook) => {
     if (cloningId) return;

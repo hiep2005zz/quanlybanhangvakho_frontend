@@ -174,17 +174,18 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
   const getCleanApprovalReason = (ord: any): string | null => {
     if (!ord || !ord.approval_reason) return null;
     const s = (ord.status || '').toUpperCase();
-    const isApproved =
-      ['CONFIRMED', 'APPROVED', 'PICKING', 'PREPARING', 'PACKING', 'EXPORTED', 'SHIPPED', 'DELIVERED', 'CLOSED', 'COMPLETED'].includes(s) ||
+    const isApprovedOrPast =
+      ['CONFIRMED', 'APPROVED', 'PICKING', 'PREPARING', 'PACKING', 'EXPORTED', 'SHIPPED', 'DELIVERED', 'CLOSED', 'COMPLETED', 'CANCELLED', 'REJECTED'].includes(s) ||
       !ord.requires_approval;
-    if (isApproved) {
+    if (isApprovedOrPast) {
       const parts = ord.approval_reason.split('|').map((p: string) => p.trim()).filter(Boolean);
       const remaining = parts.filter((p: string) => {
         const lower = p.toLowerCase().normalize('NFC');
         return (
           !lower.includes('đại lý tự đặt') &&
           !lower.includes('cổng đại lý') &&
-          !lower.includes('nhân viên phụ trách xác nhận')
+          !lower.includes('nhân viên phụ trách xác nhận') &&
+          !lower.includes('chờ nhân viên')
         );
       });
       return remaining.join(' | ') || null;
@@ -665,27 +666,6 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
     );
   };
 
-  const getCleanApprovalReason = (ord: OrderResponseData): string | null => {
-    if (!ord || !ord.approval_reason) return null;
-    const s = (ord.status || '').toUpperCase();
-    const isApprovedOrPast =
-      ['CONFIRMED', 'APPROVED', 'PICKING', 'PREPARING', 'PACKING', 'EXPORTED', 'SHIPPED', 'DELIVERED', 'CLOSED', 'COMPLETED', 'CANCELLED', 'REJECTED'].includes(s) ||
-      !ord.requires_approval;
-    if (isApprovedOrPast) {
-      const parts = ord.approval_reason.split('|').map((p: string) => p.trim()).filter(Boolean);
-      const remaining = parts.filter((p: string) => {
-        const lower = p.toLowerCase().normalize('NFC');
-        return (
-          !lower.includes('đại lý tự đặt') &&
-          !lower.includes('cổng đại lý') &&
-          !lower.includes('nhân viên phụ trách xác nhận') &&
-          !lower.includes('chờ nhân viên')
-        );
-      });
-      return remaining.join(' | ') || null;
-    }
-    return ord.approval_reason;
-  };
 
   const renderOrderActions = (order: OrderResponseData) => {
     const isPending = order.status === 'PENDING_APPROVAL';
