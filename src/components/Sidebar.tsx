@@ -21,6 +21,8 @@ export type TabType =
   | 'delivery-points'
   | 'product-history'
   | 'discounts'
+  | 'stock-thresholds'
+  | 'low-stock-alerts'
   | 'goods-receipt'
   | 'add-product'
   | 'products-import';
