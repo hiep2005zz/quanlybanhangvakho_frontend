@@ -451,8 +451,8 @@ export default function DiscountPolicyView({ token, user }: DiscountPolicyViewPr
       {isModalOpen ? (
         /* TRANG RIÊNG: KHAI BÁO / CHỈNH SỬA CHÍNH SÁCH */
         <div>
-          {/* Nút quay lại & Header trang khai báo */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+          {/* Nút quay lại trang danh sách */}
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: '20px' }}>
             <button
               type="button"
               onClick={() => {
@@ -485,21 +485,6 @@ export default function DiscountPolicyView({ token, user }: DiscountPolicyViewPr
             >
               <span style={{ fontSize: '18px', lineHeight: 1 }}>←</span> Quay lại danh sách
             </button>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <span
-                style={{
-                  padding: '5px 12px',
-                  borderRadius: '6px',
-                  fontSize: '13px',
-                  fontWeight: '600',
-                  background: '#eff6ff',
-                  color: '#2563eb',
-                  border: '1px solid #bfdbfe',
-                }}
-              >
-                {editingPolicyId ? 'Chế độ: Chỉnh sửa' : 'Chế độ: Khai báo mới'}
-              </span>
-            </div>
           </div>
 
           {/* Khung form chi tiết */}
@@ -561,7 +546,7 @@ export default function DiscountPolicyView({ token, user }: DiscountPolicyViewPr
                         transition: 'all 0.15s ease',
                       }}
                     >
-                      🌐 Tất cả sản phẩm
+                       Tất cả sản phẩm
                     </button>
 
                     <button
@@ -591,7 +576,7 @@ export default function DiscountPolicyView({ token, user }: DiscountPolicyViewPr
                         transition: 'all 0.15s ease',
                       }}
                     >
-                      📁 1 Nhóm hàng
+                       1 Nhóm hàng
                     </button>
 
                     <button
@@ -621,7 +606,7 @@ export default function DiscountPolicyView({ token, user }: DiscountPolicyViewPr
                         transition: 'all 0.15s ease',
                       }}
                     >
-                      🏷️ 1 Sản phẩm lẻ
+                       1 Sản phẩm lẻ
                     </button>
                   </div>
                 </div>
