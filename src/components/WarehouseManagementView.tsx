@@ -87,7 +87,7 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
   const [allProducts, setAllProducts] = useState<Product[]>([]);
 
   // State Danh mục Master Data: Kệ, Dãy, Khu vực
-  const [, setMasterData] = useState<WarehouseMasterData>({
+  const [masterData, setMasterData] = useState<WarehouseMasterData>({
     zones: [],
     aisles: [],
     racks: [],
@@ -332,14 +332,26 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
     }
   }, [selectedWarehouse, subTab, fetchLocations, fetchLocationProducts, fetchMasterData]);
 
-  // Danh sách các Zone độc nhất trong kho đang chọn
+  // Danh sách các Zone độc nhất trong kho đang chọn (bảo đảm không bị mất khi lọc)
   const uniqueZones = useMemo(() => {
     const s = new Set<string>();
-    locations.forEach((l) => {
-      if (l.zone) s.add(l.zone);
-    });
-    return Array.from(s);
-  }, [locations]);
+    if (Array.isArray(zonesList)) {
+      zonesList.forEach((z) => {
+        if (z.zone_name && z.zone_name.trim()) s.add(z.zone_name.trim());
+      });
+    }
+    if (masterData && Array.isArray(masterData.zones)) {
+      masterData.zones.forEach((z) => {
+        if (z.zone_name && z.zone_name.trim()) s.add(z.zone_name.trim());
+      });
+    }
+    if (Array.isArray(locations)) {
+      locations.forEach((l) => {
+        if (l.zone && l.zone.trim()) s.add(l.zone.trim());
+      });
+    }
+    return Array.from(s).sort((a, b) => a.localeCompare(b, 'vi'));
+  }, [zonesList, masterData, locations]);
 
   // --- TÍNH TOÁN PHÂN TRANG ---
   const paginatedWarehouses = useMemo(() => {
@@ -2060,6 +2072,8 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                                 title="Quản lý sơ đồ vị trí kệ và phân bổ sản phẩm"
                                 onClick={() => {
                                   setSelectedWarehouse(wh);
+                                  setLocZoneFilter('all');
+                                  setLocSearch('');
                                   setSubTab('locations');
                                 }}
                               >
@@ -2139,6 +2153,8 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                           className="wh-mobile-btn-manage"
                           onClick={() => {
                             setSelectedWarehouse(wh);
+                            setLocZoneFilter('all');
+                            setLocSearch('');
                             setSubTab('locations');
                           }}
                         >
@@ -2248,7 +2264,7 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                     />
                   </div>
 
-                  {uniqueZones.length > 0 && (
+                  {(uniqueZones.length > 0 || locZoneFilter !== 'all') && (
                     <select
                       className="wh-select"
                       value={locZoneFilter}
@@ -2282,17 +2298,42 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                   </div>
                 ) : locations.length === 0 ? (
                   <div className="wh-state-box">
-                    <h4>Kho này chưa có vị trí kệ nào được khai báo</h4>
-                    <p>Hãy chuyển sang tab "Quản lý Kệ & Khu vực" để thêm khu vực, dãy kệ và tầng cho kho hàng.</p>
-                    {canManage && (
-                      <button
-                        type="button"
-                        className="wh-btn wh-btn-primary"
-                        style={{ marginTop: '14px' }}
-                        onClick={() => setSubTab('master-data')}
-                      >
-                        Quản lý Kệ & Khu vực
-                      </button>
+                    {locZoneFilter !== 'all' || locSearch.trim() ? (
+                      <>
+                        <h4>Không tìm thấy vị trí kệ nào phù hợp với bộ lọc</h4>
+                        <p style={{ marginTop: '6px', color: '#64748b', fontSize: '13.5px' }}>
+                          Không có vị trí kệ nào khớp với{' '}
+                          {locZoneFilter !== 'all' ? `khu vực "${locZoneFilter}"` : ''}
+                          {locZoneFilter !== 'all' && locSearch.trim() ? ' và ' : ''}
+                          {locSearch.trim() ? `từ khóa "${locSearch.trim()}"` : ''}.
+                        </p>
+                        <button
+                          type="button"
+                          className="wh-btn wh-btn-secondary"
+                          style={{ marginTop: '14px', background: '#f1f5f9', border: '1px solid #cbd5e1', color: '#334155' }}
+                          onClick={() => {
+                            setLocZoneFilter('all');
+                            setLocSearch('');
+                          }}
+                        >
+                          Xóa bộ lọc
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <h4>Kho này chưa có vị trí kệ nào được khai báo</h4>
+                        <p>Hãy chuyển sang tab "Quản lý Kệ & Khu vực" để thêm khu vực, dãy kệ và tầng cho kho hàng.</p>
+                        {canManage && (
+                          <button
+                            type="button"
+                            className="wh-btn wh-btn-primary"
+                            style={{ marginTop: '14px' }}
+                            onClick={() => setSubTab('master-data')}
+                          >
+                            Quản lý Kệ & Khu vực
+                          </button>
+                        )}
+                      </>
                     )}
                   </div>
                 ) : (
