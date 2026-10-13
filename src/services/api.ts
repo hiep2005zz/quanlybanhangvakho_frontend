@@ -240,6 +240,17 @@ export interface ProductListResponse {
   user_role: string;
   is_cost_price_visible: boolean;
   summary?: ProductFinancialSummary;
+  page?: number;
+  page_size?: number;
+  total_pages?: number;
+}
+
+export interface GetProductsParams {
+  page?: number;
+  page_size?: number;
+  search?: string;
+  category?: string;
+  only_low_stock?: boolean;
 }
 
 export interface OrderCreateResponse {
@@ -621,8 +632,18 @@ export async function logoutApi(token: string): Promise<void> {
   }
 }
 
-export async function getProductsApi(token: string): Promise<ProductListResponse> {
-  const response = await authenticatedFetch(`${API_BASE_URL}/products`, {
+export async function getProductsApi(token: string, params?: GetProductsParams): Promise<ProductListResponse> {
+  const query = new URLSearchParams();
+  if (params?.page) query.append('page', params.page.toString());
+  if (params?.page_size) query.append('page_size', params.page_size.toString());
+  if (params?.search && params.search.trim()) query.append('search', params.search.trim());
+  if (params?.category && params.category !== 'all') query.append('category', params.category);
+  if (params?.only_low_stock) query.append('only_low_stock', 'true');
+
+  const queryString = query.toString();
+  const url = `${API_BASE_URL}/products${queryString ? `?${queryString}` : ''}`;
+
+  const response = await authenticatedFetch(url, {
     method: 'GET',
   }, token);
 
@@ -870,7 +891,8 @@ export async function adjustStockApi(
 
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(data.detail || `Lỗi cập nhật kho (Mã lỗi ${response.status})`);
+    const errorMsg = formatErrorMessage(data.detail, data.message || `Lỗi cập nhật kho (Mã lỗi ${response.status})`);
+    throw new Error(errorMsg);
   }
   return data;
 }
@@ -887,7 +909,8 @@ export async function createStockReceiptApi(
 
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(data.detail || `Lỗi nhập kho (Mã lỗi ${response.status})`);
+    const errorMsg = formatErrorMessage(data.detail, data.message || `Lỗi nhập kho (Mã lỗi ${response.status})`);
+    throw new Error(errorMsg);
   }
   return data;
 }
@@ -904,7 +927,8 @@ export async function createStockIssueApi(
 
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(data.detail || `Lỗi xuất kho (Mã lỗi ${response.status})`);
+    const errorMsg = formatErrorMessage(data.detail, data.message || `Lỗi xuất kho (Mã lỗi ${response.status})`);
+    throw new Error(errorMsg);
   }
   return data;
 }
@@ -3116,22 +3140,41 @@ export async function cancelStockAuditApi(
 
 export function formatErrorMessage(detail: any, fallback: string = 'Đã có lỗi xảy ra'): string {
   if (!detail) return fallback;
-  if (typeof detail === 'string') return detail;
+  if (typeof detail === 'string') {
+    if (detail === '[object Object]' || detail.trim() === '') return fallback;
+    return detail;
+  }
   if (Array.isArray(detail)) {
+    if (detail.length === 0) return fallback;
     return detail
       .map((d: any) => {
         if (typeof d === 'string') return d;
         if (d && typeof d === 'object') {
-          const msg = d.msg || d.message || JSON.stringify(d);
+          const msg = d.msg || d.message || d.detail || (d.type ? `Lỗi: ${d.type}` : '');
           const loc = Array.isArray(d.loc) ? d.loc.filter((x: any) => x !== 'body').join('.') : '';
-          return loc ? `${loc}: ${msg}` : msg;
+          if (loc && msg) return `${loc}: ${msg}`;
+          if (msg) return msg;
+          try { return JSON.stringify(d); } catch { return fallback; }
         }
         return String(d);
       })
-      .join('; ');
+      .filter((s) => s && s !== '[object Object]')
+      .join('; ') || fallback;
   }
   if (typeof detail === 'object') {
-    return detail.message || detail.msg || detail.detail || JSON.stringify(detail);
+    const extracted = detail.message || detail.msg || detail.detail;
+    if (extracted && typeof extracted === 'string' && extracted !== '[object Object]') {
+      return extracted;
+    }
+    if (extracted && typeof extracted === 'object') {
+      return formatErrorMessage(extracted, fallback);
+    }
+    try {
+      const jsonStr = JSON.stringify(detail);
+      return jsonStr !== '{}' ? jsonStr : fallback;
+    } catch {
+      return fallback;
+    }
   }
   return String(detail);
 }

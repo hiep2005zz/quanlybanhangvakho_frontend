@@ -67,9 +67,28 @@ export const StatusToastHost: React.FC = () => {
       const lowerTitle = rawTitle.toLowerCase();
       const lowerMsg = cleanedMsg.toLowerCase();
 
+      // Kiểm tra xem có phải là thông báo thành công hay không
+      const isExplicitSuccess =
+        (lowerTitle.includes('thành công') ||
+          lowerTitle.includes('success') ||
+          lowerTitle.includes('hoàn tất') ||
+          lowerTitle.includes('đã tạo') ||
+          lowerTitle.includes('đã thêm') ||
+          lowerTitle.includes('đã lưu') ||
+          lowerTitle.includes('đã cập nhật') ||
+          lowerTitle.includes('đã xóa') ||
+          lowerMsg.includes('thành công') ||
+          lowerMsg.includes('đã thêm mới')) &&
+        !lowerTitle.includes('không thành công') &&
+        !lowerMsg.includes('không thành công');
+
       // Tự động nhận diện loại thông báo nếu chưa truyền hoặc có dấu hiệu lỗi / cảnh báo
       let determinedType = d.type;
-      if (!determinedType) {
+
+      // QUY TẮC CỐT LÕI: Nếu là thành công, TUYỆT ĐỐI KHÔNG BAO GIỜ HIỂN THỊ MÀU ĐỎ!
+      if (isExplicitSuccess) {
+        determinedType = 'success';
+      } else if (!determinedType) {
         if (
           lowerTitle.includes('lỗi') ||
           lowerTitle.includes('thất bại') ||
@@ -77,8 +96,13 @@ export const StatusToastHost: React.FC = () => {
           lowerTitle.includes('error') ||
           lowerTitle.includes('fail') ||
           lowerTitle.includes('hỏng') ||
-          lowerMsg.includes('lỗi') ||
-          lowerMsg.includes('thất bại')
+          lowerTitle.includes('không thể') ||
+          lowerTitle.includes('chặn') ||
+          lowerMsg.includes('thất bại') ||
+          (lowerMsg.includes('lỗi') &&
+            !lowerMsg.includes('0 lỗi') &&
+            !lowerMsg.includes('không có lỗi') &&
+            !lowerMsg.includes('bỏ qua lỗi'))
         ) {
           determinedType = 'error';
         } else if (
@@ -127,13 +151,13 @@ export const StatusToastHost: React.FC = () => {
   const isError = toastType === 'error';
   const isInfo = toastType === 'info';
 
-  // Màu sắc thiết kế: khi lỗi thì ĐỎ RỰC RỠ rõ ràng
-  const borderColor = isError ? '#fca5a5' : isWarning ? '#fed7aa' : isInfo ? '#bfdbfe' : '#bbf7d0';
+  // Màu sắc thiết kế: khi thành công là màu XANH LÁ CÂY TƯƠI SÁNG ĐẸP MẮT (#16a34a, #059669, #f0fdf4)
+  const borderColor = isError ? '#fca5a5' : isWarning ? '#fed7aa' : isInfo ? '#bfdbfe' : '#86efac';
   const borderLeftColor = isError ? '#dc2626' : isWarning ? '#f59e0b' : isInfo ? '#3b82f6' : '#16a34a';
   const titleColor = isError ? '#dc2626' : isWarning ? '#c2410c' : isInfo ? '#1d4ed8' : '#15803d';
-  const textColor = isError ? '#991b1b' : isWarning ? '#9a3412' : isInfo ? '#1e40af' : '#166534';
-  const bgColor = isError ? '#fef2f2' : isWarning ? '#fffbeb' : isInfo ? '#eff6ff' : '#ffffff';
-  const closeColor = isError ? '#dc2626' : isWarning ? '#c2410c' : isInfo ? '#2563eb' : '#15803d';
+  const textColor = isError ? '#991b1b' : isWarning ? '#9a3412' : isInfo ? '#1e40af' : '#14532d';
+  const bgColor = isError ? '#fef2f2' : isWarning ? '#fffbeb' : isInfo ? '#eff6ff' : '#f0fdf4';
+  const closeColor = isError ? '#dc2626' : isWarning ? '#c2410c' : isInfo ? '#2563eb' : '#16a34a';
   const progressBg = isError
     ? 'linear-gradient(90deg, #f87171, #dc2626)'
     : isWarning
@@ -167,7 +191,11 @@ export const StatusToastHost: React.FC = () => {
         color: textColor,
         boxShadow: isError
           ? '0 10px 25px rgba(220, 38, 38, 0.18), 0 4px 10px rgba(0, 0, 0, 0.05)'
-          : '0 12px 32px rgba(15, 23, 42, 0.25), 0 2px 6px rgba(0, 0, 0, 0.08)',
+          : isWarning
+          ? '0 10px 25px rgba(245, 158, 11, 0.18), 0 4px 10px rgba(0, 0, 0, 0.05)'
+          : isInfo
+          ? '0 10px 25px rgba(59, 130, 246, 0.18), 0 4px 10px rgba(0, 0, 0, 0.05)'
+          : '0 10px 25px rgba(22, 163, 74, 0.18), 0 4px 10px rgba(0, 0, 0, 0.05)',
         willChange: 'transform, opacity',
         animation: isExiting
           ? `accountStatusToastExit ${STATUS_TOAST_EXIT_MS}ms cubic-bezier(0.55, 0, 1, 0.45) forwards`
@@ -191,10 +219,22 @@ export const StatusToastHost: React.FC = () => {
           </svg>
         )}
         {!isError && !isWarning && !isInfo && (
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-            <polyline points="22 4 12 14.01 9 11.01" />
-          </svg>
+          <div
+            style={{
+              width: '22px',
+              height: '22px',
+              borderRadius: '50%',
+              background: '#dcfce7',
+              border: '1px solid #bbf7d0',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+          </div>
         )}
         {isInfo && (
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
