@@ -40,7 +40,7 @@ interface DiscountPolicyViewProps {
   onBackToHome?: () => void;
 }
 
-export default function DiscountPolicyView({ token, user, onBackToHome }: DiscountPolicyViewProps) {
+export default function DiscountPolicyView({ token, user }: DiscountPolicyViewProps) {
   const canManageDiscounts = Boolean(
     user?.role === 'admin' ||
     user?.role === 'sales_manager' ||
@@ -446,71 +446,8 @@ export default function DiscountPolicyView({ token, user, onBackToHome }: Discou
     emitStatusToast({ title: 'Thành công', message: 'Đã ngừng áp dụng chính sách!', type: 'success' });
   };
 
-  // Quay lại trang chủ (Kho hàng) an toàn
-  const handleGoHome = () => {
-    if (onBackToHome) {
-      onBackToHome();
-    } else {
-      try {
-        window.history.pushState({}, '', '/');
-        window.dispatchEvent(new PopStateEvent('popstate'));
-      } catch {
-        window.location.href = '/';
-      }
-    }
-  };
-
   return (
     <div style={{ padding: '8px', maxWidth: '1200px', margin: '0 auto' }}>
-      {/* Breadcrumb & Nút quay lại trang chủ */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '10px',
-          fontSize: '13.5px',
-          color: '#64748b',
-          fontWeight: '500',
-          padding: '2px 4px',
-          marginBottom: '18px',
-        }}
-      >
-        <button
-          onClick={handleGoHome}
-          style={{
-            background: '#ffffff',
-            border: '1px solid #cbd5e1',
-            borderRadius: '20px',
-            color: '#2563eb',
-            cursor: 'pointer',
-            padding: '6px 16px',
-            fontSize: '13px',
-            fontWeight: '600',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '6px',
-            boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
-            transition: 'all 0.18s ease',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.borderColor = '#2563eb';
-            e.currentTarget.style.background = '#eff6ff';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.borderColor = '#cbd5e1';
-            e.currentTarget.style.background = '#ffffff';
-          }}
-          title="Quay lại trang Kho hàng"
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-            <path d="M19 12H5M12 19l-7-7 7-7" />
-          </svg>
-          <span>Quay lại trang chủ</span>
-        </button>
-        <span>/</span>
-        <span style={{ color: '#0f172a', fontWeight: '600' }}>Chính sách chiết khấu sản lượng</span>
-      </div>
-
       {/* Header View */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
         <div>
