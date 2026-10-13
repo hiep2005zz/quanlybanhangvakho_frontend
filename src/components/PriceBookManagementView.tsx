@@ -13,6 +13,7 @@ import {
 } from '../services/api';
 import { emitStatusToast } from './StatusToast';
 import { ModalPortal } from './ModalPortal';
+import { Link } from '../hooks/useLocation';
 
 interface PriceBookManagementViewProps {
   token: string;
@@ -146,32 +147,6 @@ export function PriceBookManagementView({
   const safePage = Math.min(Math.max(1, currentPage), totalPages);
   const paginatedBooks = filteredBooks.slice((safePage - 1) * pageSize, safePage * pageSize);
 
-  const handleOpenCreate = () => {
-    setSelectedBook(null);
-    const now = new Date();
-    const thirtyDaysLater = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-
-    const formatDT = (d: Date) => {
-      const pad = (n: number) => n.toString().padStart(2, '0');
-      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-    };
-
-    setFormData({
-      code: `BG-${Date.now().toString().slice(-6)}`,
-      name: '',
-      customer_group: 'dai_ly_cap_1',
-      valid_from: formatDT(now),
-      valid_to: formatDT(thirtyDaysLater),
-      status: 'ACTIVE',
-      note: ''
-    });
-    setFormItems([]);
-    setNewProductId('');
-    setNewSalePrice('');
-    setNewFloorPrice('');
-    setActiveTab('info');
-    setIsFormModalOpen(true);
-  };
 
   const handleOpenEdit = async (id: number) => {
     try {
@@ -498,9 +473,8 @@ export function PriceBookManagementView({
         <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
 
           {canManagePriceBooks && (
-            <button
-              type="button"
-              onClick={handleOpenCreate}
+            <Link
+              to="/price-lists/create"
               id="btn-add-price-book"
               style={{
                 background: '#0fad89',
@@ -511,11 +485,15 @@ export function PriceBookManagementView({
                 cursor: 'pointer',
                 fontWeight: '700',
                 fontSize: '13.5px',
-                boxShadow: '0 2px 4px rgba(15, 173, 137, 0.2)'
+                boxShadow: '0 2px 4px rgba(15, 173, 137, 0.2)',
+                textDecoration: 'none',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px'
               }}
             >
               Thêm Bảng giá
-            </button>
+            </Link>
           )}
         </div>
       </div>
@@ -900,8 +878,8 @@ export function PriceBookManagementView({
         )}
       </div>
 
-      {/* Modal Thêm mới / Chỉnh sửa */}
-      {isFormModalOpen && (
+      {/* Modal Chỉnh sửa Bảng Giá */}
+      {isFormModalOpen && selectedBook && (
         <ModalPortal>
           <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.65)', backdropFilter: 'blur(3px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 99999, padding: '16px', boxSizing: 'border-box' }}>
             <div style={{ background: '#fff', borderRadius: '16px', width: '860px', maxHeight: 'calc(100vh - 32px)', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }}>
