@@ -2,7 +2,6 @@ import React, { useEffect, useState, useCallback } from 'react';
 import {
   getOrderDetailApi,
   getWarehousePickingSummaryApi,
-  cancelOrderApi,
   supplementaryDeliveryApi,
   reorderOrderApi,
   getCloneOrderDataApi,
@@ -13,12 +12,8 @@ import {
 } from '../services/api';
 import { useParams, useNavigate } from '../hooks/useLocation';
 import { OrderLifecycleTimeline } from './OrderLifecycleTimeline';
-import { ApproveOrderModal } from './ApproveOrderModal';
-import { RejectOrderModal } from './RejectOrderModal';
-import { OrderCancelModal } from './OrderCancelModal';
 import OrderPrintModal from './OrderPrintModal';
 import { emitStatusToast } from './StatusToast';
-import { getOrderPermissionTier, isOrderPastExported, isOrderCancelable } from '../utils/orderPermissions';
 
 interface OrderDetailPageProps {
   currentUser: User;
@@ -48,10 +43,6 @@ export const OrderDetailPage: React.FC<OrderDetailPageProps> = ({
 
   // Modals state
   const [printingOrder, setPrintingOrder] = useState<any | null>(null);
-  const [approvingOrder, setApprovingOrder] = useState<any | null>(null);
-  const [rejectingOrder, setRejectingOrder] = useState<any | null>(null);
-  const [cancellingOrder, setCancellingOrder] = useState<any | null>(null);
-  const [isSubmittingCancel, setIsSubmittingCancel] = useState(false);
 
   // Supplementary delivery
   const [supplementaryOrder, setSupplementaryOrder] = useState<any | null>(null);
@@ -69,24 +60,7 @@ export const OrderDetailPage: React.FC<OrderDetailPageProps> = ({
     onContinue?: () => void;
   } | null>(null);
 
-  // RBAC permissions
-  const permTier = getOrderPermissionTier(currentUser);
-  const isFullAccess = permTier === 'FULL_ACCESS';
-  const rawRoles = currentUser.roles && currentUser.roles.length > 0 ? currentUser.roles : [currentUser.role];
-  const isAdmin = currentUser.role === 'admin' || rawRoles.includes('admin');
-  const isSalesManager = currentUser.role === 'sales_manager' || rawRoles.includes('sales_manager');
-  const isSales = currentUser.role === 'sales' || rawRoles.includes('sales');
   const isCustomer = currentUser.role === 'customer' || Boolean(currentUser.roles && currentUser.roles.includes('customer'));
-
-  const canApproveOrder = useCallback((ord?: any) => {
-    if (!ord) return false;
-    if (isAdmin || isSalesManager) return true;
-    if (isSales) {
-      const assignedId = ord.assigned_to ?? ord.assigned_sale_id;
-      return assignedId === currentUser.id;
-    }
-    return false;
-  }, [isAdmin, isSalesManager, isSales, currentUser.id]);
 
   const fetchOrderDetail = useCallback(async () => {
     if (!orderCode) {
@@ -122,30 +96,6 @@ export const OrderDetailPage: React.FC<OrderDetailPageProps> = ({
     }
   };
 
-  const handleExecuteCancel = async (reason: string) => {
-    if (!cancellingOrder) return;
-    setIsSubmittingCancel(true);
-    try {
-      await cancelOrderApi(token, cancellingOrder.order_code, reason);
-      const targetCode = cancellingOrder.order_code;
-      setCancellingOrder(null);
-      emitStatusToast({
-        type: 'success',
-        title: 'Hủy đơn hàng thành công',
-        message: `Đã hủy đơn hàng ${targetCode}. Lượng tồn giữ chỗ đã được giải phóng lại kho.`,
-      });
-      fetchOrderDetail();
-      if (onRefreshProducts) onRefreshProducts();
-    } catch (err: any) {
-      emitStatusToast({
-        type: 'error',
-        title: 'Lỗi hủy đơn hàng',
-        message: err.message || 'Không thể hủy đơn hàng. Vui lòng thử lại.',
-      });
-    } finally {
-      setIsSubmittingCancel(false);
-    }
-  };
 
   const handleConfirmSupplementary = async () => {
     if (!supplementaryOrder) return;
@@ -326,31 +276,12 @@ export const OrderDetailPage: React.FC<OrderDetailPageProps> = ({
     );
   }
 
-  // Permission calculations for action buttons
-  const isPending = order.status === 'PENDING_APPROVAL';
-  const canApprove = isPending && canApproveOrder(order);
   const isCustomerLocked = Boolean(
     order?.dealer_status &&
     (order.dealer_status.toLowerCase().includes('khóa') ||
       order.dealer_status.toLowerCase().includes('lock') ||
       order.dealer_status.toLowerCase().includes('ngừng'))
   );
-
-  const cancelableStatuses = [
-    'DRAFT', 'PENDING', 'PENDING_APPROVAL', 'CONFIRMED', 'APPROVED', 'PICKING', 'PREPARING', 'PACKING',
-    'NHÁP', 'CHỜ DUYỆT', 'ĐÃ DUYỆT', 'ĐANG SOẠN HÀNG',
-  ];
-  const uncancelableStatuses = [
-    'EXPORTED', 'SHIPPED', 'DISPATCHED', 'DELIVERED', 'CLOSED', 'COMPLETED', 'CANCELLED', 'REJECTED',
-    'ĐÃ XUẤT', 'ĐÃ GIAO', 'ĐÓNG', 'HOÀN THÀNH', 'ĐÃ HỦY', 'BỊ TỪ CHỐI',
-  ];
-  const normStatus = (order.status || '').toUpperCase().trim();
-  const canShowCancel =
-    cancelableStatuses.includes(normStatus) &&
-    !uncancelableStatuses.includes(normStatus) &&
-    !isOrderPastExported(order.status) &&
-    isOrderCancelable(order.status) &&
-    (isCustomer ? ['PENDING_APPROVAL', 'PENDING', 'DRAFT'].includes(order.status) : isFullAccess);
 
   const cleanModalReason = getCleanApprovalReason(order);
 
@@ -396,7 +327,7 @@ export const OrderDetailPage: React.FC<OrderDetailPageProps> = ({
   };
 
   return (
-    <div className="min-h-screen pb-28 bg-slate-50/50">
+    <div className="w-full flex-1 flex flex-col min-h-full bg-slate-50">
       {/* Top Header Card */}
       <div className="bg-white border-b border-slate-200 sticky top-0 z-20 backdrop-blur-md bg-white/95">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
@@ -405,13 +336,10 @@ export const OrderDetailPage: React.FC<OrderDetailPageProps> = ({
               <button
                 type="button"
                 onClick={handleBack}
-                className="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors cursor-pointer shrink-0"
+                className="px-3.5 py-1.5 rounded-lg border border-slate-300 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs sm:text-sm transition-colors cursor-pointer shrink-0"
                 title="Quay lại danh sách đơn hàng"
               >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M19 12H5" />
-                  <path d="M12 19l-7-7 7-7" />
-                </svg>
+                Quay lại
               </button>
               <div>
                 <div className="flex items-center gap-2.5 flex-wrap">
@@ -434,14 +362,9 @@ export const OrderDetailPage: React.FC<OrderDetailPageProps> = ({
               <button
                 type="button"
                 onClick={() => setPrintingOrder(order)}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs sm:text-sm shadow-sm transition-all cursor-pointer"
+                className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs sm:text-sm shadow-sm transition-all cursor-pointer"
                 title="In phiếu hoặc xuất file PDF đơn hàng"
               >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="6 9 6 2 18 2 18 9" />
-                  <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
-                  <rect x="6" y="14" width="12" height="8" />
-                </svg>
                 In / Xuất PDF
               </button>
 
@@ -449,13 +372,9 @@ export const OrderDetailPage: React.FC<OrderDetailPageProps> = ({
                 <button
                   type="button"
                   onClick={() => handleCloneOrder(order.order_code)}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-emerald-800 font-semibold text-xs sm:text-sm shadow-2xs transition-all cursor-pointer"
+                  className="px-4 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-emerald-800 font-semibold text-xs sm:text-sm shadow-2xs transition-all cursor-pointer"
                   title="Sao chép đơn hàng này thành đơn mới"
                 >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-                  </svg>
                   Sao chép đơn này
                 </button>
               )}
@@ -465,7 +384,7 @@ export const OrderDetailPage: React.FC<OrderDetailPageProps> = ({
       </div>
 
       {/* Main Content Container */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+      <div className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
         {/* Stepper / Timeline Vòng đời đơn hàng */}
         <div className="bg-white rounded-2xl border border-slate-200/80 p-5 sm:p-6 shadow-xs">
           <OrderLifecycleTimeline
@@ -480,40 +399,30 @@ export const OrderDetailPage: React.FC<OrderDetailPageProps> = ({
 
         {/* Cảnh báo công nợ nếu đại lý bị khóa */}
         {isCustomerLocked && (
-          <div className="bg-rose-50 border-1.5 border-rose-500 rounded-2xl p-4 sm:p-5 text-rose-900 shadow-xs flex items-start gap-3">
-            <span className="text-xl">⚠️</span>
-            <div>
-              <strong className="block text-rose-800 font-bold mb-1">
-                CẢNH BÁO CÔNG NỢ: Đại lý &apos;{order.dealer_name}&apos; hiện đang bị KHÓA giao dịch
-                {order.dealer_lock_reason ? ` (Lý do: ${order.dealer_lock_reason})` : ''}.
-              </strong>
-              <p className="text-sm text-rose-700">
-                Đơn dở dang này vẫn được phép xử lý nhưng vui lòng kiểm tra kỹ công nợ trước khi xuất hàng!
-              </p>
-            </div>
+          <div className="bg-rose-50 border-1.5 border-rose-500 rounded-2xl p-4 sm:p-5 text-rose-900 shadow-xs">
+            <strong className="block text-rose-800 font-bold mb-1">
+              CẢNH BÁO CÔNG NỢ: Đại lý &apos;{order.dealer_name}&apos; hiện đang bị KHÓA giao dịch
+              {order.dealer_lock_reason ? ` (Lý do: ${order.dealer_lock_reason})` : ''}.
+            </strong>
+            <p className="text-sm text-rose-700">
+              Đơn dở dang này vẫn được phép xử lý nhưng vui lòng kiểm tra kỹ công nợ trước khi xuất hàng!
+            </p>
           </div>
         )}
 
         {/* Thông tin kho xuất hàng */}
         {pickingSummary && (
-          <div className="bg-sky-50 border border-sky-200 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xs">
-            <div className="flex items-center gap-3.5">
-              <div className="w-11 h-11 rounded-xl bg-sky-600 text-white flex items-center justify-center shrink-0 shadow-sm">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M3 21V9l9-7 9 7v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-                </svg>
+          <div className="bg-sky-50 border border-sky-200 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+            <div>
+              <div className="text-xs font-bold text-sky-700 uppercase tracking-wider">
+                Kho xuất hàng mặc định (Đại lý {order.dealer_name})
               </div>
-              <div>
-                <div className="text-xs font-bold text-sky-700 uppercase tracking-wider">
-                  Kho xuất hàng mặc định (Đại lý {order.dealer_name})
-                </div>
-                <div className="text-base font-extrabold text-sky-950 mt-0.5">
-                  {pickingSummary.warehouse_name} ({pickingSummary.warehouse_code})
-                </div>
+              <div className="text-base font-extrabold text-sky-950 mt-0.5">
+                {pickingSummary.warehouse_name} ({pickingSummary.warehouse_code})
               </div>
             </div>
             {pickingSummary.warehouse_address && (
-              <div className="text-xs sm:text-sm text-sky-800 bg-sky-100/80 px-3.5 py-1.5 rounded-lg border border-sky-200 font-medium">
+              <div className="text-xs sm:text-sm text-sky-800 bg-sky-100/80 px-3.5 py-1.5 rounded-lg border border-sky-200 font-medium self-start sm:self-auto">
                 Địa chỉ: {pickingSummary.warehouse_address}
               </div>
             )}
@@ -522,11 +431,8 @@ export const OrderDetailPage: React.FC<OrderDetailPageProps> = ({
 
         {/* Lý do yêu cầu phê duyệt */}
         {cleanModalReason && (
-          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 sm:p-5 text-amber-900 text-sm flex items-start gap-3 shadow-xs">
-            <span className="text-lg">📋</span>
-            <div>
-              <strong className="font-bold text-amber-900">Lý do yêu cầu phê duyệt:</strong> {cleanModalReason}
-            </div>
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 sm:p-5 text-amber-900 text-sm shadow-xs">
+            <strong className="font-bold text-amber-900">Lý do yêu cầu phê duyệt:</strong> {cleanModalReason}
           </div>
         )}
 
@@ -691,7 +597,7 @@ export const OrderDetailPage: React.FC<OrderDetailPageProps> = ({
                               ))}
                               {!isSufficient && (
                                 <span className="text-rose-600 text-xs font-medium mt-0.5">
-                                  ⚠️ Thiếu hàng khả dụng (Cần: {qty}, Có: {totalAvailable})
+                                  Thiếu hàng khả dụng (Cần: {qty}, Có: {totalAvailable})
                                 </span>
                               )}
                             </div>
@@ -749,48 +655,14 @@ export const OrderDetailPage: React.FC<OrderDetailPageProps> = ({
       </div>
 
       {/* Sticky Bottom Actions Bar */}
-      <div className="fixed bottom-0 left-0 right-0 z-30 bg-white/95 backdrop-blur-md border-t border-slate-200 px-4 sm:px-8 py-3.5 shadow-lg">
+      <div className="sticky bottom-0 z-20 bg-white/95 backdrop-blur-md border-t border-slate-200 px-4 sm:px-6 lg:px-8 py-3.5 shadow-md w-full mt-auto">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">Trạng thái:</span>
+          <div className="flex items-center gap-2.5">
+            <span className="text-xs sm:text-sm font-semibold text-slate-500 uppercase tracking-wider">Trạng thái:</span>
             {getStatusBadge(order.status)}
           </div>
 
           <div className="flex items-center gap-2.5 flex-wrap justify-end">
-            {/* Nút Hủy đơn */}
-            {canShowCancel && (
-              <button
-                type="button"
-                id={`btn-page-cancel-order-${order.order_code}`}
-                onClick={() => setCancellingOrder(order)}
-                className="px-4 py-2 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 font-semibold text-sm rounded-xl transition-all cursor-pointer shadow-2xs"
-              >
-                Hủy đơn hàng này
-              </button>
-            )}
-
-            {/* Nút Duyệt / Từ chối (Nếu là quản lý/sales có quyền duyệt) */}
-            {!isCustomer && canApprove && (
-              <>
-                <button
-                  type="button"
-                  id={`btn-page-reject-order-${order.order_code}`}
-                  onClick={() => setRejectingOrder(order)}
-                  className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-semibold text-sm rounded-xl transition-all cursor-pointer shadow-xs"
-                >
-                  Từ chối
-                </button>
-                <button
-                  type="button"
-                  id={`btn-page-approve-order-${order.order_code}`}
-                  onClick={() => setApprovingOrder(order)}
-                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm rounded-xl transition-all cursor-pointer shadow-xs"
-                >
-                  Duyệt đơn
-                </button>
-              </>
-            )}
-
             {/* Nút Đặt lại toàn bộ đơn */}
             <button
               type="button"
@@ -822,46 +694,6 @@ export const OrderDetailPage: React.FC<OrderDetailPageProps> = ({
           orderCode={printingOrder.order_code}
           token={token}
           onClose={() => setPrintingOrder(null)}
-        />
-      )}
-
-      {approvingOrder && (
-        <ApproveOrderModal
-          isOpen={Boolean(approvingOrder)}
-          order={approvingOrder}
-          token={token}
-          onClose={() => setApprovingOrder(null)}
-          onSuccess={() => {
-            setApprovingOrder(null);
-            fetchOrderDetail();
-            if (onRefreshProducts) onRefreshProducts();
-          }}
-        />
-      )}
-
-      {rejectingOrder && (
-        <RejectOrderModal
-          isOpen={Boolean(rejectingOrder)}
-          order={rejectingOrder}
-          token={token}
-          onClose={() => setRejectingOrder(null)}
-          onSuccess={() => {
-            setRejectingOrder(null);
-            fetchOrderDetail();
-            if (onRefreshProducts) onRefreshProducts();
-          }}
-        />
-      )}
-
-      {cancellingOrder && (
-        <OrderCancelModal
-          isOpen={Boolean(cancellingOrder)}
-          orderCode={cancellingOrder.order_code}
-          dealerName={cancellingOrder.dealer_name}
-          totalAmount={cancellingOrder.total_amount}
-          isSubmitting={isSubmittingCancel}
-          onClose={() => setCancellingOrder(null)}
-          onConfirm={handleExecuteCancel}
         />
       )}
 
