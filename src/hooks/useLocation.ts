@@ -60,6 +60,15 @@ export function useNavigate() {
   };
 }
 
+export function useParams<T extends Record<string, string | undefined> = Record<string, string | undefined>>(): T {
+  const pathname = window.location.pathname;
+  const parts = pathname.split('/').filter(Boolean);
+  if (parts.length >= 2 && parts[0] === 'orders') {
+    return { id: decodeURIComponent(parts[1]) } as unknown as T;
+  }
+  return {} as T;
+}
+
 export const Link: React.FC<React.AnchorHTMLAttributes<HTMLAnchorElement> & { to: string }> = ({
   to,
   onClick,

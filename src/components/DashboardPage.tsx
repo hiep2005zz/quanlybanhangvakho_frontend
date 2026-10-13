@@ -25,6 +25,7 @@ import { ProductUnitModal } from './ProductUnitModal';
 import { StockActionModal } from './StockActionModal';
 import { GoodsReceiptModal } from './GoodsReceiptModal';
 import { OrderManagementView } from './OrderManagementView';
+import { OrderDetailPage } from './OrderDetailPage';
 import SalesOrderEntry from './SalesOrderEntry';
 import { CreateOrderPage } from './CreateOrderPage';
 import { CreatePriceListPage } from './CreatePriceListPage';
@@ -142,6 +143,10 @@ export default function DashboardPage({
   const location = useLocation();
   const currentPath = location.pathname.toLowerCase();
   const isOrdersCreateSubpage = currentPath === '/orders/create' || currentPath.startsWith('/orders/create');
+  const isOrderDetailSubpage =
+    currentPath.startsWith('/orders/') &&
+    !isOrdersCreateSubpage &&
+    currentPath !== '/orders';
   const isPriceListsCreateSubpage =
     currentPath === '/price-lists/create' ||
     currentPath.startsWith('/price-lists/create') ||
@@ -152,6 +157,7 @@ export default function DashboardPage({
     const pathname = window.location.pathname.toLowerCase();
     const isCreateOrderPath = pathname === '/create-order' || pathname.startsWith('/create-order/');
     const isOrdersCreatePath = pathname === '/orders/create' || pathname.startsWith('/orders/create');
+    const isOrdersDetailPath = pathname.startsWith('/orders/') && !isOrdersCreatePath && pathname !== '/orders';
     const isPriceListsCreatePath =
       pathname === '/price-lists/create' ||
       pathname.startsWith('/price-lists/create') ||
@@ -250,7 +256,7 @@ export default function DashboardPage({
       return 'inventory';
     }
     if (isOrdersPath || oldTabVal === 'orders') {
-      if (hasOldTabParam || (pathname !== '/orders' && !isOrdersCreatePath)) {
+      if (hasOldTabParam || (pathname !== '/orders' && !isOrdersCreatePath && !isOrdersDetailPath)) {
         try { window.history.replaceState({}, '', '/orders'); } catch {}
       }
       return 'orders';
@@ -1228,6 +1234,22 @@ export default function DashboardPage({
                   window.history.pushState({}, '', '/orders');
                   fetchProducts();
                 }}
+              />
+            ) : isOrderDetailSubpage ? (
+              <OrderDetailPage
+                currentUser={user}
+                token={token}
+                onBack={() => {
+                  window.history.pushState({}, '', '/orders');
+                }}
+                onCloneOrder={(data) => {
+                  try {
+                    sessionStorage.setItem('clone_order_draft', JSON.stringify(data));
+                  } catch {}
+                  setCloneOrderData(data);
+                  window.history.pushState({}, '', '/orders/create');
+                }}
+                onRefreshProducts={fetchProducts}
               />
             ) : (
               <OrderManagementView
