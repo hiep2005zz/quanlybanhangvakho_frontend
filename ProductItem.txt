@@ -1,0 +1,16 @@
+export interface ProductItem {
+  id: number;
+  code: string;
+  name: string;
+  category: string;
+  category_id?: number | null;
+  stock: number;
+  sell_price: number;
+  base_unit?: string;
+  units?: UnitConversionItem[];
+  cost_price?: number | null;
+  profit_margin?: number | null;
+  profit_per_unit?: number | null;
+  // Chi tiết form quản lý sản phẩm
+  packaging_specification?: string;
+  images?
