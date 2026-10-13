@@ -656,41 +656,6 @@ export default function DealerProfileManagementView({
               {editingDealer ? `Cập nhật hồ sơ: ${editingDealer.name} (${editingDealer.code})` : 'Khai báo hồ sơ đại lý mới'}
             </h2>
           </div>
-
-          <div className="dealer-header-actions">
-            <button
-              type="button"
-              className="btn-secondary-white"
-              onClick={() => {
-                setIsFormPageActive(false);
-                setEditingDealer(null);
-                setFormError('');
-              }}
-              disabled={isSubmitting}
-            >
-              Hủy bỏ
-            </button>
-            <button
-              type="button"
-              className="btn-primary-gradient"
-              onClick={handleSubmitForm}
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? (
-                <>
-                  <svg className="icon-spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <circle cx="12" cy="12" r="10" />
-                    <path d="M12 2a10 10 0 0 1 10 10" />
-                  </svg>
-                  <span>Đang lưu...</span>
-                </>
-              ) : editingDealer ? (
-                'Lưu thay đổi'
-              ) : (
-                'Khai báo hồ sơ'
-              )}
-            </button>
-          </div>
         </div>
 
         {/* Dedicated Form Page Card */}
