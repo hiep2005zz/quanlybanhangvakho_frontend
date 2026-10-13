@@ -574,6 +574,16 @@ input[type="checkbox"]:focus {
   }
 }
 
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 /* Utilities for Dashboard */
 .brand-title-shimmer {
   background: linear-gradient(90deg, #064e3b 0%, #0d9488 50%, #064e3b 100%);

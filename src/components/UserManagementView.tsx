@@ -22,6 +22,7 @@ interface UserManagementViewProps {
   token: string;
   onBackToHome?: () => void;
   onCreateAccount?: () => void;
+  onNavigateToImport?: () => void;
 }
 
 const ROLES_LIST = [
@@ -140,6 +141,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
   token,
   onBackToHome,
   onCreateAccount,
+  onNavigateToImport,
 }) => {
   const [users, setUsers] = useState<UserAccount[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -626,7 +628,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
             {/* Import Button */}
             <button
               type="button"
-              onClick={() => setIsImportModalOpen(true)}
+              onClick={onNavigateToImport ? onNavigateToImport : () => setIsImportModalOpen(true)}
               style={{
                 background: '#ffffff',
                 border: '1px solid #cbd5e1',
