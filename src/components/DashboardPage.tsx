@@ -42,6 +42,7 @@ import { OrderDetailPage } from './OrderDetailPage';
 import SalesOrderEntry from './SalesOrderEntry';
 import { CreateOrderPage } from './CreateOrderPage';
 import { CreatePriceListPage } from './CreatePriceListPage';
+import { PriceBookDetailPage } from './PriceBookDetailPage';
 import { useLocation } from '../hooks/useLocation';
 import { ProductHistoryView } from './ProductHistoryView';
 import { ProductFormView } from './ProductFormView';
@@ -183,6 +184,15 @@ export default function DashboardPage({
     currentPath.startsWith('/price-lists/create') ||
     currentPath === '/price-books/create' ||
     currentPath.startsWith('/price-books/create');
+  const isPriceBookEditSubpage =
+    (currentPath.startsWith('/price-books/') || currentPath.startsWith('/price-lists/')) &&
+    currentPath.endsWith('/edit');
+  const isPriceBookDetailSubpage =
+    (currentPath.startsWith('/price-books/') || currentPath.startsWith('/price-lists/')) &&
+    !isPriceListsCreateSubpage &&
+    !isPriceBookEditSubpage &&
+    currentPath !== '/price-books' &&
+    currentPath !== '/price-lists';
 
   const [activeTab, setActiveTabState] = useState<TabType>(() => {
     const pathname = window.location.pathname.toLowerCase();
@@ -1307,7 +1317,7 @@ export default function DashboardPage({
   const isProductFormOpen = productDrawerState.isOpen && activeTab === 'inventory';
   const isSalesOrderOpen = activeTab === 'create-order' || isSalesOrderEntryOpen;
   const isGoodsReceiptPage = activeTab === 'goods-receipt';
-  const isLockedScrollTab = !isProductFormOpen && !isSalesOrderOpen && !isOrdersCreateSubpage && !isOrderDetailSubpage && !isPriceListsCreateSubpage && !isGoodsReceiptPage && (activeTab === 'inventory' || activeTab === 'dealers' || activeTab === 'dealer-profiles' || activeTab === 'delivery-points' || activeTab === 'suppliers' || activeTab === 'price-books' || activeTab === 'categories' || activeTab === 'orders' || activeTab === 'product-history' || activeTab === 'stock-book' || activeTab === 'stock-audits' || activeTab === 'stock-transfers' || activeTab === 'products-import' || activeTab === 'users-import') && !isPendingCustomer;
+  const isLockedScrollTab = !isProductFormOpen && !isSalesOrderOpen && !isOrdersCreateSubpage && !isOrderDetailSubpage && !isPriceListsCreateSubpage && !isPriceBookDetailSubpage && !isPriceBookEditSubpage && !isGoodsReceiptPage && (activeTab === 'inventory' || activeTab === 'dealers' || activeTab === 'dealer-profiles' || activeTab === 'delivery-points' || activeTab === 'suppliers' || activeTab === 'price-books' || activeTab === 'categories' || activeTab === 'orders' || activeTab === 'product-history' || activeTab === 'stock-book' || activeTab === 'stock-audits' || activeTab === 'stock-transfers' || activeTab === 'products-import' || activeTab === 'users-import') && !isPendingCustomer;
 
   return (
     <DashboardLayout
@@ -1335,7 +1345,7 @@ export default function DashboardPage({
         />
       }
       noScroll={!isMobileScreen && isLockedScrollTab}
-      mainClassName={isCustomer ? 'flex-1 min-w-0 overflow-hidden p-0 flex flex-col bg-slate-50 h-full' : (isOrdersCreateSubpage || isPriceListsCreateSubpage || isOrderDetailSubpage || isGoodsReceiptPage ? 'flex-1 min-w-0 overflow-y-auto p-0 flex flex-col bg-slate-50' : isMobileScreen ? 'flex-1 min-w-0 overflow-y-auto p-2 sm:p-3 flex flex-col' : undefined)}
+      mainClassName={isCustomer ? 'flex-1 min-w-0 overflow-hidden p-0 flex flex-col bg-slate-50 h-full' : (isOrdersCreateSubpage || isPriceListsCreateSubpage || isPriceBookDetailSubpage || isPriceBookEditSubpage || isOrderDetailSubpage || isGoodsReceiptPage ? 'flex-1 min-w-0 overflow-y-auto p-0 flex flex-col bg-slate-50' : isMobileScreen ? 'flex-1 min-w-0 overflow-y-auto p-2 sm:p-3 flex flex-col' : undefined)}
       sidebar={
         <Sidebar
           activeTab={activeTab === 'users-import' ? 'users' : activeTab === 'products-import' ? 'inventory' : activeTab}
@@ -1372,7 +1382,7 @@ export default function DashboardPage({
     >
       <div
         className="dashboard-main-container"
-        style={isCustomer || isOrdersCreateSubpage || isPriceListsCreateSubpage || isOrderDetailSubpage || isGoodsReceiptPage || isMobileScreen ? {
+        style={isCustomer || isOrdersCreateSubpage || isPriceListsCreateSubpage || isPriceBookDetailSubpage || isPriceBookEditSubpage || isOrderDetailSubpage || isGoodsReceiptPage || isMobileScreen ? {
           width: '100%',
           display: 'flex',
           flexDirection: 'column',
@@ -1731,11 +1741,12 @@ export default function DashboardPage({
           )
         ) : activeTab === 'price-books' ? (
           canAccessPriceBooks ? (
-            isPriceListsCreateSubpage ? (
+            isPriceListsCreateSubpage || isPriceBookEditSubpage ? (
               <CreatePriceListPage
                 token={token}
                 currentUser={user}
                 products={products}
+                isEdit={isPriceBookEditSubpage}
                 onClose={() => {
                   window.history.pushState({}, '', '/price-books');
                 }}
@@ -1743,6 +1754,15 @@ export default function DashboardPage({
                   window.history.pushState({}, '', '/price-books');
                   fetchProducts();
                 }}
+              />
+            ) : isPriceBookDetailSubpage ? (
+              <PriceBookDetailPage
+                token={token}
+                currentUser={user}
+                onBack={() => {
+                  window.history.pushState({}, '', '/price-books');
+                }}
+                onRefreshProducts={fetchProducts}
               />
             ) : (
               <PriceBookManagementView
