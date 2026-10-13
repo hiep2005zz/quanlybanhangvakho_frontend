@@ -10,8 +10,6 @@ import {
   getCloneOrderDataApi,
   getWarehousePickingSummaryApi,
   OrderPickingSummary,
-  OrderPickingItem,
-  ProductPickingLocationItem,
   OrderResponseData,
   User,
   ProductItem,
@@ -2038,7 +2036,6 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                       <th style={{ padding: '8px 12px', textAlign: 'center' }}>ĐVT</th>
                       <th style={{ padding: '8px 12px', textAlign: 'right' }}>SL Đặt</th>
                       <th style={{ padding: '8px 12px', textAlign: 'right' }}>SL Thực giao</th>
-                      <th style={{ padding: '8px 12px', textAlign: 'left', minWidth: '220px', whiteSpace: 'nowrap' }}>Vị trí kệ & Khả dụng</th>
                       <th style={{ padding: '8px 12px', textAlign: 'right' }}>Đơn giá</th>
                       <th style={{ padding: '8px 12px', textAlign: 'right' }}>Thành tiền</th>
                       <th style={{ padding: '8px 12px', textAlign: 'center' }}>Thao tác</th>
@@ -2053,12 +2050,6 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                         ? (item.delivered_quantity !== undefined && item.delivered_quantity !== null ? Number(item.delivered_quantity) : qty)
                         : null;
                       const shortage = isCompletedDelivery && deliveredQty !== null ? Math.max(0, qty - deliveredQty) : 0;
-                      const pickingItem = pickingSummary?.items.find((p: OrderPickingItem) => p.product_id === item.product_id);
-                      const totalAvailable = (pickingItem?.locations || []).reduce(
-                        (acc: number, l: ProductPickingLocationItem) => acc + (l.available_quantity || 0),
-                        0
-                      );
-                      const isSufficient = totalAvailable >= qty;
                       const price = item.price || 0;
                       const lineTotal = qty * price;
                       return (
@@ -2107,57 +2098,6 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                               </div>
                             ) : (
                               <span style={{ color: '#94a3b8' }}>—</span>
-                            )}
-                          </td>
-                          <td style={{ padding: '10px 12px', minWidth: '220px' }}>
-                            {pickingItem && pickingItem.locations.length > 0 ? (
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', maxWidth: '340px' }}>
-                                  {pickingItem.locations.map((loc: ProductPickingLocationItem) => (
-                                    <div
-                                      key={loc.location_id}
-                                      style={{
-                                        display: 'inline-flex',
-                                        alignItems: 'center',
-                                        gap: '6px',
-                                        background: '#f8fafc',
-                                        border: '1px solid #cbd5e1',
-                                        borderRadius: '6px',
-                                        padding: '3px 8px',
-                                        fontSize: '12px',
-                                        whiteSpace: 'nowrap',
-                                        lineHeight: 1.3,
-                                      }}
-                                    >
-                                      <span style={{ fontWeight: '700', color: '#0f172a' }}>
-                                        {loc.location_code}
-                                      </span>
-                                      <span
-                                        style={{
-                                          color: '#15803d',
-                                          fontWeight: '600',
-                                          background: '#dcfce7',
-                                          padding: '1px 6px',
-                                          borderRadius: '4px',
-                                          fontSize: '11px',
-                                          whiteSpace: 'nowrap',
-                                        }}
-                                      >
-                                        Khả dụng: {loc.available_quantity}
-                                      </span>
-                                    </div>
-                                  ))}
-                                </div>
-                                {!isSufficient && (
-                                  <span style={{ color: '#dc2626', fontSize: '11px', fontWeight: '600' }}>
-                                    ⚠️ Thiếu hàng khả dụng (Cần: {qty}, Có: {totalAvailable})
-                                  </span>
-                                )}
-                              </div>
-                            ) : (
-                              <span style={{ color: '#94a3b8', fontStyle: 'italic', fontSize: '12px', whiteSpace: 'nowrap' }}>
-                                Chưa phân bổ vị trí
-                              </span>
                             )}
                           </td>
                           <td style={{ padding: '10px 12px', textAlign: 'right', color: '#334155' }}>

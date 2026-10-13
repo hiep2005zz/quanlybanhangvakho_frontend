@@ -6,8 +6,6 @@ import {
   reorderOrderApi,
   getCloneOrderDataApi,
   OrderPickingSummary,
-  OrderPickingItem,
-  ProductPickingLocationItem,
   User,
 } from '../services/api';
 import { useParams, useNavigate } from '../hooks/useLocation';
@@ -519,7 +517,6 @@ export const OrderDetailPage: React.FC<OrderDetailPageProps> = ({
                   <th className="py-3 px-3 text-center">ĐVT</th>
                   <th className="py-3 px-4 text-right">SL Đặt</th>
                   <th className="py-3 px-4 text-right">SL Thực giao</th>
-                  <th className="py-3 px-4 min-w-[220px] whitespace-nowrap">Vị trí kệ & Khả dụng</th>
                   <th className="py-3 px-4 text-right">Đơn giá</th>
                   <th className="py-3 px-4 text-right">Thành tiền</th>
                   <th className="py-3 px-4 text-center">Thao tác</th>
@@ -528,7 +525,7 @@ export const OrderDetailPage: React.FC<OrderDetailPageProps> = ({
               <tbody className="divide-y divide-slate-100">
                 {(!order.items || order.items.length === 0) ? (
                   <tr>
-                    <td colSpan={8} className="py-8 text-center text-slate-400">
+                    <td colSpan={7} className="py-8 text-center text-slate-400">
                       Chưa có thông tin danh sách sản phẩm.
                     </td>
                   </tr>
@@ -540,12 +537,6 @@ export const OrderDetailPage: React.FC<OrderDetailPageProps> = ({
                       ? (item.delivered_quantity !== undefined && item.delivered_quantity !== null ? Number(item.delivered_quantity) : qty)
                       : null;
                     const shortage = isCompletedDelivery && deliveredQty !== null ? Math.max(0, qty - deliveredQty) : 0;
-                    const pickingItem = pickingSummary?.items.find((p: OrderPickingItem) => p.product_id === item.product_id);
-                    const totalAvailable = (pickingItem?.locations || []).reduce(
-                      (acc: number, l: ProductPickingLocationItem) => acc + (l.available_quantity || 0),
-                      0
-                    );
-                    const isSufficient = totalAvailable >= qty;
                     const price = item.price || 0;
                     const lineTotal = qty * price;
 
@@ -584,32 +575,6 @@ export const OrderDetailPage: React.FC<OrderDetailPageProps> = ({
                             </div>
                           ) : (
                             <span className="text-slate-300">—</span>
-                          )}
-                        </td>
-                        <td className="py-3.5 px-4 min-w-[220px]">
-                          {pickingItem && pickingItem.locations.length > 0 ? (
-                            <div className="flex flex-col gap-1.5">
-                              <div className="flex flex-wrap gap-1.5 max-w-[340px]">
-                                {pickingItem.locations.map((loc: ProductPickingLocationItem) => (
-                                  <div
-                                    key={loc.location_id}
-                                    className="inline-flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-md px-2 py-1 text-xs whitespace-nowrap"
-                                  >
-                                    <span className="font-bold text-slate-800">{loc.location_code}</span>
-                                    <span className="text-emerald-700 font-semibold bg-emerald-100 px-1.5 py-0.5 rounded text-[11px] whitespace-nowrap">
-                                      Khả dụng: {loc.available_quantity}
-                                    </span>
-                                  </div>
-                                ))}
-                              </div>
-                              {!isSufficient && (
-                                <span className="text-rose-600 text-xs font-medium mt-0.5">
-                                  ⚠️ Thiếu hàng khả dụng (Cần: {qty}, Có: {totalAvailable})
-                                </span>
-                              )}
-                            </div>
-                          ) : (
-                            <span className="text-slate-400 italic text-xs whitespace-nowrap">Chưa phân bổ vị trí</span>
                           )}
                         </td>
                         <td className="py-3.5 px-4 text-right text-slate-700">
