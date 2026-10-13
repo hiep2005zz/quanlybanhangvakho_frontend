@@ -16,7 +16,7 @@ import {
   User,
   ProductItem,
 } from '../services/api';
-import { OrderCreateModal } from './OrderCreateModal';
+import { Link, useNavigate } from '../hooks/useLocation';
 import { RejectOrderModal } from './RejectOrderModal';
 import { ApproveOrderModal } from './ApproveOrderModal';
 import { emitStatusToast } from './StatusToast';
@@ -39,7 +39,7 @@ interface OrderManagementViewProps {
 export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
   currentUser,
   token,
-  products,
+  products: _products,
   onBackToHome: _onBackToHome,
   onRefreshProducts,
   onNavigateToPriceBooks: _onNavigateToPriceBooks,
@@ -50,7 +50,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'PENDING_APPROVAL' | 'CONFIRMED' | 'DELIVERED' | 'REJECTED' | 'CANCELLED'>('ALL');
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const navigate = useNavigate();
   const [selectedOrderDetail, setSelectedOrderDetail] = useState<any | null>(null);
   const [pickingSummary, setPickingSummary] = useState<OrderPickingSummary | null>(null);
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
@@ -147,13 +147,6 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
     onContinue?: () => void;
   } | null>(null);
 
-  const [reorderInitialData, setReorderInitialData] = useState<{
-    dealerId: number;
-    items: any[];
-    note?: string;
-    deliveryPointId?: number | null;
-  } | null>(null);
-
   const permTier = getOrderPermissionTier(currentUser);
   const isFullAccess = permTier === 'FULL_ACCESS';
   const isNoAccess = permTier === 'NO_ACCESS';
@@ -163,13 +156,41 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
   const isSalesManager = currentUser.role === 'sales_manager' || rawRoles.includes('sales_manager');
   const isSales = currentUser.role === 'sales' || rawRoles.includes('sales');
   const isAccountant = currentUser.role === 'accountant' || rawRoles.includes('accountant');
-  const canCreateOrders = !isAccountant && (isAdmin || isSalesManager || isSales);
-  const canApproveOrder = (_ord?: any) => {
-    // CHỈ ADMIN HOẶC SALES MANAGER MỚI CÓ QUYỀN/VAI TRÒ DUYỆT ĐƠN VÀ TỪ CHỐI ĐƠN
-    return isAdmin || isSalesManager;
+  const canCreateOrders = (isFullAccess || isAdmin || isSalesManager || isSales) && !isAccountant;
+  const canApproveOrder = (ord?: any) => {
+    // Admin và Sales Manager được phép duyệt MỌI đơn hàng
+    if (isAdmin || isSalesManager) return true;
+    // Sales chỉ được duyệt đơn hàng của Đại lý do mình phụ trách
+    if (isSales && ord) {
+      const assignedId = ord.assigned_to ?? ord.assigned_sale_id;
+      return assignedId === currentUser.id;
+    }
+    return false;
   };
   const isCustomer = currentUser.role === 'customer' || Boolean(currentUser.roles && currentUser.roles.includes('customer'));
   const [customerDealer, setCustomerDealer] = useState<any | null>(null);
+
+  // Hàm làm sạch lý do cảnh báo: Khi nhân viên/quản lý/admin duyệt thành công, không hiện cảnh báo đại lý tự đặt
+  const getCleanApprovalReason = (ord: any): string | null => {
+    if (!ord || !ord.approval_reason) return null;
+    const s = (ord.status || '').toUpperCase();
+    const isApproved =
+      ['CONFIRMED', 'APPROVED', 'PICKING', 'PREPARING', 'PACKING', 'EXPORTED', 'SHIPPED', 'DELIVERED', 'CLOSED', 'COMPLETED'].includes(s) ||
+      !ord.requires_approval;
+    if (isApproved) {
+      const parts = ord.approval_reason.split('|').map((p: string) => p.trim()).filter(Boolean);
+      const remaining = parts.filter((p: string) => {
+        const lower = p.toLowerCase().normalize('NFC');
+        return (
+          !lower.includes('đại lý tự đặt') &&
+          !lower.includes('cổng đại lý') &&
+          !lower.includes('nhân viên phụ trách xác nhận')
+        );
+      });
+      return remaining.join(' | ') || null;
+    }
+    return ord.approval_reason;
+  };
 
   const handleExecuteCancel = async (reason: string) => {
     if (!cancellingOrder) return;
@@ -265,14 +286,21 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
       const continueToNewOrder = () => {
         setReorderResultModal(null);
         setSelectedOrderDetail(null);
-    setPickingSummary(null); // Đóng modal chi tiết đơn
-        setReorderInitialData({
-          dealerId: res.dealer_id,
-          items: mappedOrderItems,
-          note: productId ? `Đặt lại sản phẩm từ đơn #${res.order_code}` : `Đặt lại từ đơn #${res.order_code}`,
-          deliveryPointId: selectedOrderDetail?.delivery_point_id || null,
-        });
-        setIsCreateModalOpen(true); // Đưa Đại lý đến đơn mới / giỏ hàng theo flow hiện tại
+        setPickingSummary(null); // Đóng modal chi tiết đơn
+        try {
+          sessionStorage.setItem(
+            'reorder_draft',
+            JSON.stringify({
+              dealerId: res.dealer_id,
+              items: mappedOrderItems,
+              note: productId ? `Đặt lại sản phẩm từ đơn #${res.order_code}` : `Đặt lại từ đơn #${res.order_code}`,
+              deliveryPointId: selectedOrderDetail?.delivery_point_id || null,
+            })
+          );
+        } catch {
+          // ignore
+        }
+        navigate('/orders/create');
       };
 
       // Case 2: Một số sản phẩm bị loại
@@ -948,27 +976,29 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
           </button>
 
           {!isCustomer && canCreateOrders && (
-            <button
-              type="button"
-              id="btn-create-order-view"
-              onClick={() => !isCustomerLocked && setIsCreateModalOpen(true)}
-              disabled={isCustomerLocked}
-              style={{
-                padding: '8px 18px',
-                background: isCustomerLocked ? '#94a3b8' : 'linear-gradient(135deg, #0fba90 0%, #0fad89 100%)',
-                border: 'none',
-                borderRadius: '8px',
-                fontSize: '13px',
-                fontWeight: '700',
-                color: '#ffffff',
-                cursor: isCustomerLocked ? 'not-allowed' : 'pointer',
-                boxShadow: isCustomerLocked ? 'none' : '0 2px 8px rgba(15, 186, 144, 0.35)',
-                transition: 'all 0.18s ease',
-              }}
-              title={isCustomerLocked ? 'Đại lý hiện đang bị khóa giao dịch, không thể tạo đơn hàng mới' : undefined}
-            >
-              {isCustomerLocked ? 'Tạo Đơn Hàng Mới (Đã khóa)' : 'Tạo Đơn Hàng Mới'}
-            </button>
+            isCustomerLocked ? (
+              <button
+                type="button"
+                id="btn-create-order-view"
+                disabled
+                className="px-4 py-2 bg-slate-400 text-white font-bold text-xs sm:text-sm rounded-lg cursor-not-allowed opacity-75 shadow-none"
+                title="Đại lý hiện đang bị khóa giao dịch, không thể tạo đơn hàng mới"
+              >
+                Tạo Đơn Hàng Mới (Đã khóa)
+              </button>
+            ) : (
+              <Link
+                to="/orders/create"
+                id="btn-create-order-view"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold text-xs sm:text-sm rounded-lg shadow-md hover:shadow-lg transition-all duration-200 cursor-pointer no-underline"
+                title="Tạo đơn hàng mới trên trang chuyên biệt"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M12 4v16m8-8H4" />
+                </svg>
+                Tạo Đơn Hàng Mới
+              </Link>
+            )
           )}
         </div>
       </div>
@@ -1239,24 +1269,25 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                     </div>
 
                     {/* Cảnh báo hoặc lý do phê duyệt nếu có */}
-                    {(order.approval_reason || Boolean(
-                      order.dealer_status &&
-                      (order.dealer_status.toLowerCase().includes('khóa') ||
-                       order.dealer_status.toLowerCase().includes('lock'))
-                    )) && (
-                      <div className="text-[11.5px] p-2 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 leading-tight">
-                        {Boolean(
-                          order.dealer_status &&
-                          (order.dealer_status.toLowerCase().includes('khóa') ||
-                           order.dealer_status.toLowerCase().includes('lock'))
-                        ) && (
-                          <div className="font-bold text-red-600 mb-0.5">
-                            Đại lý bị khóa giao dịch (Cần kiểm tra công nợ)
-                          </div>
-                        )}
-                        {order.approval_reason && <div>{order.approval_reason}</div>}
-                      </div>
-                    )}
+                    {(() => {
+                      const cleanReason = getCleanApprovalReason(order);
+                      const hasLocked = Boolean(
+                        order.dealer_status &&
+                        (order.dealer_status.toLowerCase().includes('khóa') ||
+                         order.dealer_status.toLowerCase().includes('lock'))
+                      );
+                      if (!cleanReason && !hasLocked) return null;
+                      return (
+                        <div className="text-[11.5px] p-2 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 leading-tight">
+                          {hasLocked && (
+                            <div className="font-bold text-red-600 mb-0.5">
+                              Đại lý bị khóa giao dịch (Cần kiểm tra công nợ)
+                            </div>
+                          )}
+                          {cleanReason && <div>{cleanReason}</div>}
+                        </div>
+                      );
+                    })()}
 
                     {/* Nút bấm thao tác */}
                     <div
@@ -1357,36 +1388,49 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                         </td>
 
                         <td style={{ padding: '9px 12px', maxWidth: '240px' }}>
-                          {Boolean(
-                            order.dealer_status &&
-                            (order.dealer_status.toLowerCase().includes('khóa') ||
-                             order.dealer_status.toLowerCase().includes('lock'))
-                          ) && (
-                            <div style={{ fontSize: '11.5px', color: '#dc2626', fontWeight: '600', marginBottom: order.approval_reason ? '3px' : '0' }}>
-                              Đại lý bị khóa giao dịch (Cần kiểm tra công nợ)
-                            </div>
-                          )}
-                          {order.approval_reason ? (
-                            <div style={{ fontSize: '11.5px', color: isRejected ? '#dc2626' : '#b45309', fontWeight: '500', lineHeight: '1.35' }}>
-                              {order.approval_reason}
-                            </div>
-                          ) : order.approved_by ? (
-                            <div style={{ fontSize: '11.5px', color: '#16a34a', fontWeight: '500' }}>
-                              Duyệt bởi @{order.approved_by}
-                            </div>
-                          ) : isPending ? (
-                            <div style={{ fontSize: '11.5px', color: '#b45309', fontWeight: '500' }}>
-                              {order.discount_rate && order.discount_rate > 0
-                                ? `Chiết khấu (${order.discount_rate}%) vượt hạn mức cần duyệt`
-                                : 'Bán dưới giá sàn cần quản lý duyệt'}
-                            </div>
-                          ) : !Boolean(
-                            order.dealer_status &&
-                            (order.dealer_status.toLowerCase().includes('khóa') ||
-                             order.dealer_status.toLowerCase().includes('lock'))
-                          ) ? (
-                            <span style={{ color: '#94a3b8', fontSize: '11.5px' }}>Đơn giá chuẩn bảng giá</span>
-                          ) : null}
+                          {(() => {
+                            const cleanReason = getCleanApprovalReason(order);
+                            const hasLocked = Boolean(
+                              order.dealer_status &&
+                              (order.dealer_status.toLowerCase().includes('khóa') ||
+                               order.dealer_status.toLowerCase().includes('lock'))
+                            );
+                            const s = (order.status || '').toUpperCase();
+                            const isApprovedOrConfirmed =
+                              ['CONFIRMED', 'APPROVED', 'PICKING', 'PREPARING', 'PACKING', 'EXPORTED', 'SHIPPED', 'DELIVERED', 'CLOSED', 'COMPLETED'].includes(s) ||
+                              !order.requires_approval;
+
+                            return (
+                              <>
+                                {hasLocked && (
+                                  <div style={{ fontSize: '11.5px', color: '#dc2626', fontWeight: '600', marginBottom: cleanReason ? '3px' : '0' }}>
+                                    Đại lý bị khóa giao dịch (Cần kiểm tra công nợ)
+                                  </div>
+                                )}
+                                {cleanReason ? (
+                                  <div style={{ fontSize: '11.5px', color: isRejected ? '#dc2626' : '#b45309', fontWeight: '500', lineHeight: '1.35' }}>
+                                    {cleanReason}
+                                  </div>
+                                ) : isApprovedOrConfirmed ? (
+                                  order.approved_by ? (
+                                    <div style={{ fontSize: '11.5px', color: '#16a34a', fontWeight: '500' }}>
+                                      Duyệt bởi @{order.approved_by}
+                                    </div>
+                                  ) : !hasLocked ? (
+                                    <span style={{ color: '#94a3b8', fontSize: '11.5px' }}>Đơn giá chuẩn bảng giá</span>
+                                  ) : null
+                                ) : isPending ? (
+                                  <div style={{ fontSize: '11.5px', color: '#b45309', fontWeight: '500' }}>
+                                    {order.discount_rate && order.discount_rate > 0
+                                      ? `Chiết khấu (${order.discount_rate}%) vượt hạn mức cần duyệt`
+                                      : 'Bán dưới giá sàn cần quản lý duyệt'}
+                                  </div>
+                                ) : !hasLocked ? (
+                                  <span style={{ color: '#94a3b8', fontSize: '11.5px' }}>Đơn giá chuẩn bảng giá</span>
+                                ) : null}
+                              </>
+                            );
+                          })()}
                         </td>
 
                         <td style={{ padding: '9px 14px', textAlign: 'right', whiteSpace: 'nowrap', position: 'relative', zIndex: openActionDropdownCode === order.order_code ? 40 : 'auto' }}>
@@ -1791,11 +1835,15 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
               </div>
             )}
 
-            {selectedOrderDetail.approval_reason && (
-              <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '8px', padding: '12px 14px', marginBottom: '16px', fontSize: '13px', color: '#b45309' }}>
-                <strong>Lý do yêu cầu phê duyệt:</strong> {selectedOrderDetail.approval_reason}
-              </div>
-            )}
+            {(() => {
+              const cleanModalReason = getCleanApprovalReason(selectedOrderDetail);
+              if (!cleanModalReason) return null;
+              return (
+                <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '8px', padding: '12px 14px', marginBottom: '16px', fontSize: '13px', color: '#b45309' }}>
+                  <strong>Lý do yêu cầu phê duyệt:</strong> {cleanModalReason}
+                </div>
+              );
+            })()}
 
             {/* Thông tin giao hàng & người lên đơn */}
             <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '14px 16px', marginBottom: '16px' }}>
@@ -2384,29 +2432,6 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
         document.body
       )}
 
-      {/* Modal Tạo Đơn Hàng */}
-      {isCreateModalOpen && (
-        <OrderCreateModal
-          isOpen={isCreateModalOpen}
-          token={token}
-          currentUser={currentUser}
-          products={products}
-          initialDealerId={reorderInitialData?.dealerId}
-          initialOrderItems={reorderInitialData?.items}
-          initialNote={reorderInitialData?.note}
-          initialDeliveryPointId={reorderInitialData?.deliveryPointId}
-          onClose={() => {
-            setIsCreateModalOpen(false);
-            setReorderInitialData(null);
-          }}
-          onSuccess={() => {
-            setIsCreateModalOpen(false);
-            setReorderInitialData(null);
-            fetchOrders();
-            if (onRefreshProducts) onRefreshProducts();
-          }}
-        />
-      )}
 
       {/* Modal Phê Duyệt Đơn Hàng (Không dùng window.confirm) */}
       {approvingOrder && (
