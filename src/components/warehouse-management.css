@@ -301,8 +301,8 @@
 .wh-search-input {
   width: 100%;
   height: var(--wh-input-height);
-  padding: 0 12px 0 38px !important;
-  padding-left: 38px !important;
+  padding: 0 12px !important;
+  padding-left: 12px !important;
   font-size: 13.5px;
   font-family: inherit;
   border: 1px solid var(--wh-slate-300);

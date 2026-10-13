@@ -79,21 +79,20 @@ export function StockAuditManagementView({ token, currentUser }: StockAuditManag
   const [cancelReason, setCancelReason] = useState('');
   const [isSubmittingCancel, setIsSubmittingCancel] = useState(false);
 
-  // Tải danh mục nhóm hàng
+  // Tải danh mục nhóm hàng (chỉ lấy các nhóm hàng chính cấp 1 theo giao diện phẳng chuẩn)
   const fetchCategories = useCallback(async () => {
     try {
       const tree = await getCategoryTreeApi(token);
-      const flat: (Category & { level: number })[] = [];
-      const traverse = (items: any[], level = 0) => {
-        for (const it of items) {
-          flat.push({ ...it, level });
-          if (it.sub_categories && Array.isArray(it.sub_categories) && it.sub_categories.length > 0) {
-            traverse(it.sub_categories, level + 1);
-          }
-        }
-      };
-      traverse(tree || [], 0);
-      setCategories(flat);
+      const rootCategories: Category[] = (tree || []).map((it: any) => ({
+        id: it.id,
+        name: it.name,
+        code: it.code,
+        description: it.description,
+        parent_id: it.parent_id,
+        product_count: it.product_count,
+        status: it.status,
+      }));
+      setCategories(rootCategories);
     } catch (err) {
       console.error('Lỗi nạp danh mục nhóm hàng:', err);
     }
@@ -492,9 +491,6 @@ export function StockAuditManagementView({ token, currentUser }: StockAuditManag
           <h1 className="text-2xl font-bold text-gray-900">
             Kiểm kê kho
           </h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Đối chiếu số lượng thực tế với tồn kho hệ thống và điều chỉnh chênh lệch chính xác
-          </p>
         </div>
 
         {/* Nút Tạo phiếu kiểm kê */}
@@ -502,7 +498,12 @@ export function StockAuditManagementView({ token, currentUser }: StockAuditManag
           <button
             type="button"
             id="btn-create-stock-audit"
-            onClick={() => setIsCreateModalOpen(true)}
+            onClick={() => {
+              setCreateScopeType('WAREHOUSE');
+              setCreateCategoryId('');
+              setCreatePreviewItems([]);
+              setIsCreateModalOpen(true);
+            }}
             className="inline-flex items-center px-4 py-2.5 rounded-lg text-sm font-semibold text-white bg-[#0fad89] hover:bg-[#0c8a6d] shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-[#0fad89] focus:ring-offset-2 cursor-pointer border-0"
           >
             + Tạo phiếu kiểm kê
@@ -649,7 +650,6 @@ export function StockAuditManagementView({ token, currentUser }: StockAuditManag
                 <tr>
                   <td colSpan={9} className="py-12 text-center text-gray-500 whitespace-nowrap">
                     <p className="font-medium text-gray-600">Chưa có phiếu kiểm kê nào phù hợp</p>
-                    <p className="text-xs text-gray-400 mt-1">Nhấn &quot;Tạo phiếu kiểm kê&quot; để bắt đầu đợt kiểm kho mới</p>
                   </td>
                 </tr>
               ) : (
@@ -882,7 +882,11 @@ export function StockAuditManagementView({ token, currentUser }: StockAuditManag
                             name="scope_type"
                             value="CATEGORY"
                             checked={createScopeType === 'CATEGORY'}
-                            onChange={() => setCreateScopeType('CATEGORY')}
+                            onChange={() => {
+                              setCreateScopeType('CATEGORY');
+                              setCreateCategoryId('');
+                              setCreatePreviewItems([]);
+                            }}
                             className="text-[#0fad89] focus:ring-[#0fad89] w-3.5 h-3.5"
                           />
                           <span>Theo nhóm hàng</span>
@@ -927,9 +931,9 @@ export function StockAuditManagementView({ token, currentUser }: StockAuditManag
                           className="w-full px-3 py-1.5 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0fad89] bg-white"
                         >
                           <option value="">-- Chọn nhóm hàng --</option>
-                          {categories.map((c: any) => (
+                          {categories.map((c) => (
                             <option key={c.id} value={c.id}>
-                              {c.level ? `${'\u00A0'.repeat(c.level * 4)}└─ ${c.name}` : c.name}
+                              {c.name}
                             </option>
                           ))}
                         </select>
