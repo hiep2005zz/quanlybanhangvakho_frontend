@@ -364,20 +364,8 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
     }
   };
 
-  const handleOpenOrderDetail = async (order: OrderResponseData) => {
-    setSelectedOrderDetail(order);
-    setIsLoadingDetail(true);
-    try {
-      const detail = await getOrderDetailApi(token, order.order_code);
-      setSelectedOrderDetail(detail);
-      getWarehousePickingSummaryApi(token, order.order_code)
-        .then((res: OrderPickingSummary) => setPickingSummary(res))
-        .catch(() => setPickingSummary(null));
-    } catch (err: any) {
-      console.error('Không thể tải chi tiết đơn hàng:', err);
-    } finally {
-      setIsLoadingDetail(false);
-    }
+  const handleOpenOrderDetail = (order: OrderResponseData) => {
+    navigate(`/orders/${order.order_code}`);
   };
 
   const fetchOrders = async () => {
@@ -931,9 +919,8 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
           </button>
         )}
 
-        <button
-          type="button"
-          onClick={() => handleOpenOrderDetail(order)}
+        <Link
+          to={`/orders/${order.order_code}`}
           style={{
             padding: '5px 10px',
             background: '#f1f5f9',
@@ -950,11 +937,12 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
             height: '28px',
             boxSizing: 'border-box',
             transition: 'all 0.15s ease',
+            textDecoration: 'none',
           }}
-          title="Xem chi tiết các mặt hàng"
+          title="Xem trang chi tiết đơn hàng"
         >
           Chi tiết
-        </button>
+        </Link>
       </div>
     );
   };
@@ -1358,8 +1346,14 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                           zIndex: openActionDropdownCode === order.order_code ? 30 : 1,
                         }}
                       >
-                        <td style={{ padding: '9px 12px', fontFamily: 'monospace', fontWeight: '700', color: '#1e293b', fontSize: '12px', whiteSpace: 'nowrap' }}>
-                          {order.order_code}
+                        <td style={{ padding: '9px 12px', fontFamily: 'monospace', fontWeight: '700', fontSize: '12px', whiteSpace: 'nowrap' }}>
+                          <Link
+                            to={`/orders/${order.order_code}`}
+                            style={{ color: '#2563eb', textDecoration: 'none', fontWeight: '700' }}
+                            title="Xem trang chi tiết đơn hàng"
+                          >
+                            {order.order_code}
+                          </Link>
                         </td>
 
                         <td style={{ padding: '9px 12px' }}>
