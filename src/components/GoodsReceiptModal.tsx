@@ -25,6 +25,7 @@ interface GoodsReceiptModalProps {
   initialTab?: 'form' | 'list';
   onSuccess: () => void;
   onRequestAdjust?: (product: ProductItem | null, receiptCode: string) => void;
+  isPage?: boolean;
 }
 
 interface ReceiptItemFormRow {
@@ -145,6 +146,7 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
   initialTab = 'form',
   onSuccess,
   onRequestAdjust,
+  isPage = false,
 }) => {
   // Tab điều hướng chính: 'form' (Lập / Xem chi tiết phiếu) hoặc 'list' (Danh sách phiếu)
   const [activeTab, setActiveTab] = useState<'form' | 'list'>(initialTab);
@@ -856,42 +858,29 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
     }
   };
 
-  return (
-    <ModalPortal>
-      <div
-        style={{
-          position: 'fixed',
-          inset: 0,
-          backgroundColor: 'rgba(15, 23, 42, 0.65)',
-          backdropFilter: 'blur(4px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 9999,
-          padding: '16px',
-        }}
-        onClick={(e) => {
-          if (e.target === e.currentTarget && !isSubmitting) onClose();
-        }}
-      >
-        <div
-          style={{
-            background: '#ffffff',
-            borderRadius: '16px',
-            width: '96%',
-            maxWidth: '1260px',
-            maxHeight: '92vh',
-            display: 'flex',
-            flexDirection: 'column',
-            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-            border: '1px solid #e2e8f0',
-            overflow: 'hidden',
-          }}
-        >
+  if (!isOpen && !isPage) return null;
+
+  const modalContent = (
+    <div
+      style={{
+        background: '#ffffff',
+        borderRadius: '16px',
+        width: isPage ? '100%' : '96%',
+        maxWidth: isPage ? '100%' : '1260px',
+        maxHeight: isPage ? 'none' : '92vh',
+        minHeight: isPage ? 'calc(100vh - 120px)' : undefined,
+        display: 'flex',
+        flexDirection: 'column',
+        boxShadow: isPage ? '0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.03)' : '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+        border: '1px solid #e2e8f0',
+        overflow: isPage ? 'visible' : 'hidden',
+        boxSizing: 'border-box',
+      }}
+    >
           {/* Header Modal */}
           <div
             style={{
-              padding: '14px 24px',
+              padding: isPage ? '12px 18px' : '14px 24px',
               borderBottom: '1px solid #e2e8f0',
               display: 'flex',
               alignItems: 'center',
@@ -1237,7 +1226,7 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
                   e.currentTarget.style.color = '#64748b';
                   e.currentTarget.style.borderColor = '#e2e8f0';
                 }}
-                title="Đóng cửa sổ"
+                title={isPage ? 'Quay lại Quản lý kho hàng' : 'Đóng cửa sổ'}
               >
                 <span style={{ fontSize: '18px', fontWeight: '600', lineHeight: 1 }}>✕</span>
               </button>
@@ -1247,9 +1236,10 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
           {/* Body Content */}
           <div
             style={{
-              padding: '20px 24px',
-              overflowY: 'auto',
+              padding: isPage ? '16px 18px' : '20px 24px',
+              overflowY: isPage ? 'visible' : 'auto',
               flex: 1,
+              boxSizing: 'border-box',
             }}
           >
             {activeTab === 'list' ? (
@@ -1431,17 +1421,17 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
                     boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
                   }}
                 >
-                  <table style={{ width: '100%', minWidth: '1080px', borderCollapse: 'collapse', fontSize: '12.5px', textAlign: 'left' }}>
+                  <table style={{ width: '100%', minWidth: '940px', borderCollapse: 'collapse', fontSize: '12px', textAlign: 'left' }}>
                     <thead style={{ position: 'sticky', top: 0, zIndex: 5 }}>
                       <tr style={{ background: '#f8fafc', borderBottom: '1.5px solid #e2e8f0', color: '#475569' }}>
-                        <th style={{ padding: '12px 16px', fontWeight: '700', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap', background: '#f8fafc' }}>Mã phiếu</th>
-                        <th style={{ padding: '12px 16px', fontWeight: '700', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap', background: '#f8fafc' }}>Ngày nhập</th>
-                        <th style={{ padding: '12px 16px', fontWeight: '700', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap', background: '#f8fafc' }}>Nhà cung cấp</th>
-                        <th style={{ padding: '12px 16px', fontWeight: '700', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap', background: '#f8fafc' }}>Kho nhập</th>
-                        <th style={{ padding: '12px 16px', fontWeight: '700', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.04em', textAlign: 'center', whiteSpace: 'nowrap', background: '#f8fafc' }}>Mặt hàng</th>
-                        <th style={{ padding: '12px 16px', fontWeight: '700', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.04em', textAlign: 'center', whiteSpace: 'nowrap', background: '#f8fafc' }}>Trạng thái</th>
-                        <th style={{ padding: '12px 16px', fontWeight: '700', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap', background: '#f8fafc' }}>Quy tắc nghiệp vụ</th>
-                        <th style={{ padding: '12px 16px', fontWeight: '700', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.04em', textAlign: 'right', whiteSpace: 'nowrap', background: '#f8fafc' }}>Thao tác</th>
+                        <th style={{ padding: '10px 12px', fontWeight: '700', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap', background: '#f8fafc' }}>Mã phiếu</th>
+                        <th style={{ padding: '10px 12px', fontWeight: '700', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap', background: '#f8fafc' }}>Ngày nhập</th>
+                        <th style={{ padding: '10px 12px', fontWeight: '700', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap', background: '#f8fafc' }}>Nhà cung cấp</th>
+                        <th style={{ padding: '10px 12px', fontWeight: '700', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap', background: '#f8fafc' }}>Kho nhập</th>
+                        <th style={{ padding: '10px 12px', fontWeight: '700', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.04em', textAlign: 'center', whiteSpace: 'nowrap', background: '#f8fafc' }}>Mặt hàng</th>
+                        <th style={{ padding: '10px 12px', fontWeight: '700', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.04em', textAlign: 'center', whiteSpace: 'nowrap', background: '#f8fafc' }}>Trạng thái</th>
+                        <th style={{ padding: '10px 12px', fontWeight: '700', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap', background: '#f8fafc' }}>Quy tắc nghiệp vụ</th>
+                        <th style={{ padding: '10px 14px', fontWeight: '700', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.04em', textAlign: 'right', whiteSpace: 'nowrap', background: '#f8fafc', minWidth: '150px' }}>Thao tác</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1465,7 +1455,7 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
                               onMouseEnter={(e) => (e.currentTarget.style.background = isJustConfirmed ? '#ecfdf5' : '#f8fafc')}
                               onMouseLeave={(e) => (e.currentTarget.style.background = isJustConfirmed ? '#f0fdf4' : '#ffffff')}
                             >
-                              <td style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>
+                              <td style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>
                                 <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
                                   <button
                                     type="button"
@@ -1517,7 +1507,7 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
                                   )}
                                 </div>
                               </td>
-                              <td style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>
+                              <td style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>
                                 {(() => {
                                   if (!rc.receipt_date) return <span style={{ color: '#94a3b8' }}>—</span>;
                                   const d = new Date(rc.receipt_date);
@@ -1525,22 +1515,22 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
                                   const dateStr = d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
                                   const timeStr = d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
                                   return (
-                                    <div style={{ lineHeight: '1.4' }}>
-                                      <div style={{ fontWeight: '600', color: '#0f172a', fontSize: '12.5px' }}>{dateStr}</div>
+                                    <div style={{ lineHeight: '1.3' }}>
+                                      <div style={{ fontWeight: '600', color: '#0f172a', fontSize: '12px' }}>{dateStr}</div>
                                       <div style={{ color: '#64748b', fontSize: '11px', fontFamily: 'ui-monospace, monospace' }}>{timeStr}</div>
                                     </div>
                                   );
                                 })()}
                               </td>
-                              <td style={{ padding: '12px 16px', color: '#0f172a', fontWeight: '600', whiteSpace: 'nowrap' }}>
+                              <td style={{ padding: '10px 12px', color: '#0f172a', fontWeight: '600', whiteSpace: 'nowrap' }}>
                                 {rc.supplier_name || `NCC #${rc.supplier_id}`}
                               </td>
-                              <td style={{ padding: '12px 16px', color: '#334155', fontWeight: '500', whiteSpace: 'nowrap' }}>
+                              <td style={{ padding: '10px 12px', color: '#334155', fontWeight: '500', whiteSpace: 'nowrap' }}>
                                 {rc.warehouse_name || `Kho #${rc.warehouse_id}`}
                               </td>
-                              <td style={{ padding: '12px 16px', textAlign: 'center', whiteSpace: 'nowrap' }}>
-                                <div style={{ lineHeight: '1.4' }}>
-                                  <div style={{ fontWeight: '700', color: '#0f172a', fontSize: '12.5px' }}>
+                              <td style={{ padding: '10px 12px', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                                <div style={{ lineHeight: '1.3' }}>
+                                  <div style={{ fontWeight: '700', color: '#0f172a', fontSize: '12px' }}>
                                     {rc.total_items} SP
                                   </div>
                                   <div style={{ fontSize: '11px', color: '#64748b' }}>
@@ -1548,15 +1538,15 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
                                   </div>
                                 </div>
                               </td>
-                              <td style={{ padding: '12px 16px', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                              <td style={{ padding: '10px 12px', textAlign: 'center', whiteSpace: 'nowrap' }}>
                                 <span
                                   style={{
                                     display: 'inline-flex',
                                     alignItems: 'center',
-                                    gap: '6px',
-                                    fontSize: '11.5px',
+                                    justifyContent: 'center',
+                                    fontSize: '11px',
                                     fontWeight: '700',
-                                    padding: '4px 10px',
+                                    padding: '3px 8px',
                                     borderRadius: '999px',
                                     background: '#ecfdf5',
                                     color: '#065f46',
@@ -1564,19 +1554,10 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
                                     whiteSpace: 'nowrap',
                                   }}
                                 >
-                                  <span
-                                    style={{
-                                      width: '6px',
-                                      height: '6px',
-                                      borderRadius: '50%',
-                                      background: '#10b981',
-                                      display: 'inline-block',
-                                    }}
-                                  />
                                   ĐÃ XÁC NHẬN
                                 </span>
                               </td>
-                              <td style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>
+                              <td style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>
                                 <span
                                   style={{
                                     display: 'inline-flex',
@@ -1585,18 +1566,18 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
                                     color: '#475569',
                                     background: '#f8fafc',
                                     border: '1px solid #e2e8f0',
-                                    padding: '3px 9px',
+                                    padding: '3px 8px',
                                     borderRadius: '6px',
                                     fontWeight: '600',
                                     whiteSpace: 'nowrap',
                                   }}
                                   title="Chứng từ đã vào sổ kế toán, không thể chỉnh sửa trực tiếp. Để thay đổi cần lập phiếu điều chỉnh."
                                 >
-                                  Bất biến (Không sửa được)
+                                  Bất biến
                                 </span>
                               </td>
-                              <td style={{ padding: '12px 16px', textAlign: 'right', whiteSpace: 'nowrap' }}>
-                                <div style={{ display: 'inline-flex', gap: '8px', alignItems: 'center', justifyContent: 'flex-end' }}>
+                              <td style={{ padding: '10px 14px', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                                <div style={{ display: 'inline-flex', gap: '6px', alignItems: 'center', justifyContent: 'flex-end' }}>
                                   <button
                                     type="button"
                                     onClick={() => {
@@ -1604,12 +1585,12 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
                                       setActiveTab('form');
                                     }}
                                     style={{
-                                      padding: '5px 12px',
+                                      padding: '4px 10px',
                                       borderRadius: '6px',
                                       border: '1px solid #cbd5e1',
                                       background: '#ffffff',
                                       color: '#1e293b',
-                                      fontSize: '12px',
+                                      fontSize: '11.5px',
                                       fontWeight: '600',
                                       cursor: 'pointer',
                                       display: 'inline-flex',
@@ -1635,12 +1616,12 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
                                     type="button"
                                     onClick={() => handleTriggerAdjust(undefined, rc)}
                                     style={{
-                                      padding: '5px 12px',
+                                      padding: '4px 10px',
                                       borderRadius: '6px',
                                       border: '1px solid #bfdbfe',
                                       background: '#eff6ff',
                                       color: '#1d4ed8',
-                                      fontSize: '12px',
+                                      fontSize: '11.5px',
                                       fontWeight: '700',
                                       cursor: 'pointer',
                                       boxShadow: '0 1px 2px rgba(37, 99, 235, 0.08)',
@@ -2493,7 +2474,7 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
           {/* Footer Modal Actions */}
           <div
             style={{
-              padding: '14px 24px',
+              padding: isPage ? '12px 18px' : '14px 24px',
               borderTop: '1px solid #e2e8f0',
               display: 'flex',
               alignItems: 'center',
@@ -2700,6 +2681,31 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
             )}
           </div>
         </div>
+  );
+
+  if (isPage) {
+    return modalContent;
+  }
+
+  return (
+    <ModalPortal>
+      <div
+        style={{
+          position: 'fixed',
+          inset: 0,
+          backgroundColor: 'rgba(15, 23, 42, 0.65)',
+          backdropFilter: 'blur(4px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999,
+          padding: '16px',
+        }}
+        onClick={(e) => {
+          if (e.target === e.currentTarget && !isSubmitting) onClose();
+        }}
+      >
+        {modalContent}
       </div>
     </ModalPortal>
   );
