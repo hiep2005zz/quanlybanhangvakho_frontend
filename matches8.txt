@@ -1,0 +1,48 @@
+: '500', fontSize: '14.5px' }}>Nhóm hàng & Doanh số</span>
+            </div>
+          )}
+
+                    {canAccessDiscounts && (
+            <div
+              className={`sidebar-menu-item ${activeTab === 'discounts' ? 'active' : ''}`}
+              id="btn-sidebar-discounts"
+              onClick={() => {
+                setActiveTab('discounts');
+                handleCloseMenu();
+              }}
+            >
+
+---
+
+="1"></circle>
+                  <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+                </svg>
+              </div>
+              <span style={{ fontWeight: activeTab === 'discounts' ? '700' : '500', fontSize: '14.5px' }}>Chính sách chiết khấu</span>
+            </div>
+          )}
+
+          {/* Nhật ký thao tác - Admin */}
+          {(user.role === 'admin' || (user.roles && use
+
+---
+
+}
+          />
+        )
+      ) : activeTab === 'categories' ? (
+        <CategoryManagementView
+          token={token}
+          onBackToHome={() => setActiveTab('inventory')}
+        />
+      ) : activeTab === 'discounts' ? (
+        <DiscountPolicyView
+          token={token}
+          user={user}
+          onBackToHome={() => setActiveTab('inventory')}
+        />
+      ) : activeTab === 'audit-logs' ? (
+        isAd
+
+---
+

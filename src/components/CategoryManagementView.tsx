@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   CategoryTreeResponse,
   CategorySalesReport,
@@ -88,6 +88,12 @@ export function CategoryManagementView({ token, onBackToHome: _onBackToHome }: C
   const [productFilter, setProductFilter] = useState<'all' | 'unassigned' | 'assigned'>('all');
   const [productSearch, setProductSearch] = useState('');
 
+  // Pagination & Loading State (Mặc định 20 sản phẩm / trang giống đại lý)
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(20);
+  const [isPagingLoading, setIsPagingLoading] = useState<boolean>(false);
+  const productListScrollRef = useRef<HTMLDivElement>(null);
+
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -129,6 +135,11 @@ export function CategoryManagementView({ token, onBackToHome: _onBackToHome }: C
   useEffect(() => {
     loadData();
   }, [activeTab, token, reportPeriod]);
+
+  // Tự động chuyển về trang 1 khi lọc theo danh mục, trạng thái hoặc tìm kiếm
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedCategoryId, productFilter, productSearch, pageSize]);
 
   const toggleExpand = (id: number, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
@@ -458,9 +469,52 @@ export function CategoryManagementView({ token, onBackToHome: _onBackToHome }: C
     return list;
   }, [products, selectedCategoryId, selectedCategoryName, productFilter, productSearch]);
 
+  // --- Pagination Logic (20 SP / trang giống đại lý) ---
+  const totalProducts = displayedProducts.length;
+  const totalPages = Math.max(1, Math.ceil(totalProducts / pageSize));
+  const safePage = Math.min(Math.max(1, currentPage), totalPages);
+
+  const pagedProducts = useMemo(() => {
+    const start = (safePage - 1) * pageSize;
+    return displayedProducts.slice(start, start + pageSize);
+  }, [displayedProducts, safePage, pageSize]);
+
+  const handlePageChange = (newPage: number) => {
+    if (newPage === safePage || newPage < 1 || newPage > totalPages) return;
+    setIsPagingLoading(true);
+    setCurrentPage(newPage);
+    if (productListScrollRef.current) {
+      productListScrollRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    setTimeout(() => {
+      setIsPagingLoading(false);
+    }, 160);
+  };
+
+  const getVisiblePages = (current: number, total: number) => {
+    if (total <= 7) {
+      return Array.from({ length: total }, (_, i) => i + 1);
+    }
+    const pages: (number | string)[] = [];
+    pages.push(1);
+    if (current > 3) {
+      pages.push('...');
+    }
+    const start = Math.max(2, current - 1);
+    const end = Math.min(total - 1, current + 1);
+    for (let i = start; i <= end; i++) {
+      pages.push(i);
+    }
+    if (current < total - 2) {
+      pages.push('...');
+    }
+    pages.push(total);
+    return pages;
+  };
+
   const renderProductsList = () => {
     return (
-      <div style={{ flex: '1', display: 'flex', flexDirection: 'column', background: '#ffffff', minWidth: '460px', overflow: 'hidden', height: 'auto' }}>
+      <div style={{ flex: '1', display: 'flex', flexDirection: 'column', background: '#ffffff', minWidth: '460px', overflow: 'hidden', height: '100%' }}>
         {/* Header Cột Phải */}
         <div style={{ padding: '16px 20px', borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', marginBottom: '12px' }}>
@@ -469,7 +523,7 @@ export function CategoryManagementView({ token, onBackToHome: _onBackToHome }: C
                 Danh Sách Sản Phẩm
               </h3>
               <span style={{ fontSize: '11.5px', color: '#475569', fontWeight: '700', background: '#e2e8f0', padding: '2px 8px', borderRadius: '10px' }}>
-                {displayedProducts.length} / {products.length} SP
+                {displayedProducts.length.toLocaleString('vi-VN')} / {products.length.toLocaleString('vi-VN')} SP
               </span>
             </div>
 
@@ -486,7 +540,7 @@ export function CategoryManagementView({ token, onBackToHome: _onBackToHome }: C
                   boxShadow: (!selectedCategoryId && productFilter === 'all') ? '0 1px 2px rgba(0,0,0,0.06)' : 'none'
                 }}
               >
-                Tất cả ({products.length})
+                Tất cả ({products.length.toLocaleString('vi-VN')})
               </button>
               <button
                 onClick={() => { setProductFilter('unassigned'); setSelectedCategoryId(null); }}
@@ -499,7 +553,7 @@ export function CategoryManagementView({ token, onBackToHome: _onBackToHome }: C
                   boxShadow: (!selectedCategoryId && productFilter === 'unassigned') ? '0 1px 2px rgba(180,83,9,0.15)' : 'none'
                 }}
               >
-                Chưa gán ({unassignedCount})
+                Chưa gán ({unassignedCount.toLocaleString('vi-VN')})
               </button>
               <button
                 onClick={() => { setProductFilter('assigned'); setSelectedCategoryId(null); }}
@@ -512,7 +566,7 @@ export function CategoryManagementView({ token, onBackToHome: _onBackToHome }: C
                   boxShadow: (!selectedCategoryId && productFilter === 'assigned') ? '0 1px 2px rgba(0,0,0,0.06)' : 'none'
                 }}
               >
-                Đã gán ({assignedCount})
+                Đã gán ({assignedCount.toLocaleString('vi-VN')})
               </button>
             </div>
           </div>
@@ -553,7 +607,7 @@ export function CategoryManagementView({ token, onBackToHome: _onBackToHome }: C
               border: '1px solid #bfdbfe', marginTop: '10px', fontSize: '12.5px', color: '#1e40af'
             }}>
               <div>
-                Đang xem nhóm: <strong>{selectedCategoryName || `ID ${selectedCategoryId}`}</strong> ({displayedProducts.length} sản phẩm)
+                Đang xem nhóm: <strong>{selectedCategoryName || `ID ${selectedCategoryId}`}</strong> ({displayedProducts.length.toLocaleString('vi-VN')} sản phẩm)
               </div>
               <button
                 onClick={() => setSelectedCategoryId(null)}
@@ -592,20 +646,60 @@ export function CategoryManagementView({ token, onBackToHome: _onBackToHome }: C
           <div style={{ textAlign: 'right' }}>Phân nhóm</div>
         </div>
 
-        {/* Products List Rows - Vùng cuộn danh sách sản phẩm */}
+        {/* Products List Rows - Vùng cuộn danh sách sản phẩm (flex: 1 thoáng đãng) */}
         <div
+          ref={productListScrollRef}
           className="custom-product-scrollbar roles-grid-scroll"
           style={{
             padding: '8px 12px 16px 12px',
             overflowY: 'auto',
             overflowX: 'hidden',
-            height: '240px',
-            maxHeight: '240px',
+            flex: 1,
+            height: 'auto',
             scrollbarWidth: 'thin',
             scrollbarColor: '#cbd5e1 #f8fafc',
           }}
         >
-          {displayedProducts.length === 0 ? (
+          {/* Skeleton Shimmer Loading 20 sản phẩm */}
+          {isPagingLoading ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              {Array.from({ length: Math.min(20, pageSize) }).map((_, idx) => (
+                <div
+                  key={`skeleton-${idx}`}
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: '32px 1fr 65px 60px 110px 130px',
+                    gap: '8px',
+                    alignItems: 'center',
+                    padding: '10px 12px',
+                    background: '#ffffff',
+                    border: '1px solid #f1f5f9',
+                    borderRadius: '8px',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'center' }}>
+                    <div className="skeleton-shimmer" style={{ width: '16px', height: '16px' }}></div>
+                  </div>
+                  <div>
+                    <div className="skeleton-shimmer" style={{ width: `${60 + (idx % 4) * 10}%`, height: '14px', marginBottom: '6px' }}></div>
+                    <div className="skeleton-shimmer" style={{ width: '30%', height: '10px' }}></div>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'center' }}>
+                    <div className="skeleton-shimmer" style={{ width: '36px', height: '14px' }}></div>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'center' }}>
+                    <div className="skeleton-shimmer" style={{ width: '32px', height: '14px' }}></div>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                    <div className="skeleton-shimmer" style={{ width: '65px', height: '15px' }}></div>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                    <div className="skeleton-shimmer" style={{ width: '75px', height: '22px', borderRadius: '6px' }}></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : pagedProducts.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '60px 20px', color: '#94a3b8' }}>
               <div style={{ fontSize: '36px', marginBottom: '10px' }}>
                 {productFilter === 'unassigned' ? '🎉' : '📦'}
@@ -630,7 +724,7 @@ export function CategoryManagementView({ token, onBackToHome: _onBackToHome }: C
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-              {displayedProducts.map(product => {
+              {pagedProducts.map(product => {
                 const unassigned = isProductUnassigned(product);
                 return (
                   <div
@@ -711,6 +805,100 @@ export function CategoryManagementView({ token, onBackToHome: _onBackToHome }: C
               })}
             </div>
           )}
+        </div>
+
+        {/* Thanh Điều Hướng Phân Trang Cố Định (Pagination Controls - Giống Đại Lý) */}
+        <div style={{
+          padding: '10px 18px',
+          background: '#ffffff',
+          borderTop: '1px solid #e2e8f0',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '12px',
+          flexWrap: 'wrap',
+          flexShrink: 0,
+          boxShadow: '0 -1px 3px rgba(0,0,0,0.02)'
+        }}>
+          {/* Thông tin số lượng & Chọn số dòng */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: '12.5px', color: '#64748b', fontWeight: '500' }}>
+              Hiển thị <strong style={{ color: '#0f172a', fontWeight: '700' }}>{totalProducts === 0 ? 0 : (safePage - 1) * pageSize + 1} - {Math.min(safePage * pageSize, totalProducts).toLocaleString('vi-VN')}</strong> / <strong style={{ color: '#0f172a', fontWeight: '700' }}>{totalProducts.toLocaleString('vi-VN')}</strong> sản phẩm
+            </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#64748b' }}>
+              <span>Dòng/trang:</span>
+              <select
+                value={pageSize}
+                onChange={(e) => {
+                  setPageSize(Number(e.target.value));
+                  setCurrentPage(1);
+                }}
+                style={{
+                  padding: '3px 8px',
+                  borderRadius: '6px',
+                  border: '1px solid #cbd5e1',
+                  background: '#f8fafc',
+                  color: '#0f172a',
+                  fontSize: '12px',
+                  fontWeight: '600',
+                  outline: 'none',
+                  cursor: 'pointer'
+                }}
+              >
+                <option value={20}>20</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Bộ nút chuyển trang */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+            <button
+              type="button"
+              disabled={safePage <= 1 || isPagingLoading}
+              onClick={() => handlePageChange(safePage - 1)}
+              className="category-nav-btn"
+              title="Trang trước"
+            >
+              &larr; Trang trước
+            </button>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              {getVisiblePages(safePage, totalPages).map((p, idx) => {
+                if (p === '...') {
+                  return (
+                    <span key={`ellipsis-${idx}`} style={{ padding: '0 4px', color: '#94a3b8', fontSize: '12px', userSelect: 'none' }}>
+                      ...
+                    </span>
+                  );
+                }
+                const pageNum = Number(p);
+                const isActive = pageNum === safePage;
+                return (
+                  <button
+                    key={`page-${pageNum}`}
+                    type="button"
+                    disabled={isPagingLoading}
+                    onClick={() => handlePageChange(pageNum)}
+                    className={`category-page-btn ${isActive ? 'active' : ''}`}
+                  >
+                    {pageNum}
+                  </button>
+                );
+              })}
+            </div>
+
+            <button
+              type="button"
+              disabled={safePage >= totalPages || isPagingLoading}
+              onClick={() => handlePageChange(safePage + 1)}
+              className="category-nav-btn"
+              title="Trang tiếp"
+            >
+              Trang sau &rarr;
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -862,6 +1050,80 @@ export function CategoryManagementView({ token, onBackToHome: _onBackToHome }: C
         .back-btn:hover { background: #f8fafc !important; border-color: #94a3b8 !important; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        /* Shimmer Loading Effect */
+        @keyframes shimmerEffect {
+          0% { background-position: -200% 0; }
+          100% { background-position: 200% 0; }
+        }
+        .skeleton-shimmer {
+          background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+          background-size: 200% 100%;
+          animation: shimmerEffect 1.5s infinite linear;
+          border-radius: 6px;
+        }
+
+        /* Pagination Controls (Giống đại lý) */
+        .category-page-btn {
+          min-width: 32px;
+          height: 32px;
+          padding: 0 8px;
+          border-radius: 8px;
+          border: 1px solid #e2e8f0;
+          background: #ffffff;
+          color: #334155;
+          font-size: 12px;
+          font-weight: 700;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          transition: all 0.15s ease;
+        }
+        .category-page-btn:hover:not(:disabled) {
+          background: #f8fafc;
+          border-color: #cbd5e1;
+          color: #0f172a;
+        }
+        .category-page-btn.active {
+          background: #0fad89 !important;
+          border-color: #0fad89 !important;
+          color: #ffffff !important;
+          box-shadow: 0 2px 6px rgba(15, 173, 137, 0.35) !important;
+        }
+        .category-page-btn:disabled {
+          background: #f8fafc;
+          color: #cbd5e1;
+          border-color: #f1f5f9;
+          cursor: not-allowed;
+        }
+        .category-nav-btn {
+          height: 32px;
+          padding: 0 12px;
+          border-radius: 8px;
+          border: 1px solid #cbd5e1;
+          background: #ffffff;
+          color: #334155;
+          font-size: 12px;
+          font-weight: 700;
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          cursor: pointer;
+          transition: all 0.15s ease;
+        }
+        .category-nav-btn:hover:not(:disabled) {
+          background: #f8fafc;
+          border-color: #94a3b8;
+          color: #0f172a;
+        }
+        .category-nav-btn:disabled {
+          background: #f8fafc;
+          color: #cbd5e1;
+          border-color: #f1f5f9;
+          cursor: not-allowed;
+        }
+
         .custom-product-scrollbar {
           overflow-y: auto !important;
           overflow-x: hidden !important;
@@ -870,7 +1132,7 @@ export function CategoryManagementView({ token, onBackToHome: _onBackToHome }: C
           scroll-behavior: smooth;
         }
         .custom-product-scrollbar::-webkit-scrollbar {
-          width: 10px;
+          width: 8px;
         }
         .custom-product-scrollbar::-webkit-scrollbar-track {
           background: #f8fafc;
@@ -955,8 +1217,8 @@ export function CategoryManagementView({ token, onBackToHome: _onBackToHome }: C
               boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
               display: 'flex',
               overflow: 'hidden',
-              height: 'auto',
-              minHeight: '440px',
+              height: 'calc(100vh - 215px)',
+              minHeight: '620px',
             }}
           >
             {/* Cột trái: Cây Ngành Hàng */}
@@ -969,7 +1231,7 @@ export function CategoryManagementView({ token, onBackToHome: _onBackToHome }: C
                 display: 'flex',
                 flexDirection: 'column',
                 background: '#fafbfc',
-                height: 'auto',
+                height: '100%',
               }}
             >
               {/* Header Cột Trái */}
@@ -1033,14 +1295,14 @@ export function CategoryManagementView({ token, onBackToHome: _onBackToHome }: C
                 </div>
               </div>
 
-              {/* Vùng cuộn danh sách cây ngành hàng */}
+              {/* Vùng cuộn danh sách cây ngành hàng (flex: 1 đồng bộ với cột sản phẩm) */}
               <div
                 className="custom-product-scrollbar roles-grid-scroll"
                 style={{
                   padding: '14px 16px 20px 16px',
                   overflowY: 'auto',
-                  height: '280px',
-                  maxHeight: '280px',
+                  flex: 1,
+                  height: 'auto',
                   scrollbarWidth: 'thin',
                   scrollbarColor: '#cbd5e1 #f8fafc',
                 }}

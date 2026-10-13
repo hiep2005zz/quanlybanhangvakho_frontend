@@ -1,5 +1,15 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { getProductsApi, getLowStockAlertsApi, LowStockAlertSummary, ProductItem, User, ProductFinancialSummary, getCategoryTreeApi, getProductImageUrl } from '../services/api';
+import {
+  getProductsApi,
+  getDiscountPoliciesApi,
+  getLowStockAlertsApi,
+  LowStockAlertSummary,
+  ProductItem,
+  User,
+  ProductFinancialSummary,
+  getCategoryTreeApi,
+  getProductImageUrl,
+} from '../services/api';
 import { StockThresholdModal } from './StockThresholdModal';
 import { LowStockAlertModal } from './LowStockAlertModal';
 import { sessionManager, SessionState } from '../services/sessionManager';
@@ -28,9 +38,11 @@ import { StockActionModal } from './StockActionModal';
 import { GoodsReceiptModal } from './GoodsReceiptModal';
 import { GoodsReceiptView } from './GoodsReceiptView';
 import { OrderManagementView } from './OrderManagementView';
+import { OrderDetailPage } from './OrderDetailPage';
 import SalesOrderEntry from './SalesOrderEntry';
 import { CreateOrderPage } from './CreateOrderPage';
 import { CreatePriceListPage } from './CreatePriceListPage';
+import { PriceBookDetailPage } from './PriceBookDetailPage';
 import { useLocation } from '../hooks/useLocation';
 import { ProductHistoryView } from './ProductHistoryView';
 import { ProductFormView } from './ProductFormView';
@@ -145,16 +157,30 @@ export default function DashboardPage({
   const location = useLocation();
   const currentPath = location.pathname.toLowerCase();
   const isOrdersCreateSubpage = currentPath === '/orders/create' || currentPath.startsWith('/orders/create');
+  const isOrderDetailSubpage =
+    currentPath.startsWith('/orders/') &&
+    !isOrdersCreateSubpage &&
+    currentPath !== '/orders';
   const isPriceListsCreateSubpage =
     currentPath === '/price-lists/create' ||
     currentPath.startsWith('/price-lists/create') ||
     currentPath === '/price-books/create' ||
     currentPath.startsWith('/price-books/create');
+  const isPriceBookEditSubpage =
+    (currentPath.startsWith('/price-books/') || currentPath.startsWith('/price-lists/')) &&
+    currentPath.endsWith('/edit');
+  const isPriceBookDetailSubpage =
+    (currentPath.startsWith('/price-books/') || currentPath.startsWith('/price-lists/')) &&
+    !isPriceListsCreateSubpage &&
+    !isPriceBookEditSubpage &&
+    currentPath !== '/price-books' &&
+    currentPath !== '/price-lists';
 
   const [activeTab, setActiveTabState] = useState<TabType>(() => {
     const pathname = window.location.pathname.toLowerCase();
     const isCreateOrderPath = pathname === '/create-order' || pathname.startsWith('/create-order/');
     const isOrdersCreatePath = pathname === '/orders/create' || pathname.startsWith('/orders/create');
+    const isOrdersDetailPath = pathname.startsWith('/orders/') && !isOrdersCreatePath && pathname !== '/orders';
     const isPriceListsCreatePath =
       pathname === '/price-lists/create' ||
       pathname.startsWith('/price-lists/create') ||
@@ -274,7 +300,7 @@ export default function DashboardPage({
       return 'inventory';
     }
     if (isOrdersPath || oldTabVal === 'orders') {
-      if (hasOldTabParam || (pathname !== '/orders' && !isOrdersCreatePath)) {
+      if (hasOldTabParam || (pathname !== '/orders' && !isOrdersCreatePath && !isOrdersDetailPath)) {
         try { window.history.replaceState({}, '', '/orders'); } catch {}
       }
       return 'orders';
@@ -900,6 +926,48 @@ export default function DashboardPage({
     return null;
   });
   const [isDiscountExpanded, setIsDiscountExpanded] = useState(false);
+  const [discountPoliciesState, setDiscountPoliciesState] = useState<any[]>(() => {
+    try {
+      const saved = localStorage.getItem('discountPolicies');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return [];
+  });
+
+  useEffect(() => {
+    if (token) {
+      getDiscountPoliciesApi(token)
+        .then((res) => {
+          if (res && Array.isArray(res.items)) {
+            const mapped = res.items.map((bePolicy: any) => ({
+              id: String(bePolicy.id),
+              title: bePolicy.name || bePolicy.title || bePolicy.code,
+              code: bePolicy.code,
+              category: bePolicy.category || 'ALL',
+              target_group: (bePolicy.target_dealer_type === 'agent_tier_1' || bePolicy.target_group === 'agent_tier_1')
+                ? 'agent_tier_1'
+                : (bePolicy.target_dealer_type === 'agent_tier_2' || bePolicy.target_group === 'agent_tier_2')
+                ? 'agent_tier_2'
+                : 'all',
+              start_date: bePolicy.start_date || '2026-01-01',
+              end_date: bePolicy.end_date || '',
+              status: bePolicy.is_active ? 'active' : 'expired',
+              note: bePolicy.description || '',
+              tiers: (bePolicy.tiers || []).map((t: any) => ({
+                id: String(t.id || Math.random()),
+                min_quantity: t.min_quantity,
+                max_quantity: t.max_quantity ?? null,
+                discount_percent: t.discount_percent,
+              })),
+            }));
+            setDiscountPoliciesState(mapped);
+            localStorage.setItem('discountPolicies', JSON.stringify(mapped));
+          }
+        })
+        .catch(() => {});
+    }
+  }, [token]);
+
   const [isThresholdModalOpen, setIsThresholdModalOpen] = useState(false);
   const [isLowStockAlertModalOpen, setIsLowStockAlertModalOpen] = useState(false);
   const [lowStockSummary, setLowStockSummary] = useState<LowStockAlertSummary | null>(null);
@@ -1196,7 +1264,7 @@ export default function DashboardPage({
   const isProductFormOpen = productDrawerState.isOpen && activeTab === 'inventory';
   const isSalesOrderOpen = activeTab === 'create-order' || isSalesOrderEntryOpen;
   const isGoodsReceiptPage = activeTab === 'goods-receipt';
-  const isLockedScrollTab = !isProductFormOpen && !isSalesOrderOpen && !isOrdersCreateSubpage && !isPriceListsCreateSubpage && !isGoodsReceiptPage && (activeTab === 'inventory' || activeTab === 'dealers' || activeTab === 'dealer-profiles' || activeTab === 'delivery-points' || activeTab === 'suppliers' || activeTab === 'price-books' || activeTab === 'categories' || activeTab === 'orders' || activeTab === 'product-history' || activeTab === 'stock-book' || activeTab === 'stock-audits' || activeTab === 'stock-transfers' || activeTab === 'products-import' || activeTab === 'users-import') && !isPendingCustomer;
+  const isLockedScrollTab = !isProductFormOpen && !isSalesOrderOpen && !isOrdersCreateSubpage && !isOrderDetailSubpage && !isPriceListsCreateSubpage && !isPriceBookDetailSubpage && !isPriceBookEditSubpage && !isGoodsReceiptPage && (activeTab === 'inventory' || activeTab === 'dealers' || activeTab === 'dealer-profiles' || activeTab === 'delivery-points' || activeTab === 'suppliers' || activeTab === 'price-books' || activeTab === 'categories' || activeTab === 'orders' || activeTab === 'product-history' || activeTab === 'stock-book' || activeTab === 'stock-audits' || activeTab === 'stock-transfers' || activeTab === 'products-import' || activeTab === 'users-import') && !isPendingCustomer;
 
   return (
     <DashboardLayout
@@ -1227,7 +1295,7 @@ export default function DashboardPage({
       mainClassName={
         isCustomer
           ? 'flex-1 min-w-0 overflow-hidden p-0 flex flex-col bg-slate-50 h-full'
-          : isOrdersCreateSubpage || isPriceListsCreateSubpage || isGoodsReceiptPage
+          : isOrdersCreateSubpage || isPriceListsCreateSubpage || isPriceBookDetailSubpage || isPriceBookEditSubpage || isOrderDetailSubpage || isGoodsReceiptPage
           ? 'flex-1 min-w-0 overflow-y-auto p-0 flex flex-col bg-slate-50'
           : undefined
       }
@@ -1266,7 +1334,7 @@ export default function DashboardPage({
     >
       <div
         className="dashboard-main-container"
-        style={isCustomer || isOrdersCreateSubpage || isPriceListsCreateSubpage || isGoodsReceiptPage ? {
+        style={isCustomer || isOrdersCreateSubpage || isPriceListsCreateSubpage || isPriceBookDetailSubpage || isPriceBookEditSubpage || isOrderDetailSubpage || isGoodsReceiptPage ? {
           width: '100%',
           display: 'flex',
           flexDirection: 'column',
@@ -1382,6 +1450,22 @@ export default function DashboardPage({
                   window.history.pushState({}, '', '/orders');
                   fetchProducts();
                 }}
+              />
+            ) : isOrderDetailSubpage ? (
+              <OrderDetailPage
+                currentUser={user}
+                token={token}
+                onBack={() => {
+                  window.history.pushState({}, '', '/orders');
+                }}
+                onCloneOrder={(data) => {
+                  try {
+                    sessionStorage.setItem('clone_order_draft', JSON.stringify(data));
+                  } catch {}
+                  setCloneOrderData(data);
+                  window.history.pushState({}, '', '/orders/create');
+                }}
+                onRefreshProducts={fetchProducts}
               />
             ) : (
               <OrderManagementView
@@ -1609,11 +1693,12 @@ export default function DashboardPage({
           )
         ) : activeTab === 'price-books' ? (
           canAccessPriceBooks ? (
-            isPriceListsCreateSubpage ? (
+            isPriceListsCreateSubpage || isPriceBookEditSubpage ? (
               <CreatePriceListPage
                 token={token}
                 currentUser={user}
                 products={products}
+                isEdit={isPriceBookEditSubpage}
                 onClose={() => {
                   window.history.pushState({}, '', '/price-books');
                 }}
@@ -1621,6 +1706,15 @@ export default function DashboardPage({
                   window.history.pushState({}, '', '/price-books');
                   fetchProducts();
                 }}
+              />
+            ) : isPriceBookDetailSubpage ? (
+              <PriceBookDetailPage
+                token={token}
+                currentUser={user}
+                onBack={() => {
+                  window.history.pushState({}, '', '/price-books');
+                }}
+                onRefreshProducts={fetchProducts}
               />
             ) : (
               <PriceBookManagementView
@@ -1996,11 +2090,11 @@ export default function DashboardPage({
             {/* CHÍNH SÁCH CHIẾT KHẤU - 1 Ô GỌN GÀNG (Hiển thị ở tất cả các phân quyền) */}
             {(() => {
               try {
-                const savedPolicies = localStorage.getItem('discountPolicies');
-                if (savedPolicies) {
-                  const policies = JSON.parse(savedPolicies);
-                  const activePolicies = policies.filter((p: any) => p.status === 'active');
-                  if (activePolicies.length > 0) {
+                const policies = discountPoliciesState.length > 0
+                  ? discountPoliciesState
+                  : (localStorage.getItem('discountPolicies') ? JSON.parse(localStorage.getItem('discountPolicies')!) : []);
+                const activePolicies = policies.filter((p: any) => p.status === 'active');
+                if (activePolicies.length > 0) {
                     return (
                       <div style={{
                         marginBottom: '10px',
@@ -2108,7 +2202,6 @@ export default function DashboardPage({
                       </div>
                     );
                   }
-                }
               } catch (e) { }
               return null;
             })()}
