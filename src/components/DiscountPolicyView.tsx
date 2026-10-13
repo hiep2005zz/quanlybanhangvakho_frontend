@@ -14,10 +14,10 @@ import { emitStatusToast } from './StatusToast';
 
 interface DiscountTier {
   id: string;
-  min_quantity: number;
-  max_quantity: number | null; // null = Không giới hạn (Từ X sản phẩm trở lên)
-  discount_percent: number;
-  discount_amount?: number;
+  min_quantity: number | string;
+  max_quantity: number | string | null; // null = Không giới hạn (Từ X sản phẩm trở lên)
+  discount_percent: number | string;
+  discount_amount?: number | string;
   discount_type?: 'percent' | 'amount';
 }
 
@@ -40,7 +40,7 @@ interface DiscountPolicyViewProps {
   onBackToHome?: () => void;
 }
 
-export default function DiscountPolicyView({ token, user, onBackToHome }: DiscountPolicyViewProps) {
+export default function DiscountPolicyView({ token, user }: DiscountPolicyViewProps) {
   const canManageDiscounts = Boolean(
     user?.role === 'admin' ||
     user?.role === 'sales_manager' ||
@@ -163,11 +163,11 @@ export default function DiscountPolicyView({ token, user, onBackToHome }: Discou
   // Kiểm tra chính sách có bị chồng chéo số lượng không
   const hasOverlappingTiers = (tiers?: DiscountTier[]) => {
     if (!tiers || tiers.length < 2) return false;
-    const sorted = [...tiers].sort((a, b) => a.min_quantity - b.min_quantity);
+    const sorted = [...tiers].sort((a, b) => Number(a.min_quantity) - Number(b.min_quantity));
     for (let i = 1; i < sorted.length; i++) {
       const prev = sorted[i - 1];
       const curr = sorted[i];
-      if (prev.max_quantity === null || prev.max_quantity === undefined || curr.min_quantity <= prev.max_quantity) {
+      if (prev.max_quantity === null || prev.max_quantity === undefined || prev.max_quantity === '' || Number(curr.min_quantity) <= Number(prev.max_quantity)) {
         return true;
       }
     }
@@ -204,13 +204,13 @@ export default function DiscountPolicyView({ token, user, onBackToHome }: Discou
   // Xử lý thêm mốc sản lượng (Tier) tự động tính toán không để chồng chéo
   const handleAddTier = () => {
     const lastTier = formData.tiers[formData.tiers.length - 1];
-    let newMin = 100;
+    let newMin: number | string = 100;
     let nextTiers = [...formData.tiers];
     if (lastTier) {
-      if (lastTier.max_quantity !== null && lastTier.max_quantity !== undefined) {
+      if (lastTier.max_quantity !== null && lastTier.max_quantity !== undefined && lastTier.max_quantity !== '') {
         newMin = Number(lastTier.max_quantity) + 1;
       } else {
-        const autoMax = Number(lastTier.min_quantity) + 49;
+        const autoMax = Number(lastTier.min_quantity || 0) + 49;
         nextTiers = nextTiers.map((t, idx) =>
           idx === nextTiers.length - 1 ? { ...t, max_quantity: autoMax } : t
         );
@@ -249,9 +249,9 @@ export default function DiscountPolicyView({ token, user, onBackToHome }: Discou
             return { ...t, discount_type: value as 'percent' | 'amount' };
           }
           if (field === 'max_quantity') {
-            return { ...t, max_quantity: value === '' ? null : Number(value) };
+            return { ...t, max_quantity: value === '' ? null : value };
           }
-          return { ...t, [field]: value === '' ? 0 : Number(value) };
+          return { ...t, [field]: value === '' ? '' : value };
         }
         return t;
       }),
@@ -275,8 +275,17 @@ export default function DiscountPolicyView({ token, user, onBackToHome }: Discou
       return;
     }
 
+    // Chuyển đổi và chuẩn hóa các mốc chiết khấu
+    const parsedTiers = formData.tiers.map((t) => ({
+      ...t,
+      min_quantity: t.min_quantity === '' ? 0 : Number(t.min_quantity),
+      max_quantity: t.max_quantity === '' || t.max_quantity === null || t.max_quantity === undefined ? null : Number(t.max_quantity),
+      discount_percent: t.discount_percent === '' ? 0 : Number(t.discount_percent),
+      discount_amount: t.discount_amount === '' ? 0 : Number(t.discount_amount || 0),
+    }));
+
     // Kiểm tra từng mốc chiết khấu và chống chồng chéo số lượng (overlapping)
-    const sortedTiers = [...formData.tiers].sort((a, b) => a.min_quantity - b.min_quantity);
+    const sortedTiers = [...parsedTiers].sort((a, b) => a.min_quantity - b.min_quantity);
     for (let i = 0; i < sortedTiers.length; i++) {
       const t = sortedTiers[i];
       if (t.min_quantity < 0 || isNaN(t.min_quantity)) {
@@ -446,863 +455,867 @@ export default function DiscountPolicyView({ token, user, onBackToHome }: Discou
     emitStatusToast({ title: 'Thành công', message: 'Đã ngừng áp dụng chính sách!', type: 'success' });
   };
 
-  // Quay lại trang chủ (Kho hàng) an toàn
-  const handleGoHome = () => {
-    if (onBackToHome) {
-      onBackToHome();
-    } else {
-      try {
-        window.history.pushState({}, '', '/');
-        window.dispatchEvent(new PopStateEvent('popstate'));
-      } catch {
-        window.location.href = '/';
-      }
-    }
-  };
-
   return (
     <div style={{ padding: '8px', maxWidth: '1200px', margin: '0 auto' }}>
-      {/* Breadcrumb & Nút quay lại trang chủ */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '10px',
-          fontSize: '13.5px',
-          color: '#64748b',
-          fontWeight: '500',
-          padding: '2px 4px',
-          marginBottom: '18px',
-        }}
-      >
-        <button
-          onClick={handleGoHome}
-          style={{
-            background: '#ffffff',
-            border: '1px solid #cbd5e1',
-            borderRadius: '20px',
-            color: '#2563eb',
-            cursor: 'pointer',
-            padding: '6px 16px',
-            fontSize: '13px',
-            fontWeight: '600',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '6px',
-            boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
-            transition: 'all 0.18s ease',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.borderColor = '#2563eb';
-            e.currentTarget.style.background = '#eff6ff';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.borderColor = '#cbd5e1';
-            e.currentTarget.style.background = '#ffffff';
-          }}
-          title="Quay lại trang Kho hàng"
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-            <path d="M19 12H5M12 19l-7-7 7-7" />
-          </svg>
-          <span>Quay lại trang chủ</span>
-        </button>
-        <span>/</span>
-        <span style={{ color: '#0f172a', fontWeight: '600' }}>Chính sách chiết khấu sản lượng</span>
-      </div>
-
-      {/* Header View */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-        <div>
-          <h2 style={{ margin: 0, fontSize: '22px', color: '#0f172a', fontWeight: '700' }}>
-            Quản Lý Chính Sách Chiết Khấu Sản Lượng
-          </h2>
-          <p style={{ margin: '4px 0 0 0', color: '#64748b', fontSize: '14px' }}>
-            Khai báo mốc sản lượng & tỷ lệ chiết khấu tự động dành cho đại lý
-          </p>
-        </div>
-        {canManageDiscounts ? (
-          <button
-            onClick={() => {
-              setEditingPolicyId(null);
-              setApplyScope('all');
-              setFormData({
-                title: 'Tất cả sản phẩm',
-                code: `CK-${Math.floor(1000 + Math.random() * 9000)}`,
-                category: 'ALL',
-                target_group: 'all',
-                start_date: new Date().toISOString().split('T')[0],
-                end_date: '',
-                status: 'active',
-                note: '',
-                tiers: [
-                  { id: Date.now().toString(), min_quantity: 100, max_quantity: 499, discount_percent: 5 },
-                ],
-              });
-              setIsModalOpen(true);
-            }}
-            style={{
-              background: 'linear-gradient(135deg, #0fba90 0%, #0fad89 100%)',
-              color: '#fff',
-              border: 'none',
-              padding: '10px 18px',
-              borderRadius: '8px',
-              fontWeight: '600',
-              cursor: 'pointer',
-              boxShadow: '0 2px 8px rgba(15, 186, 144, 0.35)',
-            }}
-          >
-            + Khai Báo Chính Sách Mới
-          </button>
-        ) : (
-          <div
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              padding: '6px 14px',
-              borderRadius: '8px',
-              fontSize: '13px',
-              fontWeight: '600',
-              background: '#f8fafc',
-              color: '#64748b',
-              border: '1px solid #e2e8f0',
-            }}
-            title="Chỉ Admin và Quản lý kinh doanh mới có quyền thiết lập chính sách chiết khấu"
-          >
-            <span>Chỉ xem</span>
-          </div>
-        )}
-      </div>
-
-      {/* Danh sách chính sách hiện tại (Khối liền nhau) */}
-      <div
-        style={{
-          background: '#ffffff',
-          borderRadius: '12px',
-          border: '1px solid #e2e8f0',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-          overflow: 'hidden',
-        }}
-      >
-        {policies.length === 0 ? (
-          <div style={{ padding: '40px 20px', textAlign: 'center', color: '#94a3b8', fontSize: '14px' }}>
-            Chưa có chính sách chiết khấu nào được khai báo.
-          </div>
-        ) : (
-          policies.map((policy, index) => (
-            <div
-              key={policy.id}
-              style={{
-                padding: '20px',
-                borderBottom: index < policies.length - 1 ? '1px solid #e2e8f0' : 'none',
-              }}
-            >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                  <h3 style={{ margin: 0, fontSize: '17px', fontWeight: '700', color: '#1e293b' }}>
-                    {policy.title}
-                  </h3>
-                  <span
-                    style={{
-                      background: '#eff6ff',
-                      color: '#2563eb',
-                      padding: '2px 8px',
-                      borderRadius: '6px',
-                      fontSize: '12px',
-                      fontWeight: '700',
-                      fontFamily: 'monospace',
-                    }}
-                  >
-                    {policy.code}
-                  </span>
-                  {policy.category && policy.category !== 'ALL' && policy.category !== 'PRODUCT' ? (
-                    <span
-                      style={{
-                        background: '#fef3c7',
-                        color: '#92400e',
-                        border: '1px solid #fde68a',
-                        padding: '2px 8px',
-                        borderRadius: '6px',
-                        fontSize: '12px',
-                        fontWeight: '700',
-                      }}
-                    >
-                      Nhóm: {policy.category ? String(policy.category).replace(/Qu\?n/g, 'Quần') : ''}
-                    </span>
-                  ) : (!policy.category || policy.category === 'ALL') && policy.title === 'Tất cả sản phẩm' ? (
-                    <span
-                      style={{
-                        background: '#f1f5f9',
-                        color: '#475569',
-                        padding: '2px 8px',
-                        borderRadius: '6px',
-                        fontSize: '12px',
-                        fontWeight: '600',
-                      }}
-                    >
-                      Toàn bộ sản phẩm
-                    </span>
-                  ) : (
-                    <span
-                      style={{
-                        background: '#e0f2fe',
-                        color: '#0369a1',
-                        border: '1px solid #bae6fd',
-                        padding: '2px 8px',
-                        borderRadius: '6px',
-                        fontSize: '12px',
-                        fontWeight: '600',
-                      }}
-                    >
-                      Sản phẩm
-                    </span>
-                  )}
-                  {hasOverlappingTiers(policy.tiers) && (
-                    <span
-                      style={{
-                        background: '#fef2f2',
-                        color: '#dc2626',
-                        border: '1px solid #fca5a5',
-                        padding: '2px 8px',
-                        borderRadius: '6px',
-                        fontSize: '12px',
-                        fontWeight: '700',
-                      }}
-                      title="Chính sách này có các mốc sản lượng bị chồng chéo nhau!"
-                    >
-                      Bị chồng số lượng sản phẩm
-                    </span>
-                  )}
-                </div>
-                <p style={{ margin: '6px 0 0 0', fontSize: '13px', color: '#64748b' }}>
-                  Áp dụng: {policy.target_group === 'all' ? 'Tất cả đại lý' : policy.target_group === 'agent_tier_1' ? 'Đại lý Cấp 1' : 'Đại lý Cấp 2'} | Hiệu lực: {policy.start_date} đến {policy.end_date || 'Không thời hạn'}
-                </p>
-              </div>
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                <span
-                  style={{
-                    padding: '4px 10px',
-                    borderRadius: '999px',
-                    fontSize: '12px',
-                    fontWeight: '600',
-                    background: policy.status === 'active' ? '#dcfce7' : '#f1f5f9',
-                    color: policy.status === 'active' ? '#15803d' : '#64748b',
-                  }}
-                >
-                  {policy.status === 'active' ? 'Đang áp dụng' : policy.status === 'expired' ? 'Đã ngừng' : 'Dự thảo'}
-                </span>
-                {canManageDiscounts && (
-                  <>
-                    <button
-                      onClick={() => handleEditPolicy(policy)}
-                      style={{
-                        background: 'none',
-                        border: '1px solid #cbd5e1',
-                        borderRadius: '6px',
-                        color: '#2563eb',
-                        padding: '4px 8px',
-                        fontSize: '12px',
-                        cursor: 'pointer',
-                        fontWeight: '600',
-                        transition: 'all 0.2s',
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.background = '#eff6ff';
-                        e.currentTarget.style.borderColor = '#93c5fd';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.background = 'none';
-                        e.currentTarget.style.borderColor = '#cbd5e1';
-                      }}
-                      title="Chỉnh sửa chính sách"
-                    >
-                      Sửa
-                    </button>
-                    {policy.status === 'active' ? (
-                      <button
-                        onClick={() => handleStopPolicy(policy.id)}
-                        style={{
-                          background: 'none',
-                          border: '1px solid #fef08a',
-                          borderRadius: '6px',
-                          color: '#ca8a04',
-                          padding: '4px 8px',
-                          fontSize: '12px',
-                          cursor: 'pointer',
-                          fontWeight: '600',
-                          transition: 'all 0.2s',
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.background = '#fefce8';
-                          e.currentTarget.style.borderColor = '#fde047';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.background = 'none';
-                          e.currentTarget.style.borderColor = '#fef08a';
-                        }}
-                      >
-                        Ngừng áp dụng
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => handleDeletePolicy(policy.id)}
-                        style={{
-                          background: 'none',
-                          border: '1px solid #fee2e2',
-                          borderRadius: '6px',
-                          color: '#ef4444',
-                          padding: '4px 8px',
-                          fontSize: '12px',
-                          cursor: 'pointer',
-                          fontWeight: '600',
-                          transition: 'all 0.2s',
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.background = '#fef2f2';
-                          e.currentTarget.style.borderColor = '#fca5a5';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.background = 'none';
-                          e.currentTarget.style.borderColor = '#fee2e2';
-                        }}
-                      >
-                        Xóa
-                      </button>
-                    )}
-                  </>
-                )}
-              </div>
-            </div>
-
-            {/* Bảng bậc chiết khấu */}
-            <div style={{ background: '#f8fafc', borderRadius: '8px', padding: '12px', marginTop: '12px' }}>
-              <div style={{ fontSize: '13px', fontWeight: '700', color: '#334155', marginBottom: '8px' }}>
-                Bậc chiết khấu theo sản lượng:
-              </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
-                {policy.tiers.map((tier, idx) => (
-                  <div
-                    key={tier.id || idx}
-                    style={{
-                      background: '#ffffff',
-                      border: '1px solid #cbd5e1',
-                      borderRadius: '6px',
-                      padding: '8px 12px',
-                      fontSize: '13px',
-                    }}
-                  >
-                    <span style={{ color: '#64748b' }}>Từ </span>
-                    <strong style={{ color: '#0f172a' }}>{tier.min_quantity}</strong>
-                    <span style={{ color: '#64748b' }}> {tier.max_quantity ? `đến ${tier.max_quantity}` : '+'} sp: </span>
-                    <strong style={{ color: '#16a34a', fontSize: '14px' }}>
-                      Giảm {tier.discount_type === 'amount' || (tier.discount_amount && tier.discount_amount > 0 && !tier.discount_percent)
-                        ? `${Number(tier.discount_amount).toLocaleString('vi-VN')} đ/sp`
-                        : `${tier.discount_percent}%`}
-                    </strong>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )))}
-      </div>
-
-      {/* Modal Khai báo chính sách mới */}
-      {isModalOpen && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(15, 23, 42, 0.65)',
-            backdropFilter: 'blur(4px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-            padding: '16px',
-            overflowY: 'auto',
-          }}
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setIsModalOpen(false);
-          }}
-        >
+      {isModalOpen ? (
+        /* TRANG RIÊNG: KHAI BÁO / CHỈNH SỬA CHÍNH SÁCH (THIẾT KẾ GỌN GÀNG HIỆN ĐỦ 100% TRÊN 1 MÀN HÌNH) */
+        <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
           <div
             style={{
               background: '#ffffff',
-              borderRadius: '16px',
-              width: '680px',
-              maxWidth: '100%',
-              display: 'flex',
-              flexDirection: 'column',
-              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+              borderRadius: '12px',
+              border: '1px solid #e2e8f0',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
               overflow: 'hidden',
-              margin: 'auto',
             }}
           >
-            {/* Modal Header (Fixed at top) */}
-            <div
-              style={{
-                padding: '12px 20px',
-                borderBottom: '1px solid #e2e8f0',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                background: '#ffffff',
-                flexShrink: 0,
-              }}
-            >
-              <div>
-                <h3 style={{ margin: 0, fontSize: '17px', fontWeight: '700', color: '#0f172a' }}>
-                  {editingPolicyId ? 'Chỉnh Sửa Chính Sách Chiết Khấu' : 'Khai Báo Chính Sách Chiết Khấu'}
-                </h3>
-                <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: '#64748b' }}>
-                  Cấu hình các mốc sản lượng và tỷ lệ chiết khấu (%) áp dụng cho đại lý
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsModalOpen(false)}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  fontSize: '20px',
-                  cursor: 'pointer',
-                  color: '#64748b',
-                  padding: '4px 8px',
-                  borderRadius: '6px',
-                  lineHeight: 1,
-                }}
-              >
-                ✕
-              </button>
-            </div>
-
-            <form
-              onSubmit={handleSavePolicy}
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                margin: 0,
-              }}
-            >
-              {/* Modal Body (Scrollable with explicit max-height guaranteed to never overflow screen) */}
+            <form onSubmit={handleSavePolicy} style={{ margin: 0 }}>
+              {/* Header thanh công cụ trên cùng: Nút quay lại + Tiêu đề + Nút Lưu */}
               <div
                 style={{
-                  maxHeight: 'min(620px, calc(92vh - 95px))',
-                  overflowY: 'auto',
-                  padding: '14px 20px',
-                  overscrollBehavior: 'contain',
+                  padding: '12px 20px',
+                  borderBottom: '1px solid #e2e8f0',
+                  background: '#f8fafc',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  flexWrap: 'wrap',
+                  gap: '12px',
                 }}
               >
-              {/* Phạm vi áp dụng */}
-              <div style={{ marginBottom: '10px' }}>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '6px', color: '#1e293b' }}>
-                  Phạm vi áp dụng chính sách *
-                </label>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <button
                     type="button"
                     onClick={() => {
-                      setApplyScope('all');
-                      setFormData({
-                        ...formData,
-                        category: 'ALL',
-                        title: 'Tất cả sản phẩm',
-                      });
+                      setIsModalOpen(false);
+                      setEditingPolicyId(null);
                     }}
                     style={{
-                      padding: '7px 10px',
-                      borderRadius: '8px',
-                      border: applyScope === 'all' ? '2px solid #0fba90' : '1px solid #cbd5e1',
-                      background: applyScope === 'all' ? '#ecfdf5' : '#ffffff',
-                      color: applyScope === 'all' ? '#065f46' : '#475569',
-                      fontWeight: applyScope === 'all' ? '700' : '500',
-                      cursor: 'pointer',
-                      fontSize: '12px',
-                      display: 'flex',
+                      display: 'inline-flex',
                       alignItems: 'center',
-                      justifyContent: 'center',
                       gap: '6px',
+                      padding: '7px 14px',
+                      borderRadius: '8px',
+                      border: '1px solid #cbd5e1',
+                      background: '#ffffff',
+                      color: '#1e293b',
+                      fontWeight: '600',
+                      fontSize: '13px',
+                      cursor: 'pointer',
+                      boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
                       transition: 'all 0.15s ease',
                     }}
-                  >
-                    Tất cả sản phẩm
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setApplyScope('category');
-                      const firstCat = categories[0] || 'Thời trang';
-                      setFormData({
-                        ...formData,
-                        category: firstCat,
-                        title: `Nhóm hàng: ${firstCat}`,
-                      });
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = '#f1f5f9';
+                      e.currentTarget.style.borderColor = '#94a3b8';
                     }}
-                    style={{
-                      padding: '7px 10px',
-                      borderRadius: '8px',
-                      border: applyScope === 'category' ? '2px solid #0fba90' : '1px solid #cbd5e1',
-                      background: applyScope === 'category' ? '#ecfdf5' : '#ffffff',
-                      color: applyScope === 'category' ? '#065f46' : '#475569',
-                      fontWeight: applyScope === 'category' ? '700' : '500',
-                      cursor: 'pointer',
-                      fontSize: '12px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '6px',
-                      transition: 'all 0.15s ease',
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = '#ffffff';
+                      e.currentTarget.style.borderColor = '#cbd5e1';
                     }}
                   >
-                    1 Nhóm hàng
+                    <span style={{ fontSize: '16px', lineHeight: 1 }}>←</span> Quay lại danh sách
                   </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setApplyScope('product');
-                      const firstProd = products[0];
-                      setFormData({
-                        ...formData,
-                        category: firstProd?.category || 'ALL',
-                        title: firstProd ? `${firstProd.code} - ${firstProd.name}` : '',
-                      });
-                    }}
-                    style={{
-                      padding: '7px 10px',
-                      borderRadius: '8px',
-                      border: applyScope === 'product' ? '2px solid #0fba90' : '1px solid #cbd5e1',
-                      background: applyScope === 'product' ? '#ecfdf5' : '#ffffff',
-                      color: applyScope === 'product' ? '#065f46' : '#475569',
-                      fontWeight: applyScope === 'product' ? '700' : '500',
-                      cursor: 'pointer',
-                      fontSize: '12px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '6px',
-                      transition: 'all 0.15s ease',
-                    }}
-                  >
-                    1 Sản phẩm lẻ
-                  </button>
+                  <div>
+                    <h2 style={{ margin: 0, fontSize: '18px', fontWeight: '700', color: '#0f172a', lineHeight: 1.2 }}>
+                      {editingPolicyId ? 'Chỉnh Sửa Chính Sách Chiết Khấu' : 'Khai Báo Chính Sách Chiết Khấu Mới'}
+                    </h2>
+                    <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: '#64748b' }}>
+                      Cấu hình phạm vi áp dụng, đối tượng khách hàng và các mốc sản lượng chiết khấu (%)
+                    </p>
+                  </div>
                 </div>
+
               </div>
 
-              {/* Chi tiết đối tượng áp dụng & Mã chính sách */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '12px', marginBottom: '10px' }}>
-                <div>
-                  {applyScope === 'category' ? (
-                    <>
-                      <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '4px', color: '#1e293b' }}>
-                        Chọn nhóm hàng áp dụng *
-                      </label>
-                      <select
-                        required
-                        value={formData.category}
-                        onChange={(e) => {
-                          const cat = e.target.value;
+              {/* Thân trang: Bố cục 2 cột gọn gàng để hiển thị trọn vẹn ở zoom 100% */}
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))',
+                  gap: '20px',
+                  padding: '16px 20px',
+                }}
+              >
+                {/* Cột 1: Thông tin cơ bản chính sách */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {/* 1. Phạm vi áp dụng */}
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', marginBottom: '6px', color: '#1e293b' }}>
+                      Phạm vi áp dụng chính sách *
+                    </label>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setApplyScope('all');
                           setFormData({
                             ...formData,
-                            category: cat,
-                            title: `Nhóm hàng: ${cat}`,
+                            category: 'ALL',
+                            title: 'Tất cả sản phẩm',
                           });
                         }}
-                        style={{ width: '100%', padding: '6px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', backgroundColor: 'white', fontSize: '13px' }}
+                        style={{
+                          padding: '7px 8px',
+                          borderRadius: '7px',
+                          border: applyScope === 'all' ? '2px solid #0fba90' : '1px solid #cbd5e1',
+                          background: applyScope === 'all' ? '#ecfdf5' : '#ffffff',
+                          color: applyScope === 'all' ? '#065f46' : '#475569',
+                          fontWeight: applyScope === 'all' ? '700' : '500',
+                          cursor: 'pointer',
+                          fontSize: '12px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '4px',
+                          transition: 'all 0.15s ease',
+                        }}
                       >
-                        <option value="">-- Chọn nhóm hàng --</option>
-                        {categories.map((c) => (
-                          <option key={c} value={c}>{c}</option>
-                        ))}
-                      </select>
-                    </>
-                  ) : applyScope === 'product' ? (
-                    <>
-                      <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '4px', color: '#1e293b' }}>
-                        Chọn sản phẩm áp dụng *
-                      </label>
-                      <select
-                        required
-                        value={formData.title}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          const selectedProd = products.find(p => `${p.code} - ${p.name}` === val);
+                         Tất cả SP
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setApplyScope('category');
+                          const firstCat = categories[0] || 'Thời trang';
                           setFormData({
                             ...formData,
-                            title: val,
-                            category: selectedProd?.category || 'ALL',
+                            category: firstCat,
+                            title: `Nhóm hàng: ${firstCat}`,
                           });
                         }}
-                        style={{ width: '100%', padding: '6px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', backgroundColor: 'white', fontSize: '13px' }}
+                        style={{
+                          padding: '7px 8px',
+                          borderRadius: '7px',
+                          border: applyScope === 'category' ? '2px solid #0fba90' : '1px solid #cbd5e1',
+                          background: applyScope === 'category' ? '#ecfdf5' : '#ffffff',
+                          color: applyScope === 'category' ? '#065f46' : '#475569',
+                          fontWeight: applyScope === 'category' ? '700' : '500',
+                          cursor: 'pointer',
+                          fontSize: '12px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '4px',
+                          transition: 'all 0.15s ease',
+                        }}
                       >
-                        <option value="">-- Chọn sản phẩm --</option>
-                        {products.map(p => (
-                          <option key={p.id} value={`${p.code} - ${p.name}`}>{p.code} - {p.name}</option>
-                        ))}
-                      </select>
-                    </>
-                  ) : (
-                    <>
+                         1 Nhóm hàng
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setApplyScope('product');
+                          const firstProd = products[0];
+                          setFormData({
+                            ...formData,
+                            category: firstProd?.category || 'ALL',
+                            title: firstProd ? `${firstProd.code} - ${firstProd.name}` : '',
+                          });
+                        }}
+                        style={{
+                          padding: '7px 8px',
+                          borderRadius: '7px',
+                          border: applyScope === 'product' ? '2px solid #0fba90' : '1px solid #cbd5e1',
+                          background: applyScope === 'product' ? '#ecfdf5' : '#ffffff',
+                          color: applyScope === 'product' ? '#065f46' : '#475569',
+                          fontWeight: applyScope === 'product' ? '700' : '500',
+                          cursor: 'pointer',
+                          fontSize: '12px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '4px',
+                          transition: 'all 0.15s ease',
+                        }}
+                      >
+                         1 SP lẻ
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 2. Chi tiết phạm vi & Mã chính sách */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '10px' }}>
+                    <div>
+                      {applyScope === 'category' ? (
+                        <>
+                          <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '4px', color: '#1e293b' }}>
+                            Chọn nhóm hàng *
+                          </label>
+                          <select
+                            required
+                            value={formData.category}
+                            onChange={(e) => {
+                              const cat = e.target.value;
+                              setFormData({
+                                ...formData,
+                                category: cat,
+                                title: `Nhóm hàng: ${cat}`,
+                              });
+                            }}
+                            style={{ width: '100%', padding: '7px 10px', borderRadius: '7px', border: '1px solid #cbd5e1', backgroundColor: 'white', fontSize: '13px', boxSizing: 'border-box' }}
+                          >
+                            <option value="">-- Chọn nhóm hàng --</option>
+                            {categories.map((c) => (
+                              <option key={c} value={c}>{c}</option>
+                            ))}
+                          </select>
+                        </>
+                      ) : applyScope === 'product' ? (
+                        <>
+                          <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '4px', color: '#1e293b' }}>
+                            Chọn sản phẩm *
+                          </label>
+                          <select
+                            required
+                            value={formData.title}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              const selectedProd = products.find(p => `${p.code} - ${p.name}` === val);
+                              setFormData({
+                                ...formData,
+                                title: val,
+                                category: selectedProd?.category || 'ALL',
+                              });
+                            }}
+                            style={{ width: '100%', padding: '7px 10px', borderRadius: '7px', border: '1px solid #cbd5e1', backgroundColor: 'white', fontSize: '13px', boxSizing: 'border-box' }}
+                          >
+                            <option value="">-- Chọn sản phẩm --</option>
+                            {products.map(p => (
+                              <option key={p.id} value={`${p.code} - ${p.name}`}>{p.code} - {p.name}</option>
+                            ))}
+                          </select>
+                        </>
+                      ) : (
+                        <>
+                          <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '4px', color: '#1e293b' }}>
+                            Phạm vi áp dụng
+                          </label>
+                          <input
+                            type="text"
+                            disabled
+                            value="Toàn bộ sản phẩm trong hệ thống"
+                            style={{ width: '100%', padding: '7px 10px', borderRadius: '7px', border: '1px solid #e2e8f0', backgroundColor: '#f8fafc', color: '#64748b', fontSize: '13px', boxSizing: 'border-box' }}
+                          />
+                        </>
+                      )}
+                    </div>
+
+                    <div>
                       <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '4px', color: '#1e293b' }}>
-                        Phạm vi áp dụng
+                        Mã chính sách *
                       </label>
                       <input
                         type="text"
-                        disabled
-                        value="Toàn bộ sản phẩm trong hệ thống"
-                        style={{ width: '100%', padding: '6px 10px', borderRadius: '6px', border: '1px solid #e2e8f0', backgroundColor: '#f8fafc', color: '#64748b', fontSize: '13px' }}
+                        required
+                        value={formData.code}
+                        onChange={(e) => setFormData({ ...formData, code: e.target.value })}
+                        placeholder="VD: CK-2026..."
+                        style={{ width: '100%', padding: '7px 10px', borderRadius: '7px', border: '1px solid #cbd5e1', fontSize: '13px', boxSizing: 'border-box' }}
                       />
-                    </>
-                  )}
+                    </div>
+                  </div>
+
+                  {/* 3. Tên chính sách */}
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '4px', color: '#1e293b' }}>
+                      Tên chính sách chiết khấu *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Ví dụ: Chiết khấu nhóm Thời trang, Chiết khấu Đại lý Cấp 1..."
+                      value={formData.title}
+                      onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                      style={{ width: '100%', padding: '7px 10px', borderRadius: '7px', border: '1px solid #cbd5e1', fontSize: '13px', boxSizing: 'border-box' }}
+                    />
+                  </div>
+
+                  {/* 4. Đối tượng & Thời gian hiệu lực */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '4px' }}>
+                        Đối tượng
+                      </label>
+                      <select
+                        value={formData.target_group}
+                        onChange={(e) => setFormData({ ...formData, target_group: e.target.value as any })}
+                        style={{ width: '100%', padding: '7px 10px', borderRadius: '7px', border: '1px solid #cbd5e1', fontSize: '13px', boxSizing: 'border-box' }}
+                      >
+                        <option value="all">Tất cả Đại lý</option>
+                        <option value="agent_tier_1">Đại lý Cấp 1</option>
+                        <option value="agent_tier_2">Đại lý Cấp 2</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '4px' }}>
+                        Từ ngày
+                      </label>
+                      <input
+                        type="date"
+                        value={formData.start_date}
+                        onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
+                        style={{ width: '100%', padding: '7px 8px', borderRadius: '7px', border: '1px solid #cbd5e1', fontSize: '13px', boxSizing: 'border-box' }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '4px' }}>
+                        Đến ngày
+                      </label>
+                      <input
+                        type="date"
+                        value={formData.end_date}
+                        onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
+                        style={{ width: '100%', padding: '7px 8px', borderRadius: '7px', border: '1px solid #cbd5e1', fontSize: '13px', boxSizing: 'border-box' }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* 5. Ghi chú */}
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '4px', color: '#1e293b' }}>
+                      Ghi chú / Diễn giải
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.note || ''}
+                      placeholder="Ghi chú điều kiện áp dụng nếu có..."
+                      onChange={(e) => setFormData({ ...formData, note: e.target.value })}
+                      style={{ width: '100%', padding: '7px 10px', borderRadius: '7px', border: '1px solid #cbd5e1', fontSize: '13px', boxSizing: 'border-box' }}
+                    />
+                  </div>
                 </div>
 
-                <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '4px', color: '#1e293b' }}>
-                    Mã chính sách *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.code}
-                    onChange={(e) => setFormData({ ...formData, code: e.target.value })}
-                    style={{ width: '100%', padding: '6px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px' }}
-                  />
-                </div>
-              </div>
+                {/* Cột 2: Cấu hình mốc sản lượng & Chiết khấu (%) */}
+                <div
+                  style={{
+                    background: '#f8fafc',
+                    borderRadius: '10px',
+                    border: '1px solid #e2e8f0',
+                    padding: '14px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                    <div>
+                      <label style={{ fontSize: '13px', fontWeight: '700', color: '#1e293b' }}>
+                        Cấu hình mốc sản lượng & Chiết khấu (%) *
+                      </label>
+                      <p style={{ margin: '2px 0 0 0', fontSize: '11.5px', color: '#64748b' }}>
+                        Chiết khấu tự động áp dụng theo số lượng đặt hàng
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleAddTier}
+                      style={{
+                        background: '#ffffff',
+                        border: '1px solid #cbd5e1',
+                        color: '#0f172a',
+                        padding: '5px 12px',
+                        borderRadius: '6px',
+                        fontSize: '12px',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                      }}
+                    >
+                      + Thêm mốc
+                    </button>
+                  </div>
 
-              {/* Tên chính sách chiết khấu */}
-              <div style={{ marginBottom: '10px' }}>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '4px', color: '#1e293b' }}>
-                  Tên chính sách chiết khấu *
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Ví dụ: Chiết khấu nhóm Thời trang, Chiết khấu Đại lý Cấp 1..."
-                  value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  style={{ width: '100%', padding: '6px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px' }}
-                />
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginBottom: '12px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '4px' }}>
-                    Đối tượng áp dụng
-                  </label>
-                  <select
-                    value={formData.target_group}
-                    onChange={(e) => setFormData({ ...formData, target_group: e.target.value as any })}
-                    style={{ width: '100%', padding: '6px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px' }}
-                  >
-                    <option value="all">Tất cả Đại lý</option>
-                    <option value="agent_tier_1">Đại lý Cấp 1</option>
-                    <option value="agent_tier_2">Đại lý Cấp 2</option>
-                  </select>
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '4px' }}>
-                    Ngày bắt đầu
-                  </label>
-                  <input
-                    type="date"
-                    value={formData.start_date}
-                    onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
-                    style={{ width: '100%', padding: '6px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px' }}
-                  />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '4px' }}>
-                    Ngày kết thúc
-                  </label>
-                  <input
-                    type="date"
-                    value={formData.end_date}
-                    onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
-                    style={{ width: '100%', padding: '6px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px' }}
-                  />
-                </div>
-              </div>
-
-              {/* Bảng thiết lập Bậc Sản Lượng */}
-              <div style={{ marginBottom: '6px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                  <label style={{ fontSize: '13px', fontWeight: '700', color: '#1e293b' }}>
-                    Cấu hình mốc sản lượng & Chiết khấu (%)
-                  </label>
-                  <button
-                    type="button"
-                    onClick={handleAddTier}
+                  <div
                     style={{
-                      background: '#f1f5f9',
-                      border: '1px solid #cbd5e1',
-                      color: '#0f172a',
-                      padding: '3px 9px',
-                      borderRadius: '6px',
-                      fontSize: '12px',
-                      fontWeight: '600',
-                      cursor: 'pointer',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '8px',
+                      maxHeight: '260px',
+                      overflowY: 'auto',
+                      paddingRight: '2px',
                     }}
                   >
-                    + Thêm mốc
-                  </button>
-                </div>
+                    {formData.tiers.map((tier, index) => {
+                      const prevTier = index > 0 ? formData.tiers[index - 1] : null;
+                      const isOverlapping = prevTier !== null && (
+                        prevTier.max_quantity === null || prevTier.max_quantity === undefined || prevTier.max_quantity === ''
+                          ? true
+                          : (tier.min_quantity !== '' && Number(tier.min_quantity) <= Number(prevTier.max_quantity))
+                      );
+                      const isInvalidMax = tier.max_quantity !== null && tier.max_quantity !== undefined && tier.max_quantity !== '' && tier.min_quantity !== '' && Number(tier.max_quantity) < Number(tier.min_quantity);
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  {formData.tiers.map((tier, index) => {
-                    const prevTier = index > 0 ? formData.tiers[index - 1] : null;
-                    const isOverlapping = prevTier !== null && (
-                      prevTier.max_quantity === null || prevTier.max_quantity === undefined
-                        ? true
-                        : tier.min_quantity <= prevTier.max_quantity
-                    );
-                    const isInvalidMax = tier.max_quantity !== null && tier.max_quantity !== undefined && tier.max_quantity < tier.min_quantity;
+                      return (
+                        <div
+                          key={tier.id}
+                          style={{
+                            background: isOverlapping || isInvalidMax ? '#fef2f2' : '#ffffff',
+                            padding: '8px 10px',
+                            borderRadius: '7px',
+                            border: isOverlapping || isInvalidMax ? '1px solid #fca5a5' : '1px solid #cbd5e1',
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                            <span style={{ fontSize: '12px', fontWeight: '600', color: '#475569', minWidth: '48px' }}>
+                              Mốc {index + 1}:
+                            </span>
+                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                              <span style={{ fontSize: '12px', color: '#64748b' }}>Từ</span>
+                              <input
+                                type="number"
+                                min="0"
+                                placeholder="Từ"
+                                value={tier.min_quantity ?? ''}
+                                onChange={(e) => handleTierChange(tier.id, 'min_quantity', e.target.value)}
+                                style={{
+                                  width: '75px',
+                                  padding: '4px 6px',
+                                  borderRadius: '6px',
+                                  border: isOverlapping ? '1.5px solid #ef4444' : '1px solid #cbd5e1',
+                                  backgroundColor: '#ffffff',
+                                  fontSize: '12.5px',
+                                }}
+                              />
+                            </div>
+                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                              <span style={{ fontSize: '12px', color: '#64748b' }}>đến</span>
+                              <input
+                                type="number"
+                                min="0"
+                                placeholder="Vô hạn"
+                                value={tier.max_quantity ?? ''}
+                                onChange={(e) => handleTierChange(tier.id, 'max_quantity', e.target.value)}
+                                style={{
+                                  width: '80px',
+                                  padding: '4px 6px',
+                                  borderRadius: '6px',
+                                  border: isInvalidMax ? '1.5px solid #ef4444' : '1px solid #cbd5e1',
+                                  backgroundColor: '#ffffff',
+                                  fontSize: '12.5px',
+                                }}
+                              />
+                              <span style={{ fontSize: '12px', color: '#64748b' }}>sp</span>
+                            </div>
+                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                              <span style={{ fontSize: '12px', color: '#64748b' }}>➔ Giảm</span>
+                              <input
+                                type="number"
+                                min="0"
+                                max="100"
+                                step="0.5"
+                                placeholder="%"
+                                value={tier.discount_percent ?? ''}
+                                onChange={(e) => handleTierChange(tier.id, 'discount_percent', e.target.value)}
+                                style={{
+                                  width: '65px',
+                                  padding: '4px 6px',
+                                  borderRadius: '6px',
+                                  border: '1px solid #cbd5e1',
+                                  fontWeight: '700',
+                                  fontSize: '13px',
+                                  color: '#0f766e',
+                                }}
+                              />
+                              <span style={{ fontSize: '13px', fontWeight: '700', color: '#0f766e' }}>%</span>
+                            </div>
 
-                    return (
-                      <div
-                        key={tier.id}
-                        style={{
-                          background: isOverlapping || isInvalidMax ? '#fef2f2' : '#f8fafc',
-                          padding: '8px 10px',
-                          borderRadius: '8px',
-                          border: isOverlapping || isInvalidMax ? '1px solid #fca5a5' : '1px solid #e2e8f0',
-                        }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <span style={{ fontSize: '12px', color: '#64748b', minWidth: '46px' }}>Mốc {index + 1}:</span>
-                          <input
-                            type="number"
-                            min="0"
-                            placeholder="Từ (SL)"
-                            value={tier.min_quantity}
-                            onChange={(e) => handleTierChange(tier.id, 'min_quantity', e.target.value)}
-                            style={{
-                              width: '95px',
-                              padding: '5px 8px',
-                              borderRadius: '6px',
-                              border: isOverlapping ? '1.5px solid #ef4444' : '1px solid #cbd5e1',
-                              backgroundColor: '#ffffff',
-                              fontSize: '13px',
-                            }}
-                          />
-                          <span style={{ fontSize: '12px', color: '#64748b' }}>đến</span>
-                          <input
-                            type="number"
-                            min="0"
-                            placeholder="Không giới hạn"
-                            value={tier.max_quantity ?? ''}
-                            onChange={(e) => handleTierChange(tier.id, 'max_quantity', e.target.value)}
-                            style={{
-                              width: '105px',
-                              padding: '5px 8px',
-                              borderRadius: '6px',
-                              border: isInvalidMax ? '1.5px solid #ef4444' : '1px solid #cbd5e1',
-                              backgroundColor: '#ffffff',
-                              fontSize: '13px',
-                            }}
-                          />
-                          <span style={{ fontSize: '12px', color: '#64748b' }}>sp ➔ Giảm</span>
-                          <input
-                            type="number"
-                            min="0"
-                            max="100"
-                            step="0.5"
-                            placeholder="%"
-                            value={tier.discount_percent}
-                            onChange={(e) => handleTierChange(tier.id, 'discount_percent', e.target.value)}
-                            style={{ width: '75px', padding: '5px 8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontWeight: '700', fontSize: '13px' }}
-                          />
-                          <span style={{ fontSize: '12px', fontWeight: '700' }}>%</span>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveTier(tier.id)}
+                              style={{
+                                marginLeft: 'auto',
+                                background: '#fef2f2',
+                                color: '#ef4444',
+                                border: '1px solid #fecaca',
+                                borderRadius: '6px',
+                                padding: '4px 8px',
+                                cursor: 'pointer',
+                                fontSize: '11px',
+                                fontWeight: '600',
+                              }}
+                            >
+                              Xóa
+                            </button>
+                          </div>
 
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveTier(tier.id)}
-                            style={{
-                              marginLeft: 'auto',
-                              background: '#fef2f2',
-                              color: '#ef4444',
-                              border: '1px solid #fecaca',
-                              borderRadius: '6px',
-                              padding: '4px 8px',
-                              cursor: 'pointer',
-                              fontSize: '12px',
-                            }}
-                          >
-                            Xóa
-                          </button>
+                          {isOverlapping && (
+                            <div style={{ color: '#dc2626', fontSize: '11.5px', fontWeight: '600', marginTop: '6px' }}>
+                              Bị chồng số lượng: Mốc này phải từ {prevTier?.max_quantity ? Number(prevTier.max_quantity) + 1 : Number(prevTier?.min_quantity || 0) + 1} sp trở lên!
+                            </div>
+                          )}
+                          {isInvalidMax && (
+                            <div style={{ color: '#dc2626', fontSize: '11.5px', fontWeight: '600', marginTop: '6px' }}>
+                              Số lượng tối đa phải lớn hơn hoặc bằng số lượng tối thiểu!
+                            </div>
+                          )}
                         </div>
-
-                        {isOverlapping && (
-                          <div style={{ color: '#dc2626', fontSize: '12px', fontWeight: '600', marginTop: '6px', paddingLeft: '54px' }}>
-                            Bị chồng số lượng sản phẩm: Mốc này phải bắt đầu từ {prevTier?.max_quantity ? Number(prevTier.max_quantity) + 1 : Number(prevTier?.min_quantity || 0) + 1} sp trở lên!
-                          </div>
-                        )}
-                        {isInvalidMax && (
-                          <div style={{ color: '#dc2626', fontSize: '12px', fontWeight: '600', marginTop: '6px', paddingLeft: '54px' }}>
-                            Số lượng tối đa phải lớn hơn hoặc bằng số lượng tối thiểu!
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
 
-              </div>
-
-              {/* Action Buttons (Fixed Footer - Always Visible) */}
+              {/* Thanh thao tác dưới cùng */}
               <div
                 style={{
                   padding: '10px 20px',
                   borderTop: '1px solid #e2e8f0',
                   background: '#f8fafc',
                   display: 'flex',
-                  justifyContent: 'flex-end',
-                  gap: '12px',
-                  flexShrink: 0,
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
                 }}
               >
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  style={{
-                    padding: '9px 18px',
-                    borderRadius: '8px',
-                    border: '1px solid #cbd5e1',
-                    background: '#ffffff',
-                    color: '#475569',
-                    fontWeight: '600',
-                    fontSize: '13px',
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease',
-                  }}
-                >
-                  Hủy Bỏ
-                </button>
-                <button
-                  type="submit"
-                  style={{
-                    padding: '9px 22px',
-                    borderRadius: '8px',
-                    border: 'none',
-                    background: 'linear-gradient(135deg, #0fba90 0%, #0fad89 100%)',
-                    color: '#fff',
-                    fontWeight: '700',
-                    fontSize: '13px',
-                    cursor: 'pointer',
-                    boxShadow: '0 2px 8px rgba(15, 186, 144, 0.35)',
-                    transition: 'all 0.15s ease',
-                  }}
-                >
-                  Lưu & Áp Dụng
-                </button>
+                <span style={{ fontSize: '12px', color: '#64748b' }}>
+                  * Vui lòng kiểm tra kỹ tỷ lệ chiết khấu trước khi lưu áp dụng
+                </span>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsModalOpen(false);
+                      setEditingPolicyId(null);
+                    }}
+                    style={{
+                      padding: '8px 16px',
+                      borderRadius: '7px',
+                      border: '1px solid #cbd5e1',
+                      background: '#ffffff',
+                      color: '#475569',
+                      fontWeight: '600',
+                      fontSize: '13px',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    ← Quay lại danh sách
+                  </button>
+                  <button
+                    type="submit"
+                    style={{
+                      padding: '8px 22px',
+                      borderRadius: '7px',
+                      border: 'none',
+                      background: 'linear-gradient(135deg, #0fba90 0%, #0fad89 100%)',
+                      color: '#fff',
+                      fontWeight: '700',
+                      fontSize: '13px',
+                      cursor: 'pointer',
+                      boxShadow: '0 2px 8px rgba(15, 186, 144, 0.35)',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    Lưu & Áp Dụng Chính Sách
+                  </button>
+                </div>
               </div>
             </form>
           </div>
         </div>
+      ) : (
+        /* TRANG DANH SÁCH CHÍNH SÁCH */
+        <>
+          {/* Header View */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+            <div>
+              <h2 style={{ margin: 0, fontSize: '22px', color: '#0f172a', fontWeight: '700' }}>
+                Quản Lý Chính Sách Chiết Khấu Sản Lượng
+              </h2>
+              <p style={{ margin: '4px 0 0 0', color: '#64748b', fontSize: '14px' }}>
+                Khai báo mốc sản lượng & tỷ lệ chiết khấu tự động dành cho đại lý
+              </p>
+            </div>
+            {canManageDiscounts ? (
+              <button
+                onClick={() => {
+                  setEditingPolicyId(null);
+                  setApplyScope('all');
+                  setFormData({
+                    title: 'Tất cả sản phẩm',
+                    code: `CK-${Math.floor(1000 + Math.random() * 9000)}`,
+                    category: 'ALL',
+                    target_group: 'all',
+                    start_date: new Date().toISOString().split('T')[0],
+                    end_date: '',
+                    status: 'active',
+                    note: '',
+                    tiers: [
+                      { id: Date.now().toString(), min_quantity: 100, max_quantity: 499, discount_percent: 5 },
+                    ],
+                  });
+                  setIsModalOpen(true);
+                }}
+                style={{
+                  background: 'linear-gradient(135deg, #0fba90 0%, #0fad89 100%)',
+                  color: '#fff',
+                  border: 'none',
+                  padding: '10px 18px',
+                  borderRadius: '8px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 8px rgba(15, 186, 144, 0.35)',
+                }}
+              >
+                + Khai Báo Chính Sách Mới
+              </button>
+            ) : (
+              <div
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  padding: '6px 14px',
+                  borderRadius: '8px',
+                  fontSize: '13px',
+                  fontWeight: '600',
+                  background: '#f8fafc',
+                  color: '#64748b',
+                  border: '1px solid #e2e8f0',
+                }}
+                title="Chỉ Admin và Quản lý kinh doanh mới có quyền thiết lập chính sách chiết khấu"
+              >
+                <span>Chỉ xem</span>
+              </div>
+            )}
+          </div>
+
+          {/* Danh sách chính sách hiện tại (Khối liền nhau) */}
+          <div
+            style={{
+              background: '#ffffff',
+              borderRadius: '12px',
+              border: '1px solid #e2e8f0',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+              overflow: 'hidden',
+            }}
+          >
+            {policies.length === 0 ? (
+              <div style={{ padding: '40px 20px', textAlign: 'center', color: '#94a3b8', fontSize: '14px' }}>
+                Chưa có chính sách chiết khấu nào được khai báo.
+              </div>
+            ) : (
+              policies.map((policy, index) => (
+                <div
+                  key={policy.id}
+                  style={{
+                    padding: '20px',
+                    borderBottom: index < policies.length - 1 ? '1px solid #e2e8f0' : 'none',
+                  }}
+                >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                      <h3 style={{ margin: 0, fontSize: '17px', fontWeight: '700', color: '#1e293b' }}>
+                        {policy.title}
+                      </h3>
+                      <span
+                        style={{
+                          background: '#eff6ff',
+                          color: '#2563eb',
+                          padding: '2px 8px',
+                          borderRadius: '6px',
+                          fontSize: '12px',
+                          fontWeight: '700',
+                          fontFamily: 'monospace',
+                        }}
+                      >
+                        {policy.code}
+                      </span>
+                      {policy.category && policy.category !== 'ALL' && policy.category !== 'PRODUCT' ? (
+                        <span
+                          style={{
+                            background: '#fef3c7',
+                            color: '#92400e',
+                            border: '1px solid #fde68a',
+                            padding: '2px 8px',
+                            borderRadius: '6px',
+                            fontSize: '12px',
+                            fontWeight: '700',
+                          }}
+                        >
+                          Nhóm: {policy.category ? String(policy.category).replace(/Qu\?n/g, 'Quần') : ''}
+                        </span>
+                      ) : (!policy.category || policy.category === 'ALL') && policy.title === 'Tất cả sản phẩm' ? (
+                        <span
+                          style={{
+                            background: '#f1f5f9',
+                            color: '#475569',
+                            padding: '2px 8px',
+                            borderRadius: '6px',
+                            fontSize: '12px',
+                            fontWeight: '600',
+                          }}
+                        >
+                          Toàn bộ sản phẩm
+                        </span>
+                      ) : (
+                        <span
+                          style={{
+                            background: '#e0f2fe',
+                            color: '#0369a1',
+                            border: '1px solid #bae6fd',
+                            padding: '2px 8px',
+                            borderRadius: '6px',
+                            fontSize: '12px',
+                            fontWeight: '600',
+                          }}
+                        >
+                          Sản phẩm
+                        </span>
+                      )}
+                      {hasOverlappingTiers(policy.tiers) && (
+                        <span
+                          style={{
+                            background: '#fef2f2',
+                            color: '#dc2626',
+                            border: '1px solid #fca5a5',
+                            padding: '2px 8px',
+                            borderRadius: '6px',
+                            fontSize: '12px',
+                            fontWeight: '700',
+                          }}
+                          title="Chính sách này có các mốc sản lượng bị chồng chéo nhau!"
+                        >
+                          Bị chồng số lượng sản phẩm
+                        </span>
+                      )}
+                    </div>
+                    <p style={{ margin: '6px 0 0 0', fontSize: '13px', color: '#64748b' }}>
+                      Áp dụng: {policy.target_group === 'all' ? 'Tất cả đại lý' : policy.target_group === 'agent_tier_1' ? 'Đại lý Cấp 1' : 'Đại lý Cấp 2'} | Hiệu lực: {policy.start_date} đến {policy.end_date || 'Không thời hạn'}
+                    </p>
+                  </div>
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <span
+                      style={{
+                        padding: '4px 10px',
+                        borderRadius: '999px',
+                        fontSize: '12px',
+                        fontWeight: '600',
+                        background: policy.status === 'active' ? '#dcfce7' : '#f1f5f9',
+                        color: policy.status === 'active' ? '#15803d' : '#64748b',
+                      }}
+                    >
+                      {policy.status === 'active' ? 'Đang áp dụng' : policy.status === 'expired' ? 'Đã ngừng' : 'Dự thảo'}
+                    </span>
+                    {canManageDiscounts && (
+                      <>
+                        <button
+                          onClick={() => handleEditPolicy(policy)}
+                          style={{
+                            background: 'none',
+                            border: '1px solid #cbd5e1',
+                            borderRadius: '6px',
+                            color: '#2563eb',
+                            padding: '4px 8px',
+                            fontSize: '12px',
+                            cursor: 'pointer',
+                            fontWeight: '600',
+                            transition: 'all 0.2s',
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.background = '#eff6ff';
+                            e.currentTarget.style.borderColor = '#93c5fd';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.background = 'none';
+                            e.currentTarget.style.borderColor = '#cbd5e1';
+                          }}
+                          title="Chỉnh sửa chính sách"
+                        >
+                          Sửa
+                        </button>
+                        {policy.status === 'active' ? (
+                          <button
+                            onClick={() => handleStopPolicy(policy.id)}
+                            style={{
+                              background: 'none',
+                              border: '1px solid #fef08a',
+                              borderRadius: '6px',
+                              color: '#ca8a04',
+                              padding: '4px 8px',
+                              fontSize: '12px',
+                              cursor: 'pointer',
+                              fontWeight: '600',
+                              transition: 'all 0.2s',
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.background = '#fefce8';
+                              e.currentTarget.style.borderColor = '#fde047';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.background = 'none';
+                              e.currentTarget.style.borderColor = '#fef08a';
+                            }}
+                          >
+                            Ngừng áp dụng
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => handleDeletePolicy(policy.id)}
+                            style={{
+                              background: 'none',
+                              border: '1px solid #fee2e2',
+                              borderRadius: '6px',
+                              color: '#ef4444',
+                              padding: '4px 8px',
+                              fontSize: '12px',
+                              cursor: 'pointer',
+                              fontWeight: '600',
+                              transition: 'all 0.2s',
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.background = '#fef2f2';
+                              e.currentTarget.style.borderColor = '#fca5a5';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.background = 'none';
+                              e.currentTarget.style.borderColor = '#fee2e2';
+                            }}
+                          >
+                            Xóa
+                          </button>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {/* Bảng bậc chiết khấu */}
+                <div style={{ background: '#f8fafc', borderRadius: '8px', padding: '12px', marginTop: '12px' }}>
+                  <div style={{ fontSize: '13px', fontWeight: '700', color: '#334155', marginBottom: '8px' }}>
+                    Bậc chiết khấu theo sản lượng:
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
+                    {policy.tiers.map((tier, idx) => (
+                      <div
+                        key={tier.id || idx}
+                        style={{
+                          background: '#ffffff',
+                          border: '1px solid #cbd5e1',
+                          borderRadius: '6px',
+                          padding: '8px 12px',
+                          fontSize: '13px',
+                        }}
+                      >
+                        <span style={{ color: '#64748b' }}>Từ </span>
+                        <strong style={{ color: '#0f172a' }}>{tier.min_quantity}</strong>
+                        <span style={{ color: '#64748b' }}> {tier.max_quantity ? `đến ${tier.max_quantity}` : '+'} sp: </span>
+                        <strong style={{ color: '#16a34a', fontSize: '14px' }}>
+                          Giảm {tier.discount_type === 'amount' || (tier.discount_amount && Number(tier.discount_amount) > 0 && !tier.discount_percent)
+                            ? `${Number(tier.discount_amount).toLocaleString('vi-VN')} đ/sp`
+                            : `${tier.discount_percent}%`}
+                        </strong>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )))}
+          </div>
+        </>
       )}
     </div>
   );
