@@ -24,7 +24,6 @@ import { OrderCreateModal } from './OrderCreateModal';
 import { RejectOrderModal } from './RejectOrderModal';
 import { ApproveOrderModal } from './ApproveOrderModal';
 import { ReturnOrderModal } from './ReturnOrderModal';
-import { OrderApprovalHistory } from './OrderApprovalHistory';
 import { emitStatusToast } from './StatusToast';
 import { OrderLifecycleTimeline } from './OrderLifecycleTimeline';
 import { OrderCancelModal } from './OrderCancelModal';
