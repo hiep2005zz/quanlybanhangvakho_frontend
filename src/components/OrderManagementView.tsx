@@ -9,7 +9,7 @@ import {
   User,
   ProductItem,
 } from '../services/api';
-import { Link, useNavigate } from '../hooks/useLocation';
+import { Link } from '../hooks/useLocation';
 import { RejectOrderModal } from './RejectOrderModal';
 import { ApproveOrderModal } from './ApproveOrderModal';
 import { emitStatusToast } from './StatusToast';
@@ -34,14 +34,13 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
   onBackToHome: _onBackToHome,
   onRefreshProducts,
   onNavigateToPriceBooks: _onNavigateToPriceBooks,
-  onCloneOrder,
+  onCloneOrder: _onCloneOrder,
 }) => {
   const [orders, setOrders] = useState<OrderResponseData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'PENDING_APPROVAL' | 'CONFIRMED' | 'DELIVERED' | 'REJECTED' | 'CANCELLED'>('ALL');
-  const navigate = useNavigate();
   const [approvingOrder, setApprovingOrder] = useState<OrderResponseData | null>(null);
   const [rejectingOrder, setRejectingOrder] = useState<OrderResponseData | null>(null);
   const [cancellingOrder, setCancellingOrder] = useState<OrderResponseData | null>(null);
@@ -209,10 +208,6 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
     } catch (e) {
       console.warn('Lỗi lấy thông tin đại lý:', e);
     }
-  };
-
-  const handleOpenOrderDetail = (order: OrderResponseData) => {
-    navigate(`/orders/${order.order_code}`);
   };
 
   const fetchOrders = async () => {
