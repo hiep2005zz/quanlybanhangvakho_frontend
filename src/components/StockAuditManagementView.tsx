@@ -31,8 +31,17 @@ export function StockAuditManagementView({ token, currentUser }: StockAuditManag
     return [currentUser?.role || ''];
   }, [currentUser]);
 
-  // Chỉ Quản lý kho (warehouse_manager) và Quản trị hệ thống (admin) được tạo, sửa, xác nhận, hủy phiếu
-  const isWarehouseManager = userRoles.some((r) => ['warehouse_manager', 'admin'].includes(r));
+  // Quyền duyệt/xác nhận kiểm kê (hoàn tất và điều chỉnh tồn kho) và hủy phiếu:
+  // CHỈ Quản trị hệ thống (admin) và Quản lý kho (warehouse_manager).
+  const canConfirmAudit = useMemo(() => {
+    return userRoles.some((r) => ['warehouse_manager', 'admin'].includes(r));
+  }, [userRoles]);
+
+  // Quyền tạo phiếu kiểm kê và cập nhật số lượng kiểm đếm thực tế (lưu tạm):
+  // Cả Thủ kho (warehouse), Quản lý kho (warehouse_manager) và Quản trị hệ thống (admin).
+  const canManageAudit = useMemo(() => {
+    return userRoles.some((r) => ['warehouse', 'warehouse_manager', 'admin'].includes(r));
+  }, [userRoles]);
 
   // State danh sách phiếu
   const [audits, setAudits] = useState<StockAudit[]>([]);
@@ -493,8 +502,8 @@ export function StockAuditManagementView({ token, currentUser }: StockAuditManag
           </h1>
         </div>
 
-        {/* Nút Tạo phiếu kiểm kê */}
-        {isWarehouseManager && (
+        {/* Nút Tạo phiếu kiểm kê - Cho phép cả Thủ kho, Quản lý kho và Admin */}
+        {canManageAudit && (
           <button
             type="button"
             id="btn-create-stock-audit"
@@ -757,14 +766,23 @@ export function StockAuditManagementView({ token, currentUser }: StockAuditManag
 
                       {/* Thao tác (Cố định ở mép phải - Luôn hiển thị không bị trôi) */}
                       <td className="py-2.5 px-3 text-center whitespace-nowrap sticky right-0 bg-white group-hover:bg-gray-50 shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.06)] transition-colors z-10">
-                        {a.status === 'IN_PROGRESS' && isWarehouseManager ? (
+                        {a.status === 'IN_PROGRESS' && canConfirmAudit ? (
                           <button
                             type="button"
                             onClick={() => handleOpenDetail(a.id)}
                             className="px-3 py-1.5 text-xs font-bold rounded-lg bg-[#0fad89] hover:bg-[#0c8a6d] text-white shadow-xs transition-colors cursor-pointer border-0 whitespace-nowrap inline-flex items-center justify-center"
-                            title="Kiểm đếm & Xác nhận kết quả kiểm kê"
+                            title="Kiểm đếm & Duyệt điều chỉnh kho"
                           >
-                            Kiểm đếm & Xác nhận
+                            Kiểm đếm & Duyệt
+                          </button>
+                        ) : a.status === 'IN_PROGRESS' && canManageAudit ? (
+                          <button
+                            type="button"
+                            onClick={() => handleOpenDetail(a.id)}
+                            className="px-3 py-1.5 text-xs font-bold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-colors cursor-pointer border-0 whitespace-nowrap inline-flex items-center justify-center"
+                            title="Nhập kết quả kiểm đếm thực tế"
+                          >
+                            Kiểm đếm & Nhập kết quả
                           </button>
                         ) : (
                           <button
@@ -1148,7 +1166,7 @@ export function StockAuditManagementView({ token, currentUser }: StockAuditManag
                           const isMatch = itm.discrepancy === 0;
                           const isPending = itm.actual_stock === null || itm.actual_stock === undefined;
                           const isReadOnly =
-                            selectedAudit.status !== 'IN_PROGRESS' || !isWarehouseManager;
+                            selectedAudit.status !== 'IN_PROGRESS' || !canManageAudit;
 
                           return (
                             <tr
@@ -1297,7 +1315,7 @@ export function StockAuditManagementView({ token, currentUser }: StockAuditManag
               {/* Footer hành động của Modal Chi tiết */}
               <div className="p-4 border-t border-gray-200 bg-gray-50 flex items-center justify-between flex-shrink-0">
                 <div>
-                  {selectedAudit.status === 'IN_PROGRESS' && isWarehouseManager && (
+                  {selectedAudit.status === 'IN_PROGRESS' && canConfirmAudit && (
                     <button
                       type="button"
                       onClick={() => setIsCancelModalOpen(true)}
@@ -1317,25 +1335,38 @@ export function StockAuditManagementView({ token, currentUser }: StockAuditManag
                     Đóng
                   </button>
 
-                  {selectedAudit.status === 'IN_PROGRESS' && isWarehouseManager && (
+                  {selectedAudit.status === 'IN_PROGRESS' && (
                     <>
-                      <button
-                        type="button"
-                        onClick={handleSaveDraft}
-                        disabled={isSavingDraft}
-                        className="px-4 py-2 text-sm font-semibold text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg shadow-sm cursor-pointer disabled:opacity-50"
-                      >
-                        {isSavingDraft ? 'Đang lưu...' : 'Lưu tạm kết quả'}
-                      </button>
+                      {/* Cho phép cả Thủ kho, Quản lý kho và Admin lưu tạm kết quả kiểm đếm */}
+                      {canManageAudit && (
+                        <button
+                          type="button"
+                          onClick={handleSaveDraft}
+                          disabled={isSavingDraft}
+                          className="px-4 py-2 text-sm font-semibold text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg shadow-sm cursor-pointer disabled:opacity-50"
+                        >
+                          {isSavingDraft ? 'Đang lưu...' : 'Lưu tạm kết quả'}
+                        </button>
+                      )}
 
-                      <button
-                        type="button"
-                        id="btn-confirm-stock-audit"
-                        onClick={handlePreConfirm}
-                        className="px-5 py-2 text-sm font-bold text-white bg-[#0fad89] hover:bg-[#0c8a6d] rounded-lg shadow-sm cursor-pointer border-0"
-                      >
-                        Xác nhận kiểm kê & Điều chỉnh kho
-                      </button>
+                      {/* CHỈ Quản trị hệ thống (admin) và Quản lý kho (warehouse_manager) mới được duyệt */}
+                      {canConfirmAudit ? (
+                        <button
+                          type="button"
+                          id="btn-confirm-stock-audit"
+                          onClick={handlePreConfirm}
+                          className="px-5 py-2 text-sm font-bold text-white bg-[#0fad89] hover:bg-[#0c8a6d] rounded-lg shadow-sm cursor-pointer border-0"
+                        >
+                          Xác nhận kiểm kê & Điều chỉnh kho
+                        </button>
+                      ) : (
+                        <div className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 text-amber-800 border border-amber-200 rounded-lg text-xs font-medium">
+                          <svg className="w-4 h-4 text-amber-500 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                          </svg>
+                          <span>Phiếu chờ Admin hoặc Quản lý kho duyệt để điều chỉnh tồn kho</span>
+                        </div>
+                      )}
                     </>
                   )}
                 </div>
