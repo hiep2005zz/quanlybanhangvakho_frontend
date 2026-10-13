@@ -18,7 +18,7 @@ interface StockThresholdManagementViewProps {
 export const StockThresholdManagementView: React.FC<StockThresholdManagementViewProps> = ({
   token,
   canManageThresholds = true,
-  onBackToHome,
+  onBackToHome: _onBackToHome,
   onThresholdsUpdated,
 }) => {
   const [warehouses, setWarehouses] = useState<WarehouseInfo[]>([]);
@@ -35,7 +35,7 @@ export const StockThresholdManagementView: React.FC<StockThresholdManagementView
   // Phân trang Backend (20 thông tin mỗi trang)
   const [currentPage, setCurrentPage] = useState<number>(1);
   const pageSize = 20;
-  const [totalItems, setTotalItems] = useState<number>(0);
+  const [_totalItems, setTotalItems] = useState<number>(0);
   const [totalPages, setTotalPages] = useState<number>(1);
 
   // Thống kê KPI tổng quan (nhận trực tiếp từ backend phân trang, không fetch lại 26.000 dòng)
@@ -259,43 +259,10 @@ export const StockThresholdManagementView: React.FC<StockThresholdManagementView
         width: '100%',
       }}
     >
-      {/* 1. Header Điều Hướng & Tiêu Đề */}
+      {/* 1. Header Tiêu Đề */}
       <div style={{ marginBottom: '14px', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px' }}>
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-              <button
-                type="button"
-                onClick={onBackToHome}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  background: '#ffffff',
-                  border: '1px solid #cbd5e1',
-                  borderRadius: '7px',
-                  padding: '5px 12px',
-                  fontSize: '12.5px',
-                  fontWeight: '600',
-                  color: '#475569',
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease',
-                  boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = '#f1f5f9';
-                  e.currentTarget.style.color = '#0f172a';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = '#ffffff';
-                  e.currentTarget.style.color = '#475569';
-                }}
-              >
-                ← Quay lại Quản lý kho hàng
-              </button>
-              <span style={{ fontSize: '12px', color: '#94a3b8' }}>/</span>
-              <span style={{ fontSize: '12.5px', color: '#64748b', fontWeight: '500' }}>Khai báo định mức tồn</span>
-            </div>
             <h1
               style={{
                 fontSize: '22px',
@@ -307,9 +274,6 @@ export const StockThresholdManagementView: React.FC<StockThresholdManagementView
             >
               Khai Báo Định Mức Tồn Tối Thiểu (Theo SKU & Kho)
             </h1>
-            <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#64748b' }}>
-              Thiết lập ngưỡng tồn an toàn để hệ thống tự động cảnh báo kịp thời trước khi hết hàng trong từng kho.
-            </p>
           </div>
 
           {/* Nút thao tác nhanh trên header */}
@@ -359,7 +323,7 @@ export const StockThresholdManagementView: React.FC<StockThresholdManagementView
               }}
               title="Làm mới dữ liệu định mức"
             >
-              🔄 {loading ? 'Đang tải...' : 'Làm mới'}
+              {loading ? 'Đang tải...' : 'Làm mới'}
             </button>
           </div>
         </div>
@@ -638,7 +602,7 @@ export const StockThresholdManagementView: React.FC<StockThresholdManagementView
                   <th style={{ padding: '12px 14px', fontWeight: '700', textAlign: 'center', width: '160px' }}>
                     Định Mức Tối Thiểu
                   </th>
-                  <th style={{ padding: '12px 14px', fontWeight: '700', textAlign: 'center', width: '150px' }}>
+                  <th style={{ padding: '12px 14px', fontWeight: '700', textAlign: 'center', width: '180px', whiteSpace: 'nowrap' }}>
                     Trạng Thái
                   </th>
                   <th style={{ padding: '12px 14px', fontWeight: '700', textAlign: 'right', width: '100px' }}>
@@ -727,7 +691,7 @@ export const StockThresholdManagementView: React.FC<StockThresholdManagementView
                           <span style={{ fontSize: '12px', color: '#64748b' }}>{it.base_unit}</span>
                         </div>
                       </td>
-                      <td style={{ padding: '10px 14px', textAlign: 'center' }}>
+                      <td style={{ padding: '10px 14px', textAlign: 'center', whiteSpace: 'nowrap' }}>
                         {it.is_low_stock ? (
                           <span
                             style={{
@@ -736,12 +700,13 @@ export const StockThresholdManagementView: React.FC<StockThresholdManagementView
                               color: '#b91c1c',
                               border: '1px solid #fca5a5',
                               borderRadius: '999px',
-                              padding: '3px 10px',
+                              padding: '3px 12px',
                               fontSize: '11.5px',
                               fontWeight: '700',
+                              whiteSpace: 'nowrap',
                             }}
                           >
-                            ⚠️ Dưới mức ({it.shortage_quantity > 0 ? `Thiếu ${it.shortage_quantity}` : 'Chạm ngưỡng'})
+                            Dưới mức ({it.shortage_quantity > 0 ? `Thiếu ${it.shortage_quantity}` : 'Chạm ngưỡng'})
                           </span>
                         ) : (
                           <span
@@ -751,12 +716,13 @@ export const StockThresholdManagementView: React.FC<StockThresholdManagementView
                               color: '#15803d',
                               border: '1px solid #bbf7d0',
                               borderRadius: '999px',
-                              padding: '3px 10px',
+                              padding: '3px 12px',
                               fontSize: '11.5px',
                               fontWeight: '600',
+                              whiteSpace: 'nowrap',
                             }}
                           >
-                            ✓ An toàn
+                            An toàn
                           </span>
                         )}
                       </td>
@@ -791,132 +757,98 @@ export const StockThresholdManagementView: React.FC<StockThresholdManagementView
           )}
         </div>
 
-        {/* 5. Footer Thông Tin & Thanh Điều Khiển Phân Trang (20 dòng / trang) */}
+        {/* 5. Thanh Điều Khiển Phân Trang (Phong cách gọn bên phải giống Hàng tồn kho) */}
         <div
           style={{
-            padding: '12px 18px',
+            padding: '8px 16px',
             borderTop: '1px solid #e2e8f0',
-            background: '#f8fafc',
+            background: '#ffffff',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: '12px',
-            flexWrap: 'wrap',
+            justifyContent: 'flex-end',
             flexShrink: 0,
           }}
         >
-          {/* Thông tin số lượng hiển thị */}
-          <div style={{ fontSize: '13px', color: '#64748b' }}>
-            Hiển thị{' '}
-            <strong style={{ color: '#0f172a' }}>
-              {totalItems === 0 ? 0 : (currentPage - 1) * pageSize + 1} -{' '}
-              {Math.min(currentPage * pageSize, totalItems)}
-            </strong>{' '}
-            / {totalItems} dòng SKU theo kho (20 mục/trang)
-          </div>
-
-          {/* Cụm nút chuyển trang Pagination */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <button
-              type="button"
-              disabled={currentPage <= 1 || loading}
-              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '4px',
-                padding: '5px 12px',
-                borderRadius: '6px',
-                border: '1px solid #cbd5e1',
-                background: currentPage <= 1 ? '#f1f5f9' : '#ffffff',
-                color: currentPage <= 1 ? '#94a3b8' : '#334155',
-                fontSize: '12.5px',
-                fontWeight: '600',
-                cursor: currentPage <= 1 ? 'default' : 'pointer',
-                transition: 'all 0.15s ease',
-              }}
-            >
-              ◀ Trước
-            </button>
-
-            {/* Các số trang */}
-            {Array.from({ length: totalPages }, (_, i) => i + 1)
-              .filter((p) => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 1)
-              .map((p, idx, arr) => {
-                const prevPage = arr[idx - 1];
-                const showEllipsisBefore = prevPage && p - prevPage > 1;
-                const isActive = p === currentPage;
-
-                return (
-                  <React.Fragment key={p}>
-                    {showEllipsisBefore && (
-                      <span style={{ padding: '0 4px', color: '#94a3b8', fontSize: '12px' }}>...</span>
-                    )}
-                    <button
-                      type="button"
-                      disabled={loading}
-                      onClick={() => setCurrentPage(p)}
-                      style={{
-                        minWidth: '32px',
-                        height: '30px',
-                        padding: '0 8px',
-                        borderRadius: '6px',
-                        border: isActive ? '1px solid #0fad89' : '1px solid #cbd5e1',
-                        background: isActive ? '#0fad89' : '#ffffff',
-                        color: isActive ? '#ffffff' : '#334155',
-                        fontSize: '12.5px',
-                        fontWeight: '700',
-                        cursor: 'pointer',
-                        transition: 'all 0.15s ease',
-                      }}
-                    >
-                      {p}
-                    </button>
-                  </React.Fragment>
-                );
-              })}
-
-            <button
-              type="button"
-              disabled={currentPage >= totalPages || loading}
-              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '4px',
-                padding: '5px 12px',
-                borderRadius: '6px',
-                border: '1px solid #cbd5e1',
-                background: currentPage >= totalPages ? '#f1f5f9' : '#ffffff',
-                color: currentPage >= totalPages ? '#94a3b8' : '#334155',
-                fontSize: '12.5px',
-                fontWeight: '600',
-                cursor: currentPage >= totalPages ? 'default' : 'pointer',
-                transition: 'all 0.15s ease',
-              }}
-            >
-              Sau ▶
-            </button>
-          </div>
-
-          {/* Nút Đóng & Quay lại */}
-          <button
-            type="button"
-            onClick={onBackToHome}
+          <div
             style={{
-              padding: '7px 16px',
-              borderRadius: '7px',
-              background: '#334155',
-              color: '#ffffff',
-              border: 'none',
-              fontSize: '13px',
-              fontWeight: '600',
-              cursor: 'pointer',
-              transition: 'all 0.15s ease',
+              display: 'inline-flex',
+              alignItems: 'stretch',
+              border: '1px solid #d1d5db',
+              borderRadius: '5px',
+              overflow: 'hidden',
+              background: '#ffffff',
+              boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
+              height: '24px',
             }}
           >
-            Đóng & Quay lại
-          </button>
+            {Array.from({ length: totalPages }, (_, i) => i + 1)
+              .filter((p) => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 1)
+              .reduce<(number | string)[]>((acc, p, idx, arr) => {
+                if (idx > 0 && typeof arr[idx - 1] === 'number' && (p as number) - (arr[idx - 1] as number) > 1) {
+                  acc.push('...');
+                }
+                acc.push(p);
+                return acc;
+              }, [])
+              .map((p, idx, arr) => {
+                const isLastItem = idx === arr.length - 1;
+                if (typeof p === 'string') {
+                  return (
+                    <span
+                      key={`ellipsis-${idx}`}
+                      style={{
+                        minWidth: '22px',
+                        height: '100%',
+                        padding: '0 4px',
+                        borderRight: isLastItem ? 'none' : '1px solid #e5e7eb',
+                        background: '#ffffff',
+                        color: '#6b7280',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '11px',
+                        userSelect: 'none',
+                      }}
+                    >
+                      ...
+                    </span>
+                  );
+                }
+
+                const isActive = p === currentPage;
+                return (
+                  <button
+                    key={p}
+                    type="button"
+                    onClick={() => setCurrentPage(p)}
+                    style={{
+                      minWidth: '24px',
+                      height: '100%',
+                      padding: '0 7px',
+                      border: 'none',
+                      borderRight: isLastItem ? 'none' : '1px solid #e5e7eb',
+                      background: isActive ? '#2ba1f4' : '#ffffff',
+                      color: isActive ? '#ffffff' : '#374151',
+                      cursor: isActive ? 'default' : 'pointer',
+                      fontSize: '11.5px',
+                      fontWeight: isActive ? '700' : '500',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      transition: 'background-color 0.15s ease',
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isActive) e.currentTarget.style.backgroundColor = '#f9fafb';
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isActive) e.currentTarget.style.backgroundColor = '#ffffff';
+                    }}
+                  >
+                    {p}
+                  </button>
+                );
+              })}
+          </div>
         </div>
       </div>
     </div>
