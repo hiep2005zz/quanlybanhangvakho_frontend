@@ -6,13 +6,13 @@ import {
   getOrderDealersApi,
   cancelOrderApi,
   supplementaryDeliveryApi,
-  reorderOrderApi,
   getCloneOrderDataApi,
+  reorderOrderApi,
   getWarehousePickingSummaryApi,
+  OrderResponseData,
   OrderPickingSummary,
   OrderPickingItem,
   ProductPickingLocationItem,
-  OrderResponseData,
   User,
   ProductItem,
 } from '../services/api';
@@ -20,10 +20,10 @@ import { Link, useNavigate } from '../hooks/useLocation';
 import { RejectOrderModal } from './RejectOrderModal';
 import { ApproveOrderModal } from './ApproveOrderModal';
 import { emitStatusToast } from './StatusToast';
-import { OrderLifecycleTimeline } from './OrderLifecycleTimeline';
 import { OrderCancelModal } from './OrderCancelModal';
 import { getOrderPermissionTier, isOrderPastExported, isOrderCancelable } from '../utils/orderPermissions';
 import OrderPrintModal from './OrderPrintModal';
+import { OrderLifecycleTimeline } from './OrderLifecycleTimeline';
 
 
 interface OrderManagementViewProps {
@@ -52,7 +52,6 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'PENDING_APPROVAL' | 'CONFIRMED' | 'DELIVERED' | 'REJECTED' | 'CANCELLED'>('ALL');
   const navigate = useNavigate();
   const [selectedOrderDetail, setSelectedOrderDetail] = useState<any | null>(null);
-  const [pickingSummary, setPickingSummary] = useState<OrderPickingSummary | null>(null);
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
   const [approvingOrder, setApprovingOrder] = useState<OrderResponseData | null>(null);
   const [rejectingOrder, setRejectingOrder] = useState<OrderResponseData | null>(null);
@@ -138,7 +137,6 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
   };
 
   // Trạng thái cho luồng Đặt lại đơn hàng (Reorder)
-  const [reorderLoading, setReorderLoading] = useState(false);
   const [reorderResultModal, setReorderResultModal] = useState<{
     isOpen: boolean;
     title: string;
@@ -146,6 +144,8 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
     excludedItems: Array<{ product_id: number; product_name: string; reason: string }>;
     onContinue?: () => void;
   } | null>(null);
+  const [reorderLoading, setReorderLoading] = useState(false);
+  const [pickingSummary, setPickingSummary] = useState<OrderPickingSummary | null>(null);
 
   const permTier = getOrderPermissionTier(currentUser);
   const isFullAccess = permTier === 'FULL_ACCESS';
