@@ -151,21 +151,7 @@ export default function DealerProfileManagementView({
   const [isConfirmDeleteModalOpen, setIsConfirmDeleteModalOpen] = useState(false);
   const [confirmDeleteTarget, setConfirmDeleteTarget] = useState<DealerSearchItem | null>(null);
 
-  // Status Change Quick Action
-  const [isUpdatingStatusId, setIsUpdatingStatusId] = useState<number | null>(null);
-  const [openStatusMenuDealerId, setOpenStatusMenuDealerId] = useState<number | null>(null);
 
-  // Đóng menu trạng thái khi nhấn ra ngoài
-  useEffect(() => {
-    const handleOutsideClick = (e: MouseEvent) => {
-      const target = e.target as HTMLElement | null;
-      if (!target?.closest('.status-select-wrap')) {
-        setOpenStatusMenuDealerId(null);
-      }
-    };
-    document.addEventListener('click', handleOutsideClick);
-    return () => document.removeEventListener('click', handleOutsideClick);
-  }, []);
 
   // ==========================================
   // Debounce tìm kiếm (350ms)
@@ -528,29 +514,7 @@ export default function DealerProfileManagementView({
     }
   };
 
-  // ==========================================
-  // Chuyển đổi trạng thái nhanh trực tiếp
-  // ==========================================
-  const handleDirectChangeStatus = async (dealer: DealerSearchItem, nextStatus: string) => {
-    if (dealer.status === nextStatus) return;
-    setIsUpdatingStatusId(dealer.id);
-    try {
-      await updateDealerStatus(dealer.id, nextStatus, undefined, token);
-      emitStatusToast({
-        message: `Đã chuyển trạng thái đại lý ${dealer.name} sang '${nextStatus}'!`,
-        type: 'success',
-      });
-      loadDealers();
-      loadStats();
-    } catch (err) {
-      emitStatusToast({
-        message: err instanceof Error ? err.message : 'Không thể cập nhật trạng thái',
-        type: 'error',
-      });
-    } finally {
-      setIsUpdatingStatusId(null);
-    }
-  };
+
 
   // ==========================================
   // Xử lý nút Xóa (Kiểm tra phát sinh giao dịch)
@@ -1449,182 +1413,57 @@ export default function DealerProfileManagementView({
                           </button>
                         </td>
 
-                        {/* 9. Trạng thái đại lý: Click trực tiếp để mở dropdown chọn nhanh trạng thái */}
-                        <td style={{ textAlign: 'center', overflow: 'visible', whiteSpace: 'nowrap', position: 'relative' }}>
-                          <div className="status-select-wrap" style={{ position: 'relative', display: 'inline-block' }}>
-                            <button
-                              type="button"
-                              className="status-select-input"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setOpenStatusMenuDealerId((prev) => (prev === dealer.id ? null : dealer.id));
-                              }}
-                              disabled={isUpdatingStatusId === dealer.id}
-                              title="Bấm để thay đổi trạng thái hoạt động của đại lý"
+                        {/* 9. Trạng thái đại lý: Badge hiển thị thông tin tĩnh (Thay đổi trạng thái tại thao tác Sửa) */}
+                        <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
+                          <span
+                            style={{
+                              background:
+                                dealer.status === 'Đang hoạt động'
+                                  ? '#dcfce7'
+                                  : dealer.status === 'Tạm ngừng'
+                                  ? '#fef3c7'
+                                  : dealer.status === 'Ngừng giao dịch'
+                                  ? '#fee2e2'
+                                  : '#f1f5f9',
+                              color:
+                                dealer.status === 'Đang hoạt động'
+                                  ? '#15803d'
+                                  : dealer.status === 'Tạm ngừng'
+                                  ? '#b45309'
+                                  : dealer.status === 'Ngừng giao dịch'
+                                  ? '#b91c1c'
+                                  : '#475569',
+                              border: `1.5px solid ${
+                                dealer.status === 'Đang hoạt động'
+                                  ? '#86efac'
+                                  : dealer.status === 'Tạm ngừng'
+                                  ? '#fde68a'
+                                  : dealer.status === 'Ngừng giao dịch'
+                                  ? '#fca5a5'
+                                  : '#cbd5e1'
+                              }`,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              padding: '3px 10px',
+                              borderRadius: '999px',
+                              fontSize: '11px',
+                              fontWeight: 700,
+                              userSelect: 'none',
+                              cursor: 'default',
+                            }}
+                          >
+                            <span
                               style={{
-                                background:
-                                  dealer.status === 'Đang hoạt động'
-                                    ? '#dcfce7'
-                                    : dealer.status === 'Tạm ngừng'
-                                    ? '#fef3c7'
-                                    : dealer.status === 'Ngừng giao dịch'
-                                    ? '#fee2e2'
-                                    : '#f1f5f9',
-                                color:
-                                  dealer.status === 'Đang hoạt động'
-                                    ? '#15803d'
-                                    : dealer.status === 'Tạm ngừng'
-                                    ? '#b45309'
-                                    : dealer.status === 'Ngừng giao dịch'
-                                    ? '#b91c1c'
-                                    : '#475569',
-                                border: `1.5px solid ${
-                                  dealer.status === 'Đang hoạt động'
-                                    ? '#86efac'
-                                    : dealer.status === 'Tạm ngừng'
-                                    ? '#fde68a'
-                                    : dealer.status === 'Ngừng giao dịch'
-                                    ? '#fca5a5'
-                                    : '#cbd5e1'
-                                }`,
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '5px',
-                                padding: '3.5px 10px',
-                                borderRadius: '999px',
-                                fontSize: '11px',
-                                fontWeight: 700,
-                                cursor: 'pointer',
-                                transition: 'all 0.18s ease',
-                                outline: 'none',
-                                userSelect: 'none',
+                                width: '6px',
+                                height: '6px',
+                                borderRadius: '50%',
+                                background: statusInfo.dotColor,
+                                flexShrink: 0,
                               }}
-                            >
-                              <span
-                                style={{
-                                  width: '6px',
-                                  height: '6px',
-                                  borderRadius: '50%',
-                                  background: statusInfo.dotColor,
-                                  flexShrink: 0,
-                                }}
-                              />
-                              <span>
-                                {isUpdatingStatusId === dealer.id
-                                  ? 'Đang lưu...'
-                                  : dealer.status || 'Đang hoạt động'}
-                              </span>
-                              <svg
-                                width="10"
-                                height="10"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2.5"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                style={{
-                                  opacity: 0.7,
-                                  transform: openStatusMenuDealerId === dealer.id ? 'rotate(180deg)' : 'none',
-                                  transition: 'transform 0.15s ease',
-                                }}
-                              >
-                                <polyline points="6 9 12 15 18 9" />
-                              </svg>
-                            </button>
-
-                            {/* Dropdown Menu nổi cho phép click chọn trạng thái ngay bên ngoài */}
-                            {openStatusMenuDealerId === dealer.id && (
-                              <div
-                                style={{
-                                  position: 'absolute',
-                                  top: 'calc(100% + 5px)',
-                                  left: '50%',
-                                  transform: 'translateX(-50%)',
-                                  background: '#ffffff',
-                                  borderRadius: '10px',
-                                  boxShadow: '0 12px 28px -4px rgba(0, 0, 0, 0.22), 0 6px 12px -4px rgba(0, 0, 0, 0.1)',
-                                  border: '1px solid #cbd5e1',
-                                  zIndex: 9999,
-                                  minWidth: '155px',
-                                  padding: '5px',
-                                  display: 'flex',
-                                  flexDirection: 'column',
-                                  gap: '2px',
-                                }}
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                {STATUS_OPTIONS.map((opt) => {
-                                  const isCurrent = (dealer.status || 'Đang hoạt động') === opt;
-                                  const optDot =
-                                    opt === 'Đang hoạt động'
-                                      ? '#16a34a'
-                                      : opt === 'Tạm ngừng'
-                                      ? '#d97706'
-                                      : opt === 'Ngừng giao dịch'
-                                      ? '#dc2626'
-                                      : '#64748b';
-                                  return (
-                                    <button
-                                      key={opt}
-                                      type="button"
-                                      onClick={() => {
-                                        setOpenStatusMenuDealerId(null);
-                                        handleDirectChangeStatus(dealer, opt);
-                                      }}
-                                      style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '8px',
-                                        width: '100%',
-                                        padding: '7px 10px',
-                                        borderRadius: '6px',
-                                        fontSize: '11.5px',
-                                        fontWeight: isCurrent ? 700 : 500,
-                                        color: isCurrent ? '#0f172a' : '#475569',
-                                        background: isCurrent ? '#f1f5f9' : 'transparent',
-                                        border: 'none',
-                                        cursor: 'pointer',
-                                        textAlign: 'left',
-                                        transition: 'background 0.12s ease',
-                                      }}
-                                      onMouseEnter={(e) => {
-                                        if (!isCurrent) e.currentTarget.style.background = '#f8fafc';
-                                      }}
-                                      onMouseLeave={(e) => {
-                                        if (!isCurrent) e.currentTarget.style.background = 'transparent';
-                                      }}
-                                    >
-                                      <span
-                                        style={{
-                                          width: '6px',
-                                          height: '6px',
-                                          borderRadius: '50%',
-                                          background: optDot,
-                                          flexShrink: 0,
-                                        }}
-                                      />
-                                      <span style={{ flex: 1, whiteSpace: 'nowrap' }}>{opt}</span>
-                                      {isCurrent && (
-                                        <svg
-                                          width="12"
-                                          height="12"
-                                          viewBox="0 0 24 24"
-                                          fill="none"
-                                          stroke="#16a34a"
-                                          strokeWidth="3"
-                                          strokeLinecap="round"
-                                          strokeLinejoin="round"
-                                        >
-                                          <polyline points="20 6 9 17 4 12" />
-                                        </svg>
-                                      )}
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                            )}
-                          </div>
+                            />
+                            <span>{dealer.status || 'Đang hoạt động'}</span>
+                          </span>
                         </td>
 
                         {/* 10. Thao tác: Sửa & Xóa sử dụng tooltip tự nhiên không bị tràn mép hay che chữ */}
