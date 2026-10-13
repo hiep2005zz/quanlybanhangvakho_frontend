@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { getProductsApi, getLowStockAlertsApi, LowStockAlertSummary, ProductItem, User, getProductImageUrl } from '../services/api';
+import { getProductsApi, getDiscountPoliciesApi, getLowStockAlertsApi, LowStockAlertSummary, ProductItem, User, getProductImageUrl } from '../services/api';
 import { StockThresholdModal } from './StockThresholdModal';
 import { LowStockAlertModal } from './LowStockAlertModal';
 import { sessionManager, SessionState } from '../services/sessionManager';
@@ -778,6 +778,48 @@ export default function DashboardPage({
     return null;
   });
   const [isDiscountExpanded, setIsDiscountExpanded] = useState(false);
+  const [discountPoliciesState, setDiscountPoliciesState] = useState<any[]>(() => {
+    try {
+      const saved = localStorage.getItem('discountPolicies');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return [];
+  });
+
+  useEffect(() => {
+    if (token) {
+      getDiscountPoliciesApi(token)
+        .then((res) => {
+          if (res && Array.isArray(res.items)) {
+            const mapped = res.items.map((bePolicy: any) => ({
+              id: String(bePolicy.id),
+              title: bePolicy.name || bePolicy.title || bePolicy.code,
+              code: bePolicy.code,
+              category: bePolicy.category || 'ALL',
+              target_group: (bePolicy.target_dealer_type === 'agent_tier_1' || bePolicy.target_group === 'agent_tier_1')
+                ? 'agent_tier_1'
+                : (bePolicy.target_dealer_type === 'agent_tier_2' || bePolicy.target_group === 'agent_tier_2')
+                ? 'agent_tier_2'
+                : 'all',
+              start_date: bePolicy.start_date || '2026-01-01',
+              end_date: bePolicy.end_date || '',
+              status: bePolicy.is_active ? 'active' : 'expired',
+              note: bePolicy.description || '',
+              tiers: (bePolicy.tiers || []).map((t: any) => ({
+                id: String(t.id || Math.random()),
+                min_quantity: t.min_quantity,
+                max_quantity: t.max_quantity ?? null,
+                discount_percent: t.discount_percent,
+              })),
+            }));
+            setDiscountPoliciesState(mapped);
+            localStorage.setItem('discountPolicies', JSON.stringify(mapped));
+          }
+        })
+        .catch(() => {});
+    }
+  }, [token]);
+
   const [isThresholdModalOpen, setIsThresholdModalOpen] = useState(false);
   const [isLowStockAlertModalOpen, setIsLowStockAlertModalOpen] = useState(false);
   const [lowStockSummary, setLowStockSummary] = useState<LowStockAlertSummary | null>(null);
@@ -1780,11 +1822,11 @@ export default function DashboardPage({
             {/* CHÍNH SÁCH CHIẾT KHẤU - 1 Ô GỌN GÀNG (Hiển thị ở tất cả các phân quyền) */}
             {(() => {
               try {
-                const savedPolicies = localStorage.getItem('discountPolicies');
-                if (savedPolicies) {
-                  const policies = JSON.parse(savedPolicies);
-                  const activePolicies = policies.filter((p: any) => p.status === 'active');
-                  if (activePolicies.length > 0) {
+                const policies = discountPoliciesState.length > 0
+                  ? discountPoliciesState
+                  : (localStorage.getItem('discountPolicies') ? JSON.parse(localStorage.getItem('discountPolicies')!) : []);
+                const activePolicies = policies.filter((p: any) => p.status === 'active');
+                if (activePolicies.length > 0) {
                     return (
                       <div style={{
                         marginBottom: '10px',
@@ -1892,7 +1934,6 @@ export default function DashboardPage({
                       </div>
                     );
                   }
-                }
               } catch (e) { }
               return null;
             })()}
