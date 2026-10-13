@@ -2,18 +2,12 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
   getOrdersApi,
-  getOrderDetailApi,
   getOrderDealersApi,
   getOrderSalesRepsApi,
   getOrderRegionsApi,
   cancelOrderApi,
   supplementaryDeliveryApi,
-  reorderOrderApi,
   getCloneOrderDataApi,
-  getWarehousePickingSummaryApi,
-  OrderPickingSummary,
-  OrderPickingItem,
-  ProductPickingLocationItem,
   OrderResponseData,
   OrderDealer,
   SalesRepItem,
@@ -24,9 +18,7 @@ import { OrderCreateModal } from './OrderCreateModal';
 import { RejectOrderModal } from './RejectOrderModal';
 import { ApproveOrderModal } from './ApproveOrderModal';
 import { ReturnOrderModal } from './ReturnOrderModal';
-import { OrderApprovalHistory } from './OrderApprovalHistory';
 import { emitStatusToast } from './StatusToast';
-import { OrderLifecycleTimeline } from './OrderLifecycleTimeline';
 import { OrderCancelModal } from './OrderCancelModal';
 import { getOrderPermissionTier, isOrderPastExported, isOrderCancelable } from '../utils/orderPermissions';
 import OrderPrintModal from './OrderPrintModal';
@@ -84,8 +76,6 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
   const [regions, setRegions] = useState<string[]>([]);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedOrderDetail, setSelectedOrderDetail] = useState<any | null>(null);
-  const [pickingSummary, setPickingSummary] = useState<OrderPickingSummary | null>(null);
-  const [isLoadingDetail, setIsLoadingDetail] = useState(false);
   const [approvingOrder, setApprovingOrder] = useState<OrderResponseData | null>(null);
   const [returningOrder, setReturningOrder] = useState<OrderResponseData | null>(null);
   const [rejectingOrder, setRejectingOrder] = useState<OrderResponseData | null>(null);
@@ -171,7 +161,6 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
   };
 
   // Trạng thái cho luồng Đặt lại đơn hàng (Reorder)
-  const [reorderLoading, setReorderLoading] = useState(false);
   const [reorderResultModal, setReorderResultModal] = useState<{
     isOpen: boolean;
     title: string;
@@ -245,101 +234,6 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
      customerDealer.status.toLowerCase().includes('lock'))
   );
 
-  const handleReorderOrder = async (orderCode: string, productId?: number) => {
-    if (isCustomerLocked) {
-      emitStatusToast({
-        title: 'Tài khoản đại lý bị khóa',
-        message: 'Tài khoản đại lý hiện đang bị khóa giao dịch. Không thể đặt lại đơn hàng.',
-        type: 'error',
-      });
-      return;
-    }
-
-    setReorderLoading(true);
-    try {
-      const res = await reorderOrderApi(token, orderCode, productId ? { product_id: productId } : {});
-
-      // Ánh xạ valid_items sang SelectedOrderItem
-      const mappedOrderItems = res.valid_items.map((it) => ({
-        productId: it.product_id,
-        productCode: it.product_code,
-        productName: it.product_name,
-        stock: it.stock,
-        baseUnit: it.base_unit || 'Cái',
-        unitName: it.unit || it.base_unit || 'Cái',
-        conversionRate: it.conversion_rate || 1.0,
-        availableUnits: it.available_units || [{ unit_name: it.base_unit || 'Cái', conversion_rate: 1.0, is_base: true }],
-        quantity: it.quantity,
-        sellPrice: it.price,
-        floorPrice: it.price,
-        priceNote: it.price_note,
-      }));
-
-      // Nếu không có sản phẩm nào hợp lệ (Case 3, Case 5, Case 9)
-      if (!res.can_reorder || res.total_valid === 0) {
-        if (productId) {
-          const excName = res.excluded_items?.[0]?.product_name || `SP #${productId}`;
-          setReorderResultModal({
-            isOpen: true,
-            title: 'Không thể đặt lại sản phẩm',
-            message: `Sản phẩm ${excName} hiện đã ngừng kinh doanh và không thể đặt lại.`,
-            excludedItems: res.excluded_items || [],
-          });
-        } else {
-          setReorderResultModal({
-            isOpen: true,
-            title: 'Không thể đặt lại đơn',
-            message: 'Tất cả sản phẩm trong đơn hàng này hiện đã ngừng kinh doanh. Không thể đặt lại đơn.',
-            excludedItems: res.excluded_items || [],
-          });
-        }
-        return;
-      }
-
-      const continueToNewOrder = () => {
-        setReorderResultModal(null);
-        setSelectedOrderDetail(null);
-    setPickingSummary(null); // Đóng modal chi tiết đơn
-        setReorderInitialData({
-          dealerId: res.dealer_id,
-          items: mappedOrderItems,
-          note: productId ? `Đặt lại sản phẩm từ đơn #${res.order_code}` : `Đặt lại từ đơn #${res.order_code}`,
-          deliveryPointId: selectedOrderDetail?.delivery_point_id || null,
-        });
-        setIsCreateModalOpen(true); // Đưa Đại lý đến đơn mới / giỏ hàng theo flow hiện tại
-      };
-
-      // Case 2: Một số sản phẩm bị loại
-      if (res.total_excluded > 0) {
-        setReorderResultModal({
-          isOpen: true,
-          title: 'Đặt lại đơn thành công',
-          message: 'Đặt lại đơn thành công. Tuy nhiên, một số sản phẩm đã bị loại khỏi đơn mới:',
-          excludedItems: res.excluded_items,
-          onContinue: continueToNewOrder,
-        });
-      } else {
-        // Case 1 & Case 4: Toàn bộ thành công
-        emitStatusToast({
-          title: 'Đặt lại đơn thành công',
-          message: productId
-            ? `Đã thêm sản phẩm "${mappedOrderItems[0]?.productName}" vào đơn mới theo giá hiện hành.`
-            : `Đã đưa ${res.total_valid} sản phẩm vào đơn mới theo giá hiện hành.`,
-          type: 'success',
-        });
-        continueToNewOrder();
-      }
-    } catch (err: any) {
-      console.error('Lỗi khi đặt lại đơn hàng:', err);
-      emitStatusToast({
-        title: 'Lỗi đặt lại đơn',
-        message: err.message || 'Không thể đặt lại đơn hàng. Vui lòng thử lại.',
-        type: 'error',
-      });
-    } finally {
-      setReorderLoading(false);
-    }
-  };
 
   const handleCloneOrder = async (orderCode: string) => {
     try {
@@ -369,21 +263,6 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
     }
   };
 
-  const handleOpenOrderDetail = async (order: OrderResponseData) => {
-    setSelectedOrderDetail(order);
-    setIsLoadingDetail(true);
-    try {
-      const detail = await getOrderDetailApi(token, order.order_code);
-      setSelectedOrderDetail(detail);
-      getWarehousePickingSummaryApi(token, order.order_code)
-        .then((res: OrderPickingSummary) => setPickingSummary(res))
-        .catch(() => setPickingSummary(null));
-    } catch (err: any) {
-      console.error('Không thể tải chi tiết đơn hàng:', err);
-    } finally {
-      setIsLoadingDetail(false);
-    }
-  };
 
   const fetchOrders = async () => {
     setLoading(true);

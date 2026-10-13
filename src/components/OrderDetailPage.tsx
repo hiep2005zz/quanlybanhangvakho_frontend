@@ -149,15 +149,15 @@ export const OrderDetailPage: React.FC<OrderDetailPageProps> = ({
         productName: item.product_name,
         productCode: item.product_code || `SP${item.product_id}`,
         unit: item.unit,
-        conversionRate: 1,
+        conversionRate: item.conversion_rate || 1,
         quantity: item.quantity,
         rawQuantity: String(item.quantity),
-        price: item.current_price,
-        rawPrice: String(item.current_price),
-        floorPrice: item.current_price,
+        price: item.price,
+        rawPrice: String(item.price),
+        floorPrice: item.price,
         discountRate: 0,
         discountAmount: 0,
-        lineTotal: item.subtotal,
+        lineTotal: item.quantity * item.price,
       }));
 
       if (res.total_valid === 0) {
@@ -696,7 +696,6 @@ export const OrderDetailPage: React.FC<OrderDetailPageProps> = ({
       {/* Modals */}
       {printingOrder && (
         <OrderPrintModal
-          isOpen={Boolean(printingOrder)}
           orderCode={printingOrder.order_code}
           token={token}
           onClose={() => setPrintingOrder(null)}
