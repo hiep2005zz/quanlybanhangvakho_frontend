@@ -318,7 +318,21 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
           note: productId ? `Đặt lại sản phẩm từ đơn #${res.order_code}` : `Đặt lại từ đơn #${res.order_code}`,
           deliveryPointId: selectedOrderDetail?.delivery_point_id || null,
         });
-        setIsCreateModalOpen(true); // Đưa Đại lý đến đơn mới / giỏ hàng theo flow hiện tại
+        // Lưu tạm vào sessionStorage để trang Tạo đơn hàng có thể load lại nếu cần
+        try {
+          sessionStorage.setItem(
+            'pending_reorder_data',
+            JSON.stringify({
+              dealerId: res.dealer_id || selectedOrderDetail?.dealer_id,
+              items: mappedOrderItems,
+              note: productId ? `Đặt lại sản phẩm từ đơn #${res.order_code}` : `Đặt lại từ đơn #${res.order_code}`,
+              deliveryPointId: selectedOrderDetail?.delivery_point_id || null,
+            })
+          );
+        } catch {
+          // ignore
+        }
+        navigate('/orders/create');
       };
 
       // Case 2: Một số sản phẩm bị loại
@@ -1738,32 +1752,33 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                     </div>
 
                     {/* Cảnh báo hoặc lý do phê duyệt nếu có */}
-                    {(order.approval_reason || Boolean(
-                      order.dealer_status &&
-                      (order.dealer_status.toLowerCase().includes('khóa') ||
-                       order.dealer_status.toLowerCase().includes('lock'))
-                    )) && (
-                      <div className="text-[11.5px] p-2 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 leading-tight">
-                        {Boolean(
-                          order.dealer_status &&
-                          (order.dealer_status.toLowerCase().includes('khóa') ||
-                           order.dealer_status.toLowerCase().includes('lock'))
-                        ) && (
-                          <div className="font-bold text-red-600 mb-0.5">
-                            Đại lý bị khóa giao dịch (Cần kiểm tra công nợ)
-                          </div>
-                        )}
-                        {order.approval_reason && (
-                          <div className="space-y-1">
-                            {order.approval_reason.split(' | ').map((subReason: string, sIdx: number) => (
-                              <div key={sIdx} className="leading-snug">
-                                &bull; {subReason}
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    )}
+                    {(() => {
+                      const cleanReason = getCleanApprovalReason(order);
+                      const hasLocked = Boolean(
+                        order.dealer_status &&
+                        (order.dealer_status.toLowerCase().includes('khóa') ||
+                         order.dealer_status.toLowerCase().includes('lock'))
+                      );
+                      if (!cleanReason && !hasLocked) return null;
+                      return (
+                        <div className="text-[11.5px] p-2 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 leading-tight">
+                          {hasLocked && (
+                            <div className="font-bold text-red-600 mb-0.5">
+                              Đại lý bị khóa giao dịch (Cần kiểm tra công nợ)
+                            </div>
+                          )}
+                          {cleanReason && (
+                            <div className="space-y-1">
+                              {cleanReason.split(' | ').map((subReason: string, sIdx: number) => (
+                                <div key={sIdx} className="leading-snug">
+                                  &bull; {subReason}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
 
                     {/* Nút bấm thao tác */}
                     <div
@@ -1865,73 +1880,77 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                         </td>
 
                         <td style={{ padding: '9px 12px', maxWidth: '280px' }}>
-                          {Boolean(
-                            order.dealer_status &&
-                            (order.dealer_status.toLowerCase().includes('khóa') ||
-                             order.dealer_status.toLowerCase().includes('lock'))
-                          ) && (
-                            <div style={{ fontSize: '11.5px', color: '#dc2626', fontWeight: '600', marginBottom: order.approval_reason ? '3px' : '0' }}>
-                              Đại lý bị khóa giao dịch (Cần kiểm tra công nợ)
-                            </div>
-                          )}
-                          {order.approval_reason ? (
-                            <div style={{ fontSize: '11.5px', color: isRejected ? '#dc2626' : isRevision ? '#c2410c' : '#b45309', lineHeight: '1.4' }}>
-                              {order.approval_reason.split(' | ').map((subReason: string, sIdx: number) => {
-                                const isFloor = subReason.toLowerCase().includes('giá sàn') || subReason.toLowerCase().includes('giá niêm yết');
-                                const isDebt = subReason.toLowerCase().includes('hạn mức công nợ') || subReason.toLowerCase().includes('tổng nợ');
-                                const isDiscount = subReason.toLowerCase().includes('chiết khấu');
-                                const isReturn = subReason.toLowerCase().includes('yêu cầu sửa');
-                                const isReject = subReason.toLowerCase().includes('bị từ chối');
-
-                                return (
-                                  <div key={sIdx} style={{ marginTop: sIdx > 0 ? '3px' : '0' }}>
-                                    {isFloor && (
-                                      <span style={{ display: 'inline-block', background: '#fee2e2', color: '#991b1b', border: '1px solid #fecaca', borderRadius: '3px', padding: '0 4px', fontSize: '10.5px', fontWeight: '700', marginRight: '4px' }}>
-                                        Dưới giá sàn
-                                      </span>
-                                    )}
-                                    {isDebt && (
-                                      <span style={{ display: 'inline-block', background: '#fef3c7', color: '#92400e', border: '1px solid #fde68a', borderRadius: '3px', padding: '0 4px', fontSize: '10.5px', fontWeight: '700', marginRight: '4px' }}>
-                                        Vượt hạn mức
-                                      </span>
-                                    )}
-                                    {isDiscount && (
-                                      <span style={{ display: 'inline-block', background: '#fef3c7', color: '#92400e', border: '1px solid #fde68a', borderRadius: '3px', padding: '0 4px', fontSize: '10.5px', fontWeight: '700', marginRight: '4px' }}>
-                                        Vượt CK
-                                      </span>
-                                    )}
-                                    {isReturn && (
-                                      <span style={{ display: 'inline-block', background: '#ffedd5', color: '#c2410c', border: '1px solid #fed7aa', borderRadius: '3px', padding: '0 4px', fontSize: '10.5px', fontWeight: '700', marginRight: '4px' }}>
-                                        Cần sửa
-                                      </span>
-                                    )}
-                                    {isReject && (
-                                      <span style={{ display: 'inline-block', background: '#fee2e2', color: '#991b1b', border: '1px solid #fecaca', borderRadius: '3px', padding: '0 4px', fontSize: '10.5px', fontWeight: '700', marginRight: '4px' }}>
-                                        Từ chối
-                                      </span>
-                                    )}
-                                    <span>{subReason}</span>
+                          {(() => {
+                            const cleanReason = getCleanApprovalReason(order);
+                            const hasLocked = Boolean(
+                              order.dealer_status &&
+                              (order.dealer_status.toLowerCase().includes('khóa') ||
+                               order.dealer_status.toLowerCase().includes('lock'))
+                            );
+                            return (
+                              <>
+                                {hasLocked && (
+                                  <div style={{ fontSize: '11.5px', color: '#dc2626', fontWeight: '600', marginBottom: cleanReason ? '3px' : '0' }}>
+                                    Đại lý bị khóa giao dịch (Cần kiểm tra công nợ)
                                   </div>
-                                );
-                              })}
-                            </div>
-                          ) : order.approved_by ? (
-                            <div style={{ fontSize: '11.5px', color: '#16a34a', fontWeight: '500' }}>
-                              Duyệt bởi @{order.approved_by}
-                            </div>
-                          ) : isPending ? (
-                            <div style={{ fontSize: '11.5px', color: '#b45309', fontWeight: '500' }}>
-                              {order.discount_rate && order.discount_rate > 0
-                                ? `Chiết khấu (${order.discount_rate}%) vượt hạn mức cần duyệt`
-                                : 'Bán dưới giá sàn cần quản lý duyệt'}
-                            </div>
-                          ) : !Boolean(
-                            order.dealer_status &&
-                            (order.dealer_status.toLowerCase().includes('khóa') ||
-                             order.dealer_status.toLowerCase().includes('lock'))
-                          ) ? (
-                            <span style={{ color: '#94a3b8', fontSize: '11.5px' }}>Đơn giá chuẩn bảng giá</span>
-                          ) : null}
+                                )}
+                                {cleanReason ? (
+                                  <div style={{ fontSize: '11.5px', color: isRejected ? '#dc2626' : isRevision ? '#c2410c' : '#b45309', lineHeight: '1.4' }}>
+                                    {cleanReason.split(' | ').map((subReason: string, sIdx: number) => {
+                                      const isFloor = subReason.toLowerCase().includes('giá sàn') || subReason.toLowerCase().includes('giá niêm yết');
+                                      const isDebt = subReason.toLowerCase().includes('hạn mức công nợ') || subReason.toLowerCase().includes('tổng nợ');
+                                      const isDiscount = subReason.toLowerCase().includes('chiết khấu');
+                                      const isReturn = subReason.toLowerCase().includes('yêu cầu sửa');
+                                      const isReject = subReason.toLowerCase().includes('bị từ chối');
+
+                                      return (
+                                        <div key={sIdx} style={{ marginTop: sIdx > 0 ? '3px' : '0' }}>
+                                          {isFloor && (
+                                            <span style={{ display: 'inline-block', background: '#fee2e2', color: '#991b1b', border: '1px solid #fecaca', borderRadius: '3px', padding: '0 4px', fontSize: '10.5px', fontWeight: '700', marginRight: '4px' }}>
+                                              Dưới giá sàn
+                                            </span>
+                                          )}
+                                          {isDebt && (
+                                            <span style={{ display: 'inline-block', background: '#fef3c7', color: '#92400e', border: '1px solid #fde68a', borderRadius: '3px', padding: '0 4px', fontSize: '10.5px', fontWeight: '700', marginRight: '4px' }}>
+                                              Vượt hạn mức
+                                            </span>
+                                          )}
+                                          {isDiscount && (
+                                            <span style={{ display: 'inline-block', background: '#fef3c7', color: '#92400e', border: '1px solid #fde68a', borderRadius: '3px', padding: '0 4px', fontSize: '10.5px', fontWeight: '700', marginRight: '4px' }}>
+                                              Vượt CK
+                                            </span>
+                                          )}
+                                          {isReturn && (
+                                            <span style={{ display: 'inline-block', background: '#ffedd5', color: '#c2410c', border: '1px solid #fed7aa', borderRadius: '3px', padding: '0 4px', fontSize: '10.5px', fontWeight: '700', marginRight: '4px' }}>
+                                              Cần sửa
+                                            </span>
+                                          )}
+                                          {isReject && (
+                                            <span style={{ display: 'inline-block', background: '#fee2e2', color: '#991b1b', border: '1px solid #fecaca', borderRadius: '3px', padding: '0 4px', fontSize: '10.5px', fontWeight: '700', marginRight: '4px' }}>
+                                              Từ chối
+                                            </span>
+                                          )}
+                                          <span>{subReason}</span>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                ) : order.approved_by ? (
+                                  <div style={{ fontSize: '11.5px', color: '#16a34a', fontWeight: '500' }}>
+                                    Duyệt bởi @{order.approved_by}
+                                  </div>
+                                ) : isPending ? (
+                                  <div style={{ fontSize: '11.5px', color: '#b45309', fontWeight: '500' }}>
+                                    {order.discount_rate && order.discount_rate > 0
+                                      ? `Chiết khấu (${order.discount_rate}%) vượt hạn mức cần duyệt`
+                                      : 'Bán dưới giá sàn cần quản lý duyệt'}
+                                  </div>
+                                ) : !hasLocked ? (
+                                  <span style={{ color: '#94a3b8', fontSize: '11.5px' }}>Đơn giá chuẩn bảng giá</span>
+                                ) : null}
+                              </>
+                            );
+                          })()}
                         </td>
 
                         <td style={{ padding: '9px 14px', textAlign: 'right', whiteSpace: 'nowrap', position: 'relative', zIndex: openActionDropdownCode === order.order_code ? 40 : 'auto' }}>
