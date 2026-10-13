@@ -1253,10 +1253,10 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
     }
   };
 
-  // 1. TRANG KHAI BÁO / CHỈNH SỬA KHO HÀNG (FULL PAGE VIEW)
+  // 1. TRANG KHAI BÁO / CHỈNH SỬA KHO HÀNG (FULL PAGE VIEW: 3 Ô CỘT NGANG 100% ĐÓNG KHUNG)
   if (isWhFormPageActive) {
     return (
-      <div className="wh-container">
+      <div className="wh-container wh-form-fullscreen-wrap">
         <div className="wh-form-page-header">
           <button
             type="button"
@@ -1276,91 +1276,138 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
           <h2>{editingWarehouse ? `Cập nhật kho hàng: ${editingWarehouse.name}` : 'Khai Báo Kho Hàng Mới'}</h2>
         </div>
 
-        <div className="wh-form-page-card">
-          <form onSubmit={handleSaveWarehouse}>
-            <div className="wh-form-grid-2">
-              <div className="wh-form-group">
-                <label>
-                  Mã kho hàng <span className="wh-required-star">*</span>
-                </label>
-                <input
-                  type="text"
-                  className="wh-form-input"
-                  placeholder="VD: KHO_HN, KHO_HCM..."
-                  disabled={Boolean(editingWarehouse)}
-                  value={whFormData.code}
-                  onChange={(e) => setWhFormData({ ...whFormData, code: e.target.value })}
-                />
-                {whFormErrors.code && <div className="wh-form-error">{whFormErrors.code}</div>}
+        <form onSubmit={handleSaveWarehouse} className="wh-form-layout-3col">
+          {/* Ô 1: Thông tin kho hàng (3 phần) */}
+          <div className="wh-form-card wh-col-info">
+            <h3>Thông tin kho hàng</h3>
+            <div className="wh-form-col-fields">
+              <div className="wh-form-field">
+                <span>Mã kho hàng <b>*</b></span>
+                <div className="wh-code-input-wrap">
+                  <input
+                    type="text"
+                    placeholder="VD: KHO_HN, KHO_HCM..."
+                    disabled={Boolean(editingWarehouse)}
+                    value={whFormData.code}
+                    onChange={(e) => setWhFormData({ ...whFormData, code: e.target.value.toUpperCase() })}
+                  />
+                  {!editingWarehouse && (
+                    <button
+                      type="button"
+                      className="wh-btn-code-gen"
+                      onClick={() => {
+                        const rand = Math.floor(10 + Math.random() * 90);
+                        setWhFormData({ ...whFormData, code: `KHO_${rand}` });
+                      }}
+                      title="Sinh ngẫu nhiên mã kho"
+                    >
+                      Sinh mã
+                    </button>
+                  )}
+                </div>
+                {whFormErrors.code && <div className="wh-form-field-error">{whFormErrors.code}</div>}
               </div>
 
-              <div className="wh-form-group">
-                <label>
-                  Tên kho hàng <span className="wh-required-star">*</span>
-                </label>
+              <div className="wh-form-field">
+                <span>Tên kho hàng <b>*</b></span>
                 <input
                   type="text"
-                  className="wh-form-input"
                   placeholder="VD: Kho Tổng Hà Nội"
                   value={whFormData.name}
                   onChange={(e) => setWhFormData({ ...whFormData, name: e.target.value })}
                 />
-                {whFormErrors.name && <div className="wh-form-error">{whFormErrors.name}</div>}
+                {whFormErrors.name && <div className="wh-form-field-error">{whFormErrors.name}</div>}
+              </div>
+
+              <div className="wh-form-field">
+                <span>Trạng thái hoạt động</span>
+                <select
+                  value={whFormData.status}
+                  onChange={(e) => setWhFormData({ ...whFormData, status: e.target.value })}
+                >
+                  <option value="Đang hoạt động">Đang hoạt động</option>
+                  <option value="Ngừng hoạt động">Ngừng hoạt động</option>
+                </select>
               </div>
             </div>
+          </div>
 
-            <div className="wh-form-group">
-              <label>Địa chỉ kho</label>
-              <input
-                type="text"
-                className="wh-form-input"
-                placeholder="VD: Lô CN1, Khu Công Nghiệp Từ Liêm, Hà Nội"
-                value={whFormData.address}
-                onChange={(e) => setWhFormData({ ...whFormData, address: e.target.value })}
-              />
-            </div>
-
-            <div className="wh-form-grid-2">
-              <div className="wh-form-group">
-                <label>Người phụ trách kho</label>
+          {/* Ô 2: Địa chỉ & Người phụ trách (3 phần) */}
+          <div className="wh-form-card wh-col-contact">
+            <h3>Địa chỉ & Người phụ trách</h3>
+            <div className="wh-form-col-fields">
+              <div className="wh-form-field">
+                <span>Địa chỉ kho</span>
                 <input
                   type="text"
-                  className="wh-form-input"
+                  placeholder="VD: Lô CN1, Khu Công Nghiệp Từ Liêm, Hà Nội"
+                  value={whFormData.address}
+                  onChange={(e) => setWhFormData({ ...whFormData, address: e.target.value })}
+                />
+              </div>
+
+              <div className="wh-form-field">
+                <span>Người phụ trách kho</span>
+                <input
+                  type="text"
                   placeholder="Họ và tên thủ kho / quản lý"
                   value={whFormData.manager_name}
                   onChange={(e) => setWhFormData({ ...whFormData, manager_name: e.target.value })}
                 />
               </div>
 
-              <div className="wh-form-group">
-                <label>Số điện thoại liên hệ</label>
+              <div className="wh-form-field">
+                <span>Số điện thoại liên hệ</span>
                 <input
                   type="tel"
-                  className="wh-form-input"
                   placeholder="Số điện thoại (10 chữ số)"
                   value={whFormData.phone}
                   onChange={(e) => setWhFormData({ ...whFormData, phone: e.target.value.replace(/\D/g, '').slice(0, 10) })}
                 />
-                {whFormErrors.phone && <div className="wh-form-error">{whFormErrors.phone}</div>}
+                {whFormErrors.phone && <div className="wh-form-field-error">{whFormErrors.phone}</div>}
+              </div>
+            </div>
+          </div>
+
+          {/* Ô 3: Tổng kết kho hàng (2 phần) */}
+          <div className="wh-form-card wh-col-summary">
+            <h3 className="wh-summary-title-centered">Tổng kết kho hàng</h3>
+            <div className="wh-summary-rows">
+              <div className="wh-summary-row">
+                <span>Mã kho:</span>
+                <strong>{whFormData.code || '---'}</strong>
+              </div>
+              <div className="wh-summary-row">
+                <span>Tên kho:</span>
+                <strong>{whFormData.name || '---'}</strong>
+              </div>
+              <div className="wh-summary-row">
+                <span>Người phụ trách:</span>
+                <strong>{whFormData.manager_name || 'Chưa phân công'}</strong>
+              </div>
+              <div className="wh-summary-row">
+                <span>Số điện thoại:</span>
+                <strong>{whFormData.phone || '---'}</strong>
+              </div>
+              <div className="wh-summary-row">
+                <span>Trạng thái:</span>
+                <strong style={{ color: whFormData.status === 'Đang hoạt động' ? '#059669' : '#dc2626' }}>
+                  {whFormData.status}
+                </strong>
               </div>
             </div>
 
-            <div className="wh-form-group">
-              <label>Trạng thái hoạt động</label>
-              <select
-                className="wh-form-select"
-                value={whFormData.status}
-                onChange={(e) => setWhFormData({ ...whFormData, status: e.target.value })}
+            <div className="wh-summary-actions">
+              <button
+                type="submit"
+                className="wh-btn wh-btn-primary wh-btn-block"
+                disabled={isWhSubmitting}
               >
-                <option value="Đang hoạt động">Đang hoạt động</option>
-                <option value="Ngừng hoạt động">Ngừng hoạt động</option>
-              </select>
-            </div>
-
-            <div className="wh-form-page-actions">
+                {isWhSubmitting ? 'Đang lưu...' : editingWarehouse ? 'Cập nhật kho' : 'Tạo kho hàng'}
+              </button>
               <button
                 type="button"
-                className="wh-btn wh-btn-secondary"
+                className="wh-btn wh-btn-secondary wh-btn-block"
                 onClick={() => {
                   setIsWhFormPageActive(false);
                   setEditingWarehouse(null);
@@ -1370,20 +1417,20 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
               >
                 Hủy bỏ
               </button>
-              <button type="submit" className="wh-btn wh-btn-primary" disabled={isWhSubmitting}>
-                {isWhSubmitting ? 'Đang lưu...' : editingWarehouse ? 'Cập nhật kho' : 'Tạo kho hàng'}
-              </button>
+              <p className="wh-summary-hint">
+                Kho hàng sẽ được kết nối với hệ thống vị trí kệ và quản lý tồn kho tự động.
+              </p>
             </div>
-          </form>
-        </div>
+          </div>
+        </form>
       </div>
     );
   }
 
-  // 2. TRANG KHAI BÁO / CHỈNH SỬA VỊ TRÍ KỆ (FULL PAGE VIEW)
+  // 2. TRANG KHAI BÁO / CHỈNH SỬA VỊ TRÍ KỆ (FULL PAGE VIEW: 3 Ô CỘT NGANG 100% ĐÓNG KHUNG)
   if (isLocFormPageActive && selectedWarehouse) {
     return (
-      <div className="wh-container">
+      <div className="wh-container wh-form-fullscreen-wrap">
         <div className="wh-form-page-header">
           <button
             type="button"
@@ -1403,22 +1450,29 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
           <h2>{editingLocation ? `Cập nhật vị trí kệ: ${editingLocation.location_code}` : 'Khai Báo Vị Trí Lưu Kho Mới'}</h2>
         </div>
 
-        <div className="wh-form-page-card">
-          <form onSubmit={handleSaveLocation}>
-            <div className="wh-form-grid-2">
-              <div className="wh-form-group">
-                <label>Kho hàng</label>
-                <div className="wh-form-readonly-badge">
-                  <strong>{selectedWarehouse.name}</strong>
+        <form onSubmit={handleSaveLocation} className="wh-form-layout-3col">
+          {/* Ô 1: Kho & Khu vực lưu trữ (3 phần) */}
+          <div className="wh-form-card wh-col-info">
+            <h3>Kho & Khu vực lưu trữ</h3>
+            <div className="wh-form-col-fields">
+              <div className="wh-form-field">
+                <span>Kho hàng áp dụng</span>
+                <div style={{
+                  padding: '6px 10px',
+                  background: '#eff6ff',
+                  border: '1px solid #bfdbfe',
+                  borderRadius: '6px',
+                  color: '#1e40af',
+                  fontSize: '12px',
+                  fontWeight: 700
+                }}>
+                  {selectedWarehouse.name} ({selectedWarehouse.code})
                 </div>
               </div>
 
-              <div className="wh-form-group">
-                <label>
-                  Khu vực <span className="wh-required-star">*</span>
-                </label>
+              <div className="wh-form-field">
+                <span>Khu vực lưu kho <b>*</b></span>
                 <select
-                  className="wh-form-select"
                   value={locFormData.zone}
                   onChange={(e) => {
                     const val = e.target.value;
@@ -1434,134 +1488,132 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                       </option>
                     ))
                   ) : (
-                    <option value="" disabled>Chưa có khu vực nào (vui lòng tạo khu vực trước)</option>
+                    <option value="" disabled>Chưa có khu vực nào</option>
                   )}
                 </select>
               </div>
-            </div>
 
-            <div className="wh-form-group">
-              <label>
-                Dãy kệ và Tầng / Kệ <span className="wh-required-star">*</span>
-              </label>
-              <select
-                className="wh-form-select"
-                value={
-                  locFormData.aisle && locFormData.rack
-                    ? `${locFormData.aisle} - ${locFormData.rack}`
-                    : ''
-                }
-                onChange={(e) => {
-                  const val = e.target.value;
-                  if (!val) {
-                    setLocFormData((prev) => ({ ...prev, aisle: '', rack: '' }));
-                    return;
+              <div className="wh-form-field">
+                <span>Dãy kệ và Tầng / Kệ <b>*</b></span>
+                <select
+                  value={
+                    locFormData.aisle && locFormData.rack
+                      ? `${locFormData.aisle} - ${locFormData.rack}`
+                      : ''
                   }
-                  const parts = val.split(' - ');
-                  const newAisle = parts[0] || '';
-                  const newRack = parts[1] || '';
-                  setLocFormData((prev) => ({ ...prev, aisle: newAisle, rack: newRack }));
-                  handleAutoGenerateLocationCodeAndName(undefined, newAisle, newRack);
-                }}
-              >
-                <option value="">-- Chọn dãy kệ và tầng --</option>
-                {[
-                  'Dãy 1 - Tầng 1',
-                  'Dãy 1 - Tầng 2',
-                  'Dãy 2 - Tầng 1',
-                  'Dãy 2 - Tầng 2',
-                  'Dãy 3 - Tầng 1',
-                  'Dãy 3 - Tầng 2',
-                ].map((opt) => (
-                  <option key={opt} value={opt}>
-                    {opt}
-                  </option>
-                ))}
-              </select>
-              {locFormErrors.aisle_rack && (
-                <div className="wh-form-error">{locFormErrors.aisle_rack}</div>
-              )}
-            </div>
-
-            <div className="wh-form-grid-2">
-              <div className="wh-form-group">
-                <label>
-                  Sức chứa tối đa <span className="wh-required-star">*</span>
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  required
-                  className="wh-form-input"
-                  placeholder="VD: 500"
-                  value={locFormData.max_capacity === 0 || locFormData.max_capacity === '' ? '' : locFormData.max_capacity}
-                  onFocus={(e) => e.target.select()}
                   onChange={(e) => {
-                    const raw = e.target.value;
-                    if (raw === '') {
-                      setLocFormData((prev) => ({ ...prev, max_capacity: '' }));
+                    const val = e.target.value;
+                    if (!val) {
+                      setLocFormData((prev) => ({ ...prev, aisle: '', rack: '' }));
                       return;
                     }
-                    const clean = raw.replace(/^0+(?=\d)/, '');
-                    if (clean === '0') {
-                      setLocFormData((prev) => ({ ...prev, max_capacity: '' }));
-                      return;
-                    }
-                    setLocFormData((prev) => ({ ...prev, max_capacity: Number(clean) }));
+                    const parts = val.split(' - ');
+                    const newAisle = parts[0] || '';
+                    const newRack = parts[1] || '';
+                    setLocFormData((prev) => ({ ...prev, aisle: newAisle, rack: newRack }));
+                    handleAutoGenerateLocationCodeAndName(undefined, newAisle, newRack);
                   }}
-                />
-                {locFormErrors.max_capacity && (
-                  <div className="wh-form-error">{locFormErrors.max_capacity}</div>
+                >
+                  <option value="">-- Chọn dãy kệ và tầng --</option>
+                  {[
+                    'Dãy 1 - Tầng 1',
+                    'Dãy 1 - Tầng 2',
+                    'Dãy 2 - Tầng 1',
+                    'Dãy 2 - Tầng 2',
+                    'Dãy 3 - Tầng 1',
+                    'Dãy 3 - Tầng 2',
+                  ].map((opt) => (
+                    <option key={opt} value={opt}>
+                      {opt}
+                    </option>
+                  ))}
+                </select>
+                {locFormErrors.aisle_rack && (
+                  <div className="wh-form-field-error">{locFormErrors.aisle_rack}</div>
                 )}
               </div>
-
-              <div className="wh-form-group">
-                <label>Đơn vị tính</label>
-                <select
-                  className="wh-form-select"
-                  value={locFormData.unit}
-                  onChange={(e) => setLocFormData((prev) => ({ ...prev, unit: e.target.value }))}
-                >
-                  <option value="Cái">Cái</option>
-                  <option value="Chiếc">Chiếc</option>
-                  <option value="Thùng">Thùng</option>
-                  <option value="Hộp">Hộp</option>
-                </select>
-              </div>
             </div>
+          </div>
 
-            <div className="wh-form-grid-2">
-              <div className="wh-form-group">
-                <label>
-                  Mã vị trí / Kệ <span className="wh-required-star">*</span>
-                </label>
+          {/* Ô 2: Thông số vị trí & Sức chứa (3 phần) */}
+          <div className="wh-form-card wh-col-capacity">
+            <h3>Thông số & Sức chứa</h3>
+            <div className="wh-form-col-fields">
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                <div className="wh-form-field">
+                  <span>Sức chứa tối đa <b>*</b></span>
+                  <input
+                    type="number"
+                    min="1"
+                    required
+                    placeholder="VD: 500"
+                    value={locFormData.max_capacity === 0 || locFormData.max_capacity === '' ? '' : locFormData.max_capacity}
+                    onFocus={(e) => e.target.select()}
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      if (raw === '') {
+                        setLocFormData((prev) => ({ ...prev, max_capacity: '' }));
+                        return;
+                      }
+                      const clean = raw.replace(/^0+(?=\d)/, '');
+                      if (clean === '0') {
+                        setLocFormData((prev) => ({ ...prev, max_capacity: '' }));
+                        return;
+                      }
+                      setLocFormData((prev) => ({ ...prev, max_capacity: Number(clean) }));
+                    }}
+                  />
+                  {locFormErrors.max_capacity && (
+                    <div className="wh-form-field-error">{locFormErrors.max_capacity}</div>
+                  )}
+                </div>
+
+                <div className="wh-form-field">
+                  <span>Đơn vị tính</span>
+                  <select
+                    value={locFormData.unit}
+                    onChange={(e) => setLocFormData((prev) => ({ ...prev, unit: e.target.value }))}
+                  >
+                    <option value="Cái">Cái</option>
+                    <option value="Chiếc">Chiếc</option>
+                    <option value="Thùng">Thùng</option>
+                    <option value="Hộp">Hộp</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="wh-form-field">
+                <span>Mã vị trí / Kệ <b>*</b></span>
                 <input
                   type="text"
-                  className="wh-form-input"
                   placeholder="VD: KA-D1-T1-O01..."
                   value={locFormData.location_code}
                   onChange={(e) => setLocFormData((prev) => ({ ...prev, location_code: e.target.value }))}
                 />
-                {locFormErrors.location_code && <div className="wh-form-error">{locFormErrors.location_code}</div>}
+                {locFormErrors.location_code && (
+                  <div className="wh-form-field-error">{locFormErrors.location_code}</div>
+                )}
               </div>
 
-              <div className="wh-form-group">
-                <label>Tên vị trí kệ</label>
+              <div className="wh-form-field">
+                <span>Tên vị trí kệ</span>
                 <input
                   type="text"
-                  className="wh-form-input"
                   placeholder="VD: Khu A - Dãy 1 - Tầng 1 - Ô 01"
                   value={locFormData.location_name}
                   onChange={(e) => setLocFormData((prev) => ({ ...prev, location_name: e.target.value }))}
                 />
               </div>
             </div>
+          </div>
 
-            <div className="wh-form-grid-2">
-              <div className="wh-form-group">
-                <label>Trạng thái</label>
+          {/* Ô 3: Tổng kết vị trí kệ (2 phần) */}
+          <div className="wh-form-card wh-col-summary">
+            <h3 className="wh-summary-title-centered">Tổng kết vị trí kệ</h3>
+            <div className="wh-form-col-fields" style={{ flex: 'none', marginBottom: '8px' }}>
+              <div className="wh-form-field">
+                <span>Trạng thái hoạt động</span>
                 <select
-                  className="wh-form-select"
                   value={locFormData.status}
                   onChange={(e) => setLocFormData((prev) => ({ ...prev, status: e.target.value }))}
                 >
@@ -1570,22 +1622,49 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                 </select>
               </div>
 
-              <div className="wh-form-group">
-                <label>Ghi chú</label>
+              <div className="wh-form-field">
+                <span>Ghi chú thêm</span>
                 <input
                   type="text"
-                  className="wh-form-input"
-                  placeholder="Ghi chú thêm về vị trí kệ này..."
+                  placeholder="Ghi chú thêm..."
                   value={locFormData.note}
                   onChange={(e) => setLocFormData((prev) => ({ ...prev, note: e.target.value }))}
                 />
               </div>
             </div>
 
-            <div className="wh-form-page-actions">
+            <div className="wh-summary-rows">
+              <div className="wh-summary-row">
+                <span>Mã vị trí:</span>
+                <strong>{locFormData.location_code || '---'}</strong>
+              </div>
+              <div className="wh-summary-row">
+                <span>Khu vực:</span>
+                <strong>{locFormData.zone || '---'}</strong>
+              </div>
+              <div className="wh-summary-row">
+                <span>Sức chứa:</span>
+                <strong>{locFormData.max_capacity ? `${locFormData.max_capacity} ${locFormData.unit}` : '---'}</strong>
+              </div>
+              <div className="wh-summary-row">
+                <span>Trạng thái:</span>
+                <strong style={{ color: locFormData.status === 'Đang sử dụng' ? '#059669' : '#b45309' }}>
+                  {locFormData.status}
+                </strong>
+              </div>
+            </div>
+
+            <div className="wh-summary-actions">
+              <button
+                type="submit"
+                className="wh-btn wh-btn-primary wh-btn-block"
+                disabled={isLocSubmitting}
+              >
+                {isLocSubmitting ? 'Đang lưu...' : editingLocation ? 'Cập nhật vị trí' : 'Lưu vị trí kệ'}
+              </button>
               <button
                 type="button"
-                className="wh-btn wh-btn-secondary"
+                className="wh-btn wh-btn-secondary wh-btn-block"
                 onClick={() => {
                   setIsLocFormPageActive(false);
                   setEditingLocation(null);
@@ -1595,12 +1674,12 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
               >
                 Hủy bỏ
               </button>
-              <button type="submit" className="wh-btn wh-btn-primary" disabled={isLocSubmitting}>
-                {isLocSubmitting ? 'Đang lưu...' : editingLocation ? 'Cập nhật vị trí' : 'Lưu vị trí kệ'}
-              </button>
+              <p className="wh-summary-hint">
+                Vị trí kệ sẵn sàng tiếp nhận và xếp dỡ hàng hóa tự động.
+              </p>
             </div>
-          </form>
-        </div>
+          </div>
+        </form>
       </div>
     );
   }
@@ -2133,7 +2212,7 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
               className={`wh-tab-btn ${subTab === 'locations' ? 'active' : ''}`}
               onClick={() => setSubTab('locations')}
             >
-              Danh sách vị trí kệ
+              <span>Vị trí kệ</span>
               <span className="wh-tab-count">{locations.length}</span>
             </button>
             <button
@@ -2141,7 +2220,7 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
               className={`wh-tab-btn ${subTab === 'master-data' ? 'active' : ''}`}
               onClick={() => setSubTab('master-data')}
             >
-              Quản lý Kệ & Khu vực
+              <span>Kệ & Khu vực</span>
               <span className="wh-tab-count">{racksList.length}</span>
             </button>
             <button
@@ -2149,7 +2228,7 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
               className={`wh-tab-btn ${subTab === 'products' ? 'active' : ''}`}
               onClick={() => setSubTab('products')}
             >
-              Sản phẩm theo vị trí kệ
+              <span>Sản phẩm theo kệ</span>
               <span className="wh-tab-count">{locationProducts.length}</span>
             </button>
           </div>
@@ -2514,6 +2593,52 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                         </tbody>
                       </table>
                     )}
+
+                    {/* Mobile Card List cho Khu vực */}
+                    {!isMasterLoading && filteredZones.length > 0 && (
+                      <div className="zone-mobile-card-list">
+                        {filteredZones.map((z) => {
+                          const isSelected = activeZone?.id === z.id;
+                          const racksCount = getZoneRacksCount(z);
+                          return (
+                            <div
+                              key={z.id}
+                              className={`wh-mobile-card ${isSelected ? 'wh-mobile-card-active' : ''}`}
+                              onClick={() => setSelectedZoneIdForDetail(z.id)}
+                              style={{ cursor: 'pointer', border: isSelected ? '2px solid var(--wh-primary)' : undefined }}
+                            >
+                              <div className="wh-mobile-card-header">
+                                <div>
+                                  <span className="wh-badge wh-badge-code">{z.zone_code}</span>
+                                  <div className="wh-mobile-card-name" style={{ color: isSelected ? 'var(--wh-primary)' : undefined }}>
+                                    {z.zone_name}
+                                  </div>
+                                </div>
+                                <span className="wh-badge wh-badge-number">{racksCount} kệ</span>
+                              </div>
+                              {canManage && (
+                                <div className="wh-mobile-card-actions" onClick={(e) => e.stopPropagation()}>
+                                  <button
+                                    type="button"
+                                    className="wh-mobile-btn-edit"
+                                    onClick={() => handleOpenEditZone(z)}
+                                  >
+                                    Sửa
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="wh-mobile-btn-delete"
+                                    onClick={() => setDeletingZone(z)}
+                                  >
+                                    Xóa
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -2596,6 +2721,51 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                           ))}
                         </tbody>
                       </table>
+                    )}
+
+                    {/* Mobile Card List cho Kệ & Dãy */}
+                    {!isMasterLoading && detailRacks.length > 0 && (
+                      <div className="rack-mobile-card-list">
+                        {detailRacks.map((r) => (
+                          <div key={r.id} className="wh-mobile-card">
+                            <div className="wh-mobile-card-header">
+                              <div>
+                                <span className="wh-badge wh-badge-code">{r.rack_code}</span>
+                                <div className="wh-mobile-card-name">{r.rack_name}</div>
+                              </div>
+                              <span className={`wh-badge-type ${r.rack_type === 'aisle' ? 'wh-badge-aisle' : 'wh-badge-rack'}`}>
+                                {r.rack_type === 'aisle' ? 'Dãy kệ' : 'Tầng / Kệ'}
+                              </span>
+                            </div>
+                            <div className="wh-mobile-card-body">
+                              <div className="wh-mobile-card-row">
+                                <span className="wh-mobile-card-label">Sức chứa:</span>
+                                <span className="wh-mobile-card-val">
+                                  {r.max_capacity ? `${r.max_capacity.toLocaleString('vi-VN')} SP` : '500 SP'}
+                                </span>
+                              </div>
+                            </div>
+                            {canManage && (
+                              <div className="wh-mobile-card-actions">
+                                <button
+                                  type="button"
+                                  className="wh-mobile-btn-edit"
+                                  onClick={() => handleOpenEditRack(r)}
+                                >
+                                  Sửa
+                                </button>
+                                <button
+                                  type="button"
+                                  className="wh-mobile-btn-delete"
+                                  onClick={() => setDeletingRack(r)}
+                                >
+                                  Xóa
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
                     )}
                   </div>
                 </div>

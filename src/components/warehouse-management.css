@@ -195,12 +195,21 @@
 .wh-tabs {
   flex-shrink: 0;
   display: flex;
-  gap: 4px;
+  gap: 6px;
   background: var(--wh-slate-100);
   padding: 4px;
   border-radius: var(--wh-radius);
   border: 1px solid var(--wh-slate-200);
-  align-self: flex-start;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.wh-tabs::-webkit-scrollbar {
+  display: none;
 }
 
 .wh-tab-btn {
@@ -1318,12 +1327,223 @@
 }
 
 /* ==========================================================================
+   Toàn màn hình 100% đóng khung cho Form Kho & Vị trí Kệ (Layout 3 cột ngang)
+   Tỷ lệ 3 : 3 : 2, cách 2 bên lề, không thanh cuộn
+   ========================================================================== */
+.wh-form-fullscreen-wrap {
+  height: 100% !important;
+  max-height: 100% !important;
+  min-height: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  box-sizing: border-box !important;
+  padding: 8px 0 12px 0 !important;
+}
+
+.wh-form-fullscreen-wrap .wh-form-page-header {
+  margin: 0 16px 8px 16px;
+  padding: 6px 14px;
+  flex-shrink: 0;
+}
+
+.wh-form-fullscreen-wrap .wh-form-page-header h2 {
+  font-size: 15px;
+  font-weight: 750;
+}
+
+.wh-form-layout-3col {
+  display: grid;
+  grid-template-columns: 3fr 3fr 2fr;
+  align-items: stretch;
+  gap: 12px;
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  box-sizing: border-box;
+  padding: 0 16px; /* Cách 1 ít vào 2 bên lề */
+}
+
+.wh-form-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 10px 14px;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.04);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+.wh-form-card h3 {
+  margin: 0 0 10px 0;
+  font-size: 13.5px;
+  font-weight: 750;
+  color: #0f172a;
+}
+
+.wh-form-col-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+  min-height: 0;
+}
+
+.wh-form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  font-size: 11.5px;
+  font-weight: 650;
+  color: #334155;
+}
+
+.wh-form-field > span b {
+  color: #dc2626;
+}
+
+.wh-form-field input,
+.wh-form-field select {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  height: 32px;
+  padding: 4px 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  outline: none;
+  background: #ffffff;
+  color: #0f172a;
+  font: inherit;
+  font-size: 12px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.wh-form-field input:focus,
+.wh-form-field select:focus {
+  border-color: #10b981;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.15);
+}
+
+.wh-form-field input::placeholder {
+  color: #94a3b8;
+  font-size: 11.5px;
+}
+
+.wh-form-field-error {
+  color: #dc2626;
+  font-size: 10.5px;
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+.wh-code-input-wrap {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.wh-code-input-wrap input {
+  flex: 1;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: #047857;
+}
+
+.wh-btn-code-gen {
+  height: 32px;
+  padding: 0 10px;
+  border-radius: 6px;
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  color: #334155;
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+  font-family: inherit;
+}
+
+.wh-btn-code-gen:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+  border-color: #94a3b8;
+}
+
+.wh-col-summary {
+  justify-content: space-between;
+}
+
+.wh-summary-title-centered {
+  text-align: center;
+  margin: 0 0 8px 0 !important;
+}
+
+.wh-summary-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.wh-summary-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 0;
+  border-bottom: 1px solid #f1f5f9;
+  font-size: 12px;
+}
+
+.wh-summary-row span {
+  color: #64748b;
+  font-size: 11.5px;
+}
+
+.wh-summary-row strong {
+  color: #0f172a;
+  font-weight: 700;
+  text-align: right;
+  word-break: break-word;
+}
+
+.wh-summary-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.wh-btn-block {
+  width: 100% !important;
+  justify-content: center !important;
+  min-height: 32px !important;
+}
+
+.wh-summary-hint {
+  margin: 4px 0 0;
+  color: #94a3b8;
+  font-size: 10.5px;
+  text-align: center;
+  line-height: 1.35;
+}
+
+/* ==========================================================================
    Mobile Card View for Warehouse Management (<= 768px)
    No horizontal scroll, 100% width, fully visible metadata
    ========================================================================== */
 .wh-mobile-card-list,
 .loc-mobile-card-list,
-.prod-mobile-card-list {
+.prod-mobile-card-list,
+.zone-mobile-card-list,
+.rack-mobile-card-list {
   display: none;
 }
 
@@ -1331,8 +1551,66 @@
   .wh-container {
     width: 100% !important;
     max-width: 100vw !important;
+    height: auto !important;
+    max-height: none !important;
+    min-height: 100% !important;
     overflow-x: hidden !important;
+    overflow-y: visible !important;
     box-sizing: border-box !important;
+    flex: 1 1 auto !important;
+  }
+
+  /* Sub Navigation Tabs on Mobile */
+  .wh-tabs {
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    scrollbar-width: none !important;
+    gap: 4px !important;
+    padding: 3px !important;
+  }
+
+  .wh-tabs::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  .wh-tab-btn {
+    padding: 6px 10px !important;
+    font-size: 12px !important;
+    flex-shrink: 0 !important;
+    white-space: nowrap !important;
+  }
+
+  /* Master Data 2-Column Grid on Mobile */
+  .wh-master-grid {
+    grid-template-columns: 1fr !important;
+    overflow: visible !important;
+    height: auto !important;
+    max-height: none !important;
+    gap: 16px !important;
+  }
+
+  .wh-master-card {
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    flex: none !important;
+  }
+
+  .wh-master-card-header {
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+  }
+
+  .wh-table-card {
+    height: auto !important;
+    max-height: none !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    flex: 1 1 auto !important;
   }
 
   .wh-table-responsive {
@@ -1341,14 +1619,17 @@
 
   .wh-mobile-card-list,
   .loc-mobile-card-list,
-  .prod-mobile-card-list {
+  .prod-mobile-card-list,
+  .zone-mobile-card-list,
+  .rack-mobile-card-list {
     display: flex !important;
     flex-direction: column;
     gap: 12px;
-    padding: 10px 0;
+    padding: 10px 0 60px 0;
     width: 100%;
     box-sizing: border-box;
     overflow-x: hidden;
+    overflow-y: visible;
   }
 
   .wh-mobile-card,

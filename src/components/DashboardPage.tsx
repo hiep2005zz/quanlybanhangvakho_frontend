@@ -138,6 +138,24 @@ export default function DashboardPage({
     user.role === 'warehouse'
   );
 
+  // Quyền truy cập Danh sách kho & Vị trí: Nhân viên kinh doanh không được xem chức năng này
+  const isSalesPerson = Boolean(
+    user.role === 'sales' ||
+    user.role === 'sales_manager' ||
+    officialRoles.includes('sales') ||
+    officialRoles.includes('sales_manager')
+  );
+  const canAccessWarehouses = !isCustomer && !isSalesPerson && Boolean(
+    isAdmin ||
+    canWriteInventory ||
+    user.role === 'warehouse_manager' ||
+    user.role === 'warehouse' ||
+    officialRoles.includes('warehouse_manager') ||
+    officialRoles.includes('warehouse') ||
+    user.role === 'accountant' ||
+    officialRoles.includes('accountant')
+  );
+
   // 2. Khởi tạo State với Clean URL
   const location = useLocation();
   const currentPath = location.pathname.toLowerCase();
@@ -183,10 +201,14 @@ export default function DashboardPage({
     const oldTabVal = (params.get('tab') || params.get('view') || '').toLowerCase();
 
     if (isWarehousesPath || oldTabVal === 'warehouses') {
-      if (pathname !== '/warehouses' || hasOldTabParam) {
-        try { window.history.replaceState({}, '', '/warehouses'); } catch { }
+      if (canAccessWarehouses) {
+        if (pathname !== '/warehouses' || hasOldTabParam) {
+          try { window.history.replaceState({}, '', '/warehouses'); } catch { }
+        }
+        return 'warehouses';
       }
-      return 'warehouses';
+      try { window.history.replaceState({}, '', '/'); } catch { }
+      return 'inventory';
     }
 
     if (isStockBookPath || oldTabVal === 'stock-book') {
@@ -460,6 +482,11 @@ export default function DashboardPage({
         // ignore
       }
     } else if (tab === 'warehouses') {
+      if (!canAccessWarehouses) {
+        setActiveTabState('inventory');
+        try { window.history.replaceState({}, '', '/'); } catch {}
+        return;
+      }
       setActiveTabState('warehouses');
       try {
         window.history.pushState({}, '', '/warehouses');
@@ -484,7 +511,8 @@ export default function DashboardPage({
                 : activeTab === 'discounts' ? canAccessDiscounts
                   : activeTab === 'product-history' ? (isAdmin || isSalesManager || canWriteInventory)
                     : activeTab === 'stock-audits' ? canAccessStockAudit
-                      : true;
+                      : activeTab === 'warehouses' ? canAccessWarehouses
+                        : true;
     if (!isAllowed) {
       setActiveTabState('inventory');
       window.history.replaceState({}, '', '/');
@@ -688,6 +716,20 @@ export default function DashboardPage({
           }
         }
         setActiveTabState('users');
+      } else if (pathname === '/warehouses' || pathname.startsWith('/warehouses/') || tabParam === 'warehouses') {
+        if (canAccessWarehouses) {
+          if (pathname !== '/warehouses' || tabParam) {
+            try {
+              window.history.replaceState({}, '', '/warehouses');
+            } catch {
+              // ignore
+            }
+          }
+          setActiveTabState('warehouses');
+        } else {
+          setActiveTabState('inventory');
+          try { window.history.replaceState({}, '', '/'); } catch {}
+        }
       } else if (pathname === '/categories') {
         setActiveTabState('categories');
       } else {
@@ -698,7 +740,7 @@ export default function DashboardPage({
 
     window.addEventListener('popstate', syncFromUrl);
     return () => window.removeEventListener('popstate', syncFromUrl);
-  }, [canManageCategories, canManageSuppliers, canReadOrders, isAdmin, canAccessDiscounts]);
+  }, [canManageCategories, canManageSuppliers, canReadOrders, isAdmin, canAccessDiscounts, canAccessWarehouses]);
   const [products, setProducts] = useState<ProductItem[]>([]);
   const [productSearchInput, setProductSearchInput] = useState('');
   const [productSearchTerm, setProductSearchTerm] = useState('');
@@ -727,6 +769,17 @@ export default function DashboardPage({
   const [isSecurityModalOpen, setIsSecurityModalOpen] = useState(false);
   const [isCreateAccountModalOpen, setIsCreateAccountModalOpen] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [isMobileScreen, setIsMobileScreen] = useState<boolean>(() =>
+    typeof window !== 'undefined' ? window.innerWidth <= 768 : false
+  );
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobileScreen(window.innerWidth <= 768);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
   const [productAuditDrawerState, setProductAuditDrawerState] = useState<{
     isOpen: boolean;
     productCode: string;
@@ -1065,8 +1118,8 @@ export default function DashboardPage({
           onToggleMobileSidebar={() => setIsMobileSidebarOpen((prev) => !prev)}
         />
       }
-      noScroll={isLockedScrollTab}
-      mainClassName={isCustomer || isOrdersCreateSubpage || isPriceListsCreateSubpage ? 'flex-1 min-w-0 overflow-y-auto p-0 flex flex-col bg-slate-50' : undefined}
+      noScroll={!isMobileScreen && isLockedScrollTab}
+      mainClassName={isCustomer || isOrdersCreateSubpage || isPriceListsCreateSubpage ? 'flex-1 min-w-0 overflow-y-auto p-0 flex flex-col bg-slate-50' : isMobileScreen ? 'flex-1 min-w-0 overflow-y-auto p-2 sm:p-3 flex flex-col' : undefined}
       sidebar={
         <Sidebar
           activeTab={activeTab}
@@ -1088,6 +1141,7 @@ export default function DashboardPage({
           canAccessDiscounts={canAccessDiscounts}
           canAccessStockAudit={canAccessStockAudit}
           canAccessStockTransfer={canAccessStockTransfer}
+          canAccessWarehouses={canAccessWarehouses}
           isAdmin={isAdmin}
           onLogout={() => {
             if (isLoggingOut) return;
@@ -1101,7 +1155,7 @@ export default function DashboardPage({
     >
       <div
         className="dashboard-main-container"
-        style={isCustomer || isOrdersCreateSubpage || isPriceListsCreateSubpage ? {
+        style={isCustomer || isOrdersCreateSubpage || isPriceListsCreateSubpage || isMobileScreen ? {
           width: '100%',
           display: 'flex',
           flexDirection: 'column',
@@ -1435,12 +1489,21 @@ export default function DashboardPage({
           />
         )
       ) : activeTab === 'warehouses' ? (
+        canAccessWarehouses ? (
           <WarehouseManagementView
             token={token}
             currentUser={user}
             onBackToHome={() => setActiveTab('inventory')}
           />
-        ) : activeTab === 'stock-book' ? (
+        ) : (
+          <AccessDeniedView
+            currentUser={user}
+            requiredPermission="Quản lý danh sách kho và vị trí kệ (Nhân viên kinh doanh không có quyền truy cập)"
+            onBackToWorkflow={() => setActiveTab('inventory')}
+            onLogout={onLogout}
+          />
+        )
+      ) : activeTab === 'stock-book' ? (
           <WarehouseStockBookView
             token={token}
             onBackToHome={() => setActiveTab('inventory')}

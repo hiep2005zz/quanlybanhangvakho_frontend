@@ -642,7 +642,7 @@ export default function DealerProfileManagementView({
 
   if (isFormPageActive) {
     return (
-      <div className="dealer-profiles-container">
+      <div className="dealer-profiles-container dealer-form-page-scrollable">
         {/* Top Header Section of Form Page */}
         <div className="dealer-profiles-header">
           <div className="dealer-header-title-wrap" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -668,299 +668,324 @@ export default function DealerProfileManagementView({
           </div>
         </div>
 
-        {/* Dedicated Form Page Card */}
-        <div className="dealer-form-page-card">
-          <div className="dealer-form-container-inner">
-            {formError && (
-              <div className="dealer-form-error-banner">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2.2">
-                  <circle cx="12" cy="12" r="10" />
-                  <line x1="12" y1="8" x2="12" y2="12" />
-                  <line x1="12" y1="16" x2="12.01" y2="16" />
-                </svg>
-                <span>{formError}</span>
-              </div>
-            )}
-
-            <form onSubmit={handleSubmitForm}>
-              <div className="dealer-form-grid">
-                {/* 1. Mã đại lý */}
-                <div className="dealer-form-field">
-                  <label className="dealer-form-label">
-                    Mã đại lý <span className="required">*</span>
-                  </label>
-                  <div className="dealer-form-code-group">
-                    <input
-                      type="text"
-                      className="dealer-form-input"
-                      value={formData.code}
-                      onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
-                      placeholder="VD: DL6717"
-                      required
-                    />
-                    {!editingDealer && (
-                      <button
-                        type="button"
-                        className="btn-code-generate"
-                        onClick={() => {
-                          const rand = Math.floor(1000 + Math.random() * 9000);
-                          setFormData({ ...formData, code: `DL${rand}` });
-                        }}
-                        title="Sinh ngẫu nhiên mã đại lý mới"
-                      >
-                        Sinh mã
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                {/* 2. Tên đại lý (chiếm 2 cột) */}
-                <div className="dealer-form-field dealer-form-span-2">
-                  <label className="dealer-form-label">
-                    Tên đại lý / Khách hàng <span className="required">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    className="dealer-form-input"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    placeholder="VD: Đại Lý Thời Trang Sao Mai"
-                    required
-                  />
-                </div>
-
-                {/* 3. Mã số thuế */}
-                <div className="dealer-form-field">
-                  <label className="dealer-form-label">
-                    Mã số thuế (MST)
-                  </label>
-                  <input
-                    type="text"
-                    className="dealer-form-input"
-                    value={formData.tax_code}
-                    onChange={(e) => setFormData({ ...formData, tax_code: e.target.value })}
-                    placeholder="VD: 0101234567"
-                  />
-                </div>
-
-                {/* 4. Số điện thoại liên hệ */}
-                <div className="dealer-form-field">
-                  <label className="dealer-form-label">
-                    Số điện thoại liên hệ <span className="required">*</span>
-                  </label>
-                  <input
-                    type="tel"
-                    className="dealer-form-input"
-                    value={formData.phone}
-                    onChange={(e) => {
-                      const val = e.target.value.replace(/\D/g, '').slice(0, 10);
-                      setFormData({ ...formData, phone: val });
-                    }}
-                    placeholder="VD: 0912345678 (10 số)"
-                    required
-                  />
-                </div>
-
-                {/* 5. Nhóm khách hàng */}
-                <div className="dealer-form-field">
-                  <label className="dealer-form-label">
-                    Nhóm khách hàng <span className="required">*</span>
-                  </label>
-                  <select
-                    className="dealer-form-select"
-                    value={formData.customer_group}
-                    onChange={(e) => setFormData({ ...formData, customer_group: e.target.value })}
-                  >
-                    {CUSTOMER_GROUP_OPTIONS.map((g) => (
-                      <option key={g.value} value={g.value}>
-                        {g.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* 6. Khu vực địa lý */}
-                <div className="dealer-form-field">
-                  <label className="dealer-form-label">
-                    Khu vực địa lý <span className="required">*</span>
-                  </label>
-                  <select
-                    className="dealer-form-select"
-                    value={formData.region}
-                    onChange={(e) => setFormData({ ...formData, region: e.target.value })}
-                  >
-                    {regions.map((reg) => (
-                      <option key={reg} value={reg}>
-                        {reg}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* 7. Người phụ trách (Sales) */}
-                <div className="dealer-form-field">
-                  <label className="dealer-form-label">
-                    Người phụ trách (Sales) <span className="required">*</span>
-                  </label>
-                  <select
-                    className="dealer-form-select"
-                    value={formData.assigned_sale_id}
-                    onChange={(e) => setFormData({ ...formData, assigned_sale_id: e.target.value })}
-                  >
-                    <option value="">-- Chưa phân công --</option>
-                    {salesList.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* 8. Kho phục vụ mặc định */}
-                <div className="dealer-form-field">
-                  <label className="dealer-form-label" title="Đề xuất xuất kho khi lên đơn">
-                    Kho phục vụ {formData.warehouse_name ? <span style={{ color: '#16a34a', fontWeight: 600 }}>: {formData.warehouse_name}</span> : null}
-                  </label>
-                  <select
-                    className="dealer-form-select"
-                    value={formData.warehouse_id}
-                    onChange={(e) => {
-                      const selId = e.target.value;
-                      const selWh = activeWarehouses.find((w) => String(w.id) === selId);
-                      setFormData({
-                        ...formData,
-                        warehouse_id: selId,
-                        warehouse_name: selWh ? selWh.name : '',
-                      });
-                    }}
-                  >
-                    <option value="">-- Tự động theo khu vực --</option>
-                    {activeWarehouses.map((wh) => (
-                      <option key={wh.id} value={wh.id}>
-                        {wh.code} - {wh.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* 9. Trạng thái hồ sơ */}
-                <div className="dealer-form-field">
-                  <label className="dealer-form-label">Trạng thái hồ sơ</label>
-                  <select
-                    className="dealer-form-select"
-                    value={formData.status}
-                    onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                  >
-                    {STATUS_OPTIONS.map((st) => (
-                      <option key={st} value={st}>
-                        {st}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* 10. Số lượng giao dịch (khi sửa) */}
-                {editingDealer && (
-                  <div className="dealer-form-field">
-                    <label className="dealer-form-label" title="Đã phát sinh giao dịch hệ thống sẽ khóa xóa">
-                      Số giao dịch <span className="required">*</span>
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      className="dealer-form-input"
-                      value={formData.transaction_count}
-                      onChange={(e) => setFormData({ ...formData, transaction_count: e.target.value })}
-                      placeholder="0"
-                      required
-                    />
-                  </div>
-                )}
-
-                {/* 11. Địa chỉ đại lý / văn phòng (chiếm 2 cột nếu tạo mới, 1 cột nếu sửa) */}
-                <div className={`dealer-form-field ${editingDealer ? '' : 'dealer-form-span-2'}`}>
-                  <label className="dealer-form-label">Địa chỉ đại lý / văn phòng</label>
-                  <input
-                    type="text"
-                    className="dealer-form-input"
-                    value={formData.address}
-                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                    placeholder="VD: Số 120 Cầu Giấy, Hà Nội"
-                  />
-                </div>
-
-                {/* Live Preview Card: Bảng giá áp dụng theo nhóm (1 dòng siêu gọn) */}
-                <div className="dealer-form-field-full">
-                  <div className="price-book-preview-card">
-                    {loadingPriceBookPreview ? (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#15803d', fontSize: '11.5px' }}>
-                        <svg className="icon-spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <circle cx="12" cy="12" r="10" />
-                          <path d="M12 2a10 10 0 0 1 10 10" />
-                        </svg>
-                        <span>Đang tra cứu bảng giá hiệu lực cho nhóm {formData.customer_group}...</span>
-                      </div>
-                    ) : modalAppliedPriceBook ? (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', fontSize: '12px', color: '#166534' }}>
-                        <span style={{ fontWeight: 700 }}>Bảng giá theo nhóm:</span>
-                        <strong style={{ color: '#0f172a' }}>
-                          {(modalAppliedPriceBook.name || '').replace(/\s*\([^)]*\)/g, '').replace(/\s*\[[^\]]*\]/g, '').trim()}
-                        </strong>
-                        {modalAppliedPriceBook.valid_from && modalAppliedPriceBook.valid_to && (
-                          <span style={{ color: '#64748b', fontSize: '11.5px' }}>
-                            • Hiệu lực: {modalAppliedPriceBook.valid_from.substring(0, 10)} đến {modalAppliedPriceBook.valid_to.substring(0, 10)}
-                          </span>
-                        )}
-                        <span style={{ color: '#15803d', fontSize: '11px', marginLeft: 'auto' }}>
-                          ✓ Tự động áp dụng khi lên đơn hàng
-                        </span>
-                      </div>
-                    ) : (
-                      <div style={{ fontSize: '12px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span>ℹ️ Chưa có bảng giá riêng cho nhóm {formData.customer_group} (sử dụng giá niêm yết mặc định).</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Bottom Actions */}
-              <div className="dealer-form-bottom-actions">
-                <button
-                  type="button"
-                  className="btn-secondary-white"
-                  onClick={() => {
-                    setIsFormPageActive(false);
-                    setEditingDealer(null);
-                    setFormError('');
-                  }}
-                  disabled={isSubmitting}
-                >
-                  Hủy bỏ
-                </button>
-                <button
-                  type="submit"
-                  className="btn-primary-gradient"
-                  disabled={isSubmitting}
-                >
-                  {isSubmitting ? (
-                    <>
-                      <svg className="icon-spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <circle cx="12" cy="12" r="10" />
-                        <path d="M12 2a10 10 0 0 1 10 10" />
-                      </svg>
-                      <span>Đang lưu...</span>
-                    </>
-                  ) : editingDealer ? (
-                    'Lưu thay đổi'
-                  ) : (
-                    'Khai báo hồ sơ'
-                  )}
-                </button>
-              </div>
-            </form>
+        {/* Thông báo lỗi dạng popup nổi góc dưới bên phải */}
+        {formError && (
+          <div className="dealer-form-error-floating" role="alert">
+            <div className="dealer-form-error-floating-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2.2">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+            </div>
+            <div className="dealer-form-error-floating-msg">{formError}</div>
+            <button
+              type="button"
+              className="dealer-form-error-floating-close"
+              onClick={() => setFormError('')}
+              title="Đóng thông báo"
+            >
+              ✕
+            </button>
           </div>
-        </div>
+        )}
+
+        {/* 3 Ô ngang: 1. Thông tin đại lý (3 phần) - 2. Chính sách & Kho phục vụ (3 phần) - 3. Tổng kết hồ sơ (2 phần) */}
+        <form onSubmit={handleSubmitForm} className="dealer-order-like-layout-3col">
+
+          {/* Ô 1: Thông tin đại lý */}
+          <div className="dealer-order-like-card dealer-card-col-info">
+            <h2>Thông tin đại lý</h2>
+            <div className="dealer-order-col-fields">
+              {/* 1. Mã đại lý */}
+              <div className="dealer-order-like-field">
+                <span>Mã đại lý <b>*</b></span>
+                <div className="dealer-order-code-input-wrap">
+                  <input
+                    type="text"
+                    value={formData.code}
+                    onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
+                    placeholder="VD: DL1883"
+                    required
+                  />
+                  {!editingDealer && (
+                    <button
+                      type="button"
+                      className="btn-code-generate"
+                      onClick={() => {
+                        const rand = Math.floor(1000 + Math.random() * 9000);
+                        setFormData({ ...formData, code: `DL${rand}` });
+                      }}
+                      title="Sinh ngẫu nhiên mã đại lý mới"
+                    >
+                      Sinh mã
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* 2. Tên đại lý / Khách hàng */}
+              <div className="dealer-order-like-field">
+                <span>Tên đại lý / Khách hàng <b>*</b></span>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  placeholder="VD: Đại Lý Thời Trang Sao Mai"
+                  required
+                />
+              </div>
+
+              {/* 3. Số điện thoại liên hệ */}
+              <div className="dealer-order-like-field">
+                <span>Số điện thoại liên hệ <b>*</b></span>
+                <input
+                  type="tel"
+                  value={formData.phone}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, '').slice(0, 10);
+                    setFormData({ ...formData, phone: val });
+                  }}
+                  placeholder="VD: 0912345678 (10 số)"
+                  required
+                />
+              </div>
+
+              {/* 4. Mã số thuế */}
+              <div className="dealer-order-like-field">
+                <span>Mã số thuế (MST)</span>
+                <input
+                  type="text"
+                  value={formData.tax_code}
+                  onChange={(e) => setFormData({ ...formData, tax_code: e.target.value })}
+                  placeholder="VD: 0101234567"
+                />
+              </div>
+
+              {/* 5. Địa chỉ đại lý / văn phòng */}
+              <div className="dealer-order-like-field">
+                <span>Địa chỉ đại lý / văn phòng</span>
+                <input
+                  type="text"
+                  value={formData.address}
+                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                  placeholder="VD: Số 120 Cầu Giấy, Hà Nội"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Ô 2: Chính sách & Kho phục vụ */}
+          <div className="dealer-order-like-card dealer-card-col-policy">
+            <h2>Chính sách & Kho phục vụ</h2>
+            <div className="dealer-order-col-fields">
+              {/* Nhóm khách hàng */}
+              <div className="dealer-order-like-field">
+                <span>Nhóm khách hàng <b>*</b></span>
+                <select
+                  value={formData.customer_group}
+                  onChange={(e) => setFormData({ ...formData, customer_group: e.target.value })}
+                >
+                  {CUSTOMER_GROUP_OPTIONS.map((g) => (
+                    <option key={g.value} value={g.value}>
+                      {g.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Khu vực địa lý */}
+              <div className="dealer-order-like-field">
+                <span>Khu vực địa lý <b>*</b></span>
+                <select
+                  value={formData.region}
+                  onChange={(e) => setFormData({ ...formData, region: e.target.value })}
+                >
+                  {regions.map((reg) => (
+                    <option key={reg} value={reg}>
+                      {reg}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Người phụ trách (Sales) */}
+              <div className="dealer-order-like-field">
+                <span>Người phụ trách (Sales) <b>*</b></span>
+                <select
+                  value={formData.assigned_sale_id}
+                  onChange={(e) => setFormData({ ...formData, assigned_sale_id: e.target.value })}
+                >
+                  <option value="">-- Chưa phân công --</option>
+                  {salesList.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Kho phục vụ mặc định */}
+              <div className="dealer-order-like-field">
+                <span>
+                  Kho phục vụ {formData.warehouse_name ? <span style={{ color: '#16a34a', fontWeight: 600 }}>: {formData.warehouse_name}</span> : null}
+                </span>
+                <select
+                  value={formData.warehouse_id}
+                  onChange={(e) => {
+                    const selId = e.target.value;
+                    const selWh = activeWarehouses.find((w) => String(w.id) === selId);
+                    setFormData({
+                      ...formData,
+                      warehouse_id: selId,
+                      warehouse_name: selWh ? selWh.name : '',
+                    });
+                  }}
+                >
+                  <option value="">-- Tự động theo khu vực --</option>
+                  {activeWarehouses.map((wh) => (
+                    <option key={wh.id} value={wh.id}>
+                      {wh.code} - {wh.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Số giao dịch (nếu sửa) */}
+              {editingDealer && (
+                <div className="dealer-order-like-field">
+                  <span>Số giao dịch <b>*</b></span>
+                  <input
+                    type="number"
+                    min="0"
+                    value={formData.transaction_count}
+                    onChange={(e) => setFormData({ ...formData, transaction_count: e.target.value })}
+                    placeholder="0"
+                    required
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Live Preview Card: Bảng giá áp dụng theo nhóm */}
+            <div className="dealer-order-price-banner" style={{ marginTop: 'auto' }}>
+              {loadingPriceBookPreview ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#15803d', fontSize: '11.5px' }}>
+                  <svg className="icon-spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="12" cy="12" r="10" />
+                    <path d="M12 2a10 10 0 0 1 10 10" />
+                  </svg>
+                  <span>Đang tra cứu bảng giá hiệu lực cho nhóm {formData.customer_group}...</span>
+                </div>
+              ) : modalAppliedPriceBook ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', fontSize: '11.5px', color: '#166534' }}>
+                  <span style={{ fontWeight: 700 }}>Bảng giá theo nhóm:</span>
+                  <strong style={{ color: '#0f172a' }}>
+                    {(modalAppliedPriceBook.name || '').replace(/\s*\([^)]*\)/g, '').replace(/\s*\[[^\]]*\]/g, '').trim()}
+                  </strong>
+                  {modalAppliedPriceBook.valid_from && modalAppliedPriceBook.valid_to && (
+                    <span style={{ color: '#64748b', fontSize: '11px' }}>
+                      • Hiệu lực: {modalAppliedPriceBook.valid_from.substring(0, 10)} đến {modalAppliedPriceBook.valid_to.substring(0, 10)}
+                    </span>
+                  )}
+                  <span style={{ color: '#15803d', fontSize: '11px', marginLeft: 'auto', fontWeight: 600 }}>
+                    ✓ Tự động áp dụng khi lên đơn hàng
+                  </span>
+                </div>
+              ) : (
+                <div style={{ fontSize: '11.5px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span>ℹ️ Chưa có bảng giá riêng cho nhóm {formData.customer_group} (sử dụng giá niêm yết mặc định).</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Ô 3: Tổng kết hồ sơ */}
+          <div className="dealer-order-like-card dealer-order-summary-card dealer-card-col-summary">
+            <h2 className="dealer-summary-title-centered">Tổng kết hồ sơ</h2>
+
+            {/* Trạng thái hồ sơ */}
+            <div className="dealer-order-like-field" style={{ marginBottom: '8px' }}>
+              <span>Trạng thái hồ sơ</span>
+              <select
+                value={formData.status}
+                onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+              >
+                {STATUS_OPTIONS.map((st) => (
+                  <option key={st} value={st}>
+                    {st}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Tóm tắt */}
+            <div className="dealer-order-summary-content">
+              <div className="dealer-order-summary-row">
+                <span>Nhóm KH</span>
+                <strong>{formData.customer_group}</strong>
+              </div>
+              <div className="dealer-order-summary-row">
+                <span>Khu vực</span>
+                <strong>{formData.region || '—'}</strong>
+              </div>
+              <div className="dealer-order-summary-row">
+                <span>Kho phục vụ</span>
+                <strong>{formData.warehouse_name || 'Tự động'}</strong>
+              </div>
+              <div className="dealer-order-summary-row">
+                <span>Phụ trách</span>
+                <strong>
+                  {salesList.find((s) => String(s.id) === String(formData.assigned_sale_id))?.name || 'Chưa chọn'}
+                </strong>
+              </div>
+              <div className="dealer-order-summary-row">
+                <span>Bảng giá</span>
+                <strong style={{ color: modalAppliedPriceBook ? '#059669' : '#64748b' }}>
+                  {modalAppliedPriceBook
+                    ? (modalAppliedPriceBook.name || '').replace(/\s*\([^)]*\)/g, '').replace(/\s*\[[^\]]*\]/g, '').trim()
+                    : 'Giá niêm yết'}
+                </strong>
+              </div>
+            </div>
+
+            {/* Nút hành động neo ở đáy card */}
+            <div className="dealer-order-summary-actions-bottom">
+              <button
+                type="submit"
+                className="dealer-order-primary-btn"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? (
+                  <>
+                    <svg className="icon-spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <circle cx="12" cy="12" r="10" />
+                      <path d="M12 2a10 10 0 0 1 10 10" />
+                    </svg>
+                    <span>Đang lưu...</span>
+                  </>
+                ) : editingDealer ? (
+                  'Lưu thay đổi'
+                ) : (
+                  'Khai báo hồ sơ'
+                )}
+              </button>
+
+              <button
+                type="button"
+                className="dealer-order-secondary-btn"
+                onClick={() => {
+                  setIsFormPageActive(false);
+                  setEditingDealer(null);
+                  setFormError('');
+                }}
+                disabled={isSubmitting}
+              >
+                Hủy bỏ
+              </button>
+            </div>
+          </div>
+        </form>
       </div>
     );
   }
