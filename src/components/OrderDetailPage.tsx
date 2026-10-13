@@ -14,6 +14,7 @@ import { useParams, useNavigate } from '../hooks/useLocation';
 import { OrderLifecycleTimeline } from './OrderLifecycleTimeline';
 import OrderPrintModal from './OrderPrintModal';
 import { emitStatusToast } from './StatusToast';
+import { OrderApprovalHistory } from './OrderApprovalHistory';
 
 interface OrderDetailPageProps {
   currentUser: User;
@@ -650,6 +651,9 @@ export const OrderDetailPage: React.FC<OrderDetailPageProps> = ({
                 </strong>
               </div>
             </div>
+          {/* Lịch sử phê duyệt & xử lý đơn hàng */}
+          <div className="p-5 border-t border-slate-200 bg-white">
+            <OrderApprovalHistory orderCode={order.order_code} token={token} />
           </div>
         </div>
       </div>
