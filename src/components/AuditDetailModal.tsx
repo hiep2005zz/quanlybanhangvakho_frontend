@@ -150,7 +150,7 @@ export const VALUE_TRANSLATIONS: Record<string, string> = {
 };
 
 // 3. Từ điển nhãn hành động tiếng Việt
-export const ACTION_LABELS: Record<string, string> = {
+const ACTION_LABELS: Record<string, string> = {
   INVENTORY_ADJUST: 'Điều chỉnh tồn kho',
   PRICE_CHANGE: 'Thay đổi giá',
   DEBT_LIMIT_CHANGE: 'Đổi hạn mức công nợ',

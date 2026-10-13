@@ -40,7 +40,11 @@ interface DiscountPolicyViewProps {
   onBackToHome?: () => void;
 }
 
+<<<<<<< HEAD
 export default function DiscountPolicyView({ token, user }: DiscountPolicyViewProps) {
+=======
+export default function DiscountPolicyView({ token, user, onBackToHome: _onBackToHome }: DiscountPolicyViewProps) {
+>>>>>>> 614903c60aa5c81ac4e69b2640f77b259e5749fa
   const canManageDiscounts = Boolean(
     user?.role === 'admin' ||
     user?.role === 'sales_manager' ||
@@ -457,9 +461,328 @@ export default function DiscountPolicyView({ token, user }: DiscountPolicyViewPr
 
   return (
     <div style={{ padding: '8px', maxWidth: '1200px', margin: '0 auto' }}>
+<<<<<<< HEAD
       {isModalOpen ? (
         /* TRANG RIÊNG: KHAI BÁO / CHỈNH SỬA CHÍNH SÁCH (THIẾT KẾ GỌN GÀNG HIỆN ĐỦ 100% TRÊN 1 MÀN HÌNH) */
         <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+=======
+      {/* Header View */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+        <div>
+          <h2 style={{ margin: 0, fontSize: '22px', color: '#0f172a', fontWeight: '700' }}>
+            Quản Lý Chính Sách Chiết Khấu Sản Lượng
+          </h2>
+          <p style={{ margin: '4px 0 0 0', color: '#64748b', fontSize: '14px' }}>
+            Khai báo mốc sản lượng & tỷ lệ chiết khấu tự động dành cho đại lý
+          </p>
+        </div>
+        {canManageDiscounts ? (
+          <button
+            onClick={() => {
+              setEditingPolicyId(null);
+              setApplyScope('all');
+              setFormData({
+                title: 'Tất cả sản phẩm',
+                code: `CK-${Math.floor(1000 + Math.random() * 9000)}`,
+                category: 'ALL',
+                target_group: 'all',
+                start_date: new Date().toISOString().split('T')[0],
+                end_date: '',
+                status: 'active',
+                note: '',
+                tiers: [
+                  { id: Date.now().toString(), min_quantity: 100, max_quantity: 499, discount_percent: 5 },
+                ],
+              });
+              setIsModalOpen(true);
+            }}
+            style={{
+              background: 'linear-gradient(135deg, #0fba90 0%, #0fad89 100%)',
+              color: '#fff',
+              border: 'none',
+              padding: '10px 18px',
+              borderRadius: '8px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              boxShadow: '0 2px 8px rgba(15, 186, 144, 0.35)',
+            }}
+          >
+            + Khai Báo Chính Sách Mới
+          </button>
+        ) : (
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              padding: '6px 14px',
+              borderRadius: '8px',
+              fontSize: '13px',
+              fontWeight: '600',
+              background: '#f8fafc',
+              color: '#64748b',
+              border: '1px solid #e2e8f0',
+            }}
+            title="Chỉ Admin và Quản lý kinh doanh mới có quyền thiết lập chính sách chiết khấu"
+          >
+            <span>Chỉ xem</span>
+          </div>
+        )}
+      </div>
+
+      {/* Danh sách chính sách hiện tại (Khối liền nhau) */}
+      <div
+        style={{
+          background: '#ffffff',
+          borderRadius: '12px',
+          border: '1px solid #e2e8f0',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+          overflow: 'hidden',
+        }}
+      >
+        {policies.length === 0 ? (
+          <div style={{ padding: '40px 20px', textAlign: 'center', color: '#94a3b8', fontSize: '14px' }}>
+            Chưa có chính sách chiết khấu nào được khai báo.
+          </div>
+        ) : (
+          policies.map((policy, index) => (
+            <div
+              key={policy.id}
+              style={{
+                padding: '20px',
+                borderBottom: index < policies.length - 1 ? '1px solid #e2e8f0' : 'none',
+              }}
+            >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                  <h3 style={{ margin: 0, fontSize: '17px', fontWeight: '700', color: '#1e293b' }}>
+                    {policy.title}
+                  </h3>
+                  <span
+                    style={{
+                      background: '#eff6ff',
+                      color: '#2563eb',
+                      padding: '2px 8px',
+                      borderRadius: '6px',
+                      fontSize: '12px',
+                      fontWeight: '700',
+                      fontFamily: 'monospace',
+                    }}
+                  >
+                    {policy.code}
+                  </span>
+                  {policy.category && policy.category !== 'ALL' && policy.category !== 'PRODUCT' ? (
+                    <span
+                      style={{
+                        background: '#fef3c7',
+                        color: '#92400e',
+                        border: '1px solid #fde68a',
+                        padding: '2px 8px',
+                        borderRadius: '6px',
+                        fontSize: '12px',
+                        fontWeight: '700',
+                      }}
+                    >
+                      Nhóm: {policy.category ? String(policy.category).replace(/Qu\?n/g, 'Quần') : ''}
+                    </span>
+                  ) : (!policy.category || policy.category === 'ALL') && policy.title === 'Tất cả sản phẩm' ? (
+                    <span
+                      style={{
+                        background: '#f1f5f9',
+                        color: '#475569',
+                        padding: '2px 8px',
+                        borderRadius: '6px',
+                        fontSize: '12px',
+                        fontWeight: '600',
+                      }}
+                    >
+                      Toàn bộ sản phẩm
+                    </span>
+                  ) : (
+                    <span
+                      style={{
+                        background: '#e0f2fe',
+                        color: '#0369a1',
+                        border: '1px solid #bae6fd',
+                        padding: '2px 8px',
+                        borderRadius: '6px',
+                        fontSize: '12px',
+                        fontWeight: '600',
+                      }}
+                    >
+                      Sản phẩm
+                    </span>
+                  )}
+                  {hasOverlappingTiers(policy.tiers) && (
+                    <span
+                      style={{
+                        background: '#fef2f2',
+                        color: '#dc2626',
+                        border: '1px solid #fca5a5',
+                        padding: '2px 8px',
+                        borderRadius: '6px',
+                        fontSize: '12px',
+                        fontWeight: '700',
+                      }}
+                      title="Chính sách này có các mốc sản lượng bị chồng chéo nhau!"
+                    >
+                      Bị chồng số lượng sản phẩm
+                    </span>
+                  )}
+                </div>
+                <p style={{ margin: '6px 0 0 0', fontSize: '13px', color: '#64748b' }}>
+                  Áp dụng: {policy.target_group === 'all' ? 'Tất cả đại lý' : policy.target_group === 'agent_tier_1' ? 'Đại lý Cấp 1' : 'Đại lý Cấp 2'} | Hiệu lực: {policy.start_date} đến {policy.end_date || 'Không thời hạn'}
+                </p>
+              </div>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <span
+                  style={{
+                    padding: '4px 10px',
+                    borderRadius: '999px',
+                    fontSize: '12px',
+                    fontWeight: '600',
+                    background: policy.status === 'active' ? '#dcfce7' : '#f1f5f9',
+                    color: policy.status === 'active' ? '#15803d' : '#64748b',
+                  }}
+                >
+                  {policy.status === 'active' ? 'Đang áp dụng' : policy.status === 'expired' ? 'Đã ngừng' : 'Dự thảo'}
+                </span>
+                {canManageDiscounts && (
+                  <>
+                    <button
+                      onClick={() => handleEditPolicy(policy)}
+                      style={{
+                        background: 'none',
+                        border: '1px solid #cbd5e1',
+                        borderRadius: '6px',
+                        color: '#2563eb',
+                        padding: '4px 8px',
+                        fontSize: '12px',
+                        cursor: 'pointer',
+                        fontWeight: '600',
+                        transition: 'all 0.2s',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = '#eff6ff';
+                        e.currentTarget.style.borderColor = '#93c5fd';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = 'none';
+                        e.currentTarget.style.borderColor = '#cbd5e1';
+                      }}
+                      title="Chỉnh sửa chính sách"
+                    >
+                      Sửa
+                    </button>
+                    {policy.status === 'active' ? (
+                      <button
+                        onClick={() => handleStopPolicy(policy.id)}
+                        style={{
+                          background: 'none',
+                          border: '1px solid #fef08a',
+                          borderRadius: '6px',
+                          color: '#ca8a04',
+                          padding: '4px 8px',
+                          fontSize: '12px',
+                          cursor: 'pointer',
+                          fontWeight: '600',
+                          transition: 'all 0.2s',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = '#fefce8';
+                          e.currentTarget.style.borderColor = '#fde047';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = 'none';
+                          e.currentTarget.style.borderColor = '#fef08a';
+                        }}
+                      >
+                        Ngừng áp dụng
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => handleDeletePolicy(policy.id)}
+                        style={{
+                          background: 'none',
+                          border: '1px solid #fee2e2',
+                          borderRadius: '6px',
+                          color: '#ef4444',
+                          padding: '4px 8px',
+                          fontSize: '12px',
+                          cursor: 'pointer',
+                          fontWeight: '600',
+                          transition: 'all 0.2s',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = '#fef2f2';
+                          e.currentTarget.style.borderColor = '#fca5a5';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = 'none';
+                          e.currentTarget.style.borderColor = '#fee2e2';
+                        }}
+                      >
+                        Xóa
+                      </button>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Bảng bậc chiết khấu */}
+            <div style={{ background: '#f8fafc', borderRadius: '8px', padding: '12px', marginTop: '12px' }}>
+              <div style={{ fontSize: '13px', fontWeight: '700', color: '#334155', marginBottom: '8px' }}>
+                Bậc chiết khấu theo sản lượng:
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
+                {policy.tiers.map((tier, idx) => (
+                  <div
+                    key={tier.id || idx}
+                    style={{
+                      background: '#ffffff',
+                      border: '1px solid #cbd5e1',
+                      borderRadius: '6px',
+                      padding: '8px 12px',
+                      fontSize: '13px',
+                    }}
+                  >
+                    <span style={{ color: '#64748b' }}>Từ </span>
+                    <strong style={{ color: '#0f172a' }}>{tier.min_quantity}</strong>
+                    <span style={{ color: '#64748b' }}> {tier.max_quantity ? `đến ${tier.max_quantity}` : '+'} sp: </span>
+                    <strong style={{ color: '#16a34a', fontSize: '14px' }}>
+                      Giảm {tier.discount_type === 'amount' || (tier.discount_amount && tier.discount_amount > 0 && !tier.discount_percent)
+                        ? `${Number(tier.discount_amount).toLocaleString('vi-VN')} đ/sp`
+                        : `${tier.discount_percent}%`}
+                    </strong>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )))}
+      </div>
+
+      {/* Modal Khai báo chính sách mới */}
+      {isModalOpen && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(15, 23, 42, 0.65)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: '16px',
+            overflowY: 'auto',
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setIsModalOpen(false);
+          }}
+        >
+>>>>>>> 614903c60aa5c81ac4e69b2640f77b259e5749fa
           <div
             style={{
               background: '#ffffff',
