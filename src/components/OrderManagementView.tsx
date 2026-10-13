@@ -30,7 +30,7 @@ import { OrderLifecycleTimeline } from './OrderLifecycleTimeline';
 import { OrderCancelModal } from './OrderCancelModal';
 import { getOrderPermissionTier, isOrderPastExported, isOrderCancelable } from '../utils/orderPermissions';
 import OrderPrintModal from './OrderPrintModal';
-import { Link, useNavigate } from '../hooks/useLocation';
+import { Link } from '../hooks/useLocation';
 import './dashboard.css';
 
 
@@ -95,18 +95,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
   const [printingOrder, setPrintingOrder] = useState<OrderResponseData | any | null>(null);
   const [openActionDropdownCode, setOpenActionDropdownCode] = useState<string | null>(null);
   const dropdownCloseTimerRef = useRef<any>(null);
-  const navigate = useNavigate();
 
-  // Hàm làm sạch lý do cảnh báo: Khi nhân viên/quản lý/admin duyệt thành công, không hiện cảnh báo đại lý tự đặt
-  const getCleanApprovalReason = (ord: any): string | null => {
-    if (!ord || !ord.approval_reason) return null;
-    const s = (ord.status || '').toUpperCase();
-    const isApproved =
-      ['CONFIRMED', 'APPROVED', 'PICKING', 'PREPARING', 'PACKING', 'EXPORTED', 'SHIPPED', 'DELIVERED', 'CLOSED', 'COMPLETED'].includes(s) ||
-      !ord.requires_approval;
-    if (isApproved) return null;
-    return ord.approval_reason;
-  };
 
   // Tự động đóng menu trạng thái khi nhấn chuột ra ngoài
   useEffect(() => {
