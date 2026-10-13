@@ -1543,7 +1543,7 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
                                   style={{
                                     display: 'inline-flex',
                                     alignItems: 'center',
-                                    gap: '5px',
+                                    justifyContent: 'center',
                                     fontSize: '11px',
                                     fontWeight: '700',
                                     padding: '3px 8px',
@@ -1554,15 +1554,6 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
                                     whiteSpace: 'nowrap',
                                   }}
                                 >
-                                  <span
-                                    style={{
-                                      width: '6px',
-                                      height: '6px',
-                                      borderRadius: '50%',
-                                      background: '#10b981',
-                                      display: 'inline-block',
-                                    }}
-                                  />
                                   ĐÃ XÁC NHẬN
                                 </span>
                               </td>
@@ -1571,7 +1562,6 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
                                   style={{
                                     display: 'inline-flex',
                                     alignItems: 'center',
-                                    gap: '4px',
                                     fontSize: '11.5px',
                                     color: '#475569',
                                     background: '#f8fafc',
@@ -1583,7 +1573,7 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
                                   }}
                                   title="Chứng từ đã vào sổ kế toán, không thể chỉnh sửa trực tiếp. Để thay đổi cần lập phiếu điều chỉnh."
                                 >
-                                  🔒 Bất biến
+                                  Bất biến
                                 </span>
                               </td>
                               <td style={{ padding: '10px 14px', textAlign: 'right', whiteSpace: 'nowrap' }}>
