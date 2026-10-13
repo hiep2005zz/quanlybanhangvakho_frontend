@@ -152,16 +152,62 @@ export const CustomerPortalView: React.FC<CustomerPortalViewProps> = ({
     });
   };
 
-  // Cập nhật số lượng trong giỏ
+  // Cập nhật số lượng qua nút bấm + / -
   const handleUpdateQuantity = (productId: number, newQty: number) => {
     if (newQty <= 0) {
       handleRemoveFromCart(productId);
+      return;
+    }
+    const cartItem = cart.find((i) => i.product.id === productId);
+    const stock = cartItem?.product.stock;
+    if (stock !== undefined && stock !== null && stock > 0 && newQty > stock) {
+      emitStatusToast({
+        type: 'warning',
+        title: 'Tồn kho giới hạn',
+        message: `Số lượng không thể vượt quá tồn kho hiện có (${stock} sản phẩm).`,
+      });
       return;
     }
     setCart((prev) =>
       prev.map((item) =>
         item.product.id === productId ? { ...item, quantity: newQty } : item
       )
+    );
+  };
+
+  // Cập nhật số lượng khi gõ trực tiếp trong ô input (onChange)
+  const handleQuantityInputChange = (productId: number, rawValue: string) => {
+    const cleanDigits = rawValue.replace(/[^0-9]/g, '');
+    const parsedQty = cleanDigits === '' ? 0 : parseInt(cleanDigits, 10);
+    setCart((prev) =>
+      prev.map((item) =>
+        item.product.id === productId ? { ...item, quantity: parsedQty } : item
+      )
+    );
+  };
+
+  // Kiểm duyệt số lượng khi click ra ngoài ô input (onBlur)
+  const handleQuantityInputBlur = (productId: number) => {
+    setCart((prev) =>
+      prev.map((item) => {
+        if (item.product.id !== productId) return item;
+        let qty = item.quantity;
+        // 1. Nếu ô nhập bị trống, số âm hoặc bằng 0 -> ép về 1
+        if (!qty || qty <= 0) {
+          qty = 1;
+        }
+        // 2. Nếu vượt quá tồn kho (nếu có check) -> ép về tồn tối đa
+        const stock = item.product.stock;
+        if (stock !== undefined && stock !== null && stock > 0 && qty > stock) {
+          qty = stock;
+          emitStatusToast({
+            type: 'warning',
+            title: 'Điều chỉnh số lượng',
+            message: `Số lượng vượt quá tồn kho (${stock}). Hệ thống đã tự điều chỉnh về ${stock}.`,
+          });
+        }
+        return { ...item, quantity: qty };
+      })
     );
   };
 
@@ -525,15 +571,27 @@ export const CustomerPortalView: React.FC<CustomerPortalViewProps> = ({
                           <button
                             type="button"
                             onClick={() => handleUpdateQuantity(item.product.id, item.quantity - 1)}
-                            className="w-6 h-6 flex items-center justify-center rounded bg-white border border-gray-300 text-gray-700 font-bold hover:bg-gray-100 cursor-pointer"
+                            className="w-6 h-6 flex items-center justify-center rounded bg-white border border-gray-300 text-gray-700 font-bold hover:bg-gray-100 cursor-pointer select-none"
+                            title="Giảm số lượng"
                           >
                             -
                           </button>
-                          <span className="w-5 text-center font-bold text-xs">{item.quantity}</span>
+                          <input
+                            type="number"
+                            min="1"
+                            max={item.product.stock || undefined}
+                            value={item.quantity === 0 ? '' : item.quantity}
+                            onChange={(e) => handleQuantityInputChange(item.product.id, e.target.value)}
+                            onBlur={() => handleQuantityInputBlur(item.product.id)}
+                            className="w-12 text-center bg-transparent border border-gray-300 rounded text-xs font-bold py-0.5 outline-none appearance-none focus:border-emerald-500 focus:bg-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                            title="Nhập số lượng trực tiếp"
+                            aria-label={`Số lượng cho ${item.product.name}`}
+                          />
                           <button
                             type="button"
                             onClick={() => handleUpdateQuantity(item.product.id, item.quantity + 1)}
-                            className="w-6 h-6 flex items-center justify-center rounded bg-white border border-gray-300 text-gray-700 font-bold hover:bg-gray-100 cursor-pointer"
+                            className="w-6 h-6 flex items-center justify-center rounded bg-white border border-gray-300 text-gray-700 font-bold hover:bg-gray-100 cursor-pointer select-none"
+                            title="Tăng số lượng"
                           >
                             +
                           </button>
