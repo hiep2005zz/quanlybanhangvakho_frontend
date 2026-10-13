@@ -16,6 +16,8 @@ import {
   DealerStockSummaryResponse,
   DealerCreditInfo,
   getDealerCreditInfoApi,
+  getWarehouseProductsApi,
+  LocationProductStockItem,
 } from '../services/api';
 import { evaluateBestDiscountPolicy, parseStoredPolicies } from '../utils/discountEngine';
 import { searchDealers } from '../services/dealerSearchApi';
@@ -36,6 +38,8 @@ export interface SelectedOrderItem {
   sellPrice: number;
   floorPrice: number | null;
   priceNote?: string;
+  selectedLocationId?: number | null;
+  selectedLocationCode?: string | null;
 }
 
 export interface CreateOrderPageProps {
@@ -409,6 +413,47 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({
       isCancelled = true;
     };
   }, [dealerId, token]);
+
+  // Tải danh sách vị trí kệ & tồn khả dụng theo kệ của kho phục vụ
+  const [locationProducts, setLocationProducts] = useState<LocationProductStockItem[]>([]);
+  const [, setIsLoadingLocations] = useState<boolean>(false);
+
+  useEffect(() => {
+    const whId = stockSummary?.warehouse_id || selectedDealer?.warehouse_id || (dealers.find((d) => d.id === dealerId)?.warehouse_id);
+    if (!whId || !token) {
+      setLocationProducts([]);
+      return;
+    }
+    let isCancelled = false;
+    setIsLoadingLocations(true);
+    getWarehouseProductsApi(token, Number(whId))
+      .then((data) => {
+        if (!isCancelled) {
+          setLocationProducts(Array.isArray(data) ? data : []);
+        }
+      })
+      .catch((err) => {
+        console.warn('Could not load location products in create order:', err);
+      })
+      .finally(() => {
+        if (!isCancelled) {
+          setIsLoadingLocations(false);
+        }
+      });
+    return () => {
+      isCancelled = true;
+    };
+  }, [stockSummary?.warehouse_id, selectedDealer?.warehouse_id, dealerId, token, dealers]);
+
+  const productLocationsMap = useMemo(() => {
+    const map = new Map<number, LocationProductStockItem[]>();
+    for (const item of locationProducts) {
+      const list = map.get(item.product_id) || [];
+      list.push(item);
+      map.set(item.product_id, list);
+    }
+    return map;
+  }, [locationProducts]);
 
   // Tải thông tin công nợ, hạn mức & nợ quá hạn
   useEffect(() => {
@@ -970,6 +1015,8 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({
             price: item.sellPrice,
             unit_name: item.unitName,
             conversion_rate: item.conversionRate,
+            location_id: item.selectedLocationId || undefined,
+            location_code: item.selectedLocationCode || undefined,
           };
         }),
         discount_percent: safeDiscount,
@@ -1307,9 +1354,13 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({
                     <option value="">Bấm vào đây để tìm và chọn sản phẩm thêm vào đơn hàng...</option>
                     {products.map((p) => {
                       const isAdded = orderItems.some((item) => item.productId === p.id);
+                      const locs = productLocationsMap.get(p.id) || [];
+                      const locInfo = locs.length > 0
+                        ? ` [Kệ: ${locs.slice(0, 3).map((l) => `${l.location_code} (${l.quantity})`).join(', ')}${locs.length > 3 ? '...' : ''}]`
+                        : '';
                       return (
                         <option key={p.id} value={p.id}>
-                          {p.code} — {p.name} (Tồn kho: {p.stock} {p.base_unit || 'Cái'}){isAdded ? ' [Đã có trong giỏ]' : ''}
+                          {p.code} — {p.name} (Tồn kho: {p.stock} {p.base_unit || 'Cái'}){locInfo}{isAdded ? ' [Đã có trong giỏ]' : ''}
                         </option>
                       );
                     })}
@@ -1340,6 +1391,7 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({
                           <th className="py-3.5 px-4 font-bold">Sản Phẩm & Kho Phục Vụ</th>
                           <th className="py-3.5 px-3 text-center font-bold w-32">ĐVT</th>
                           <th className="py-3.5 px-3 text-center font-bold w-36">Số Lượng</th>
+                          <th className="py-3.5 px-4 font-bold min-w-[220px]">Vị Trí Kệ & Khả Dụng</th>
                           <th className="py-3.5 px-4 text-right font-bold w-40">Đơn Giá Thực Tế</th>
                           <th className="py-3.5 px-4 text-right font-bold w-36">Thành Tiền</th>
                           <th className="py-3.5 px-2 text-center w-12"></th>
@@ -1459,6 +1511,113 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({
                                     +
                                   </button>
                                 </div>
+                              </td>
+
+                              {/* Cột: Vị trí kệ & Khả dụng */}
+                              <td className="py-3.5 px-4 min-w-[220px] align-middle">
+                                {(() => {
+                                  const locs = productLocationsMap.get(item.productId) || [];
+                                  const totalLocQty = locs.reduce((sum, l) => sum + (l.quantity || 0), 0);
+                                  if (locs.length === 0) {
+                                    return (
+                                      <div className="flex flex-col gap-0.5">
+                                        <span className="text-slate-400 italic text-xs whitespace-nowrap">Chưa có vị trí kệ chi tiết</span>
+                                        <span className="text-[11px] text-slate-500 font-medium">Tự động xuất kho tổng</span>
+                                      </div>
+                                    );
+                                  }
+                                  return (
+                                    <div className="flex flex-col gap-1.5">
+                                      {/* Dropdown chọn vị trí kệ */}
+                                      <select
+                                        value={item.selectedLocationId || ''}
+                                        onChange={(e) => {
+                                          const locId = e.target.value ? Number(e.target.value) : null;
+                                          const selectedLoc = locs.find((l) => l.location_id === locId);
+                                          setOrderItems((prev) =>
+                                            prev.map((it, i) =>
+                                              i === idx
+                                                ? {
+                                                    ...it,
+                                                    selectedLocationId: locId,
+                                                    selectedLocationCode: selectedLoc?.location_code || null,
+                                                  }
+                                                : it
+                                            )
+                                          );
+                                        }}
+                                        className="w-full text-xs font-semibold py-1.5 px-2 rounded-lg border border-slate-300 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 cursor-pointer shadow-2xs"
+                                      >
+                                        <option value="">-- Tự động phân bổ (Tổng: {totalLocQty} {item.baseUnit}) --</option>
+                                        {locs.map((loc) => (
+                                          <option key={loc.location_id} value={loc.location_id}>
+                                            Kệ {loc.location_code} (Khả dụng: {loc.quantity} {item.baseUnit})
+                                          </option>
+                                        ))}
+                                      </select>
+
+                                      {/* Danh sách badge vị trí trực quan */}
+                                      <div className="flex flex-wrap gap-1.5 max-w-[340px]">
+                                        {locs.map((loc) => {
+                                          const isChosen = item.selectedLocationId === loc.location_id;
+                                          return (
+                                            <button
+                                              key={loc.location_id}
+                                              type="button"
+                                              onClick={() => {
+                                                const newLocId = item.selectedLocationId === loc.location_id ? null : loc.location_id;
+                                                const selectedLoc = locs.find((l) => l.location_id === newLocId);
+                                                setOrderItems((prev) =>
+                                                  prev.map((it, i) =>
+                                                    i === idx
+                                                      ? {
+                                                          ...it,
+                                                          selectedLocationId: newLocId,
+                                                          selectedLocationCode: selectedLoc?.location_code || null,
+                                                        }
+                                                      : it
+                                                  )
+                                                );
+                                              }}
+                                              className={`inline-flex items-center gap-1.5 border rounded-md px-2 py-0.5 text-xs whitespace-nowrap transition-all cursor-pointer ${
+                                                isChosen
+                                                  ? 'bg-emerald-50 border-emerald-500 ring-2 ring-emerald-500/30 font-bold'
+                                                  : 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-700'
+                                              }`}
+                                              title="Bấm để chọn/bỏ chọn xuất từ kệ này"
+                                            >
+                                              <span className="font-bold text-slate-900">{loc.location_code}</span>
+                                              <span
+                                                className={`px-1.5 py-0.5 rounded text-[11px] font-semibold whitespace-nowrap ${
+                                                  isChosen ? 'bg-emerald-200 text-emerald-800' : 'bg-slate-200 text-slate-700'
+                                                }`}
+                                              >
+                                                KD: {loc.quantity}
+                                              </span>
+                                            </button>
+                                          );
+                                        })}
+                                      </div>
+
+                                      {/* Cảnh báo thiếu hàng nếu chọn kệ cụ thể */}
+                                      {(() => {
+                                        if (!item.selectedLocationId) return null;
+                                        const chosenLoc = locs.find((l) => l.location_id === item.selectedLocationId);
+                                        const chosenQty = chosenLoc ? chosenLoc.quantity : 0;
+                                        const rate = item.conversionRate || 1;
+                                        const requiredInBase = itemQty * rate;
+                                        if (chosenQty < requiredInBase) {
+                                          return (
+                                            <span className="text-[11px] font-semibold text-amber-600 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5">
+                                              ⚠️ Kệ {chosenLoc?.location_code} chỉ có {chosenQty} {item.baseUnit} (Thiếu {Math.round(requiredInBase - chosenQty)})
+                                            </span>
+                                          );
+                                        }
+                                        return null;
+                                      })()}
+                                    </div>
+                                  );
+                                })()}
                               </td>
 
                               {/* Cột 4: Đơn giá */}
