@@ -42,6 +42,7 @@ interface OrderLine {
   name: string;
   price: number;
   rawPrice?: string;
+  rawQuantity?: string;
   unit: string;
   conversionRate: number;
   quantity: number;
@@ -80,7 +81,7 @@ const isOrderLine = (value: unknown): value is OrderLine => {
     line.conversionRate > 0 &&
     typeof line.quantity === 'number' &&
     Number.isInteger(line.quantity) &&
-    line.quantity > 0;
+    line.quantity >= 0;
 };
 
 const isOrderDraft = (value: unknown): value is OrderDraft => {
@@ -585,7 +586,11 @@ export default function SalesOrderEntry({
     setDiscountPercent(draft.discountPercent || '0');
     setIsManualOverride(true);
     setNote(draft.note || '');
-    setLines((draft.lines || []).map((l) => ({ ...l, rawPrice: l.rawPrice !== undefined ? l.rawPrice : String(l.price) })));
+    setLines((draft.lines || []).map((l) => ({
+      ...l,
+      rawPrice: l.rawPrice !== undefined ? l.rawPrice : String(l.price),
+      rawQuantity: l.rawQuantity !== undefined ? l.rawQuantity : String(l.quantity),
+    })));
     setActiveDraftId(draft.id);
     emitStatusToast({
       title: 'Mở bản nháp thành công',
@@ -616,6 +621,7 @@ export default function SalesOrderEntry({
       return {
         ...line,
         quantity: qty,
+        rawQuantity: String(qty),
         discountAmount: disc,
         lineTotal: sub - disc,
       };
@@ -650,6 +656,69 @@ export default function SalesOrderEntry({
         console.warn('Lỗi tính chiết khấu bậc:', e);
       }
     }, 250);
+  };
+
+  const handleQuantityInputChange = (index: number, val: string) => {
+    const parsed = parseInt(val, 10);
+    const qty = isNaN(parsed) || parsed < 0 ? 0 : parsed;
+    setLines((current) => current.map((line, idx) => {
+      if (idx !== index) return line;
+      const sub = qty * line.price;
+      const disc = line.discountRate ? Math.round(sub * (line.discountRate / 100)) : 0;
+      return {
+        ...line,
+        quantity: qty,
+        rawQuantity: val,
+        discountAmount: disc,
+        lineTotal: sub - disc,
+      };
+    }));
+
+    if (qty > 0) {
+      if (pricingDebounceTimer.current[index]) {
+        clearTimeout(pricingDebounceTimer.current[index]);
+      }
+      pricingDebounceTimer.current[index] = setTimeout(async () => {
+        const currentLine = lines[index];
+        if (!currentLine || !dealerId) return;
+        try {
+          const res = await calculateLineItemPricingApi(token, {
+            dealer_id: Number(dealerId),
+            product_id: currentLine.productId,
+            quantity: qty,
+            unit_price_override: canEditPrice ? currentLine.price : undefined,
+          });
+          setLines((current) => current.map((l, idx) =>
+            idx === index ? {
+              ...l,
+              price: res.unit_price,
+              rawPrice: String(res.unit_price),
+              discountRate: res.discount_rate,
+              discountAmount: res.discount_amount,
+              lineTotal: res.line_total,
+            } : l
+          ));
+        } catch (e) {
+          console.warn('Lỗi tính chiết khấu bậc:', e);
+        }
+      }, 250);
+    }
+  };
+
+  const handleQuantityBlur = (index: number) => {
+    setLines((current) => current.map((line, idx) => {
+      if (idx !== index) return line;
+      const validQty = Math.max(1, line.quantity || 1);
+      const sub = validQty * line.price;
+      const disc = line.discountRate ? Math.round(sub * (line.discountRate / 100)) : 0;
+      return {
+        ...line,
+        quantity: validQty,
+        rawQuantity: String(validQty),
+        discountAmount: disc,
+        lineTotal: sub - disc,
+      };
+    }));
   };
 
   const handlePriceInputChange = (index: number, val: string) => {
@@ -721,6 +790,7 @@ export default function SalesOrderEntry({
           name: product.name,
           price: priceRes.unit_price,
           rawPrice: String(priceRes.unit_price),
+          rawQuantity: '1',
           unit: baseUnit,
           conversionRate: 1,
           quantity: 1,
@@ -784,6 +854,7 @@ export default function SalesOrderEntry({
             name: item.product_name,
             price: item.price,
             rawPrice: String(item.price),
+            rawQuantity: String(qtyToAdd),
             unit: itemUnit,
             conversionRate: item.conversion_rate || 1,
             quantity: qtyToAdd,
@@ -817,6 +888,7 @@ export default function SalesOrderEntry({
           name: item.product_name,
           price: item.price,
           rawPrice: String(item.price),
+          rawQuantity: String(qtyToAdd),
           unit: itemUnit,
           conversionRate: item.conversion_rate || 1,
           quantity: qtyToAdd,
@@ -1423,9 +1495,11 @@ export default function SalesOrderEntry({
                             min={1}
                             step={1}
                             className={isExceeded ? 'input-stock-error' : ''}
-                            value={line.quantity}
+                            value={line.rawQuantity !== undefined ? line.rawQuantity : (line.quantity || '')}
                             onFocus={(event) => event.target.select()}
-                            onChange={(event) => handleQuantityChange(index, Number(event.target.value) || 1)}
+                            onChange={(event) => handleQuantityInputChange(index, event.target.value)}
+                            onBlur={() => handleQuantityBlur(index)}
+                            placeholder="1"
                           />
                         </label>
                         <label className="sales-order-field">
@@ -1461,9 +1535,11 @@ export default function SalesOrderEntry({
                             />
                           )}
                         </label>
-                        <div className="sales-order-line-total">
+                        <div className="sales-order-field sales-order-line-total">
                           <span>Thành tiền</span>
-                          <strong>{formatCurrency(line.lineTotal ?? (line.price * line.quantity))}</strong>
+                          <div className="sales-order-total-box">
+                            <strong>{formatCurrency(line.lineTotal ?? (line.price * line.quantity))}</strong>
+                          </div>
                           {line.discountRate !== undefined && line.discountRate > 0 && (
                             <div className="sales-order-discount-badge" title={`Đã trừ chiết khấu sản lượng ${line.discountRate}%`}>
                               Giảm {line.discountRate}% {line.discountAmount ? `(-${formatCurrency(line.discountAmount)})` : ''}

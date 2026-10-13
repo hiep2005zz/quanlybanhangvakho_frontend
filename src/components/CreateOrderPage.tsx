@@ -1439,9 +1439,14 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({
                                     type="number"
                                     min="0.001"
                                     step="any"
-                                    value={item.quantity}
+                                    value={item.quantity === 0 ? '' : item.quantity}
                                     onFocus={(e) => e.target.select()}
                                     onChange={(e) => handleQuantityChange(idx, e.target.value)}
+                                    onBlur={() => {
+                                      if (!item.quantity || Number(item.quantity) <= 0) {
+                                        handleQuantityChange(idx, 1);
+                                      }
+                                    }}
                                     className="w-14 h-9 text-center font-bold text-slate-800 text-sm focus:outline-none focus:bg-emerald-50/50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                     title="Nhập số lượng"
                                   />

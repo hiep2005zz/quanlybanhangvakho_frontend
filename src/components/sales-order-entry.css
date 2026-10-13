@@ -223,26 +223,40 @@
 
 .sales-order-line-controls {
   display: grid;
-  grid-template-columns: minmax(110px, 1fr) minmax(90px, 0.7fr) minmax(120px, 1.1fr);
-  align-items: end;
-  gap: 12px;
-  margin-top: 12px;
+  grid-template-columns: minmax(130px, 1.1fr) minmax(100px, 1fr) minmax(140px, 1.2fr) minmax(140px, 1.2fr);
+  align-items: start;
+  gap: 14px;
+  margin-top: 14px;
 }
 
 .sales-order-line-total {
   display: flex;
   min-width: 0;
-  min-height: 42px;
   flex-direction: column;
-  justify-content: center;
-  gap: 4px;
-  color: #64748b;
-  font-size: 11px;
+  gap: 7px;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 650;
 }
 
-.sales-order-line-total strong {
-  color: #0f172a;
-  font-size: 13px;
+.sales-order-total-box {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  height: 42px;
+  padding: 9px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 9px;
+  background: #f8fafc;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.sales-order-total-box strong {
+  color: #047857;
+  font-size: 14px;
+  font-weight: 800;
   overflow-wrap: anywhere;
 }
 
@@ -558,12 +572,8 @@
   }
 
   .sales-order-line-total {
-    grid-column: 1 / -1;
+    grid-column: span 1;
     min-height: unset;
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
-    padding-top: 3px;
   }
 
   .sales-order-search-results button {
