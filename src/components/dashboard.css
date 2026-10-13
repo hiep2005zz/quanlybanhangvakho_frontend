@@ -311,6 +311,10 @@
   transition: background 0.15s ease;
 }
 
+.inventory-row td {
+  vertical-align: middle;
+}
+
 .inventory-row:hover {
   background: #f8fafc !important;
 }
