@@ -210,9 +210,59 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
   const isOnlySales = isSales && !isAdmin && !isSalesManager;
   const isAccountant = currentUser.role === 'accountant' || rawRoles.includes('accountant');
   const canCreateOrders = !isAccountant && (isAdmin || isSalesManager || isSales);
-  const canApproveOrder = (_ord?: any) => {
-    // CHỈ ADMIN HOẶC SALES MANAGER MỚI CÓ QUYỀN/VAI TRÒ DUYỆT ĐƠN VÀ TỪ CHỐI ĐƠN
-    return isAdmin || isSalesManager;
+  const canApproveOrder = (ord?: any) => {
+    // Admin và Quản lý kinh doanh (Sales Manager) có toàn quyền duyệt mọi đơn hàng
+    if (isAdmin || isSalesManager) return true;
+
+    // Nhân viên kinh doanh (Sales):
+    if (isSales && ord) {
+      const createdBy = (ord.created_by || '').toLowerCase();
+      const currentUsername = (currentUser.username || '').toLowerCase();
+      const reason = (ord.approval_reason || '').toLowerCase();
+      const isPricingViolation = reason.includes('giá sàn') || reason.includes('chiết khấu');
+
+      // 1. Tuyệt đối không cho sales tự duyệt đơn vi phạm giá sàn / chiết khấu do chính mình tạo
+      if (createdBy === currentUsername && isPricingViolation) {
+        return false;
+      }
+
+      // 2. Không cho sales duyệt đơn do Admin hoặc Quản lý cấp trên tạo
+      if (createdBy === 'admin' || createdBy === 'sales_manager') {
+        return false;
+      }
+
+      // 3. Đơn hàng do Đại lý tự đặt từ Cổng Đại lý (Chờ nhân viên phụ trách xác nhận)
+      if (
+        reason.includes('đại lý tự đặt') ||
+        reason.includes('cổng đại lý') ||
+        reason.includes('chờ nhân viên')
+      ) {
+        return true;
+      }
+
+      // 4. Đơn hàng có assigned_sale_id trùng với nhân viên hiện tại
+      const assignedId = ord.assigned_sale_id ?? ord.assigned_to;
+      if (assignedId !== undefined && assignedId !== null && currentUser?.id !== undefined && currentUser?.id !== null) {
+        if (Number(assignedId) === Number(currentUser.id)) {
+          return true;
+        }
+      }
+
+      // 5. Đơn hàng thuộc đại lý do nhân viên này phụ trách
+      if (dealers && ord.dealer_id && currentUser?.id) {
+        const d = dealers.find((dl: any) => Number(dl.id) === Number(ord.dealer_id));
+        if (d && (d as any).assigned_sale_id && Number((d as any).assigned_sale_id) === Number(currentUser.id)) {
+          return true;
+        }
+      }
+
+      // 6. Đơn chưa phân công cụ thể và không phải do chính sales tạo vi phạm
+      if (!assignedId && createdBy !== currentUsername) {
+        return true;
+      }
+    }
+
+    return false;
   };
   const isCustomer = currentUser.role === 'customer' || Boolean(currentUser.roles && currentUser.roles.includes('customer'));
   const [customerDealer, setCustomerDealer] = useState<any | null>(null);
@@ -831,7 +881,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
 
     return (
       <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px', whiteSpace: 'nowrap' }}>
-        {/* Trường hợp 1: Người CÓ vai trò duyệt (Admin / Sales Manager) khi đơn chờ duyệt -> Dropdown Menu Trạng thái (Duyệt / Trả lại / Từ chối / Sao chép / Hủy) */}
+        {/* Trường hợp 1: Người có quyền duyệt (Admin / Sales Manager / Sales phụ trách đại lý) khi đơn chờ duyệt -> Dropdown Menu Trạng thái (Duyệt / Từ chối / Hủy) */}
         {!isCustomer && canApprove && (
           <div
             className="order-action-dropdown-container order-status-dropdown-details relative inline-block text-left"
@@ -897,7 +947,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                   top: '100%',
                   paddingTop: '4px',
                   zIndex: 100,
-                  minWidth: '150px',
+                  minWidth: '135px',
                 }}
                 onMouseEnter={() => handleDropdownOpen(order.order_code)}
                 onMouseLeave={handleDropdownCloseWithDelay}
@@ -925,6 +975,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                     style={{
                       display: 'flex',
                       alignItems: 'center',
+                      gap: '8px',
                       width: '100%',
                       padding: '7px 12px',
                       borderRadius: '6px',
@@ -948,45 +999,50 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                     }}
                     title="Phê duyệt đơn hàng"
                   >
+                    <span style={{ fontSize: '13px', fontWeight: 'bold' }}>✓</span>
                     <span>Duyệt đơn</span>
                   </button>
 
-                  {/* 2. Trả lại sửa */}
-                  <button
-                    type="button"
-                    id={`btn-return-order-${order.order_code}`}
-                    onClick={() => {
-                      setOpenActionDropdownCode(null);
-                      setReturningOrder(order);
-                    }}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      width: '100%',
-                      padding: '7px 12px',
-                      borderRadius: '6px',
-                      border: 'none',
-                      background: 'transparent',
-                      color: '#ea580c',
-                      fontSize: '12.5px',
-                      fontWeight: '700',
-                      textAlign: 'left',
-                      cursor: 'pointer',
-                      whiteSpace: 'nowrap',
-                      transition: 'all 0.15s ease',
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = '#fff7ed';
-                      e.currentTarget.style.color = '#c2410c';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = 'transparent';
-                      e.currentTarget.style.color = '#ea580c';
-                    }}
-                    title="Trả lại yêu cầu nhân viên sửa"
-                  >
-                    <span>Trả lại sửa</span>
-                  </button>
+                  {/* 2. Trả lại sửa (Chỉ Admin và Quản lý kinh doanh) */}
+                  {(isAdmin || isSalesManager) && (
+                    <button
+                      type="button"
+                      id={`btn-return-order-${order.order_code}`}
+                      onClick={() => {
+                        setOpenActionDropdownCode(null);
+                        setReturningOrder(order);
+                      }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        width: '100%',
+                        padding: '7px 12px',
+                        borderRadius: '6px',
+                        border: 'none',
+                        background: 'transparent',
+                        color: '#ea580c',
+                        fontSize: '12.5px',
+                        fontWeight: '700',
+                        textAlign: 'left',
+                        cursor: 'pointer',
+                        whiteSpace: 'nowrap',
+                        transition: 'all 0.15s ease',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = '#fff7ed';
+                        e.currentTarget.style.color = '#c2410c';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = 'transparent';
+                        e.currentTarget.style.color = '#ea580c';
+                      }}
+                      title="Trả lại yêu cầu nhân viên sửa"
+                    >
+                      <span style={{ fontSize: '13px', fontWeight: 'bold' }}>↩</span>
+                      <span>Trả lại sửa</span>
+                    </button>
+                  )}
 
                   {/* 3. Từ chối */}
                   <button
@@ -999,6 +1055,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                     style={{
                       display: 'flex',
                       alignItems: 'center',
+                      gap: '8px',
                       width: '100%',
                       padding: '7px 12px',
                       borderRadius: '6px',
@@ -1022,47 +1079,11 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                     }}
                     title="Từ chối đơn hàng"
                   >
+                    <span style={{ fontSize: '13px', fontWeight: 'bold' }}>✕</span>
                     <span>Từ chối</span>
                   </button>
 
-                  {/* 4. Sao chép đơn */}
-                  <button
-                    type="button"
-                    id={`btn-dropdown-clone-order-${order.order_code}`}
-                    onClick={() => {
-                      setOpenActionDropdownCode(null);
-                      handleCloneOrder(order.order_code);
-                    }}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      width: '100%',
-                      padding: '7px 12px',
-                      borderRadius: '6px',
-                      border: 'none',
-                      background: 'transparent',
-                      color: '#059669',
-                      fontSize: '12.5px',
-                      fontWeight: '700',
-                      textAlign: 'left',
-                      cursor: 'pointer',
-                      whiteSpace: 'nowrap',
-                      transition: 'all 0.15s ease',
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = '#ecfdf5';
-                      e.currentTarget.style.color = '#047857';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = 'transparent';
-                      e.currentTarget.style.color = '#059669';
-                    }}
-                    title="Sao chép đơn hàng này thành đơn mới"
-                  >
-                    <span>Sao chép đơn</span>
-                  </button>
-
-                  {/* 5. Hủy đơn */}
+                  {/* 4. Hủy đơn */}
                   {canCancel && (
                     <button
                       type="button"
@@ -1074,6 +1095,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                       style={{
                         display: 'flex',
                         alignItems: 'center',
+                        gap: '8px',
                         width: '100%',
                         padding: '7px 12px',
                         borderRadius: '6px',
@@ -1097,6 +1119,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                       }}
                       title="Hủy đơn hàng"
                     >
+                      <span style={{ fontSize: '13px', fontWeight: 'bold' }}>⊘</span>
                       <span>Hủy đơn</span>
                     </button>
                   )}
@@ -1106,11 +1129,11 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
           </div>
         )}
 
-        {/* Trường hợp 2: Khi không có quyền duyệt (hoặc đơn không ở trạng thái chờ duyệt) nhưng có quyền hủy đơn */}
-        {!canApprove && canCancel && (
+        {/* Nút Hủy đơn trực tiếp dành cho Khách hàng khi có quyền hủy */}
+        {isCustomer && canCancel && (
           <button
             type="button"
-            id={`btn-cancel-order-${order.order_code}`}
+            id={`btn-customer-cancel-order-${order.order_code}`}
             onClick={() => setCancellingOrder(order)}
             style={{
               padding: '4px 9px',
@@ -1137,7 +1160,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
               e.currentTarget.style.background = '#fff1f2';
               e.currentTarget.style.color = '#e11d48';
             }}
-            title="Hủy đơn hàng này"
+            title="Hủy đơn hàng chưa duyệt của đại lý"
           >
             Hủy đơn
           </button>
@@ -1150,7 +1173,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
           onClick={() => handleOpenOrderDetail(order)}
           style={{
             padding: '4px 9px',
-            background: '#f8fafc',
+            background: '#ffffff',
             border: '1px solid #cbd5e1',
             borderRadius: '6px',
             color: '#334155',
@@ -1166,10 +1189,10 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
             transition: 'all 0.15s ease',
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.background = '#e2e8f0';
+            e.currentTarget.style.background = '#f1f5f9';
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.background = '#f8fafc';
+            e.currentTarget.style.background = '#ffffff';
           }}
           title="Xem chi tiết các mặt hàng"
         >
@@ -1835,7 +1858,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                     <th style={{ padding: '9px 12px', fontWeight: '700', background: '#f8fafc', whiteSpace: 'nowrap' }}>Người Lên Đơn</th>
                     <th style={{ padding: '9px 12px', fontWeight: '700', textAlign: 'right', background: '#f8fafc', whiteSpace: 'nowrap' }}>Tổng Giá Trị</th>
                     <th style={{ padding: '9px 12px', fontWeight: '700', textAlign: 'center', background: '#f8fafc', whiteSpace: 'nowrap', minWidth: '155px' }}>Trạng Thái Duyệt</th>
-                    <th style={{ padding: '9px 12px', fontWeight: '700', background: '#f8fafc' }}>Lý Do Cần Duyệt & Mức Vi Phạm</th>
+                    <th style={{ padding: '9px 12px', fontWeight: '700', background: '#f8fafc' }}>Lý Do Cảnh Báo</th>
                     <th style={{ padding: '9px 14px', fontWeight: '700', textAlign: 'right', background: '#f8fafc', whiteSpace: 'nowrap', minWidth: '160px' }}>Thao Tác</th>
                   </tr>
                 </thead>
@@ -2810,29 +2833,31 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                       Duyệt đơn
                     </button>
 
-                    <button
-                      type="button"
-                      id={`btn-modal-return-order-${selectedOrderDetail.order_code}`}
-                      onClick={() => {
-                        const ord = selectedOrderDetail;
-                        setReturningOrder(ord);
-                      }}
-                      style={{
-                        padding: '8px 16px',
-                        background: '#ea580c',
-                        border: 'none',
-                        borderRadius: '6px',
-                        color: '#ffffff',
-                        fontSize: '13px',
-                        fontWeight: '700',
-                        cursor: 'pointer',
-                        transition: 'background 0.15s ease',
-                      }}
-                      onMouseEnter={(e) => { e.currentTarget.style.background = '#c2410c'; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.background = '#ea580c'; }}
-                    >
-                      Trả lại sửa
-                    </button>
+                    {(isAdmin || isSalesManager) && (
+                      <button
+                        type="button"
+                        id={`btn-modal-return-order-${selectedOrderDetail.order_code}`}
+                        onClick={() => {
+                          const ord = selectedOrderDetail;
+                          setReturningOrder(ord);
+                        }}
+                        style={{
+                          padding: '8px 16px',
+                          background: '#ea580c',
+                          border: 'none',
+                          borderRadius: '6px',
+                          color: '#ffffff',
+                          fontSize: '13px',
+                          fontWeight: '700',
+                          cursor: 'pointer',
+                          transition: 'background 0.15s ease',
+                        }}
+                        onMouseEnter={(e) => { e.currentTarget.style.background = '#c2410c'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.background = '#ea580c'; }}
+                      >
+                        Trả lại sửa
+                      </button>
+                    )}
 
                     <button
                       type="button"
