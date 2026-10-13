@@ -670,6 +670,25 @@ export default function DashboardPage({
         return;
       }
 
+      const isStockThresholdsPath = pathname === '/stock-thresholds' || pathname.startsWith('/stock-thresholds/');
+      const isLowStockAlertsPath = pathname === '/low-stock-alerts' || pathname.startsWith('/low-stock-alerts/');
+
+      if (isLowStockAlertsPath || tabParam === 'low-stock-alerts' || tabParam === 'low-stock-alert') {
+        if (pathname !== '/low-stock-alerts' || tabParam) {
+          try { window.history.replaceState({}, '', '/low-stock-alerts'); } catch {}
+        }
+        setActiveTabState('low-stock-alerts');
+        return;
+      }
+
+      if (isStockThresholdsPath || tabParam === 'stock-thresholds') {
+        if (pathname !== '/stock-thresholds' || tabParam) {
+          try { window.history.replaceState({}, '', '/stock-thresholds'); } catch {}
+        }
+        setActiveTabState('stock-thresholds');
+        return;
+      }
+
       const isProductsImportPath = pathname === '/products/import' || pathname.startsWith('/products/import') || pathname === '/inventory/import' || pathname.startsWith('/inventory/import');
       const isUsersImportPath = pathname === '/users/import' || pathname.startsWith('/users/import');
       const isUsersPath = !isUsersImportPath && (pathname === '/users' || pathname.startsWith('/users/') || pathname === '/admin' || pathname.startsWith('/admin/'));
