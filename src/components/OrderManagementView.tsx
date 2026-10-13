@@ -2518,7 +2518,6 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                       <th style={{ padding: '8px 12px', textAlign: 'left' }}>Vị trí kệ & Khả dụng</th>
                       <th style={{ padding: '8px 12px', textAlign: 'right' }}>Đơn giá</th>
                       <th style={{ padding: '8px 12px', textAlign: 'right' }}>Thành tiền</th>
-                      <th style={{ padding: '8px 12px', textAlign: 'center' }}>Thao tác</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -2628,45 +2627,6 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                           </td>
                           <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: '700', color: '#0f172a' }}>
                             {lineTotal.toLocaleString('vi-VN')} đ
-                          </td>
-                          <td style={{ padding: '10px 12px', textAlign: 'center' }}>
-                            <button
-                              type="button"
-                              title="Đặt lại riêng sản phẩm này theo giá hiện hành"
-                              disabled={reorderLoading || isCustomerLocked}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleReorderOrder(selectedOrderDetail.order_code, item.product_id);
-                              }}
-                              style={{
-                                padding: '5px 12px',
-                                background: '#f0fdf4',
-                                border: '1px solid #86efac',
-                                borderRadius: '6px',
-                                color: '#15803d',
-                                fontSize: '12px',
-                                fontWeight: '600',
-                                cursor: (reorderLoading || isCustomerLocked) ? 'not-allowed' : 'pointer',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '4px',
-                                transition: 'all 0.15s ease',
-                              }}
-                              onMouseEnter={(e) => {
-                                if (!reorderLoading && !isCustomerLocked) {
-                                  e.currentTarget.style.background = '#16a34a';
-                                  e.currentTarget.style.color = '#ffffff';
-                                }
-                              }}
-                              onMouseLeave={(e) => {
-                                if (!reorderLoading && !isCustomerLocked) {
-                                  e.currentTarget.style.background = '#f0fdf4';
-                                  e.currentTarget.style.color = '#15803d';
-                                }
-                              }}
-                            >
-                              Đặt lại
-                            </button>
                           </td>
                         </tr>
                       );

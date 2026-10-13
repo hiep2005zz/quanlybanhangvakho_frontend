@@ -748,14 +748,14 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
 
   // Tự động điền giá trị % vào ô "Chiết khấu (%)" khi số lượng thỏa mãn các bậc
   useEffect(() => {
-    if (!isManualDiscount) {
+    if (isCustomer || !isManualDiscount) {
       if (discountEvaluation.isQualified) {
         setDiscountPercent(String(discountEvaluation.discountPercent));
       } else {
         setDiscountPercent('0');
       }
     }
-  }, [discountEvaluation, isManualDiscount]);
+  }, [discountEvaluation, isManualDiscount, isCustomer]);
 
   const parsedDiscount = Number(discountPercent);
   const safeDiscount = Number.isFinite(parsedDiscount) ? Math.min(100, Math.max(0, parsedDiscount)) : 0;
@@ -1610,8 +1610,13 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                   <label style={{ fontSize: '13px', fontWeight: '700', color: '#334155' }}>
                     Chiết khấu (%)
+                    {isCustomer && (
+                      <span style={{ fontSize: '11px', fontWeight: '500', color: '#64748b', marginLeft: '6px' }}>
+                        (Cố định theo chính sách)
+                      </span>
+                    )}
                   </label>
-                  {isManualDiscount && discountEvaluation.isQualified && (
+                  {!isCustomer && isManualDiscount && discountEvaluation.isQualified && (
                     <button
                       type="button"
                       onClick={() => {
@@ -1640,7 +1645,11 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
                   max="100"
                   step="0.1"
                   value={discountPercent}
+                  disabled={isCustomer}
+                  readOnly={isCustomer}
+                  title={isCustomer ? "Đại lý không có quyền tự điều chỉnh chiết khấu" : undefined}
                   onChange={(e) => {
+                    if (isCustomer) return;
                     setIsManualDiscount(true);
                     setDiscountPercent(e.target.value);
                   }}
@@ -1654,7 +1663,9 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
                     textAlign: 'right',
                     boxSizing: 'border-box',
                     fontWeight: '700',
-                    background: '#ffffff',
+                    background: isCustomer ? '#f1f5f9' : '#ffffff',
+                    color: isCustomer ? '#64748b' : '#0f172a',
+                    cursor: isCustomer ? 'not-allowed' : 'text',
                   }}
                 />
               </div>
