@@ -1187,10 +1187,24 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
         </div>
 
         <div className="wh-header-actions">
-          {canManage && (
-            <button type="button" className="wh-btn wh-btn-primary" onClick={handleOpenCreateWarehouse}>
-              Thêm kho mới
+          {selectedWarehouse ? (
+            <button
+              type="button"
+              className="wh-btn wh-btn-secondary"
+              onClick={() => setSelectedWarehouse(null)}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="15 18 9 12 15 6" />
+              </svg>
+              Quay lại danh sách kho
             </button>
+          ) : (
+            canManage && (
+              <button type="button" className="wh-btn wh-btn-primary" onClick={handleOpenCreateWarehouse}>
+                Thêm kho mới
+              </button>
+            )
           )}
         </div>
       </div>
@@ -1367,16 +1381,6 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                   </span>
                 )}
               </div>
-            </div>
-
-            <div>
-              <button
-                type="button"
-                className="wh-btn wh-btn-secondary"
-                onClick={() => setSelectedWarehouse(null)}
-              >
-                Quay lại danh sách kho
-              </button>
             </div>
           </div>
 
@@ -2067,13 +2071,13 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                   <div className="wh-form-group">
                     <label>Kho hàng</label>
                     <div className="wh-form-readonly-badge">
-                      <strong>{selectedWarehouse?.name}</strong> ({selectedWarehouse?.code})
+                      <strong>{selectedWarehouse?.name}</strong>
                     </div>
                   </div>
 
                   <div className="wh-form-group">
                     <label>
-                      Khu vực (Zone) <span className="wh-required-star">*</span>
+                      Khu vực <span className="wh-required-star">*</span>
                     </label>
                     <select
                       className="wh-form-select"
@@ -2088,7 +2092,7 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                       {zonesList.length > 0 ? (
                         zonesList.map((z) => (
                           <option key={z.id} value={z.zone_name}>
-                            {z.zone_name} ({z.zone_code})
+                            {z.zone_name}
                           </option>
                         ))
                       ) : (
@@ -2146,7 +2150,7 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                 <div className="wh-form-grid-2">
                   <div className="wh-form-group">
                     <label>
-                      Sức chứa tối đa (Max Capacity) <span className="wh-required-star">*</span>
+                      Sức chứa tối đa <span className="wh-required-star">*</span>
                     </label>
                     <input
                       type="number"
