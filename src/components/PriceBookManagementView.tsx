@@ -572,7 +572,23 @@ export function PriceBookManagementView({
                     return (
                       <tr key={pb.id} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background-color 0.15s' }}>
                         <td style={{ padding: '14px 16px', color: '#0f172a', fontWeight: '700', fontSize: '13.5px' }}>
-                          <span style={{ fontFamily: 'monospace', background: '#f1f5f9', padding: '2px 8px', borderRadius: '4px' }}>{pb.code}</span>
+                          <Link
+                            to={`/price-books/${pb.id}`}
+                            style={{
+                              fontFamily: 'monospace',
+                              background: '#f1f5f9',
+                              padding: '2px 8px',
+                              borderRadius: '4px',
+                              color: '#0f766e',
+                              textDecoration: 'none',
+                              fontWeight: '700',
+                            }}
+                            onMouseEnter={(e) => { e.currentTarget.style.textDecoration = 'underline'; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.textDecoration = 'none'; }}
+                            title="Xem chi tiết bảng giá trên trang riêng"
+                          >
+                            {pb.code}
+                          </Link>
                         </td>
                         <td style={{ padding: '14px 16px', color: '#0f172a' }}>
                           <div style={{ fontWeight: '600', fontSize: '14px', color: '#0f172a' }}>
@@ -621,9 +637,8 @@ export function PriceBookManagementView({
                           <div style={{ display: 'inline-flex', gap: '6px', alignItems: 'center', justifyContent: 'flex-end' }}>
 
                             {/* Nút Xem Chi Tiết bằng chữ thuần túy */}
-                            <button
-                              type="button"
-                              onClick={() => handleOpenDetail(pb.id)}
+                            <Link
+                              to={`/price-books/${pb.id}`}
                               style={{
                                 border: '1px solid #cbd5e1',
                                 background: '#fff',
@@ -638,40 +653,66 @@ export function PriceBookManagementView({
                                 borderRadius: '5px',
                                 cursor: 'pointer',
                                 fontSize: '11.5px',
-                                fontWeight: '600'
+                                fontWeight: '600',
+                                textDecoration: 'none',
                               }}
-                              title="Xem chi tiết bảng giá"
+                              title="Xem chi tiết bảng giá trên trang riêng"
                             >
                               Chi tiết
-                            </button>
+                            </Link>
 
                             {/* Nút Sửa và Nhân bản bằng chữ thuần túy: Chỉ admin và sales_manager */}
                             {canManagePriceBooks && (
                               <>
-                                <button
-                                  type="button"
-                                  onClick={() => !isLocked && handleOpenEdit(pb.id)}
-                                  disabled={isLocked}
-                                  style={{
-                                    border: '1px solid #cbd5e1',
-                                    background: isLocked ? '#f1f5f9' : '#eff6ff',
-                                    color: isLocked ? '#94a3b8' : '#2563eb',
-                                    width: '60px',
-                                    height: '27px',
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    boxSizing: 'border-box',
-                                    padding: 0,
-                                    borderRadius: '5px',
-                                    cursor: isLocked ? 'not-allowed' : 'pointer',
-                                    fontSize: '11.5px',
-                                    fontWeight: '600'
-                                  }}
-                                  title={isLocked ? "Bảng giá đã phát sinh đơn hàng, không thể chỉnh sửa" : "Chỉnh sửa bảng giá"}
-                                >
-                                  Sửa
-                                </button>
+                                {isLocked ? (
+                                  <button
+                                    type="button"
+                                    disabled
+                                    style={{
+                                      border: '1px solid #cbd5e1',
+                                      background: '#f1f5f9',
+                                      color: '#94a3b8',
+                                      width: '60px',
+                                      height: '27px',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      boxSizing: 'border-box',
+                                      padding: 0,
+                                      borderRadius: '5px',
+                                      cursor: 'not-allowed',
+                                      fontSize: '11.5px',
+                                      fontWeight: '600',
+                                    }}
+                                    title="Bảng giá đã phát sinh đơn hàng, không thể chỉnh sửa"
+                                  >
+                                    Sửa
+                                  </button>
+                                ) : (
+                                  <Link
+                                    to={`/price-books/${pb.id}/edit`}
+                                    style={{
+                                      border: '1px solid #cbd5e1',
+                                      background: '#eff6ff',
+                                      color: '#2563eb',
+                                      width: '60px',
+                                      height: '27px',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      boxSizing: 'border-box',
+                                      padding: 0,
+                                      borderRadius: '5px',
+                                      cursor: 'pointer',
+                                      fontSize: '11.5px',
+                                      fontWeight: '600',
+                                      textDecoration: 'none',
+                                    }}
+                                    title="Chỉnh sửa bảng giá trên trang riêng"
+                                  >
+                                    Sửa
+                                  </Link>
+                                )}
 
                                 <button
                                   type="button"
