@@ -1083,8 +1083,8 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                     <span>Từ chối</span>
                   </button>
 
-                  {/* 4. Hủy đơn */}
-                  {canCancel && (
+                  {/* 4. Hủy đơn: Ẩn khi là luồng phê duyệt của quản lý (đã có Duyệt / Trả lại sửa / Từ chối) */}
+                  {canCancel && !canApprove && (
                     <button
                       type="button"
                       id={`btn-dropdown-cancel-order-${order.order_code}`}
@@ -2567,7 +2567,9 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                       <th style={{ padding: '8px 12px', textAlign: 'left' }}>Vị trí kệ & Khả dụng</th>
                       <th style={{ padding: '8px 12px', textAlign: 'right' }}>Đơn giá</th>
                       <th style={{ padding: '8px 12px', textAlign: 'right' }}>Thành tiền</th>
-                      <th style={{ padding: '8px 12px', textAlign: 'center' }}>Thao tác</th>
+                      {isCustomer && ['DELIVERED', 'COMPLETED', 'CANCELLED', 'CLOSED'].includes((selectedOrderDetail.status || '').toUpperCase()) && (
+                        <th style={{ padding: '8px 12px', textAlign: 'center' }}>Thao tác</th>
+                      )}
                     </tr>
                   </thead>
                   <tbody>
@@ -2678,45 +2680,47 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                           <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: '700', color: '#0f172a' }}>
                             {lineTotal.toLocaleString('vi-VN')} đ
                           </td>
-                          <td style={{ padding: '10px 12px', textAlign: 'center' }}>
-                            <button
-                              type="button"
-                              title="Đặt lại riêng sản phẩm này theo giá hiện hành"
-                              disabled={reorderLoading || isCustomerLocked}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleReorderOrder(selectedOrderDetail.order_code, item.product_id);
-                              }}
-                              style={{
-                                padding: '5px 12px',
-                                background: '#f0fdf4',
-                                border: '1px solid #86efac',
-                                borderRadius: '6px',
-                                color: '#15803d',
-                                fontSize: '12px',
-                                fontWeight: '600',
-                                cursor: (reorderLoading || isCustomerLocked) ? 'not-allowed' : 'pointer',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '4px',
-                                transition: 'all 0.15s ease',
-                              }}
-                              onMouseEnter={(e) => {
-                                if (!reorderLoading && !isCustomerLocked) {
-                                  e.currentTarget.style.background = '#16a34a';
-                                  e.currentTarget.style.color = '#ffffff';
-                                }
-                              }}
-                              onMouseLeave={(e) => {
-                                if (!reorderLoading && !isCustomerLocked) {
-                                  e.currentTarget.style.background = '#f0fdf4';
-                                  e.currentTarget.style.color = '#15803d';
-                                }
-                              }}
-                            >
-                              Đặt lại
-                            </button>
-                          </td>
+                          {isCustomer && ['DELIVERED', 'COMPLETED', 'CANCELLED', 'CLOSED'].includes((selectedOrderDetail.status || '').toUpperCase()) && (
+                            <td style={{ padding: '10px 12px', textAlign: 'center' }}>
+                              <button
+                                type="button"
+                                title="Đặt lại riêng sản phẩm này theo giá hiện hành"
+                                disabled={reorderLoading || isCustomerLocked}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleReorderOrder(selectedOrderDetail.order_code, item.product_id);
+                                }}
+                                style={{
+                                  padding: '5px 12px',
+                                  background: '#f0fdf4',
+                                  border: '1px solid #86efac',
+                                  borderRadius: '6px',
+                                  color: '#15803d',
+                                  fontSize: '12px',
+                                  fontWeight: '600',
+                                  cursor: (reorderLoading || isCustomerLocked) ? 'not-allowed' : 'pointer',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                  transition: 'all 0.15s ease',
+                                }}
+                                onMouseEnter={(e) => {
+                                  if (!reorderLoading && !isCustomerLocked) {
+                                    e.currentTarget.style.background = '#16a34a';
+                                    e.currentTarget.style.color = '#ffffff';
+                                  }
+                                }}
+                                onMouseLeave={(e) => {
+                                  if (!reorderLoading && !isCustomerLocked) {
+                                    e.currentTarget.style.background = '#f0fdf4';
+                                    e.currentTarget.style.color = '#15803d';
+                                  }
+                                }}
+                              >
+                                Đặt lại
+                              </button>
+                            </td>
+                          )}
                         </tr>
                       );
                     })}
@@ -2885,9 +2889,9 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                   </>
                 )}
                 {/* Nút Hủy đơn hàng này ở Footer: CHỈ khả dụng khi status thuộc nhóm ['Nháp', 'Chờ duyệt', 'Đã duyệt', 'Đang soạn hàng'] */}
-                {/* NẾU trạng thái thuộc nhóm ['Đã xuất', 'Đã giao', 'Đóng']: BẮT BUỘC ẩn nút này đi */}
+                {/* NẾU đang ở trạng thái chờ duyệt và có quyền duyệt (Quản lý duyệt): ĐÃ CÓ 3 hành động 'Duyệt', 'Trả lại sửa', 'Từ chối' -> KHÔNG hiển thị nút Hủy đơn hàng này để tránh thừa */}
                 {((isCustomer && ['PENDING_APPROVAL', 'PENDING', 'DRAFT', 'NHÁP', 'CHỜ DUYỆT'].includes((selectedOrderDetail.status || '').toUpperCase().trim())) ||
-                  (isFullAccess && isOrderCancelable(selectedOrderDetail.status))) && !isOrderPastExported(selectedOrderDetail.status) && (
+                  (isFullAccess && !['PENDING_APPROVAL', 'PENDING', 'REVISION_REQUIRED'].includes(selectedOrderDetail.status) && isOrderCancelable(selectedOrderDetail.status))) && !isOrderPastExported(selectedOrderDetail.status) && (
                   <button
                     type="button"
                     id={`btn-modal-cancel-order-${selectedOrderDetail.order_code}`}
@@ -2912,36 +2916,39 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                   </button>
                 )}
 
-                <button
-                  type="button"
-                  id="btn-reorder-entire-order"
-                  disabled={reorderLoading || isCustomerLocked}
-                  onClick={() => handleReorderOrder(selectedOrderDetail.order_code)}
-                  style={{
-                    padding: '8px 18px',
-                    background: (reorderLoading || isCustomerLocked) ? '#94a3b8' : '#16a34a',
-                    border: 'none',
-                    borderRadius: '8px',
-                    color: '#ffffff',
-                    fontSize: '13px',
-                    fontWeight: '700',
-                    cursor: (reorderLoading || isCustomerLocked) ? 'not-allowed' : 'pointer',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    boxShadow: '0 2px 4px rgba(22, 163, 74, 0.25)',
-                    transition: 'all 0.15s ease',
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!reorderLoading && !isCustomerLocked) e.currentTarget.style.background = '#15803d';
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!reorderLoading && !isCustomerLocked) e.currentTarget.style.background = '#16a34a';
-                  }}
-                  title="Đặt lại toàn bộ đơn hàng này theo giá hiện hành"
-                >
-                  {reorderLoading ? 'Đang kiểm tra...' : 'Đặt lại đơn'}
-                </button>
+                {/* Nút Đặt lại đơn: CHỈ dành cho Khách hàng (Đại lý) khi xem lại đơn đã hoàn tất hoặc đã hủy, KHÔNG hiện cho quản lý nội bộ */}
+                {isCustomer && ['DELIVERED', 'COMPLETED', 'CANCELLED', 'CLOSED'].includes((selectedOrderDetail.status || '').toUpperCase()) && (
+                  <button
+                    type="button"
+                    id="btn-reorder-entire-order"
+                    disabled={reorderLoading || isCustomerLocked}
+                    onClick={() => handleReorderOrder(selectedOrderDetail.order_code)}
+                    style={{
+                      padding: '8px 18px',
+                      background: (reorderLoading || isCustomerLocked) ? '#94a3b8' : '#16a34a',
+                      border: 'none',
+                      borderRadius: '8px',
+                      color: '#ffffff',
+                      fontSize: '13px',
+                      fontWeight: '700',
+                      cursor: (reorderLoading || isCustomerLocked) ? 'not-allowed' : 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      boxShadow: '0 2px 4px rgba(22, 163, 74, 0.25)',
+                      transition: 'all 0.15s ease',
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!reorderLoading && !isCustomerLocked) e.currentTarget.style.background = '#15803d';
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!reorderLoading && !isCustomerLocked) e.currentTarget.style.background = '#16a34a';
+                    }}
+                    title="Đặt lại toàn bộ đơn hàng này theo giá hiện hành"
+                  >
+                    {reorderLoading ? 'Đang kiểm tra...' : 'Đặt lại đơn'}
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => { setSelectedOrderDetail(null); setPickingSummary(null); }}
