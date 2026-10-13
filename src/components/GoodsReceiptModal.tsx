@@ -81,7 +81,7 @@ const createEmptyRow = (): ReceiptItemFormRow => ({
 });
 
 // Helper kiểm tra bản nháp có rỗng hoàn toàn không (chưa chọn NCC, chưa điền số HĐ và chưa chọn sản phẩm nào)
-export const isDraftDataEmpty = (d: Partial<StockInDraftItem>): boolean => {
+const isDraftDataEmpty = (d: Partial<StockInDraftItem>): boolean => {
   const hasSupplier = Boolean(d.supplier_id);
   const hasRef = Boolean(d.reference_number && d.reference_number.trim().length > 0);
   const hasItems =
