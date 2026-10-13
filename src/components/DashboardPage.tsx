@@ -770,7 +770,13 @@ export default function DashboardPage({
   const [isGoodsReceiptModalOpen, setIsGoodsReceiptModalOpen] = useState(false);
   const [goodsReceiptInitialTab, setGoodsReceiptInitialTab] = useState<'form' | 'list'>('form');
   const [isSalesOrderEntryOpen, setIsSalesOrderEntryOpen] = useState(false);
-  const [cloneOrderData, setCloneOrderData] = useState<any>(null);
+  const [cloneOrderData, setCloneOrderData] = useState<any>(() => {
+    try {
+      const stored = sessionStorage.getItem('clone_order_draft');
+      if (stored) return JSON.parse(stored);
+    } catch {}
+    return null;
+  });
   const [isDiscountExpanded, setIsDiscountExpanded] = useState(false);
   const [isThresholdModalOpen, setIsThresholdModalOpen] = useState(false);
   const [isLowStockAlertModalOpen, setIsLowStockAlertModalOpen] = useState(false);
@@ -1205,12 +1211,17 @@ export default function DashboardPage({
                 initialDealerId={cloneOrderData?.dealerId || cloneOrderData?.dealer_id}
                 initialOrderItems={cloneOrderData?.items}
                 initialNote={cloneOrderData?.note}
-                initialDeliveryPointId={cloneOrderData?.deliveryPointId}
                 onClose={() => {
+                  try {
+                    sessionStorage.removeItem('clone_order_draft');
+                  } catch {}
                   setCloneOrderData(null);
                   window.history.pushState({}, '', '/orders');
                 }}
                 onSuccess={() => {
+                  try {
+                    sessionStorage.removeItem('clone_order_draft');
+                  } catch {}
                   setCloneOrderData(null);
                   window.history.pushState({}, '', '/orders');
                   fetchProducts();
@@ -1225,6 +1236,9 @@ export default function DashboardPage({
                 onRefreshProducts={fetchProducts}
                 onNavigateToPriceBooks={canAccessPriceBooks ? () => setActiveTab('price-books') : undefined}
                 onCloneOrder={(data) => {
+                  try {
+                    sessionStorage.setItem('clone_order_draft', JSON.stringify(data));
+                  } catch {}
                   setCloneOrderData(data);
                   window.history.pushState({}, '', '/orders/create');
                 }}
