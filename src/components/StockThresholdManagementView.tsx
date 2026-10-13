@@ -94,8 +94,9 @@ export const StockThresholdManagementView: React.FC<StockThresholdManagementView
       );
 
       if (Array.isArray(res)) {
-        // Fallback nếu backend trả về mảng trực tiếp
-        setItems(res);
+        // Fallback an toàn nếu backend trả về mảng trực tiếp: phân trang Client-side để luôn đảm bảo chỉ hiện đúng pageSize (20) dòng
+        const start = (currentPage - 1) * pageSize;
+        setItems(res.slice(start, start + pageSize));
         setTotalItems(res.length);
         setTotalPages(Math.max(1, Math.ceil(res.length / pageSize)));
         const low = res.filter((i) => i.is_low_stock).length;
