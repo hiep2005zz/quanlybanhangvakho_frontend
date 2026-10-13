@@ -20,6 +20,8 @@ export type TabType =
   | 'delivery-points'
   | 'product-history'
   | 'discounts'
+  | 'stock-thresholds'
+  | 'low-stock-alerts'
   | 'add-product';
 
 export interface SidebarProps {

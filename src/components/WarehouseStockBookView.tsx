@@ -28,7 +28,7 @@ export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
 
   // Phân trang
   const [currentPage, setCurrentPage] = useState<number>(1);
-  const pageSize = 10;
+  const pageSize = 20;
 
   // Debounce tìm kiếm 300ms để không gọi API và render liên tục theo từng phím gõ
   useEffect(() => {
