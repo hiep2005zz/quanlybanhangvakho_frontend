@@ -33,7 +33,7 @@ const CUSTOMER_GROUP_OPTIONS = [
   { value: 'Khách lẻ', label: 'Khách lẻ' },
 ];
 
-export const formatCustomerGroup = (grp?: string | null): string => {
+const formatCustomerGroup = (grp?: string | null): string => {
   if (!grp) return 'Khách lẻ';
   const g = grp.toLowerCase().replace(/_/g, ' ').trim();
   if (g.includes('cấp 1') || g.includes('cap 1')) return 'Đại lý cấp 1';
