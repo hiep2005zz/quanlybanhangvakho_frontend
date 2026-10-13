@@ -50,6 +50,49 @@ export interface CreateOrderPageProps {
   initialDeliveryPointId?: number | null;
 }
 
+export const normalizeOrderItem = (raw: any, productsList: ProductItem[] = []): SelectedOrderItem => {
+  const prodId = Number(raw.productId ?? raw.product_id ?? 0);
+  const prod = productsList.find((p) => p.id === prodId);
+  const baseUnit = prod?.base_unit || raw.baseUnit || raw.base_unit || raw.unitName || raw.unit_name || raw.unit || 'Cái';
+  const unitName = raw.unitName || raw.unit_name || raw.unit || baseUnit;
+  const conversionRate = Number(raw.conversionRate ?? raw.conversion_rate ?? 1.0) || 1.0;
+
+  const availableUnits = (raw.availableUnits && Array.isArray(raw.availableUnits) && raw.availableUnits.length > 0)
+    ? raw.availableUnits
+    : prod
+      ? [
+          { unit_name: baseUnit, conversion_rate: 1.0, is_base: true },
+          ...(prod.units || []).map((u) => ({
+            unit_name: u.unit_name,
+            conversion_rate: u.conversion_rate,
+            is_base: false,
+          })),
+        ]
+      : [{ unit_name: unitName, conversion_rate: conversionRate, is_base: true }];
+
+  const rawPrice = raw.sellPrice ?? raw.unit_price ?? raw.price ?? prod?.sell_price ?? 0;
+  const sellPrice = Number(rawPrice) || 0;
+  const rawFloor = raw.floorPrice ?? raw.floor_price;
+  const floorPrice = (rawFloor !== undefined && rawFloor !== null)
+    ? Number(rawFloor)
+    : (prod?.sell_price !== undefined && prod?.sell_price !== null ? Number(prod.sell_price) : null);
+
+  return {
+    productId: prodId,
+    productCode: raw.productCode || raw.product_code || prod?.code || '',
+    productName: raw.productName || raw.product_name || prod?.name || '',
+    stock: prod?.stock ?? raw.stock ?? 999,
+    baseUnit,
+    unitName,
+    conversionRate,
+    availableUnits,
+    quantity: raw.quantity ?? 1,
+    sellPrice,
+    floorPrice,
+    priceNote: raw.priceNote || raw.price_note,
+  };
+};
+
 const FALLBACK_DEALERS: DealerItem[] = [
   { id: 1, code: 'DL001', name: 'Đại Lý Phân Phối Miền Bắc - Sao Mai', customer_group: 'Đại lý cấp 1' },
   { id: 2, code: 'DL002', name: 'Đại Lý Thời Trang Tân Bình', customer_group: 'Đại lý cấp 2' },
@@ -71,6 +114,9 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({
   const navigate = useNavigate();
 
   const handleCancelNavigation = useCallback(() => {
+    try {
+      sessionStorage.removeItem('clone_order_draft');
+    } catch {}
     if (onClose) {
       onClose();
     } else {
@@ -84,7 +130,21 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({
   const [loadingDealers, setLoadingDealers] = useState(false);
 
   // 2. Danh sách sản phẩm trong giỏ hàng đặt hàng
-  const [orderItems, setOrderItems] = useState<SelectedOrderItem[]>(() => initialOrderItems || []);
+  const [orderItems, setOrderItems] = useState<SelectedOrderItem[]>(() => {
+    if (initialOrderItems && Array.isArray(initialOrderItems) && initialOrderItems.length > 0) {
+      return initialOrderItems.map((it) => normalizeOrderItem(it, products));
+    }
+    try {
+      const cloneDraft = sessionStorage.getItem('clone_order_draft');
+      if (cloneDraft) {
+        const parsed = JSON.parse(cloneDraft);
+        if (parsed.items && Array.isArray(parsed.items)) {
+          return parsed.items.map((it: any) => normalizeOrderItem(it, products));
+        }
+      }
+    } catch {}
+    return [];
+  });
 
   // 3. Điểm giao hàng
   const [points, setPoints] = useState<DeliveryPoint[]>([]);
@@ -116,12 +176,28 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({
   // Cập nhật khi có props khởi tạo ban đầu hoặc draft từ sessionStorage
   useEffect(() => {
     try {
+      const cloneDraftStr = sessionStorage.getItem('clone_order_draft');
+      if (cloneDraftStr) {
+        const cloneDraft = JSON.parse(cloneDraftStr);
+        if (cloneDraft.dealerId || cloneDraft.dealer_id) {
+          setDealerId(cloneDraft.dealerId || cloneDraft.dealer_id);
+        }
+        if (cloneDraft.items && Array.isArray(cloneDraft.items) && cloneDraft.items.length > 0) {
+          setOrderItems(cloneDraft.items.map((it: any) => normalizeOrderItem(it, products)));
+        }
+        if (cloneDraft.note) setNote(cloneDraft.note);
+        if (cloneDraft.deliveryPointId !== undefined) setDeliveryPointId(cloneDraft.deliveryPointId);
+        return;
+      }
+
       const draftStr = sessionStorage.getItem('reorder_draft');
       if (draftStr) {
         sessionStorage.removeItem('reorder_draft');
         const draft = JSON.parse(draftStr);
         if (draft.dealerId) setDealerId(draft.dealerId);
-        if (draft.items && draft.items.length > 0) setOrderItems(draft.items);
+        if (draft.items && draft.items.length > 0) {
+          setOrderItems(draft.items.map((it: any) => normalizeOrderItem(it, products)));
+        }
         if (draft.note) setNote(draft.note);
         if (draft.deliveryPointId !== undefined) setDeliveryPointId(draft.deliveryPointId);
         return;
@@ -131,7 +207,7 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({
     }
 
     if (initialOrderItems && initialOrderItems.length > 0) {
-      setOrderItems(initialOrderItems);
+      setOrderItems(initialOrderItems.map((it) => normalizeOrderItem(it, products)));
     }
     if (initialDealerId) {
       setDealerId(initialDealerId);
@@ -142,7 +218,7 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({
     if (initialNote !== undefined) {
       setNote(initialNote);
     }
-  }, [initialOrderItems, initialDealerId, initialDeliveryPointId, initialNote]);
+  }, [initialOrderItems, initialDealerId, initialDeliveryPointId, initialNote, products]);
 
   const isCustomer = Boolean(
     currentUser?.role === 'customer' ||
@@ -711,7 +787,8 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({
     setOrderItems((prev) =>
       prev.map((item, idx) => {
         if (idx !== index) return item;
-        const targetUnit = item.availableUnits.find((u) => u.unit_name === unitName);
+        const available = item.availableUnits || [];
+        const targetUnit = available.find((u) => u.unit_name === unitName);
         return {
           ...item,
           unitName,
@@ -728,17 +805,20 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({
   // Tính toán tiền hàng và số lượng
   const subtotalAmount = orderItems.reduce((sum, item) => {
     const qty = typeof item.quantity === 'number' ? item.quantity : parseFloat(item.quantity) || 0;
-    return sum + qty * item.sellPrice;
+    const price = typeof item.sellPrice === 'number' ? item.sellPrice : parseFloat(item.sellPrice as any) || 0;
+    return sum + (Number.isFinite(qty * price) ? qty * price : 0);
   }, 0);
 
   const totalQuantity = orderItems.reduce((sum, item) => {
     const qty = typeof item.quantity === 'number' ? item.quantity : parseFloat(item.quantity) || 0;
-    return sum + qty;
+    return sum + (Number.isFinite(qty) ? qty : 0);
   }, 0);
 
-  const isAnyBelowFloorPrice = orderItems.some(
-    (item) => item.floorPrice !== null && item.sellPrice < item.floorPrice
-  );
+  const isAnyBelowFloorPrice = orderItems.some((item) => {
+    const floorVal = item.floorPrice !== null && item.floorPrice !== undefined ? Number(item.floorPrice) : null;
+    const price = typeof item.sellPrice === 'number' ? item.sellPrice : parseFloat(item.sellPrice as any) || 0;
+    return floorVal !== null && price < floorVal;
+  });
 
   const discountEvaluation = useMemo(() => {
     const itemsForEvaluation = orderItems.map((item) => {
@@ -1059,9 +1139,9 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({
               </div>
 
               {/* Grid 2 cột cho Điểm giao hàng & Ghi chú */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1 items-stretch">
                 {/* Điểm giao hàng */}
-                <div>
+                <div className="flex flex-col">
                   <label className="block text-xs sm:text-sm font-bold text-slate-700 mb-1.5">
                     Điểm giao hàng
                   </label>
@@ -1083,7 +1163,7 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({
                     const selected = points.find((pt) => pt.id === deliveryPointId);
                     if (!selected) return null;
                     return (
-                      <div className="mt-2.5 p-3 rounded-xl border border-indigo-100 bg-indigo-50/50 space-y-1 text-xs">
+                      <div className="mt-2.5 p-3 rounded-xl border border-indigo-100 bg-indigo-50/50 space-y-1 text-xs flex-1 flex flex-col justify-center">
                         <div className="flex items-center gap-2 font-bold text-slate-800">
                           <span>{selected.label}</span>
                           {selected.is_default && (
@@ -1105,17 +1185,16 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({
                 </div>
 
                 {/* Ghi chú */}
-                <div>
+                <div className="flex flex-col">
                   <label htmlFor="input-order-note" className="block text-xs sm:text-sm font-bold text-slate-700 mb-1.5">
                     Ghi chú đơn hàng / Lý do điều chỉnh
                   </label>
                   <textarea
                     id="input-order-note"
-                    rows={3}
                     placeholder="Nhập ghi chú vận chuyển, yêu cầu hóa đơn hoặc lý do nếu có điều chỉnh giá..."
                     value={note}
                     onChange={(e) => setNote(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm text-slate-800 placeholder-slate-400 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all resize-none"
+                    className="w-full flex-1 min-h-[96px] px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm text-slate-800 placeholder-slate-400 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all resize-none"
                   />
                 </div>
               </div>
@@ -1225,7 +1304,7 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({
                     onChange={handleSelectProduct}
                     className="w-full px-4 py-3 rounded-xl border-2 border-emerald-500/80 bg-emerald-50/20 text-slate-900 text-sm font-semibold focus:outline-none focus:ring-4 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all cursor-pointer shadow-xs"
                   >
-                    <option value="">🔍 Bấm vào đây để tìm và chọn sản phẩm thêm vào đơn hàng...</option>
+                    <option value="">Bấm vào đây để tìm và chọn sản phẩm thêm vào đơn hàng...</option>
                     {products.map((p) => {
                       const isAdded = orderItems.some((item) => item.productId === p.id);
                       return (
@@ -1255,22 +1334,24 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({
               ) : (
                 <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-xs">
                   <div className="overflow-x-auto">
-                    <table className="w-full text-left text-sm border-collapse min-w-[680px]">
+                    <table className="w-full text-left text-sm border-collapse min-w-[720px]">
                       <thead>
                         <tr className="bg-slate-100/80 text-slate-600 text-xs uppercase font-extrabold tracking-wider border-b border-slate-200">
                           <th className="py-3.5 px-4 font-bold">Sản Phẩm & Kho Phục Vụ</th>
-                          <th className="py-3.5 px-3 text-center font-bold w-28">ĐVT</th>
-                          <th className="py-3.5 px-3 text-center font-bold w-28">Số Lượng</th>
-                          <th className="py-3.5 px-4 text-right font-bold w-36">Đơn Giá Thực Tế</th>
+                          <th className="py-3.5 px-3 text-center font-bold w-32">ĐVT</th>
+                          <th className="py-3.5 px-3 text-center font-bold w-36">Số Lượng</th>
+                          <th className="py-3.5 px-4 text-right font-bold w-40">Đơn Giá Thực Tế</th>
                           <th className="py-3.5 px-4 text-right font-bold w-36">Thành Tiền</th>
-                          <th className="py-3.5 px-2 text-center w-14"></th>
+                          <th className="py-3.5 px-2 text-center w-12"></th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
                         {orderItems.map((item, idx) => {
                           const itemQty = typeof item.quantity === 'number' ? item.quantity : parseFloat(item.quantity) || 0;
-                          const itemTotal = itemQty * item.sellPrice;
-                          const isBelowFloor = canEditPrice && item.floorPrice !== null && item.sellPrice < item.floorPrice;
+                          const itemPrice = typeof item.sellPrice === 'number' ? item.sellPrice : parseFloat(item.sellPrice as any) || 0;
+                          const itemTotal = Number.isFinite(itemQty * itemPrice) ? itemQty * itemPrice : 0;
+                          const floorVal = item.floorPrice !== null && item.floorPrice !== undefined ? Number(item.floorPrice) : null;
+                          const isBelowFloor = canEditPrice && floorVal !== null && itemPrice < floorVal;
                           const stockItem = stockMap.get(item.productId);
                           const rate = item.conversionRate || 1;
                           const maxOrderable = stockItem ? Math.max(0, Math.floor(stockItem.available_stock / rate)) : undefined;
@@ -1280,17 +1361,17 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({
 
                           return (
                             <tr
-                              key={item.productId}
+                              key={item.productId || idx}
                               className={`transition-colors ${isExceeded ? 'bg-red-50/60' : isBelowFloor ? 'bg-amber-50/40' : 'hover:bg-slate-50/70'
                                 }`}
                             >
                               {/* Cột 1: Thông tin sản phẩm & Kho */}
-                              <td className="py-3.5 px-4 align-top">
+                              <td className="py-3.5 px-4 align-middle">
                                 <div className="font-bold text-slate-900 text-sm leading-snug">
-                                  {item.productName}
+                                  {item.productName || 'Sản phẩm chưa rõ tên'}
                                 </div>
                                 <div className="text-xs text-slate-500 font-mono mt-0.5">
-                                  Mã: {item.productCode}
+                                  Mã: {item.productCode || '---'}
                                 </div>
 
                                 {/* Tồn kho chi tiết */}
@@ -1304,7 +1385,7 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({
                                           : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                                         }`}
                                     >
-                                      Khả dụng: <strong>{maxOrderable ?? 0}</strong> {item.unitName}
+                                      Khả dụng: <strong>{maxOrderable ?? 0}</strong> {item.unitName || item.baseUnit || 'Cái'}
                                     </span>
                                     <span className="text-slate-400">
                                       (Thực tế: {actualInUnit ?? 0} | Đặt giữ: {reservedInUnit ?? 0})
@@ -1323,33 +1404,34 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({
                               </td>
 
                               {/* Cột 2: Đơn vị tính */}
-                              <td className="py-3.5 px-3 text-center align-top">
+                              <td className="py-3.5 px-3 text-center align-middle">
                                 {item.availableUnits && item.availableUnits.length > 1 ? (
                                   <select
                                     value={item.unitName}
                                     onChange={(e) => handleUnitChange(idx, e.target.value)}
-                                    className="px-2 py-1 rounded-lg border border-slate-300 text-xs font-semibold text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                                    className="h-9 px-2.5 rounded-lg border border-slate-300 text-xs font-semibold text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 cursor-pointer shadow-2xs"
                                   >
-                                    {item.availableUnits.map((u) => (
+                                    {(item.availableUnits || []).map((u) => (
                                       <option key={u.unit_name} value={u.unit_name}>
                                         {u.unit_name} (x{u.conversion_rate})
                                       </option>
                                     ))}
                                   </select>
                                 ) : (
-                                  <span className="inline-block px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 font-semibold text-xs">
-                                    {item.unitName}
+                                  <span className="inline-flex items-center justify-center h-9 px-3 rounded-lg bg-slate-100 text-slate-700 font-semibold text-xs border border-slate-200">
+                                    {item.unitName || item.baseUnit || 'Cái'}
                                   </span>
                                 )}
                               </td>
 
                               {/* Cột 3: Số lượng (+/- stepper) */}
-                              <td className="py-3.5 px-3 text-center align-top">
-                                <div className="inline-flex items-center border border-slate-300 rounded-lg overflow-hidden bg-white shadow-2xs">
+                              <td className="py-3.5 px-3 text-center align-middle">
+                                <div className="inline-flex items-center h-9 border border-slate-300 rounded-lg overflow-hidden bg-white shadow-2xs">
                                   <button
                                     type="button"
                                     onClick={() => handleQuantityStep(idx, -1)}
-                                    className="w-8 h-8 flex items-center justify-center text-slate-600 hover:bg-slate-100 transition-colors font-bold text-base cursor-pointer"
+                                    className="w-8 h-9 flex items-center justify-center text-slate-600 hover:bg-slate-100 transition-colors font-bold text-base cursor-pointer select-none"
+                                    title="Giảm số lượng"
                                   >
                                     −
                                   </button>
@@ -1357,15 +1439,22 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({
                                     type="number"
                                     min="0.001"
                                     step="any"
-                                    value={item.quantity}
+                                    value={item.quantity === 0 ? '' : item.quantity}
                                     onFocus={(e) => e.target.select()}
                                     onChange={(e) => handleQuantityChange(idx, e.target.value)}
-                                    className="w-16 h-8 text-center font-bold text-slate-800 text-sm focus:outline-none focus:bg-emerald-50/50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                    onBlur={() => {
+                                      if (!item.quantity || Number(item.quantity) <= 0) {
+                                        handleQuantityChange(idx, 1);
+                                      }
+                                    }}
+                                    className="w-14 h-9 text-center font-bold text-slate-800 text-sm focus:outline-none focus:bg-emerald-50/50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                    title="Nhập số lượng"
                                   />
                                   <button
                                     type="button"
                                     onClick={() => handleQuantityStep(idx, 1)}
-                                    className="w-8 h-8 flex items-center justify-center text-slate-600 hover:bg-slate-100 transition-colors font-bold text-base cursor-pointer"
+                                    className="w-8 h-9 flex items-center justify-center text-slate-600 hover:bg-slate-100 transition-colors font-bold text-base cursor-pointer select-none"
+                                    title="Tăng số lượng"
                                   >
                                     +
                                   </button>
@@ -1373,48 +1462,50 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({
                               </td>
 
                               {/* Cột 4: Đơn giá */}
-                              <td className="py-3.5 px-4 text-right align-top">
-                                <input
-                                  type="number"
-                                  min="0"
-                                  step="1000"
-                                  readOnly={!canEditPrice}
-                                  value={item.sellPrice}
-                                  onFocus={(e) => e.target.select()}
-                                  onChange={(e) => canEditPrice && handlePriceChange(idx, parseFloat(e.target.value) || 0)}
-                                  className={`w-28 px-2.5 py-1.5 rounded-lg border text-right font-bold text-sm focus:outline-none focus:ring-2 ${isBelowFloor
-                                    ? 'border-amber-400 text-amber-700 bg-amber-50 focus:ring-amber-400'
-                                    : 'border-slate-300 text-slate-900 focus:ring-emerald-500'
-                                    } ${!canEditPrice ? 'bg-slate-100 cursor-not-allowed text-slate-500' : 'bg-white'}`}
-                                  title={
-                                    !canEditPrice
-                                      ? 'Chỉ Sales và Admin được sửa giá'
-                                      : item.floorPrice !== null
-                                        ? `Giá sàn: ${item.floorPrice.toLocaleString('vi-VN')} đ`
-                                        : undefined
-                                  }
-                                />
-                                {isBelowFloor && (
-                                  <div className="text-[10.5px] text-amber-600 font-semibold mt-1">
-                                    Dưới giá sàn ({item.floorPrice?.toLocaleString('vi-VN')} đ)
-                                  </div>
-                                )}
+                              <td className="py-3.5 px-4 text-right align-middle">
+                                <div className="flex flex-col items-end justify-center">
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    step="1000"
+                                    readOnly={!canEditPrice}
+                                    value={item.sellPrice}
+                                    onFocus={(e) => e.target.select()}
+                                    onChange={(e) => canEditPrice && handlePriceChange(idx, parseFloat(e.target.value) || 0)}
+                                    className={`h-9 w-32 px-3 rounded-lg border text-right font-bold text-sm focus:outline-none focus:ring-2 shadow-2xs ${isBelowFloor
+                                      ? 'border-amber-400 text-amber-700 bg-amber-50 focus:ring-amber-400'
+                                      : 'border-slate-300 text-slate-900 focus:ring-emerald-500'
+                                      } ${!canEditPrice ? 'bg-slate-100 cursor-not-allowed text-slate-500' : 'bg-white'}`}
+                                    title={
+                                      !canEditPrice
+                                        ? 'Chỉ Sales và Admin được sửa giá'
+                                        : floorVal !== null
+                                          ? `Giá sàn: ${floorVal.toLocaleString('vi-VN')} đ`
+                                          : undefined
+                                    }
+                                  />
+                                  {isBelowFloor && (
+                                    <div className="text-[10.5px] text-amber-600 font-semibold mt-1">
+                                      Dưới giá sàn ({floorVal !== null ? floorVal.toLocaleString('vi-VN') : 0} đ)
+                                    </div>
+                                  )}
+                                </div>
                               </td>
 
                               {/* Cột 5: Thành tiền */}
-                              <td className="py-3.5 px-4 text-right align-top font-extrabold text-slate-900 text-sm whitespace-nowrap">
+                              <td className="py-3.5 px-4 text-right align-middle font-extrabold text-slate-900 text-sm whitespace-nowrap">
                                 {itemTotal.toLocaleString('vi-VN')} đ
                               </td>
 
                               {/* Cột 6: Xóa */}
-                              <td className="py-3.5 px-2 text-center align-top">
+                              <td className="py-3.5 px-2 text-center align-middle">
                                 <button
                                   type="button"
                                   onClick={() => handleRemoveItem(idx)}
-                                  className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                                  className="w-9 h-9 inline-flex items-center justify-center text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
                                   title="Xóa mặt hàng khỏi đơn"
                                 >
-                                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                     <path d="M3 6h18" />
                                     <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
                                     <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
@@ -1620,11 +1711,11 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({
                         setIsManualDiscount(true);
                         setDiscountPercent(e.target.value);
                       }}
-                      className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm font-bold text-slate-800 text-right focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 bg-white"
+                      className="w-full h-10 px-3 rounded-lg border border-slate-300 text-sm font-bold text-slate-800 text-right focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 bg-white"
                     />
                   </div>
                   <div>
-                    <div className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-xs sm:text-sm font-extrabold text-emerald-600 text-right">
+                    <div className="w-full h-10 px-3 rounded-lg border border-slate-200 bg-white text-xs sm:text-sm font-extrabold text-emerald-600 flex items-center justify-end">
                       − {discountAmount.toLocaleString('vi-VN')} đ
                     </div>
                   </div>

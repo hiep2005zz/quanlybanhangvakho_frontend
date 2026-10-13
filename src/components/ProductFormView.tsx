@@ -6,6 +6,7 @@ import {
   updateProductApi,
   deleteProductApi,
   API_BASE_URL,
+  getProductImageUrl,
 } from '../services/api';
 import { emitStatusToast } from './StatusToast';
 import './sales-order-entry.css';
@@ -1009,7 +1010,7 @@ export const ProductFormView: React.FC<ProductFormViewProps> = ({
                   }}
                 >
                   <img
-                    src={image}
+                    src={getProductImageUrl(image)}
                     alt="Ảnh sản phẩm"
                     style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                   />

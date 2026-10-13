@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ProductItem, ProductPayload, createProductApi, updateProductApi, deleteProductApi, API_BASE_URL } from '../services/api';
+import { ProductItem, ProductPayload, createProductApi, updateProductApi, deleteProductApi, API_BASE_URL, getProductImageUrl } from '../services/api';
 import { emitStatusToast } from './StatusToast';
 
 interface ProductDrawerProps {
@@ -839,7 +839,7 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({
                           background: '#f1f5f9',
                         }}
                       >
-                        <img src={img} alt="Hình ảnh sản phẩm" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        <img src={getProductImageUrl(img)} alt="Hình ảnh sản phẩm" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         {isMain && (
                           <span
                             style={{
