@@ -40,7 +40,7 @@ interface DiscountPolicyViewProps {
   onBackToHome?: () => void;
 }
 
-export default function DiscountPolicyView({ token, user }: DiscountPolicyViewProps) {
+export default function DiscountPolicyView({ token, user, onBackToHome: _onBackToHome }: DiscountPolicyViewProps) {
   const canManageDiscounts = Boolean(
     user?.role === 'admin' ||
     user?.role === 'sales_manager' ||
