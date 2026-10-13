@@ -58,12 +58,21 @@ export const CustomerPortalView: React.FC<CustomerPortalViewProps> = ({
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
 
-  // Phân trang Server-Side (20 sản phẩm/trang - chống lag)
+  // Phân trang Server-Side (20 sản phẩm/trang - chống lag cho kho 10.000 sản phẩm)
   const [currentPage, setCurrentPage] = useState<number>(1);
-  const [serverProducts, setServerProducts] = useState<ProductItem[]>(products);
-  const [totalProducts, setTotalProducts] = useState<number>(products.length);
-  const [totalPages, setTotalPages] = useState<number>(Math.ceil(products.length / 20) || 1);
-  const [isLoadingProducts, setIsLoadingProducts] = useState<boolean>(false);
+  const [serverProducts, setServerProducts] = useState<ProductItem[]>([]);
+  const [totalProducts, setTotalProducts] = useState<number>(0);
+  const [totalPages, setTotalPages] = useState<number>(1);
+  const [isLoadingProducts, setIsLoadingProducts] = useState<boolean>(true);
+
+  // Tham chiếu vùng cuộn danh sách sản phẩm để cuộn mượt mà khi chuyển trang
+  const scrollContainerRef = React.useRef<HTMLDivElement>(null);
+
+  const scrollToTop = () => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
 
   // Debounce tìm kiếm 300ms
   useEffect(() => {
@@ -349,72 +358,85 @@ export const CustomerPortalView: React.FC<CustomerPortalViewProps> = ({
   };
 
   return (
-    <div className="w-full min-h-screen flex-1 bg-slate-50 flex flex-col pb-20">
-      {/* Header Chào Mừng & Banner Đại Lý */}
-      <div className="bg-white border-b border-gray-100 px-4 md:px-8 py-4 sm:py-5 shadow-xs">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-3">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800">
-                {customerDealer?.customer_group || 'Đại lý chính thức'}
-              </span>
-              <span className="text-xs text-gray-500">
-                Mã: {customerDealer?.dealer_code || currentUser.username}
-              </span>
+    <div className="w-full h-full flex-1 bg-slate-50 flex flex-col overflow-hidden">
+      {/* =========================================================================
+          KHỐI CỐ ĐỊNH TRÊN CÙNG (IMMOBILE FIXED HEADER): TOÀN BỘ TIÊU ĐỀ ĐẠI LÝ VÀ 3 THẺ CÔNG NỢ
+          - Nằm ngoài khối cuộn, ĐỨNG IM 100% ở trên cùng màn hình khi cuộn chuột và chuyển trang.
+          - flex-shrink-0 z-30 bg-white border-b border-gray-200 shadow-xs
+      ========================================================================= */}
+      <div className="flex-shrink-0 z-30 bg-white border-b border-gray-200 shadow-xs">
+        {/* 1. Header Chào Mừng & Banner Đại Lý */}
+        <div className="px-4 md:px-8 pt-3 pb-2.5 border-b border-gray-100">
+          <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-2">
+            <div>
+              <div className="flex items-center gap-2 mb-0.5">
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800">
+                  {customerDealer?.customer_group || 'Đại lý Cấp 1'}
+                </span>
+                <span className="text-xs text-gray-500 font-mono">
+                  Mã: {customerDealer?.dealer_code || currentUser.username}
+                </span>
+              </div>
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-800 tracking-tight">
+                Cổng Đặt Hàng Trực Tuyến
+              </h1>
+              <p className="text-xs sm:text-sm text-gray-600 mt-0.5">
+                Chào mừng <span className="font-semibold text-gray-900">{customerDealer?.dealer_name || currentUser.full_name || currentUser.username}</span>. Chọn sản phẩm và gửi đơn đặt hàng nhanh chóng.
+              </p>
             </div>
-            <h1 className="text-2xl font-bold text-gray-800 tracking-tight">
-              Cổng Đặt Hàng Trực Tuyến
-            </h1>
-            <p className="text-xs sm:text-sm text-gray-600 mt-0.5">
-              Chào mừng <span className="font-semibold text-gray-900">{customerDealer?.dealer_name || currentUser.full_name || currentUser.username}</span>. Chọn sản phẩm và gửi đơn đặt hàng nhanh chóng.
-            </p>
           </div>
         </div>
-      </div>
 
-      {/* Thanh KPI Hạn mức công nợ ghim cố định (Sticky Header) */}
-      <div className="sticky top-0 z-40 bg-white border-b border-gray-200 px-4 md:px-8 py-3.5 shadow-sm transition-all">
-        <div className="max-w-7xl mx-auto">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div className="bg-white border border-gray-200 rounded-xl p-3.5 shadow-xs">
-              <div className="text-sm text-gray-500 font-medium">Hạn mức công nợ được cấp</div>
-              <div className="text-xl sm:text-2xl font-bold text-gray-900 mt-1">
-                {creditInfo ? `${creditInfo.credit_limit.toLocaleString('vi-VN')} đ` : '—'}
+        {/* 2. Cụm 3 thẻ chỉ số tài chính / Hạn mức công nợ */}
+        <div className="px-4 md:px-8 py-3">
+          <div className="max-w-7xl mx-auto">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="bg-white border border-gray-200 rounded-xl p-3 shadow-2xs">
+                <div className="text-xs sm:text-sm text-gray-500 font-medium">Hạn mức công nợ được cấp</div>
+                <div className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 mt-0.5">
+                  {creditInfo ? `${creditInfo.credit_limit.toLocaleString('vi-VN')} đ` : '—'}
+                </div>
               </div>
-            </div>
 
-            <div className="bg-white border border-gray-200 rounded-xl p-3.5 shadow-xs">
-              <div className="text-sm text-gray-500 font-medium">Dư nợ hiện tại</div>
-              <div className="text-xl sm:text-2xl font-bold text-amber-700 mt-1">
-                {creditInfo ? `${creditInfo.current_debt.toLocaleString('vi-VN')} đ` : '—'}
+              <div className="bg-white border border-gray-200 rounded-xl p-3 shadow-2xs">
+                <div className="text-xs sm:text-sm text-gray-500 font-medium">Dư nợ hiện tại</div>
+                <div className="text-lg sm:text-xl md:text-2xl font-bold text-amber-700 mt-0.5">
+                  {creditInfo ? `${creditInfo.current_debt.toLocaleString('vi-VN')} đ` : '—'}
+                </div>
               </div>
-            </div>
 
-            <div className={`border rounded-xl p-3.5 shadow-xs ${remainingCredit > 0 ? 'bg-emerald-50/40 border-emerald-200' : 'bg-rose-50 border-rose-200'
+              <div className={`border rounded-xl p-3 shadow-2xs ${
+                remainingCredit > 0 ? 'bg-emerald-50/40 border-emerald-200' : 'bg-rose-50 border-rose-200'
               }`}>
-              <div className="text-sm font-medium flex items-center justify-between">
-                <span className={remainingCredit > 0 ? 'text-emerald-800' : 'text-rose-800'}>Hạn mức công nợ còn lại</span>
-                {remainingCredit > 0 && (
-                  <span className="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
-                )}
-              </div>
-              <div className="text-xl sm:text-2xl font-bold text-emerald-700 mt-1" id="label-remaining-credit">
-                {creditInfo ? `${creditInfo.remaining_credit.toLocaleString('vi-VN')} đ` : '—'}
+                <div className="text-xs sm:text-sm font-medium flex items-center justify-between">
+                  <span className={remainingCredit > 0 ? 'text-emerald-800' : 'text-rose-800'}>Hạn mức công nợ còn lại</span>
+                  {remainingCredit > 0 && (
+                    <span className="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
+                  )}
+                </div>
+                <div className="text-lg sm:text-xl md:text-2xl font-bold text-emerald-700 mt-0.5" id="label-remaining-credit">
+                  {creditInfo ? `${creditInfo.remaining_credit.toLocaleString('vi-VN')} đ` : '—'}
+                </div>
               </div>
             </div>
-          </div>
 
-          {creditInfo?.is_overdue && (
-            <div className="mt-3 px-3 py-2 bg-rose-50 border border-rose-300 text-rose-800 rounded-lg text-xs flex items-center gap-2">
-              <span className="text-sm">⚠️</span>
-              <span><strong>Cảnh báo quá hạn:</strong> Đại lý có khoản công nợ đã vượt quá số ngày cho phép ({creditInfo.overdue_days_allowed} ngày). Đơn hàng đặt mới sẽ yêu cầu Quản lý xét duyệt!</span>
-            </div>
-          )}
+            {creditInfo?.is_overdue && (
+              <div className="mt-2.5 px-3 py-2 bg-rose-50 border border-rose-300 text-rose-800 rounded-lg text-xs flex items-center gap-2">
+                <span className="text-sm">⚠️</span>
+                <span><strong>Cảnh báo quá hạn:</strong> Đại lý có khoản công nợ đã vượt quá số ngày cho phép ({creditInfo.overdue_days_allowed} ngày). Đơn hàng đặt mới sẽ yêu cầu Quản lý xét duyệt!</span>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Thân Cổng Đặt Hàng: Responsive flex-col hoặc lg:flex-row */}
-      <div className="max-w-7xl mx-auto w-full px-4 md:px-8 py-6 flex-1 flex flex-col lg:flex-row gap-6">
+      {/* =========================================================================
+          KHỐI NỘI DUNG CUỘN (SCROLLABLE CONTAINER): Sản phẩm, Bộ lọc, Phân trang, Giỏ hàng
+          - Chỉ cuộn khối này khi lướt chuột hoặc đổi trang, khối tiêu đề bên trên luôn đứng im.
+      ========================================================================= */}
+      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto w-full">
+        {/* Thân Cổng Đặt Hàng: Responsive flex-col hoặc lg:flex-row */}
+        <div className="max-w-7xl mx-auto w-full px-4 md:px-8 py-6 flex flex-col lg:flex-row gap-6 pb-24">
         {/* CỘT TRÁI: DANH SÁCH SẢN PHẨM & BỘ LỌC */}
         <div className="flex-1 min-w-0 flex flex-col gap-4">
           {/* Banner Bảng giá áp dụng cho đại lý */}
@@ -485,20 +507,40 @@ export const CustomerPortalView: React.FC<CustomerPortalViewProps> = ({
             </div>
           )}
           {isLoadingProducts && (
-            <div className="text-center py-1 text-xs text-indigo-600 font-medium">
-              Đang tải danh sách sản phẩm trang {currentPage}...
+            <div className="flex items-center justify-center gap-2.5 py-3 px-4 bg-indigo-50 border border-indigo-200/80 rounded-xl text-xs font-semibold text-indigo-700 shadow-xs">
+              <svg className="w-4 h-4 animate-spin text-indigo-600 shrink-0" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+              </svg>
+              <span>Đang tải 20 sản phẩm trang {currentPage} từ máy chủ... (Tải phân trang theo yêu cầu)</span>
             </div>
           )}
 
           {/* Lưới sản phẩm */}
-          {displayProducts.length === 0 ? (
+          {isLoadingProducts && displayProducts.length === 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 animate-pulse">
+              {Array.from({ length: 8 }).map((_, idx) => (
+                <div key={idx} className="bg-white rounded-2xl border border-gray-200 p-3.5 flex flex-col justify-between">
+                  <div>
+                    <div className="w-full h-44 rounded-xl bg-gray-100 mb-3" />
+                    <div className="h-3 w-16 bg-gray-200 rounded mb-2" />
+                    <div className="h-4 w-3/4 bg-gray-200 rounded mb-3" />
+                    <div className="h-5 w-1/2 bg-gray-200 rounded" />
+                  </div>
+                  <div className="mt-3 pt-2.5 border-t border-gray-100">
+                    <div className="h-8 bg-gray-200 rounded-xl" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : displayProducts.length === 0 ? (
             <div className="bg-white rounded-xl border border-gray-200 p-12 text-center text-gray-500 shadow-sm">
               <div className="text-3xl mb-2">🔍</div>
               <div className="font-semibold text-gray-800 text-base">Không tìm thấy sản phẩm phù hợp</div>
               <p className="text-sm text-gray-500 mt-1">Thử thay đổi từ khóa tìm kiếm hoặc chọn danh mục khác.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
+            <div className={`grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 transition-opacity duration-200 ${isLoadingProducts ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
               {displayProducts.map((p) => {
                 const cartItem = cart.find((it) => it.product.id === p.id);
                 const currentQtyInCart = cartItem ? cartItem.quantity : 0;
@@ -659,7 +701,7 @@ export const CustomerPortalView: React.FC<CustomerPortalViewProps> = ({
                   onClick={() => {
                     if (currentPage > 1) {
                       setCurrentPage((p) => p - 1);
-                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                      scrollToTop();
                     }
                   }}
                   className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all flex items-center gap-1 ${
@@ -693,7 +735,7 @@ export const CustomerPortalView: React.FC<CustomerPortalViewProps> = ({
                             type="button"
                             onClick={() => {
                               setCurrentPage(pageNumber);
-                              window.scrollTo({ top: 0, behavior: 'smooth' });
+                              scrollToTop();
                             }}
                             className={`min-w-[32px] h-8 px-2 text-xs font-bold rounded-lg border transition-all cursor-pointer ${
                               currentPage === pageNumber
@@ -715,7 +757,7 @@ export const CustomerPortalView: React.FC<CustomerPortalViewProps> = ({
                   onClick={() => {
                     if (currentPage < totalPages) {
                       setCurrentPage((p) => p + 1);
-                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                      scrollToTop();
                     }
                   }}
                   className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all flex items-center gap-1 ${
@@ -960,6 +1002,7 @@ export const CustomerPortalView: React.FC<CustomerPortalViewProps> = ({
             </form>
           </div>
         </div>
+      </div>
       </div>
 
       {/* Floating Action Button (FAB) trên Mobile để xem và cuộn nhanh xuống Giỏ Hàng */}

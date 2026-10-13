@@ -837,7 +837,9 @@ export default function DashboardPage({
   const isWarningZone = remainingSeconds > 0 && remainingSeconds <= 120;
 
   const fetchProducts = () => {
-    if (isPendingCustomer) {
+    // Đại lý (Customer) sử dụng cơ chế Server-side Pagination riêng (20 sp/trang) tại CustomerPortalView,
+    // tuyệt đối không tải toàn bộ 10.000 sản phẩm vào DashboardPage.
+    if (isPendingCustomer || isCustomer) {
       setIsLoading(false);
       return;
     }
@@ -860,7 +862,7 @@ export default function DashboardPage({
   };
 
   const fetchLowStockAlerts = () => {
-    if (isPendingCustomer || !token) return;
+    if (isPendingCustomer || isCustomer || !token) return;
     getLowStockAlertsApi(token)
       .then((data) => {
         setLowStockSummary(data);
@@ -871,11 +873,11 @@ export default function DashboardPage({
   };
 
   useEffect(() => {
-    if (activeTab === 'inventory') {
+    if (activeTab === 'inventory' && !isCustomer) {
       fetchProducts();
       fetchLowStockAlerts();
     }
-  }, [token, isPendingCustomer, activeTab]);
+  }, [token, isPendingCustomer, isCustomer, activeTab]);
 
   // Tính toán số liệu thống kê (Memoized để không tính lại mỗi giây khi đếm ngược phiên làm việc)
   const { totalStock, totalSellValue, totalCostValue, totalProfit, isCostAvailable } = useMemo(() => {
@@ -1076,7 +1078,7 @@ export default function DashboardPage({
         />
       }
       noScroll={isLockedScrollTab}
-      mainClassName={isCustomer || isOrdersCreateSubpage || isPriceListsCreateSubpage ? 'flex-1 min-w-0 overflow-y-auto p-0 flex flex-col bg-slate-50' : undefined}
+      mainClassName={isCustomer ? 'flex-1 min-w-0 overflow-hidden p-0 flex flex-col bg-slate-50 h-full' : (isOrdersCreateSubpage || isPriceListsCreateSubpage ? 'flex-1 min-w-0 overflow-y-auto p-0 flex flex-col bg-slate-50' : undefined)}
       sidebar={
         <Sidebar
           activeTab={activeTab}
