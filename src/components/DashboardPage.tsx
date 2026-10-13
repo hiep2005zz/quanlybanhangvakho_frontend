@@ -42,6 +42,7 @@ import { OrderDetailPage } from './OrderDetailPage';
 import SalesOrderEntry from './SalesOrderEntry';
 import { CreateOrderPage } from './CreateOrderPage';
 import { CreatePriceListPage } from './CreatePriceListPage';
+import { PriceBookDetailPage } from './PriceBookDetailPage';
 import { useLocation } from '../hooks/useLocation';
 import { ProductHistoryView } from './ProductHistoryView';
 import { ProductFormView } from './ProductFormView';
@@ -165,6 +166,15 @@ export default function DashboardPage({
     currentPath.startsWith('/price-lists/create') ||
     currentPath === '/price-books/create' ||
     currentPath.startsWith('/price-books/create');
+  const isPriceBookEditSubpage =
+    (currentPath.startsWith('/price-books/') || currentPath.startsWith('/price-lists/')) &&
+    currentPath.endsWith('/edit');
+  const isPriceBookDetailSubpage =
+    (currentPath.startsWith('/price-books/') || currentPath.startsWith('/price-lists/')) &&
+    !isPriceListsCreateSubpage &&
+    !isPriceBookEditSubpage &&
+    currentPath !== '/price-books' &&
+    currentPath !== '/price-lists';
 
   const [activeTab, setActiveTabState] = useState<TabType>(() => {
     const pathname = window.location.pathname.toLowerCase();
@@ -1254,7 +1264,7 @@ export default function DashboardPage({
   const isProductFormOpen = productDrawerState.isOpen && activeTab === 'inventory';
   const isSalesOrderOpen = activeTab === 'create-order' || isSalesOrderEntryOpen;
   const isGoodsReceiptPage = activeTab === 'goods-receipt';
-  const isLockedScrollTab = !isProductFormOpen && !isSalesOrderOpen && !isOrdersCreateSubpage && !isOrderDetailSubpage && !isPriceListsCreateSubpage && !isGoodsReceiptPage && (activeTab === 'inventory' || activeTab === 'dealers' || activeTab === 'dealer-profiles' || activeTab === 'delivery-points' || activeTab === 'suppliers' || activeTab === 'price-books' || activeTab === 'categories' || activeTab === 'orders' || activeTab === 'product-history' || activeTab === 'stock-book' || activeTab === 'stock-audits' || activeTab === 'stock-transfers' || activeTab === 'products-import' || activeTab === 'users-import') && !isPendingCustomer;
+  const isLockedScrollTab = !isProductFormOpen && !isSalesOrderOpen && !isOrdersCreateSubpage && !isOrderDetailSubpage && !isPriceListsCreateSubpage && !isPriceBookDetailSubpage && !isPriceBookEditSubpage && !isGoodsReceiptPage && (activeTab === 'inventory' || activeTab === 'dealers' || activeTab === 'dealer-profiles' || activeTab === 'delivery-points' || activeTab === 'suppliers' || activeTab === 'price-books' || activeTab === 'categories' || activeTab === 'orders' || activeTab === 'product-history' || activeTab === 'stock-book' || activeTab === 'stock-audits' || activeTab === 'stock-transfers' || activeTab === 'products-import' || activeTab === 'users-import') && !isPendingCustomer;
 
   return (
     <DashboardLayout
@@ -1282,7 +1292,7 @@ export default function DashboardPage({
         />
       }
       noScroll={isLockedScrollTab}
-      mainClassName={isCustomer ? 'flex-1 min-w-0 overflow-hidden p-0 flex flex-col bg-slate-50 h-full' : (isOrdersCreateSubpage || isPriceListsCreateSubpage || isOrderDetailSubpage || isGoodsReceiptPage ? 'flex-1 min-w-0 overflow-y-auto p-0 flex flex-col bg-slate-50' : undefined)}
+      mainClassName={isCustomer ? 'flex-1 min-w-0 overflow-hidden p-0 flex flex-col bg-slate-50 h-full' : (isOrdersCreateSubpage || isPriceListsCreateSubpage || isPriceBookDetailSubpage || isPriceBookEditSubpage || isOrderDetailSubpage || isGoodsReceiptPage ? 'flex-1 min-w-0 overflow-y-auto p-0 flex flex-col bg-slate-50' : undefined)}
       sidebar={
         <Sidebar
           activeTab={activeTab === 'users-import' ? 'users' : activeTab === 'products-import' ? 'inventory' : activeTab}
@@ -1318,7 +1328,7 @@ export default function DashboardPage({
     >
       <div
         className="dashboard-main-container"
-        style={isCustomer || isOrdersCreateSubpage || isPriceListsCreateSubpage || isOrderDetailSubpage || isGoodsReceiptPage ? {
+        style={isCustomer || isOrdersCreateSubpage || isPriceListsCreateSubpage || isPriceBookDetailSubpage || isPriceBookEditSubpage || isOrderDetailSubpage || isGoodsReceiptPage ? {
           width: '100%',
           display: 'flex',
           flexDirection: 'column',
@@ -1677,11 +1687,12 @@ export default function DashboardPage({
           )
         ) : activeTab === 'price-books' ? (
           canAccessPriceBooks ? (
-            isPriceListsCreateSubpage ? (
+            isPriceListsCreateSubpage || isPriceBookEditSubpage ? (
               <CreatePriceListPage
                 token={token}
                 currentUser={user}
                 products={products}
+                isEdit={isPriceBookEditSubpage}
                 onClose={() => {
                   window.history.pushState({}, '', '/price-books');
                 }}
@@ -1689,6 +1700,15 @@ export default function DashboardPage({
                   window.history.pushState({}, '', '/price-books');
                   fetchProducts();
                 }}
+              />
+            ) : isPriceBookDetailSubpage ? (
+              <PriceBookDetailPage
+                token={token}
+                currentUser={user}
+                onBack={() => {
+                  window.history.pushState({}, '', '/price-books');
+                }}
+                onRefreshProducts={fetchProducts}
               />
             ) : (
               <PriceBookManagementView
@@ -2628,8 +2648,8 @@ export default function DashboardPage({
                       <col style={{ width: '95px' }} />
                       <col />
                       <col style={{ width: '110px' }} />
-                      <col style={{ width: '145px' }} />
-                      <col style={{ width: '145px' }} />
+                      <col style={{ width: '135px' }} />
+                      <col style={{ width: '165px' }} />
                       <col style={{ width: '130px' }} />
                       <col style={{ width: '125px' }} />
                       {isCostVisible && <col style={{ width: '125px' }} />}
@@ -2804,7 +2824,12 @@ export default function DashboardPage({
                             </div>
                           </td>
 
-                          <td style={{ padding: '12px 14px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                          <td style={{
+                            padding: '10px 14px',
+                            verticalAlign: 'middle',
+                            textAlign: 'right',
+                            fontVariantNumeric: 'tabular-nums',
+                          }}>
                             {(() => {
                               const branchInfo = lowStockBranchesMap.get(item.id);
                               const minVal = branchInfo?.minStock ?? (item.min_stock ?? 10);
@@ -2814,15 +2839,22 @@ export default function DashboardPage({
                               const branchText = branchInfo?.warehouseNames.join(', ') || 'chi nhánh';
                               const firstBranch = branchInfo?.warehouseNames[0] || 'chi nhánh';
                               const shortageLabel = branchCount > 1
-                                ? `Thiếu tại ${branchCount} kho`
-                                : (firstBranch.length <= 10 ? `Thiếu tại ${firstBranch}` : 'Thiếu tại chi nhánh');
+                                ? `${branchCount} kho`
+                                : (firstBranch.length <= 8 ? firstBranch : '1 kho');
 
                               const isLowStock = isBelowGlobal || hasBranchShortage;
 
                               return (
-                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '3px' }}>
+                                <div style={{
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  alignItems: 'flex-end',
+                                  justifyContent: 'center',
+                                  gap: '3px',
+                                  width: '100%',
+                                }}>
                                   <span style={{
-                                    fontWeight: '600',
+                                    fontWeight: '700',
                                     color: isLowStock ? '#dc2626' : '#0f172a',
                                   }}>
                                     {item.stock.toLocaleString()} {item.base_unit || 'cái'}
@@ -2837,14 +2869,16 @@ export default function DashboardPage({
                                         color: '#b91c1c',
                                         border: '1px solid #fca5a5',
                                         borderRadius: '4px',
-                                        padding: '1px 6px',
-                                        fontSize: '10.5px',
+                                        padding: '1.5px 6px',
+                                        fontSize: '11px',
                                         fontWeight: '700',
                                         whiteSpace: 'nowrap',
+                                        maxWidth: '100%',
+                                        boxSizing: 'border-box',
                                       }}
-                                      title={`Tồn hiện tại (${item.stock}) <= Định mức tối thiểu (${minVal})`}
+                                      title={`Tồn kho hiện tại (${item.stock}) <= Định mức tối thiểu (${minVal})`}
                                     >
-                                      Dưới định mức ({minVal})
+                                      Dưới định mức
                                     </span>
                                   ) : hasBranchShortage ? (
                                     <span
@@ -2856,14 +2890,16 @@ export default function DashboardPage({
                                         color: '#b91c1c',
                                         border: '1px solid #fca5a5',
                                         borderRadius: '4px',
-                                        padding: '1px 6px',
-                                        fontSize: '10.5px',
+                                        padding: '1.5px 6px',
+                                        fontSize: '11px',
                                         fontWeight: '700',
                                         whiteSpace: 'nowrap',
+                                        maxWidth: '100%',
+                                        boxSizing: 'border-box',
                                       }}
                                       title={`Tồn tổng công ty (${item.stock}) > định mức (${minVal}) nhưng đang dưới định mức tồn tối thiểu tại: ${branchText}`}
                                     >
-                                      Dưới định mức ({shortageLabel})
+                                      Dưới mức ({shortageLabel})
                                     </span>
                                   ) : null}
                                 </div>
@@ -3492,6 +3528,12 @@ export default function DashboardPage({
             initialReason={stockActionState.initialReason}
             onClose={() => setStockActionState({ isOpen: false, actionType: 'receipt', product: null })}
             onSuccess={() => {
+              if (stockActionState.product) {
+                setHistoryProductTarget({
+                  code: stockActionState.product.code,
+                  name: stockActionState.product.name,
+                });
+              }
               setStockActionState({ isOpen: false, actionType: 'receipt', product: null });
               fetchProducts();
             }}

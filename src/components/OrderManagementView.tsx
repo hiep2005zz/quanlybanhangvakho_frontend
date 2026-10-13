@@ -665,8 +665,31 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
     );
   };
 
+  const getCleanApprovalReason = (ord: OrderResponseData): string | null => {
+    if (!ord || !ord.approval_reason) return null;
+    const s = (ord.status || '').toUpperCase();
+    const isApprovedOrPast =
+      ['CONFIRMED', 'APPROVED', 'PICKING', 'PREPARING', 'PACKING', 'EXPORTED', 'SHIPPED', 'DELIVERED', 'CLOSED', 'COMPLETED', 'CANCELLED', 'REJECTED'].includes(s) ||
+      !ord.requires_approval;
+    if (isApprovedOrPast) {
+      const parts = ord.approval_reason.split('|').map((p: string) => p.trim()).filter(Boolean);
+      const remaining = parts.filter((p: string) => {
+        const lower = p.toLowerCase().normalize('NFC');
+        return (
+          !lower.includes('đại lý tự đặt') &&
+          !lower.includes('cổng đại lý') &&
+          !lower.includes('nhân viên phụ trách xác nhận') &&
+          !lower.includes('chờ nhân viên')
+        );
+      });
+      return remaining.join(' | ') || null;
+    }
+    return ord.approval_reason;
+  };
+
   const renderOrderActions = (order: OrderResponseData) => {
     const isPending = order.status === 'PENDING_APPROVAL';
+    const isApprovedOrConfirmed = ['CONFIRMED', 'APPROVED'].includes(order.status);
     const isDropdownOpen = openActionDropdownCode === order.order_code;
     const canApprove = isPending && canApproveOrder(order);
 
@@ -677,10 +700,19 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
       isOrderCancelable(order.status) &&
       (isCustomer ? ['PENDING_APPROVAL', 'PENDING', 'DRAFT'].includes(order.status) : isFullAccess);
 
+    // Dropdown thao tác duyệt chỉ hiển thị khi đơn chờ duyệt và có quyền duyệt (Duyệt, Từ chối)
+    // Khi đơn đã duyệt: Bỏ menu Thao tác, thay bằng nút Hủy trực tiếp
+    const showApprovalDropdown = !isCustomer && !isApprovedOrConfirmed && canApprove;
+
+    // Hiển thị nút Hủy trực tiếp khi có quyền hủy và:
+    // 1. Đơn đã duyệt (isApprovedOrConfirmed)
+    // 2. Hoặc đơn không có menu dropdown duyệt (isCustomer hoặc nhân viên không có quyền duyệt)
+    const showDirectCancel = canCancel && (!showApprovalDropdown || isApprovedOrConfirmed);
+
     return (
-      <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px', whiteSpace: 'nowrap' }}>
-        {/* Trường hợp 1: Người CÓ vai trò duyệt (Admin / Sales Manager) khi đơn chờ duyệt -> Dropdown Menu Trạng thái (Duyệt / Từ chối / Hủy) */}
-        {!isCustomer && canApprove && (
+      <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', gap: '5px', whiteSpace: 'nowrap' }}>
+        {/* Menu Thao tác Duyệt Dropdown khi đơn chờ duyệt và có quyền duyệt */}
+        {showApprovalDropdown && (
           <div
             className="order-action-dropdown-container order-status-dropdown-details relative inline-block text-left"
             style={{ position: 'relative', display: 'inline-block' }}
@@ -693,7 +725,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
               onClick={(e) => handleDropdownToggle(e, order.order_code)}
               style={{
                 listStyle: 'none',
-                padding: '5px 10px',
+                padding: '4px 8px',
                 background: isDropdownOpen ? '#15803d' : '#16a34a',
                 border: 'none',
                 borderRadius: '6px',
@@ -722,7 +754,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                 }
               }}
             >
-              <span>Trạng thái</span>
+              <span>Thao tác duyệt</span>
               <span
                 style={{
                   fontSize: '9px',
@@ -735,7 +767,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
               </span>
             </button>
 
-            {/* Menu Dropdown mượt mà - Cầu nối chuột không bị đứt quãng */}
+            {/* Menu Dropdown mượt mà */}
             {isDropdownOpen && (
               <div
                 style={{
@@ -882,14 +914,14 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
           </div>
         )}
 
-        {/* Trường hợp 2: Người không có vai trò duyệt (hoặc đơn không ở trạng thái chờ duyệt) -> Chỉ hiện nút Hủy đơn trực tiếp */}
-        {!canApprove && canCancel && (
+        {/* Nút Hủy hiển thị trực tiếp khi đã duyệt (hoặc khi không có menu duyệt mà có quyền hủy) */}
+        {showDirectCancel && (
           <button
             type="button"
             id={`btn-cancel-order-${order.order_code}`}
             onClick={() => setCancellingOrder(order)}
             style={{
-              padding: '5px 10px',
+              padding: '4px 10px',
               background: '#fff1f2',
               border: '1px solid #fecdd3',
               borderRadius: '6px',
@@ -916,7 +948,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
             }}
             title="Hủy đơn hàng này"
           >
-            <span>Hủy đơn</span>
+            Hủy
           </button>
         )}
 
@@ -1284,7 +1316,15 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                               Đại lý bị khóa giao dịch (Cần kiểm tra công nợ)
                             </div>
                           )}
-                          {cleanReason && <div>{cleanReason}</div>}
+                          {cleanReason && (
+                            <div className="space-y-1">
+                              {cleanReason.split(' | ').map((subReason: string, sIdx: number) => (
+                                <div key={sIdx} className="leading-snug">
+                                  &bull; {subReason}
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       );
                     })()}
@@ -1387,7 +1427,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                           {renderStatusBadge(order.status)}
                         </td>
 
-                        <td style={{ padding: '9px 12px', maxWidth: '240px' }}>
+                        <td style={{ padding: '9px 12px', maxWidth: '280px' }}>
                           {(() => {
                             const cleanReason = getCleanApprovalReason(order);
                             const hasLocked = Boolean(
@@ -1408,8 +1448,39 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                                   </div>
                                 )}
                                 {cleanReason ? (
-                                  <div style={{ fontSize: '11.5px', color: isRejected ? '#dc2626' : '#b45309', fontWeight: '500', lineHeight: '1.35' }}>
-                                    {cleanReason}
+                                  <div style={{ fontSize: '11.5px', color: isRejected ? '#dc2626' : '#b45309', lineHeight: '1.4' }}>
+                                    {cleanReason.split(' | ').map((subReason: string, sIdx: number) => {
+                                      const isFloor = subReason.toLowerCase().includes('giá sàn') || subReason.toLowerCase().includes('giá niêm yết');
+                                      const isDebt = subReason.toLowerCase().includes('hạn mức công nợ') || subReason.toLowerCase().includes('tổng nợ');
+                                      const isDiscount = subReason.toLowerCase().includes('chiết khấu');
+                                      const isReject = subReason.toLowerCase().includes('bị từ chối');
+
+                                      return (
+                                        <div key={sIdx} style={{ marginTop: sIdx > 0 ? '3px' : '0' }}>
+                                          {isFloor && (
+                                            <span style={{ display: 'inline-block', background: '#fee2e2', color: '#991b1b', border: '1px solid #fecaca', borderRadius: '3px', padding: '0 4px', fontSize: '10.5px', fontWeight: '700', marginRight: '4px' }}>
+                                              Dưới giá sàn
+                                            </span>
+                                          )}
+                                          {isDebt && (
+                                            <span style={{ display: 'inline-block', background: '#fef3c7', color: '#92400e', border: '1px solid #fde68a', borderRadius: '3px', padding: '0 4px', fontSize: '10.5px', fontWeight: '700', marginRight: '4px' }}>
+                                              Vượt hạn mức
+                                            </span>
+                                          )}
+                                          {isDiscount && (
+                                            <span style={{ display: 'inline-block', background: '#fef3c7', color: '#92400e', border: '1px solid #fde68a', borderRadius: '3px', padding: '0 4px', fontSize: '10.5px', fontWeight: '700', marginRight: '4px' }}>
+                                              Vượt CK
+                                            </span>
+                                          )}
+                                          {isReject && (
+                                            <span style={{ display: 'inline-block', background: '#fee2e2', color: '#991b1b', border: '1px solid #fecaca', borderRadius: '3px', padding: '0 4px', fontSize: '10.5px', fontWeight: '700', marginRight: '4px' }}>
+                                              Từ chối
+                                            </span>
+                                          )}
+                                          <span>{subReason}</span>
+                                        </div>
+                                      );
+                                    })}
                                   </div>
                                 ) : isApprovedOrConfirmed ? (
                                   order.approved_by ? (

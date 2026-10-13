@@ -913,7 +913,8 @@ export async function adjustStockApi(
 
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(data.detail || `Lỗi cập nhật kho (Mã lỗi ${response.status})`);
+    const errorMsg = formatErrorMessage(data.detail, data.message || `Lỗi cập nhật kho (Mã lỗi ${response.status})`);
+    throw new Error(errorMsg);
   }
   return data;
 }
@@ -930,7 +931,8 @@ export async function createStockReceiptApi(
 
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(data.detail || `Lỗi nhập kho (Mã lỗi ${response.status})`);
+    const errorMsg = formatErrorMessage(data.detail, data.message || `Lỗi nhập kho (Mã lỗi ${response.status})`);
+    throw new Error(errorMsg);
   }
   return data;
 }
@@ -947,7 +949,8 @@ export async function createStockIssueApi(
 
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(data.detail || `Lỗi xuất kho (Mã lỗi ${response.status})`);
+    const errorMsg = formatErrorMessage(data.detail, data.message || `Lỗi xuất kho (Mã lỗi ${response.status})`);
+    throw new Error(errorMsg);
   }
   return data;
 }
@@ -3159,22 +3162,41 @@ export async function cancelStockAuditApi(
 
 export function formatErrorMessage(detail: any, fallback: string = 'Đã có lỗi xảy ra'): string {
   if (!detail) return fallback;
-  if (typeof detail === 'string') return detail;
+  if (typeof detail === 'string') {
+    if (detail === '[object Object]' || detail.trim() === '') return fallback;
+    return detail;
+  }
   if (Array.isArray(detail)) {
+    if (detail.length === 0) return fallback;
     return detail
       .map((d: any) => {
         if (typeof d === 'string') return d;
         if (d && typeof d === 'object') {
-          const msg = d.msg || d.message || JSON.stringify(d);
+          const msg = d.msg || d.message || d.detail || (d.type ? `Lỗi: ${d.type}` : '');
           const loc = Array.isArray(d.loc) ? d.loc.filter((x: any) => x !== 'body').join('.') : '';
-          return loc ? `${loc}: ${msg}` : msg;
+          if (loc && msg) return `${loc}: ${msg}`;
+          if (msg) return msg;
+          try { return JSON.stringify(d); } catch { return fallback; }
         }
         return String(d);
       })
-      .join('; ');
+      .filter((s) => s && s !== '[object Object]')
+      .join('; ') || fallback;
   }
   if (typeof detail === 'object') {
-    return detail.message || detail.msg || detail.detail || JSON.stringify(detail);
+    const extracted = detail.message || detail.msg || detail.detail;
+    if (extracted && typeof extracted === 'string' && extracted !== '[object Object]') {
+      return extracted;
+    }
+    if (extracted && typeof extracted === 'object') {
+      return formatErrorMessage(extracted, fallback);
+    }
+    try {
+      const jsonStr = JSON.stringify(detail);
+      return jsonStr !== '{}' ? jsonStr : fallback;
+    } catch {
+      return fallback;
+    }
   }
   return String(detail);
 }

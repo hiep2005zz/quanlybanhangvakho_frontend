@@ -136,6 +136,14 @@ export const StockActionModal: React.FC<StockActionModalProps> = ({
       setErrorMsg('Số lượng điều chỉnh phải khác 0.');
       return;
     }
+    if (!Number.isFinite(numQty) || Math.abs(numQty) > 10000000) {
+      setErrorMsg('Số lượng nhập vào quá lớn (tối đa 10.000.000 đơn vị). Vui lòng nhập số lượng hợp lý.');
+      return;
+    }
+    if (!Number.isFinite(baseQuantity) || Math.abs(baseQuantity) > 100000000) {
+      setErrorMsg('Số lượng quy đổi về đơn vị cơ sở vượt quá giới hạn tối đa cho phép (100.000.000).');
+      return;
+    }
 
     if (actionType === 'receipt') {
       const trimmed = partnerOrDest.trim();
@@ -241,7 +249,12 @@ export const StockActionModal: React.FC<StockActionModalProps> = ({
       onSuccess();
       onClose();
     } catch (err: any) {
-      setErrorMsg(formatErrorMessage(err?.message || err, 'Lỗi khi xử lý thao tác kho'));
+      const rawMsg = err?.message || err;
+      const formatted = formatErrorMessage(
+        rawMsg === '[object Object]' ? (err?.detail || err) : rawMsg,
+        'Lỗi khi xử lý thao tác kho. Vui lòng kiểm tra lại thông tin nhập.'
+      );
+      setErrorMsg(formatted);
     } finally {
       setIsSubmitting(false);
     }
