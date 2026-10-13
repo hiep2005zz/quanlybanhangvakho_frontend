@@ -91,7 +91,7 @@ export const ProductHistoryView: React.FC<ProductHistoryViewProps> = ({
     }
     if (fromDate) return `Từ ${formatDisplayDate(fromDate)}`;
     if (toDate) return `Đến ${formatDisplayDate(toDate)}`;
-    return '01/10 – 07/10/2026';
+    return 'Tất cả thời gian';
   }, [fromDate, toDate]);
 
   // 4. Modal chi tiết Diff
@@ -136,10 +136,24 @@ export const ProductHistoryView: React.FC<ProductHistoryViewProps> = ({
     }
   }, [selectedProductCode, token]);
 
+  // Cập nhật selectedProductCode khi initialProductCode thay đổi từ bên ngoài
+  useEffect(() => {
+    if (initialProductCode && initialProductCode !== selectedProductCode) {
+      setSelectedProductCode(initialProductCode);
+      try {
+        const url = new URL(window.location.href);
+        url.searchParams.set('code', initialProductCode);
+        window.history.replaceState({}, '', url.toString());
+      } catch {
+        // ignore
+      }
+    }
+  }, [initialProductCode]);
+
   // Cập nhật selectedProductCode nếu ban đầu trống nhưng products được nạp
   useEffect(() => {
     if (!selectedProductCode && products.length > 0) {
-      const firstCode = products[0].code;
+      const firstCode = initialProductCode || products[0].code;
       setSelectedProductCode(firstCode);
       try {
         const url = new URL(window.location.href);
@@ -149,7 +163,7 @@ export const ProductHistoryView: React.FC<ProductHistoryViewProps> = ({
         // ignore
       }
     }
-  }, [products, selectedProductCode]);
+  }, [products, selectedProductCode, initialProductCode]);
 
   // Helper parse JSON an toàn
   const parseJSON = (str?: string | null): any => {
@@ -1092,6 +1106,8 @@ export const ProductHistoryView: React.FC<ProductHistoryViewProps> = ({
                           ? '#ecfdf5'
                           : isInventoryAdjust
                           ? '#dbeafe'
+                          : log.action_type === 'PRODUCT_UPDATE'
+                          ? '#f3e8ff'
                           : '#f1f5f9',
                         color: isPriceChange
                           ? '#b45309'
@@ -1099,6 +1115,8 @@ export const ProductHistoryView: React.FC<ProductHistoryViewProps> = ({
                           ? '#047857'
                           : isInventoryAdjust
                           ? '#1d4ed8'
+                          : log.action_type === 'PRODUCT_UPDATE'
+                          ? '#7e22ce'
                           : '#475569',
                       }}
                     >
@@ -1108,6 +1126,8 @@ export const ProductHistoryView: React.FC<ProductHistoryViewProps> = ({
                         ? 'Nhập kho NCC'
                         : isInventoryAdjust
                         ? 'Điều chỉnh kho'
+                        : log.action_type === 'PRODUCT_UPDATE'
+                        ? 'Cập nhật thông tin'
                         : log.action_type}
                     </span>
 
