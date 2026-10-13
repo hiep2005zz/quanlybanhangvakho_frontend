@@ -41,7 +41,6 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'PENDING_APPROVAL' | 'CONFIRMED' | 'DELIVERED' | 'REJECTED' | 'CANCELLED'>('ALL');
-
   const [approvingOrder, setApprovingOrder] = useState<OrderResponseData | null>(null);
   const [rejectingOrder, setRejectingOrder] = useState<OrderResponseData | null>(null);
   const [cancellingOrder, setCancellingOrder] = useState<OrderResponseData | null>(null);
@@ -210,8 +209,6 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
       console.warn('Lỗi lấy thông tin đại lý:', e);
     }
   };
-
-
 
   const fetchOrders = async () => {
     setLoading(true);
