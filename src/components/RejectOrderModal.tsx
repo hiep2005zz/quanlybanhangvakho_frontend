@@ -32,13 +32,11 @@ export const RejectOrderModal: React.FC<RejectOrderModalProps> = ({
 
   if (!isOpen || !order) return null;
 
-  const trimmedReason = reason.trim();
-  const isValidLength = trimmedReason.length >= 5;
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isValidLength) {
-      setErrorMsg('Vui lòng nhập lý do từ chối cụ thể (tối thiểu 5 ký tự).');
+    const trimmedReason = reason.trim();
+    if (!trimmedReason) {
+      setErrorMsg('Vui lòng nhập lý do từ chối đơn hàng.');
       return;
     }
 
@@ -67,7 +65,7 @@ export const RejectOrderModal: React.FC<RejectOrderModalProps> = ({
           position: 'fixed',
           inset: 0,
           backgroundColor: 'rgba(15, 23, 42, 0.65)',
-          backdropFilter: 'blur(3px)',
+          backdropFilter: 'blur(4px)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -84,164 +82,123 @@ export const RejectOrderModal: React.FC<RejectOrderModalProps> = ({
         <div
           style={{
             backgroundColor: '#ffffff',
-            borderRadius: '12px',
-            padding: '20px 24px',
-            maxWidth: '480px',
+            borderRadius: '16px',
+            padding: '24px 28px',
+            maxWidth: '520px',
             width: '100%',
             maxHeight: 'calc(100vh - 32px)',
             overflowY: 'auto',
-            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.15)',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
             border: '1px solid #e2e8f0',
           }}
         >
-          <div style={{ marginBottom: '14px' }}>
-            <h3
-              style={{
-                fontSize: '16.5px',
-                fontWeight: '700',
-                color: '#0f172a',
-                margin: '0 0 4px 0',
+        <div style={{ marginBottom: '16px' }}>
+          <h3
+            style={{
+              fontSize: '18px',
+              fontWeight: '800',
+              color: '#0f172a',
+              margin: '0 0 6px 0',
+              letterSpacing: '-0.02em',
+            }}
+          >
+            Từ chối đơn hàng {order.order_code}
+          </h3>
+          <p style={{ fontSize: '13.5px', color: '#64748b', margin: 0, lineHeight: '1.5' }}>
+            Vui lòng nhập lý do từ chối đơn hàng này:
+          </p>
+        </div>
+
+        {errorMsg && (
+          <div
+            style={{
+              padding: '10px 14px',
+              borderRadius: '8px',
+              background: '#fef2f2',
+              border: '1px solid #fecaca',
+              color: '#dc2626',
+              fontSize: '13px',
+              fontWeight: '600',
+              marginBottom: '16px',
+            }}
+          >
+            {errorMsg}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit}>
+          <div style={{ marginBottom: '20px' }}>
+            <textarea
+              id="input-reject-order-reason"
+              value={reason}
+              onChange={(e) => {
+                setReason(e.target.value);
+                if (errorMsg) setErrorMsg(null);
               }}
-            >
-              Từ chối duyệt đơn hàng {order.order_code}
-            </h3>
-            <p style={{ fontSize: '13px', color: '#64748b', margin: 0, lineHeight: '1.4' }}>
-              Khách hàng: <strong>{order.dealer_name}</strong> &bull; Tổng tiền:{' '}
-              <strong style={{ color: '#0284c7' }}>{order.total_amount.toLocaleString('vi-VN')} đ</strong>
-            </p>
+              placeholder="Nhập chi tiết lý do từ chối (bắt buộc)..."
+              rows={4}
+              required
+              autoFocus
+              disabled={isSubmitting}
+              style={{
+                width: '100%',
+                padding: '10px 12px',
+                borderRadius: '8px',
+                border: '1px solid #cbd5e1',
+                fontSize: '13.5px',
+                lineHeight: '1.5',
+                outline: 'none',
+                boxSizing: 'border-box',
+                resize: 'vertical',
+                fontFamily: 'inherit',
+                background: '#ffffff',
+                color: '#0f172a',
+              }}
+            />
           </div>
 
-          {order.approval_reason && (
-            <div
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+            <button
+              type="button"
+              id="btn-cancel-reject-order"
+              onClick={onClose}
+              disabled={isSubmitting}
               style={{
-                background: '#fffbeb',
-                border: '1px solid #fde68a',
-                borderRadius: '6px',
-                padding: '8px 12px',
-                marginBottom: '12px',
-                fontSize: '12px',
-                color: '#b45309',
-                lineHeight: '1.4',
-              }}
-            >
-              <strong style={{ display: 'block', marginBottom: '2px' }}>Lý do cảnh báo vi phạm:</strong>
-              {order.approval_reason}
-            </div>
-          )}
-
-          {errorMsg && (
-            <div
-              style={{
-                padding: '8px 12px',
-                borderRadius: '6px',
-                background: '#fef2f2',
-                border: '1px solid #fecaca',
-                color: '#dc2626',
-                fontSize: '12.5px',
+                padding: '9px 18px',
+                borderRadius: '8px',
+                border: '1px solid #cbd5e1',
+                background: '#ffffff',
+                color: '#475569',
+                fontSize: '13.5px',
                 fontWeight: '600',
-                marginBottom: '12px',
+                cursor: isSubmitting ? 'not-allowed' : 'pointer',
               }}
             >
-              {errorMsg}
-            </div>
-          )}
+              Hủy bỏ
+            </button>
 
-          <form onSubmit={handleSubmit}>
-            <div style={{ marginBottom: '14px' }}>
-              <label
-                htmlFor="input-reject-order-reason"
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  fontSize: '12.5px',
-                  fontWeight: '600',
-                  color: '#334155',
-                  marginBottom: '6px',
-                }}
-              >
-                <span>Ý kiến / Lý do từ chối (bắt buộc):</span>
-                <span
-                  style={{
-                    fontSize: '11px',
-                    fontWeight: '500',
-                    color: isValidLength ? '#16a34a' : '#ef4444',
-                  }}
-                >
-                  {trimmedReason.length}/5 ký tự tối thiểu
-                </span>
-              </label>
-              <textarea
-                id="input-reject-order-reason"
-                value={reason}
-                onChange={(e) => {
-                  setReason(e.target.value);
-                  if (errorMsg) setErrorMsg(null);
-                }}
-                placeholder="Nhập chi tiết lý do từ chối (tối thiểu 5 ký tự)..."
-                rows={3}
-                required
-                autoFocus
-                disabled={isSubmitting}
-                style={{
-                  width: '100%',
-                  padding: '8px 10px',
-                  borderRadius: '6px',
-                  border: '1px solid #cbd5e1',
-                  fontSize: '13px',
-                  lineHeight: '1.4',
-                  outline: 'none',
-                  boxSizing: 'border-box',
-                  resize: 'vertical',
-                  fontFamily: 'inherit',
-                  background: '#ffffff',
-                  color: '#0f172a',
-                }}
-              />
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
-              <button
-                type="button"
-                id="btn-cancel-reject-order"
-                onClick={onClose}
-                disabled={isSubmitting}
-                style={{
-                  padding: '7px 14px',
-                  borderRadius: '6px',
-                  border: '1px solid #cbd5e1',
-                  background: '#ffffff',
-                  color: '#475569',
-                  fontSize: '12.5px',
-                  fontWeight: '600',
-                  cursor: isSubmitting ? 'not-allowed' : 'pointer',
-                }}
-              >
-                Hủy bỏ
-              </button>
-
-              <button
-                type="submit"
-                id="btn-confirm-reject-order"
-                disabled={isSubmitting || !isValidLength}
-                style={{
-                  padding: '7px 16px',
-                  borderRadius: '6px',
-                  border: 'none',
-                  background: isSubmitting || !isValidLength ? '#94a3b8' : '#dc2626',
-                  color: '#ffffff',
-                  fontSize: '12.5px',
-                  fontWeight: '700',
-                  cursor: isSubmitting || !isValidLength ? 'not-allowed' : 'pointer',
-                  transition: 'background 0.15s ease',
-                }}
-              >
-                {isSubmitting ? 'Đang xử lý...' : 'Xác nhận từ chối'}
-              </button>
-            </div>
-          </form>
-        </div>
+            <button
+              type="submit"
+              id="btn-confirm-reject-order"
+              disabled={isSubmitting}
+              style={{
+                padding: '9px 20px',
+                borderRadius: '8px',
+                border: 'none',
+                background: isSubmitting ? '#9ca3af' : '#dc2626',
+                color: '#ffffff',
+                fontSize: '13.5px',
+                fontWeight: '700',
+                cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                boxShadow: isSubmitting ? 'none' : '0 2px 4px rgba(220, 38, 38, 0.25)',
+              }}
+            >
+              {isSubmitting ? 'Đang xử lý...' : 'Xác nhận từ chối'}
+            </button>
+          </div>
+        </form>
       </div>
+    </div>
     </ModalPortal>
   );
 };
