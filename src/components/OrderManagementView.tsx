@@ -30,6 +30,7 @@ import { OrderLifecycleTimeline } from './OrderLifecycleTimeline';
 import { OrderCancelModal } from './OrderCancelModal';
 import { getOrderPermissionTier, isOrderPastExported, isOrderCancelable } from '../utils/orderPermissions';
 import OrderPrintModal from './OrderPrintModal';
+import { Link, useNavigate } from '../hooks/useLocation';
 import './dashboard.css';
 
 
@@ -94,6 +95,18 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
   const [printingOrder, setPrintingOrder] = useState<OrderResponseData | any | null>(null);
   const [openActionDropdownCode, setOpenActionDropdownCode] = useState<string | null>(null);
   const dropdownCloseTimerRef = useRef<any>(null);
+  const navigate = useNavigate();
+
+  // Hàm làm sạch lý do cảnh báo: Khi nhân viên/quản lý/admin duyệt thành công, không hiện cảnh báo đại lý tự đặt
+  const getCleanApprovalReason = (ord: any): string | null => {
+    if (!ord || !ord.approval_reason) return null;
+    const s = (ord.status || '').toUpperCase();
+    const isApproved =
+      ['CONFIRMED', 'APPROVED', 'PICKING', 'PREPARING', 'PACKING', 'EXPORTED', 'SHIPPED', 'DELIVERED', 'CLOSED', 'COMPLETED'].includes(s) ||
+      !ord.requires_approval;
+    if (isApproved) return null;
+    return ord.approval_reason;
+  };
 
   // Tự động đóng menu trạng thái khi nhấn chuột ra ngoài
   useEffect(() => {
@@ -1184,28 +1197,30 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
             Làm mới
           </button>
 
-          {!isCustomer && canCreateOrders && (
-            <button
-              type="button"
-              id="btn-create-order-view"
-              onClick={() => !isCustomerLocked && setIsCreateModalOpen(true)}
-              disabled={isCustomerLocked}
-              style={{
-                padding: '7px 16px',
-                background: isCustomerLocked ? '#94a3b8' : 'linear-gradient(135deg, #0fba90 0%, #0fad89 100%)',
-                border: 'none',
-                borderRadius: '8px',
-                fontSize: '12.5px',
-                fontWeight: '700',
-                color: '#ffffff',
-                cursor: isCustomerLocked ? 'not-allowed' : 'pointer',
-                boxShadow: isCustomerLocked ? 'none' : '0 2px 8px rgba(15, 186, 144, 0.35)',
-                transition: 'all 0.18s ease',
-              }}
-              title={isCustomerLocked ? 'Đại lý hiện đang bị khóa giao dịch, không thể tạo đơn hàng mới' : undefined}
-            >
-              {isCustomerLocked ? 'Tạo Đơn Hàng Mới (Đã khóa)' : 'Tạo Đơn Hàng Mới'}
-            </button>
+          {canCreateOrders && (
+            isCustomerLocked ? (
+              <button
+                type="button"
+                id="btn-create-order-view-disabled"
+                disabled
+                className="inline-flex items-center gap-2 px-3 py-1.5 bg-slate-300 text-slate-500 font-bold text-xs rounded-lg cursor-not-allowed shadow-none"
+                title="Đại lý hiện đang bị khóa giao dịch, không thể tạo đơn hàng mới"
+              >
+                Tạo Đơn Hàng Mới (Đã khóa)
+              </button>
+            ) : (
+              <Link
+                to="/orders/create"
+                id="btn-create-order-view"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold text-xs sm:text-sm rounded-lg shadow-md hover:shadow-lg transition-all duration-200 cursor-pointer no-underline"
+                title="Tạo đơn hàng mới trên trang chuyên biệt"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Tạo Đơn Hàng Mới
+              </Link>
+            )
           )}
         </div>
       </div>

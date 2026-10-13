@@ -26,6 +26,9 @@ import { StockActionModal } from './StockActionModal';
 import { GoodsReceiptModal } from './GoodsReceiptModal';
 import { OrderManagementView } from './OrderManagementView';
 import SalesOrderEntry from './SalesOrderEntry';
+import { CreateOrderPage } from './CreateOrderPage';
+import { CreatePriceListPage } from './CreatePriceListPage';
+import { useLocation } from '../hooks/useLocation';
 import { ProductHistoryView } from './ProductHistoryView';
 import { ProductFormView } from './ProductFormView';
 import WarehouseManagementView from './WarehouseManagementView';
@@ -136,10 +139,30 @@ export default function DashboardPage({
   );
 
   // 2. Khởi tạo State với Clean URL
+  const location = useLocation();
+  const currentPath = location.pathname.toLowerCase();
+  const isOrdersCreateSubpage = currentPath === '/orders/create' || currentPath.startsWith('/orders/create');
+  const isPriceListsCreateSubpage =
+    currentPath === '/price-lists/create' ||
+    currentPath.startsWith('/price-lists/create') ||
+    currentPath === '/price-books/create' ||
+    currentPath.startsWith('/price-books/create');
+
   const [activeTab, setActiveTabState] = useState<TabType>(() => {
     const pathname = window.location.pathname.toLowerCase();
     const isCreateOrderPath = pathname === '/create-order' || pathname.startsWith('/create-order/');
-    const isPriceBooksPath = pathname === '/price-books';
+    const isOrdersCreatePath = pathname === '/orders/create' || pathname.startsWith('/orders/create');
+    const isPriceListsCreatePath =
+      pathname === '/price-lists/create' ||
+      pathname.startsWith('/price-lists/create') ||
+      pathname === '/price-books/create' ||
+      pathname.startsWith('/price-books/create');
+    const isPriceBooksPath =
+      isPriceListsCreatePath ||
+      pathname === '/price-books' ||
+      pathname.startsWith('/price-books') ||
+      pathname === '/price-lists' ||
+      pathname.startsWith('/price-lists');
     const isUsersPath = pathname === '/users' || pathname.startsWith('/users/') || pathname === '/admin' || pathname.startsWith('/admin/');
     const isCategoriesPath = pathname === '/categories';
     const isAuditPath = pathname === '/audit-logs' || pathname.startsWith('/audit-logs/');
@@ -221,8 +244,13 @@ export default function DashboardPage({
     if (pathname === '/suppliers' || pathname.startsWith('/suppliers/')) {
       return 'suppliers';
     }
+    if (isOrdersCreatePath) {
+      if (canCreateOrders || canReadOrders) return 'orders';
+      try { window.history.replaceState({}, '', '/'); } catch { }
+      return 'inventory';
+    }
     if (isOrdersPath || oldTabVal === 'orders') {
-      if (hasOldTabParam || pathname !== '/orders') {
+      if (hasOldTabParam || (pathname !== '/orders' && !isOrdersCreatePath)) {
         try { window.history.replaceState({}, '', '/orders'); } catch {}
       }
       return 'orders';
@@ -488,7 +516,17 @@ export default function DashboardPage({
   useEffect(() => {
     const syncFromUrl = () => {
       const pathname = window.location.pathname.toLowerCase();
-      const isPriceBooksPath = pathname === '/price-books';
+      const isPriceListsCreatePath =
+        pathname === '/price-lists/create' ||
+        pathname.startsWith('/price-lists/create') ||
+        pathname === '/price-books/create' ||
+        pathname.startsWith('/price-books/create');
+      const isPriceBooksPath =
+        isPriceListsCreatePath ||
+        pathname === '/price-books' ||
+        pathname.startsWith('/price-books') ||
+        pathname === '/price-lists' ||
+        pathname.startsWith('/price-lists');
       const params = new URLSearchParams(window.location.search);
       const tabParam = (params.get('tab') || params.get('view') || '').toLowerCase();
 
@@ -557,6 +595,12 @@ export default function DashboardPage({
         return;
       }
       if (isPriceBooksPath) { setActiveTabState('price-books'); return; }
+
+      const isOrdersCreatePath = pathname === '/orders/create' || pathname.startsWith('/orders/create');
+      if (isOrdersCreatePath) {
+        setActiveTabState('orders');
+        return;
+      }
 
       if (isOrdersPath || tabParam === 'orders') {
         if (pathname !== '/orders' || tabParam) {
@@ -994,7 +1038,7 @@ export default function DashboardPage({
 
   const isProductFormOpen = productDrawerState.isOpen && activeTab === 'inventory';
   const isSalesOrderOpen = activeTab === 'create-order' || isSalesOrderEntryOpen;
-  const isLockedScrollTab = !isProductFormOpen && !isSalesOrderOpen && (activeTab === 'inventory' || activeTab === 'dealers' || activeTab === 'dealer-profiles' || activeTab === 'delivery-points' || activeTab === 'suppliers' || activeTab === 'price-books' || activeTab === 'categories' || activeTab === 'orders' || activeTab === 'product-history' || activeTab === 'stock-book' || activeTab === 'stock-audits' || activeTab === 'stock-transfers') && !isPendingCustomer;
+  const isLockedScrollTab = !isProductFormOpen && !isSalesOrderOpen && !isOrdersCreateSubpage && !isPriceListsCreateSubpage && (activeTab === 'inventory' || activeTab === 'dealers' || activeTab === 'dealer-profiles' || activeTab === 'delivery-points' || activeTab === 'suppliers' || activeTab === 'price-books' || activeTab === 'categories' || activeTab === 'orders' || activeTab === 'product-history' || activeTab === 'stock-book' || activeTab === 'stock-audits' || activeTab === 'stock-transfers') && !isPendingCustomer;
 
   return (
     <DashboardLayout
@@ -1022,7 +1066,7 @@ export default function DashboardPage({
         />
       }
       noScroll={isLockedScrollTab}
-      mainClassName={isCustomer ? 'flex-1 min-w-0 overflow-y-auto p-0 flex flex-col bg-slate-50' : undefined}
+      mainClassName={isCustomer || isOrdersCreateSubpage || isPriceListsCreateSubpage ? 'flex-1 min-w-0 overflow-y-auto p-0 flex flex-col bg-slate-50' : undefined}
       sidebar={
         <Sidebar
           activeTab={activeTab}
@@ -1057,11 +1101,12 @@ export default function DashboardPage({
     >
       <div
         className="dashboard-main-container"
-        style={isCustomer ? {
+        style={isCustomer || isOrdersCreateSubpage || isPriceListsCreateSubpage ? {
           width: '100%',
           display: 'flex',
           flexDirection: 'column',
           flex: 1,
+          minHeight: '100%',
         } : isLockedScrollTab ? {
           height: '100%',
           maxHeight: '100%',
@@ -1148,18 +1193,39 @@ export default function DashboardPage({
           )
         ) : activeTab === 'orders' ? (
           canReadOrders ? (
-            <OrderManagementView
-              currentUser={user}
-              token={token}
-              products={products}
-              onBackToHome={() => setActiveTab('inventory')}
-              onRefreshProducts={fetchProducts}
-              onNavigateToPriceBooks={canAccessPriceBooks ? () => setActiveTab('price-books') : undefined}
-              onCloneOrder={(data) => {
-                setCloneOrderData(data);
-                setActiveTab('create-order');
-              }}
-            />
+            isOrdersCreateSubpage ? (
+              <CreateOrderPage
+                token={token}
+                currentUser={user}
+                products={products}
+                initialDealerId={cloneOrderData?.dealerId || cloneOrderData?.dealer_id}
+                initialOrderItems={cloneOrderData?.items}
+                initialNote={cloneOrderData?.note}
+                initialDeliveryPointId={cloneOrderData?.deliveryPointId}
+                onClose={() => {
+                  setCloneOrderData(null);
+                  window.history.pushState({}, '', '/orders');
+                }}
+                onSuccess={() => {
+                  setCloneOrderData(null);
+                  window.history.pushState({}, '', '/orders');
+                  fetchProducts();
+                }}
+              />
+            ) : (
+              <OrderManagementView
+                currentUser={user}
+                token={token}
+                products={products}
+                onBackToHome={() => setActiveTab('inventory')}
+                onRefreshProducts={fetchProducts}
+                onNavigateToPriceBooks={canAccessPriceBooks ? () => setActiveTab('price-books') : undefined}
+                onCloneOrder={(data) => {
+                  setCloneOrderData(data);
+                  window.history.pushState({}, '', '/orders/create');
+                }}
+              />
+            )
           ) : (
             <AccessDeniedView
               currentUser={user}
@@ -1307,14 +1373,29 @@ export default function DashboardPage({
           )
         ) : activeTab === 'price-books' ? (
           canAccessPriceBooks ? (
-            <PriceBookManagementView
-              token={token}
-              currentUser={user}
-              products={products}
-              onBackToHome={() => setActiveTab('inventory')}
-              onNavigateToOrders={() => setActiveTab('orders')}
-              onRefreshProducts={fetchProducts}
-            />
+            isPriceListsCreateSubpage ? (
+              <CreatePriceListPage
+                token={token}
+                currentUser={user}
+                products={products}
+                onClose={() => {
+                  window.history.pushState({}, '', '/price-books');
+                }}
+                onSuccess={() => {
+                  window.history.pushState({}, '', '/price-books');
+                  fetchProducts();
+                }}
+              />
+            ) : (
+              <PriceBookManagementView
+                token={token}
+                currentUser={user}
+                products={products}
+                onBackToHome={() => setActiveTab('inventory')}
+                onNavigateToOrders={() => setActiveTab('orders')}
+                onRefreshProducts={fetchProducts}
+              />
+            )
           ) : (
             <AccessDeniedView
               currentUser={user}
