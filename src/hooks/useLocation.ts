@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 
 export interface Location {
   pathname: string;
@@ -53,5 +53,32 @@ export function useLocation(): Location {
 
   return location;
 }
+
+export function useNavigate() {
+  return (to: string) => {
+    window.history.pushState({}, '', to);
+  };
+}
+
+export const Link: React.FC<React.AnchorHTMLAttributes<HTMLAnchorElement> & { to: string }> = ({
+  to,
+  onClick,
+  children,
+  ...props
+}) => {
+  return React.createElement(
+    'a',
+    {
+      ...props,
+      href: to,
+      onClick: (e: React.MouseEvent<HTMLAnchorElement>) => {
+        e.preventDefault();
+        window.history.pushState({}, '', to);
+        if (onClick) onClick(e);
+      },
+    },
+    children
+  );
+};
 
 export default useLocation;
