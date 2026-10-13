@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { getProductsApi, getLowStockAlertsApi, LowStockAlertSummary, ProductItem, User } from '../services/api';
+import { getProductsApi, getLowStockAlertsApi, LowStockAlertSummary, ProductItem, User, getProductImageUrl } from '../services/api';
 import { StockThresholdModal } from './StockThresholdModal';
 import { LowStockAlertModal } from './LowStockAlertModal';
 import { sessionManager, SessionState } from '../services/sessionManager';
@@ -700,6 +700,7 @@ export default function DashboardPage({
     return () => window.removeEventListener('popstate', syncFromUrl);
   }, [canManageCategories, canManageSuppliers, canReadOrders, isAdmin, canAccessDiscounts]);
   const [products, setProducts] = useState<ProductItem[]>([]);
+  const [appliedPriceBook, setAppliedPriceBook] = useState<string | null>(null);
   const [productSearchInput, setProductSearchInput] = useState('');
   const [productSearchTerm, setProductSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -836,7 +837,9 @@ export default function DashboardPage({
   const isWarningZone = remainingSeconds > 0 && remainingSeconds <= 120;
 
   const fetchProducts = () => {
-    if (isPendingCustomer) {
+    // Đại lý (Customer) sử dụng cơ chế Server-side Pagination riêng (20 sp/trang) tại CustomerPortalView,
+    // tuyệt đối không tải toàn bộ 10.000 sản phẩm vào DashboardPage.
+    if (isPendingCustomer || isCustomer) {
       setIsLoading(false);
       return;
     }
@@ -846,6 +849,9 @@ export default function DashboardPage({
     getProductsApi(token)
       .then((data) => {
         setProducts(data.items);
+        if (data.applied_price_book) {
+          setAppliedPriceBook(data.applied_price_book);
+        }
         setIsCostVisible(data.is_cost_price_visible);
         setIsLoading(false);
       })
@@ -856,7 +862,7 @@ export default function DashboardPage({
   };
 
   const fetchLowStockAlerts = () => {
-    if (isPendingCustomer || !token) return;
+    if (isPendingCustomer || isCustomer || !token) return;
     getLowStockAlertsApi(token)
       .then((data) => {
         setLowStockSummary(data);
@@ -867,11 +873,11 @@ export default function DashboardPage({
   };
 
   useEffect(() => {
-    if (activeTab === 'inventory') {
+    if (activeTab === 'inventory' && !isCustomer) {
       fetchProducts();
       fetchLowStockAlerts();
     }
-  }, [token, isPendingCustomer, activeTab]);
+  }, [token, isPendingCustomer, isCustomer, activeTab]);
 
   // Tính toán số liệu thống kê (Memoized để không tính lại mỗi giây khi đếm ngược phiên làm việc)
   const { totalStock, totalSellValue, totalCostValue, totalProfit, isCostAvailable } = useMemo(() => {
@@ -1072,7 +1078,7 @@ export default function DashboardPage({
         />
       }
       noScroll={isLockedScrollTab}
-      mainClassName={isCustomer || isOrdersCreateSubpage || isPriceListsCreateSubpage ? 'flex-1 min-w-0 overflow-y-auto p-0 flex flex-col bg-slate-50' : undefined}
+      mainClassName={isCustomer ? 'flex-1 min-w-0 overflow-hidden p-0 flex flex-col bg-slate-50 h-full' : (isOrdersCreateSubpage || isPriceListsCreateSubpage ? 'flex-1 min-w-0 overflow-y-auto p-0 flex flex-col bg-slate-50' : undefined)}
       sidebar={
         <Sidebar
           activeTab={activeTab}
@@ -1623,6 +1629,7 @@ export default function DashboardPage({
             currentUser={user}
             token={token}
             products={products}
+            appliedPriceBook={appliedPriceBook}
             onRefreshProducts={fetchProducts}
             onNavigateToOrders={() => setActiveTab('orders')}
             onNavigateToDebt={() => setActiveTab('dealer-profiles')}
@@ -2382,7 +2389,14 @@ export default function DashboardPage({
                           <td style={{ padding: '13px 18px', fontWeight: '500', color: '#0f172a', fontSize: '13.5px', textAlign: 'left' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                               {item.images && item.images.length > 0 ? (
-                                <img src={item.images[0]} alt="" style={{ width: '32px', height: '32px', borderRadius: '4px', objectFit: 'cover', border: '1px solid #cbd5e1' }} />
+                                <img
+                                  src={getProductImageUrl(item.images[0])}
+                                  alt=""
+                                  style={{ width: '32px', height: '32px', borderRadius: '4px', objectFit: 'cover', border: '1px solid #cbd5e1' }}
+                                  onError={(e) => {
+                                    (e.currentTarget as HTMLImageElement).style.display = 'none';
+                                  }}
+                                />
                               ) : (
                                 <div style={{ width: '32px', height: '32px', borderRadius: '4px', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', border: '1px solid #e2e8f0' }}>
                                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></svg>
@@ -3001,6 +3015,7 @@ export default function DashboardPage({
           onSuccess={() => {
             getProductsApi(token).then(data => {
               setProducts(data.items);
+              if (data.applied_price_book) setAppliedPriceBook(data.applied_price_book);
             }).catch(console.error);
           }}
         />
