@@ -1278,3 +1278,235 @@
 .wh-form-readonly-badge svg {
   color: var(--wh-brand);
 }
+
+/* ==========================================================================
+   Full Page Form Views: Khai Báo Kho Hàng Mới & Khai Báo Vị Trí Kệ Mới
+   ========================================================================== */
+.wh-form-page-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: #ffffff;
+  border: 1px solid var(--wh-slate-200);
+  border-radius: var(--wh-radius);
+  padding: 12px 18px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+}
+
+.wh-form-page-header h2 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--wh-slate-900);
+}
+
+.wh-form-page-card {
+  background: #ffffff;
+  border: 1px solid var(--wh-slate-200);
+  border-radius: var(--wh-radius);
+  padding: 20px 24px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+}
+
+.wh-form-page-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid var(--wh-slate-200);
+}
+
+/* ==========================================================================
+   Mobile Card View for Warehouse Management (<= 768px)
+   No horizontal scroll, 100% width, fully visible metadata
+   ========================================================================== */
+.wh-mobile-card-list,
+.loc-mobile-card-list,
+.prod-mobile-card-list {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .wh-container {
+    width: 100% !important;
+    max-width: 100vw !important;
+    overflow-x: hidden !important;
+    box-sizing: border-box !important;
+  }
+
+  .wh-table-responsive {
+    display: none !important;
+  }
+
+  .wh-mobile-card-list,
+  .loc-mobile-card-list,
+  .prod-mobile-card-list {
+    display: flex !important;
+    flex-direction: column;
+    gap: 12px;
+    padding: 10px 0;
+    width: 100%;
+    box-sizing: border-box;
+    overflow-x: hidden;
+  }
+
+  .wh-mobile-card,
+  .loc-mobile-card,
+  .prod-mobile-card {
+    background: #ffffff;
+    border: 1px solid var(--wh-slate-200);
+    border-radius: 10px;
+    padding: 14px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .wh-mobile-card-header,
+  .loc-mobile-card-header,
+  .prod-mobile-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--wh-slate-100);
+  }
+
+  .wh-mobile-card-name,
+  .loc-mobile-card-name,
+  .prod-mobile-card-name {
+    font-size: 14.5px;
+    font-weight: 700;
+    color: var(--wh-slate-900);
+    margin-top: 4px;
+    line-height: 1.3;
+    word-break: break-word;
+  }
+
+  .wh-mobile-card-body,
+  .loc-mobile-card-body,
+  .prod-mobile-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .wh-mobile-card-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    font-size: 13px;
+    line-height: 1.4;
+  }
+
+  .wh-mobile-card-label {
+    color: var(--wh-slate-500);
+    font-size: 12.5px;
+    font-weight: 500;
+    flex-shrink: 0;
+  }
+
+  .wh-mobile-card-val {
+    color: var(--wh-slate-800);
+    font-weight: 600;
+    text-align: right;
+    word-break: break-word;
+  }
+
+  .wh-mobile-card-actions,
+  .loc-mobile-card-actions,
+  .prod-mobile-card-actions {
+    display: flex;
+    gap: 8px;
+    padding-top: 10px;
+    border-top: 1px solid var(--wh-slate-100);
+  }
+
+  .wh-mobile-btn-manage,
+  .wh-mobile-btn-edit,
+  .wh-mobile-btn-delete {
+    height: 36px;
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: var(--wh-radius-sm);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .wh-mobile-btn-manage {
+    flex: 2;
+    background: var(--wh-primary-light);
+    border: 1px solid var(--wh-primary-border);
+    color: var(--wh-primary);
+  }
+
+  .wh-mobile-btn-edit {
+    flex: 1;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    color: #1d4ed8;
+  }
+
+  .wh-mobile-btn-delete {
+    flex: 1;
+    background: var(--wh-danger-light);
+    border: 1px solid var(--wh-danger-border);
+    color: var(--wh-danger);
+  }
+
+  .wh-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .wh-header-actions button {
+    width: 100%;
+  }
+
+  .wh-filter-group {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .wh-search-wrap,
+  .wh-select {
+    width: 100%;
+  }
+
+  .wh-info-card {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .wh-subnav-list {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    width: 100%;
+    scrollbar-width: none;
+  }
+  .wh-subnav-list::-webkit-scrollbar {
+    display: none;
+  }
+
+  .wh-form-page-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .wh-form-grid-2 {
+    grid-template-columns: 1fr;
+  }
+}
+

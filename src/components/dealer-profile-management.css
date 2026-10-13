@@ -1494,4 +1494,192 @@
   font-size: 12px;
 }
 
+/* ==========================================================================
+   Mobile Card View for Dealer Profile Management (<= 768px)
+   No horizontal scroll, 100% width, fully visible metadata
+   ========================================================================== */
+.dealer-mobile-card-list {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .dealer-profiles-container {
+    width: 100% !important;
+    max-width: 100vw !important;
+    overflow-x: hidden !important;
+    box-sizing: border-box !important;
+  }
+
+  .dealer-table-container {
+    display: none !important;
+  }
+
+  .dealer-mobile-card-list {
+    display: flex !important;
+    flex-direction: column;
+    gap: 12px;
+    padding: 10px 8px;
+    width: 100%;
+    box-sizing: border-box;
+    overflow-x: hidden;
+  }
+
+  .dealer-mobile-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 12px 14px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .dealer-mobile-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #f1f5f9;
+  }
+
+  .dealer-mobile-card-name {
+    font-size: 14px;
+    font-weight: 700;
+    color: #0f172a;
+    margin-top: 4px;
+    line-height: 1.3;
+    word-break: break-word;
+  }
+
+  .dealer-mobile-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .dealer-mobile-card-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    font-size: 13px;
+    line-height: 1.4;
+  }
+
+  .dealer-mobile-card-label {
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 500;
+    flex-shrink: 0;
+  }
+
+  .dealer-mobile-card-val {
+    color: #1e293b;
+    font-weight: 600;
+    text-align: right;
+    word-break: break-word;
+  }
+
+  .dealer-mobile-card-actions {
+    display: flex;
+    gap: 8px;
+    padding-top: 8px;
+    border-top: 1px solid #f1f5f9;
+  }
+
+  .btn-action-mobile-edit,
+  .btn-action-mobile-tx,
+  .btn-action-mobile-delete {
+    flex: 1;
+    height: 34px;
+    font-size: 12.5px;
+    font-weight: 600;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .btn-action-mobile-edit {
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    color: #1d4ed8;
+  }
+
+  .btn-action-mobile-edit:hover {
+    background: #dbeafe;
+  }
+
+  .btn-action-mobile-tx {
+    background: #f8fafc;
+    border: 1px solid #cbd5e1;
+    color: #334155;
+  }
+
+  .btn-action-mobile-delete {
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    color: #dc2626;
+  }
+
+  .btn-action-mobile-delete:disabled {
+    background: #f1f5f9;
+    border-color: #e2e8f0;
+    color: #94a3b8;
+    cursor: not-allowed;
+  }
+
+  /* Responsive header controls & filter bar */
+  .dealer-profiles-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    padding: 10px;
+  }
+
+  .dealer-header-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .dealer-header-actions button {
+    flex: 1;
+    min-width: 120px;
+  }
+
+  .dealer-filter-bar {
+    padding: 10px;
+    gap: 8px;
+  }
+
+  .filter-search-box {
+    width: 100%;
+  }
+
+  .filter-selects-wrap {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .filter-select {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .dealer-stats-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+}
+
+
 

@@ -27,9 +27,9 @@ interface DealerProfileManagementProps {
 }
 
 const CUSTOMER_GROUP_OPTIONS = [
-  { value: 'Đại lý cấp 1', label: 'Đại lý cấp 1 (Chiết khấu cao)' },
+  { value: 'Đại lý cấp 1', label: 'Đại lý cấp 1' },
   { value: 'Đại lý cấp 2', label: 'Đại lý cấp 2' },
-  { value: 'Khách sỉ', label: 'Khách sỉ (Mua số lượng lớn)' },
+  { value: 'Khách sỉ', label: 'Khách sỉ' },
   { value: 'Khách lẻ', label: 'Khách lẻ' },
 ];
 
@@ -421,6 +421,16 @@ export default function DealerProfileManagementView({
       return;
     }
 
+    const cleanPhone = formData.phone.trim();
+    if (!cleanPhone) {
+      setFormError('Vui lòng điền số điện thoại liên hệ của đại lý.');
+      return;
+    }
+    if (!/^0[2-9][0-9]{8}$/.test(cleanPhone)) {
+      setFormError('Số điện thoại không hợp lệ (phải gồm đúng 10 chữ số, bắt đầu bằng số 0, ví dụ: 0912345678).');
+      return;
+    }
+
     // Kiểm tra tính duy nhất của Mã đại lý ở client
     const isDuplicate = dealers.some(
       (d) => d.code.toUpperCase() === cleanCode && (!editingDealer || d.id !== editingDealer.id)
@@ -653,7 +663,7 @@ export default function DealerProfileManagementView({
               Quay lại danh sách
             </button>
             <h2 className="dealer-header-title">
-              {editingDealer ? `Cập nhật hồ sơ: ${editingDealer.name} (${editingDealer.code})` : 'Khai báo hồ sơ đại lý mới'}
+              {editingDealer ? `Cập nhật hồ sơ: ${editingDealer.name}` : 'Khai báo hồ sơ đại lý mới'}
             </h2>
           </div>
         </div>
@@ -735,13 +745,19 @@ export default function DealerProfileManagementView({
 
                 {/* 4. Số điện thoại liên hệ */}
                 <div className="dealer-form-field">
-                  <label className="dealer-form-label">Số điện thoại liên hệ</label>
+                  <label className="dealer-form-label">
+                    Số điện thoại liên hệ <span className="required">*</span>
+                  </label>
                   <input
-                    type="text"
+                    type="tel"
                     className="dealer-form-input"
                     value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    placeholder="VD: 0912345678"
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/\D/g, '').slice(0, 10);
+                      setFormData({ ...formData, phone: val });
+                    }}
+                    placeholder="VD: 0912345678 (10 số)"
+                    required
                   />
                 </div>
 
@@ -794,7 +810,7 @@ export default function DealerProfileManagementView({
                     <option value="">-- Chưa phân công --</option>
                     {salesList.map((s) => (
                       <option key={s.id} value={s.id}>
-                        {s.name} (ID: {s.id})
+                        {s.name}
                       </option>
                     ))}
                   </select>
@@ -803,7 +819,7 @@ export default function DealerProfileManagementView({
                 {/* 8. Kho phục vụ mặc định */}
                 <div className="dealer-form-field">
                   <label className="dealer-form-label" title="Đề xuất xuất kho khi lên đơn">
-                    Kho phục vụ {formData.warehouse_name ? <span style={{ color: '#16a34a', fontWeight: 600 }}>({formData.warehouse_name})</span> : null}
+                    Kho phục vụ {formData.warehouse_name ? <span style={{ color: '#16a34a', fontWeight: 600 }}>: {formData.warehouse_name}</span> : null}
                   </label>
                   <select
                     className="dealer-form-select"
@@ -886,11 +902,10 @@ export default function DealerProfileManagementView({
                       </div>
                     ) : modalAppliedPriceBook ? (
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', fontSize: '12px', color: '#166534' }}>
-                        <span style={{ fontWeight: 700 }}>🏷️ Bảng giá theo nhóm [{formData.customer_group}]:</span>
-                        <strong style={{ color: '#0f172a' }}>{modalAppliedPriceBook.name}</strong>
-                        <span style={{ fontSize: '11px', fontWeight: 600, color: '#15803d', background: '#dcfce7', padding: '1px 5px', borderRadius: '4px' }}>
-                          ({modalAppliedPriceBook.code})
-                        </span>
+                        <span style={{ fontWeight: 700 }}>Bảng giá theo nhóm:</span>
+                        <strong style={{ color: '#0f172a' }}>
+                          {(modalAppliedPriceBook.name || '').replace(/\s*\([^)]*\)/g, '').replace(/\s*\[[^\]]*\]/g, '').trim()}
+                        </strong>
                         {modalAppliedPriceBook.valid_from && modalAppliedPriceBook.valid_to && (
                           <span style={{ color: '#64748b', fontSize: '11.5px' }}>
                             • Hiệu lực: {modalAppliedPriceBook.valid_from.substring(0, 10)} đến {modalAppliedPriceBook.valid_to.substring(0, 10)}
@@ -1337,7 +1352,7 @@ export default function DealerProfileManagementView({
                           </span>
                         </td>
 
-                        {/* 5. Bảng giá áp dụng (Rút gọn tên và mã, xem đầy đủ khi hover hoặc click) */}
+                        {/* 5. Bảng giá áp dụng (Không icon, không hiển thị mã trong ngoặc) */}
                         <td>
                           {dealer.applied_price_book ? (
                             <button
@@ -1347,27 +1362,10 @@ export default function DealerProfileManagementView({
                                 setPriceBookModalTarget(dealer.applied_price_book || null);
                                 setIsPriceBookModalOpen(true);
                               }}
-                              title={`Bảng giá áp dụng: ${dealer.applied_price_book.name} (${dealer.applied_price_book.code}) • Có ${dealer.applied_price_book.items_count ?? 0} mặt hàng • Bấm để xem chi tiết`}
+                              title={`Bảng giá: ${(dealer.applied_price_book.name || '').replace(/\s*\([^)]*\)/g, '').replace(/\s*\[[^\]]*\]/g, '').trim()}`}
                             >
-                              <svg
-                                width="12"
-                                height="12"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2.2"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                style={{ flexShrink: 0 }}
-                              >
-                                <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
-                                <line x1="7" y1="7" x2="7.01" y2="7" />
-                              </svg>
-                              <span className="price-book-text-truncate" title={dealer.applied_price_book.name}>
-                                {dealer.applied_price_book.name}
-                              </span>
-                              <span className="price-book-tag-code" title={dealer.applied_price_book.code}>
-                                {dealer.applied_price_book.code}
+                              <span className="price-book-clean-name" title={dealer.applied_price_book.name}>
+                                {(dealer.applied_price_book.name || '').replace(/\s*\([^)]*\)/g, '').replace(/\s*\[[^\]]*\]/g, '').trim()}
                               </span>
                             </button>
                           ) : (
@@ -1508,6 +1506,134 @@ export default function DealerProfileManagementView({
                   })}
                 </tbody>
               </table>
+            </div>
+
+            {/* Mobile Card View cho giao diện điện thoại (Không thanh lướt ngang, thu phóng 100%, đủ thông tin) */}
+            <div className="dealer-mobile-card-list">
+              {dealers.map((dealer) => {
+                const cleanPriceName = (dealer.applied_price_book?.name || '')
+                  .replace(/\s*\([^)]*\)/g, '')
+                  .replace(/\s*\[[^\]]*\]/g, '')
+                  .trim();
+                const txCount = dealer.transaction_count ?? 0;
+                const hasTx = txCount > 0;
+                return (
+                  <div key={dealer.id} className="dealer-mobile-card">
+                    <div className="dealer-mobile-card-header">
+                      <div>
+                        <span className="dealer-code-badge">{dealer.code}</span>
+                        <div className="dealer-mobile-card-name">{dealer.name}</div>
+                      </div>
+                      <span
+                        className="badge-status"
+                        style={{
+                          background:
+                            dealer.status === 'Đang hoạt động'
+                              ? '#dcfce7'
+                              : dealer.status === 'Tạm ngừng'
+                              ? '#fef3c7'
+                              : '#fee2e2',
+                          color:
+                            dealer.status === 'Đang hoạt động'
+                              ? '#166534'
+                              : dealer.status === 'Tạm ngừng'
+                              ? '#92400e'
+                              : '#991b1b',
+                        }}
+                      >
+                        <span className="dot" />
+                        {dealer.status || 'Đang hoạt động'}
+                      </span>
+                    </div>
+
+                    <div className="dealer-mobile-card-body">
+                      {dealer.phone && (
+                        <div className="dealer-mobile-card-row">
+                          <span className="dealer-mobile-card-label">SĐT:</span>
+                          <a href={`tel:${dealer.phone}`} className="dealer-mobile-card-val" style={{ color: '#0284c7', textDecoration: 'none', fontWeight: 600 }}>
+                            {dealer.phone}
+                          </a>
+                        </div>
+                      )}
+                      {dealer.tax_code && (
+                        <div className="dealer-mobile-card-row">
+                          <span className="dealer-mobile-card-label">Mã số thuế:</span>
+                          <span className="dealer-mobile-card-val" style={{ fontFamily: 'monospace' }}>{dealer.tax_code}</span>
+                        </div>
+                      )}
+                      <div className="dealer-mobile-card-row">
+                        <span className="dealer-mobile-card-label">Nhóm KH:</span>
+                        <span className="badge-customer-group">{formatCustomerGroup(dealer.customer_group)}</span>
+                      </div>
+                      {cleanPriceName && (
+                        <div className="dealer-mobile-card-row">
+                          <span className="dealer-mobile-card-label">Bảng giá:</span>
+                          <button
+                            type="button"
+                            className="price-book-pill-btn"
+                            style={{ padding: '2px 8px' }}
+                            onClick={() => {
+                              setPriceBookModalTarget(dealer.applied_price_book || null);
+                              setIsPriceBookModalOpen(true);
+                            }}
+                          >
+                            <span className="price-book-clean-name">{cleanPriceName}</span>
+                          </button>
+                        </div>
+                      )}
+                      <div className="dealer-mobile-card-row">
+                        <span className="dealer-mobile-card-label">Khu vực:</span>
+                        <span className="dealer-mobile-card-val">{dealer.region || '—'}</span>
+                      </div>
+                      <div className="dealer-mobile-card-row">
+                        <span className="dealer-mobile-card-label">Kho phục vụ:</span>
+                        <span className="dealer-mobile-card-val">{dealer.warehouse_name || 'Tự động'}</span>
+                      </div>
+                      <div className="dealer-mobile-card-row">
+                        <span className="dealer-mobile-card-label">Phụ trách:</span>
+                        <span className="dealer-mobile-card-val">{dealer.assigned_sale_name || '—'}</span>
+                      </div>
+                      <div className="dealer-mobile-card-row">
+                        <span className="dealer-mobile-card-label">Giao dịch:</span>
+                        <button
+                          type="button"
+                          className={`tx-badge-btn ${hasTx ? 'has-tx' : 'no-tx'}`}
+                          onClick={() => handleOpenTransactionsModal(dealer)}
+                          style={{ padding: '2px 8px' }}
+                        >
+                          {txCount} GD
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="dealer-mobile-card-actions">
+                      <button
+                        type="button"
+                        className="btn-action-mobile-edit"
+                        onClick={() => handleOpenEditModal(dealer)}
+                      >
+                        Sửa hồ sơ
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-action-mobile-tx"
+                        onClick={() => handleOpenTransactionsModal(dealer)}
+                      >
+                        Xem GD
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-action-mobile-delete"
+                        disabled={hasTx}
+                        onClick={() => handleDeleteClick(dealer)}
+                        title={hasTx ? 'Đã phát sinh giao dịch, hệ thống khóa xóa' : 'Xóa đại lý'}
+                      >
+                        Xóa
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
 
             {/* 5. Pagination Bar */}
@@ -1711,12 +1837,8 @@ export default function DealerProfileManagementView({
         <div className="modal-overlay" onClick={() => setIsPriceBookModalOpen(false)}>
           <div className="modal-content-card" style={{ maxWidth: '640px' }} onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
-                  <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
-                </svg>
-                <span>Chi tiết Bảng giá áp dụng</span>
+              <h3>
+                <span>Chi tiết Bảng giá</span>
               </h3>
               <button
                 className="modal-close-btn"
