@@ -651,6 +651,8 @@ export const OrderDetailPage: React.FC<OrderDetailPageProps> = ({
                 </strong>
               </div>
             </div>
+          </div>
+
           {/* Lịch sử phê duyệt & xử lý đơn hàng */}
           <div className="p-5 border-t border-slate-200 bg-white">
             <OrderApprovalHistory orderCode={order.order_code} token={token} />
