@@ -17,8 +17,6 @@ import {
   DealerStockSummaryResponse,
   DealerCreditInfo,
   getDealerCreditInfoApi,
-  getWarehouseProductsApi,
-  LocationProductStockItem,
 } from '../services/api';
 import { evaluateBestDiscountPolicy, parseStoredPolicies } from '../utils/discountEngine';
 import { searchDealers } from '../services/dealerSearchApi';
@@ -52,8 +50,6 @@ export interface SelectedOrderItem {
   sellPrice: number;
   floorPrice: number | null;
   priceNote?: string;
-  selectedLocationId?: number | null;
-  selectedLocationCode?: string | null;
 }
 
 const FALLBACK_DEALERS: DealerItem[] = [
@@ -315,47 +311,6 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
       isCancelled = true;
     };
   }, [dealerId, token]);
-
-  // Tải danh sách vị trí kệ & tồn khả dụng theo kệ của kho phục vụ
-  const [locationProducts, setLocationProducts] = useState<LocationProductStockItem[]>([]);
-  const [, setIsLoadingLocations] = useState<boolean>(false);
-
-  useEffect(() => {
-    const whId = stockSummary?.warehouse_id || selectedDealer?.warehouse_id || (dealers.find((d) => d.id === dealerId)?.warehouse_id);
-    if (!whId || !token) {
-      setLocationProducts([]);
-      return;
-    }
-    let isCancelled = false;
-    setIsLoadingLocations(true);
-    getWarehouseProductsApi(token, Number(whId))
-      .then((data) => {
-        if (!isCancelled) {
-          setLocationProducts(Array.isArray(data) ? data : []);
-        }
-      })
-      .catch((err) => {
-        console.warn('Could not load location products in create order modal:', err);
-      })
-      .finally(() => {
-        if (!isCancelled) {
-          setIsLoadingLocations(false);
-        }
-      });
-    return () => {
-      isCancelled = true;
-    };
-  }, [stockSummary?.warehouse_id, selectedDealer?.warehouse_id, dealerId, token, dealers]);
-
-  const productLocationsMap = React.useMemo(() => {
-    const map = new Map<number, LocationProductStockItem[]>();
-    for (const item of locationProducts) {
-      const list = map.get(item.product_id) || [];
-      list.push(item);
-      map.set(item.product_id, list);
-    }
-    return map;
-  }, [locationProducts]);
 
   // AC 1: Tải thông tin công nợ, hạn mức & nợ quá hạn
   useEffect(() => {
@@ -921,8 +876,6 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
             price: item.sellPrice,
             unit_name: item.unitName,
             conversion_rate: item.conversionRate,
-            location_id: item.selectedLocationId || undefined,
-            location_code: item.selectedLocationCode || undefined,
           };
         }),
         discount_percent: safeDiscount,
@@ -1413,13 +1366,9 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
               <option value="">-- Bấm vào đây để chọn và thêm sản phẩm vào danh sách --</option>
               {products.map((p) => {
                 const isAdded = orderItems.some((item) => item.productId === p.id);
-                const locs = productLocationsMap.get(p.id) || [];
-                const locInfo = locs.length > 0
-                  ? ` [Kệ: ${locs.slice(0, 3).map((l) => `${l.location_code} (${l.quantity})`).join(', ')}${locs.length > 3 ? '...' : ''}]`
-                  : '';
                 return (
                   <option key={p.id} value={p.id}>
-                    {p.code} - {p.name} (Tồn: {p.stock} {p.base_unit || 'Cái'}){locInfo}{isAdded ? ' [Đã có trong đơn]' : ''}
+                    {p.code} - {p.name} (Tồn: {p.stock} {p.base_unit || 'Cái'}){isAdded ? ' [Đã có trong đơn]' : ''}
                   </option>
                 );
               })}
@@ -1490,7 +1439,6 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
                         <th style={{ padding: '10px 12px', textAlign: 'left', fontWeight: '700' }}>Tên Sản Phẩm</th>
                         <th style={{ padding: '10px 12px', textAlign: 'center', fontWeight: '700', width: '100px' }}>ĐVT</th>
                         <th style={{ padding: '10px 12px', textAlign: 'center', fontWeight: '700', width: '90px' }}>Số Lượng</th>
-                        <th style={{ padding: '10px 12px', textAlign: 'left', fontWeight: '700', minWidth: '220px' }}>Vị Trí Kệ & Khả Dụng</th>
                         <th style={{ padding: '10px 12px', textAlign: 'right', fontWeight: '700', width: '140px' }}>Đơn Giá Thực Tế</th>
                         <th style={{ padding: '10px 12px', textAlign: 'right', fontWeight: '700', width: '130px' }}>Thành Tiền</th>
                         <th style={{ padding: '10px 8px', textAlign: 'center', fontWeight: '700', width: '45px' }}></th>
@@ -1646,155 +1594,6 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
                                   boxSizing: 'border-box',
                                 }}
                               />
-                            </td>
-
-                            {/* Vị trí kệ & Khả dụng */}
-                            <td style={{ padding: '10px 12px', verticalAlign: 'middle', minWidth: '220px' }}>
-                              {(() => {
-                                const locs = productLocationsMap.get(item.productId) || [];
-                                const totalLocQty = locs.reduce((sum, l) => sum + (l.quantity || 0), 0);
-                                if (locs.length === 0) {
-                                  return (
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                                      <span style={{ color: '#94a3b8', fontStyle: 'italic', fontSize: '12px', whiteSpace: 'nowrap' }}>
-                                        Chưa có vị trí kệ chi tiết
-                                      </span>
-                                      <span style={{ fontSize: '11px', color: '#64748b', fontWeight: '500' }}>
-                                        Tự động xuất kho tổng
-                                      </span>
-                                    </div>
-                                  );
-                                }
-                                return (
-                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                                    {/* Dropdown chọn kệ */}
-                                    <select
-                                      value={item.selectedLocationId || ''}
-                                      onChange={(e) => {
-                                        const locId = e.target.value ? Number(e.target.value) : null;
-                                        const selectedLoc = locs.find((l) => l.location_id === locId);
-                                        setOrderItems((prev) =>
-                                          prev.map((it, i) =>
-                                            i === idx
-                                              ? {
-                                                  ...it,
-                                                  selectedLocationId: locId,
-                                                  selectedLocationCode: selectedLoc?.location_code || null,
-                                                }
-                                              : it
-                                          )
-                                        );
-                                      }}
-                                      style={{
-                                        width: '100%',
-                                        fontSize: '12px',
-                                        fontWeight: '600',
-                                        padding: '4px 6px',
-                                        borderRadius: '6px',
-                                        border: '1px solid #cbd5e1',
-                                        background: '#ffffff',
-                                        color: '#1e293b',
-                                        outline: 'none',
-                                        cursor: 'pointer',
-                                        boxSizing: 'border-box',
-                                      }}
-                                    >
-                                      <option value="">-- Tự động phân bổ (Tổng: {totalLocQty} {item.baseUnit}) --</option>
-                                      {locs.map((loc) => (
-                                        <option key={loc.location_id} value={loc.location_id}>
-                                          Kệ {loc.location_code} (Khả dụng: {loc.quantity} {item.baseUnit})
-                                        </option>
-                                      ))}
-                                    </select>
-
-                                    {/* Danh sách badge vị trí trực quan */}
-                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', maxWidth: '320px' }}>
-                                      {locs.map((loc) => {
-                                        const isChosen = item.selectedLocationId === loc.location_id;
-                                        return (
-                                          <button
-                                            key={loc.location_id}
-                                            type="button"
-                                            onClick={() => {
-                                              const newLocId = item.selectedLocationId === loc.location_id ? null : loc.location_id;
-                                              const selectedLoc = locs.find((l) => l.location_id === newLocId);
-                                              setOrderItems((prev) =>
-                                                prev.map((it, i) =>
-                                                  i === idx
-                                                    ? {
-                                                        ...it,
-                                                        selectedLocationId: newLocId,
-                                                        selectedLocationCode: selectedLoc?.location_code || null,
-                                                      }
-                                                    : it
-                                                )
-                                              );
-                                            }}
-                                            style={{
-                                              display: 'inline-flex',
-                                              alignItems: 'center',
-                                              gap: '4px',
-                                              border: isChosen ? '1.5px solid #059669' : '1px solid #e2e8f0',
-                                              borderRadius: '5px',
-                                              padding: '2px 6px',
-                                              fontSize: '11px',
-                                              whiteSpace: 'nowrap',
-                                              cursor: 'pointer',
-                                              background: isChosen ? '#ecfdf5' : '#f8fafc',
-                                              color: '#0f172a',
-                                              boxShadow: isChosen ? '0 0 0 1px #059669' : 'none',
-                                              transition: 'all 0.15s ease',
-                                            }}
-                                            title="Bấm để chọn/bỏ chọn xuất từ kệ này"
-                                          >
-                                            <span style={{ fontWeight: '700', color: '#0f172a' }}>{loc.location_code}</span>
-                                            <span
-                                              style={{
-                                                padding: '1px 4px',
-                                                borderRadius: '3px',
-                                                fontSize: '10.5px',
-                                                fontWeight: '600',
-                                                whiteSpace: 'nowrap',
-                                                background: isChosen ? '#a7f3d0' : '#e2e8f0',
-                                                color: isChosen ? '#065f46' : '#334155',
-                                              }}
-                                            >
-                                              KD: {loc.quantity}
-                                            </span>
-                                          </button>
-                                        );
-                                      })}
-                                    </div>
-
-                                    {/* Cảnh báo thiếu hàng nếu chọn kệ cụ thể */}
-                                    {(() => {
-                                      if (!item.selectedLocationId) return null;
-                                      const chosenLoc = locs.find((l) => l.location_id === item.selectedLocationId);
-                                      const chosenQty = chosenLoc ? chosenLoc.quantity : 0;
-                                      const rate = item.conversionRate || 1;
-                                      const requiredInBase = itemQty * rate;
-                                      if (chosenQty < requiredInBase) {
-                                        return (
-                                          <span
-                                            style={{
-                                              fontSize: '11px',
-                                              fontWeight: '600',
-                                              color: '#b45309',
-                                              background: '#fef3c7',
-                                              border: '1px solid #fde68a',
-                                              borderRadius: '4px',
-                                              padding: '2px 6px',
-                                            }}
-                                          >
-                                            ⚠️ Kệ {chosenLoc?.location_code} chỉ có {chosenQty} {item.baseUnit} (Thiếu {Math.round(requiredInBase - chosenQty)})
-                                          </span>
-                                        );
-                                      }
-                                      return null;
-                                    })()}
-                                  </div>
-                                );
-                              })()}
                             </td>
 
                             {/* Đơn giá bán thực tế */}
