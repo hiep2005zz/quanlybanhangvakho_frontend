@@ -30,6 +30,8 @@ import { OrderLifecycleTimeline } from './OrderLifecycleTimeline';
 import { OrderCancelModal } from './OrderCancelModal';
 import { getOrderPermissionTier, isOrderPastExported, isOrderCancelable } from '../utils/orderPermissions';
 import OrderPrintModal from './OrderPrintModal';
+import './dashboard.css';
+
 
 
 interface OrderManagementViewProps {
@@ -61,6 +63,21 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
   const [regionFilter, setRegionFilter] = useState<string>('ALL');
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
+  const [appliedFilters, setAppliedFilters] = useState<{
+    status: 'ALL' | 'PENDING_APPROVAL' | 'REVISION_REQUIRED' | 'CONFIRMED' | 'DELIVERED' | 'REJECTED' | 'CANCELLED';
+    dealer: string;
+    salesRep: string;
+    region: string;
+    startDate: string;
+    endDate: string;
+  }>({
+    status: 'ALL',
+    dealer: 'ALL',
+    salesRep: 'ALL',
+    region: 'ALL',
+    startDate: '',
+    endDate: '',
+  });
   const [dealers, setDealers] = useState<OrderDealer[]>([]);
   const [salesReps, setSalesReps] = useState<SalesRepItem[]>([]);
   const [regions, setRegions] = useState<string[]>([]);
@@ -407,6 +424,18 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
       .catch((err) => console.warn('Lỗi tải danh sách khu vực:', err));
   }, [token, isOnlySales]);
 
+  const handleApplyFilters = () => {
+    setAppliedFilters({
+      status: statusFilter,
+      dealer: dealerFilter,
+      salesRep: salesRepFilter,
+      region: regionFilter,
+      startDate: startDate,
+      endDate: endDate,
+    });
+    setCurrentPage(1);
+  };
+
   const handleResetFilters = () => {
     setStatusFilter('ALL');
     setDealerFilter('ALL');
@@ -415,6 +444,21 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
     setStartDate('');
     setEndDate('');
     setSearchTerm('');
+    setAppliedFilters({
+      status: 'ALL',
+      dealer: 'ALL',
+      salesRep: 'ALL',
+      region: 'ALL',
+      startDate: '',
+      endDate: '',
+    });
+    setCurrentPage(1);
+  };
+
+  const handleQuickStatusChange = (status: 'ALL' | 'PENDING_APPROVAL' | 'REVISION_REQUIRED' | 'CONFIRMED' | 'DELIVERED' | 'REJECTED' | 'CANCELLED') => {
+    setStatusFilter(status);
+    setAppliedFilters((prev) => ({ ...prev, status }));
+    setCurrentPage(1);
   };
 
   // Tính toán số liệu thống kê
@@ -441,31 +485,31 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
           (Boolean(o.assigned_sale_name) && String(o.assigned_sale_name).toLowerCase().includes(q));
 
         const matchStatus =
-          statusFilter === 'ALL' ||
-          (statusFilter === 'PENDING_APPROVAL' && (o.status === 'PENDING_APPROVAL' || o.status === 'PENDING' || o.status === 'REVISION_REQUIRED')) ||
-          (statusFilter === 'REVISION_REQUIRED' && o.status === 'REVISION_REQUIRED') ||
-          (statusFilter === 'CONFIRMED' && ['CONFIRMED', 'APPROVED', 'PICKING', 'PREPARING', 'PACKING', 'EXPORTED', 'SHIPPED', 'DISPATCHED'].includes(o.status)) ||
-          (statusFilter === 'DELIVERED' && ['DELIVERED', 'CLOSED', 'COMPLETED'].includes(o.status)) ||
-          (statusFilter === 'REJECTED' && o.status === 'REJECTED') ||
-          (statusFilter === 'CANCELLED' && o.status === 'CANCELLED');
+          appliedFilters.status === 'ALL' ||
+          (appliedFilters.status === 'PENDING_APPROVAL' && (o.status === 'PENDING_APPROVAL' || o.status === 'PENDING' || o.status === 'REVISION_REQUIRED')) ||
+          (appliedFilters.status === 'REVISION_REQUIRED' && o.status === 'REVISION_REQUIRED') ||
+          (appliedFilters.status === 'CONFIRMED' && ['CONFIRMED', 'APPROVED', 'PICKING', 'PREPARING', 'PACKING', 'EXPORTED', 'SHIPPED', 'DISPATCHED'].includes(o.status)) ||
+          (appliedFilters.status === 'DELIVERED' && ['DELIVERED', 'CLOSED', 'COMPLETED'].includes(o.status)) ||
+          (appliedFilters.status === 'REJECTED' && o.status === 'REJECTED') ||
+          (appliedFilters.status === 'CANCELLED' && o.status === 'CANCELLED');
 
         // Lọc theo Đại lý
         const matchDealer =
-          dealerFilter === 'ALL' ||
-          String(o.dealer_id) === String(dealerFilter);
+          appliedFilters.dealer === 'ALL' ||
+          String(o.dealer_id) === String(appliedFilters.dealer);
 
         // Lọc theo Nhân viên kinh doanh
         const matchSalesRep =
-          salesRepFilter === 'ALL' ||
-          String(o.assigned_sale_id) === String(salesRepFilter) ||
-          salesReps.find((sr) => String(sr.id) === String(salesRepFilter))?.username.toLowerCase() === o.created_by.toLowerCase();
+          appliedFilters.salesRep === 'ALL' ||
+          String(o.assigned_sale_id) === String(appliedFilters.salesRep) ||
+          salesReps.find((sr) => String(sr.id) === String(appliedFilters.salesRep))?.username.toLowerCase() === o.created_by.toLowerCase();
 
         // Lọc theo Khu vực
         const matchRegion =
-          regionFilter === 'ALL' ||
+          appliedFilters.region === 'ALL' ||
           (() => {
             const dealer = dealers.find((d) => String(d.id) === String(o.dealer_id));
-            const regionLower = regionFilter.toLowerCase();
+            const regionLower = appliedFilters.region.toLowerCase();
             return (
               (dealer?.address && dealer.address.toLowerCase().includes(regionLower)) ||
               ((dealer as any)?.region && String((dealer as any).region).toLowerCase().includes(regionLower)) ||
@@ -475,15 +519,15 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
 
         // Lọc theo Khoảng thời gian
         let matchDate = true;
-        if (startDate || endDate) {
+        if (appliedFilters.startDate || appliedFilters.endDate) {
           const orderTime = o.created_at ? new Date(o.created_at).getTime() : 0;
-          if (startDate) {
-            const startObj = new Date(startDate);
+          if (appliedFilters.startDate) {
+            const startObj = new Date(appliedFilters.startDate);
             startObj.setHours(0, 0, 0, 0);
             if (orderTime < startObj.getTime()) matchDate = false;
           }
-          if (endDate) {
-            const endObj = new Date(endDate);
+          if (appliedFilters.endDate) {
+            const endObj = new Date(appliedFilters.endDate);
             endObj.setHours(23, 59, 59, 999);
             if (orderTime > endObj.getTime()) matchDate = false;
           }
@@ -499,7 +543,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
         }
         return (b.id || 0) - (a.id || 0); // Cùng trạng thái thì đơn mới nhất xếp trước
       });
-  }, [orders, searchTerm, statusFilter, dealerFilter, salesRepFilter, regionFilter, startDate, endDate, dealers, salesReps]);
+  }, [orders, searchTerm, appliedFilters, dealers, salesReps]);
 
   // Tổng tiền của tập kết quả đang lọc
   const filteredTotalRevenue = useMemo(() => {
@@ -512,7 +556,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, statusFilter, dealerFilter, salesRepFilter, regionFilter, startDate, endDate]);
+  }, [searchTerm, appliedFilters]);
 
   const totalPages = Math.max(1, Math.ceil(filteredOrders.length / pageSize));
   const safePage = Math.min(Math.max(1, currentPage), totalPages);
@@ -1077,39 +1121,6 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
           </button>
         )}
 
-        {/* Nút In đơn nhanh */}
-        <button
-          type="button"
-          id={`btn-print-order-${order.order_code}`}
-          onClick={() => setPrintingOrder(order)}
-          style={{
-            padding: '4px 9px',
-            background: '#eff6ff',
-            border: '1px solid #bfdbfe',
-            borderRadius: '6px',
-            color: '#1d4ed8',
-            fontSize: '12px',
-            fontWeight: '600',
-            cursor: 'pointer',
-            whiteSpace: 'nowrap',
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            height: '28px',
-            boxSizing: 'border-box',
-            transition: 'all 0.15s ease',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = '#dbeafe';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = '#eff6ff';
-          }}
-          title="In phiếu hoặc xuất PDF đơn hàng"
-        >
-          In đơn
-        </button>
-
         {/* Nút Chi tiết */}
         <button
           type="button"
@@ -1151,23 +1162,23 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
       className="w-full max-w-[1680px] mx-auto p-2.5 sm:p-4 md:p-0 flex flex-col flex-1 min-h-0 md:h-full overflow-y-auto md:overflow-hidden"
     >
       {/* Thanh tiêu đề */}
-      <div className="flex justify-between items-start sm:items-center mb-3 sm:mb-4 flex-wrap gap-2.5 sm:gap-4 shrink-0">
+      <div className="flex justify-between items-start sm:items-center mb-2.5 sm:mb-3 flex-wrap gap-2 sm:gap-3 shrink-0">
         <div>
-          <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
+          <h2 className="text-lg sm:text-xl font-extrabold text-slate-900 tracking-tight">
             {isCustomer ? 'Đơn Hàng Của Tôi' : 'Quản Lý Đơn Hàng & Bán Hàng'}
           </h2>
-          <p className="mt-0.5 sm:mt-1 text-xs sm:text-[13.5px] text-slate-500">
+          <p className="mt-0.5 text-xs text-slate-500">
             {isCustomer
               ? 'Theo dõi trạng thái đơn đặt hàng, tiến độ duyệt và giao hàng của đại lý'
               : 'Theo dõi trạng thái đơn bán, kiểm soát biên lợi nhuận và phê duyệt đơn hàng'}
           </p>
         </div>
 
-        <div className="flex items-center gap-2 sm:gap-3">
+        <div className="flex items-center gap-2 sm:gap-2.5">
           <button
             type="button"
             onClick={fetchOrders}
-            className="px-3 py-1.5 sm:px-4 sm:py-2 bg-white border border-slate-300 rounded-lg text-xs sm:text-[13.5px] font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer shadow-xs transition-colors"
+            className="px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer shadow-xs transition-colors"
             title="Tải lại danh sách đơn hàng"
           >
             Làm mới
@@ -1180,11 +1191,11 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
               onClick={() => !isCustomerLocked && setIsCreateModalOpen(true)}
               disabled={isCustomerLocked}
               style={{
-                padding: '8px 18px',
+                padding: '7px 16px',
                 background: isCustomerLocked ? '#94a3b8' : 'linear-gradient(135deg, #0fba90 0%, #0fad89 100%)',
                 border: 'none',
                 borderRadius: '8px',
-                fontSize: '13px',
+                fontSize: '12.5px',
                 fontWeight: '700',
                 color: '#ffffff',
                 cursor: isCustomerLocked ? 'not-allowed' : 'pointer',
@@ -1199,47 +1210,128 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
         </div>
       </div>
 
-      {/* Thẻ thống kê */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3 md:gap-4 mb-3 sm:mb-4 shrink-0">
-        <div className="bg-white border border-slate-200 rounded-xl p-2.5 sm:p-3.5 md:p-4 shadow-xs">
-          <div className="text-xs sm:text-[13px] text-slate-500 font-semibold truncate">
-            {isCustomer ? 'Đơn hàng của tôi' : 'Tổng số đơn hàng'}
+      {/* 4 Thẻ KPI Thống kê (Thu gọn bé gọn đồng bộ) */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
+        gap: '10px',
+        marginBottom: '10px',
+        flexShrink: 0,
+      }}>
+        {/* Thẻ 1: Tổng số đơn */}
+        <div className="kpi-stat-card" style={{ padding: '10px 14px', borderRadius: '10px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
+            <span style={{ fontSize: '11.5px', color: '#64748b', fontWeight: '600' }}>
+              {isCustomer ? 'Đơn hàng của tôi' : 'Tổng số đơn hàng'}
+            </span>
+            <span style={{ fontSize: '11px', color: '#64748b' }}>
+              {isCustomer ? 'Tất cả đơn' : 'Hiển thị theo tập lọc'}
+            </span>
           </div>
-          <div className="text-lg sm:text-xl md:text-2xl font-extrabold text-slate-900 mt-0.5 sm:mt-1">{filteredOrders.length} / {totalOrdersCount} đơn</div>
-          <div className="text-[11px] sm:text-xs text-slate-400 mt-0.5 truncate hidden sm:block">
-            {isCustomer ? 'Toàn bộ đơn đặt hàng của đại lý' : 'Hiển thị theo tập đang lọc'}
-          </div>
-        </div>
-
-        <div id="stat-card-pending-orders" className="bg-amber-50/80 border border-amber-200 rounded-xl p-2.5 sm:p-3.5 md:p-4 shadow-xs">
-          <div className="text-xs sm:text-[13px] text-amber-700 font-bold truncate">
-            {isCustomer ? 'Đang chờ xử lý' : 'Đơn chờ quản lý duyệt'}
-          </div>
-          <div className="text-lg sm:text-xl md:text-2xl font-extrabold text-amber-700 mt-0.5 sm:mt-1">{pendingOrdersCount} đơn</div>
-          <div className="text-[11px] sm:text-xs text-amber-600 mt-0.5 truncate hidden sm:block">
-            {isCustomer ? 'Đơn đặt hàng đang chờ duyệt' : 'Bán dưới giá sàn cần phê duyệt'}
-          </div>
-        </div>
-
-        <div className="bg-emerald-50/80 border border-emerald-200 rounded-xl p-2.5 sm:p-3.5 md:p-4 shadow-xs">
-          <div className="text-xs sm:text-[13px] text-emerald-700 font-bold truncate">
-            {isCustomer ? 'Đang giao & Vận chuyển' : 'Đơn đã xác nhận'}
-          </div>
-          <div className="text-lg sm:text-xl md:text-2xl font-extrabold text-emerald-700 mt-0.5 sm:mt-1">{confirmedOrdersCount} đơn</div>
-          <div className="text-[11px] sm:text-xs text-emerald-600 mt-0.5 truncate hidden sm:block">
-            {isCustomer ? 'Đang chuẩn bị hàng và vận chuyển' : 'Đủ điều kiện xuất kho bán hàng'}
+          <div style={{
+            fontSize: '18px',
+            fontWeight: '700',
+            letterSpacing: '-0.02em',
+            color: '#0f172a',
+            fontVariantNumeric: 'tabular-nums',
+            lineHeight: 1.2,
+          }}>
+            {filteredOrders.length} / {totalOrdersCount} đơn
           </div>
         </div>
 
-        <div id="kpi-total-amount" className={`border rounded-xl p-2.5 sm:p-3.5 md:p-4 shadow-xs ${isCustomer ? 'bg-blue-50/80 border-blue-200' : 'bg-white border-slate-200'}`}>
-          <div className={`text-xs sm:text-[13px] truncate ${isCustomer ? 'text-blue-700 font-bold' : 'text-slate-500 font-semibold'}`}>
-            {isCustomer ? 'Đã giao thành công' : 'Tổng tiền tập lọc'}
+        {/* Thẻ 2: Chờ duyệt */}
+        <div
+          id="stat-card-pending-orders"
+          className="kpi-stat-card"
+          style={{
+            padding: '10px 14px',
+            borderRadius: '10px',
+            border: pendingOrdersCount > 0 ? '1.5px solid #fde68a' : '1px solid #e2e8f0',
+            background: pendingOrdersCount > 0 ? 'linear-gradient(135deg, #fffdf0, #ffffff)' : '#ffffff',
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
+            <span style={{ fontSize: '11.5px', color: pendingOrdersCount > 0 ? '#b45309' : '#64748b', fontWeight: '700' }}>
+              {isCustomer ? 'Đang chờ xử lý' : 'Đơn chờ quản lý duyệt'}
+            </span>
+            <span style={{ fontSize: '10.5px', color: pendingOrdersCount > 0 ? '#d97706' : '#94a3b8' }}>
+              {isCustomer ? 'Chờ duyệt' : 'Cần phê duyệt'}
+            </span>
           </div>
-          <div className={`text-base sm:text-lg md:text-2xl font-extrabold mt-0.5 sm:mt-1 truncate ${isCustomer ? 'text-blue-700' : 'text-emerald-700'}`}>
+          <div style={{
+            fontSize: '18px',
+            fontWeight: '700',
+            letterSpacing: '-0.02em',
+            color: pendingOrdersCount > 0 ? '#b45309' : '#0f172a',
+            fontVariantNumeric: 'tabular-nums',
+            lineHeight: 1.2,
+          }}>
+            {pendingOrdersCount} đơn
+          </div>
+        </div>
+
+        {/* Thẻ 3: Đã xác nhận */}
+        <div
+          className="kpi-stat-card"
+          style={{
+            padding: '10px 14px',
+            borderRadius: '10px',
+            border: confirmedOrdersCount > 0 ? '1px solid #bbf7d0' : '1px solid #e2e8f0',
+            background: confirmedOrdersCount > 0 ? 'linear-gradient(135deg, #f0fdf4, #ffffff)' : '#ffffff',
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
+            <span style={{ fontSize: '11.5px', color: confirmedOrdersCount > 0 ? '#047857' : '#64748b', fontWeight: '700' }}>
+              {isCustomer ? 'Đang giao & Vận chuyển' : 'Đơn đã xác nhận'}
+            </span>
+            <span style={{ fontSize: '10.5px', color: confirmedOrdersCount > 0 ? '#059669' : '#94a3b8' }}>
+              {isCustomer ? 'Đang giao' : 'Đủ đk xuất kho'}
+            </span>
+          </div>
+          <div style={{
+            fontSize: '18px',
+            fontWeight: '700',
+            letterSpacing: '-0.02em',
+            color: confirmedOrdersCount > 0 ? '#047857' : '#0f172a',
+            fontVariantNumeric: 'tabular-nums',
+            lineHeight: 1.2,
+          }}>
+            {confirmedOrdersCount} đơn
+          </div>
+        </div>
+
+        {/* Thẻ 4: Tổng tiền tập lọc */}
+        <div
+          id="kpi-total-amount"
+          className="kpi-stat-card"
+          style={{
+            padding: '10px 14px',
+            borderRadius: '10px',
+            border: isCustomer ? '1px solid #bfdbfe' : '1px solid #e2e8f0',
+            background: isCustomer ? 'linear-gradient(135deg, #eff6ff, #ffffff)' : '#ffffff',
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px', gap: '8px' }}>
+            <span style={{ fontSize: '11.5px', color: isCustomer ? '#1d4ed8' : '#64748b', fontWeight: '600', whiteSpace: 'nowrap' }}>
+              {isCustomer ? 'Đã giao thành công' : 'Tổng tiền tập lọc'}
+            </span>
+            <span style={{ fontSize: '10.5px', color: '#64748b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {isCustomer ? `Tổng tiền: ${filteredTotalRevenue.toLocaleString('vi-VN')} đ` : `Toàn cty: ${totalRevenue.toLocaleString('vi-VN')} đ`}
+            </span>
+          </div>
+          <div style={{
+            fontSize: '18px',
+            fontWeight: '700',
+            letterSpacing: '-0.02em',
+            color: isCustomer ? '#1d4ed8' : '#047857',
+            fontVariantNumeric: 'tabular-nums',
+            lineHeight: 1.2,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}>
             {isCustomer ? `${deliveredOrdersCount} đơn` : `${filteredTotalRevenue.toLocaleString('vi-VN')} đ`}
-          </div>
-          <div className="text-[11px] sm:text-xs text-slate-400 mt-0.5 truncate hidden sm:block">
-            {isCustomer ? `Tổng tiền mua: ${filteredTotalRevenue.toLocaleString('vi-VN')} đ` : `Toàn công ty: ${totalRevenue.toLocaleString('vi-VN')} đ (${filteredOrders.length}/${totalOrdersCount} đơn)`}
           </div>
         </div>
       </div>
@@ -1317,31 +1409,32 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
         className="bg-white border border-slate-200 rounded-xl shadow-xs flex-1 min-h-0 flex flex-col overflow-hidden"
       >
         {/* Bộ lọc và tìm kiếm */}
-        <div className="p-2.5 sm:p-3.5 md:px-5 md:py-3 border-b border-slate-200 flex flex-col md:flex-row justify-between items-stretch md:items-center gap-2.5 sm:gap-3 bg-slate-50 shrink-0">
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 flex-1 min-w-0">
+        <div className="p-2 sm:px-4 sm:py-2 border-b border-slate-200 flex flex-col md:flex-row justify-between items-stretch md:items-center gap-2 sm:gap-2.5 bg-slate-50 shrink-0">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-2.5 flex-1 min-w-0">
             <input
               type="text"
               placeholder="Tìm theo mã đơn, khách hàng, người tạo..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full sm:w-72 px-3 py-1.5 sm:py-2 rounded-lg border border-slate-300 text-xs sm:text-[13.5px] bg-white outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 box-border"
+              className="w-full sm:w-72 px-3 py-1.5 rounded-lg border border-slate-300 text-xs sm:text-[13px] bg-white outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 box-border"
+              style={{ height: '32px' }}
             />
 
-            <div className="flex overflow-x-auto max-w-full pb-1 sm:pb-0 gap-1 bg-slate-200/80 p-0.5 rounded-lg shrink-0">
+            <div className="flex overflow-x-auto max-w-full pb-0.5 sm:pb-0 gap-1 bg-slate-200/80 p-0.5 rounded-lg shrink-0">
               <button
                 type="button"
-                onClick={() => setStatusFilter('ALL')}
-                className={`px-2.5 sm:px-3 py-1 rounded-md text-xs sm:text-[13px] font-semibold whitespace-nowrap cursor-pointer transition-all border-0 ${
-                  statusFilter === 'ALL' ? 'bg-white text-slate-900 shadow-xs' : 'bg-transparent text-slate-600 hover:text-slate-900'
+                onClick={() => handleQuickStatusChange('ALL')}
+                className={`px-2.5 sm:px-3 py-1 rounded-md text-xs sm:text-[12.5px] font-semibold whitespace-nowrap cursor-pointer transition-all border-0 ${
+                  appliedFilters.status === 'ALL' ? 'bg-white text-slate-900 shadow-xs' : 'bg-transparent text-slate-600 hover:text-slate-900'
                 }`}
               >
                 Tất cả ({totalOrdersCount})
               </button>
               <button
                 type="button"
-                onClick={() => setStatusFilter('PENDING_APPROVAL')}
-                className={`px-2.5 sm:px-3 py-1 rounded-md text-xs sm:text-[13px] font-semibold whitespace-nowrap cursor-pointer transition-all border-0 ${
-                  statusFilter === 'PENDING_APPROVAL' ? 'bg-white text-amber-700 shadow-xs' : 'bg-transparent text-slate-600 hover:text-amber-700'
+                onClick={() => handleQuickStatusChange('PENDING_APPROVAL')}
+                className={`px-2.5 sm:px-3 py-1 rounded-md text-xs sm:text-[12.5px] font-semibold whitespace-nowrap cursor-pointer transition-all border-0 ${
+                  appliedFilters.status === 'PENDING_APPROVAL' ? 'bg-white text-amber-700 shadow-xs' : 'bg-transparent text-slate-600 hover:text-amber-700'
                 }`}
               >
                 {isCustomer ? 'Chờ xử lý' : 'Chờ duyệt'} ({pendingOrdersCount})
@@ -1349,9 +1442,9 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
               {revisionOrdersCount > 0 && (
                 <button
                   type="button"
-                  onClick={() => setStatusFilter('REVISION_REQUIRED')}
-                  className={`px-2.5 sm:px-3 py-1 rounded-md text-xs sm:text-[13px] font-semibold whitespace-nowrap cursor-pointer transition-all border-0 ${
-                    statusFilter === 'REVISION_REQUIRED' ? 'bg-white text-orange-700 shadow-xs' : 'bg-transparent text-slate-600 hover:text-orange-700'
+                  onClick={() => handleQuickStatusChange('REVISION_REQUIRED')}
+                  className={`px-2.5 sm:px-3 py-1 rounded-md text-xs sm:text-[12.5px] font-semibold whitespace-nowrap cursor-pointer transition-all border-0 ${
+                    appliedFilters.status === 'REVISION_REQUIRED' ? 'bg-white text-orange-700 shadow-xs' : 'bg-transparent text-slate-600 hover:text-orange-700'
                   }`}
                 >
                   Yêu cầu sửa ({revisionOrdersCount})
@@ -1359,36 +1452,28 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
               )}
               <button
                 type="button"
-                onClick={() => setStatusFilter('CONFIRMED')}
-                className={`px-2.5 sm:px-3 py-1 rounded-md text-xs sm:text-[13px] font-semibold whitespace-nowrap cursor-pointer transition-all border-0 ${
-                  statusFilter === 'CONFIRMED' ? 'bg-white text-emerald-700 shadow-xs' : 'bg-transparent text-slate-600 hover:text-emerald-700'
+                onClick={() => handleQuickStatusChange('CONFIRMED')}
+                className={`px-2.5 sm:px-3 py-1 rounded-md text-xs sm:text-[12.5px] font-semibold whitespace-nowrap cursor-pointer transition-all border-0 ${
+                  appliedFilters.status === 'CONFIRMED' ? 'bg-white text-emerald-700 shadow-xs' : 'bg-transparent text-slate-600 hover:text-emerald-700'
                 }`}
               >
                 {isCustomer ? 'Đang giao' : 'Đã xác nhận'} ({confirmedOrdersCount})
               </button>
               <button
                 type="button"
-                onClick={() => setStatusFilter('DELIVERED')}
-                style={{
-                  padding: '6px 14px',
-                  borderRadius: '6px',
-                  border: 'none',
-                  background: statusFilter === 'DELIVERED' ? '#ffffff' : 'transparent',
-                  color: statusFilter === 'DELIVERED' ? '#065f46' : '#64748b',
-                  fontWeight: statusFilter === 'DELIVERED' ? '700' : '500',
-                  fontSize: '13px',
-                  cursor: 'pointer',
-                  boxShadow: statusFilter === 'DELIVERED' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-                }}
+                onClick={() => handleQuickStatusChange('DELIVERED')}
+                className={`px-2.5 sm:px-3 py-1 rounded-md text-xs sm:text-[12.5px] font-semibold whitespace-nowrap cursor-pointer transition-all border-0 ${
+                  appliedFilters.status === 'DELIVERED' ? 'bg-white text-emerald-800 shadow-xs font-bold' : 'bg-transparent text-slate-600 hover:text-emerald-700'
+                }`}
               >
                 Đã giao ({deliveredOrdersCount})
               </button>
               {rejectedOrdersCount > 0 && (
                 <button
                   type="button"
-                  onClick={() => setStatusFilter('REJECTED')}
-                  className={`px-2.5 sm:px-3 py-1 rounded-md text-xs sm:text-[13px] font-semibold whitespace-nowrap cursor-pointer transition-all border-0 ${
-                    statusFilter === 'REJECTED' ? 'bg-white text-red-700 shadow-xs' : 'bg-transparent text-slate-600 hover:text-red-700'
+                  onClick={() => handleQuickStatusChange('REJECTED')}
+                  className={`px-2.5 sm:px-3 py-1 rounded-md text-xs sm:text-[12.5px] font-semibold whitespace-nowrap cursor-pointer transition-all border-0 ${
+                    appliedFilters.status === 'REJECTED' ? 'bg-white text-red-700 shadow-xs' : 'bg-transparent text-slate-600 hover:text-red-700'
                   }`}
                 >
                   Bị từ chối ({rejectedOrdersCount})
@@ -1397,9 +1482,9 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
               {cancelledOrdersCount > 0 && (
                 <button
                   type="button"
-                  onClick={() => setStatusFilter('CANCELLED')}
-                  className={`px-2.5 sm:px-3 py-1 rounded-md text-xs sm:text-[13px] font-semibold whitespace-nowrap cursor-pointer transition-all border-0 ${
-                    statusFilter === 'CANCELLED' ? 'bg-white text-slate-700 shadow-xs' : 'bg-transparent text-slate-600 hover:text-slate-900'
+                  onClick={() => handleQuickStatusChange('CANCELLED')}
+                  className={`px-2.5 sm:px-3 py-1 rounded-md text-xs sm:text-[12.5px] font-semibold whitespace-nowrap cursor-pointer transition-all border-0 ${
+                    appliedFilters.status === 'CANCELLED' ? 'bg-white text-slate-700 shadow-xs' : 'bg-transparent text-slate-600 hover:text-slate-900'
                   }`}
                 >
                   Đã hủy ({cancelledOrdersCount})
@@ -1414,19 +1499,19 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
         </div>
 
         {/* Thanh công cụ lọc đa tiêu chí: Trạng thái, Đại lý, Nhân viên, Khu vực, Khoảng thời gian */}
-        <div className="p-3 sm:px-5 sm:py-3.5 bg-white border-b border-slate-200 overflow-x-auto">
-          <div className="flex flex-wrap items-end gap-2.5 w-full">
+        <div className="p-2 sm:px-4 sm:py-2 bg-white border-b border-slate-200 overflow-x-auto">
+          <div className="flex flex-wrap items-end gap-2 w-full">
             {/* 1. Trạng thái */}
-            <div className="flex-1 min-w-[130px]">
-              <label htmlFor="filter-status" className="block text-[11px] font-bold text-[#065f46] uppercase tracking-wider mb-1.5 whitespace-nowrap">
+            <div className="flex-1 min-w-[125px]">
+              <label htmlFor="filter-status" className="block text-[10.5px] font-bold text-[#065f46] uppercase tracking-wider mb-1 whitespace-nowrap">
                 TRẠNG THÁI
               </label>
               <select
                 id="filter-status"
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value as any)}
-                className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-full focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium text-slate-700 shadow-sm transition-all cursor-pointer"
-                style={{ borderRadius: '9999px', height: '36px', borderColor: '#e2e8f0' }}
+                className="w-full px-2.5 py-1 text-xs bg-white border border-slate-200 rounded-full focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium text-slate-700 shadow-sm transition-all cursor-pointer"
+                style={{ borderRadius: '9999px', height: '32px', borderColor: '#e2e8f0' }}
               >
                 <option value="ALL">Tất cả trạng thái</option>
                 <option value="PENDING_APPROVAL">Chờ duyệt</option>
@@ -1439,16 +1524,16 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
             </div>
 
             {/* 2. Đại lý */}
-            <div className="flex-[1.2] min-w-[145px]">
-              <label htmlFor="filter-dealer" className="block text-[11px] font-bold text-[#065f46] uppercase tracking-wider mb-1.5 whitespace-nowrap">
+            <div className="flex-[1.2] min-w-[140px]">
+              <label htmlFor="filter-dealer" className="block text-[10.5px] font-bold text-[#065f46] uppercase tracking-wider mb-1 whitespace-nowrap">
                 ĐẠI LÝ {isOnlySales && <span className="text-emerald-700 font-bold">(Phụ trách)</span>}
               </label>
               <select
                 id="filter-dealer"
                 value={dealerFilter}
                 onChange={(e) => setDealerFilter(e.target.value)}
-                className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-full focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium text-slate-700 shadow-sm transition-all cursor-pointer"
-                style={{ borderRadius: '9999px', height: '36px', borderColor: '#e2e8f0' }}
+                className="w-full px-2.5 py-1 text-xs bg-white border border-slate-200 rounded-full focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium text-slate-700 shadow-sm transition-all cursor-pointer"
+                style={{ borderRadius: '9999px', height: '32px', borderColor: '#e2e8f0' }}
               >
                 <option value="ALL">Tất cả đại lý</option>
                 {dealers.map((d) => (
@@ -1460,8 +1545,8 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
             </div>
 
             {/* 3. Nhân viên kinh doanh */}
-            <div className="flex-[1.4] min-w-[165px]">
-              <label htmlFor="filter-sales-rep" className="block text-[11px] font-bold text-[#065f46] uppercase tracking-wider mb-1.5 whitespace-nowrap">
+            <div className="flex-[1.4] min-w-[160px]">
+              <label htmlFor="filter-sales-rep" className="block text-[10.5px] font-bold text-[#065f46] uppercase tracking-wider mb-1 whitespace-nowrap">
                 NHÂN VIÊN KINH DOANH
               </label>
               {isOnlySales ? (
@@ -1470,8 +1555,8 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                   type="text"
                   disabled
                   value={`${currentUser.full_name || currentUser.username} (Chính bạn)`}
-                  className="w-full px-2.5 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-full text-slate-500 cursor-not-allowed font-medium shadow-sm"
-                  style={{ borderRadius: '9999px', height: '36px', borderColor: '#e2e8f0' }}
+                  className="w-full px-2.5 py-1 text-xs bg-slate-50 border border-slate-200 rounded-full text-slate-500 cursor-not-allowed font-medium shadow-sm"
+                  style={{ borderRadius: '9999px', height: '32px', borderColor: '#e2e8f0' }}
                   title="Nhân viên kinh doanh chỉ xem các đại lý mình phụ trách"
                 />
               ) : (
@@ -1479,8 +1564,8 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                   id="filter-sales-rep"
                   value={salesRepFilter}
                   onChange={(e) => setSalesRepFilter(e.target.value)}
-                  className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-full focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium text-slate-700 shadow-sm transition-all cursor-pointer"
-                  style={{ borderRadius: '9999px', height: '36px', borderColor: '#e2e8f0' }}
+                  className="w-full px-2.5 py-1 text-xs bg-white border border-slate-200 rounded-full focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium text-slate-700 shadow-sm transition-all cursor-pointer"
+                  style={{ borderRadius: '9999px', height: '32px', borderColor: '#e2e8f0' }}
                 >
                   <option value="ALL">Tất cả nhân viên</option>
                   {salesReps.map((sr) => (
@@ -1493,16 +1578,16 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
             </div>
 
             {/* 4. Khu vực */}
-            <div className="flex-1 min-w-[125px]">
-              <label htmlFor="filter-region" className="block text-[11px] font-bold text-[#065f46] uppercase tracking-wider mb-1.5 whitespace-nowrap">
+            <div className="flex-1 min-w-[120px]">
+              <label htmlFor="filter-region" className="block text-[10.5px] font-bold text-[#065f46] uppercase tracking-wider mb-1 whitespace-nowrap">
                 KHU VỰC
               </label>
               <select
                 id="filter-region"
                 value={regionFilter}
                 onChange={(e) => setRegionFilter(e.target.value)}
-                className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-full focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium text-slate-700 shadow-sm transition-all cursor-pointer"
-                style={{ borderRadius: '9999px', height: '36px', borderColor: '#e2e8f0' }}
+                className="w-full px-2.5 py-1 text-xs bg-white border border-slate-200 rounded-full focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium text-slate-700 shadow-sm transition-all cursor-pointer"
+                style={{ borderRadius: '9999px', height: '32px', borderColor: '#e2e8f0' }}
               >
                 <option value="ALL">Tất cả khu vực</option>
                 {regions.map((reg) => (
@@ -1514,8 +1599,8 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
             </div>
 
             {/* 5. Từ ngày */}
-            <div className="flex-[0.8] min-w-[130px]">
-              <label htmlFor="filter-start-date" className="block text-[11px] font-bold text-[#065f46] uppercase tracking-wider mb-1.5 whitespace-nowrap">
+            <div className="flex-[0.8] min-w-[125px]">
+              <label htmlFor="filter-start-date" className="block text-[10.5px] font-bold text-[#065f46] uppercase tracking-wider mb-1 whitespace-nowrap">
                 TỪ NGÀY
               </label>
               <input
@@ -1523,14 +1608,15 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="w-full px-2 py-1.5 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-700 shadow-sm transition-all"
-                style={{ borderRadius: '12px', height: '36px', borderColor: '#e2e8f0' }}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleApplyFilters(); }}
+                className="w-full px-2 py-1 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-700 shadow-sm transition-all"
+                style={{ borderRadius: '12px', height: '32px', borderColor: '#e2e8f0' }}
               />
             </div>
 
             {/* 6. Đến ngày */}
-            <div className="flex-[0.8] min-w-[130px]">
-              <label htmlFor="filter-end-date" className="block text-[11px] font-bold text-[#065f46] uppercase tracking-wider mb-1.5 whitespace-nowrap">
+            <div className="flex-[0.8] min-w-[125px]">
+              <label htmlFor="filter-end-date" className="block text-[10.5px] font-bold text-[#065f46] uppercase tracking-wider mb-1 whitespace-nowrap">
                 ĐẾN NGÀY
               </label>
               <input
@@ -1538,19 +1624,33 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="w-full px-2 py-1.5 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-700 shadow-sm transition-all"
-                style={{ borderRadius: '12px', height: '36px', borderColor: '#e2e8f0' }}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleApplyFilters(); }}
+                className="w-full px-2 py-1 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-700 shadow-sm transition-all"
+                style={{ borderRadius: '12px', height: '32px', borderColor: '#e2e8f0' }}
               />
             </div>
 
-            {/* Nút Đặt lại bộ lọc */}
-            <div className="flex items-center gap-2 shrink-0 self-end">
+            {/* Cụm nút: Lọc & Đặt lại */}
+            <div className="flex items-center gap-1.5 shrink-0 self-end">
+              <button
+                type="button"
+                id="btn-apply-filters"
+                onClick={handleApplyFilters}
+                className="inline-flex items-center justify-center gap-1.5 px-3.5 py-1 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 rounded-lg shadow-xs focus:outline-none transition-all cursor-pointer"
+                style={{ height: '32px' }}
+                title="Áp dụng các điều kiện lọc đã chọn"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+                </svg>
+                Lọc
+              </button>
               <button
                 type="button"
                 id="btn-reset-filters"
                 onClick={handleResetFilters}
-                className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg shadow-sm focus:outline-none transition-colors cursor-pointer"
-                style={{ height: '36px' }}
+                className="inline-flex items-center justify-center gap-1 px-3 py-1 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg shadow-xs focus:outline-none transition-colors cursor-pointer"
+                style={{ height: '32px' }}
                 title="Xóa tất cả các điều kiện lọc và quay về mặc định"
               >
                 Đặt lại
@@ -1681,7 +1781,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                     <th style={{ padding: '9px 12px', fontWeight: '700', textAlign: 'right', background: '#f8fafc', whiteSpace: 'nowrap' }}>Tổng Giá Trị</th>
                     <th style={{ padding: '9px 12px', fontWeight: '700', textAlign: 'center', background: '#f8fafc', whiteSpace: 'nowrap', minWidth: '155px' }}>Trạng Thái Duyệt</th>
                     <th style={{ padding: '9px 12px', fontWeight: '700', background: '#f8fafc' }}>Lý Do Cần Duyệt & Mức Vi Phạm</th>
-                    <th style={{ padding: '9px 14px', fontWeight: '700', textAlign: 'right', background: '#f8fafc', whiteSpace: 'nowrap', minWidth: '220px' }}>Thao Tác</th>
+                    <th style={{ padding: '9px 14px', fontWeight: '700', textAlign: 'right', background: '#f8fafc', whiteSpace: 'nowrap', minWidth: '150px' }}>Thao Tác</th>
                   </tr>
                 </thead>
                 <tbody>
