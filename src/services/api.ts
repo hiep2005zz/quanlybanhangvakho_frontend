@@ -14,6 +14,18 @@ export function getAvatarUrl(url?: string | null): string {
   return `${backendOrigin}${url.startsWith('/') ? '' : '/'}${url}`;
 }
 
+/**
+ * Trả về URL hợp lệ để hiển thị ảnh sản phẩm (hỗ trợ cả đường dẫn tĩnh /uploads/..., base64 data:, blob: và HTTP)
+ */
+export function getProductImageUrl(url?: string | null): string {
+  if (!url) return '';
+  if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:') || url.startsWith('blob:')) {
+    return url;
+  }
+  const backendOrigin = API_BASE_URL.replace(/\/api\/v1\/?$/, '');
+  return `${backendOrigin}${url.startsWith('/') ? '' : '/'}${url}`;
+}
+
 export const AUTH_STORAGE = {
   TOKEN: 'auth_token',
   USER: 'auth_user',
@@ -212,7 +224,7 @@ export interface OrderCreatePayload {
 
 export type OrderItemCreatePayload = CreateOrderPayload['items'][number];
 
-const isOrderItem = (value: unknown): value is OrderItem => {
+export const isOrderItem = (value: unknown): value is OrderItem => {
   if (typeof value !== 'object' || value === null) return false;
   const order = value as Record<string, unknown>;
   return typeof order.id === 'number' &&
@@ -240,7 +252,10 @@ export interface ProductListResponse {
   user_role: string;
   is_cost_price_visible: boolean;
   summary?: ProductFinancialSummary;
+  applied_price_book?: string | null;
+  data?: ProductItem[];
   page?: number;
+  limit?: number;
   page_size?: number;
   total_pages?: number;
 }
@@ -248,6 +263,7 @@ export interface ProductListResponse {
 export interface GetProductsParams {
   page?: number;
   page_size?: number;
+  limit?: number;
   search?: string;
   category?: string;
   only_low_stock?: boolean;
@@ -635,9 +651,12 @@ export async function logoutApi(token: string): Promise<void> {
 export async function getProductsApi(token: string, params?: GetProductsParams): Promise<ProductListResponse> {
   const query = new URLSearchParams();
   if (params?.page) query.append('page', params.page.toString());
-  if (params?.page_size) query.append('page_size', params.page_size.toString());
+  const pageSizeVal = params?.page_size || params?.limit;
+  if (pageSizeVal) query.append('page_size', pageSizeVal.toString());
   if (params?.search && params.search.trim()) query.append('search', params.search.trim());
-  if (params?.category && params.category !== 'all') query.append('category', params.category);
+  if (params?.category && params.category !== 'ALL' && params.category !== 'all') {
+    query.append('category', params.category);
+  }
   if (params?.only_low_stock) query.append('only_low_stock', 'true');
 
   const queryString = query.toString();
@@ -715,10 +734,13 @@ export async function getOrdersApi(token: string): Promise<OrderItem[]> {
   if (!response.ok) {
     throw new Error(data.detail || `Lỗi tải danh sách đơn hàng (Mã lỗi ${response.status})`);
   }
-  if (!Array.isArray(data) || !data.every(isOrderItem)) {
-    throw new Error('Dữ liệu danh sách đơn hàng không hợp lệ.');
+  if (Array.isArray(data)) {
+    return data;
   }
-  return data;
+  if (data && Array.isArray((data as any).items)) {
+    return (data as any).items;
+  }
+  return [];
 }
 
 export async function getOrderDetailApi(token: string, orderCode: string): Promise<OrderDetail> {
