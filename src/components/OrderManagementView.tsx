@@ -791,8 +791,31 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
     );
   };
 
+  const getCleanApprovalReason = (ord: OrderResponseData): string | null => {
+    if (!ord || !ord.approval_reason) return null;
+    const s = (ord.status || '').toUpperCase();
+    const isApprovedOrPast =
+      ['CONFIRMED', 'APPROVED', 'PICKING', 'PREPARING', 'PACKING', 'EXPORTED', 'SHIPPED', 'DELIVERED', 'CLOSED', 'COMPLETED', 'CANCELLED', 'REJECTED'].includes(s) ||
+      !ord.requires_approval;
+    if (isApprovedOrPast) {
+      const parts = ord.approval_reason.split('|').map((p: string) => p.trim()).filter(Boolean);
+      const remaining = parts.filter((p: string) => {
+        const lower = p.toLowerCase().normalize('NFC');
+        return (
+          !lower.includes('đại lý tự đặt') &&
+          !lower.includes('cổng đại lý') &&
+          !lower.includes('nhân viên phụ trách xác nhận') &&
+          !lower.includes('chờ nhân viên')
+        );
+      });
+      return remaining.join(' | ') || null;
+    }
+    return ord.approval_reason;
+  };
+
   const renderOrderActions = (order: OrderResponseData) => {
     const isPending = order.status === 'PENDING_APPROVAL' || order.status === 'PENDING' || order.status === 'REVISION_REQUIRED';
+    const isApprovedOrConfirmed = ['CONFIRMED', 'APPROVED'].includes(order.status);
     const isDropdownOpen = openActionDropdownCode === order.order_code;
     const canApprove = isPending && canApproveOrder(order);
 
@@ -803,12 +826,19 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
       isOrderCancelable(order.status) &&
       (isCustomer ? ['PENDING_APPROVAL', 'PENDING', 'DRAFT', 'REVISION_REQUIRED'].includes(order.status) : isFullAccess);
 
-    const hasDropdownActions = !isCustomer;
+    // Dropdown thao tác duyệt chỉ hiển thị khi đơn chờ duyệt và có quyền duyệt (Duyệt, Trả lại, Từ chối)
+    // Khi đơn đã duyệt: Bỏ menu Thao tác, thay bằng nút Hủy trực tiếp
+    const showApprovalDropdown = !isCustomer && !isApprovedOrConfirmed && canApprove;
+
+    // Hiển thị nút Hủy trực tiếp khi có quyền hủy và:
+    // 1. Đơn đã duyệt (isApprovedOrConfirmed)
+    // 2. Hoặc đơn không có menu dropdown duyệt (isCustomer hoặc nhân viên không có quyền duyệt)
+    const showDirectCancel = canCancel && (!showApprovalDropdown || isApprovedOrConfirmed);
 
     return (
       <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', gap: '5px', whiteSpace: 'nowrap' }}>
-        {/* Menu Thao tác Dropdown dành cho Nhân viên / Quản lý / Admin */}
-        {hasDropdownActions && (
+        {/* Menu Thao tác Duyệt Dropdown khi đơn chờ duyệt và có quyền duyệt */}
+        {showApprovalDropdown && (
           <div
             className="order-action-dropdown-container order-status-dropdown-details relative inline-block text-left"
             style={{ position: 'relative', display: 'inline-block' }}
@@ -822,10 +852,10 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
               style={{
                 listStyle: 'none',
                 padding: '4px 8px',
-                background: canApprove ? (isDropdownOpen ? '#15803d' : '#16a34a') : (isDropdownOpen ? '#e2e8f0' : '#f8fafc'),
-                border: canApprove ? 'none' : '1px solid #cbd5e1',
+                background: isDropdownOpen ? '#15803d' : '#16a34a',
+                border: 'none',
                 borderRadius: '6px',
-                color: canApprove ? '#ffffff' : '#334155',
+                color: '#ffffff',
                 fontSize: '12px',
                 fontWeight: '600',
                 cursor: 'pointer',
@@ -839,18 +869,18 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                 userSelect: 'none',
                 outline: 'none',
                 transition: 'all 0.15s ease',
-                boxShadow: canApprove && isDropdownOpen ? '0 0 0 2px rgba(22, 163, 74, 0.35)' : 'none',
+                boxShadow: isDropdownOpen ? '0 0 0 2px rgba(22, 163, 74, 0.35)' : 'none',
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.background = canApprove ? '#15803d' : '#f1f5f9';
+                e.currentTarget.style.background = '#15803d';
               }}
               onMouseLeave={(e) => {
                 if (!isDropdownOpen) {
-                  e.currentTarget.style.background = canApprove ? '#16a34a' : '#f8fafc';
+                  e.currentTarget.style.background = '#16a34a';
                 }
               }}
             >
-              <span>{canApprove ? 'Thao tác duyệt' : 'Thao tác'}</span>
+              <span>Thao tác duyệt</span>
               <span
                 style={{
                   fontSize: '9px',
@@ -890,159 +920,114 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                   }}
                 >
                   {/* 1. Duyệt đơn (khi đơn chờ duyệt và có quyền duyệt) */}
-                  {canApprove && (
-                    <button
-                      type="button"
-                      id={`btn-approve-order-${order.order_code}`}
-                      onClick={() => {
-                        setOpenActionDropdownCode(null);
-                        setApprovingOrder(order);
-                      }}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        width: '100%',
-                        padding: '6px 10px',
-                        borderRadius: '5px',
-                        border: 'none',
-                        background: 'transparent',
-                        color: '#16a34a',
-                        fontSize: '12.5px',
-                        fontWeight: '600',
-                        textAlign: 'left',
-                        cursor: 'pointer',
-                        whiteSpace: 'nowrap',
-                        transition: 'all 0.15s ease',
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.background = '#f0fdf4';
-                        e.currentTarget.style.color = '#15803d';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.background = 'transparent';
-                        e.currentTarget.style.color = '#16a34a';
-                      }}
-                    >
-                      <span>Duyệt đơn</span>
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    id={`btn-approve-order-${order.order_code}`}
+                    onClick={() => {
+                      setOpenActionDropdownCode(null);
+                      setApprovingOrder(order);
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      width: '100%',
+                      padding: '6px 10px',
+                      borderRadius: '5px',
+                      border: 'none',
+                      background: 'transparent',
+                      color: '#16a34a',
+                      fontSize: '12.5px',
+                      fontWeight: '600',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap',
+                      transition: 'all 0.15s ease',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = '#f0fdf4';
+                      e.currentTarget.style.color = '#15803d';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'transparent';
+                      e.currentTarget.style.color = '#16a34a';
+                    }}
+                  >
+                    <span>Duyệt đơn</span>
+                  </button>
 
                   {/* 2. Trả lại sửa */}
-                  {canApprove && (
-                    <button
-                      type="button"
-                      id={`btn-return-order-${order.order_code}`}
-                      onClick={() => {
-                        setOpenActionDropdownCode(null);
-                        setReturningOrder(order);
-                      }}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        width: '100%',
-                        padding: '6px 10px',
-                        borderRadius: '5px',
-                        border: 'none',
-                        background: 'transparent',
-                        color: '#ea580c',
-                        fontSize: '12.5px',
-                        fontWeight: '600',
-                        textAlign: 'left',
-                        cursor: 'pointer',
-                        whiteSpace: 'nowrap',
-                        transition: 'all 0.15s ease',
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.background = '#fff7ed';
-                        e.currentTarget.style.color = '#c2410c';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.background = 'transparent';
-                        e.currentTarget.style.color = '#ea580c';
-                      }}
-                    >
-                      <span>Trả lại sửa</span>
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    id={`btn-return-order-${order.order_code}`}
+                    onClick={() => {
+                      setOpenActionDropdownCode(null);
+                      setReturningOrder(order);
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      width: '100%',
+                      padding: '6px 10px',
+                      borderRadius: '5px',
+                      border: 'none',
+                      background: 'transparent',
+                      color: '#ea580c',
+                      fontSize: '12.5px',
+                      fontWeight: '600',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap',
+                      transition: 'all 0.15s ease',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = '#fff7ed';
+                      e.currentTarget.style.color = '#c2410c';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'transparent';
+                      e.currentTarget.style.color = '#ea580c';
+                    }}
+                  >
+                    <span>Trả lại sửa</span>
+                  </button>
 
                   {/* 3. Từ chối */}
-                  {canApprove && (
-                    <button
-                      type="button"
-                      id={`btn-reject-order-${order.order_code}`}
-                      onClick={() => {
-                        setOpenActionDropdownCode(null);
-                        setRejectingOrder(order);
-                      }}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        width: '100%',
-                        padding: '6px 10px',
-                        borderRadius: '5px',
-                        border: 'none',
-                        background: 'transparent',
-                        color: '#dc2626',
-                        fontSize: '12.5px',
-                        fontWeight: '600',
-                        textAlign: 'left',
-                        cursor: 'pointer',
-                        whiteSpace: 'nowrap',
-                        transition: 'all 0.15s ease',
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.background = '#fef2f2';
-                        e.currentTarget.style.color = '#b91c1c';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.background = 'transparent';
-                        e.currentTarget.style.color = '#dc2626';
-                      }}
-                    >
-                      <span>Từ chối</span>
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    id={`btn-reject-order-${order.order_code}`}
+                    onClick={() => {
+                      setOpenActionDropdownCode(null);
+                      setRejectingOrder(order);
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      width: '100%',
+                      padding: '6px 10px',
+                      borderRadius: '5px',
+                      border: 'none',
+                      background: 'transparent',
+                      color: '#dc2626',
+                      fontSize: '12.5px',
+                      fontWeight: '600',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap',
+                      transition: 'all 0.15s ease',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = '#fef2f2';
+                      e.currentTarget.style.color = '#b91c1c';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'transparent';
+                      e.currentTarget.style.color = '#dc2626';
+                    }}
+                  >
+                    <span>Từ chối</span>
+                  </button>
 
-                  {/* 4. Sao chép đơn */}
-                  {!isCustomer && (
-                    <button
-                      type="button"
-                      id={`btn-dropdown-clone-order-${order.order_code}`}
-                      onClick={() => {
-                        setOpenActionDropdownCode(null);
-                        handleCloneOrder(order.order_code);
-                      }}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        width: '100%',
-                        padding: '6px 10px',
-                        borderRadius: '5px',
-                        border: 'none',
-                        background: 'transparent',
-                        color: '#059669',
-                        fontSize: '12.5px',
-                        fontWeight: '600',
-                        textAlign: 'left',
-                        cursor: 'pointer',
-                        whiteSpace: 'nowrap',
-                        transition: 'all 0.15s ease',
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.background = '#ecfdf5';
-                        e.currentTarget.style.color = '#047857';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.background = 'transparent';
-                        e.currentTarget.style.color = '#059669';
-                      }}
-                      title="Sao chép đơn hàng này thành đơn mới"
-                    >
-                      <span>Sao chép đơn</span>
-                    </button>
-                  )}
-
-                  {/* 5. Hủy đơn trong dropdown */}
+                  {/* 4. Hủy đơn trong dropdown */}
                   {canCancel && (
                     <button
                       type="button"
@@ -1085,14 +1070,14 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
           </div>
         )}
 
-        {/* Nút Hủy đơn trực tiếp dành cho Khách hàng khi có quyền hủy */}
-        {isCustomer && canCancel && (
+        {/* Nút Hủy hiển thị trực tiếp khi đã duyệt (hoặc khi không có menu duyệt mà có quyền hủy) */}
+        {showDirectCancel && (
           <button
             type="button"
-            id={`btn-customer-cancel-order-${order.order_code}`}
+            id={`btn-cancel-order-${order.order_code}`}
             onClick={() => setCancellingOrder(order)}
             style={{
-              padding: '4px 9px',
+              padding: '4px 10px',
               background: '#fff1f2',
               border: '1px solid #fecdd3',
               borderRadius: '6px',
@@ -1116,9 +1101,9 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
               e.currentTarget.style.background = '#fff1f2';
               e.currentTarget.style.color = '#e11d48';
             }}
-            title="Hủy đơn hàng chưa duyệt của đại lý"
+            title="Hủy đơn hàng này"
           >
-            Hủy đơn
+            Hủy
           </button>
         )}
 
@@ -1729,32 +1714,39 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                     </div>
 
                     {/* Cảnh báo hoặc lý do phê duyệt nếu có */}
-                    {(order.approval_reason || Boolean(
-                      order.dealer_status &&
-                      (order.dealer_status.toLowerCase().includes('khóa') ||
-                       order.dealer_status.toLowerCase().includes('lock'))
-                    )) && (
-                      <div className="text-[11.5px] p-2 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 leading-tight">
-                        {Boolean(
-                          order.dealer_status &&
-                          (order.dealer_status.toLowerCase().includes('khóa') ||
-                           order.dealer_status.toLowerCase().includes('lock'))
-                        ) && (
-                          <div className="font-bold text-red-600 mb-0.5">
-                            Đại lý bị khóa giao dịch (Cần kiểm tra công nợ)
-                          </div>
-                        )}
-                        {order.approval_reason && (
-                          <div className="space-y-1">
-                            {order.approval_reason.split(' | ').map((subReason: string, sIdx: number) => (
-                              <div key={sIdx} className="leading-snug">
-                                &bull; {subReason}
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    )}
+                    {(() => {
+                      const cleanReason = getCleanApprovalReason(order);
+                      if (!cleanReason && !Boolean(
+                        order.dealer_status &&
+                        (order.dealer_status.toLowerCase().includes('khóa') ||
+                         order.dealer_status.toLowerCase().includes('lock'))
+                      )) {
+                        return null;
+                      }
+
+                      return (
+                        <div className="text-[11.5px] p-2 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 leading-tight">
+                          {Boolean(
+                            order.dealer_status &&
+                            (order.dealer_status.toLowerCase().includes('khóa') ||
+                             order.dealer_status.toLowerCase().includes('lock'))
+                          ) && (
+                            <div className="font-bold text-red-600 mb-0.5">
+                              Đại lý bị khóa giao dịch (Cần kiểm tra công nợ)
+                            </div>
+                          )}
+                          {cleanReason && (
+                            <div className="space-y-1">
+                              {cleanReason.split(' | ').map((subReason: string, sIdx: number) => (
+                                <div key={sIdx} className="leading-snug">
+                                  &bull; {subReason}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
 
                     {/* Nút bấm thao tác */}
                     <div
@@ -1863,73 +1855,80 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                         </td>
 
                         <td style={{ padding: '9px 12px', maxWidth: '280px' }}>
-                          {Boolean(
-                            order.dealer_status &&
-                            (order.dealer_status.toLowerCase().includes('khóa') ||
-                             order.dealer_status.toLowerCase().includes('lock'))
-                          ) && (
-                            <div style={{ fontSize: '11.5px', color: '#dc2626', fontWeight: '600', marginBottom: order.approval_reason ? '3px' : '0' }}>
-                              Đại lý bị khóa giao dịch (Cần kiểm tra công nợ)
-                            </div>
-                          )}
-                          {order.approval_reason ? (
-                            <div style={{ fontSize: '11.5px', color: isRejected ? '#dc2626' : isRevision ? '#c2410c' : '#b45309', lineHeight: '1.4' }}>
-                              {order.approval_reason.split(' | ').map((subReason: string, sIdx: number) => {
-                                const isFloor = subReason.toLowerCase().includes('giá sàn') || subReason.toLowerCase().includes('giá niêm yết');
-                                const isDebt = subReason.toLowerCase().includes('hạn mức công nợ') || subReason.toLowerCase().includes('tổng nợ');
-                                const isDiscount = subReason.toLowerCase().includes('chiết khấu');
-                                const isReturn = subReason.toLowerCase().includes('yêu cầu sửa');
-                                const isReject = subReason.toLowerCase().includes('bị từ chối');
-
-                                return (
-                                  <div key={sIdx} style={{ marginTop: sIdx > 0 ? '3px' : '0' }}>
-                                    {isFloor && (
-                                      <span style={{ display: 'inline-block', background: '#fee2e2', color: '#991b1b', border: '1px solid #fecaca', borderRadius: '3px', padding: '0 4px', fontSize: '10.5px', fontWeight: '700', marginRight: '4px' }}>
-                                        Dưới giá sàn
-                                      </span>
-                                    )}
-                                    {isDebt && (
-                                      <span style={{ display: 'inline-block', background: '#fef3c7', color: '#92400e', border: '1px solid #fde68a', borderRadius: '3px', padding: '0 4px', fontSize: '10.5px', fontWeight: '700', marginRight: '4px' }}>
-                                        Vượt hạn mức
-                                      </span>
-                                    )}
-                                    {isDiscount && (
-                                      <span style={{ display: 'inline-block', background: '#fef3c7', color: '#92400e', border: '1px solid #fde68a', borderRadius: '3px', padding: '0 4px', fontSize: '10.5px', fontWeight: '700', marginRight: '4px' }}>
-                                        Vượt CK
-                                      </span>
-                                    )}
-                                    {isReturn && (
-                                      <span style={{ display: 'inline-block', background: '#ffedd5', color: '#c2410c', border: '1px solid #fed7aa', borderRadius: '3px', padding: '0 4px', fontSize: '10.5px', fontWeight: '700', marginRight: '4px' }}>
-                                        Cần sửa
-                                      </span>
-                                    )}
-                                    {isReject && (
-                                      <span style={{ display: 'inline-block', background: '#fee2e2', color: '#991b1b', border: '1px solid #fecaca', borderRadius: '3px', padding: '0 4px', fontSize: '10.5px', fontWeight: '700', marginRight: '4px' }}>
-                                        Từ chối
-                                      </span>
-                                    )}
-                                    <span>{subReason}</span>
+                          {(() => {
+                            const cleanReason = getCleanApprovalReason(order);
+                            return (
+                              <>
+                                {Boolean(
+                                  order.dealer_status &&
+                                  (order.dealer_status.toLowerCase().includes('khóa') ||
+                                   order.dealer_status.toLowerCase().includes('lock'))
+                                ) && (
+                                  <div style={{ fontSize: '11.5px', color: '#dc2626', fontWeight: '600', marginBottom: cleanReason ? '3px' : '0' }}>
+                                    Đại lý bị khóa giao dịch (Cần kiểm tra công nợ)
                                   </div>
-                                );
-                              })}
-                            </div>
-                          ) : order.approved_by ? (
-                            <div style={{ fontSize: '11.5px', color: '#16a34a', fontWeight: '500' }}>
-                              Duyệt bởi @{order.approved_by}
-                            </div>
-                          ) : isPending ? (
-                            <div style={{ fontSize: '11.5px', color: '#b45309', fontWeight: '500' }}>
-                              {order.discount_rate && order.discount_rate > 0
-                                ? `Chiết khấu (${order.discount_rate}%) vượt hạn mức cần duyệt`
-                                : 'Bán dưới giá sàn cần quản lý duyệt'}
-                            </div>
-                          ) : !Boolean(
-                            order.dealer_status &&
-                            (order.dealer_status.toLowerCase().includes('khóa') ||
-                             order.dealer_status.toLowerCase().includes('lock'))
-                          ) ? (
-                            <span style={{ color: '#94a3b8', fontSize: '11.5px' }}>Đơn giá chuẩn bảng giá</span>
-                          ) : null}
+                                )}
+                                {cleanReason ? (
+                                  <div style={{ fontSize: '11.5px', color: isRejected ? '#dc2626' : isRevision ? '#c2410c' : '#b45309', lineHeight: '1.4' }}>
+                                    {cleanReason.split(' | ').map((subReason: string, sIdx: number) => {
+                                      const isFloor = subReason.toLowerCase().includes('giá sàn') || subReason.toLowerCase().includes('giá niêm yết');
+                                      const isDebt = subReason.toLowerCase().includes('hạn mức công nợ') || subReason.toLowerCase().includes('tổng nợ');
+                                      const isDiscount = subReason.toLowerCase().includes('chiết khấu');
+                                      const isReturn = subReason.toLowerCase().includes('yêu cầu sửa');
+                                      const isReject = subReason.toLowerCase().includes('bị từ chối');
+
+                                      return (
+                                        <div key={sIdx} style={{ marginTop: sIdx > 0 ? '3px' : '0' }}>
+                                          {isFloor && (
+                                            <span style={{ display: 'inline-block', background: '#fee2e2', color: '#991b1b', border: '1px solid #fecaca', borderRadius: '3px', padding: '0 4px', fontSize: '10.5px', fontWeight: '700', marginRight: '4px' }}>
+                                              Dưới giá sàn
+                                            </span>
+                                          )}
+                                          {isDebt && (
+                                            <span style={{ display: 'inline-block', background: '#fef3c7', color: '#92400e', border: '1px solid #fde68a', borderRadius: '3px', padding: '0 4px', fontSize: '10.5px', fontWeight: '700', marginRight: '4px' }}>
+                                              Vượt hạn mức
+                                            </span>
+                                          )}
+                                          {isDiscount && (
+                                            <span style={{ display: 'inline-block', background: '#fef3c7', color: '#92400e', border: '1px solid #fde68a', borderRadius: '3px', padding: '0 4px', fontSize: '10.5px', fontWeight: '700', marginRight: '4px' }}>
+                                              Vượt CK
+                                            </span>
+                                          )}
+                                          {isReturn && (
+                                            <span style={{ display: 'inline-block', background: '#ffedd5', color: '#c2410c', border: '1px solid #fed7aa', borderRadius: '3px', padding: '0 4px', fontSize: '10.5px', fontWeight: '700', marginRight: '4px' }}>
+                                              Cần sửa
+                                            </span>
+                                          )}
+                                          {isReject && (
+                                            <span style={{ display: 'inline-block', background: '#fee2e2', color: '#991b1b', border: '1px solid #fecaca', borderRadius: '3px', padding: '0 4px', fontSize: '10.5px', fontWeight: '700', marginRight: '4px' }}>
+                                              Từ chối
+                                            </span>
+                                          )}
+                                          <span>{subReason}</span>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                ) : order.approved_by ? (
+                                  <div style={{ fontSize: '11.5px', color: '#16a34a', fontWeight: '500' }}>
+                                    Duyệt bởi @{order.approved_by}
+                                  </div>
+                                ) : isPending ? (
+                                  <div style={{ fontSize: '11.5px', color: '#b45309', fontWeight: '500' }}>
+                                    {order.discount_rate && order.discount_rate > 0
+                                      ? `Chiết khấu (${order.discount_rate}%) vượt hạn mức cần duyệt`
+                                      : 'Bán dưới giá sàn cần quản lý duyệt'}
+                                  </div>
+                                ) : !Boolean(
+                                  order.dealer_status &&
+                                  (order.dealer_status.toLowerCase().includes('khóa') ||
+                                   order.dealer_status.toLowerCase().includes('lock'))
+                                ) ? (
+                                  <span style={{ color: '#94a3b8', fontSize: '11.5px' }}>Đơn giá chuẩn bảng giá</span>
+                                ) : null}
+                              </>
+                            );
+                          })()}
                         </td>
 
                         <td style={{ padding: '9px 14px', textAlign: 'right', whiteSpace: 'nowrap', position: 'relative', zIndex: openActionDropdownCode === order.order_code ? 40 : 'auto' }}>
