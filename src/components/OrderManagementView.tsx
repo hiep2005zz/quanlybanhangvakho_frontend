@@ -920,6 +920,35 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
     );
   };
 
+  // SCRUM: Chuyển Tạo Đơn Hàng Mới thành 1 trang riêng biệt thay vì popup modal
+  if (isCreateModalOpen) {
+    return (
+      <div className="w-full max-w-[1680px] mx-auto p-2.5 sm:p-4 md:p-6 flex flex-col flex-1 min-h-0 overflow-y-auto">
+        <OrderCreateModal
+          isOpen={true}
+          isPageMode={true}
+          token={token}
+          currentUser={currentUser}
+          products={products}
+          initialDealerId={reorderInitialData?.dealerId}
+          initialOrderItems={reorderInitialData?.items}
+          initialNote={reorderInitialData?.note}
+          initialDeliveryPointId={reorderInitialData?.deliveryPointId}
+          onClose={() => {
+            setIsCreateModalOpen(false);
+            setReorderInitialData(null);
+          }}
+          onSuccess={() => {
+            setIsCreateModalOpen(false);
+            setReorderInitialData(null);
+            fetchOrders();
+            if (onRefreshProducts) onRefreshProducts();
+          }}
+        />
+      </div>
+    );
+  }
+
   return (
     <div
       className="w-full max-w-[1680px] mx-auto p-2.5 sm:p-4 md:p-0 flex flex-col flex-1 min-h-0 md:h-full overflow-y-auto md:overflow-hidden"
@@ -2367,29 +2396,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
         document.body
       )}
 
-      {/* Modal Tạo Đơn Hàng */}
-      {isCreateModalOpen && (
-        <OrderCreateModal
-          isOpen={isCreateModalOpen}
-          token={token}
-          currentUser={currentUser}
-          products={products}
-          initialDealerId={reorderInitialData?.dealerId}
-          initialOrderItems={reorderInitialData?.items}
-          initialNote={reorderInitialData?.note}
-          initialDeliveryPointId={reorderInitialData?.deliveryPointId}
-          onClose={() => {
-            setIsCreateModalOpen(false);
-            setReorderInitialData(null);
-          }}
-          onSuccess={() => {
-            setIsCreateModalOpen(false);
-            setReorderInitialData(null);
-            fetchOrders();
-            if (onRefreshProducts) onRefreshProducts();
-          }}
-        />
-      )}
+
 
       {/* Modal Phê Duyệt Đơn Hàng (Không dùng window.confirm) */}
       {approvingOrder && (

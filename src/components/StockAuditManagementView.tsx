@@ -61,19 +61,19 @@ export function StockAuditManagementView({ token, currentUser }: StockAuditManag
   const [warehouses, setWarehouses] = useState<{ id: string; name: string }[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
 
-  // Modal Tạo phiếu
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  // Chế độ xem: 'list' (Danh sách phiếu), 'create' (Trang tạo phiếu mới), 'detail' (Trang chi tiết & nhập kiểm đếm)
+  const [viewMode, setViewMode] = useState<'list' | 'create' | 'detail'>('list');
   const [createScopeType, setCreateScopeType] = useState<'WAREHOUSE' | 'CATEGORY'>('WAREHOUSE');
   const [createWarehouseId, setCreateWarehouseId] = useState('WH01');
   const [createCategoryId, setCreateCategoryId] = useState<number | ''>('');
   const [createNote, setCreateNote] = useState('');
+  const [createSearchProduct, setCreateSearchProduct] = useState('');
   const [createPreviewLoading, setCreatePreviewLoading] = useState(false);
   const [createPreviewItems, setCreatePreviewItems] = useState<any[]>([]);
   const [isSubmittingCreate, setIsSubmittingCreate] = useState(false);
 
-  // Modal Chi tiết & Nhập kết quả
+  // Chi tiết & Nhập kết quả
   const [selectedAudit, setSelectedAudit] = useState<StockAudit | null>(null);
-  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
   const [auditItemsState, setAuditItemsState] = useState<StockAuditItem[]>([]);
   const [detailSearchProduct, setDetailSearchProduct] = useState('');
@@ -121,12 +121,12 @@ export function StockAuditManagementView({ token, currentUser }: StockAuditManag
     fetchCategories();
   }, [token, fetchCategories]);
 
-  // Tự động tải lại danh mục nếu mở modal tạo phiếu mà chưa có dữ liệu nhóm hàng
+  // Tự động tải lại danh mục nếu mở trang tạo phiếu mà chưa có dữ liệu nhóm hàng
   useEffect(() => {
-    if (isCreateModalOpen && categories.length === 0) {
+    if (viewMode === 'create' && categories.length === 0) {
       fetchCategories();
     }
-  }, [isCreateModalOpen, categories.length, fetchCategories]);
+  }, [viewMode, categories.length, fetchCategories]);
 
   // Tải danh sách phiếu kiểm kê
   const fetchAudits = useCallback(async () => {
@@ -160,7 +160,7 @@ export function StockAuditManagementView({ token, currentUser }: StockAuditManag
 
   // Xem trước danh sách sản phẩm khi tạo phiếu
   useEffect(() => {
-    if (!isCreateModalOpen || !createWarehouseId) return;
+    if (viewMode !== 'create' || !createWarehouseId) return;
     if (createScopeType === 'CATEGORY' && !createCategoryId) {
       setCreatePreviewItems([]);
       return;
@@ -181,7 +181,19 @@ export function StockAuditManagementView({ token, currentUser }: StockAuditManag
       .finally(() => {
         setCreatePreviewLoading(false);
       });
-  }, [isCreateModalOpen, createWarehouseId, createScopeType, createCategoryId, token]);
+  }, [viewMode, createWarehouseId, createScopeType, createCategoryId, token]);
+
+  // Lọc sản phẩm trong danh sách xem trước khi tạo phiếu
+  const filteredPreviewItems = useMemo(() => {
+    if (!createSearchProduct.trim()) return createPreviewItems;
+    const kw = createSearchProduct.toLowerCase().trim();
+    return createPreviewItems.filter(
+      (p) =>
+        p.product_name?.toLowerCase().includes(kw) ||
+        p.product_code?.toLowerCase().includes(kw) ||
+        (p.category_name && p.category_name.toLowerCase().includes(kw))
+    );
+  }, [createPreviewItems, createSearchProduct]);
 
   // Thống kê nhanh từ danh sách
   const stats = useMemo(() => {
@@ -201,10 +213,10 @@ export function StockAuditManagementView({ token, currentUser }: StockAuditManag
     };
   }, [audits, totalCount]);
 
-  // Mở modal chi tiết phiếu
+  // Mở trang chi tiết phiếu kiểm kê
   const handleOpenDetail = async (auditId: number) => {
     setDetailLoading(true);
-    setIsDetailModalOpen(true);
+    setViewMode('detail');
     try {
       const detail = await getStockAuditDetailApi(token, auditId);
       setSelectedAudit(detail);
@@ -215,7 +227,8 @@ export function StockAuditManagementView({ token, currentUser }: StockAuditManag
         message: err instanceof Error ? err.message : 'Không thể tải chi tiết phiếu',
         type: 'error',
       });
-      setIsDetailModalOpen(false);
+      setViewMode('list');
+      setSelectedAudit(null);
     } finally {
       setDetailLoading(false);
     }
@@ -293,8 +306,8 @@ export function StockAuditManagementView({ token, currentUser }: StockAuditManag
   };
 
   // Xử lý tạo phiếu mới
-  const handleCreateAudit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleCreateAudit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (isSubmittingCreate) return;
     if (createScopeType === 'CATEGORY' && !createCategoryId) {
       emitStatusToast({
@@ -320,8 +333,9 @@ export function StockAuditManagementView({ token, currentUser }: StockAuditManag
         type: 'success',
       });
 
-      setIsCreateModalOpen(false);
+      setViewMode('list');
       setCreateNote('');
+      setCreateSearchProduct('');
       fetchAudits();
 
       // Mở ngay chi tiết phiếu vừa tạo
@@ -480,6 +494,837 @@ export function StockAuditManagementView({ token, currentUser }: StockAuditManag
     };
   }, [auditItemsState]);
 
+  // =========================================================
+  // GIAO DIỆN TRANG TẠO PHIẾU KIỂM KÊ (FULL PAGE VIEW)
+  // =========================================================
+  if (viewMode === 'create') {
+    const selectedWarehouse = warehouses.find((w) => w.id === createWarehouseId);
+
+    return (
+      <div
+        style={{
+          width: '100%',
+          maxWidth: '1680px',
+          margin: '0 auto',
+          padding: 0,
+          height: '100%',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+          gap: '12px',
+        }}
+      >
+        {/* Header Trang Tạo Phiếu */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-gray-200 shrink-0 bg-white">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                setViewMode('list');
+                setCreateNote('');
+                setCreatePreviewItems([]);
+                setCreateSearchProduct('');
+              }}
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors cursor-pointer border-0"
+              title="Quay lại danh sách phiếu"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+              </svg>
+              <span>Quay lại</span>
+            </button>
+            <div className="h-6 w-px bg-gray-200 hidden sm:block" />
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#0fad89]" />
+                <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
+                  Tạo phiếu kiểm kê kho
+                </h1>
+              </div>
+              <p className="text-xs text-gray-500 mt-0.5">
+                Chốt số lượng tồn kho căn cứ tại thời điểm tạo phiếu cho phạm vi được chọn làm căn cứ đối soát
+              </p>
+            </div>
+          </div>
+
+          {/* Action buttons góc trên */}
+          <div className="flex items-center gap-2.5 self-end sm:self-auto">
+            <button
+              type="button"
+              onClick={() => {
+                setViewMode('list');
+                setCreateNote('');
+                setCreatePreviewItems([]);
+                setCreateSearchProduct('');
+              }}
+              className="px-4 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-100 rounded-lg cursor-pointer border border-gray-300 bg-white transition-colors"
+            >
+              Hủy bỏ
+            </button>
+            <button
+              type="button"
+              id="btn-submit-create-audit-page"
+              onClick={() => handleCreateAudit()}
+              disabled={isSubmittingCreate || createPreviewItems.length === 0}
+              className="px-5 py-2 text-xs font-bold text-white bg-[#0fad89] hover:bg-[#0c8a6d] rounded-lg shadow-sm disabled:opacity-50 cursor-pointer border-0 transition-all flex items-center gap-2"
+            >
+              {isSubmittingCreate ? (
+                <>
+                  <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <span>Đang tạo phiếu...</span>
+                </>
+              ) : (
+                <>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span>Xác nhận tạo phiếu</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* Thân trang: 2 Cột */}
+        <div className="flex-1 min-h-0 overflow-y-auto grid grid-cols-1 lg:grid-cols-12 gap-4 pb-2">
+          {/* Cột trái: Cấu hình phiếu kiểm kê (4 cột) */}
+          <div className="lg:col-span-4 flex flex-col gap-4">
+            <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-xs flex flex-col gap-4">
+              <div className="flex items-center gap-2 pb-2 border-b border-gray-100">
+                <span className="w-2 h-2 rounded-full bg-[#0fad89]" />
+                <h3 className="text-sm font-bold text-gray-900">1. Thông tin đợt kiểm kê</h3>
+              </div>
+
+              {/* 1. Chọn phạm vi kiểm kê */}
+              <div>
+                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
+                  Phạm vi kiểm kê <span className="text-red-500">*</span>
+                </label>
+                <div className="grid grid-cols-2 gap-2.5">
+                  <label
+                    className={`flex items-start gap-2.5 p-3 rounded-xl border text-xs cursor-pointer transition-all ${
+                      createScopeType === 'WAREHOUSE'
+                        ? 'border-[#0fad89] bg-emerald-50/60 text-[#0fad89] font-bold shadow-xs ring-1 ring-[#0fad89]'
+                        : 'border-gray-200 hover:bg-gray-50 text-gray-700'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="scope_type_page"
+                      value="WAREHOUSE"
+                      checked={createScopeType === 'WAREHOUSE'}
+                      onChange={() => setCreateScopeType('WAREHOUSE')}
+                      className="text-[#0fad89] focus:ring-[#0fad89] mt-0.5"
+                    />
+                    <div>
+                      <div className="font-bold">Theo kho</div>
+                      <div className="text-[11px] text-gray-500 font-normal mt-0.5">Kiểm kê toàn bộ sản phẩm trong kho</div>
+                    </div>
+                  </label>
+
+                  <label
+                    className={`flex items-start gap-2.5 p-3 rounded-xl border text-xs cursor-pointer transition-all ${
+                      createScopeType === 'CATEGORY'
+                        ? 'border-[#0fad89] bg-emerald-50/60 text-[#0fad89] font-bold shadow-xs ring-1 ring-[#0fad89]'
+                        : 'border-gray-200 hover:bg-gray-50 text-gray-700'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="scope_type_page"
+                      value="CATEGORY"
+                      checked={createScopeType === 'CATEGORY'}
+                      onChange={() => {
+                        setCreateScopeType('CATEGORY');
+                        setCreateCategoryId('');
+                        setCreatePreviewItems([]);
+                      }}
+                      className="text-[#0fad89] focus:ring-[#0fad89] mt-0.5"
+                    />
+                    <div>
+                      <div className="font-bold">Theo nhóm hàng</div>
+                      <div className="text-[11px] text-gray-500 font-normal mt-0.5">Chỉ kiểm kê một nhóm hàng cụ thể</div>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              {/* 2. Chọn kho áp dụng */}
+              <div>
+                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+                  Kho áp dụng kiểm kê <span className="text-red-500">*</span>
+                </label>
+                <select
+                  id="select-create-warehouse-page"
+                  value={createWarehouseId}
+                  onChange={(e) => setCreateWarehouseId(e.target.value)}
+                  required
+                  className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0fad89] bg-white font-medium text-gray-800"
+                >
+                  {warehouses.map((wh) => (
+                    <option key={wh.id} value={wh.id}>
+                      {wh.name} ({wh.id})
+                    </option>
+                  ))}
+                </select>
+                <p className="text-[11px] text-gray-500 mt-1.5">
+                  Số lượng tồn căn cứ sẽ được chốt trực tiếp từ số liệu tại kho này.
+                </p>
+              </div>
+
+              {/* 3. Chọn nhóm hàng (nếu CATEGORY) */}
+              {createScopeType === 'CATEGORY' && (
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+                    Nhóm hàng cần kiểm kê <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    id="select-create-category-page"
+                    value={createCategoryId}
+                    onChange={(e) => setCreateCategoryId(e.target.value ? Number(e.target.value) : '')}
+                    required
+                    className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0fad89] bg-white text-gray-800"
+                  >
+                    <option value="">-- Chọn nhóm hàng --</option>
+                    {categories.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* 4. Thông tin người lập & thời điểm */}
+              <div className="p-3 bg-gray-50 rounded-lg border border-gray-200 text-xs flex flex-col gap-1.5 text-gray-600">
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-500">Người lập phiếu:</span>
+                  <span className="font-semibold text-gray-900">{currentUser?.full_name || currentUser?.username || 'Thủ kho'}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-500">Vai trò:</span>
+                  <span className="font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                    {currentUser?.role_title || currentUser?.role || 'Thủ kho'}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-500">Thời điểm chốt tồn:</span>
+                  <span className="font-medium text-gray-800">{new Date().toLocaleString('vi-VN')}</span>
+                </div>
+              </div>
+
+              {/* 5. Ghi chú chung */}
+              <div>
+                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+                  Ghi chú đợt kiểm kê
+                </label>
+                <textarea
+                  id="textarea-create-note-page"
+                  value={createNote}
+                  onChange={(e) => setCreateNote(e.target.value)}
+                  placeholder="Ví dụ: Kiểm kê định kỳ tháng 10, kiểm tra nhóm hàng gia dụng..."
+                  rows={3}
+                  className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0fad89] resize-none"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Cột phải: Xem trước danh sách sản phẩm thuộc phạm vi (8 cột) */}
+          <div className="lg:col-span-8 flex flex-col min-h-0 bg-white rounded-xl border border-gray-200 shadow-xs overflow-hidden">
+            {/* Header của bảng xem trước */}
+            <div className="p-4 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-gray-50/60 shrink-0">
+              <div className="flex items-center gap-2.5">
+                <span className="w-2 h-2 rounded-full bg-[#0fad89]" />
+                <h3 className="text-sm font-bold text-gray-900">2. Danh sách sản phẩm chốt tồn căn cứ</h3>
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                  {createPreviewItems.length} mặt hàng
+                </span>
+              </div>
+
+              {/* Ô tìm kiếm trong danh sách xem trước */}
+              <div className="relative w-full sm:w-64">
+                <input
+                  type="text"
+                  placeholder="Tìm mã hoặc tên sản phẩm..."
+                  value={createSearchProduct}
+                  onChange={(e) => setCreateSearchProduct(e.target.value)}
+                  className="w-full pl-8 pr-3 py-1.5 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0fad89] bg-white"
+                />
+                <svg className="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
+            </div>
+
+            {/* Bảng danh sách sản phẩm */}
+            <div className="flex-1 min-h-[300px] overflow-y-auto">
+              {createPreviewLoading ? (
+                <div className="p-12 text-center text-gray-500 flex flex-col items-center justify-center h-full">
+                  <div className="w-8 h-8 border-3 border-[#0fad89] border-t-transparent rounded-full animate-spin mb-3" />
+                  <span className="text-xs font-semibold">Đang lấy dữ liệu tồn kho căn cứ từ hệ thống...</span>
+                </div>
+              ) : createPreviewItems.length === 0 ? (
+                <div className="p-12 text-center text-gray-400 flex flex-col items-center justify-center h-full">
+                  <svg className="w-12 h-12 text-gray-300 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                  </svg>
+                  <span className="text-xs font-medium">
+                    {createScopeType === 'CATEGORY' && !createCategoryId
+                      ? 'Vui lòng chọn nhóm hàng để xem danh sách sản phẩm cần kiểm kê'
+                      : 'Không có sản phẩm nào thuộc phạm vi đã chọn'}
+                  </span>
+                </div>
+              ) : (
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-gray-100 text-gray-700 uppercase font-semibold text-[11px] sticky top-0 z-10 border-b border-gray-200">
+                    <tr>
+                      <th className="py-2.5 px-3 text-center w-12">STT</th>
+                      <th className="py-2.5 px-3 w-28">Mã SP</th>
+                      <th className="py-2.5 px-3">Tên sản phẩm</th>
+                      <th className="py-2.5 px-3 w-24 text-center">ĐVT</th>
+                      <th className="py-2.5 px-3 w-28 text-center bg-emerald-50 text-emerald-900 font-bold">Tồn chốt</th>
+                      <th className="py-2.5 px-3 w-24 text-center text-gray-600">Giữ chỗ</th>
+                      <th className="py-2.5 px-3 w-24 text-center text-gray-600">Khả dụng</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {filteredPreviewItems.map((p, idx) => (
+                      <tr key={p.product_id} className="hover:bg-emerald-50/30 transition-colors">
+                        <td className="py-2.5 px-3 text-center text-gray-400 font-mono text-[11px]">{idx + 1}</td>
+                        <td className="py-2.5 px-3 font-semibold text-gray-900 font-mono">{p.product_code}</td>
+                        <td className="py-2.5 px-3">
+                          <div className="font-semibold text-gray-900">{p.product_name}</div>
+                          {p.category_name && (
+                            <div className="text-[10px] text-gray-500 mt-0.5">{p.category_name}</div>
+                          )}
+                        </td>
+                        <td className="py-2.5 px-3 text-center text-gray-600 font-medium">{p.base_unit || 'Cái'}</td>
+                        <td className="py-2.5 px-3 text-center font-bold text-gray-900 bg-emerald-50/40 text-sm">
+                          {p.system_stock}
+                        </td>
+                        <td className="py-2.5 px-3 text-center text-gray-500 font-medium">
+                          {p.reserved_stock ?? 0}
+                        </td>
+                        <td className="py-2.5 px-3 text-center font-semibold text-emerald-700">
+                          {p.available_stock ?? p.system_stock}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+
+            {/* Footer của bảng xem trước */}
+            <div className="p-3 border-t border-gray-200 bg-gray-50 text-xs flex items-center justify-between text-gray-600 shrink-0">
+              <span>Hiển thị <strong>{filteredPreviewItems.length}</strong> / <strong>{createPreviewItems.length}</strong> sản phẩm</span>
+              <span className="text-[11px] text-gray-500 italic">Số lượng tồn kho căn cứ được ghi nhận chính xác tại kho {selectedWarehouse?.name || createWarehouseId}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // =========================================================
+  // GIAO DIỆN TRANG CHI TIẾT & KIỂM ĐẾM (FULL PAGE VIEW)
+  // =========================================================
+  if (viewMode === 'detail' && selectedAudit) {
+    return (
+      <div
+        style={{
+          width: '100%',
+          maxWidth: '1680px',
+          margin: '0 auto',
+          padding: 0,
+          height: '100%',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+          gap: '12px',
+        }}
+      >
+        {/* Header Trang Chi Tiết */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-gray-200 shrink-0 bg-white px-2">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                setViewMode('list');
+                setSelectedAudit(null);
+                setDetailSearchProduct('');
+              }}
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors cursor-pointer border-0"
+              title="Quay lại danh sách phiếu"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+              </svg>
+              <span>Quay lại</span>
+            </button>
+            <div className="h-6 w-px bg-gray-200 hidden sm:block" />
+            <div>
+              <div className="flex items-center gap-2.5">
+                <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
+                  Phiếu kiểm kê {selectedAudit.code}
+                </h1>
+                <span
+                  className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${
+                    selectedAudit.status === 'CONFIRMED'
+                      ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                      : selectedAudit.status === 'CANCELLED'
+                      ? 'bg-gray-100 text-gray-700 border border-gray-200'
+                      : 'bg-amber-100 text-amber-800 border border-amber-200'
+                  }`}
+                >
+                  {selectedAudit.status_label}
+                </span>
+              </div>
+              <div className="text-xs text-gray-500 mt-1 flex flex-wrap gap-x-4 gap-y-1">
+                <span><strong>Kho:</strong> {selectedAudit.warehouse_name}</span>
+                <span><strong>Phạm vi:</strong> {selectedAudit.scope_type === 'CATEGORY' ? `Nhóm hàng: ${selectedAudit.category_name}` : 'Toàn kho'}</span>
+                <span><strong>Người tạo:</strong> {selectedAudit.created_by} ({new Date(selectedAudit.created_at).toLocaleString('vi-VN')})</span>
+                {selectedAudit.confirmed_by && (
+                  <span className="text-emerald-700 font-semibold">
+                    <strong>Người xác nhận:</strong> {selectedAudit.confirmed_by} ({new Date(selectedAudit.confirmed_at!).toLocaleString('vi-VN')})
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Thẻ tóm tắt nhanh kết quả & Ô tìm kiếm */}
+        <div className="bg-white p-3.5 rounded-xl border border-gray-200 shadow-xs flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs shrink-0">
+          <div className="flex items-center flex-wrap gap-x-4 gap-y-1">
+            <span className="font-semibold text-gray-700">
+              Tổng: <strong>{detailStats.total} SP</strong>
+            </span>
+            <span className="text-green-600 font-semibold">
+              Khớp: <strong>{detailStats.matchCount}</strong>
+            </span>
+            <span className="text-rose-600 font-semibold">
+              Thiếu: <strong>{detailStats.deficitCount} SP</strong> ({detailStats.totalDeficitQty} ĐVT)
+            </span>
+            <span className="text-blue-600 font-semibold">
+              Thừa: <strong>{detailStats.surplusCount} SP</strong> (+{detailStats.totalSurplusQty} ĐVT)
+            </span>
+            {detailStats.pendingCount > 0 && (
+              <span className="text-amber-600 font-bold">
+                Chưa đếm: {detailStats.pendingCount} SP
+              </span>
+            )}
+          </div>
+
+          <div className="relative w-full sm:w-72">
+            <input
+              type="text"
+              placeholder="Tìm kiếm sản phẩm trong phiếu..."
+              value={detailSearchProduct}
+              onChange={(e) => setDetailSearchProduct(e.target.value)}
+              className="w-full pl-8 pr-3 py-1.5 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0fad89] bg-white"
+            />
+            <svg className="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </div>
+        </div>
+
+        {/* Bảng chi tiết sản phẩm kiểm đếm */}
+        <div className="flex-1 min-h-0 bg-white rounded-xl border border-gray-200 shadow-xs overflow-hidden flex flex-col">
+          <div className="flex-1 min-h-0 overflow-y-auto">
+            {detailLoading ? (
+              <div className="py-16 text-center text-gray-500 flex flex-col items-center justify-center h-full">
+                <div className="w-8 h-8 border-3 border-[#0fad89] border-t-transparent rounded-full animate-spin mb-3" />
+                <span className="text-xs font-semibold">Đang nạp dữ liệu chi tiết phiếu...</span>
+              </div>
+            ) : (
+              <table className="w-full divide-y divide-gray-200 text-xs text-left">
+                <thead className="bg-gray-100 text-gray-700 font-bold uppercase tracking-wider text-[11px] sticky top-0 z-10 border-b border-gray-200">
+                  <tr>
+                    <th className="py-2.5 px-3 w-28">Mã SP</th>
+                    <th className="py-2.5 px-3">Tên sản phẩm</th>
+                    <th className="py-2.5 px-3 text-center w-24">ĐVT cơ sở</th>
+                    <th className="py-2.5 px-3 text-center bg-gray-200/70 w-28 font-bold">Tồn đã chốt</th>
+                    <th className="py-2.5 px-3 text-center w-36">SL thực tế</th>
+                    <th className="py-2.5 px-3 text-center w-28">Chênh lệch</th>
+                    <th className="py-2.5 px-3 text-center w-28">Kết quả</th>
+                    <th className="py-2.5 px-3">Lý do chênh lệch</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {filteredDetailItems.map((itm) => {
+                    const isDeficit = typeof itm.discrepancy === 'number' && itm.discrepancy < 0;
+                    const isSurplus = typeof itm.discrepancy === 'number' && itm.discrepancy > 0;
+                    const isMatch = itm.discrepancy === 0;
+                    const isPending = itm.actual_stock === null || itm.actual_stock === undefined;
+                    const isReadOnly = selectedAudit.status !== 'IN_PROGRESS' || !canManageAudit;
+
+                    return (
+                      <tr
+                        key={itm.product_id}
+                        className={`transition-colors ${
+                          isDeficit
+                            ? 'bg-rose-50/60 hover:bg-rose-100/50'
+                            : isSurplus
+                            ? 'bg-blue-50/60 hover:bg-blue-100/50'
+                            : isMatch
+                            ? 'hover:bg-gray-50'
+                            : 'hover:bg-amber-50/40'
+                        }`}
+                      >
+                        <td className="py-2.5 px-3 font-semibold text-gray-900 font-mono">
+                          {itm.product_code}
+                        </td>
+                        <td className="py-2.5 px-3 text-gray-800 font-medium">
+                          <div>{itm.product_name}</div>
+                          {itm.category_name && (
+                            <div className="text-[10px] text-gray-400 mt-0.5">{itm.category_name}</div>
+                          )}
+                        </td>
+                        <td className="py-2.5 px-3 text-center text-gray-600 font-medium">
+                          {itm.base_unit}
+                        </td>
+                        <td className="py-2.5 px-3 text-center font-bold text-gray-900 bg-gray-50 text-sm">
+                          {itm.system_stock}
+                        </td>
+                        <td className="py-2.5 px-3 text-center">
+                          {isReadOnly ? (
+                            <span className="font-bold text-gray-900 text-sm">
+                              {itm.actual_stock ?? '-'}
+                            </span>
+                          ) : (
+                            <input
+                              type="number"
+                              min={0}
+                              placeholder="Nhập SL"
+                              value={itm.actual_stock ?? ''}
+                              onChange={(e) => handleItemActualStockChange(itm.product_id, e.target.value)}
+                              className={`w-28 px-2 py-1 text-center font-bold text-sm border rounded-md focus:outline-none focus:ring-2 ${
+                                isDeficit
+                                  ? 'border-rose-300 text-rose-700 bg-rose-50'
+                                  : isSurplus
+                                  ? 'border-blue-300 text-blue-700 bg-blue-50'
+                                  : 'border-gray-300 text-gray-900 focus:ring-[#0fad89]'
+                              }`}
+                            />
+                          )}
+                        </td>
+                        <td className="py-2.5 px-3 text-center font-bold text-sm">
+                          {itm.discrepancy === null ? (
+                            <span className="text-gray-400">-</span>
+                          ) : isMatch ? (
+                            <span className="text-gray-500">0</span>
+                          ) : isDeficit ? (
+                            <span className="text-rose-600 font-extrabold">{itm.discrepancy}</span>
+                          ) : (
+                            <span className="text-blue-600 font-extrabold">+{itm.discrepancy}</span>
+                          )}
+                        </td>
+                        <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                          {isPending ? (
+                            <span className="px-2 py-0.5 rounded text-[11px] font-medium bg-gray-100 text-gray-600">
+                              Chưa kiểm
+                            </span>
+                          ) : isMatch ? (
+                            <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-green-100 text-green-800">
+                              Khớp
+                            </span>
+                          ) : isDeficit ? (
+                            <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-rose-100 text-rose-800">
+                              Thiếu {Math.abs(itm.discrepancy!)} {itm.base_unit}
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-blue-100 text-blue-800">
+                              Thừa {itm.discrepancy} {itm.base_unit}
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-2.5 px-3">
+                          {isReadOnly ? (
+                            <span className="text-gray-700 italic">
+                              {itm.reason || (isMatch ? 'Khớp kiểm kê' : '-')}
+                            </span>
+                          ) : (
+                            <div className="relative">
+                              <input
+                                type="text"
+                                placeholder={
+                                  isDeficit || isSurplus
+                                    ? 'Bắt buộc nhập lý do...'
+                                    : 'Ghi chú (không bắt buộc)...'
+                                }
+                                value={itm.reason || ''}
+                                onChange={(e) => handleItemReasonChange(itm.product_id, e.target.value)}
+                                className={`w-full px-2 py-1 text-xs border rounded-md focus:outline-none focus:ring-1 ${
+                                  (isDeficit || isSurplus) && (!itm.reason || !itm.reason.trim())
+                                    ? 'border-rose-400 bg-rose-50/50 focus:ring-rose-500'
+                                    : 'border-gray-300 focus:ring-[#0fad89]'
+                                }`}
+                              />
+                              {(isDeficit || isSurplus) && (!itm.reason || !itm.reason.trim()) && (
+                                <span className="text-[10px] text-rose-600 font-semibold block mt-0.5">
+                                  * Bắt buộc nhập lý do
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
+          </div>
+
+          {/* Footer bảng chi tiết */}
+          <div className="p-3.5 border-t border-gray-200 bg-gray-50 flex items-center justify-between shrink-0">
+            <div>
+              {selectedAudit.status === 'IN_PROGRESS' && (canConfirmAudit || canManageAudit) && (
+                <button
+                  type="button"
+                  id="btn-cancel-stock-audit-footer"
+                  onClick={() => setIsCancelModalOpen(true)}
+                  className="px-3.5 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-50 rounded-lg border border-rose-300 cursor-pointer bg-white transition-colors"
+                >
+                  Hủy phiếu kiểm kê
+                </button>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2.5">
+              <button
+                type="button"
+                onClick={() => {
+                  setViewMode('list');
+                  setSelectedAudit(null);
+                  setDetailSearchProduct('');
+                }}
+                className="px-4 py-2 text-xs font-semibold text-gray-700 bg-white border border-gray-300 hover:bg-gray-100 rounded-lg cursor-pointer"
+              >
+                Quay lại danh sách
+              </button>
+
+              {selectedAudit.status === 'IN_PROGRESS' && (
+                <>
+                  {canManageAudit && (
+                    <button
+                      type="button"
+                      id="btn-save-draft-footer"
+                      onClick={handleSaveDraft}
+                      disabled={isSavingDraft}
+                      className="px-4 py-2 text-xs font-semibold text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg shadow-xs cursor-pointer disabled:opacity-50"
+                    >
+                      {isSavingDraft ? 'Đang lưu...' : 'Lưu tạm kết quả'}
+                    </button>
+                  )}
+
+                  {canConfirmAudit ? (
+                    <button
+                      type="button"
+                      id="btn-confirm-stock-audit-footer"
+                      onClick={handlePreConfirm}
+                      disabled={detailStats.pendingCount > 0}
+                      className={`px-5 py-2 text-xs font-bold rounded-lg shadow-sm border-0 transition-all ${
+                        detailStats.pendingCount > 0
+                          ? 'bg-slate-300 text-slate-500 cursor-not-allowed opacity-60'
+                          : 'bg-[#0fad89] hover:bg-[#0c8a6d] text-white cursor-pointer shadow-sm'
+                      }`}
+                      title={
+                        detailStats.pendingCount > 0
+                          ? `Còn ${detailStats.pendingCount} sản phẩm chưa nhập SL thực tế`
+                          : 'Xác nhận kiểm kê & Điều chỉnh kho'
+                      }
+                    >
+                      Xác nhận kiểm kê & Điều chỉnh kho
+                    </button>
+                  ) : (
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 text-amber-800 border border-amber-200 rounded-lg text-xs font-medium">
+                      <svg className="w-4 h-4 text-amber-500 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                      </svg>
+                      <span>Phiếu chờ Admin hoặc Quản lý kho duyệt</span>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* ========================================================= */}
+        {/* MODAL 3: XÁC NHẬN ĐIỀU CHỈNH TỒN KHO                      */}
+        {/* ========================================================= */}
+        {isConfirmModalOpen && selectedAudit && (
+          <ModalPortal>
+            <div style={{ zIndex: 99999 }} className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+              <div className="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl border border-gray-100 max-h-[90vh] flex flex-col">
+                <div className="mb-4 shrink-0">
+                  <h3 className="text-lg font-bold text-gray-900">
+                    Xác nhận kết quả & Điều chỉnh tồn kho
+                  </h3>
+                  <p className="text-xs text-gray-500">Phiếu kiểm kê: {selectedAudit.code}</p>
+                </div>
+
+                {/* Tóm tắt kết quả kiểm kê chi tiết theo từng sản phẩm */}
+                <div className="bg-gray-50 rounded-xl p-4 space-y-3 text-sm mb-4 border border-gray-200 overflow-y-auto flex-1">
+                  <div className="flex justify-between items-center pb-2 border-b border-gray-200">
+                    <span className="text-gray-600 font-medium">Tổng sản phẩm kiểm kê:</span>
+                    <span className="font-bold text-gray-900">{detailStats.total} SP</span>
+                  </div>
+
+                  <div className="flex justify-between items-center pb-2 border-b border-gray-200">
+                    <span className="text-green-700 font-medium">Khớp số lượng:</span>
+                    <span className="font-bold text-green-700">{detailStats.matchCount} SP</span>
+                  </div>
+
+                  {/* Chi tiết từng sản phẩm Thiếu hàng */}
+                  <div className="pb-2 border-b border-gray-200">
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-rose-700 font-bold">Thiếu hàng:</span>
+                      <span className="font-extrabold text-rose-700">
+                        {detailStats.deficitCount} SP (-{detailStats.totalDeficitQty})
+                      </span>
+                    </div>
+                    {auditItemsState.filter((it) => typeof it.discrepancy === 'number' && it.discrepancy < 0).length > 0 ? (
+                      <div className="mt-2 space-y-1.5 max-h-40 overflow-y-auto pr-1">
+                        {auditItemsState
+                          .filter((it) => typeof it.discrepancy === 'number' && it.discrepancy < 0)
+                          .map((itm) => (
+                            <div
+                              key={itm.product_id}
+                              className="flex justify-between items-center text-xs py-1.5 px-3 rounded-lg bg-rose-50 border border-rose-200"
+                            >
+                              <span className="text-gray-800 font-medium truncate mr-2">
+                                <strong className="font-mono text-gray-900 font-bold">{itm.product_code}</strong> - {itm.product_name}
+                              </span>
+                              <span className="font-bold text-rose-700 whitespace-nowrap">
+                                thiếu {Math.abs(itm.discrepancy!)} {itm.base_unit}
+                              </span>
+                            </div>
+                          ))}
+                      </div>
+                    ) : (
+                      <div className="text-xs text-gray-400 italic mt-1">Không có sản phẩm thiếu</div>
+                    )}
+                  </div>
+
+                  {/* Chi tiết từng sản phẩm Thừa hàng */}
+                  <div>
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-blue-700 font-bold">Thừa hàng:</span>
+                      <span className="font-extrabold text-blue-700">
+                        {detailStats.surplusCount} SP (+{detailStats.totalSurplusQty})
+                      </span>
+                    </div>
+                    {auditItemsState.filter((it) => typeof it.discrepancy === 'number' && it.discrepancy > 0).length > 0 ? (
+                      <div className="mt-2 space-y-1.5 max-h-40 overflow-y-auto pr-1">
+                        {auditItemsState
+                          .filter((it) => typeof it.discrepancy === 'number' && it.discrepancy > 0)
+                          .map((itm) => (
+                            <div
+                              key={itm.product_id}
+                              className="flex justify-between items-center text-xs py-1.5 px-3 rounded-lg bg-blue-50 border border-blue-200"
+                            >
+                              <span className="text-gray-800 font-medium truncate mr-2">
+                                <strong className="font-mono text-gray-900 font-bold">{itm.product_code}</strong> - {itm.product_name}
+                              </span>
+                              <span className="font-bold text-blue-700 whitespace-nowrap">
+                                thừa {itm.discrepancy} {itm.base_unit}
+                              </span>
+                            </div>
+                          ))}
+                      </div>
+                    ) : (
+                      <div className="text-xs text-gray-400 italic mt-1">Không có sản phẩm thừa</div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="p-3 bg-amber-50 text-amber-800 rounded-lg text-xs border border-amber-200 mb-5 leading-relaxed">
+                  <strong>Lưu ý quan trọng:</strong> Hệ thống sẽ tự động cập nhật số lượng tồn kho thực
+                  tế theo các chênh lệch đã kiểm đếm, ghi nhận lịch sử biến động kho và khóa phiếu kiểm
+                  kê. <strong>Thao tác này không thể hoàn tác!</strong>
+                </div>
+
+                <div className="flex items-center justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setIsConfirmModalOpen(false)}
+                    disabled={isSubmittingConfirm}
+                    className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg cursor-pointer border-0 bg-transparent"
+                  >
+                    Quay lại kiểm tra
+                  </button>
+                  <button
+                    type="button"
+                    id="btn-confirm-adjust-now"
+                    onClick={handleConfirmAudit}
+                    disabled={isSubmittingConfirm}
+                    className="px-5 py-2 text-sm font-bold text-white bg-[#0fad89] hover:bg-[#0c8a6d] rounded-lg shadow-sm cursor-pointer border-0 disabled:opacity-50"
+                  >
+                    {isSubmittingConfirm ? 'Đang điều chỉnh...' : 'Đồng ý điều chỉnh kho'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </ModalPortal>
+        )}
+
+        {/* ========================================================= */}
+        {/* MODAL 4: HỦY PHIẾU KIỂM KÊ                                */}
+        {/* ========================================================= */}
+        {isCancelModalOpen && selectedAudit && (
+          <ModalPortal>
+            <div style={{ zIndex: 99999 }} className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+              <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-gray-100">
+                <h3 className="text-lg font-bold text-gray-900 mb-2">
+                  Hủy phiếu kiểm kê {selectedAudit.code}
+                </h3>
+                <p className="text-xs text-gray-500 mb-4">
+                  Phiếu sau khi hủy sẽ không thể tiếp tục kiểm đếm hay xác nhận điều chỉnh tồn kho.
+                </p>
+
+                <div className="mb-4">
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">
+                    Lý do hủy phiếu
+                  </label>
+                  <textarea
+                    value={cancelReason}
+                    onChange={(e) => setCancelReason(e.target.value)}
+                    placeholder="Nhập lý do hủy phiếu..."
+                    rows={3}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500"
+                  />
+                </div>
+
+                <div className="flex items-center justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setIsCancelModalOpen(false)}
+                    className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg cursor-pointer border-0 bg-transparent"
+                  >
+                    Quay lại
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleCancelAudit}
+                    disabled={isSubmittingCancel}
+                    className="px-4 py-2 text-sm font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-lg shadow-sm cursor-pointer border-0 disabled:opacity-50"
+                  >
+                    {isSubmittingCancel ? 'Đang hủy...' : 'Xác nhận hủy phiếu'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </ModalPortal>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div
       style={{
@@ -511,11 +1356,15 @@ export function StockAuditManagementView({ token, currentUser }: StockAuditManag
               setCreateScopeType('WAREHOUSE');
               setCreateCategoryId('');
               setCreatePreviewItems([]);
-              setIsCreateModalOpen(true);
+              setCreateSearchProduct('');
+              setViewMode('create');
             }}
-            className="inline-flex items-center px-4 py-2.5 rounded-lg text-sm font-semibold text-white bg-[#0fad89] hover:bg-[#0c8a6d] shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-[#0fad89] focus:ring-offset-2 cursor-pointer border-0"
+            className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-lg text-sm font-semibold text-white bg-[#0fad89] hover:bg-[#0c8a6d] shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-[#0fad89] focus:ring-offset-2 cursor-pointer border-0"
           >
-            + Tạo phiếu kiểm kê
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+            </svg>
+            Tạo phiếu kiểm kê
           </button>
         )}
       </div>
@@ -830,668 +1679,6 @@ export function StockAuditManagementView({ token, currentUser }: StockAuditManag
           </div>
         )}
       </div>
-
-      {/* ========================================================= */}
-      {/* MODAL 1: TẠO PHIẾU KIỂM KÊ                                */}
-      {/* ========================================================= */}
-      {isCreateModalOpen && (
-        <ModalPortal>
-          <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
-            <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[92vh] flex flex-col shadow-2xl border border-gray-100 overflow-hidden">
-              {/* Header */}
-              <div className="px-5 py-3.5 border-b border-gray-100 flex items-center justify-between shrink-0 bg-white">
-                <div>
-                  <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-[#0fad89]"></span>
-                    Tạo phiếu kiểm kê kho
-                  </h2>
-                  <p className="text-xs text-gray-500 mt-0.5">
-                    Chốt tồn kho căn cứ tại thời điểm tạo phiếu cho phạm vi được chọn
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setIsCreateModalOpen(false)}
-                  className="text-gray-400 hover:text-gray-600 cursor-pointer bg-transparent border-0 p-1 rounded-lg hover:bg-gray-100 transition-colors text-lg font-bold leading-none"
-                  title="Đóng"
-                >
-                  ✕
-                </button>
-              </div>
-
-              {/* Form Body - 2 Columns Layout to fit on screen without scrolling at 100% zoom */}
-              <form onSubmit={handleCreateAudit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
-                <div className="p-5 flex-1 min-h-0 overflow-y-auto grid grid-cols-1 md:grid-cols-12 gap-5">
-                  {/* Cột trái: Cấu hình phiếu kiểm kê */}
-                  <div className="md:col-span-5 flex flex-col gap-3.5">
-                    {/* 1. Chọn phạm vi kiểm kê */}
-                    <div>
-                      <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
-                        Phạm vi kiểm kê <span className="text-red-500">*</span>
-                      </label>
-                      <div className="grid grid-cols-2 gap-2">
-                        <label
-                          className={`flex items-center gap-2 p-2 rounded-lg border text-xs cursor-pointer transition-all ${
-                            createScopeType === 'WAREHOUSE'
-                              ? 'border-[#0fad89] bg-emerald-50 text-[#0fad89] font-bold shadow-xs'
-                              : 'border-gray-200 hover:bg-gray-50 text-gray-700'
-                          }`}
-                        >
-                          <input
-                            type="radio"
-                            name="scope_type"
-                            value="WAREHOUSE"
-                            checked={createScopeType === 'WAREHOUSE'}
-                            onChange={() => setCreateScopeType('WAREHOUSE')}
-                            className="text-[#0fad89] focus:ring-[#0fad89] w-3.5 h-3.5"
-                          />
-                          <span>Theo kho</span>
-                        </label>
-
-                        <label
-                          className={`flex items-center gap-2 p-2 rounded-lg border text-xs cursor-pointer transition-all ${
-                            createScopeType === 'CATEGORY'
-                              ? 'border-[#0fad89] bg-emerald-50 text-[#0fad89] font-bold shadow-xs'
-                              : 'border-gray-200 hover:bg-gray-50 text-gray-700'
-                          }`}
-                        >
-                          <input
-                            type="radio"
-                            name="scope_type"
-                            value="CATEGORY"
-                            checked={createScopeType === 'CATEGORY'}
-                            onChange={() => {
-                              setCreateScopeType('CATEGORY');
-                              setCreateCategoryId('');
-                              setCreatePreviewItems([]);
-                            }}
-                            className="text-[#0fad89] focus:ring-[#0fad89] w-3.5 h-3.5"
-                          />
-                          <span>Theo nhóm hàng</span>
-                        </label>
-                      </div>
-                    </div>
-
-                    {/* 2. Chọn kho kiểm kê */}
-                    <div>
-                      <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
-                        Kho áp dụng <span className="text-red-500">*</span>
-                      </label>
-                      <select
-                        id="select-create-warehouse"
-                        value={createWarehouseId}
-                        onChange={(e) => setCreateWarehouseId(e.target.value)}
-                        required
-                        className="w-full px-3 py-1.5 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0fad89] bg-white font-medium"
-                      >
-                        {warehouses.map((wh) => (
-                          <option key={wh.id} value={wh.id}>
-                            {wh.name} ({wh.id})
-                          </option>
-                        ))}
-                      </select>
-                      <p className="text-[11px] text-gray-400 mt-1">
-                        Số tồn kho căn cứ sẽ được lấy chính xác từ dữ liệu của kho này.
-                      </p>
-                    </div>
-
-                    {/* 3. Chọn nhóm hàng (nếu phạm vi CATEGORY) */}
-                    {createScopeType === 'CATEGORY' && (
-                      <div>
-                        <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
-                          Nhóm hàng cần kiểm kê <span className="text-red-500">*</span>
-                        </label>
-                        <select
-                          id="select-create-category"
-                          value={createCategoryId}
-                          onChange={(e) => setCreateCategoryId(e.target.value ? Number(e.target.value) : '')}
-                          required
-                          className="w-full px-3 py-1.5 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0fad89] bg-white"
-                        >
-                          <option value="">-- Chọn nhóm hàng --</option>
-                          {categories.map((c) => (
-                            <option key={c.id} value={c.id}>
-                              {c.name}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    )}
-
-                    {/* 4. Ghi chú chung */}
-                    <div className="flex-1 flex flex-col min-h-0">
-                      <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
-                        Ghi chú chung
-                      </label>
-                      <textarea
-                        id="textarea-create-note"
-                        value={createNote}
-                        onChange={(e) => setCreateNote(e.target.value)}
-                        placeholder="Lý do kiểm kê, đợt kiểm kê cuối quý..."
-                        rows={createScopeType === 'CATEGORY' ? 2 : 3}
-                        className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0fad89] resize-none flex-1"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Cột phải: Xem trước danh sách sản phẩm thuộc phạm vi */}
-                  <div className="md:col-span-7 flex flex-col min-h-0 border border-gray-200 rounded-xl bg-gray-50/70 p-3">
-                    <div className="flex items-center justify-between mb-2 shrink-0">
-                      <span className="text-xs font-bold text-gray-700 uppercase tracking-wider">
-                        Xem trước sản phẩm ({createPreviewItems.length} mặt hàng)
-                      </span>
-                      {createPreviewLoading && (
-                        <span className="text-[11px] text-gray-500 flex items-center gap-1">
-                          <div className="w-3 h-3 border-2 border-[#0fad89] border-t-transparent rounded-full animate-spin" />
-                          Đang lấy tồn kho...
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="flex-1 min-h-[180px] max-h-[280px] overflow-y-auto divide-y divide-gray-100 text-xs bg-white rounded-lg border border-gray-200 shadow-2xs">
-                      {createPreviewItems.length === 0 ? (
-                        <div className="p-6 text-center text-gray-400 flex flex-col items-center justify-center h-full">
-                          <span>
-                            {createScopeType === 'CATEGORY' && !createCategoryId
-                              ? 'Vui lòng chọn nhóm hàng để xem danh sách sản phẩm'
-                              : 'Không có sản phẩm nào thuộc phạm vi đã chọn'}
-                          </span>
-                        </div>
-                      ) : (
-                        createPreviewItems.map((p) => (
-                          <div key={p.product_id} className="p-2.5 px-3 flex items-center justify-between hover:bg-gray-50 transition-colors">
-                            <div className="min-w-0 pr-2">
-                              <span className="font-semibold text-gray-900 block truncate">{p.product_name}</span>
-                              <span className="text-[11px] text-gray-400">Mã: {p.product_code}</span>
-                            </div>
-                            <div className="text-right shrink-0">
-                              <span className="font-bold text-gray-800">Tồn chốt: {p.system_stock}</span>{' '}
-                              <span className="text-gray-500 text-[11px]">{p.base_unit}</span>
-                            </div>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Footer với các nút hành động */}
-                <div className="px-5 py-3 border-t border-gray-100 flex items-center justify-end gap-3 bg-gray-50/50 shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => setIsCreateModalOpen(false)}
-                    className="px-4 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-200/70 rounded-lg cursor-pointer border-0 bg-transparent transition-colors"
-                  >
-                    Hủy bỏ
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={isSubmittingCreate || createPreviewItems.length === 0}
-                    className="px-5 py-2 text-xs font-bold text-white bg-[#0fad89] hover:bg-[#0c8a6d] rounded-lg shadow-sm disabled:opacity-50 cursor-pointer border-0 transition-all flex items-center gap-1.5"
-                  >
-                    {isSubmittingCreate ? (
-                      <>
-                        <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        Đang tạo...
-                      </>
-                    ) : (
-                      'Xác nhận tạo phiếu'
-                    )}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </ModalPortal>
-      )}
-
-      {/* ========================================================= */}
-      {/* MODAL 2: CHI TIẾT & NHẬP KẾT QUẢ KIỂM ĐẾM                */}
-      {/* ========================================================= */}
-      {isDetailModalOpen && selectedAudit && (
-        <ModalPortal>
-          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6">
-            <div className="bg-white rounded-2xl w-full max-w-6xl max-h-[95vh] flex flex-col shadow-2xl border border-gray-100 overflow-hidden">
-              {/* Header chi tiết */}
-              <div className="p-5 border-b border-gray-200 bg-gray-50 flex items-start justify-between flex-shrink-0">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-3">
-                    <h2 className="text-xl font-bold text-gray-900">
-                      Phiếu kiểm kê {selectedAudit.code}
-                    </h2>
-                    <span
-                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${
-                        selectedAudit.status === 'CONFIRMED'
-                          ? 'bg-emerald-100 text-emerald-800'
-                          : selectedAudit.status === 'CANCELLED'
-                          ? 'bg-gray-100 text-gray-700'
-                          : 'bg-amber-100 text-amber-800'
-                      }`}
-                    >
-                      {selectedAudit.status_label}
-                    </span>
-                  </div>
-                  <div className="text-xs text-gray-600 flex flex-wrap gap-x-4 gap-y-1">
-                    <span>
-                      <strong>Kho:</strong> {selectedAudit.warehouse_name}
-                    </span>
-                    <span>
-                      <strong>Phạm vi:</strong>{' '}
-                      {selectedAudit.scope_type === 'CATEGORY'
-                        ? `Nhóm hàng: ${selectedAudit.category_name}`
-                        : 'Toàn kho'}
-                    </span>
-                    <span>
-                      <strong>Người tạo:</strong> {selectedAudit.created_by} (
-                      {new Date(selectedAudit.created_at).toLocaleString('vi-VN')})
-                    </span>
-                    {selectedAudit.confirmed_by && (
-                      <span className="text-emerald-700 font-semibold">
-                        <strong>Người xác nhận:</strong> {selectedAudit.confirmed_by} (
-                        {new Date(selectedAudit.confirmed_at!).toLocaleString('vi-VN')})
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => setIsDetailModalOpen(false)}
-                  className="text-gray-400 hover:text-gray-600 p-1 bg-transparent border-0 cursor-pointer text-lg font-bold leading-none"
-                  title="Đóng"
-                >
-                  ✕
-                </button>
-              </div>
-
-              {/* Tóm tắt nhanh kết quả kiểm kê */}
-              <div className="px-5 py-3 bg-white border-b border-gray-200 flex flex-wrap items-center justify-between gap-4 text-xs flex-shrink-0">
-                <div className="flex items-center gap-4">
-                  <span className="font-semibold text-gray-700">
-                    Tổng: <strong>{detailStats.total} SP</strong>
-                  </span>
-                  <span className="text-green-600 font-semibold">
-                    Khớp: <strong>{detailStats.matchCount}</strong>
-                  </span>
-                  <span className="text-rose-600 font-semibold">
-                    Thiếu: <strong>{detailStats.deficitCount} SP</strong> (
-                    {detailStats.totalDeficitQty} ĐVT)
-                  </span>
-                  <span className="text-blue-600 font-semibold">
-                    Thừa: <strong>{detailStats.surplusCount} SP</strong> (+
-                    {detailStats.totalSurplusQty} ĐVT)
-                  </span>
-                  {detailStats.pendingCount > 0 && (
-                    <span className="text-amber-600 font-bold">
-                      Chưa đếm: {detailStats.pendingCount} SP
-                    </span>
-                  )}
-                </div>
-
-                {/* Tìm kiếm sản phẩm trong phiếu */}
-                <div className="w-64">
-                  <input
-                    type="text"
-                    placeholder="Tìm sản phẩm trong phiếu..."
-                    value={detailSearchProduct}
-                    onChange={(e) => setDetailSearchProduct(e.target.value)}
-                    className="w-full px-2.5 py-1 text-xs border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#0fad89]"
-                  />
-                </div>
-              </div>
-
-              {/* Bảng chi tiết sản phẩm kiểm đếm */}
-              <div className="p-5 overflow-y-auto flex-1">
-                {detailLoading ? (
-                  <div className="py-12 text-center text-gray-500">Đang tải chi tiết...</div>
-                ) : (
-                  <div className="overflow-x-auto rounded-lg border border-gray-200">
-                    <table className="min-w-full divide-y divide-gray-200 text-xs whitespace-nowrap">
-                      <thead className="bg-gray-50 text-gray-700 font-bold uppercase tracking-wider whitespace-nowrap">
-                        <tr>
-                          <th className="py-2.5 px-3 text-left whitespace-nowrap">Mã SP</th>
-                          <th className="py-2.5 px-3 text-left whitespace-nowrap">Tên sản phẩm</th>
-                          <th className="py-2.5 px-3 text-center whitespace-nowrap">ĐVT cơ sở</th>
-                          <th className="py-2.5 px-3 text-center bg-gray-100 whitespace-nowrap">Tồn đã chốt</th>
-                          <th className="py-2.5 px-3 text-center whitespace-nowrap">SL thực tế</th>
-                          <th className="py-2.5 px-3 text-center whitespace-nowrap">Chênh lệch</th>
-                          <th className="py-2.5 px-3 text-center whitespace-nowrap">Kết quả</th>
-                          <th className="py-2.5 px-3 text-left whitespace-nowrap">Lý do chênh lệch</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-100 whitespace-nowrap">
-                        {filteredDetailItems.map((itm) => {
-                          const isDeficit = typeof itm.discrepancy === 'number' && itm.discrepancy < 0;
-                          const isSurplus = typeof itm.discrepancy === 'number' && itm.discrepancy > 0;
-                          const isMatch = itm.discrepancy === 0;
-                          const isPending = itm.actual_stock === null || itm.actual_stock === undefined;
-                          const isReadOnly =
-                            selectedAudit.status !== 'IN_PROGRESS' || !canManageAudit;
-
-                          return (
-                            <tr
-                              key={itm.product_id}
-                              className={`transition-colors ${
-                                isDeficit
-                                  ? 'bg-rose-50/60 hover:bg-rose-100/50'
-                                  : isSurplus
-                                  ? 'bg-blue-50/60 hover:bg-blue-100/50'
-                                  : isMatch
-                                  ? 'hover:bg-gray-50'
-                                  : 'hover:bg-amber-50/40'
-                              }`}
-                            >
-                              {/* 1. Mã SP */}
-                              <td className="py-2.5 px-3 font-semibold text-gray-900">
-                                {itm.product_code}
-                              </td>
-
-                              {/* 2. Tên SP */}
-                              <td className="py-2.5 px-3 text-gray-800 font-medium">
-                                <div>{itm.product_name}</div>
-                                {itm.category_name && (
-                                  <div className="text-[10px] text-gray-400">
-                                    {itm.category_name}
-                                  </div>
-                                )}
-                              </td>
-
-                              {/* 3. ĐVT cơ sở */}
-                              <td className="py-2.5 px-3 text-center text-gray-600 font-medium">
-                                {itm.base_unit}
-                              </td>
-
-                              {/* 4. Tồn chốt */}
-                              <td className="py-2.5 px-3 text-center font-bold text-gray-900 bg-gray-50">
-                                {itm.system_stock}
-                              </td>
-
-                              {/* 5. Số lượng thực tế */}
-                              <td className="py-2.5 px-3 text-center">
-                                {isReadOnly ? (
-                                  <span className="font-bold text-gray-900 text-sm">
-                                    {itm.actual_stock ?? '-'}
-                                  </span>
-                                ) : (
-                                  <input
-                                    type="number"
-                                    min={0}
-                                    placeholder="Nhập SL"
-                                    value={itm.actual_stock ?? ''}
-                                    onChange={(e) =>
-                                      handleItemActualStockChange(itm.product_id, e.target.value)
-                                    }
-                                    className={`w-24 px-2 py-1 text-center font-bold text-sm border rounded-md focus:outline-none focus:ring-2 ${
-                                      isDeficit
-                                        ? 'border-rose-300 text-rose-700 bg-rose-50'
-                                        : isSurplus
-                                        ? 'border-blue-300 text-blue-700 bg-blue-50'
-                                        : 'border-gray-300 text-gray-900 focus:ring-[#0fad89]'
-                                    }`}
-                                  />
-                                )}
-                              </td>
-
-                              {/* 6. Chênh lệch */}
-                              <td className="py-2.5 px-3 text-center font-bold text-sm">
-                                {itm.discrepancy === null ? (
-                                  <span className="text-gray-400">-</span>
-                                ) : isMatch ? (
-                                  <span className="text-gray-500">0</span>
-                                ) : isDeficit ? (
-                                  <span className="text-rose-600 font-extrabold">
-                                    {itm.discrepancy}
-                                  </span>
-                                ) : (
-                                  <span className="text-blue-600 font-extrabold">
-                                    +{itm.discrepancy}
-                                  </span>
-                                )}
-                              </td>
-
-                              {/* 7. Kết quả */}
-                              <td className="py-2.5 px-3 text-center whitespace-nowrap">
-                                {isPending ? (
-                                  <span className="px-2 py-0.5 rounded text-[11px] font-medium bg-gray-100 text-gray-600">
-                                    Chưa kiểm
-                                  </span>
-                                ) : isMatch ? (
-                                  <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-green-100 text-green-800">
-                                    Khớp
-                                  </span>
-                                ) : isDeficit ? (
-                                  <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-rose-100 text-rose-800">
-                                    Thiếu {Math.abs(itm.discrepancy!)} {itm.base_unit}
-                                  </span>
-                                ) : (
-                                  <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-blue-100 text-blue-800">
-                                    Thừa {itm.discrepancy} {itm.base_unit}
-                                  </span>
-                                )}
-                              </td>
-
-                              {/* 8. Lý do chênh lệch */}
-                              <td className="py-2.5 px-3">
-                                {isReadOnly ? (
-                                  <span className="text-gray-700 italic">
-                                    {itm.reason || (isMatch ? 'Khớp kiểm kê' : '-')}
-                                  </span>
-                                ) : (
-                                  <div className="relative">
-                                    <input
-                                      type="text"
-                                      placeholder={
-                                        isDeficit || isSurplus
-                                          ? 'Bắt buộc nhập lý do...'
-                                          : 'Ghi chú (không bắt buộc)...'
-                                      }
-                                      value={itm.reason || ''}
-                                      onChange={(e) =>
-                                        handleItemReasonChange(itm.product_id, e.target.value)
-                                      }
-                                      className={`w-full px-2 py-1 text-xs border rounded-md focus:outline-none focus:ring-1 ${
-                                        (isDeficit || isSurplus) && (!itm.reason || !itm.reason.trim())
-                                          ? 'border-rose-400 bg-rose-50/50 focus:ring-rose-500'
-                                          : 'border-gray-300 focus:ring-[#0fad89]'
-                                      }`}
-                                    />
-                                    {(isDeficit || isSurplus) && (!itm.reason || !itm.reason.trim()) && (
-                                      <span className="text-[10px] text-rose-600 font-semibold block mt-0.5">
-                                        * Bắt buộc nhập lý do
-                                      </span>
-                                    )}
-                                  </div>
-                                )}
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-
-              {/* Footer hành động của Modal Chi tiết */}
-              <div className="p-4 border-t border-gray-200 bg-gray-50 flex items-center justify-between flex-shrink-0">
-                <div>
-                  {selectedAudit.status === 'IN_PROGRESS' && canConfirmAudit && (
-                    <button
-                      type="button"
-                      onClick={() => setIsCancelModalOpen(true)}
-                      className="px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-50 rounded-lg border border-rose-300 cursor-pointer bg-white"
-                    >
-                      Hủy phiếu kiểm kê
-                    </button>
-                  )}
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setIsDetailModalOpen(false)}
-                    className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 rounded-lg cursor-pointer border-0 bg-transparent"
-                  >
-                    Đóng
-                  </button>
-
-                  {selectedAudit.status === 'IN_PROGRESS' && (
-                    <>
-                      {/* Cho phép cả Thủ kho, Quản lý kho và Admin lưu tạm kết quả kiểm đếm */}
-                      {canManageAudit && (
-                        <button
-                          type="button"
-                          onClick={handleSaveDraft}
-                          disabled={isSavingDraft}
-                          className="px-4 py-2 text-sm font-semibold text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg shadow-sm cursor-pointer disabled:opacity-50"
-                        >
-                          {isSavingDraft ? 'Đang lưu...' : 'Lưu tạm kết quả'}
-                        </button>
-                      )}
-
-                      {/* CHỈ Quản trị hệ thống (admin) và Quản lý kho (warehouse_manager) mới được duyệt */}
-                      {canConfirmAudit ? (
-                        <button
-                          type="button"
-                          id="btn-confirm-stock-audit"
-                          onClick={handlePreConfirm}
-                          className="px-5 py-2 text-sm font-bold text-white bg-[#0fad89] hover:bg-[#0c8a6d] rounded-lg shadow-sm cursor-pointer border-0"
-                        >
-                          Xác nhận kiểm kê & Điều chỉnh kho
-                        </button>
-                      ) : (
-                        <div className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 text-amber-800 border border-amber-200 rounded-lg text-xs font-medium">
-                          <svg className="w-4 h-4 text-amber-500 shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                          </svg>
-                          <span>Phiếu chờ Admin hoặc Quản lý kho duyệt để điều chỉnh tồn kho</span>
-                        </div>
-                      )}
-                    </>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        </ModalPortal>
-      )}
-
-      {/* ========================================================= */}
-      {/* MODAL 3: XÁC NHẬN ĐIỀU CHỈNH TỒN KHO                      */}
-      {/* ========================================================= */}
-      {isConfirmModalOpen && selectedAudit && (
-        <ModalPortal>
-          <div className="fixed inset-0 z-60 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-gray-100">
-              <div className="mb-4">
-                <h3 className="text-lg font-bold text-gray-900">
-                  Xác nhận kết quả & Điều chỉnh tồn kho
-                </h3>
-                <p className="text-xs text-gray-500">Phiếu kiểm kê: {selectedAudit.code}</p>
-              </div>
-
-              {/* Tóm tắt kết quả kiểm kê */}
-              <div className="bg-gray-50 rounded-xl p-4 space-y-2 text-sm mb-4 border border-gray-200">
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Tổng sản phẩm kiểm kê:</span>
-                  <span className="font-bold text-gray-900">{detailStats.total}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-green-700">Khớp số lượng:</span>
-                  <span className="font-bold text-green-700">{detailStats.matchCount} SP</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-rose-700">Thiếu hàng:</span>
-                  <span className="font-bold text-rose-700">
-                    {detailStats.deficitCount} SP (-{detailStats.totalDeficitQty})
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-blue-700">Thừa hàng:</span>
-                  <span className="font-bold text-blue-700">
-                    {detailStats.surplusCount} SP (+{detailStats.totalSurplusQty})
-                  </span>
-                </div>
-              </div>
-
-              <div className="p-3 bg-amber-50 text-amber-800 rounded-lg text-xs border border-amber-200 mb-5 leading-relaxed">
-                <strong>Lưu ý quan trọng:</strong> Hệ thống sẽ tự động cập nhật số lượng tồn kho thực
-                tế theo các chênh lệch đã kiểm đếm, ghi nhận lịch sử biến động kho và khóa phiếu kiểm
-                kê. <strong>Thao tác này không thể hoàn tác!</strong>
-              </div>
-
-              <div className="flex items-center justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => setIsConfirmModalOpen(false)}
-                  disabled={isSubmittingConfirm}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg cursor-pointer border-0 bg-transparent"
-                >
-                  Quay lại kiểm tra
-                </button>
-                <button
-                  type="button"
-                  id="btn-confirm-adjust-now"
-                  onClick={handleConfirmAudit}
-                  disabled={isSubmittingConfirm}
-                  className="px-5 py-2 text-sm font-bold text-white bg-[#0fad89] hover:bg-[#0c8a6d] rounded-lg shadow-sm cursor-pointer border-0 disabled:opacity-50"
-                >
-                  {isSubmittingConfirm ? 'Đang điều chỉnh...' : 'Đồng ý điều chỉnh kho'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </ModalPortal>
-      )}
-
-      {/* ========================================================= */}
-      {/* MODAL 4: HỦY PHIẾU KIỂM KÊ                                */}
-      {/* ========================================================= */}
-      {isCancelModalOpen && selectedAudit && (
-        <ModalPortal>
-          <div className="fixed inset-0 z-60 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-gray-100">
-              <h3 className="text-lg font-bold text-gray-900 mb-2">
-                Hủy phiếu kiểm kê {selectedAudit.code}
-              </h3>
-              <p className="text-xs text-gray-500 mb-4">
-                Phiếu sau khi hủy sẽ không thể tiếp tục kiểm đếm hay xác nhận điều chỉnh tồn kho.
-              </p>
-
-              <div className="mb-4">
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
-                  Lý do hủy phiếu
-                </label>
-                <textarea
-                  value={cancelReason}
-                  onChange={(e) => setCancelReason(e.target.value)}
-                  placeholder="Nhập lý do hủy phiếu..."
-                  rows={3}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500"
-                />
-              </div>
-
-              <div className="flex items-center justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => setIsCancelModalOpen(false)}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg cursor-pointer border-0 bg-transparent"
-                >
-                  Quay lại
-                </button>
-                <button
-                  type="button"
-                  onClick={handleCancelAudit}
-                  disabled={isSubmittingCancel}
-                  className="px-4 py-2 text-sm font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-lg shadow-sm cursor-pointer border-0 disabled:opacity-50"
-                >
-                  {isSubmittingCancel ? 'Đang hủy...' : 'Xác nhận hủy phiếu'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </ModalPortal>
-      )}
     </div>
   );
 }
