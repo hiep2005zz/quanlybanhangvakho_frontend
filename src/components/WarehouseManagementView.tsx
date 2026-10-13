@@ -102,7 +102,7 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
   // Modal Thêm Hàng vào Vị Trí Kệ
   const [isAddStockModalOpen, setIsAddStockModalOpen] = useState<boolean>(false);
   const [addStockItem, setAddStockItem] = useState<LocationProductStockItem | null>(null);
-  const [addStockQuantity, setAddStockQuantity] = useState<number>(10);
+  const [addStockQuantity, setAddStockQuantity] = useState<number | string>(10);
   const [isAddStockSubmitting, setIsAddStockSubmitting] = useState<boolean>(false);
 
   // Modal Cảnh Báo Sức Chứa & Tải Trọng Kệ / Kho Đầy
@@ -140,7 +140,19 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
   // Modal Vị trí
   const [isLocModalOpen, setIsLocModalOpen] = useState<boolean>(false);
   const [editingLocation, setEditingLocation] = useState<WarehouseLocationItem | null>(null);
-  const [locFormData, setLocFormData] = useState({
+  const [locFormData, setLocFormData] = useState<{
+    location_code: string;
+    location_name: string;
+    zone: string;
+    aisle: string;
+    rack: string;
+    bin: string;
+    max_capacity: number | string;
+    initial_quantity: number | string;
+    unit: string;
+    status: string;
+    note: string;
+  }>({
     location_code: '',
     location_name: '',
     zone: '',
@@ -176,7 +188,16 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
   // Modal Master Data: Kệ / Dãy
   const [isRackModalOpen, setIsRackModalOpen] = useState<boolean>(false);
   const [editingRack, setEditingRack] = useState<WarehouseRackItem | null>(null);
-  const [rackFormData, setRackFormData] = useState({
+  const [rackFormData, setRackFormData] = useState<{
+    rack_code: string;
+    rack_name: string;
+    rack_type: string;
+    zone_id: number;
+    max_capacity: number | string;
+    is_active: boolean;
+    aisle_input: string;
+    rack_input: string;
+  }>({
     rack_code: '',
     rack_name: '',
     rack_type: 'rack',
@@ -192,7 +213,11 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
 
   // Modal Gán sản phẩm vào vị trí
   const [isAssignModalOpen, setIsAssignModalOpen] = useState<boolean>(false);
-  const [assignFormData, setAssignFormData] = useState({
+  const [assignFormData, setAssignFormData] = useState<{
+    location_id: number;
+    product_id: number;
+    quantity: number | string;
+  }>({
     location_id: 0,
     product_id: 0,
     quantity: 10,
@@ -201,7 +226,14 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
 
   // Modal Chuyển sản phẩm giữa các vị trí
   const [isTransferModalOpen, setIsTransferModalOpen] = useState<boolean>(false);
-  const [transferFormData, setTransferFormData] = useState({
+  const [transferFormData, setTransferFormData] = useState<{
+    from_location_id: number;
+    to_location_id: number;
+    product_id: number;
+    quantity: number | string;
+    product_name: string;
+    max_available: number;
+  }>({
     from_location_id: 0,
     to_location_id: 0,
     product_id: 0,
@@ -1149,8 +1181,13 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
   const handleSaveTransferProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedWarehouse) return;
-    if (transferFormData.quantity > transferFormData.max_available) {
-      setErrorMsg(`Số lượng chuyển (${transferFormData.quantity}) vượt quá tồn tại vị trí (${transferFormData.max_available}).`);
+    const transferQty = Number(transferFormData.quantity);
+    if (!transferQty || transferQty <= 0) {
+      setErrorMsg('Số lượng chuyển phải lớn hơn 0.');
+      return;
+    }
+    if (transferQty > transferFormData.max_available) {
+      setErrorMsg(`Số lượng chuyển (${transferQty}) vượt quá tồn tại vị trí (${transferFormData.max_available}).`);
       return;
     }
     setIsTransferSubmitting(true);
@@ -1160,7 +1197,7 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
         transferFormData.from_location_id,
         transferFormData.to_location_id,
         transferFormData.product_id,
-        transferFormData.quantity
+        transferQty
       );
       setSuccessMsg(res.message || 'Chuyển vị trí hàng thành công.');
       setIsTransferModalOpen(false);
@@ -2157,8 +2194,22 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                       min="1"
                       required
                       className="wh-form-input"
-                      value={locFormData.max_capacity}
-                      onChange={(e) => setLocFormData((prev) => ({ ...prev, max_capacity: Number(e.target.value) }))}
+                      placeholder="VD: 500"
+                      value={locFormData.max_capacity === 0 || locFormData.max_capacity === '' ? '' : locFormData.max_capacity}
+                      onFocus={(e) => e.target.select()}
+                      onChange={(e) => {
+                        const raw = e.target.value;
+                        if (raw === '') {
+                          setLocFormData((prev) => ({ ...prev, max_capacity: '' }));
+                          return;
+                        }
+                        const clean = raw.replace(/^0+(?=\d)/, '');
+                        if (clean === '0') {
+                          setLocFormData((prev) => ({ ...prev, max_capacity: '' }));
+                          return;
+                        }
+                        setLocFormData((prev) => ({ ...prev, max_capacity: Number(clean) }));
+                      }}
                     />
                     {locFormErrors.max_capacity && (
                       <div className="wh-form-error">{locFormErrors.max_capacity}</div>
@@ -2354,8 +2405,18 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                     type="number"
                     min="0"
                     className="wh-form-input"
-                    value={assignFormData.quantity}
-                    onChange={(e) => setAssignFormData({ ...assignFormData, quantity: Number(e.target.value) })}
+                    placeholder="Nhập số lượng..."
+                    value={assignFormData.quantity === '' ? '' : assignFormData.quantity}
+                    onFocus={(e) => e.target.select()}
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      if (raw === '') {
+                        setAssignFormData((prev) => ({ ...prev, quantity: '' }));
+                        return;
+                      }
+                      const clean = raw.replace(/^0+(?=\d)/, '');
+                      setAssignFormData((prev) => ({ ...prev, quantity: clean === '' ? 0 : Number(clean) }));
+                    }}
                   />
                   <div style={{ fontSize: '12px', color: '#64748b' }}>
                     Nếu nhập 0, sản phẩm sẽ được gỡ khỏi vị trí kệ này.
@@ -2430,8 +2491,22 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                     min="1"
                     max={transferFormData.max_available}
                     className="wh-form-input"
-                    value={transferFormData.quantity}
-                    onChange={(e) => setTransferFormData({ ...transferFormData, quantity: Number(e.target.value) })}
+                    placeholder="Nhập số lượng..."
+                    value={transferFormData.quantity === 0 || transferFormData.quantity === '' ? '' : transferFormData.quantity}
+                    onFocus={(e) => e.target.select()}
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      if (raw === '') {
+                        setTransferFormData((prev) => ({ ...prev, quantity: '' }));
+                        return;
+                      }
+                      const clean = raw.replace(/^0+(?=\d)/, '');
+                      if (clean === '0') {
+                        setTransferFormData((prev) => ({ ...prev, quantity: '' }));
+                        return;
+                      }
+                      setTransferFormData((prev) => ({ ...prev, quantity: Number(clean) }));
+                    }}
                   />
                   <div style={{ fontSize: '12px', color: '#64748b' }}>
                     Tối đa có thể chuyển: {transferFormData.max_available}
@@ -2546,9 +2621,22 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                     min="1"
                     required
                     className="wh-form-input"
-                    value={addStockQuantity}
-                    onChange={(e) => setAddStockQuantity(Math.max(1, Number(e.target.value) || 0))}
                     placeholder="Nhập số lượng hàng..."
+                    value={addStockQuantity === 0 || addStockQuantity === '' ? '' : addStockQuantity}
+                    onFocus={(e) => e.target.select()}
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      if (raw === '') {
+                        setAddStockQuantity('');
+                        return;
+                      }
+                      const clean = raw.replace(/^0+(?=\d)/, '');
+                      if (clean === '0') {
+                        setAddStockQuantity('');
+                        return;
+                      }
+                      setAddStockQuantity(Number(clean));
+                    }}
                   />
                 </div>
 
@@ -3052,8 +3140,22 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                       type="number"
                       min="1"
                       className="wh-form-input"
-                      value={rackFormData.max_capacity}
-                      onChange={(e) => setRackFormData({ ...rackFormData, max_capacity: Number(e.target.value) })}
+                      placeholder="VD: 500"
+                      value={rackFormData.max_capacity === 0 || rackFormData.max_capacity === '' ? '' : rackFormData.max_capacity}
+                      onFocus={(e) => e.target.select()}
+                      onChange={(e) => {
+                        const raw = e.target.value;
+                        if (raw === '') {
+                          setRackFormData((prev) => ({ ...prev, max_capacity: '' }));
+                          return;
+                        }
+                        const clean = raw.replace(/^0+(?=\d)/, '');
+                        if (clean === '0') {
+                          setRackFormData((prev) => ({ ...prev, max_capacity: '' }));
+                          return;
+                        }
+                        setRackFormData((prev) => ({ ...prev, max_capacity: Number(clean) }));
+                      }}
                     />
                   </div>
                 </div>
