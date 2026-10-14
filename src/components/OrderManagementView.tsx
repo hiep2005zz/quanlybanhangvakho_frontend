@@ -53,6 +53,43 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
   const [regionFilter, setRegionFilter] = useState<string>('ALL');
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
+
+  // Bộ lọc dự thảo (chờ bấm nút "Áp dụng")
+  const [draftStatusFilter, setDraftStatusFilter] = useState<
+    'ALL' | 'PENDING_APPROVAL' | 'CONFIRMED' | 'PICKING' | 'EXPORTED' | 'DELIVERED' | 'REJECTED' | 'CANCELLED'
+  >('ALL');
+  const [draftDealerFilter, setDraftDealerFilter] = useState<string>('ALL');
+  const [draftSalesRepFilter, setDraftSalesRepFilter] = useState<string>('ALL');
+  const [draftRegionFilter, setDraftRegionFilter] = useState<string>('ALL');
+  const [draftStartDate, setDraftStartDate] = useState<string>('');
+  const [draftEndDate, setDraftEndDate] = useState<string>('');
+
+  const handleApplyFilter = () => {
+    setStatusFilter(draftStatusFilter);
+    setDealerFilter(draftDealerFilter);
+    setSalesRepFilter(draftSalesRepFilter);
+    setRegionFilter(draftRegionFilter);
+    setStartDate(draftStartDate);
+    setEndDate(draftEndDate);
+    setCurrentPage(1);
+  };
+
+  const handleResetFilter = () => {
+    setDraftStatusFilter('ALL');
+    setDraftDealerFilter('ALL');
+    setDraftSalesRepFilter('ALL');
+    setDraftRegionFilter('ALL');
+    setDraftStartDate('');
+    setDraftEndDate('');
+
+    setStatusFilter('ALL');
+    setDealerFilter('ALL');
+    setSalesRepFilter('ALL');
+    setRegionFilter('ALL');
+    setStartDate('');
+    setEndDate('');
+    setCurrentPage(1);
+  };
   const [dealers, setDealers] = useState<OrderDealer[]>([]);
   const [salesReps, setSalesReps] = useState<SalesRepItem[]>([]);
   const [regions, setRegions] = useState<string[]>([]);
@@ -1087,7 +1124,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
           </div>
         </div>
 
-        {/* Thanh lọc đa tiêu chí - 1 dòng duy nhất, kích thước các ô bằng nhau */}
+        {/* Thanh lọc đa tiêu chí - 1 dòng duy nhất, có nút Áp dụng và Đặt lại */}
         <div className="px-3 sm:px-4 py-2 bg-slate-100/70 border-b border-slate-200 flex flex-nowrap items-center gap-2 text-xs shrink-0 overflow-x-auto">
           <span className="font-bold text-slate-700 shrink-0 flex items-center gap-1 mr-0.5">
             <svg className="w-3.5 h-3.5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1101,10 +1138,10 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
             <label htmlFor="filter-status" className="text-slate-600 font-medium shrink-0 text-xs">Trạng thái:</label>
             <select
               id="filter-status"
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as any)}
-              className="h-[30px] w-[120px] px-2 bg-white border border-slate-300 rounded-md text-xs text-slate-700 outline-none focus:border-emerald-500 cursor-pointer box-border shrink-0 truncate"
-              title="Lọc theo trạng thái đơn hàng"
+              value={draftStatusFilter}
+              onChange={(e) => setDraftStatusFilter(e.target.value as any)}
+              className="h-[30px] w-[130px] px-2 bg-white border border-slate-300 rounded-md text-xs text-slate-700 outline-none focus:border-emerald-500 cursor-pointer box-border shrink-0 truncate"
+              title="Chọn trạng thái đơn hàng"
             >
               <option value="ALL">Tất cả ({totalOrdersCount})</option>
               <option value="PENDING_APPROVAL">{isCustomer ? 'Chờ xử lý' : 'Chờ duyệt'} ({pendingOrdersCount})</option>
@@ -1123,10 +1160,10 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
               <label htmlFor="filter-dealer" className="text-slate-600 font-medium shrink-0 text-xs">Đại lý:</label>
               <select
                 id="filter-dealer"
-                value={dealerFilter}
-                onChange={(e) => setDealerFilter(e.target.value)}
-                className="h-[30px] w-[120px] px-2 bg-white border border-slate-300 rounded-md text-xs text-slate-700 outline-none focus:border-emerald-500 cursor-pointer box-border shrink-0 truncate"
-                title="Lọc theo đại lý"
+                value={draftDealerFilter}
+                onChange={(e) => setDraftDealerFilter(e.target.value)}
+                className="h-[30px] w-[130px] px-2 bg-white border border-slate-300 rounded-md text-xs text-slate-700 outline-none focus:border-emerald-500 cursor-pointer box-border shrink-0 truncate"
+                title="Chọn đại lý"
               >
                 <option value="ALL">Tất cả đại lý</option>
                 {dealers.map((d) => (
@@ -1144,10 +1181,10 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
               <label htmlFor="filter-sales-rep" className="text-slate-600 font-medium shrink-0 text-xs">Nhân viên:</label>
               <select
                 id="filter-sales-rep"
-                value={salesRepFilter}
-                onChange={(e) => setSalesRepFilter(e.target.value)}
-                className="h-[30px] w-[120px] px-2 bg-white border border-slate-300 rounded-md text-xs text-slate-700 outline-none focus:border-emerald-500 cursor-pointer box-border shrink-0 truncate"
-                title="Lọc theo nhân viên kinh doanh"
+                value={draftSalesRepFilter}
+                onChange={(e) => setDraftSalesRepFilter(e.target.value)}
+                className="h-[30px] w-[130px] px-2 bg-white border border-slate-300 rounded-md text-xs text-slate-700 outline-none focus:border-emerald-500 cursor-pointer box-border shrink-0 truncate"
+                title="Chọn nhân viên kinh doanh"
               >
                 <option value="ALL">Tất cả nhân viên</option>
                 {salesReps.map((sr) => (
@@ -1165,10 +1202,10 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
               <label htmlFor="filter-region" className="text-slate-600 font-medium shrink-0 text-xs">Khu vực:</label>
               <select
                 id="filter-region"
-                value={regionFilter}
-                onChange={(e) => setRegionFilter(e.target.value)}
-                className="h-[30px] w-[120px] px-2 bg-white border border-slate-300 rounded-md text-xs text-slate-700 outline-none focus:border-emerald-500 cursor-pointer box-border shrink-0 truncate"
-                title="Lọc theo khu vực"
+                value={draftRegionFilter}
+                onChange={(e) => setDraftRegionFilter(e.target.value)}
+                className="h-[30px] w-[130px] px-2 bg-white border border-slate-300 rounded-md text-xs text-slate-700 outline-none focus:border-emerald-500 cursor-pointer box-border shrink-0 truncate"
+                title="Chọn khu vực"
               >
                 <option value="ALL">Tất cả khu vực</option>
                 {regions.map((reg) => (
@@ -1180,53 +1217,62 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
             </div>
           )}
 
-          {/* Khoảng thời gian */}
+          {/* Khoảng thời gian: Từ ngày - Đến ngày */}
           <div className="flex items-center gap-1 shrink-0">
-            <label htmlFor="filter-start-date" className="text-slate-600 font-medium shrink-0 text-xs">Từ ngày:</label>
+            <label htmlFor="filter-start-date" className="text-slate-600 font-medium shrink-0 text-xs">Từ:</label>
             <input
               type="date"
               id="filter-start-date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="h-[30px] w-[120px] px-1.5 bg-white border border-slate-300 rounded-md text-xs text-slate-700 outline-none focus:border-emerald-500 cursor-pointer box-border shrink-0"
+              value={draftStartDate}
+              onChange={(e) => setDraftStartDate(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') handleApplyFilter(); }}
+              className="h-[30px] w-[130px] px-2 bg-white border border-slate-300 rounded-md text-xs text-slate-700 outline-none focus:border-emerald-500 cursor-pointer box-border shrink-0"
               title="Lọc từ ngày"
             />
           </div>
 
           <div className="flex items-center gap-1 shrink-0">
-            <label htmlFor="filter-end-date" className="text-slate-600 font-medium shrink-0 text-xs">Đến ngày:</label>
+            <label htmlFor="filter-end-date" className="text-slate-600 font-medium shrink-0 text-xs">Đến:</label>
             <input
               type="date"
               id="filter-end-date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className="h-[30px] w-[120px] px-1.5 bg-white border border-slate-300 rounded-md text-xs text-slate-700 outline-none focus:border-emerald-500 cursor-pointer box-border shrink-0"
+              value={draftEndDate}
+              onChange={(e) => setDraftEndDate(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') handleApplyFilter(); }}
+              className="h-[30px] w-[130px] px-2 bg-white border border-slate-300 rounded-md text-xs text-slate-700 outline-none focus:border-emerald-500 cursor-pointer box-border shrink-0"
               title="Lọc đến ngày"
             />
           </div>
 
-          {/* Nút đặt lại */}
-          {(statusFilter !== 'ALL' || dealerFilter !== 'ALL' || salesRepFilter !== 'ALL' || regionFilter !== 'ALL' || startDate || endDate) && (
-            <button
-              type="button"
-              onClick={() => {
-                setStatusFilter('ALL');
-                setDealerFilter('ALL');
-                setSalesRepFilter('ALL');
-                setRegionFilter('ALL');
-                setStartDate('');
-                setEndDate('');
-              }}
-              className="h-[30px] px-2.5 bg-slate-200 hover:bg-slate-300 active:bg-slate-400 text-slate-700 font-semibold rounded-md text-xs cursor-pointer transition-colors whitespace-nowrap shrink-0 flex items-center gap-1"
-              title="Đặt lại các tiêu chí lọc về mặc định"
-            >
-              <svg className="w-3.5 h-3.5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-              Đặt lại
-            </button>
-          )}
+          {/* Nút Áp dụng lọc */}
+          <button
+            type="button"
+            id="btn-apply-order-filter"
+            onClick={handleApplyFilter}
+            className="h-[30px] px-3 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-semibold rounded-md text-xs cursor-pointer transition-colors whitespace-nowrap shrink-0 flex items-center gap-1 shadow-xs"
+            title="Nhấn để áp dụng các tiêu chí lọc đã chọn"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M5 13l4 4L19 7" />
+            </svg>
+            Áp dụng
+          </button>
+
+          {/* Nút Đặt lại */}
+          <button
+            type="button"
+            id="btn-reset-order-filter"
+            onClick={handleResetFilter}
+            className="h-[30px] px-2.5 bg-slate-200 hover:bg-slate-300 active:bg-slate-400 text-slate-700 font-semibold rounded-md text-xs cursor-pointer transition-colors whitespace-nowrap shrink-0 flex items-center gap-1"
+            title="Đặt lại các tiêu chí lọc về mặc định"
+          >
+            <svg className="w-3.5 h-3.5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            Đặt lại
+          </button>
         </div>
+
 
         {/* Nội dung danh sách đơn hàng */}
         {loading ? (
