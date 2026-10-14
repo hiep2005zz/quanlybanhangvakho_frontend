@@ -52,7 +52,8 @@ export const StockThresholdManagementView: React.FC<StockThresholdManagementView
   });
 
   // State chỉnh sửa
-  const [editingValues, setEditingValues] = useState<{ [key: string]: number }>({});
+  // State chỉnh sửa (dùng string để cho phép xóa sạch về rỗng mà không bị tự nhảy lại số 0 hoặc bị dính số 0 đằng trước)
+  const [editingValues, setEditingValues] = useState<{ [key: string]: string }>({});
   const [savingKey, setSavingKey] = useState<string | null>(null);
   const [isSavingAll, setIsSavingAll] = useState<boolean>(false);
 
@@ -94,8 +95,9 @@ export const StockThresholdManagementView: React.FC<StockThresholdManagementView
       );
 
       if (Array.isArray(res)) {
-        // Fallback nếu backend trả về mảng trực tiếp
-        setItems(res);
+        // Fallback an toàn nếu backend trả về mảng trực tiếp: phân trang Client-side để luôn đảm bảo chỉ hiện đúng pageSize (20) dòng
+        const start = (currentPage - 1) * pageSize;
+        setItems(res.slice(start, start + pageSize));
         setTotalItems(res.length);
         setTotalPages(Math.max(1, Math.ceil(res.length / pageSize)));
         const low = res.filter((i) => i.is_low_stock).length;
@@ -105,9 +107,9 @@ export const StockThresholdManagementView: React.FC<StockThresholdManagementView
           safeCount: Math.max(0, res.length - low),
           activeWarehouses: new Set(res.map((i) => i.warehouse_id)).size || 1,
         });
-        const initialEdits: { [key: string]: number } = {};
+        const initialEdits: { [key: string]: string } = {};
         res.forEach((it) => {
-          initialEdits[`${it.warehouse_id}_${it.product_id}`] = it.min_stock;
+          initialEdits[`${it.warehouse_id}_${it.product_id}`] = String(it.min_stock);
         });
         setEditingValues((prev) => ({ ...initialEdits, ...prev }));
       } else {
@@ -123,9 +125,9 @@ export const StockThresholdManagementView: React.FC<StockThresholdManagementView
             activeWarehouses: res.active_warehouses ?? (selectedWarehouseId === 'ALL' ? 3 : 1),
           });
         }
-        const initialEdits: { [key: string]: number } = {};
+        const initialEdits: { [key: string]: string } = {};
         res.items.forEach((it) => {
-          initialEdits[`${it.warehouse_id}_${it.product_id}`] = it.min_stock;
+          initialEdits[`${it.warehouse_id}_${it.product_id}`] = String(it.min_stock);
         });
         setEditingValues((prev) => ({ ...initialEdits, ...prev }));
       }
@@ -144,23 +146,56 @@ export const StockThresholdManagementView: React.FC<StockThresholdManagementView
   const changedItemsOnPage = useMemo(() => {
     return items.filter((it) => {
       const key = `${it.warehouse_id}_${it.product_id}`;
-      return editingValues[key] !== undefined && editingValues[key] !== it.min_stock;
+      const valStr = editingValues[key];
+      if (valStr === undefined) return false;
+      const numVal = valStr === '' ? 0 : (parseInt(valStr, 10) || 0);
+      return numVal !== it.min_stock;
     });
   }, [items, editingValues]);
 
-  const handleMinStockChange = (warehouseId: string, productId: number, val: number) => {
+  // Xử lý khi người dùng nhập số: cho phép xóa về rỗng "", tự động loại bỏ số 0 thừa phía trước
+  const handleMinStockChange = (warehouseId: string, productId: number, rawVal: string) => {
     const key = `${warehouseId}_${productId}`;
+    if (rawVal === '') {
+      setEditingValues((prev) => ({
+        ...prev,
+        [key]: '',
+      }));
+      return;
+    }
+
+    // Chỉ giữ lại các chữ số
+    let clean = rawVal.replace(/\D/g, '');
+
+    // Nếu gõ số khác sau số 0 (ví dụ "010" -> "10", "01" -> "1"), tự động bỏ số 0 ở đầu
+    if (clean.length > 1 && clean.startsWith('0')) {
+      clean = clean.replace(/^0+/, '') || '0';
+    }
+
     setEditingValues((prev) => ({
       ...prev,
-      [key]: Math.max(0, isNaN(val) ? 0 : val),
+      [key]: clean,
     }));
+  };
+
+  // Khi click ra ngoài (blur): nếu ô đang để trống "" thì tự động điền về "0"
+  const handleMinStockBlur = (warehouseId: string, productId: number) => {
+    const key = `${warehouseId}_${productId}`;
+    setEditingValues((prev) => {
+      const current = prev[key];
+      if (current === '' || current === undefined) {
+        return { ...prev, [key]: '0' };
+      }
+      return prev;
+    });
   };
 
   // Lưu 1 dòng
   const handleSaveThreshold = async (it: WarehouseThresholdItem) => {
     const key = `${it.warehouse_id}_${it.product_id}`;
-    const newMin = editingValues[key];
-    if (newMin === undefined || newMin < 0) return;
+    const valStr = editingValues[key];
+    if (valStr === undefined) return;
+    const newMin = valStr === '' ? 0 : Math.max(0, parseInt(valStr, 10) || 0);
 
     setSavingKey(key);
     try {
@@ -177,6 +212,11 @@ export const StockThresholdManagementView: React.FC<StockThresholdManagementView
             : item
         )
       );
+
+      setEditingValues((prev) => ({
+        ...prev,
+        [key]: String(newMin),
+      }));
 
       // Cập nhật lại danh sách và thống kê
       loadPaginatedThresholds();
@@ -208,8 +248,9 @@ export const StockThresholdManagementView: React.FC<StockThresholdManagementView
     try {
       for (const it of changedItemsOnPage) {
         const key = `${it.warehouse_id}_${it.product_id}`;
-        const newMin = editingValues[key];
-        if (newMin !== undefined && newMin >= 0) {
+        const valStr = editingValues[key];
+        if (valStr !== undefined) {
+          const newMin = valStr === '' ? 0 : Math.max(0, parseInt(valStr, 10) || 0);
           const updated = await updateWarehouseThresholdApi(token, {
             warehouse_id: it.warehouse_id,
             product_id: it.product_id,
@@ -299,7 +340,7 @@ export const StockThresholdManagementView: React.FC<StockThresholdManagementView
                   transition: 'all 0.15s ease',
                 }}
               >
-                {isSavingAll ? 'Đang lưu tất cả...' : `💾 Lưu thay đổi trang này (${changedItemsOnPage.length})`}
+                {isSavingAll ? 'Đang lưu tất cả...' : `Lưu thay đổi trang này (${changedItemsOnPage.length})`}
               </button>
             )}
             <button
@@ -613,8 +654,9 @@ export const StockThresholdManagementView: React.FC<StockThresholdManagementView
               <tbody>
                 {items.map((it, idx) => {
                   const key = `${it.warehouse_id}_${it.product_id}`;
-                  const currentEditVal = editingValues[key] !== undefined ? editingValues[key] : it.min_stock;
-                  const hasChanged = currentEditVal !== it.min_stock;
+                  const currentEditVal = editingValues[key] !== undefined ? editingValues[key] : String(it.min_stock);
+                  const numEditVal = currentEditVal === '' ? 0 : (parseInt(currentEditVal, 10) || 0);
+                  const hasChanged = editingValues[key] !== undefined && numEditVal !== it.min_stock;
                   const isSaving = savingKey === key || isSavingAll;
                   const rowNumber = (currentPage - 1) * pageSize + idx + 1;
 
@@ -667,13 +709,26 @@ export const StockThresholdManagementView: React.FC<StockThresholdManagementView
                       <td style={{ padding: '10px 14px', textAlign: 'center' }}>
                         <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                           <input
-                            type="number"
-                            min="0"
+                            type="text"
+                            inputMode="numeric"
                             disabled={!canManageThresholds || isSaving}
                             value={currentEditVal}
+                            onFocus={(e) => e.target.select()}
                             onChange={(e) =>
-                              handleMinStockChange(it.warehouse_id, it.product_id, parseInt(e.target.value) || 0)
+                              handleMinStockChange(it.warehouse_id, it.product_id, e.target.value)
                             }
+                            onBlur={() => handleMinStockBlur(it.warehouse_id, it.product_id)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'ArrowUp') {
+                                e.preventDefault();
+                                const next = (parseInt(currentEditVal || '0', 10) || 0) + 1;
+                                handleMinStockChange(it.warehouse_id, it.product_id, String(next));
+                              } else if (e.key === 'ArrowDown') {
+                                e.preventDefault();
+                                const next = Math.max(0, (parseInt(currentEditVal || '0', 10) || 0) - 1);
+                                handleMinStockChange(it.warehouse_id, it.product_id, String(next));
+                              }
+                            }}
                             style={{
                               width: '90px',
                               padding: '6px 10px',

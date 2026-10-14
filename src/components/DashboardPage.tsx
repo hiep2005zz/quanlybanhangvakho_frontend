@@ -505,6 +505,21 @@ export default function DashboardPage({
       return;
     }
 
+    if (tab === 'warehouses') {
+      if (!canAccessWarehouses) {
+        setActiveTabState('inventory');
+        try { window.history.replaceState({}, '', '/'); } catch {}
+        return;
+      }
+      setActiveTabState('warehouses');
+      try {
+        window.history.pushState({}, '', '/warehouses');
+      } catch {
+        // ignore
+      }
+      return;
+    }
+
     if (tab === 'stock-book') {
       setActiveTabState('stock-book');
       try {
@@ -513,7 +528,9 @@ export default function DashboardPage({
         // ignore
       }
       return;
-    } else if (tab === 'orders') {
+    }
+
+    if (tab === 'orders') {
       setActiveTabState('orders');
       try {
         window.history.pushState({}, '', '/orders');
@@ -602,18 +619,7 @@ export default function DashboardPage({
       } catch {
         // ignore
       }
-    } else if (tab === 'warehouses') {
-      if (!canAccessWarehouses) {
-        setActiveTabState('inventory');
-        try { window.history.replaceState({}, '', '/'); } catch {}
-        return;
-      }
-      setActiveTabState('warehouses');
-      try {
-        window.history.pushState({}, '', '/warehouses');
-      } catch {
-        // ignore
-      }
+
     } else {
       setActiveTabState('inventory');
       window.history.replaceState({}, '', '/');
