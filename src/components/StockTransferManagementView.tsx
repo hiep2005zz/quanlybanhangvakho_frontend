@@ -76,8 +76,8 @@ export function StockTransferManagementView({
   const [warehouseFilter, setWarehouseFilter] = useState<string>('ALL');
   const [searchTerm, setSearchTerm] = useState<string>('');
 
-  // Modal tạo phiếu
-  const [showCreateModal, setShowCreateModal] = useState(false);
+  // Trạng thái hiển thị trang tạo phiếu
+  const [isCreatingPage, setIsCreatingPage] = useState(false);
   const [fromWarehouseId, setFromWarehouseId] = useState<string>('WH01');
   const [toWarehouseId, setToWarehouseId] = useState<string>('WH02');
   const [transferItems, setTransferItems] = useState<TransferItemDraft[]>([]);
@@ -162,7 +162,7 @@ export function StockTransferManagementView({
 
   // Tải sản phẩm và tồn khả dụng khi đổi kho đi
   useEffect(() => {
-    if (!showCreateModal || !fromWarehouseId) return;
+    if (!isCreatingPage || !fromWarehouseId) return;
     setLoadingProducts(true);
     getStockBookApi(token, { warehouse_id: fromWarehouseId })
       .then((res) => {
@@ -183,7 +183,7 @@ export function StockTransferManagementView({
       .finally(() => {
         setLoadingProducts(false);
       });
-  }, [token, showCreateModal, fromWarehouseId]);
+  }, [token, isCreatingPage, fromWarehouseId]);
 
   // Hàm kiểm tra tình trạng giao bù của một phiếu chuyển kho
   const getTransferCompensationStatus = useCallback(
@@ -288,15 +288,20 @@ export function StockTransferManagementView({
   const endIndex = Math.min(startIndex + pageSize, totalItems);
   const pageItems = filteredTransfers.slice(startIndex, endIndex);
 
-  // Mở modal tạo phiếu mới
-  const handleOpenCreateModal = () => {
+  // Mở trang tạo phiếu mới
+  const handleOpenCreatePage = () => {
     const defaultFrom = warehouses[0]?.id || 'WH01';
     const defaultTo = warehouses.find((w) => w.id !== defaultFrom)?.id || 'WH02';
     setFromWarehouseId(defaultFrom);
     setToWarehouseId(defaultTo);
     setTransferItems([]);
     setTransferNote('');
-    setShowCreateModal(true);
+    setIsCreatingPage(true);
+  };
+
+  // Đóng trang tạo phiếu, quay lại danh sách
+  const handleCloseCreatePage = () => {
+    setIsCreatingPage(false);
   };
 
   // Thêm một sản phẩm vào danh sách chuyển
@@ -391,7 +396,7 @@ export function StockTransferManagementView({
         type: 'success',
       });
 
-      setShowCreateModal(false);
+      setIsCreatingPage(false);
       fetchTransfers();
     } catch (err: any) {
       emitStatusToast({
@@ -692,33 +697,475 @@ export function StockTransferManagementView({
     switch (status) {
       case 'IN_TRANSIT':
         return (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200 whitespace-nowrap">
-            <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200 whitespace-nowrap">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse shrink-0" />
             Đang trên đường
           </span>
         );
       case 'COMPLETED':
         return (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 whitespace-nowrap">
-            <span className="w-2 h-2 rounded-full bg-emerald-500" />
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 whitespace-nowrap">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
             Hoàn tất
           </span>
         );
       case 'CANCELLED':
         return (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200 whitespace-nowrap">
-            <span className="w-2 h-2 rounded-full bg-rose-500" />
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-rose-50 text-rose-700 border border-rose-200 whitespace-nowrap">
+            <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" />
             Đã hủy
           </span>
         );
       default:
         return (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200 whitespace-nowrap">
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-700 border border-slate-200 whitespace-nowrap">
             Bản nháp
           </span>
         );
     }
   };
+
+  // NẾU ĐANG Ở CHẾ ĐỘ TRANG TẠO PHIẾU CHUYỂN KHO NỘI BỘ (FULL PAGE VIEW)
+  if (isCreatingPage) {
+    const fromWarehouseObj = warehouses.find((w) => w.id === fromWarehouseId);
+    const toWarehouseObj = warehouses.find((w) => w.id === toWarehouseId);
+    const totalItems = transferItems.length;
+    const totalQty = transferItems.reduce((acc, it) => acc + (it.transfer_qty || 0), 0);
+    const hasAnyOverStock = transferItems.some((it) => it.transfer_qty > it.available_stock);
+
+    return (
+      <div className="w-full h-full max-h-full overflow-y-auto p-4 md:p-6 bg-slate-50/70 flex flex-col gap-5">
+        {/* BREADCRUMB VÀ ACTIONS TRÊN CÙNG */}
+        <div className="flex flex-wrap items-center justify-between gap-3 shrink-0">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleCloseCreatePage}
+              className="px-3.5 py-1.5 text-xs font-semibold text-slate-700 hover:text-blue-600 bg-white hover:bg-slate-50 border border-slate-200 hover:border-slate-300 rounded-full shadow-sm inline-flex items-center gap-1.5 transition-all"
+            >
+              <svg className="w-3.5 h-3.5 text-slate-600" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+              </svg>
+              <span>Quay lại</span>
+            </button>
+            <span className="text-slate-300">/</span>
+            <span className="px-3.5 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-full shadow-sm inline-flex items-center">
+              Lập phiếu chuyển kho
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2.5">
+            <button
+              type="button"
+              onClick={handleCloseCreatePage}
+              className="px-4 py-2 text-xs font-medium text-slate-600 hover:text-slate-800 bg-white hover:bg-slate-100/80 border border-slate-200 rounded-xl transition-all shadow-sm"
+            >
+              Hủy bỏ
+            </button>
+            <button
+              type="button"
+              onClick={handleSubmitCreateTransfer}
+              disabled={
+                creating ||
+                fromWarehouseId === toWarehouseId ||
+                transferItems.length === 0 ||
+                hasAnyOverStock
+              }
+              className="px-5 py-2 text-xs font-semibold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl transition-all shadow-md hover:shadow-lg flex items-center gap-2"
+            >
+              {creating ? (
+                <>
+                  <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  <span>Đang xử lý...</span>
+                </>
+              ) : (
+                <>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span>Xuất kho chuyển hàng</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* HEADER CARD */}
+        <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0">
+          <div className="flex items-start md:items-center gap-3.5">
+            <div className="p-3 rounded-2xl bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100 text-blue-600 shadow-sm shrink-0">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+              </svg>
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-slate-800 tracking-tight">
+                Lập phiếu chuyển kho nội bộ
+              </h1>
+            </div>
+          </div>
+        </div>
+
+        {/* MAIN FORM GRID */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+          {/* CỘT TRÁI: TUYẾN ĐIỀU CHUYỂN & DANH SÁCH HÀNG HÓA */}
+          <div className="lg:col-span-8 flex flex-col gap-5">
+            {/* THẺ 1: TUYẾN ĐIỀU CHUYỂN */}
+            <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm flex flex-col gap-4">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                <h2 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                  <span className="w-6 h-6 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-extrabold">1</span>
+                  Tuyến điều chuyển hàng hóa
+                </h2>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
+                {/* KHO GỬI */}
+                <div className="bg-slate-50/80 p-4 rounded-xl border border-slate-200/70 flex flex-col gap-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-blue-500" />
+                      Kho gửi (Xuất đi) <span className="text-rose-500">*</span>
+                    </label>
+                    <span className="text-[11px] font-medium text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">
+                      Kho xuất
+                    </span>
+                  </div>
+                  <select
+                    value={fromWarehouseId}
+                    onChange={(e) => {
+                      const newFrom = e.target.value;
+                      setFromWarehouseId(newFrom);
+                      setTransferItems([]);
+                      if (toWarehouseId === newFrom) {
+                        const nextTo = warehouses.find((w) => w.id !== newFrom);
+                        if (nextTo) setToWarehouseId(nextTo.id);
+                      }
+                    }}
+                    className="w-full px-3.5 py-2.5 text-sm font-semibold border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
+                  >
+                    {warehouses.map((w) => (
+                      <option key={w.id} value={w.id}>
+                        {w.name} ({w.id})
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-[11px] text-slate-500 leading-relaxed">
+                    Tồn kho thực tế tại kho này sẽ bị <b>trừ ngay</b> khi lập phiếu.
+                  </p>
+                </div>
+
+                {/* KHO NHẬN */}
+                <div className="bg-slate-50/80 p-4 rounded-xl border border-slate-200/70 flex flex-col gap-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                      Kho nhận (Đích đến) <span className="text-rose-500">*</span>
+                    </label>
+                    <span className="text-[11px] font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                      Kho nhận
+                    </span>
+                  </div>
+                  <select
+                    value={toWarehouseId}
+                    onChange={(e) => setToWarehouseId(e.target.value)}
+                    className="w-full px-3.5 py-2.5 text-sm font-semibold border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
+                  >
+                    {warehouses
+                      .filter((w) => w.id !== fromWarehouseId)
+                      .map((w) => (
+                        <option key={w.id} value={w.id}>
+                          {w.name} ({w.id})
+                        </option>
+                      ))}
+                  </select>
+                  <p className="text-[11px] text-amber-600 leading-relaxed">
+                    <b>Chưa cộng tồn kho nhận</b> cho đến khi thủ kho đến bấm xác nhận đủ.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* THẺ 2: DANH SÁCH HÀNG HÓA */}
+            <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm flex flex-col gap-4">
+              <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-slate-100">
+                <div className="flex items-center gap-2">
+                  <span className="w-6 h-6 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center text-xs font-extrabold">2</span>
+                  <h2 className="text-sm font-bold text-slate-800">Danh sách hàng hóa điều chuyển</h2>
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200">
+                    {totalItems} mặt hàng / {totalQty} sản phẩm
+                  </span>
+                </div>
+                {loadingProducts && (
+                  <span className="text-xs font-medium text-blue-600 flex items-center gap-1.5">
+                    <span className="w-3 h-3 border-2 border-blue-600/30 border-t-blue-600 rounded-full animate-spin" />
+                    Đang nạp tồn kho tại {fromWarehouseObj?.name || fromWarehouseId}...
+                  </span>
+                )}
+              </div>
+
+              {/* Ô CHỌN SẢN PHẨM */}
+              <div className="bg-slate-50/70 p-3.5 rounded-xl border border-slate-200/70 flex flex-col sm:flex-row items-center gap-2.5">
+                <div className="w-full sm:w-auto text-xs font-bold text-slate-600 uppercase tracking-wider whitespace-nowrap pl-1">
+                  Chọn sản phẩm:
+                </div>
+                <div className="relative flex-1 w-full">
+                  <select
+                    id="page-select-add-product"
+                    className="w-full px-3.5 py-2.5 text-sm border border-slate-300 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm transition-all"
+                    onChange={(e) => {
+                      handleAddProductToTransfer(e.target.value);
+                      e.target.value = '';
+                    }}
+                    defaultValue=""
+                  >
+                    <option value="" disabled>
+                      -- Chọn sản phẩm tại {fromWarehouseObj?.name || fromWarehouseId} để thêm vào phiếu --
+                    </option>
+                    {availableProducts.map((p) => (
+                      <option
+                        key={p.product_id}
+                        value={p.product_id}
+                        disabled={p.available_stock <= 0}
+                      >
+                        {p.product_code} - {p.product_name} (Tồn khả dụng: {p.available_stock}{' '}
+                        {p.base_unit || 'Cái'}) {p.available_stock <= 0 ? '[Hết tồn]' : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* BẢNG CÁC SẢN PHẨM ĐÃ CHỌN */}
+              {transferItems.length === 0 ? (
+                <div className="p-8 border-2 border-dashed border-slate-200 rounded-2xl text-center flex flex-col items-center justify-center bg-slate-50/40">
+                  <div className="font-semibold text-slate-700 text-sm">
+                    Chưa có sản phẩm nào trong phiếu chuyển kho
+                  </div>
+                </div>
+              ) : (
+                <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-slate-50/90 text-xs font-semibold text-slate-600 border-b border-slate-200">
+                        <tr>
+                          <th className="py-3 px-3.5 text-center w-12">#</th>
+                          <th className="py-3 px-3.5 text-left">Sản phẩm</th>
+                          <th className="py-3 px-3 text-center w-24">Đơn vị</th>
+                          <th className="py-3 px-3 text-center w-28">Tồn khả dụng</th>
+                          <th className="py-3 px-3 text-center w-36">SL chuyển</th>
+                          <th className="py-3 px-3 text-center w-28">Tồn còn lại</th>
+                          <th className="py-3 px-3 text-center w-16">Xóa</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {transferItems.map((it, idx) => {
+                          const isOver = it.transfer_qty > it.available_stock;
+                          const remainingStock = Math.max(0, it.available_stock - it.transfer_qty);
+                          return (
+                            <tr key={it.product_id} className="hover:bg-slate-50/70 transition-colors">
+                              <td className="py-3 px-3.5 text-center text-xs text-slate-400 font-medium">
+                                {idx + 1}
+                              </td>
+                              <td className="py-3 px-3.5">
+                                <div className="font-semibold text-slate-800 text-sm">
+                                  {it.product_name}
+                                </div>
+                                <div className="flex items-center gap-2 mt-0.5">
+                                  <span className="text-xs font-mono text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
+                                    {it.product_code}
+                                  </span>
+                                  {it.category && (
+                                    <span className="text-[11px] text-slate-400">
+                                      • {it.category}
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="py-3 px-3 text-center text-xs text-slate-600 font-medium">
+                                {it.unit || 'Cái'}
+                              </td>
+                              <td className="py-3 px-3 text-center">
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200/60">
+                                  {it.available_stock}
+                                </span>
+                              </td>
+                              <td className="py-3 px-3 text-center">
+                                <div className="inline-flex items-center gap-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleUpdateTransferQty(idx, Math.max(1, it.transfer_qty - 1))}
+                                    className="w-7 h-7 flex items-center justify-center rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-600 font-bold text-sm transition-colors"
+                                  >
+                                    -
+                                  </button>
+                                  <input
+                                    type="number"
+                                    min="1"
+                                    max={it.available_stock}
+                                    value={it.transfer_qty}
+                                    onChange={(e) =>
+                                      handleUpdateTransferQty(idx, parseInt(e.target.value, 10) || 1)
+                                    }
+                                    className={`w-20 text-center px-2 py-1.5 text-sm border rounded-lg font-bold focus:outline-none focus:ring-2 ${
+                                      isOver
+                                        ? 'border-rose-400 text-rose-600 bg-rose-50 ring-rose-200'
+                                        : 'border-slate-200 focus:ring-blue-500'
+                                    }`}
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => handleUpdateTransferQty(idx, it.transfer_qty + 1)}
+                                    className="w-7 h-7 flex items-center justify-center rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-600 font-bold text-sm transition-colors"
+                                  >
+                                    +
+                                  </button>
+                                </div>
+                                {isOver && (
+                                  <div className="text-[11px] text-rose-600 font-medium mt-1">
+                                    ⚠️ Vượt tồn ({it.available_stock})!
+                                  </div>
+                                )}
+                              </td>
+                              <td className="py-3 px-3 text-center text-xs font-semibold text-slate-600">
+                                {isOver ? (
+                                  <span className="text-rose-500 font-bold">0</span>
+                                ) : (
+                                  remainingStock
+                                )}
+                              </td>
+                              <td className="py-3 px-3 text-center">
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveTransferItem(idx)}
+                                  className="w-7 h-7 inline-flex items-center justify-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors text-base font-bold"
+                                  title="Xóa khỏi phiếu"
+                                >
+                                  ✕
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* CỘT PHẢI: TÓM TẮT & GHI CHÚ */}
+          <div className="lg:col-span-4 flex flex-col gap-5">
+            {/* THẺ TÓM TẮT PHIẾU */}
+            <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm flex flex-col gap-4">
+              <h2 className="text-sm font-bold text-slate-800 flex items-center gap-2 pb-3 border-b border-slate-100">
+                <span className="w-2 h-2 rounded-full bg-blue-600" />
+                Tóm tắt phiếu chuyển kho
+              </h2>
+
+              <div className="space-y-3 text-xs">
+                <div className="flex items-center justify-between py-1 border-b border-slate-100">
+                  <span className="text-slate-500">Kho xuất (gửi):</span>
+                  <span className="font-semibold text-slate-800">
+                    {fromWarehouseObj?.name || fromWarehouseId}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between py-1 border-b border-slate-100">
+                  <span className="text-slate-500">Kho nhập (nhận):</span>
+                  <span className="font-semibold text-slate-800">
+                    {toWarehouseObj?.name || toWarehouseId}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between py-1 border-b border-slate-100">
+                  <span className="text-slate-500">Người lập phiếu:</span>
+                  <span className="font-semibold text-slate-800">
+                    {currentUser?.full_name || currentUser?.username || 'admin'}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between py-1 border-b border-slate-100">
+                  <span className="text-slate-500">Ngày lập:</span>
+                  <span className="font-semibold text-slate-800">
+                    {new Date().toLocaleDateString('vi-VN')}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between py-1 border-b border-slate-100">
+                  <span className="text-slate-500">Tổng mặt hàng:</span>
+                  <span className="font-bold text-blue-600 text-sm">
+                    {totalItems} mặt hàng
+                  </span>
+                </div>
+                <div className="flex items-center justify-between py-1 border-b border-slate-100">
+                  <span className="text-slate-500">Tổng số lượng xuất:</span>
+                  <span className="font-bold text-indigo-600 text-base">
+                    {totalQty} sản phẩm
+                  </span>
+                </div>
+                <div className="flex items-center justify-between py-1">
+                  <span className="text-slate-500">Trạng thái sau tạo:</span>
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                    Đang trên đường
+                  </span>
+                </div>
+              </div>
+
+              {/* NÚT THAO TÁC CỘT PHẢI */}
+              <div className="pt-2 flex flex-col gap-2.5">
+                <button
+                  type="button"
+                  onClick={handleSubmitCreateTransfer}
+                  disabled={
+                    creating ||
+                    fromWarehouseId === toWarehouseId ||
+                    transferItems.length === 0 ||
+                    hasAnyOverStock
+                  }
+                  className="w-full py-2.5 px-4 text-xs font-semibold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2"
+                >
+                  {creating ? (
+                    <>
+                      <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      <span>Đang xử lý...</span>
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      <span>Xuất kho chuyển hàng</span>
+                    </>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCloseCreatePage}
+                  className="w-full py-2 px-4 text-xs font-medium text-slate-600 hover:text-slate-800 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl transition-all text-center"
+                >
+                  Hủy bỏ / Quay lại
+                </button>
+              </div>
+            </div>
+
+            {/* THẺ GHI CHÚ */}
+            <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm flex flex-col gap-3">
+              <h2 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                <span className="w-6 h-6 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center text-xs font-extrabold">3</span>
+                Ghi chú điều chuyển
+              </h2>
+              <textarea
+                rows={4}
+                value={transferNote}
+                onChange={(e) => setTransferNote(e.target.value)}
+                placeholder="Nhập lý do điều chuyển hàng, thông tin lái xe, biển số xe vận chuyển hoặc các lưu ý khác..."
+                className="w-full p-3 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-inner"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -726,7 +1173,7 @@ export function StockTransferManagementView({
         width: '100%',
         maxWidth: '100%',
         margin: '0 auto',
-        padding: '16px 24px',
+        padding: '14px 18px',
         height: '100%',
         maxHeight: '100%',
         boxSizing: 'border-box',
@@ -753,7 +1200,7 @@ export function StockTransferManagementView({
           </button>
           {canWriteInventory && (
             <button
-              onClick={handleOpenCreateModal}
+              onClick={handleOpenCreatePage}
               className="px-4 py-2 text-xs font-medium text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 rounded-lg transition-all shadow-md hover:shadow-lg"
             >
               Lập phiếu chuyển kho
@@ -802,13 +1249,25 @@ export function StockTransferManagementView({
           <input
             type="text"
             placeholder="Tìm theo mã phiếu, tên kho, sản phẩm hoặc người lập..."
+            title="Tìm theo mã phiếu, tên kho, sản phẩm hoặc người lập..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            style={{ paddingLeft: '38px' }}
-            className="w-full pr-4 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            style={{
+              paddingLeft: '34px',
+              paddingRight: '12px',
+              height: '34px',
+              fontSize: '12px',
+              fontFamily: 'inherit',
+              color: '#334155',
+              backgroundColor: '#ffffff',
+              borderColor: '#e2e8f0',
+              borderRadius: '8px',
+              boxSizing: 'border-box',
+            }}
+            className="w-full border focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
           <svg
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+            className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
             width="15"
             height="15"
             viewBox="0 0 24 24"
@@ -823,11 +1282,24 @@ export function StockTransferManagementView({
           </svg>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto shrink-0">
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-1.5 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            style={{
+              minWidth: '170px',
+              height: '34px',
+              fontSize: '12px',
+              fontFamily: 'inherit',
+              color: '#334155',
+              backgroundColor: '#ffffff',
+              borderColor: '#e2e8f0',
+              borderRadius: '8px',
+              padding: '0 12px',
+              boxSizing: 'border-box',
+              outline: 'none',
+            }}
+            className="border focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
           >
             <option value="ALL">Tất cả trạng thái</option>
             <option value="IN_TRANSIT">Đang trên đường</option>
@@ -838,7 +1310,20 @@ export function StockTransferManagementView({
           <select
             value={warehouseFilter}
             onChange={(e) => setWarehouseFilter(e.target.value)}
-            className="px-3 py-1.5 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            style={{
+              minWidth: '170px',
+              height: '34px',
+              fontSize: '12px',
+              fontFamily: 'inherit',
+              color: '#334155',
+              backgroundColor: '#ffffff',
+              borderColor: '#e2e8f0',
+              borderRadius: '8px',
+              padding: '0 12px',
+              boxSizing: 'border-box',
+              outline: 'none',
+            }}
+            className="border focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
           >
             <option value="ALL">Tất cả các kho</option>
             {warehouses.map((w) => (
@@ -852,17 +1337,26 @@ export function StockTransferManagementView({
 
       {/* TRANSFERS DATA TABLE */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col flex-1 min-h-0 overflow-hidden">
-        <div className="flex-1 min-h-0 overflow-y-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-slate-50 border-b border-slate-200 text-[11px] font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap sticky top-0 z-10 shadow-sm">
+        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
+          <table className="w-full table-fixed text-left text-xs">
+            <colgroup>
+              <col style={{ width: '14%' }} />
+              <col style={{ width: '19%' }} />
+              <col style={{ width: '11%' }} />
+              <col style={{ width: '13%' }} />
+              <col style={{ width: '14%' }} />
+              <col style={{ width: '14%' }} />
+              <col style={{ width: '15%' }} />
+            </colgroup>
+            <thead className="bg-slate-50 border-b border-slate-200 text-[11px] font-semibold text-slate-500 uppercase tracking-wider sticky top-0 z-10 shadow-sm">
               <tr>
-                <th className="py-2.5 px-3 bg-slate-50">Mã phiếu</th>
-                <th className="py-2.5 px-3 bg-slate-50">Tuyến điều chuyển</th>
-                <th className="py-2.5 px-3 bg-slate-50 text-center">Số lượng chuyển</th>
-                <th className="py-2.5 px-3 bg-slate-50 text-center">Trạng thái</th>
-                <th className="py-2.5 px-3 bg-slate-50">Người tạo & Ngày gửi</th>
-                <th className="py-2.5 px-3 bg-slate-50">Chênh lệch khi nhận</th>
-                <th className="py-2.5 px-3 bg-slate-50 text-right">Thao tác</th>
+                <th className="py-2.5 px-2.5 bg-slate-50">Mã phiếu</th>
+                <th className="py-2.5 px-2.5 bg-slate-50">Tuyến điều chuyển</th>
+                <th className="py-2.5 px-2 bg-slate-50 text-center">SL chuyển</th>
+                <th className="py-2.5 px-2 bg-slate-50 text-center">Trạng thái</th>
+                <th className="py-2.5 px-2.5 bg-slate-50">Người tạo & Ngày</th>
+                <th className="py-2.5 px-2.5 bg-slate-50">Chênh lệch</th>
+                <th className="py-2.5 px-2.5 bg-slate-50 text-right">Thao tác</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -882,29 +1376,30 @@ export function StockTransferManagementView({
               ) : (
                 pageItems.map((t) => (
                   <tr key={t.id} className="hover:bg-slate-50/80 transition-colors">
-                    <td className="py-2.5 px-3 font-semibold text-blue-600 whitespace-nowrap">
+                    <td className="py-2.5 px-2.5 font-semibold text-blue-600">
                       <button
                         onClick={() => handleOpenDetailModal(t.code)}
-                        className="hover:underline font-mono text-xs"
+                        className="hover:underline font-mono text-xs block truncate max-w-full text-left"
+                        title={t.code}
                       >
                         {t.code}
                       </button>
                       {t.note && (
-                        <div className="text-[11px] text-slate-400 font-normal mt-0.5 max-w-[150px] truncate" title={t.note}>
+                        <div className="text-[11px] text-slate-400 font-normal mt-0.5 truncate max-w-full" title={t.note}>
                           {t.note}
                         </div>
                       )}
                     </td>
-                    <td className="py-2.5 px-3">
-                      <div className="font-medium text-slate-800 text-xs truncate max-w-[180px]" title={t.from_warehouse_name}>
+                    <td className="py-2.5 px-2.5">
+                      <div className="font-medium text-slate-800 text-xs truncate max-w-full" title={t.from_warehouse_name}>
                         {t.from_warehouse_name}
                       </div>
-                      <div className="text-[11px] text-slate-500 flex items-center gap-1 truncate max-w-[180px]" title={t.to_warehouse_name}>
-                        <span className="text-slate-400 font-bold">➔</span>
+                      <div className="text-[11px] text-slate-500 flex items-center gap-1 truncate max-w-full" title={t.to_warehouse_name}>
+                        <span className="text-slate-400 font-bold shrink-0">➔</span>
                         <span className="truncate">{t.to_warehouse_name}</span>
                       </div>
                     </td>
-                    <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                    <td className="py-2.5 px-2 text-center">
                       <span className="font-semibold text-slate-800 text-xs">{t.total_transfer_qty}</span>
                       <span className="text-[11px] text-slate-400 ml-1">
                         ({t.total_items} SP)
@@ -915,16 +1410,16 @@ export function StockTransferManagementView({
                         </div>
                       )}
                     </td>
-                    <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                    <td className="py-2.5 px-2 text-center">
                       {renderStatusBadge(t.status)}
                     </td>
-                    <td className="py-2.5 px-3 text-slate-600 whitespace-nowrap">
-                      <div className="font-medium text-xs">{t.created_by}</div>
-                      <div className="text-[11px] text-slate-400">
+                    <td className="py-2.5 px-2.5 text-slate-600">
+                      <div className="font-medium text-xs truncate max-w-full" title={t.created_by}>{t.created_by}</div>
+                      <div className="text-[11px] text-slate-400 truncate max-w-full" title={new Date(t.created_at).toLocaleString('vi-VN')}>
                         {new Date(t.created_at).toLocaleString('vi-VN')}
                       </div>
                     </td>
-                    <td className="py-2.5 px-3 whitespace-nowrap">
+                    <td className="py-2.5 px-2.5">
                       {t.status === 'COMPLETED' ? (
                         t.discrepancy_qty > 0 ? (
                           (() => {
@@ -932,11 +1427,11 @@ export function StockTransferManagementView({
                             if (comp.isFullyCompensated) {
                               return (
                                 <div className="text-xs">
-                                  <span className="font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                                  <span className="font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 inline-block text-[11px]">
                                     Đã giao bù {t.discrepancy_qty} SP
                                   </span>
                                   {t.discrepancy_reason && (
-                                    <div className="text-slate-600 mt-1 max-w-[150px] italic text-[11px] truncate" title={t.discrepancy_reason}>
+                                    <div className="text-slate-600 mt-0.5 italic text-[11px] truncate max-w-full" title={t.discrepancy_reason}>
                                       "{t.discrepancy_reason}"
                                     </div>
                                   )}
@@ -946,11 +1441,11 @@ export function StockTransferManagementView({
                             if (comp.isCompensating) {
                               return (
                                 <div className="text-xs">
-                                  <span className="font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                                  <span className="font-semibold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 inline-block text-[11px]">
                                     Đang giao bù {comp.inTransitCompensateQty} SP
                                   </span>
                                   {t.discrepancy_reason && (
-                                    <div className="text-slate-600 mt-1 max-w-[150px] italic text-[11px] truncate" title={t.discrepancy_reason}>
+                                    <div className="text-slate-600 mt-0.5 italic text-[11px] truncate max-w-full" title={t.discrepancy_reason}>
                                       "{t.discrepancy_reason}"
                                     </div>
                                   )}
@@ -959,11 +1454,11 @@ export function StockTransferManagementView({
                             }
                             return (
                               <div className="text-xs">
-                                <span className="font-semibold text-rose-600 bg-rose-50 px-2 py-0.5 rounded border border-rose-200">
+                                <span className="font-semibold text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200 inline-block text-[11px]">
                                   Hụt {t.discrepancy_qty} SP
                                 </span>
                                 {t.discrepancy_reason && (
-                                  <div className="text-slate-600 mt-1 max-w-[150px] italic text-[11px] truncate" title={t.discrepancy_reason}>
+                                  <div className="text-slate-600 mt-0.5 italic text-[11px] truncate max-w-full" title={t.discrepancy_reason}>
                                     "{t.discrepancy_reason}"
                                   </div>
                                 )}
@@ -971,42 +1466,44 @@ export function StockTransferManagementView({
                             );
                           })()
                         ) : (
-                          <span className="text-xs text-emerald-600 font-medium">
+                          <span className="text-xs text-emerald-600 font-medium whitespace-nowrap">
                             ✓ Nhận đủ 100%
                           </span>
                         )
                       ) : t.status === 'IN_TRANSIT' ? (
-                        <span className="text-xs text-amber-600 italic">
-                          Chờ kho đến kiểm đếm
+                        <span className="text-xs text-amber-600 italic whitespace-nowrap">
+                          Chờ kiểm đếm
                         </span>
                       ) : (
                         <span className="text-xs text-slate-400">-</span>
                       )}
                     </td>
-                    <td className="py-2.5 px-3 text-right space-x-2 whitespace-nowrap">
-                      <button
-                        onClick={() => handleOpenDetailModal(t.code)}
-                        className="px-2.5 py-1 text-xs font-medium text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
-                      >
-                        Chi tiết
-                      </button>
+                    <td className="py-2.5 px-2.5 text-right whitespace-nowrap">
+                      <div className="inline-flex items-center justify-end gap-1">
+                        <button
+                          onClick={() => handleOpenDetailModal(t.code)}
+                          className="px-2 py-1 text-xs font-medium text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+                        >
+                          Chi tiết
+                        </button>
 
-                      {canWriteInventory && t.status === 'IN_TRANSIT' && (
-                        <>
-                          <button
-                            onClick={() => handleOpenReceiveModal(t)}
-                            className="px-3 py-1 text-xs font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors shadow-sm"
-                          >
-                            Nhận hàng
-                          </button>
-                          <button
-                            onClick={() => setCancellingCode(t.code)}
-                            className="px-2.5 py-1 text-xs font-medium text-rose-600 hover:text-rose-800 bg-rose-50 hover:bg-rose-100 rounded-lg transition-colors"
-                          >
-                            Hủy
-                          </button>
-                        </>
-                      )}
+                        {canWriteInventory && t.status === 'IN_TRANSIT' && (
+                          <>
+                            <button
+                              onClick={() => handleOpenReceiveModal(t)}
+                              className="px-2 py-1 text-xs font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors shadow-sm"
+                            >
+                              Nhận hàng
+                            </button>
+                            <button
+                              onClick={() => setCancellingCode(t.code)}
+                              className="px-2 py-1 text-xs font-medium text-rose-600 hover:text-rose-800 bg-rose-50 hover:bg-rose-100 rounded-lg transition-colors"
+                            >
+                              Hủy
+                            </button>
+                          </>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -1115,234 +1612,7 @@ export function StockTransferManagementView({
         </div>
       </div>
 
-      {/* ============================================================== */}
-      {/* MODAL 1: TẠO PHIẾU CHUYỂN KHO NỘI BỘ (XUẤT KHO ĐI)              */}
-      {/* ============================================================== */}
-      {showCreateModal && (
-        <ModalPortal>
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-            <div className="bg-white rounded-2xl max-w-3xl w-full p-6 shadow-2xl border border-slate-100 flex flex-col max-h-[90vh]">
-              <div className="flex items-center justify-between pb-4 border-b border-slate-100">
-                <h3 className="text-lg font-bold text-slate-800">
-                  Lập phiếu chuyển kho nội bộ
-                </h3>
-                <button
-                  onClick={() => setShowCreateModal(false)}
-                  className="text-slate-400 hover:text-slate-600 text-lg p-1"
-                >
-                  ✕
-                </button>
-              </div>
 
-              <div className="overflow-y-auto py-4 space-y-4 flex-1">
-                {/* CHỌN KHO ĐI VÀ KHO ĐẾN */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200/80">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                      1. Kho gửi <span className="text-rose-500">*</span>
-                    </label>
-                    <select
-                      value={fromWarehouseId}
-                      onChange={(e) => {
-                        const newFrom = e.target.value;
-                        setFromWarehouseId(newFrom);
-                        setTransferItems([]); // reset danh sách mặt hàng khi đổi kho gửi
-                        if (toWarehouseId === newFrom) {
-                          const nextTo = warehouses.find((w) => w.id !== newFrom);
-                          if (nextTo) setToWarehouseId(nextTo.id);
-                        }
-                      }}
-                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      {warehouses.map((w) => (
-                        <option key={w.id} value={w.id}>
-                          {w.name} ({w.id})
-                        </option>
-                      ))}
-                    </select>
-                    <p className="text-[11px] text-slate-500 mt-1">
-                       Tồn kho thực tế tại kho này sẽ bị trừ ngay khi lập phiếu.
-                    </p>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                      2. Kho nhận <span className="text-rose-500">*</span>
-                    </label>
-                    <select
-                      value={toWarehouseId}
-                      onChange={(e) => setToWarehouseId(e.target.value)}
-                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      {warehouses
-                        .filter((w) => w.id !== fromWarehouseId)
-                        .map((w) => (
-                          <option key={w.id} value={w.id}>
-                            {w.name} ({w.id})
-                          </option>
-                        ))}
-                    </select>
-                    <p className="text-[11px] text-amber-600 mt-1">
-                      Chưa cộng tồn kho nhận cho đến khi thủ kho đến xác nhận đủ.
-                    </p>
-                  </div>
-                </div>
-
-                {/* THÊM SẢN PHẨM VÀO PHIẾU */}
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">
-                      Danh sách hàng hóa điều chuyển
-                    </label>
-                    {loadingProducts && (
-                      <span className="text-xs text-blue-600">Đang nạp tồn kho...</span>
-                    )}
-                  </div>
-
-                  {/* DROP DOWN CHỌN SẢN PHẨM */}
-                  <div className="flex gap-2 mb-3">
-                    <select
-                      id="select-add-product"
-                      className="flex-1 px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      onChange={(e) => {
-                        handleAddProductToTransfer(e.target.value);
-                        e.target.value = '';
-                      }}
-                      defaultValue=""
-                    >
-                      <option value="" disabled>
-                        -- Chọn sản phẩm tại {fromWarehouseId} để thêm --
-                      </option>
-                      {availableProducts.map((p) => (
-                        <option
-                          key={p.product_id}
-                          value={p.product_id}
-                          disabled={p.available_stock <= 0}
-                        >
-                          {p.product_code} - {p.product_name} (Khả dụng: {p.available_stock}{' '}
-                          {p.base_unit || 'Cái'})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* BẢNG CÁC SẢN PHẨM ĐÃ CHỌN */}
-                  {transferItems.length === 0 ? (
-                    <div className="p-6 border-2 border-dashed border-slate-200 rounded-xl text-center text-sm text-slate-400">
-                      Chưa có sản phẩm nào trong phiếu. Chọn sản phẩm từ danh sách trên để thêm.
-                    </div>
-                  ) : (
-                    <div className="border border-slate-200 rounded-xl overflow-hidden">
-                      <table className="w-full text-sm">
-                        <thead className="bg-slate-50 text-xs font-semibold text-slate-500 border-b border-slate-200">
-                          <tr>
-                            <th className="py-2.5 px-3 text-left">Sản phẩm</th>
-                            <th className="py-2.5 px-3 text-center">Tồn khả dụng</th>
-                            <th className="py-2.5 px-3 text-center w-32">SL chuyển</th>
-                            <th className="py-2.5 px-3 text-center w-12">Xóa</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                          {transferItems.map((it, idx) => {
-                            const isOver = it.transfer_qty > it.available_stock;
-                            return (
-                              <tr key={it.product_id} className="hover:bg-slate-50">
-                                <td className="py-2 px-3">
-                                  <div className="font-semibold text-slate-800">
-                                    {it.product_name}
-                                  </div>
-                                  <div className="text-xs text-slate-400 font-mono">
-                                    {it.product_code} ({it.unit})
-                                  </div>
-                                </td>
-                                <td className="py-2 px-3 text-center">
-                                  <span className="font-semibold text-blue-600">
-                                    {it.available_stock}
-                                  </span>
-                                </td>
-                                <td className="py-2 px-3 text-center">
-                                  <input
-                                    type="number"
-                                    min="1"
-                                    max={it.available_stock}
-                                    value={it.transfer_qty}
-                                    onChange={(e) =>
-                                      handleUpdateTransferQty(idx, parseInt(e.target.value, 10) || 1)
-                                    }
-                                    className={`w-24 text-center px-2 py-1 text-sm border rounded-lg font-semibold focus:outline-none focus:ring-2 ${
-                                      isOver
-                                        ? 'border-rose-400 text-rose-600 bg-rose-50 ring-rose-200'
-                                        : 'border-slate-200 focus:ring-blue-500'
-                                    }`}
-                                  />
-                                  {isOver && (
-                                    <div className="text-[10px] text-rose-600 font-medium mt-0.5">
-                                      Vượt tồn!
-                                    </div>
-                                  )}
-                                </td>
-                                <td className="py-2 px-3 text-center">
-                                  <button
-                                    onClick={() => handleRemoveTransferItem(idx)}
-                                    className="text-rose-500 hover:text-rose-700 text-sm font-bold"
-                                    title="Xóa khỏi phiếu"
-                                  >
-                                    ✕
-                                  </button>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </div>
-
-                {/* GHI CHÚ */}
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                    Ghi chú điều chuyển
-                  </label>
-                  <textarea
-                    rows={2}
-                    value={transferNote}
-                    onChange={(e) => setTransferNote(e.target.value)}
-                    placeholder="Nhập lý do điều chuyển, thông tin xe vận chuyển, v.v..."
-                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-              </div>
-
-              <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
-                <div className="text-sm font-medium text-slate-600">
-                  Tổng:{' '}
-                  <span className="text-blue-600 font-bold">
-                    {transferItems.reduce((acc, it) => acc + (it.transfer_qty || 0), 0)}
-                  </span>{' '}
-                  sản phẩm ({transferItems.length} mặt hàng)
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => setShowCreateModal(false)}
-                    className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
-                  >
-                    Hủy bỏ
-                  </button>
-                  <button
-                    onClick={handleSubmitCreateTransfer}
-                    disabled={creating || fromWarehouseId === toWarehouseId || transferItems.length === 0}
-                    className="px-5 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded-xl transition-all shadow-md"
-                  >
-                    {creating ? 'Đang tạo...' : 'Xuất kho chuyển hàng'}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </ModalPortal>
-      )}
 
       {/* ============================================================== */}
       {/* MODAL 2: TIẾP NHẬN & XÁC NHẬN HÀNG (KHO ĐẾN)                  */}

@@ -848,14 +848,14 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({
   }, [policies, orderItems, selectedDealer, totalQuantity, subtotalAmount]);
 
   useEffect(() => {
-    if (!isManualDiscount) {
+    if (isCustomer || !isManualDiscount) {
       if (discountEvaluation.isQualified) {
         setDiscountPercent(String(discountEvaluation.discountPercent));
       } else {
         setDiscountPercent('0');
       }
     }
-  }, [discountEvaluation, isManualDiscount]);
+  }, [discountEvaluation, isManualDiscount, isCustomer]);
 
   const parsedDiscount = Number(discountPercent);
   const safeDiscount = Number.isFinite(parsedDiscount) ? Math.min(100, Math.max(0, parsedDiscount)) : 0;
@@ -1683,8 +1683,13 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({
                 <div className="flex items-center justify-between">
                   <label htmlFor="input-order-discount-percent" className="text-xs font-bold text-slate-700">
                     Chiết khấu (%)
+                    {isCustomer && (
+                      <span className="text-[11px] font-normal text-slate-500 ml-1.5">
+                        (Cố định theo chính sách)
+                      </span>
+                    )}
                   </label>
-                  {isManualDiscount && discountEvaluation.isQualified && (
+                  {!isCustomer && isManualDiscount && discountEvaluation.isQualified && (
                     <button
                       type="button"
                       onClick={() => {
@@ -1707,11 +1712,17 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({
                       max="100"
                       step="0.1"
                       value={discountPercent}
+                      disabled={isCustomer}
+                      readOnly={isCustomer}
+                      title={isCustomer ? "Đại lý không có quyền tự điều chỉnh chiết khấu" : undefined}
                       onChange={(e) => {
+                        if (isCustomer) return;
                         setIsManualDiscount(true);
                         setDiscountPercent(e.target.value);
                       }}
-                      className="w-full h-10 px-3 rounded-lg border border-slate-300 text-sm font-bold text-slate-800 text-right focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 bg-white"
+                      className={`w-full h-10 px-3 rounded-lg border border-slate-300 text-sm font-bold text-right focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 ${
+                        isCustomer ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : 'bg-white text-slate-800'
+                      }`}
                     />
                   </div>
                   <div>
@@ -1721,7 +1732,7 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({
                   </div>
                 </div>
 
-                {isManualDiscount && safeDiscount > discountEvaluation.discountPercent && (
+                {!isCustomer && isManualDiscount && safeDiscount > discountEvaluation.discountPercent && (
                   <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800 leading-relaxed">
                     ⚠️ Mức chiết khấu ({safeDiscount}%) cao hơn định mức ({discountEvaluation.discountPercent}%). Đơn hàng sẽ cần Quản lý bán hàng phê duyệt.
                   </div>

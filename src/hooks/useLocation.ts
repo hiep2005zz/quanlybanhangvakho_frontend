@@ -6,6 +6,26 @@ export interface Location {
   hash: string;
 }
 
+// Intercept pushState and replaceState once globally at module level
+if (typeof window !== 'undefined' && !(window as any).__location_patched) {
+  (window as any).__location_patched = true;
+  const _history = window.history;
+  const _pushState = _history.pushState.bind(_history);
+  const _replaceState = _history.replaceState.bind(_history);
+
+  _history.pushState = function (...args) {
+    const res = _pushState(...args);
+    window.dispatchEvent(new Event('popstate'));
+    return res;
+  };
+
+  _history.replaceState = function (...args) {
+    const res = _replaceState(...args);
+    window.dispatchEvent(new Event('popstate'));
+    return res;
+  };
+}
+
 /**
  * Hook useLocation tương đương với react-router-dom,
  * tự động đồng bộ và re-render khi pathname thay đổi (popstate, pushState, replaceState).
@@ -27,27 +47,8 @@ export function useLocation(): Location {
     };
 
     window.addEventListener('popstate', handleLocationChange);
-
-    // Bắt các sự kiện chuyển trang qua pushState và replaceState
-    const originalPushState = window.history.pushState;
-    const originalReplaceState = window.history.replaceState;
-
-    window.history.pushState = function (...args) {
-      const result = originalPushState.apply(this, args);
-      handleLocationChange();
-      return result;
-    };
-
-    window.history.replaceState = function (...args) {
-      const result = originalReplaceState.apply(this, args);
-      handleLocationChange();
-      return result;
-    };
-
     return () => {
       window.removeEventListener('popstate', handleLocationChange);
-      window.history.pushState = originalPushState;
-      window.history.replaceState = originalReplaceState;
     };
   }, []);
 

@@ -262,8 +262,8 @@ export interface ProductListResponse {
 
 export interface GetProductsParams {
   page?: number;
-  page_size?: number;
   limit?: number;
+  page_size?: number;
   search?: string;
   category?: string;
   only_low_stock?: boolean;
@@ -648,16 +648,21 @@ export async function logoutApi(token: string): Promise<void> {
   }
 }
 
-export async function getProductsApi(token: string, params?: GetProductsParams): Promise<ProductListResponse> {
+export async function getProductsApi(
+  token: string,
+  params?: GetProductsParams
+): Promise<ProductListResponse> {
   const query = new URLSearchParams();
   if (params?.page) query.append('page', params.page.toString());
-  const pageSize = params?.page_size || params?.limit;
-  if (pageSize) {
-    query.append('page_size', pageSize.toString());
-    query.append('limit', pageSize.toString());
+  const pageSizeVal = params?.page_size || params?.limit;
+  if (pageSizeVal) {
+    query.append('page_size', pageSizeVal.toString());
+    query.append('limit', pageSizeVal.toString());
   }
   if (params?.search && params.search.trim()) query.append('search', params.search.trim());
-  if (params?.category && params.category !== 'all' && params.category !== 'ALL') query.append('category', params.category);
+  if (params?.category && params.category.toLowerCase() !== 'all') {
+    query.append('category', params.category);
+  }
   if (params?.only_low_stock) query.append('only_low_stock', 'true');
 
   const queryString = query.toString();
@@ -2000,6 +2005,8 @@ export interface ReorderItemDetail {
   product_name: string;
   quantity: number;
   price: number;
+  current_price?: number;
+  subtotal?: number;
   old_price?: number;
   unit: string;
   unit_name?: string;
@@ -3051,13 +3058,23 @@ export async function deleteWarehouseRackApi(token: string, rackId: number): Pro
 
 export async function previewAuditProductsApi(
   token: string,
-  params: { warehouse_id: string; scope_type?: string; category_id?: number }
+  params: {
+    warehouse_id: string;
+    scope_type?: string;
+    category_id?: number;
+    page?: number;
+    page_size?: number;
+    search?: string;
+  }
 ): Promise<{
   warehouse_id: string;
   warehouse_name: string;
   scope_type: string;
   category_id?: number;
   total_items: number;
+  page?: number;
+  page_size?: number;
+  total_pages?: number;
   items: {
     product_id: number;
     product_code: string;
@@ -3075,6 +3092,15 @@ export async function previewAuditProductsApi(
   });
   if (params.category_id) {
     query.set('category_id', String(params.category_id));
+  }
+  if (params.page !== undefined) {
+    query.set('page', String(params.page));
+  }
+  if (params.page_size !== undefined) {
+    query.set('page_size', String(params.page_size));
+  }
+  if (params.search && params.search.trim()) {
+    query.set('search', params.search.trim());
   }
   const response = await authenticatedFetch(`${API_BASE_URL}/stock-audits/preview-products?${query.toString()}`, {
     method: 'GET',
@@ -3312,12 +3338,17 @@ export interface LowStockAlertSummary {
   total_low_stock: number;
   total_alerts?: number;
   total_products: number;
+  out_of_stock_count?: number;
+  near_depleted_count?: number;
   warehouses: Array<{
     warehouse_id: string;
     warehouse_name: string;
     low_stock_count: number;
   }>;
   items: WarehouseThresholdItem[];
+  page?: number;
+  page_size?: number;
+  total_pages?: number;
 }
 
 export async function getDealerPurchaseHistoryApi(
@@ -3370,13 +3401,37 @@ export async function getInventoryWarehousesApi(token: string): Promise<Warehous
   return response.json();
 }
 
+export interface WarehouseThresholdPageResponse {
+  items: WarehouseThresholdItem[];
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+  total_count?: number;
+  low_count?: number;
+  safe_count?: number;
+  active_warehouses?: number;
+}
+
 export async function getWarehouseThresholdsApi(
   token: string,
-  warehouseId?: string
-): Promise<WarehouseThresholdItem[]> {
-  const url = warehouseId
-    ? `${API_BASE_URL}/inventory/thresholds?warehouse_id=${encodeURIComponent(warehouseId)}`
-    : `${API_BASE_URL}/inventory/thresholds`;
+  warehouseId?: string,
+  page?: number,
+  pageSize: number = 20,
+  search?: string,
+  filterMode?: 'ALL' | 'LOW_ONLY'
+): Promise<WarehouseThresholdPageResponse | WarehouseThresholdItem[]> {
+  const params = new URLSearchParams();
+  if (warehouseId && warehouseId !== 'ALL') params.set('warehouse_id', warehouseId);
+  if (page !== undefined && page !== null) {
+    params.set('page', String(page));
+    params.set('page_size', String(pageSize));
+  }
+  if (search && search.trim()) params.set('search', search.trim());
+  if (filterMode && filterMode !== 'ALL') params.set('filter_mode', filterMode);
+
+  const qs = params.toString();
+  const url = `${API_BASE_URL}/inventory/thresholds${qs ? `?${qs}` : ''}`;
   const response = await authenticatedFetch(url, { method: 'GET' }, token);
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
@@ -3401,8 +3456,24 @@ export async function updateWarehouseThresholdApi(
   return data;
 }
 
-export async function getLowStockAlertsApi(token: string): Promise<LowStockAlertSummary> {
-  const response = await authenticatedFetch(`${API_BASE_URL}/inventory/low-stock-alerts`, { method: 'GET' }, token);
+export async function getLowStockAlertsApi(
+  token: string,
+  page?: number,
+  pageSize?: number,
+  warehouseId?: string,
+  search?: string,
+  severity?: string
+): Promise<LowStockAlertSummary> {
+  const params = new URLSearchParams();
+  if (page) params.append('page', page.toString());
+  if (pageSize) params.append('page_size', pageSize.toString());
+  if (warehouseId && warehouseId !== 'ALL') params.append('warehouse_id', warehouseId);
+  if (search && search.trim()) params.append('search', search.trim());
+  if (severity && severity !== 'ALL') params.append('severity', severity);
+
+  const qs = params.toString();
+  const url = `${API_BASE_URL}/inventory/low-stock-alerts${qs ? `?${qs}` : ''}`;
+  const response = await authenticatedFetch(url, { method: 'GET' }, token);
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
     throw new Error(errorData.detail || 'Lỗi tải cảnh báo tồn tối thiểu');

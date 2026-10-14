@@ -62,6 +62,7 @@ export default function DeliveryPointsView({
 
   // Modal: create/edit
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isCreatePageOpen, setIsCreatePageOpen] = useState(false);
   const [editingPoint, setEditingPoint] = useState<DeliveryPoint | null>(null);
   const [formDealerId, setFormDealerId] = useState<number | null>(null);
   const [form, setForm] = useState<DeliveryPointInput>(EMPTY_FORM);
@@ -286,10 +287,17 @@ export default function DeliveryPointsView({
     }
   };
 
-  // Open modal for Create
-  const handleOpenCreateModal = (customDealerId?: number) => {
+  // Đóng trang tạo điểm giao mới
+  const handleCloseCreatePage = () => {
+    setIsCreatePageOpen(false);
+    setForm(EMPTY_FORM);
+    setFormError('');
+  };
+
+  // Mở trang tạo điểm giao mới (Full-page form view)
+  const handleOpenCreatePage = (customDealerId?: number) => {
     const targetDealerId = customDealerId || selectedDealerId || (dealers.length > 0 ? dealers[0].id : null);
-    if (!targetDealerId) {
+    if (!targetDealerId && dealers.length === 0) {
       emitStatusToast({
         title: 'Chưa có đại lý',
         message: 'Hệ thống chưa có đại lý nào để tạo điểm giao.',
@@ -297,28 +305,31 @@ export default function DeliveryPointsView({
       });
       return;
     }
-    const targetDealer = dealers.find((d) => d.id === targetDealerId);
+    setIsAllPointsModalOpen(false);
+    setIsSelectPointModalOpen(false);
+    setIsModalOpen(false);
     setIsEditingMaster(false);
-    setFormDealerId(targetDealerId);
     setEditingPoint(null);
+    setFormDealerId(targetDealerId);
     setForm({
       ...EMPTY_FORM,
-      receiver_name: targetDealer?.name || '',
-      receiver_phone: targetDealer?.phone || '',
+      receiver_name: '',
+      receiver_phone: '',
       address: '',
       is_default: false,
     });
     setFormError('');
-    setIsModalOpen(true);
+    setIsCreatePageOpen(true);
   };
 
-  // Open modal for Create in Master Catalog
+  // Open page for Create (dành cho đại lý)
+  const handleOpenCreateModal = (customDealerId?: number) => {
+    handleOpenCreatePage(customDealerId);
+  };
+
+  // Open page for Create in Master Catalog (dành cho nút "Thêm điểm giao mới" ở hình 1)
   const handleOpenCreateMasterModal = () => {
-    setIsEditingMaster(true);
-    setEditingPoint(null);
-    setForm(EMPTY_FORM);
-    setFormError('');
-    setIsModalOpen(true);
+    handleOpenCreatePage();
   };
 
   // Open modal for Edit Dealer Point
@@ -444,6 +455,7 @@ export default function DeliveryPointsView({
         }
       }
       setIsModalOpen(false);
+      setIsCreatePageOpen(false);
       setEditingPoint(null);
       setIsEditingMaster(false);
       setForm(EMPTY_FORM);
@@ -535,6 +547,405 @@ export default function DeliveryPointsView({
       emitStatusToast({ title: 'Lỗi', message: msg, type: 'error' });
     }
   };
+
+  // NẾU ĐANG Ở CHẾ ĐỘ TRANG TẠO ĐIỂM GIAO HÀNG MỚI (FULL PAGE VIEW)
+  if (isCreatePageOpen) {
+    return (
+      <div
+        style={{
+          width: '100%',
+          maxWidth: '1680px',
+          margin: '0 auto',
+          padding: '16px 20px',
+          height: '100%',
+          display: 'flex',
+          flexDirection: 'column',
+          overflowY: 'auto',
+          boxSizing: 'border-box',
+          fontFamily: 'inherit',
+        }}
+      >
+        {/* Header Breadcrumb & Nút Quay lại */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '16px',
+            marginBottom: '20px',
+            flexShrink: 0,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <button
+              type="button"
+              onClick={handleCloseCreatePage}
+              style={{
+                padding: '7px 18px',
+                fontSize: '13px',
+                fontWeight: '600',
+                color: '#334155',
+                backgroundColor: '#ffffff',
+                border: '1px solid #cbd5e1',
+                borderRadius: '9999px',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+                transition: 'all 0.15s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#f8fafc';
+                e.currentTarget.style.borderColor = '#94a3b8';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = '#ffffff';
+                e.currentTarget.style.borderColor = '#cbd5e1';
+              }}
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M19 12H5M12 19l-7-7 7-7" />
+              </svg>
+              <span>Quay lại</span>
+            </button>
+            <span style={{ color: '#cbd5e1', fontSize: '16px' }}>/</span>
+            <div>
+              <h2 style={{ fontSize: '22px', fontWeight: '800', color: '#0f172a', margin: 0, letterSpacing: '-0.02em' }}>
+                Thêm điểm giao hàng mới
+              </h2>
+            </div>
+          </div>
+        </div>
+
+        {/* Khối Card Form Thông Tin (Mở rộng toàn màn hình, kích thước lớn và thoáng) */}
+        <div
+          style={{
+            width: '100%',
+            maxWidth: '100%',
+            background: '#ffffff',
+            borderRadius: '18px',
+            border: '1px solid #e2e8f0',
+            boxShadow: '0 4px 20px -2px rgba(15, 23, 42, 0.06)',
+            padding: '36px 44px',
+            boxSizing: 'border-box',
+          }}
+        >
+          {/* Header Card */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '16px',
+              marginBottom: '28px',
+              paddingBottom: '22px',
+              borderBottom: '1px solid #f1f5f9',
+            }}
+          >
+            <div
+              style={{
+                width: '48px',
+                height: '48px',
+                borderRadius: '12px',
+                background: '#ecfdf5',
+                color: '#0fad89',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}
+            >
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+                <circle cx="12" cy="10" r="3" />
+              </svg>
+            </div>
+            <div>
+              <h3 style={{ margin: 0, fontSize: '19px', fontWeight: '800', color: '#0f172a' }}>
+                Thông tin điểm nhận hàng
+              </h3>
+            </div>
+          </div>
+
+          <form onSubmit={handleSubmitForm} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            {formError && (
+              <div
+                style={{
+                  padding: '14px 18px',
+                  borderRadius: '10px',
+                  background: '#fef2f2',
+                  border: '1px solid #fecaca',
+                  color: '#dc2626',
+                  fontSize: '14px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                }}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="8" x2="12" y2="12" />
+                  <line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
+                <span>{formError}</span>
+              </div>
+            )}
+
+            {/* Hàng 1: Đại lý & Tên điểm giao */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '24px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '13.5px', fontWeight: '700', color: '#334155', marginBottom: '8px' }}>
+                  Thuộc Đại lý <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+                <select
+                  value={formDealerId || ''}
+                  onChange={(e) => {
+                    setFormDealerId(Number(e.target.value));
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '12px 16px',
+                    borderRadius: '10px',
+                    border: '1px solid #cbd5e1',
+                    fontSize: '14.5px',
+                    outline: 'none',
+                    background: '#ffffff',
+                    cursor: 'pointer',
+                    boxSizing: 'border-box',
+                  }}
+                >
+                  {dealers.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.code ? `[${d.code}] ` : ''}{d.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '13.5px', fontWeight: '700', color: '#334155', marginBottom: '8px' }}>
+                  Tên điểm giao <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="VD: Kho tổng, Chi nhánh 1, Kho miền Bắc..."
+                  value={form.label}
+                  onChange={(e) => setForm({ ...form, label: e.target.value })}
+                  required
+                  style={{
+                    width: '100%',
+                    padding: '12px 16px',
+                    borderRadius: '10px',
+                    border: '1px solid #cbd5e1',
+                    fontSize: '14.5px',
+                    outline: 'none',
+                    boxSizing: 'border-box',
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Hàng 2: Địa chỉ nhận hàng chi tiết */}
+            <div>
+              <label style={{ display: 'block', fontSize: '13.5px', fontWeight: '700', color: '#334155', marginBottom: '8px' }}>
+                Địa chỉ nhận hàng chi tiết <span style={{ color: '#ef4444' }}>*</span>
+              </label>
+              <input
+                type="text"
+                placeholder="VD: Số 123 Đường ABC, Phường X, Quận Y, TP. HCM"
+                value={form.address}
+                onChange={(e) => setForm({ ...form, address: e.target.value })}
+                required
+                style={{
+                  width: '100%',
+                  padding: '12px 16px',
+                  borderRadius: '10px',
+                  border: '1px solid #cbd5e1',
+                  fontSize: '14.5px',
+                  outline: 'none',
+                  boxSizing: 'border-box',
+                }}
+              />
+            </div>
+
+            {/* Hàng 3: Người nhận & Số điện thoại */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '24px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '13.5px', fontWeight: '700', color: '#334155', marginBottom: '8px' }}>
+                  Người nhận hàng
+                </label>
+                <input
+                  type="text"
+                  placeholder="VD: Anh Minh"
+                  value={form.receiver_name || ''}
+                  onChange={(e) => setForm({ ...form, receiver_name: e.target.value })}
+                  style={{
+                    width: '100%',
+                    padding: '12px 16px',
+                    borderRadius: '10px',
+                    border: '1px solid #cbd5e1',
+                    fontSize: '14.5px',
+                    outline: 'none',
+                    boxSizing: 'border-box',
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '13.5px', fontWeight: '700', color: '#334155', marginBottom: '8px' }}>
+                  Số điện thoại nhận <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+                <input
+                  type="tel"
+                  placeholder="VD: 0912345678"
+                  maxLength={10}
+                  required
+                  value={form.receiver_phone || ''}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, '').slice(0, 10);
+                    setForm({ ...form, receiver_phone: val });
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '12px 16px',
+                    borderRadius: '10px',
+                    border: '1px solid #cbd5e1',
+                    fontSize: '14.5px',
+                    outline: 'none',
+                    boxSizing: 'border-box',
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Hàng 4: Ghi chú lộ trình */}
+            <div>
+              <label style={{ display: 'block', fontSize: '13.5px', fontWeight: '700', color: '#334155', marginBottom: '8px' }}>
+                Ghi chú lộ trình / giao hàng (tuỳ chọn)
+              </label>
+              <input
+                type="text"
+                placeholder="VD: Xe tải vào được, giao giờ hành chính, gọi trước 30 phút..."
+                value={form.route_note || ''}
+                onChange={(e) => setForm({ ...form, route_note: e.target.value })}
+                style={{
+                  width: '100%',
+                  padding: '12px 16px',
+                  borderRadius: '10px',
+                  border: '1px solid #cbd5e1',
+                  fontSize: '14.5px',
+                  outline: 'none',
+                  boxSizing: 'border-box',
+                }}
+              />
+            </div>
+
+            {/* Hàng 5: Checkbox Mặc định */}
+            <div>
+              <label
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  cursor: 'pointer',
+                  padding: '12px 18px',
+                  borderRadius: '10px',
+                  background: '#f8fafc',
+                  border: '1px solid #e2e8f0',
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={form.is_default}
+                  onChange={(e) => setForm({ ...form, is_default: e.target.checked })}
+                  style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: '#0fad89' }}
+                />
+                <span style={{ fontSize: '14px', fontWeight: '600', color: '#334155' }}>
+                  Đặt làm điểm giao hàng mặc định cho đại lý này
+                </span>
+              </label>
+            </div>
+
+            {/* Action Buttons */}
+            <div
+              style={{
+                marginTop: '16px',
+                paddingTop: '24px',
+                borderTop: '1px solid #f1f5f9',
+                display: 'flex',
+                justifyContent: 'flex-end',
+                alignItems: 'center',
+                gap: '14px',
+              }}
+            >
+              <button
+                type="button"
+                onClick={handleCloseCreatePage}
+                disabled={formSubmitting}
+                style={{
+                  padding: '12px 26px',
+                  borderRadius: '10px',
+                  border: '1px solid #cbd5e1',
+                  background: '#ffffff',
+                  color: '#475569',
+                  fontSize: '14.5px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f8fafc')}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#ffffff')}
+              >
+                Hủy bỏ
+              </button>
+
+              <button
+                type="submit"
+                disabled={formSubmitting}
+                style={{
+                  padding: '12px 32px',
+                  borderRadius: '10px',
+                  border: 'none',
+                  background: 'linear-gradient(135deg, #0fba90 0%, #0fad89 100%)',
+                  color: '#ffffff',
+                  fontSize: '14.5px',
+                  fontWeight: '700',
+                  cursor: formSubmitting ? 'not-allowed' : 'pointer',
+                  boxShadow: '0 3px 10px rgba(15, 186, 144, 0.25)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  opacity: formSubmitting ? 0.7 : 1,
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                {formSubmitting ? (
+                  <>
+                    <svg
+                      style={{ animation: 'spin 1s linear infinite' }}
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                    >
+                      <circle cx="12" cy="12" r="10" strokeOpacity="0.25" />
+                      <path d="M12 2a10 10 0 0 1 10 10" />
+                    </svg>
+                    <span>Đang lưu...</span>
+                  </>
+                ) : (
+                  <span>Thêm mới</span>
+                )}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -1352,9 +1763,6 @@ export default function DeliveryPointsView({
                       {allPoints.length} điểm giao
                     </span>
                   </div>
-                  <p style={{ margin: '3px 0 0 0', fontSize: '13px', color: '#64748b' }}>
-                    Tổng hợp toàn bộ các điểm giao hàng của tất cả đại lý trong hệ thống
-                  </p>
                 </div>
               </div>
 
@@ -1461,10 +1869,6 @@ export default function DeliveryPointsView({
                   whiteSpace: 'nowrap',
                 }}
               >
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <line x1="12" y1="5" x2="12" y2="19" />
-                  <line x1="5" y1="12" x2="19" y2="12" />
-                </svg>
                 <span>Thêm điểm giao mới</span>
               </button>
             </div>
@@ -1824,35 +2228,6 @@ export default function DeliveryPointsView({
                   }}
                 />
               </div>
-
-              {/* Shortcut to create new if not existing */}
-              <button
-                type="button"
-                onClick={() => {
-                  handleOpenCreateModal(selectedDealerId || undefined);
-                }}
-                style={{
-                  padding: '9px 15px',
-                  borderRadius: '9px',
-                  background: '#f1f5f9',
-                  color: '#334155',
-                  border: '1px solid #cbd5e1',
-                  fontSize: '13px',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  whiteSpace: 'nowrap',
-                }}
-                title="Tạo điểm giao mới hoàn toàn cho đại lý này"
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <line x1="12" y1="5" x2="12" y2="19" />
-                  <line x1="5" y1="12" x2="19" y2="12" />
-                </svg>
-                <span>Tạo điểm giao mới</span>
-              </button>
             </div>
 
             {/* Modal Body: Available points list */}
@@ -2108,8 +2483,8 @@ export default function DeliveryPointsView({
         </ModalPortal>
       )}
 
-      {/* 4. Modal: Thêm / Sửa điểm giao hàng (Thiết kế compact, không bị tràn màn hình) */}
-      {isModalOpen && (
+      {/* 4. Modal: Chỉnh sửa điểm giao hàng (Khi tạo mới đã chuyển sang Full-Page View) */}
+      {isModalOpen && Boolean(editingPoint) && (
         <ModalPortal>
         <div
           style={{

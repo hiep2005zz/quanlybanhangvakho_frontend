@@ -21,6 +21,8 @@ export type TabType =
   | 'delivery-points'
   | 'product-history'
   | 'discounts'
+  | 'stock-thresholds'
+  | 'low-stock-alerts'
   | 'goods-receipt'
   | 'add-product'
   | 'products-import';
@@ -42,6 +44,7 @@ export interface SidebarProps {
   canAccessDiscounts?: boolean;
   canAccessStockAudit?: boolean;
   canAccessStockTransfer?: boolean;
+  canAccessWarehouses?: boolean;
   canWriteInventory?: boolean;
   isAdmin?: boolean;
   onLogout?: () => void;
@@ -78,6 +81,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   canAccessDiscounts = false,
   canAccessStockAudit = false,
   canAccessStockTransfer = false,
+  canAccessWarehouses = false,
   canWriteInventory = false,
   onLogout,
   isLoggingOut = false,
@@ -296,7 +300,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       tab: 'warehouses',
       path: '/warehouses',
       label: 'Danh sách kho & Vị trí',
-      visible: !isCustomer,
+      visible: !isCustomer && canAccessWarehouses,
       icon: (
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
