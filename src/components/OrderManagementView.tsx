@@ -46,7 +46,9 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'ALL' | 'PENDING_APPROVAL' | 'CONFIRMED' | 'DELIVERED' | 'REJECTED' | 'CANCELLED'>('ALL');
+  const [statusFilter, setStatusFilter] = useState<
+    'ALL' | 'PENDING_APPROVAL' | 'CONFIRMED' | 'PICKING' | 'EXPORTED' | 'DELIVERED' | 'REJECTED' | 'CANCELLED'
+  >('ALL');
   const [dealerFilter, setDealerFilter] = useState<string>('ALL');
   const [salesRepFilter, setSalesRepFilter] = useState<string>('ALL');
   const [regionFilter, setRegionFilter] = useState<string>('ALL');
@@ -269,8 +271,10 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
   // Tính toán số liệu thống kê
   const totalOrdersCount = orders.length;
   const pendingOrdersCount = orders.filter((o) => o.status === 'PENDING_APPROVAL' || o.status === 'PENDING').length;
-  const confirmedOrdersCount = orders.filter((o) => ['CONFIRMED', 'APPROVED', 'PICKING', 'PREPARING', 'PACKING', 'EXPORTED', 'SHIPPED', 'DISPATCHED'].includes(o.status)).length;
-  const deliveredOrdersCount = orders.filter((o) => ['DELIVERED', 'CLOSED', 'COMPLETED'].includes(o.status)).length;
+  const confirmedOrdersCount = orders.filter((o) => ['CONFIRMED', 'APPROVED'].includes(o.status)).length;
+  const pickingOrdersCount = orders.filter((o) => ['PICKING', 'PREPARING', 'PACKING', 'ĐANG SOẠN HÀNG'].includes((o.status || '').toUpperCase())).length;
+  const exportedOrdersCount = orders.filter((o) => ['EXPORTED', 'SHIPPED', 'DISPATCHED', 'ĐÃ XUẤT'].includes((o.status || '').toUpperCase())).length;
+  const deliveredOrdersCount = orders.filter((o) => ['DELIVERED', 'CLOSED', 'COMPLETED', 'ĐÃ GIAO'].includes((o.status || '').toUpperCase())).length;
   const rejectedOrdersCount = orders.filter((o) => o.status === 'REJECTED').length;
   const cancelledOrdersCount = orders.filter((o) => o.status === 'CANCELLED').length;
   const totalRevenue = orders.reduce((sum, o) => sum + (o.total_amount || 0), 0);
@@ -291,8 +295,10 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
         const matchStatus =
           statusFilter === 'ALL' ||
           (statusFilter === 'PENDING_APPROVAL' && (o.status === 'PENDING_APPROVAL' || o.status === 'PENDING')) ||
-          (statusFilter === 'CONFIRMED' && ['CONFIRMED', 'APPROVED', 'PICKING', 'PREPARING', 'PACKING', 'EXPORTED', 'SHIPPED', 'DISPATCHED'].includes(o.status)) ||
-          (statusFilter === 'DELIVERED' && ['DELIVERED', 'CLOSED', 'COMPLETED'].includes(o.status)) ||
+          (statusFilter === 'CONFIRMED' && (o.status === 'CONFIRMED' || o.status === 'APPROVED')) ||
+          (statusFilter === 'PICKING' && ['PICKING', 'PREPARING', 'PACKING', 'ĐANG SOẠN HÀNG'].includes((o.status || '').toUpperCase())) ||
+          (statusFilter === 'EXPORTED' && ['EXPORTED', 'SHIPPED', 'DISPATCHED', 'ĐÃ XUẤT'].includes((o.status || '').toUpperCase())) ||
+          (statusFilter === 'DELIVERED' && ['DELIVERED', 'CLOSED', 'COMPLETED', 'ĐÃ GIAO'].includes((o.status || '').toUpperCase())) ||
           (statusFilter === 'REJECTED' && o.status === 'REJECTED') ||
           (statusFilter === 'CANCELLED' && o.status === 'CANCELLED');
 
@@ -1098,110 +1104,66 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
       <div
         className="bg-white border border-slate-200 rounded-xl shadow-xs flex-1 min-h-0 flex flex-col overflow-hidden"
       >
-        {/* Bộ lọc và tìm kiếm */}
-        <div className="p-2.5 sm:p-3.5 md:px-5 md:py-3 border-b border-slate-200 flex flex-col md:flex-row justify-between items-stretch md:items-center gap-2.5 sm:gap-3 bg-slate-50 shrink-0">
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 flex-1 min-w-0">
+        {/* Tìm kiếm và thống kê */}
+        <div className="p-2.5 sm:p-3.5 md:px-5 md:py-3 border-b border-slate-200 flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-2.5 sm:gap-3 bg-slate-50 shrink-0">
+          <div className="relative flex-1 max-w-md">
+            <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </span>
             <input
               type="text"
               placeholder="Tìm theo mã đơn, khách hàng, người tạo..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full sm:w-72 px-3 py-1.5 sm:py-2 rounded-lg border border-slate-300 text-xs sm:text-[13.5px] bg-white outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 box-border"
+              className="w-full pl-9 pr-3 py-1.5 sm:py-2 rounded-lg border border-slate-300 text-xs sm:text-[13.5px] bg-white outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 box-border"
             />
-
-            <div className="flex overflow-x-auto max-w-full pb-1 sm:pb-0 gap-1 bg-slate-200/80 p-0.5 rounded-lg shrink-0">
-              <button
-                type="button"
-                onClick={() => setStatusFilter('ALL')}
-                className={`px-2.5 sm:px-3 py-1 rounded-md text-xs sm:text-[13px] font-semibold whitespace-nowrap cursor-pointer transition-all border-0 ${
-                  statusFilter === 'ALL' ? 'bg-white text-slate-900 shadow-xs' : 'bg-transparent text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                Tất cả ({totalOrdersCount})
-              </button>
-              <button
-                type="button"
-                onClick={() => setStatusFilter('PENDING_APPROVAL')}
-                className={`px-2.5 sm:px-3 py-1 rounded-md text-xs sm:text-[13px] font-semibold whitespace-nowrap cursor-pointer transition-all border-0 ${
-                  statusFilter === 'PENDING_APPROVAL' ? 'bg-white text-amber-700 shadow-xs' : 'bg-transparent text-slate-600 hover:text-amber-700'
-                }`}
-              >
-                {isCustomer ? 'Chờ xử lý' : 'Chờ duyệt'} ({pendingOrdersCount})
-              </button>
-              <button
-                type="button"
-                onClick={() => setStatusFilter('CONFIRMED')}
-                className={`px-2.5 sm:px-3 py-1 rounded-md text-xs sm:text-[13px] font-semibold whitespace-nowrap cursor-pointer transition-all border-0 ${
-                  statusFilter === 'CONFIRMED' ? 'bg-white text-emerald-700 shadow-xs' : 'bg-transparent text-slate-600 hover:text-emerald-700'
-                }`}
-              >
-                {isCustomer ? 'Đang giao' : 'Đã xác nhận'} ({confirmedOrdersCount})
-              </button>
-              <button
-                type="button"
-                onClick={() => setStatusFilter('DELIVERED')}
-                style={{
-                  padding: '6px 14px',
-                  borderRadius: '6px',
-                  border: 'none',
-                  background: statusFilter === 'DELIVERED' ? '#ffffff' : 'transparent',
-                  color: statusFilter === 'DELIVERED' ? '#065f46' : '#64748b',
-                  fontWeight: statusFilter === 'DELIVERED' ? '700' : '500',
-                  fontSize: '13px',
-                  cursor: 'pointer',
-                  boxShadow: statusFilter === 'DELIVERED' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-                }}
-              >
-                Đã giao ({deliveredOrdersCount})
-              </button>
-              {rejectedOrdersCount > 0 && (
-                <button
-                  type="button"
-                  onClick={() => setStatusFilter('REJECTED')}
-                  className={`px-2.5 sm:px-3 py-1 rounded-md text-xs sm:text-[13px] font-semibold whitespace-nowrap cursor-pointer transition-all border-0 ${
-                    statusFilter === 'REJECTED' ? 'bg-white text-red-700 shadow-xs' : 'bg-transparent text-slate-600 hover:text-red-700'
-                  }`}
-                >
-                  Bị từ chối ({rejectedOrdersCount})
-                </button>
-              )}
-              {cancelledOrdersCount > 0 && (
-                <button
-                  type="button"
-                  onClick={() => setStatusFilter('CANCELLED')}
-                  className={`px-2.5 sm:px-3 py-1 rounded-md text-xs sm:text-[13px] font-semibold whitespace-nowrap cursor-pointer transition-all border-0 ${
-                    statusFilter === 'CANCELLED' ? 'bg-white text-slate-700 shadow-xs' : 'bg-transparent text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  Đã hủy ({cancelledOrdersCount})
-                </button>
-              )}
-            </div>
           </div>
 
-          <div className="text-xs text-slate-500 whitespace-nowrap self-end md:self-center">
+          <div className="text-xs text-slate-500 whitespace-nowrap self-end sm:self-center">
             Hiển thị <strong>{paginatedOrders.length}</strong> / {filteredOrders.length} đơn &bull; Tổng tiền lọc: <strong className="text-emerald-700 font-bold">{filteredTotalRevenue.toLocaleString('vi-VN')} đ</strong>
           </div>
         </div>
 
-        {/* Thanh lọc đa tiêu chí cho Quản lý kinh doanh & Admin */}
-        {!isCustomer && (
-          <div className="px-3 sm:px-5 py-2.5 bg-slate-100/70 border-b border-slate-200 flex flex-wrap items-center gap-2.5 text-xs shrink-0">
-            <span className="font-bold text-slate-700 shrink-0 flex items-center gap-1">
-              <svg className="w-3.5 h-3.5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-              </svg>
-              Bộ lọc:
-            </span>
+        {/* Thanh lọc đa tiêu chí - 1 dòng duy nhất */}
+        <div className="px-3 sm:px-4 py-2 bg-slate-100/70 border-b border-slate-200 flex flex-nowrap items-center gap-2 text-xs shrink-0 overflow-x-auto">
+          <span className="font-bold text-slate-700 shrink-0 flex items-center gap-1 mr-0.5">
+            <svg className="w-3.5 h-3.5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+            </svg>
+            Bộ lọc:
+          </span>
 
-            {/* Lọc Đại lý */}
-            <div className="flex items-center gap-1">
+          {/* Lọc Trạng thái */}
+          <div className="flex items-center gap-1 shrink-0">
+            <label htmlFor="filter-status" className="text-slate-500 font-medium shrink-0">Trạng thái:</label>
+            <select
+              id="filter-status"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as any)}
+              className="px-2 py-1 bg-white border border-slate-300 rounded-md text-xs text-slate-700 outline-none focus:border-emerald-500 cursor-pointer max-w-[155px]"
+            >
+              <option value="ALL">Tất cả trạng thái ({totalOrdersCount})</option>
+              <option value="PENDING_APPROVAL">{isCustomer ? 'Chờ xử lý' : 'Chờ duyệt'} ({pendingOrdersCount})</option>
+              <option value="CONFIRMED">{isCustomer ? 'Đang giao' : 'Đã xác nhận'} ({confirmedOrdersCount})</option>
+              <option value="PICKING">Đang soạn hàng ({pickingOrdersCount})</option>
+              <option value="EXPORTED">Đã xuất kho ({exportedOrdersCount})</option>
+              <option value="DELIVERED">Đã giao ({deliveredOrdersCount})</option>
+              <option value="CANCELLED">Đã hủy ({cancelledOrdersCount})</option>
+              <option value="REJECTED">Bị từ chối ({rejectedOrdersCount})</option>
+            </select>
+          </div>
+
+          {/* Lọc Đại lý */}
+          {!isCustomer && (
+            <div className="flex items-center gap-1 shrink-0">
               <label htmlFor="filter-dealer" className="text-slate-500 font-medium shrink-0">Đại lý:</label>
               <select
                 id="filter-dealer"
                 value={dealerFilter}
                 onChange={(e) => setDealerFilter(e.target.value)}
-                className="px-2 py-1 bg-white border border-slate-300 rounded-md text-xs text-slate-700 outline-none focus:border-emerald-500 cursor-pointer"
+                className="px-2 py-1 bg-white border border-slate-300 rounded-md text-xs text-slate-700 outline-none focus:border-emerald-500 cursor-pointer max-w-[145px]"
               >
                 <option value="ALL">Tất cả đại lý</option>
                 {dealers.map((d) => (
@@ -1211,35 +1173,37 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                 ))}
               </select>
             </div>
+          )}
 
-            {/* Lọc Nhân viên (chỉ dành cho QLKD và Admin) */}
-            {(!isSales || isAdmin || isSalesManager) && (
-              <div className="flex items-center gap-1">
-                <label htmlFor="filter-sales-rep" className="text-slate-500 font-medium shrink-0">Nhân viên:</label>
-                <select
-                  id="filter-sales-rep"
-                  value={salesRepFilter}
-                  onChange={(e) => setSalesRepFilter(e.target.value)}
-                  className="px-2 py-1 bg-white border border-slate-300 rounded-md text-xs text-slate-700 outline-none focus:border-emerald-500 cursor-pointer"
-                >
-                  <option value="ALL">Tất cả nhân viên</option>
-                  {salesReps.map((sr) => (
-                    <option key={sr.id} value={sr.id}>
-                      {sr.full_name || sr.username}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
+          {/* Lọc Nhân viên (chỉ dành cho QLKD và Admin) */}
+          {!isCustomer && (!isSales || isAdmin || isSalesManager) && (
+            <div className="flex items-center gap-1 shrink-0">
+              <label htmlFor="filter-sales-rep" className="text-slate-500 font-medium shrink-0">Nhân viên:</label>
+              <select
+                id="filter-sales-rep"
+                value={salesRepFilter}
+                onChange={(e) => setSalesRepFilter(e.target.value)}
+                className="px-2 py-1 bg-white border border-slate-300 rounded-md text-xs text-slate-700 outline-none focus:border-emerald-500 cursor-pointer max-w-[135px]"
+              >
+                <option value="ALL">Tất cả nhân viên</option>
+                {salesReps.map((sr) => (
+                  <option key={sr.id} value={sr.id}>
+                    {sr.full_name || sr.username}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
-            {/* Lọc Khu vực */}
-            <div className="flex items-center gap-1">
+          {/* Lọc Khu vực */}
+          {!isCustomer && (
+            <div className="flex items-center gap-1 shrink-0">
               <label htmlFor="filter-region" className="text-slate-500 font-medium shrink-0">Khu vực:</label>
               <select
                 id="filter-region"
                 value={regionFilter}
                 onChange={(e) => setRegionFilter(e.target.value)}
-                className="px-2 py-1 bg-white border border-slate-300 rounded-md text-xs text-slate-700 outline-none focus:border-emerald-500 cursor-pointer"
+                className="px-2 py-1 bg-white border border-slate-300 rounded-md text-xs text-slate-700 outline-none focus:border-emerald-500 cursor-pointer max-w-[125px]"
               >
                 <option value="ALL">Tất cả khu vực</option>
                 {regions.map((reg) => (
@@ -1249,49 +1213,50 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                 ))}
               </select>
             </div>
+          )}
 
-            {/* Khoảng thời gian */}
-            <div className="flex items-center gap-1">
-              <label htmlFor="filter-start-date" className="text-slate-500 font-medium shrink-0">Từ ngày:</label>
-              <input
-                type="date"
-                id="filter-start-date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="px-2 py-0.5 bg-white border border-slate-300 rounded-md text-xs text-slate-700 outline-none focus:border-emerald-500 cursor-pointer"
-              />
-            </div>
-
-            <div className="flex items-center gap-1">
-              <label htmlFor="filter-end-date" className="text-slate-500 font-medium shrink-0">Đến ngày:</label>
-              <input
-                type="date"
-                id="filter-end-date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="px-2 py-0.5 bg-white border border-slate-300 rounded-md text-xs text-slate-700 outline-none focus:border-emerald-500 cursor-pointer"
-              />
-            </div>
-
-            {/* Nút đặt lại */}
-            {(dealerFilter !== 'ALL' || salesRepFilter !== 'ALL' || regionFilter !== 'ALL' || startDate || endDate) && (
-              <button
-                type="button"
-                onClick={() => {
-                  setDealerFilter('ALL');
-                  setSalesRepFilter('ALL');
-                  setRegionFilter('ALL');
-                  setStartDate('');
-                  setEndDate('');
-                }}
-                className="px-2.5 py-1 bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold rounded-md text-xs cursor-pointer transition-colors"
-                title="Đặt lại các tiêu chí lọc về mặc định"
-              >
-                Đặt lại
-              </button>
-            )}
+          {/* Khoảng thời gian */}
+          <div className="flex items-center gap-1 shrink-0">
+            <label htmlFor="filter-start-date" className="text-slate-500 font-medium shrink-0">Từ ngày:</label>
+            <input
+              type="date"
+              id="filter-start-date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="px-1.5 py-1 bg-white border border-slate-300 rounded-md text-xs text-slate-700 outline-none focus:border-emerald-500 cursor-pointer w-[122px]"
+            />
           </div>
-        )}
+
+          <div className="flex items-center gap-1 shrink-0">
+            <label htmlFor="filter-end-date" className="text-slate-500 font-medium shrink-0">Đến ngày:</label>
+            <input
+              type="date"
+              id="filter-end-date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="px-1.5 py-1 bg-white border border-slate-300 rounded-md text-xs text-slate-700 outline-none focus:border-emerald-500 cursor-pointer w-[122px]"
+            />
+          </div>
+
+          {/* Nút đặt lại */}
+          {(statusFilter !== 'ALL' || dealerFilter !== 'ALL' || salesRepFilter !== 'ALL' || regionFilter !== 'ALL' || startDate || endDate) && (
+            <button
+              type="button"
+              onClick={() => {
+                setStatusFilter('ALL');
+                setDealerFilter('ALL');
+                setSalesRepFilter('ALL');
+                setRegionFilter('ALL');
+                setStartDate('');
+                setEndDate('');
+              }}
+              className="px-2 py-1 bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold rounded-md text-xs cursor-pointer transition-colors whitespace-nowrap shrink-0"
+              title="Đặt lại các tiêu chí lọc về mặc định"
+            >
+              Đặt lại
+            </button>
+          )}
+        </div>
 
         {/* Nội dung danh sách đơn hàng */}
         {loading ? (
@@ -2045,7 +2010,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
         />
       )}
 
-      {/* Modal Lịch Sử Phê Duyệt Bất Biến */}
+      {/* Modal Lịch Sử Phê Duyệt */}
       {viewingHistoryOrder && (
         <div
           style={{
@@ -2088,7 +2053,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
             >
               <div>
                 <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '800', color: '#0f172a' }}>
-                  Lịch Sử Phê Duyệt Bất Biến
+                  Lịch Sử Phê Duyệt
                 </h3>
                 <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>
                   Đơn hàng: <strong style={{ color: '#0284c7' }}>{viewingHistoryOrder.order_code}</strong>

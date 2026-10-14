@@ -82,73 +82,42 @@ export const OrderApprovalHistory: React.FC<OrderApprovalHistoryProps> = ({ orde
   };
 
   return (
-    <div
-      style={{
-        background: '#ffffff',
-        border: '1px solid #e2e8f0',
-        borderRadius: '8px',
-        padding: '12px 14px',
-        marginTop: '14px',
-        marginBottom: '14px',
-      }}
-    >
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: '10px',
-          paddingBottom: '8px',
-          borderBottom: '1px solid #f1f5f9',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontSize: '13px', fontWeight: '700', color: '#0f172a' }}>
+    <div className="bg-white border border-slate-200/80 rounded-2xl shadow-xs overflow-hidden my-4">
+      <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <h2 className="text-base font-bold text-slate-900">
             Lịch sử phê duyệt & xử lý đơn hàng
-          </span>
-          <span
-            style={{
-              fontSize: '11px',
-              fontWeight: '500',
-              color: '#0369a1',
-              background: '#e0f2fe',
-              padding: '1px 6px',
-              borderRadius: '4px',
-              border: '1px solid #bae6fd',
-            }}
-          >
-            Bất biến (Chỉ đọc)
-          </span>
+          </h2>
         </div>
-        <span style={{ fontSize: '11.5px', color: '#64748b' }}>
+        <span className="text-xs text-slate-500 font-medium">
           {history.length} bản ghi ghi nhận
         </span>
       </div>
 
       {loading ? (
-        <div style={{ padding: '12px', textAlign: 'center', fontSize: '12.5px', color: '#64748b' }}>
+        <div className="p-8 text-center text-xs text-slate-500">
           Đang tải lịch sử phê duyệt...
         </div>
       ) : error ? (
-        <div style={{ padding: '10px', fontSize: '12px', color: '#dc2626', background: '#fef2f2', borderRadius: '6px' }}>
+        <div className="p-4 m-4 text-xs text-rose-700 bg-rose-50 border border-rose-200 rounded-xl">
           {error}
         </div>
       ) : history.length === 0 ? (
-        <div style={{ padding: '12px', textAlign: 'center', fontSize: '12.5px', color: '#94a3b8' }}>
+        <div className="p-8 text-center text-xs text-slate-400">
           Chưa có bản ghi phê duyệt nào cho đơn hàng này.
         </div>
       ) : (
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', textAlign: 'left' }}>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse text-sm">
             <thead>
-              <tr style={{ background: '#f8fafc', color: '#64748b', borderBottom: '1px solid #e2e8f0' }}>
-                <th style={{ padding: '6px 8px', fontWeight: '600', whiteSpace: 'nowrap' }}>Thời gian</th>
-                <th style={{ padding: '6px 8px', fontWeight: '600', whiteSpace: 'nowrap' }}>Người thực hiện</th>
-                <th style={{ padding: '6px 8px', fontWeight: '600', whiteSpace: 'nowrap' }}>Hành động</th>
-                <th style={{ padding: '6px 8px', fontWeight: '600' }}>Ý kiến / Nội dung chỉ đạo</th>
+              <tr className="bg-slate-50 text-slate-500 border-b border-slate-200 text-xs uppercase font-semibold">
+                <th className="py-3 px-4 whitespace-nowrap">Thời gian</th>
+                <th className="py-3 px-4 whitespace-nowrap">Người thực hiện</th>
+                <th className="py-3 px-4 whitespace-nowrap">Hành động</th>
+                <th className="py-3 px-4">Ý kiến / Nội dung chỉ đạo</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-slate-100">
               {history.map((item, idx) => {
                 const badgeStyle = getActionBadgeStyle(item.action_type);
                 const timeStr = item.created_at
@@ -156,24 +125,18 @@ export const OrderApprovalHistory: React.FC<OrderApprovalHistoryProps> = ({ orde
                   : '—';
 
                 return (
-                  <tr
-                    key={item.id || idx}
-                    style={{
-                      borderBottom: '1px solid #f1f5f9',
-                      background: idx % 2 === 0 ? '#ffffff' : '#fafafa',
-                    }}
-                  >
-                    <td style={{ padding: '7px 8px', color: '#64748b', whiteSpace: 'nowrap' }}>
+                  <tr key={item.id || idx} className="hover:bg-slate-50/60 transition-colors">
+                    <td className="py-3 px-4 text-xs text-slate-600 whitespace-nowrap">
                       {timeStr}
                     </td>
-                    <td style={{ padding: '7px 8px', fontWeight: '600', color: '#1e293b', whiteSpace: 'nowrap' }}>
+                    <td className="py-3 px-4 text-xs font-semibold text-slate-800 whitespace-nowrap">
                       {item.user_name}
                     </td>
-                    <td style={{ padding: '7px 8px', whiteSpace: 'nowrap' }}>
+                    <td className="py-3 px-4 whitespace-nowrap">
                       <span
                         style={{
                           display: 'inline-block',
-                          padding: '1.5px 7px',
+                          padding: '2px 8px',
                           borderRadius: '999px',
                           fontSize: '11px',
                           fontWeight: '600',
@@ -183,12 +146,8 @@ export const OrderApprovalHistory: React.FC<OrderApprovalHistoryProps> = ({ orde
                         {item.action_label}
                       </span>
                     </td>
-                    <td style={{ padding: '7px 8px', color: '#334155', lineHeight: '1.35', maxWidth: '300px' }}>
-                      {item.reason ? (
-                        <span>{item.reason}</span>
-                      ) : (
-                        <span style={{ color: '#94a3b8' }}>—</span>
-                      )}
+                    <td className="py-3 px-4 text-xs text-slate-700 max-w-xs break-words">
+                      {item.reason || <span className="text-slate-400">—</span>}
                     </td>
                   </tr>
                 );
