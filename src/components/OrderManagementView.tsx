@@ -63,6 +63,8 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
   const [draftRegionFilter, setDraftRegionFilter] = useState<string>('ALL');
   const [draftStartDate, setDraftStartDate] = useState<string>('');
   const [draftEndDate, setDraftEndDate] = useState<string>('');
+  const startDateInputRef = useRef<HTMLInputElement>(null);
+  const endDateInputRef = useRef<HTMLInputElement>(null);
 
   const handleApplyFilter = () => {
     setStatusFilter(draftStatusFilter);
@@ -1204,43 +1206,105 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
             </select>
           )}
 
-          {/* Ô 5: Từ ngày - đồng bộ 100% giao diện như 4 ô chọn */}
-          <div className="relative flex-1 min-w-[110px] max-w-[145px] shrink-0 h-[32px]">
+          {/* Ô 5: Từ ngày - bấm bất cứ đâu trong ô để mở lịch ngay, icon lịch rõ nét */}
+          <div
+            onClick={() => {
+              try {
+                startDateInputRef.current?.showPicker();
+              } catch {
+                startDateInputRef.current?.focus();
+              }
+            }}
+            className="relative flex-1 min-w-[110px] max-w-[145px] shrink-0 h-[32px] cursor-pointer"
+          >
             <input
+              ref={startDateInputRef}
               type="date"
               id="filter-start-date"
               value={draftStartDate}
               onChange={(e) => setDraftStartDate(e.target.value)}
-              className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
-              title="Lọc từ ngày"
+              className="full-date-input absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
+              title="Nhấn để chọn ngày bắt đầu"
             />
-            <div className="h-[32px] px-2 bg-white border border-slate-300 rounded-md text-xs text-slate-700 flex items-center justify-between cursor-pointer box-border w-full truncate select-none hover:border-slate-400">
+            <div className="h-[32px] px-2 bg-white border border-slate-300 rounded-md text-xs text-slate-700 flex items-center justify-between cursor-pointer box-border w-full truncate select-none hover:border-emerald-500 hover:bg-slate-50 transition-colors">
               <span className="truncate">
                 {draftStartDate ? `Từ: ${draftStartDate.split('-').reverse().join('/')}` : 'Từ ngày: Tất cả'}
               </span>
-              <svg className="w-3.5 h-3.5 text-slate-500 shrink-0 ml-1 pointer-events-none" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd" />
-              </svg>
+              <div className="flex items-center gap-1 shrink-0 ml-1">
+                {draftStartDate && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      e.preventDefault();
+                      setDraftStartDate('');
+                    }}
+                    className="z-20 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-full w-4 h-4 flex items-center justify-center text-[10px] font-bold transition-colors cursor-pointer"
+                    title="Xóa ngày bắt đầu"
+                  >
+                    ✕
+                  </button>
+                )}
+                {/* Icon lịch rõ nét */}
+                <svg className="w-3.5 h-3.5 text-emerald-600 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                  <rect x="3" y="4" width="18" height="18" rx="2" strokeWidth={1.8} />
+                  <line x1="16" y1="2" x2="16" y2="6" strokeWidth={1.8} strokeLinecap="round" />
+                  <line x1="8" y1="2" x2="8" y2="6" strokeWidth={1.8} strokeLinecap="round" />
+                  <line x1="3" y1="10" x2="21" y2="10" strokeWidth={1.8} />
+                  <path strokeLinecap="round" strokeWidth={2} d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01M16 18h.01" />
+                </svg>
+              </div>
             </div>
           </div>
 
-          {/* Ô 6: Đến ngày - đồng bộ 100% giao diện như 4 ô chọn */}
-          <div className="relative flex-1 min-w-[110px] max-w-[145px] shrink-0 h-[32px]">
+          {/* Ô 6: Đến ngày - bấm bất cứ đâu trong ô để mở lịch ngay, icon lịch rõ nét */}
+          <div
+            onClick={() => {
+              try {
+                endDateInputRef.current?.showPicker();
+              } catch {
+                endDateInputRef.current?.focus();
+              }
+            }}
+            className="relative flex-1 min-w-[110px] max-w-[145px] shrink-0 h-[32px] cursor-pointer"
+          >
             <input
+              ref={endDateInputRef}
               type="date"
               id="filter-end-date"
               value={draftEndDate}
               onChange={(e) => setDraftEndDate(e.target.value)}
-              className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
-              title="Lọc đến ngày"
+              className="full-date-input absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
+              title="Nhấn để chọn ngày kết thúc"
             />
-            <div className="h-[32px] px-2 bg-white border border-slate-300 rounded-md text-xs text-slate-700 flex items-center justify-between cursor-pointer box-border w-full truncate select-none hover:border-slate-400">
+            <div className="h-[32px] px-2 bg-white border border-slate-300 rounded-md text-xs text-slate-700 flex items-center justify-between cursor-pointer box-border w-full truncate select-none hover:border-emerald-500 hover:bg-slate-50 transition-colors">
               <span className="truncate">
                 {draftEndDate ? `Đến: ${draftEndDate.split('-').reverse().join('/')}` : 'Đến ngày: Tất cả'}
               </span>
-              <svg className="w-3.5 h-3.5 text-slate-500 shrink-0 ml-1 pointer-events-none" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd" />
-              </svg>
+              <div className="flex items-center gap-1 shrink-0 ml-1">
+                {draftEndDate && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      e.preventDefault();
+                      setDraftEndDate('');
+                    }}
+                    className="z-20 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-full w-4 h-4 flex items-center justify-center text-[10px] font-bold transition-colors cursor-pointer"
+                    title="Xóa ngày kết thúc"
+                  >
+                    ✕
+                  </button>
+                )}
+                {/* Icon lịch rõ nét */}
+                <svg className="w-3.5 h-3.5 text-emerald-600 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                  <rect x="3" y="4" width="18" height="18" rx="2" strokeWidth={1.8} />
+                  <line x1="16" y1="2" x2="16" y2="6" strokeWidth={1.8} strokeLinecap="round" />
+                  <line x1="8" y1="2" x2="8" y2="6" strokeWidth={1.8} strokeLinecap="round" />
+                  <line x1="3" y1="10" x2="21" y2="10" strokeWidth={1.8} />
+                  <path strokeLinecap="round" strokeWidth={2} d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01M16 18h.01" />
+                </svg>
+              </div>
             </div>
           </div>
 
