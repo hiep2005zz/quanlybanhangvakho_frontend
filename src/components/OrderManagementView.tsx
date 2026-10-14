@@ -1204,36 +1204,40 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
             </select>
           )}
 
-          {/* Ô 5: Từ ngày */}
-          <div
-            className="flex items-center h-[32px] bg-white border border-slate-300 rounded-md px-2 flex-1 min-w-[115px] max-w-[145px] focus-within:border-emerald-500 focus-within:ring-1 focus-within:ring-emerald-500 box-border shrink-0"
-            title="Lọc từ ngày"
-          >
-            <span className="text-slate-500 text-xs font-medium shrink-0 mr-1 select-none">Từ:</span>
+          {/* Ô 5: Từ ngày - đồng bộ 100% giao diện như 4 ô chọn */}
+          <div className="relative flex-1 min-w-[110px] max-w-[145px] shrink-0 h-[32px]">
             <input
               type="date"
               id="filter-start-date"
               value={draftStartDate}
               onChange={(e) => setDraftStartDate(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') handleApplyFilter(); }}
-              className="w-full text-xs text-slate-700 bg-transparent outline-none cursor-pointer p-0 min-w-0"
+              className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
+              title="Lọc từ ngày"
             />
+            <div className="h-[32px] px-2 bg-white border border-slate-300 rounded-md text-xs text-slate-700 flex items-center justify-between cursor-pointer box-border w-full truncate select-none hover:border-slate-400">
+              <span className="truncate">
+                {draftStartDate ? `Từ: ${draftStartDate.split('-').reverse().join('/')}` : 'Từ ngày: Tất cả'}
+              </span>
+              <span className="text-slate-400 text-[11px] shrink-0 ml-1">📅</span>
+            </div>
           </div>
 
-          {/* Ô 6: Đến ngày */}
-          <div
-            className="flex items-center h-[32px] bg-white border border-slate-300 rounded-md px-2 flex-1 min-w-[115px] max-w-[145px] focus-within:border-emerald-500 focus-within:ring-1 focus-within:ring-emerald-500 box-border shrink-0"
-            title="Lọc đến ngày"
-          >
-            <span className="text-slate-500 text-xs font-medium shrink-0 mr-1 select-none">Đến:</span>
+          {/* Ô 6: Đến ngày - đồng bộ 100% giao diện như 4 ô chọn */}
+          <div className="relative flex-1 min-w-[110px] max-w-[145px] shrink-0 h-[32px]">
             <input
               type="date"
               id="filter-end-date"
               value={draftEndDate}
               onChange={(e) => setDraftEndDate(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') handleApplyFilter(); }}
-              className="w-full text-xs text-slate-700 bg-transparent outline-none cursor-pointer p-0 min-w-0"
+              className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
+              title="Lọc đến ngày"
             />
+            <div className="h-[32px] px-2 bg-white border border-slate-300 rounded-md text-xs text-slate-700 flex items-center justify-between cursor-pointer box-border w-full truncate select-none hover:border-slate-400">
+              <span className="truncate">
+                {draftEndDate ? `Đến: ${draftEndDate.split('-').reverse().join('/')}` : 'Đến ngày: Tất cả'}
+              </span>
+              <span className="text-slate-400 text-[11px] shrink-0 ml-1">📅</span>
+            </div>
           </div>
 
           {/* Nút Áp dụng lọc */}
