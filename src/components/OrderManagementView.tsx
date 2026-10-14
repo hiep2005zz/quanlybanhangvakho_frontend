@@ -17,7 +17,6 @@ import { Link } from '../hooks/useLocation';
 import { RejectOrderModal } from './RejectOrderModal';
 import { ApproveOrderModal } from './ApproveOrderModal';
 import { ReturnOrderModal } from './ReturnOrderModal';
-import { OrderApprovalHistory } from './OrderApprovalHistory';
 import { emitStatusToast } from './StatusToast';
 import { OrderCancelModal } from './OrderCancelModal';
 import { getOrderPermissionTier, isOrderPastExported, isOrderCancelable } from '../utils/orderPermissions';
@@ -61,7 +60,6 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
   const [returningOrder, setReturningOrder] = useState<OrderResponseData | null>(null);
   const [rejectingOrder, setRejectingOrder] = useState<OrderResponseData | null>(null);
   const [cancellingOrder, setCancellingOrder] = useState<OrderResponseData | null>(null);
-  const [viewingHistoryOrder, setViewingHistoryOrder] = useState<OrderResponseData | null>(null);
   const [isSubmittingCancel, setIsSubmittingCancel] = useState(false);
   const [cancelNotice, setCancelNotice] = useState<string | null>(null);
   const [openActionDropdownCode, setOpenActionDropdownCode] = useState<string | null>(null);
@@ -783,43 +781,6 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                     <span>Trả lại sửa</span>
                   </button>
 
-                  {/* Lịch sử duyệt */}
-                  <button
-                    type="button"
-                    id={`btn-history-order-${order.order_code}`}
-                    onClick={() => {
-                      setOpenActionDropdownCode(null);
-                      setViewingHistoryOrder(order);
-                    }}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '7px',
-                      width: '100%',
-                      padding: '7px 12px',
-                      borderRadius: '6px',
-                      border: 'none',
-                      background: 'transparent',
-                      color: '#475569',
-                      fontSize: '12.5px',
-                      fontWeight: '600',
-                      textAlign: 'left',
-                      cursor: 'pointer',
-                      whiteSpace: 'nowrap',
-                      transition: 'all 0.15s ease',
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = '#f8fafc';
-                      e.currentTarget.style.color = '#1e293b';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = 'transparent';
-                      e.currentTarget.style.color = '#475569';
-                    }}
-                  >
-                    <span style={{ fontSize: '13px', lineHeight: 1 }}>⏱</span>
-                    <span>Lịch sử duyệt</span>
-                  </button>
 
                   {/* Hủy đơn trong dropdown */}
                   {canCancel && (
@@ -2010,77 +1971,6 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
         />
       )}
 
-      {/* Modal Lịch Sử Phê Duyệt */}
-      {viewingHistoryOrder && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(15, 23, 42, 0.65)',
-            backdropFilter: 'blur(3px)',
-            zIndex: 100005,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '16px',
-          }}
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setViewingHistoryOrder(null);
-          }}
-        >
-          <div
-            style={{
-              background: '#ffffff',
-              borderRadius: '12px',
-              maxWidth: '640px',
-              width: '100%',
-              boxShadow: '0 20px 25px -5px rgba(0,0,0,0.2)',
-              overflow: 'hidden',
-              display: 'flex',
-              flexDirection: 'column',
-              maxHeight: '90vh',
-            }}
-          >
-            <div
-              style={{
-                padding: '16px 20px',
-                borderBottom: '1px solid #e2e8f0',
-                background: '#f8fafc',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-              }}
-            >
-              <div>
-                <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '800', color: '#0f172a' }}>
-                  Lịch Sử Phê Duyệt
-                </h3>
-                <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>
-                  Đơn hàng: <strong style={{ color: '#0284c7' }}>{viewingHistoryOrder.order_code}</strong>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setViewingHistoryOrder(null)}
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  fontSize: '20px',
-                  color: '#94a3b8',
-                  cursor: 'pointer',
-                  lineHeight: 1,
-                  padding: '4px',
-                }}
-              >
-                ✕
-              </button>
-            </div>
-            <div style={{ padding: '16px 20px', overflowY: 'auto', flex: 1 }}>
-              <OrderApprovalHistory orderCode={viewingHistoryOrder.order_code} token={token} />
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
