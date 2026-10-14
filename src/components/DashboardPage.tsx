@@ -438,7 +438,7 @@ export default function DashboardPage({
       setActiveTabState('inventory');
       setProductDrawerState({ isOpen: true, product: null });
       try {
-        window.history.pushState({}, '', '/');
+        window.history.pushState({}, '', '/add-product');
       } catch {
         // ignore
       }
@@ -681,9 +681,15 @@ export default function DashboardPage({
       const tabParam = (params.get('tab') || params.get('view') || '').toLowerCase();
 
       const isAddProduct = pathname === '/add-product' || pathname.startsWith('/add-product/') || tabParam === 'add-product';
-      if (!isAddProduct) {
-        setProductDrawerState({ isOpen: false, product: null });
+      if (isAddProduct) {
+        if (tabParam) {
+          try { window.history.replaceState({}, '', '/add-product'); } catch {}
+        }
+        setActiveTabState('inventory');
+        setProductDrawerState((prev) => ({ isOpen: true, product: prev.product ?? null }));
+        return;
       }
+      setProductDrawerState({ isOpen: false, product: null });
 
       const isGoodsReceiptPath = pathname === '/goods-receipt' || pathname.startsWith('/goods-receipt/') || pathname === '/goods-receipts';
       if (isGoodsReceiptPath || tabParam === 'goods-receipt') {
