@@ -1151,7 +1151,7 @@ export default function DashboardPage({
 
   const fetchProducts = (targetPage?: number) => {
     // Đại lý (Customer) sử dụng cơ chế Server-side Pagination riêng (20 sp/trang) tại CustomerPortalView,
-    // tuyệt đối không tải toàn bộ 10.000 sản phẩm vào DashboardPage.
+    // tuyệt đối không tải toàn bộ sản phẩm vào DashboardPage.
     if (isPendingCustomer || isCustomer) {
       setIsLoading(false);
       return;
