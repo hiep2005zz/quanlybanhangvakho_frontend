@@ -644,3 +644,18 @@ input[type="checkbox"]:focus {
     animation-duration: 5000ms !important;
   }
 }
+
+/* Date input full-click calendar trigger: covers 100% of the box so clicking anywhere opens the calendar */
+.full-date-input::-webkit-calendar-picker-indicator {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  opacity: 0;
+  cursor: pointer;
+}
