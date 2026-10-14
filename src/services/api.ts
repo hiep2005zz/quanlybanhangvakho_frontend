@@ -258,12 +258,14 @@ export interface ProductListResponse {
   limit?: number;
   page_size?: number;
   total_pages?: number;
+  has_more?: boolean;
 }
 
 export interface GetProductsParams {
   page?: number;
   page_size?: number;
   limit?: number;
+  skip?: number;
   search?: string;
   category?: string;
   only_low_stock?: boolean;
@@ -650,12 +652,13 @@ export async function logoutApi(token: string): Promise<void> {
 
 export async function getProductsApi(
   token: string,
-  params?: GetProductsParams & { limit?: number }
+  params?: GetProductsParams & { limit?: number; skip?: number }
 ): Promise<ProductListResponse> {
   const query = new URLSearchParams();
   if (params?.page) query.append('page', params.page.toString());
   const pageSizeVal = params?.page_size || params?.limit;
   if (pageSizeVal) query.append('page_size', pageSizeVal.toString());
+  if (params?.skip !== undefined) query.append('skip', params.skip.toString());
   if (params?.search && params.search.trim()) query.append('search', params.search.trim());
   if (params?.category && params.category.toLowerCase() !== 'all') {
     query.append('category', params.category);

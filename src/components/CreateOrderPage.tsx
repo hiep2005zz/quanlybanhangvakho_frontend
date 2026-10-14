@@ -22,6 +22,7 @@ import { searchDealers } from '../services/dealerSearchApi';
 import { emitStatusToast } from './StatusToast';
 import type { DeliveryPoint } from '../types/deliveryPoint';
 import { Link, useNavigate } from '../hooks/useLocation';
+import { ProductInfiniteSelect } from './ProductInfiniteSelect';
 
 export interface SelectedOrderItem {
   productId: number;
@@ -128,6 +129,27 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({
   const [dealers, setDealers] = useState<any[]>(FALLBACK_DEALERS);
   const [dealerId, setDealerId] = useState<number>(initialDealerId);
   const [loadingDealers, setLoadingDealers] = useState(false);
+
+  // Cache các sản phẩm đã tải để luôn tra cứu được thông tin khi thêm từ lịch sử / clone
+  const [loadedProductsMap, setLoadedProductsMap] = useState<Map<number, ProductItem>>(() => {
+    const map = new Map<number, ProductItem>();
+    if (products && Array.isArray(products)) {
+      for (const p of products) map.set(p.id, p);
+    }
+    return map;
+  });
+
+  useEffect(() => {
+    if (products && products.length > 0) {
+      setLoadedProductsMap((prev) => {
+        const next = new Map(prev);
+        for (const p of products) {
+          if (!next.has(p.id)) next.set(p.id, p);
+        }
+        return next;
+      });
+    }
+  }, [products]);
 
   // 2. Danh sách sản phẩm trong giỏ hàng đặt hàng
   const [orderItems, setOrderItems] = useState<SelectedOrderItem[]>(() => {
@@ -522,18 +544,18 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dealerId]);
 
-  // Thêm sản phẩm từ Dropdown
-  const handleSelectProduct = async (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const val = e.target.value;
-    if (!val) return;
-
-    const pId = parseInt(val, 10);
-    const prod = products.find((p) => p.id === pId);
+  // Thêm sản phẩm từ Dropdown phân trang (nhận ProductItem trực tiếp)
+  const handleSelectProductItem = async (prod: ProductItem) => {
     if (!prod) return;
 
-    e.target.value = '';
+    // Lưu vào cache để các phần khác luôn tra cứu được thông tin sản phẩm
+    setLoadedProductsMap((prev) => {
+      const next = new Map(prev);
+      next.set(prod.id, prod);
+      return next;
+    });
 
-    const existingIndex = orderItems.findIndex((item) => item.productId === pId);
+    const existingIndex = orderItems.findIndex((item) => item.productId === prod.id);
     if (existingIndex >= 0) {
       setOrderItems((prev) =>
         prev.map((item, idx) => {
@@ -545,6 +567,10 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({
           };
         })
       );
+      emitStatusToast({
+        title: 'Đã tăng số lượng',
+        message: `Đã tăng thêm 1 cho "${prod.name}".`,
+      });
       return;
     }
 
@@ -594,11 +620,15 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({
     };
 
     setOrderItems((prev) => [...prev, newItem]);
+    emitStatusToast({
+      title: 'Đã thêm sản phẩm',
+      message: `Đã thêm "${prod.name}" vào đơn hàng.`,
+    });
   };
 
   // Thêm nhanh một mặt hàng từ lịch sử
   const handleAddHistoryItem = async (item: PurchaseHistoryItem) => {
-    const prod = products.find((p) => p.id === item.product_id);
+    const prod = products.find((p) => p.id === item.product_id) || loadedProductsMap.get(item.product_id);
     const qtyToAdd = Math.max(1, Math.round(item.last_order_quantity || item.avg_quantity || 1));
     const baseUnit = prod?.base_unit || item.unit || 'Cái';
     const itemUnit = item.unit || baseUnit;
@@ -696,7 +726,7 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({
     const updated = [...orderItems];
 
     for (const item of itemsToAdd) {
-      const prod = products.find((p) => p.id === item.product_id);
+      const prod = products.find((p) => p.id === item.product_id) || loadedProductsMap.get(item.product_id);
       const qtyToAdd = Math.max(1, Math.round(item.quantity || 1));
       const baseUnit = prod?.base_unit || item.unit || 'Cái';
       const itemUnit = item.unit || baseUnit;
@@ -1297,24 +1327,12 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({
                 <label htmlFor="select-order-product" className="block text-xs sm:text-sm font-bold text-slate-800">
                   Chọn sản phẩm để thêm vào đơn <span className="text-red-500">*</span>
                 </label>
-                <div className="relative">
-                  <select
-                    id="select-order-product"
-                    defaultValue=""
-                    onChange={handleSelectProduct}
-                    className="w-full px-4 py-3 rounded-xl border-2 border-emerald-500/80 bg-emerald-50/20 text-slate-900 text-sm font-semibold focus:outline-none focus:ring-4 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all cursor-pointer shadow-xs"
-                  >
-                    <option value="">Bấm vào đây để tìm và chọn sản phẩm thêm vào đơn hàng...</option>
-                    {products.map((p) => {
-                      const isAdded = orderItems.some((item) => item.productId === p.id);
-                      return (
-                        <option key={p.id} value={p.id}>
-                          {p.code} — {p.name} (Tồn kho: {p.stock} {p.base_unit || 'Cái'}){isAdded ? ' [Đã có trong giỏ]' : ''}
-                        </option>
-                      );
-                    })}
-                  </select>
-                </div>
+                <ProductInfiniteSelect
+                  id="select-order-product"
+                  token={token}
+                  orderItems={orderItems}
+                  onSelectProduct={handleSelectProductItem}
+                />
                 <p className="text-[11.5px] text-slate-500 italic">
                   * Sau khi chọn, sản phẩm sẽ tự động thêm vào danh sách bên dưới và ô chọn sẽ được làm mới sẵn sàng cho mặt hàng tiếp theo.
                 </p>
