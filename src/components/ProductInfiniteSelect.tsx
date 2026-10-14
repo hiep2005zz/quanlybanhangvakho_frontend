@@ -347,7 +347,7 @@ export const ProductInfiniteSelect: React.FC<ProductInfiniteSelectProps> = ({
               })
             )}
 
-            {/* Bottom infinite scroll state */}
+            {/* Nút bấm tải thêm hoặc trạng thái đang tải */}
             {isLoadingMore && (
               <div className="p-3 text-center text-xs font-semibold text-emerald-700 flex items-center justify-center gap-2 bg-emerald-50/40 border-t border-emerald-100">
                 <svg className="animate-spin h-4 w-4 text-emerald-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -355,6 +355,24 @@ export const ProductInfiniteSelect: React.FC<ProductInfiniteSelectProps> = ({
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                 </svg>
                 <span>Đang tải tiếp 10 sản phẩm...</span>
+              </div>
+            )}
+
+            {hasMore && !isLoadingMore && products.length > 0 && (
+              <div className="p-2.5 text-center bg-slate-50/90 border-t border-slate-100 flex items-center justify-center">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    loadMoreProducts();
+                  }}
+                  className="text-xs text-emerald-700 hover:text-emerald-900 font-bold cursor-pointer bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-3 py-1.5 rounded-lg transition-colors inline-flex items-center gap-1.5 shadow-2xs"
+                >
+                  <span>Tải thêm 10 sản phẩm nữa</span>
+                  <svg className="w-3.5 h-3.5 inline animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                  </svg>
+                </button>
               </div>
             )}
 
