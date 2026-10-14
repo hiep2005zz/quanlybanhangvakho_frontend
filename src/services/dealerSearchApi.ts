@@ -456,10 +456,24 @@ export async function createDealer(
 export async function updateDealerStatus(
     dealerId: number,
     status: string,
-    reason?: string,
+    reasonOrToken?: string,
     token?: string
 ): Promise<DealerSearchItem> {
-    const authToken = getAuthToken(token);
+    let actualReason: string | undefined = undefined;
+    let actualToken: string | undefined = token;
+
+    if (token === undefined && reasonOrToken) {
+        if (reasonOrToken.includes('.') || reasonOrToken.length > 30) {
+            actualToken = reasonOrToken;
+            actualReason = undefined;
+        } else {
+            actualReason = reasonOrToken;
+        }
+    } else {
+        actualReason = reasonOrToken;
+    }
+
+    const authToken = getAuthToken(actualToken);
     const headers: Record<string, string> = {
         'Content-Type': 'application/json',
         Accept: 'application/json',
@@ -469,8 +483,8 @@ export async function updateDealerStatus(
     }
 
     const payload: { status: string; reason?: string } = { status };
-    if (reason && reason.trim()) {
-        payload.reason = reason.trim();
+    if (actualReason && actualReason.trim()) {
+        payload.reason = actualReason.trim();
     }
 
     const response = await fetch(`${API_BASE_URL}/api/v1/dealers/${dealerId}/status`, {
