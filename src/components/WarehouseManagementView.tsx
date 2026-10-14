@@ -87,7 +87,7 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
   const [allProducts, setAllProducts] = useState<Product[]>([]);
 
   // State Danh mục Master Data: Kệ, Dãy, Khu vực
-  const [, setMasterData] = useState<WarehouseMasterData>({
+  const [masterData, setMasterData] = useState<WarehouseMasterData>({
     zones: [],
     aisles: [],
     racks: [],
@@ -119,7 +119,13 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
     message?: string;
   } | null>(null);
 
-  // --- MODALS STATE ---
+  // --- MODALS & FORM PAGES STATE ---
+  // Trang riêng khai báo Full-page
+  const [isWhFormPageActive, setIsWhFormPageActive] = useState<boolean>(false);
+  const [isLocFormPageActive, setIsLocFormPageActive] = useState<boolean>(false);
+  const [isZoneFormPageActive, setIsZoneFormPageActive] = useState<boolean>(false);
+  const [isRackFormPageActive, setIsRackFormPageActive] = useState<boolean>(false);
+
   // Modal Kho
   const [isWhModalOpen, setIsWhModalOpen] = useState<boolean>(false);
   const [editingWarehouse, setEditingWarehouse] = useState<WarehouseItem | null>(null);
@@ -326,14 +332,26 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
     }
   }, [selectedWarehouse, subTab, fetchLocations, fetchLocationProducts, fetchMasterData]);
 
-  // Danh sách các Zone độc nhất trong kho đang chọn
+  // Danh sách các Zone độc nhất trong kho đang chọn (bảo đảm không bị mất khi lọc)
   const uniqueZones = useMemo(() => {
     const s = new Set<string>();
-    locations.forEach((l) => {
-      if (l.zone) s.add(l.zone);
-    });
-    return Array.from(s);
-  }, [locations]);
+    if (Array.isArray(zonesList)) {
+      zonesList.forEach((z) => {
+        if (z.zone_name && z.zone_name.trim()) s.add(z.zone_name.trim());
+      });
+    }
+    if (masterData && Array.isArray(masterData.zones)) {
+      masterData.zones.forEach((z) => {
+        if (z.zone_name && z.zone_name.trim()) s.add(z.zone_name.trim());
+      });
+    }
+    if (Array.isArray(locations)) {
+      locations.forEach((l) => {
+        if (l.zone && l.zone.trim()) s.add(l.zone.trim());
+      });
+    }
+    return Array.from(s).sort((a, b) => a.localeCompare(b, 'vi'));
+  }, [zonesList, masterData, locations]);
 
   // --- TÍNH TOÁN PHÂN TRANG ---
   const paginatedWarehouses = useMemo(() => {
@@ -426,7 +444,8 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
       status: 'Đang hoạt động',
     });
     setWhFormErrors({});
-    setIsWhModalOpen(true);
+    setIsWhFormPageActive(true);
+    setIsWhModalOpen(false);
   };
 
   const handleOpenEditWarehouse = (wh: WarehouseItem) => {
@@ -440,7 +459,8 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
       status: wh.status || 'Đang hoạt động',
     });
     setWhFormErrors({});
-    setIsWhModalOpen(true);
+    setIsWhFormPageActive(true);
+    setIsWhModalOpen(false);
   };
 
   const handleSaveWarehouse = async (e: React.FormEvent) => {
@@ -451,6 +471,9 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
     }
     if (!whFormData.name.trim()) {
       errors.name = 'Tên kho hàng không được để trống.';
+    }
+    if (whFormData.phone.trim() && !/^0[2-9][0-9]{8}$/.test(whFormData.phone.trim())) {
+      errors.phone = 'Số điện thoại không hợp lệ (yêu cầu 10 chữ số bắt đầu bằng 0).';
     }
     if (Object.keys(errors).length > 0) {
       setWhFormErrors(errors);
@@ -482,6 +505,8 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
         setSuccessMsg(`Thêm kho mới '${whFormData.name}' thành công.`);
       }
       setIsWhModalOpen(false);
+      setIsWhFormPageActive(false);
+      setEditingWarehouse(null);
       fetchWarehouses();
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : 'Lỗi lưu thông tin kho');
@@ -554,6 +579,25 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
   };
 
   // --- XỬ LÝ SUBMIT VỊ TRÍ ---
+  const handleOpenCreateLocation = () => {
+    setEditingLocation(null);
+    setLocFormData({
+      location_code: '',
+      location_name: '',
+      zone: zonesList[0]?.zone_name || '',
+      aisle: 'Dãy 1',
+      rack: 'Tầng 1',
+      bin: '',
+      max_capacity: 500,
+      initial_quantity: 0,
+      unit: 'Cái',
+      status: 'Đang sử dụng',
+      note: '',
+    });
+    setLocFormErrors({});
+    setIsLocFormPageActive(true);
+    setIsLocModalOpen(false);
+  };
 
   const handleOpenEditLocation = (loc: WarehouseLocationItem) => {
     setEditingLocation(loc);
@@ -572,7 +616,8 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
       note: loc.note || '',
     });
     setLocFormErrors({});
-    setIsLocModalOpen(true);
+    setIsLocFormPageActive(true);
+    setIsLocModalOpen(false);
   };
 
   // --- MASTER DATA: QUẢN LÝ KHU VỰC (ZONE HANDLERS) ---
@@ -586,7 +631,8 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
       is_active: true,
     });
     setZoneFormErrors({});
-    setIsZoneModalOpen(true);
+    setIsZoneFormPageActive(true);
+    setIsZoneModalOpen(false);
   };
 
   const handleOpenEditZone = (zone: WarehouseZoneItem) => {
@@ -598,7 +644,8 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
       is_active: zone.is_active,
     });
     setZoneFormErrors({});
-    setIsZoneModalOpen(true);
+    setIsZoneFormPageActive(true);
+    setIsZoneModalOpen(false);
   };
 
   const handleSaveZone = async (e: React.FormEvent) => {
@@ -631,6 +678,8 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
         setSuccessMsg(`Thêm khu vực mới '${zoneFormData.zone_name}' thành công.`);
       }
       setIsZoneModalOpen(false);
+      setIsZoneFormPageActive(false);
+      setEditingZone(null);
       fetchMasterData(selectedWarehouse.id);
       fetchLocations(selectedWarehouse.id);
     } catch (err) {
@@ -671,7 +720,8 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
       rack_input: '',
     });
     setRackFormErrors({});
-    setIsRackModalOpen(true);
+    setIsRackFormPageActive(true);
+    setIsRackModalOpen(false);
   };
 
   const handleOpenEditRack = (rack: WarehouseRackItem) => {
@@ -694,7 +744,8 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
       rack_input: rPart,
     });
     setRackFormErrors({});
-    setIsRackModalOpen(true);
+    setIsRackFormPageActive(true);
+    setIsRackModalOpen(false);
   };
 
   const handleSaveRack = async (e: React.FormEvent) => {
@@ -733,6 +784,8 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
         setSuccessMsg(`Thêm kệ/dãy mới '${finalName}' thành công. Vị trí đã tự động hiển thị ở Danh sách vị trí kệ.`);
       }
       setIsRackModalOpen(false);
+      setIsRackFormPageActive(false);
+      setEditingRack(null);
       await Promise.all([
         fetchMasterData(selectedWarehouse.id),
         fetchLocations(selectedWarehouse.id),
@@ -808,6 +861,8 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
         setSuccessMsg(`Thêm vị trí mới '${locFormData.location_code}' thành công.`);
       }
       setIsLocModalOpen(false);
+      setIsLocFormPageActive(false);
+      setEditingLocation(null);
       fetchLocations(selectedWarehouse.id);
       fetchWarehouses();
     } catch (err) {
@@ -1210,6 +1265,673 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
     }
   };
 
+  // 1. TRANG KHAI BÁO / CHỈNH SỬA KHO HÀNG (FULL PAGE VIEW: 3 Ô CỘT NGANG 100% ĐÓNG KHUNG)
+  if (isWhFormPageActive) {
+    return (
+      <div className="wh-container wh-form-fullscreen-wrap">
+        <div className="wh-form-page-header">
+          <button
+            type="button"
+            className="wh-btn wh-btn-secondary"
+            onClick={() => {
+              setIsWhFormPageActive(false);
+              setEditingWarehouse(null);
+              setWhFormErrors({});
+            }}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
+            Quay lại danh sách kho
+          </button>
+          <h2>{editingWarehouse ? `Cập nhật kho hàng: ${editingWarehouse.name}` : 'Khai Báo Kho Hàng Mới'}</h2>
+        </div>
+
+        <form onSubmit={handleSaveWarehouse} className="wh-form-layout-3col">
+          {/* Ô 1: Thông tin kho hàng (3 phần) */}
+          <div className="wh-form-card wh-col-info">
+            <h3>Thông tin kho hàng</h3>
+            <div className="wh-form-col-fields">
+              <div className="wh-form-field">
+                <span>Mã kho hàng <b>*</b></span>
+                <div className="wh-code-input-wrap">
+                  <input
+                    type="text"
+                    placeholder="VD: KHO_HN, KHO_HCM..."
+                    disabled={Boolean(editingWarehouse)}
+                    value={whFormData.code}
+                    onChange={(e) => setWhFormData({ ...whFormData, code: e.target.value.toUpperCase() })}
+                  />
+                  {!editingWarehouse && (
+                    <button
+                      type="button"
+                      className="wh-btn-code-gen"
+                      onClick={() => {
+                        const rand = Math.floor(10 + Math.random() * 90);
+                        setWhFormData({ ...whFormData, code: `KHO_${rand}` });
+                      }}
+                      title="Sinh ngẫu nhiên mã kho"
+                    >
+                      Sinh mã
+                    </button>
+                  )}
+                </div>
+                {whFormErrors.code && <div className="wh-form-field-error">{whFormErrors.code}</div>}
+              </div>
+
+              <div className="wh-form-field">
+                <span>Tên kho hàng <b>*</b></span>
+                <input
+                  type="text"
+                  placeholder="VD: Kho Tổng Hà Nội"
+                  value={whFormData.name}
+                  onChange={(e) => setWhFormData({ ...whFormData, name: e.target.value })}
+                />
+                {whFormErrors.name && <div className="wh-form-field-error">{whFormErrors.name}</div>}
+              </div>
+
+              <div className="wh-form-field">
+                <span>Trạng thái hoạt động</span>
+                <select
+                  value={whFormData.status}
+                  onChange={(e) => setWhFormData({ ...whFormData, status: e.target.value })}
+                >
+                  <option value="Đang hoạt động">Đang hoạt động</option>
+                  <option value="Ngừng hoạt động">Ngừng hoạt động</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Ô 2: Địa chỉ & Người phụ trách (3 phần) */}
+          <div className="wh-form-card wh-col-contact">
+            <h3>Địa chỉ & Người phụ trách</h3>
+            <div className="wh-form-col-fields">
+              <div className="wh-form-field">
+                <span>Địa chỉ kho</span>
+                <input
+                  type="text"
+                  placeholder="VD: Lô CN1, Khu Công Nghiệp Từ Liêm, Hà Nội"
+                  value={whFormData.address}
+                  onChange={(e) => setWhFormData({ ...whFormData, address: e.target.value })}
+                />
+              </div>
+
+              <div className="wh-form-field">
+                <span>Người phụ trách kho</span>
+                <input
+                  type="text"
+                  placeholder="Họ và tên thủ kho / quản lý"
+                  value={whFormData.manager_name}
+                  onChange={(e) => setWhFormData({ ...whFormData, manager_name: e.target.value })}
+                />
+              </div>
+
+              <div className="wh-form-field">
+                <span>Số điện thoại liên hệ</span>
+                <input
+                  type="tel"
+                  placeholder="Số điện thoại (10 chữ số)"
+                  value={whFormData.phone}
+                  onChange={(e) => setWhFormData({ ...whFormData, phone: e.target.value.replace(/\D/g, '').slice(0, 10) })}
+                />
+                {whFormErrors.phone && <div className="wh-form-field-error">{whFormErrors.phone}</div>}
+              </div>
+            </div>
+          </div>
+
+          {/* Ô 3: Tổng kết kho hàng (2 phần) */}
+          <div className="wh-form-card wh-col-summary">
+            <h3 className="wh-summary-title-centered">Tổng kết kho hàng</h3>
+            <div className="wh-summary-rows">
+              <div className="wh-summary-row">
+                <span>Mã kho:</span>
+                <strong>{whFormData.code || '---'}</strong>
+              </div>
+              <div className="wh-summary-row">
+                <span>Tên kho:</span>
+                <strong>{whFormData.name || '---'}</strong>
+              </div>
+              <div className="wh-summary-row">
+                <span>Người phụ trách:</span>
+                <strong>{whFormData.manager_name || 'Chưa phân công'}</strong>
+              </div>
+              <div className="wh-summary-row">
+                <span>Số điện thoại:</span>
+                <strong>{whFormData.phone || '---'}</strong>
+              </div>
+              <div className="wh-summary-row">
+                <span>Trạng thái:</span>
+                <strong style={{ color: whFormData.status === 'Đang hoạt động' ? '#059669' : '#dc2626' }}>
+                  {whFormData.status}
+                </strong>
+              </div>
+            </div>
+
+            <div className="wh-summary-actions">
+              <button
+                type="submit"
+                className="wh-btn wh-btn-primary wh-btn-block"
+                disabled={isWhSubmitting}
+              >
+                {isWhSubmitting ? 'Đang lưu...' : editingWarehouse ? 'Cập nhật kho' : 'Tạo kho hàng'}
+              </button>
+              <button
+                type="button"
+                className="wh-btn wh-btn-secondary wh-btn-block"
+                onClick={() => {
+                  setIsWhFormPageActive(false);
+                  setEditingWarehouse(null);
+                  setWhFormErrors({});
+                }}
+                disabled={isWhSubmitting}
+              >
+                Hủy bỏ
+              </button>
+              <p className="wh-summary-hint">
+                Kho hàng sẽ được kết nối với hệ thống vị trí kệ và quản lý tồn kho tự động.
+              </p>
+            </div>
+          </div>
+        </form>
+      </div>
+    );
+  }
+
+  // 2. TRANG KHAI BÁO / CHỈNH SỬA VỊ TRÍ KỆ (FULL PAGE VIEW: 3 Ô CỘT NGANG 100% ĐÓNG KHUNG)
+  if (isLocFormPageActive && selectedWarehouse) {
+    return (
+      <div className="wh-container wh-form-fullscreen-wrap">
+        <div className="wh-form-page-header">
+          <button
+            type="button"
+            className="wh-btn wh-btn-secondary"
+            onClick={() => {
+              setIsLocFormPageActive(false);
+              setEditingLocation(null);
+              setLocFormErrors({});
+            }}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
+            Quay lại danh sách vị trí kệ
+          </button>
+          <h2>{editingLocation ? `Cập nhật vị trí kệ: ${editingLocation.location_code}` : 'Khai Báo Vị Trí Lưu Kho Mới'}</h2>
+        </div>
+
+        <form onSubmit={handleSaveLocation} className="wh-form-layout-3col">
+          {/* Ô 1: Kho & Khu vực lưu trữ (3 phần) */}
+          <div className="wh-form-card wh-col-info">
+            <h3>Kho & Khu vực lưu trữ</h3>
+            <div className="wh-form-col-fields">
+              <div className="wh-form-field">
+                <span>Kho hàng áp dụng</span>
+                <div style={{
+                  padding: '6px 10px',
+                  background: '#eff6ff',
+                  border: '1px solid #bfdbfe',
+                  borderRadius: '6px',
+                  color: '#1e40af',
+                  fontSize: '12px',
+                  fontWeight: 700
+                }}>
+                  {selectedWarehouse.name} ({selectedWarehouse.code})
+                </div>
+              </div>
+
+              <div className="wh-form-field">
+                <span>Khu vực lưu kho <b>*</b></span>
+                <select
+                  value={locFormData.zone}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setLocFormData((prev) => ({ ...prev, zone: val }));
+                    handleAutoGenerateLocationCodeAndName(val, undefined, undefined);
+                  }}
+                >
+                  <option value="">-- Chọn khu vực lưu kho --</option>
+                  {zonesList.length > 0 ? (
+                    zonesList.map((z) => (
+                      <option key={z.id} value={z.zone_name}>
+                        {z.zone_name}
+                      </option>
+                    ))
+                  ) : (
+                    <option value="" disabled>Chưa có khu vực nào</option>
+                  )}
+                </select>
+              </div>
+
+              <div className="wh-form-field">
+                <span>Dãy kệ và Tầng / Kệ <b>*</b></span>
+                <select
+                  value={
+                    locFormData.aisle && locFormData.rack
+                      ? `${locFormData.aisle} - ${locFormData.rack}`
+                      : ''
+                  }
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (!val) {
+                      setLocFormData((prev) => ({ ...prev, aisle: '', rack: '' }));
+                      return;
+                    }
+                    const parts = val.split(' - ');
+                    const newAisle = parts[0] || '';
+                    const newRack = parts[1] || '';
+                    setLocFormData((prev) => ({ ...prev, aisle: newAisle, rack: newRack }));
+                    handleAutoGenerateLocationCodeAndName(undefined, newAisle, newRack);
+                  }}
+                >
+                  <option value="">-- Chọn dãy kệ và tầng --</option>
+                  {[
+                    'Dãy 1 - Tầng 1',
+                    'Dãy 1 - Tầng 2',
+                    'Dãy 2 - Tầng 1',
+                    'Dãy 2 - Tầng 2',
+                    'Dãy 3 - Tầng 1',
+                    'Dãy 3 - Tầng 2',
+                  ].map((opt) => (
+                    <option key={opt} value={opt}>
+                      {opt}
+                    </option>
+                  ))}
+                </select>
+                {locFormErrors.aisle_rack && (
+                  <div className="wh-form-field-error">{locFormErrors.aisle_rack}</div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Ô 2: Thông số vị trí & Sức chứa (3 phần) */}
+          <div className="wh-form-card wh-col-capacity">
+            <h3>Thông số & Sức chứa</h3>
+            <div className="wh-form-col-fields">
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                <div className="wh-form-field">
+                  <span>Sức chứa tối đa <b>*</b></span>
+                  <input
+                    type="number"
+                    min="1"
+                    required
+                    placeholder="VD: 500"
+                    value={locFormData.max_capacity === 0 || locFormData.max_capacity === '' ? '' : locFormData.max_capacity}
+                    onFocus={(e) => e.target.select()}
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      if (raw === '') {
+                        setLocFormData((prev) => ({ ...prev, max_capacity: '' }));
+                        return;
+                      }
+                      const clean = raw.replace(/^0+(?=\d)/, '');
+                      if (clean === '0') {
+                        setLocFormData((prev) => ({ ...prev, max_capacity: '' }));
+                        return;
+                      }
+                      setLocFormData((prev) => ({ ...prev, max_capacity: Number(clean) }));
+                    }}
+                  />
+                  {locFormErrors.max_capacity && (
+                    <div className="wh-form-field-error">{locFormErrors.max_capacity}</div>
+                  )}
+                </div>
+
+                <div className="wh-form-field">
+                  <span>Đơn vị tính</span>
+                  <select
+                    value={locFormData.unit}
+                    onChange={(e) => setLocFormData((prev) => ({ ...prev, unit: e.target.value }))}
+                  >
+                    <option value="Cái">Cái</option>
+                    <option value="Chiếc">Chiếc</option>
+                    <option value="Thùng">Thùng</option>
+                    <option value="Hộp">Hộp</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="wh-form-field">
+                <span>Mã vị trí / Kệ <b>*</b></span>
+                <input
+                  type="text"
+                  placeholder="VD: KA-D1-T1-O01..."
+                  value={locFormData.location_code}
+                  onChange={(e) => setLocFormData((prev) => ({ ...prev, location_code: e.target.value }))}
+                />
+                {locFormErrors.location_code && (
+                  <div className="wh-form-field-error">{locFormErrors.location_code}</div>
+                )}
+              </div>
+
+              <div className="wh-form-field">
+                <span>Tên vị trí kệ</span>
+                <input
+                  type="text"
+                  placeholder="VD: Khu A - Dãy 1 - Tầng 1 - Ô 01"
+                  value={locFormData.location_name}
+                  onChange={(e) => setLocFormData((prev) => ({ ...prev, location_name: e.target.value }))}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Ô 3: Tổng kết vị trí kệ (2 phần) */}
+          <div className="wh-form-card wh-col-summary">
+            <h3 className="wh-summary-title-centered">Tổng kết vị trí kệ</h3>
+            <div className="wh-form-col-fields" style={{ flex: 'none', marginBottom: '8px' }}>
+              <div className="wh-form-field">
+                <span>Trạng thái hoạt động</span>
+                <select
+                  value={locFormData.status}
+                  onChange={(e) => setLocFormData((prev) => ({ ...prev, status: e.target.value }))}
+                >
+                  <option value="Đang sử dụng">Đang sử dụng</option>
+                  <option value="Tạm ngưng">Tạm ngưng</option>
+                </select>
+              </div>
+
+              <div className="wh-form-field">
+                <span>Ghi chú thêm</span>
+                <input
+                  type="text"
+                  placeholder="Ghi chú thêm..."
+                  value={locFormData.note}
+                  onChange={(e) => setLocFormData((prev) => ({ ...prev, note: e.target.value }))}
+                />
+              </div>
+            </div>
+
+            <div className="wh-summary-rows">
+              <div className="wh-summary-row">
+                <span>Mã vị trí:</span>
+                <strong>{locFormData.location_code || '---'}</strong>
+              </div>
+              <div className="wh-summary-row">
+                <span>Khu vực:</span>
+                <strong>{locFormData.zone || '---'}</strong>
+              </div>
+              <div className="wh-summary-row">
+                <span>Sức chứa:</span>
+                <strong>{locFormData.max_capacity ? `${locFormData.max_capacity} ${locFormData.unit}` : '---'}</strong>
+              </div>
+              <div className="wh-summary-row">
+                <span>Trạng thái:</span>
+                <strong style={{ color: locFormData.status === 'Đang sử dụng' ? '#059669' : '#b45309' }}>
+                  {locFormData.status}
+                </strong>
+              </div>
+            </div>
+
+            <div className="wh-summary-actions">
+              <button
+                type="submit"
+                className="wh-btn wh-btn-primary wh-btn-block"
+                disabled={isLocSubmitting}
+              >
+                {isLocSubmitting ? 'Đang lưu...' : editingLocation ? 'Cập nhật vị trí' : 'Lưu vị trí kệ'}
+              </button>
+              <button
+                type="button"
+                className="wh-btn wh-btn-secondary wh-btn-block"
+                onClick={() => {
+                  setIsLocFormPageActive(false);
+                  setEditingLocation(null);
+                  setLocFormErrors({});
+                }}
+                disabled={isLocSubmitting}
+              >
+                Hủy bỏ
+              </button>
+              <p className="wh-summary-hint">
+                Vị trí kệ sẵn sàng tiếp nhận và xếp dỡ hàng hóa tự động.
+              </p>
+            </div>
+          </div>
+        </form>
+      </div>
+    );
+  }
+
+  // 3. TRANG KHAI BÁO / CHỈNH SỬA KHU VỰC (FULL PAGE VIEW)
+  if (isZoneFormPageActive && selectedWarehouse) {
+    return (
+      <div className="wh-container">
+        <div className="wh-form-page-header">
+          <button
+            type="button"
+            className="wh-btn wh-btn-secondary"
+            onClick={() => {
+              setIsZoneFormPageActive(false);
+              setEditingZone(null);
+              setZoneFormErrors({});
+            }}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
+            Quay lại quản lý Kệ & Khu vực
+          </button>
+          <h2>{editingZone ? `Chỉnh sửa khu vực: ${editingZone.zone_name}` : 'Khai Báo Khu Vực Mới'}</h2>
+        </div>
+
+        <div className="wh-form-page-card">
+          <form onSubmit={handleSaveZone}>
+            <div className="wh-form-grid-2">
+              <div className="wh-form-group">
+                <label>
+                  Mã khu vực <span className="wh-required-star">*</span>
+                </label>
+                <input
+                  type="text"
+                  className="wh-form-input"
+                  placeholder="VD: KHU-A, KHU-B..."
+                  disabled={Boolean(editingZone)}
+                  value={zoneFormData.zone_code}
+                  onChange={(e) => setZoneFormData({ ...zoneFormData, zone_code: e.target.value })}
+                />
+                {zoneFormErrors.zone_code && <div className="wh-form-error">{zoneFormErrors.zone_code}</div>}
+              </div>
+
+              <div className="wh-form-group">
+                <label>
+                  Tên khu vực <span className="wh-required-star">*</span>
+                </label>
+                <input
+                  type="text"
+                  className="wh-form-input"
+                  placeholder="VD: Khu A - Hàng điện tử"
+                  value={zoneFormData.zone_name}
+                  onChange={(e) => setZoneFormData({ ...zoneFormData, zone_name: e.target.value })}
+                />
+                {zoneFormErrors.zone_name && <div className="wh-form-error">{zoneFormErrors.zone_name}</div>}
+              </div>
+            </div>
+
+            <div className="wh-form-group">
+              <label>Mô tả khu vực</label>
+              <textarea
+                className="wh-form-input"
+                style={{ height: '70px', padding: '8px 12px' }}
+                placeholder="Mô tả công năng của khu vực này..."
+                value={zoneFormData.description}
+                onChange={(e) => setZoneFormData({ ...zoneFormData, description: e.target.value })}
+              />
+            </div>
+
+            <div className="wh-form-group">
+              <label className="wh-checkbox-label" style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={zoneFormData.is_active}
+                  onChange={(e) => setZoneFormData({ ...zoneFormData, is_active: e.target.checked })}
+                />
+                <span>Khu vực đang hoạt động</span>
+              </label>
+            </div>
+
+            <div className="wh-form-page-actions">
+              <button
+                type="button"
+                className="wh-btn wh-btn-secondary"
+                onClick={() => {
+                  setIsZoneFormPageActive(false);
+                  setEditingZone(null);
+                  setZoneFormErrors({});
+                }}
+                disabled={isZoneSubmitting}
+              >
+                Hủy bỏ
+              </button>
+              <button type="submit" className="wh-btn wh-btn-primary" disabled={isZoneSubmitting}>
+                {isZoneSubmitting ? 'Đang lưu...' : editingZone ? 'Cập nhật khu vực' : 'Tạo khu vực'}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  // 4. TRANG KHAI BÁO / CHỈNH SỬA DÃY KỆ (FULL PAGE VIEW)
+  if (isRackFormPageActive && selectedWarehouse) {
+    return (
+      <div className="wh-container">
+        <div className="wh-form-page-header">
+          <button
+            type="button"
+            className="wh-btn wh-btn-secondary"
+            onClick={() => {
+              setIsRackFormPageActive(false);
+              setEditingRack(null);
+              setRackFormErrors({});
+            }}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
+            Quay lại quản lý Kệ & Khu vực
+          </button>
+          <h2>{editingRack ? `Chỉnh sửa dãy kệ: ${editingRack.rack_name}` : 'Khai Báo Dãy Kệ Mới'}</h2>
+        </div>
+
+        <div className="wh-form-page-card">
+          <form onSubmit={handleSaveRack}>
+            <div className="wh-form-grid-2">
+              <div className="wh-form-group">
+                <label>
+                  Thuộc khu vực <span className="wh-required-star">*</span>
+                </label>
+                <select
+                  className="wh-form-select"
+                  value={rackFormData.zone_id}
+                  onChange={(e) => setRackFormData({ ...rackFormData, zone_id: Number(e.target.value) })}
+                >
+                  <option value={0}>-- Chọn khu vực --</option>
+                  {zonesList.map((z) => (
+                    <option key={z.id} value={z.id}>
+                      {z.zone_name} ({z.zone_code})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="wh-form-group">
+                <label>
+                  Mã kệ / dãy <span className="wh-required-star">*</span>
+                </label>
+                <input
+                  type="text"
+                  className="wh-form-input"
+                  placeholder="VD: KA-D1-T1..."
+                  value={rackFormData.rack_code}
+                  onChange={(e) => setRackFormData({ ...rackFormData, rack_code: e.target.value })}
+                />
+                {rackFormErrors.rack_code && <div className="wh-form-error">{rackFormErrors.rack_code}</div>}
+              </div>
+            </div>
+
+            <div className="wh-form-grid-2">
+              <div className="wh-form-group">
+                <label>
+                  Dãy kệ <span className="wh-required-star">*</span>
+                </label>
+                <input
+                  type="text"
+                  className="wh-form-input"
+                  placeholder="VD: Dãy 1, Dãy 2..."
+                  value={rackFormData.aisle_input}
+                  onChange={(e) => setRackFormData({ ...rackFormData, aisle_input: e.target.value })}
+                />
+              </div>
+
+              <div className="wh-form-group">
+                <label>
+                  Tầng / Kệ <span className="wh-required-star">*</span>
+                </label>
+                <input
+                  type="text"
+                  className="wh-form-input"
+                  placeholder="VD: Tầng 1, Tầng 2..."
+                  value={rackFormData.rack_input}
+                  onChange={(e) => setRackFormData({ ...rackFormData, rack_input: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className="wh-form-grid-2">
+              <div className="wh-form-group">
+                <label>Sức chứa tối đa (sản phẩm)</label>
+                <input
+                  type="number"
+                  min="1"
+                  className="wh-form-input"
+                  placeholder="VD: 500"
+                  value={rackFormData.max_capacity}
+                  onChange={(e) => setRackFormData({ ...rackFormData, max_capacity: e.target.value })}
+                />
+              </div>
+
+              <div className="wh-form-group">
+                <label className="wh-checkbox-label" style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', marginTop: '24px' }}>
+                  <input
+                    type="checkbox"
+                    checked={rackFormData.is_active}
+                    onChange={(e) => setRackFormData({ ...rackFormData, is_active: e.target.checked })}
+                  />
+                  <span>Dãy kệ đang hoạt động</span>
+                </label>
+              </div>
+            </div>
+
+            <div className="wh-form-page-actions">
+              <button
+                type="button"
+                className="wh-btn wh-btn-secondary"
+                onClick={() => {
+                  setIsRackFormPageActive(false);
+                  setEditingRack(null);
+                  setRackFormErrors({});
+                }}
+                disabled={isRackSubmitting}
+              >
+                Hủy bỏ
+              </button>
+              <button type="submit" className="wh-btn wh-btn-primary" disabled={isRackSubmitting}>
+                {isRackSubmitting ? 'Đang lưu...' : editingRack ? 'Cập nhật dãy kệ' : 'Tạo dãy kệ'}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="wh-container">
 
@@ -1350,6 +2072,8 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                                 title="Quản lý sơ đồ vị trí kệ và phân bổ sản phẩm"
                                 onClick={() => {
                                   setSelectedWarehouse(wh);
+                                  setLocZoneFilter('all');
+                                  setLocSearch('');
                                   setSubTab('locations');
                                 }}
                               >
@@ -1381,6 +2105,82 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                       ))}
                     </tbody>
                   </table>
+                </div>
+
+                {/* Mobile Card View cho Danh sách kho hàng */}
+                <div className="wh-mobile-card-list">
+                  {paginatedWarehouses.map((wh) => (
+                    <div key={wh.id} className="wh-mobile-card">
+                      <div className="wh-mobile-card-header">
+                        <div>
+                          <span className="wh-badge wh-badge-code">{wh.code}</span>
+                          <div className="wh-mobile-card-name">{wh.name}</div>
+                        </div>
+                        <span className={`wh-badge ${wh.is_active ? 'wh-badge-active' : 'wh-badge-inactive'}`}>
+                          <span className={wh.is_active ? 'wh-dot' : 'wh-dot-gray'} />
+                          {wh.status || (wh.is_active ? 'Đang hoạt động' : 'Ngừng hoạt động')}
+                        </span>
+                      </div>
+
+                      <div className="wh-mobile-card-body">
+                        {wh.address && (
+                          <div className="wh-mobile-card-row">
+                            <span className="wh-mobile-card-label">Địa chỉ:</span>
+                            <span className="wh-mobile-card-val">{wh.address}</span>
+                          </div>
+                        )}
+                        <div className="wh-mobile-card-row">
+                          <span className="wh-mobile-card-label">Người phụ trách:</span>
+                          <span className="wh-mobile-card-val">{wh.manager_name || 'Chưa chỉ định'}</span>
+                        </div>
+                        {wh.phone && (
+                          <div className="wh-mobile-card-row">
+                            <span className="wh-mobile-card-label">SĐT liên hệ:</span>
+                            <a
+                              href={`tel:${wh.phone}`}
+                              className="wh-mobile-card-val"
+                              style={{ color: '#0284c7', textDecoration: 'none', fontWeight: 600 }}
+                            >
+                              {wh.phone}
+                            </a>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="wh-mobile-card-actions">
+                        <button
+                          type="button"
+                          className="wh-mobile-btn-manage"
+                          onClick={() => {
+                            setSelectedWarehouse(wh);
+                            setLocZoneFilter('all');
+                            setLocSearch('');
+                            setSubTab('locations');
+                          }}
+                        >
+                          Quản lý vị trí kệ
+                        </button>
+                        {canManage && (
+                          <>
+                            <button
+                              type="button"
+                              className="wh-mobile-btn-edit"
+                              onClick={() => handleOpenEditWarehouse(wh)}
+                            >
+                              Sửa
+                            </button>
+                            <button
+                              type="button"
+                              className="wh-mobile-btn-delete"
+                              onClick={() => setDeletingWarehouse(wh)}
+                            >
+                              Xóa
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </>
             )}
@@ -1428,7 +2228,7 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
               className={`wh-tab-btn ${subTab === 'locations' ? 'active' : ''}`}
               onClick={() => setSubTab('locations')}
             >
-              Danh sách vị trí kệ
+              <span>Vị trí kệ</span>
               <span className="wh-tab-count">{locations.length}</span>
             </button>
             <button
@@ -1436,7 +2236,7 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
               className={`wh-tab-btn ${subTab === 'master-data' ? 'active' : ''}`}
               onClick={() => setSubTab('master-data')}
             >
-              Quản lý Kệ & Khu vực
+              <span>Kệ & Khu vực</span>
               <span className="wh-tab-count">{racksList.length}</span>
             </button>
             <button
@@ -1444,7 +2244,7 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
               className={`wh-tab-btn ${subTab === 'products' ? 'active' : ''}`}
               onClick={() => setSubTab('products')}
             >
-              Sản phẩm theo vị trí kệ
+              <span>Sản phẩm theo kệ</span>
               <span className="wh-tab-count">{locationProducts.length}</span>
             </button>
           </div>
@@ -1464,7 +2264,7 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                     />
                   </div>
 
-                  {uniqueZones.length > 0 && (
+                  {(uniqueZones.length > 0 || locZoneFilter !== 'all') && (
                     <select
                       className="wh-select"
                       value={locZoneFilter}
@@ -1478,6 +2278,16 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                       ))}
                     </select>
                   )}
+                  {canManage && (
+                    <button
+                      type="button"
+                      className="wh-btn wh-btn-primary"
+                      onClick={handleOpenCreateLocation}
+                      style={{ marginLeft: 'auto', whiteSpace: 'nowrap' }}
+                    >
+                      + Thêm vị trí kệ mới
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -1488,17 +2298,42 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                   </div>
                 ) : locations.length === 0 ? (
                   <div className="wh-state-box">
-                    <h4>Kho này chưa có vị trí kệ nào được khai báo</h4>
-                    <p>Hãy chuyển sang tab "Quản lý Kệ & Khu vực" để thêm khu vực, dãy kệ và tầng cho kho hàng.</p>
-                    {canManage && (
-                      <button
-                        type="button"
-                        className="wh-btn wh-btn-primary"
-                        style={{ marginTop: '14px' }}
-                        onClick={() => setSubTab('master-data')}
-                      >
-                        Quản lý Kệ & Khu vực
-                      </button>
+                    {locZoneFilter !== 'all' || locSearch.trim() ? (
+                      <>
+                        <h4>Không tìm thấy vị trí kệ nào phù hợp với bộ lọc</h4>
+                        <p style={{ marginTop: '6px', color: '#64748b', fontSize: '13.5px' }}>
+                          Không có vị trí kệ nào khớp với{' '}
+                          {locZoneFilter !== 'all' ? `khu vực "${locZoneFilter}"` : ''}
+                          {locZoneFilter !== 'all' && locSearch.trim() ? ' và ' : ''}
+                          {locSearch.trim() ? `từ khóa "${locSearch.trim()}"` : ''}.
+                        </p>
+                        <button
+                          type="button"
+                          className="wh-btn wh-btn-secondary"
+                          style={{ marginTop: '14px', background: '#f1f5f9', border: '1px solid #cbd5e1', color: '#334155' }}
+                          onClick={() => {
+                            setLocZoneFilter('all');
+                            setLocSearch('');
+                          }}
+                        >
+                          Xóa bộ lọc
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <h4>Kho này chưa có vị trí kệ nào được khai báo</h4>
+                        <p>Hãy chuyển sang tab "Quản lý Kệ & Khu vực" để thêm khu vực, dãy kệ và tầng cho kho hàng.</p>
+                        {canManage && (
+                          <button
+                            type="button"
+                            className="wh-btn wh-btn-primary"
+                            style={{ marginTop: '14px' }}
+                            onClick={() => setSubTab('master-data')}
+                          >
+                            Quản lý Kệ & Khu vực
+                          </button>
+                        )}
+                      </>
                     )}
                   </div>
                 ) : (
@@ -1591,6 +2426,86 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                           })}
                         </tbody>
                       </table>
+                    </div>
+
+                    {/* Mobile Card View cho Danh sách vị trí kệ */}
+                    <div className="loc-mobile-card-list">
+                      {paginatedLocations.map((loc) => {
+                        const maxCap = loc.max_capacity || 0;
+                        const currQty = loc.total_quantity || 0;
+                        const percent = maxCap > 0 ? Math.min(Math.round((currQty / maxCap) * 100), 100) : 0;
+                        const barColor = percent >= 100 ? '#ef4444' : percent >= 80 ? '#f59e0b' : '#10b981';
+
+                        return (
+                          <div key={loc.id} className="loc-mobile-card">
+                            <div className="loc-mobile-card-header">
+                              <div>
+                                <span className="wh-badge wh-badge-location">{loc.location_code}</span>
+                                <div className="loc-mobile-card-name">{loc.location_name || loc.location_code}</div>
+                              </div>
+                              <span className="wh-badge wh-badge-active">
+                                <span className="wh-dot" />
+                                {loc.status || 'Đang sử dụng'}
+                              </span>
+                            </div>
+
+                            <div className="loc-mobile-card-body">
+                              <div className="wh-mobile-card-row">
+                                <span className="wh-mobile-card-label">Khu vực:</span>
+                                <span className="wh-mobile-card-val">{loc.zone || '—'}</span>
+                              </div>
+                              <div className="wh-mobile-card-row">
+                                <span className="wh-mobile-card-label">Dãy kệ:</span>
+                                <span className="wh-mobile-card-val">{loc.aisle || '—'}</span>
+                              </div>
+                              <div className="wh-mobile-card-row">
+                                <span className="wh-mobile-card-label">Tầng / Kệ:</span>
+                                <span className="wh-mobile-card-val">{loc.rack || '—'}</span>
+                              </div>
+                              <div className="wh-mobile-card-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '4px' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12.5px' }}>
+                                  <span className="wh-mobile-card-label">Sức chứa & Tải trọng:</span>
+                                  <span style={{ fontWeight: 700, color: '#0f172a' }}>
+                                    {currQty.toLocaleString('vi-VN')} / {maxCap.toLocaleString('vi-VN')} SP ({percent}%)
+                                  </span>
+                                </div>
+                                <div className="wh-progress-bar-bg" style={{ height: '8px' }}>
+                                  <div className="wh-progress-bar-fill" style={{ width: `${percent}%`, backgroundColor: barColor }} />
+                                </div>
+                              </div>
+                              <div className="wh-mobile-card-row">
+                                <span className="wh-mobile-card-label">Số mặt hàng:</span>
+                                <span className="wh-badge wh-badge-number">{loc.items_count} SP</span>
+                              </div>
+                              {loc.note && (
+                                <div className="wh-mobile-card-row">
+                                  <span className="wh-mobile-card-label">Ghi chú:</span>
+                                  <span className="wh-mobile-card-val">{loc.note}</span>
+                                </div>
+                              )}
+                            </div>
+
+                            {canManage && (
+                              <div className="loc-mobile-card-actions">
+                                <button
+                                  type="button"
+                                  className="wh-mobile-btn-edit"
+                                  onClick={() => handleOpenEditLocation(loc)}
+                                >
+                                  Sửa vị trí
+                                </button>
+                                <button
+                                  type="button"
+                                  className="wh-mobile-btn-delete"
+                                  onClick={() => setDeletingLocation(loc)}
+                                >
+                                  Xóa
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   </>
                 )}
@@ -1719,6 +2634,52 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                         </tbody>
                       </table>
                     )}
+
+                    {/* Mobile Card List cho Khu vực */}
+                    {!isMasterLoading && filteredZones.length > 0 && (
+                      <div className="zone-mobile-card-list">
+                        {filteredZones.map((z) => {
+                          const isSelected = activeZone?.id === z.id;
+                          const racksCount = getZoneRacksCount(z);
+                          return (
+                            <div
+                              key={z.id}
+                              className={`wh-mobile-card ${isSelected ? 'wh-mobile-card-active' : ''}`}
+                              onClick={() => setSelectedZoneIdForDetail(z.id)}
+                              style={{ cursor: 'pointer', border: isSelected ? '2px solid var(--wh-primary)' : undefined }}
+                            >
+                              <div className="wh-mobile-card-header">
+                                <div>
+                                  <span className="wh-badge wh-badge-code">{z.zone_code}</span>
+                                  <div className="wh-mobile-card-name" style={{ color: isSelected ? 'var(--wh-primary)' : undefined }}>
+                                    {z.zone_name}
+                                  </div>
+                                </div>
+                                <span className="wh-badge wh-badge-number">{racksCount} kệ</span>
+                              </div>
+                              {canManage && (
+                                <div className="wh-mobile-card-actions" onClick={(e) => e.stopPropagation()}>
+                                  <button
+                                    type="button"
+                                    className="wh-mobile-btn-edit"
+                                    onClick={() => handleOpenEditZone(z)}
+                                  >
+                                    Sửa
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="wh-mobile-btn-delete"
+                                    onClick={() => setDeletingZone(z)}
+                                  >
+                                    Xóa
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -1801,6 +2762,51 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                           ))}
                         </tbody>
                       </table>
+                    )}
+
+                    {/* Mobile Card List cho Kệ & Dãy */}
+                    {!isMasterLoading && detailRacks.length > 0 && (
+                      <div className="rack-mobile-card-list">
+                        {detailRacks.map((r) => (
+                          <div key={r.id} className="wh-mobile-card">
+                            <div className="wh-mobile-card-header">
+                              <div>
+                                <span className="wh-badge wh-badge-code">{r.rack_code}</span>
+                                <div className="wh-mobile-card-name">{r.rack_name}</div>
+                              </div>
+                              <span className={`wh-badge-type ${r.rack_type === 'aisle' ? 'wh-badge-aisle' : 'wh-badge-rack'}`}>
+                                {r.rack_type === 'aisle' ? 'Dãy kệ' : 'Tầng / Kệ'}
+                              </span>
+                            </div>
+                            <div className="wh-mobile-card-body">
+                              <div className="wh-mobile-card-row">
+                                <span className="wh-mobile-card-label">Sức chứa:</span>
+                                <span className="wh-mobile-card-val">
+                                  {r.max_capacity ? `${r.max_capacity.toLocaleString('vi-VN')} SP` : '500 SP'}
+                                </span>
+                              </div>
+                            </div>
+                            {canManage && (
+                              <div className="wh-mobile-card-actions">
+                                <button
+                                  type="button"
+                                  className="wh-mobile-btn-edit"
+                                  onClick={() => handleOpenEditRack(r)}
+                                >
+                                  Sửa
+                                </button>
+                                <button
+                                  type="button"
+                                  className="wh-mobile-btn-delete"
+                                  onClick={() => setDeletingRack(r)}
+                                >
+                                  Xóa
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
                     )}
                   </div>
                 </div>
@@ -1926,6 +2932,59 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                           ))}
                         </tbody>
                       </table>
+                    </div>
+
+                    {/* Mobile Card View cho Sản phẩm theo vị trí kệ */}
+                    <div className="prod-mobile-card-list">
+                      {paginatedLocationProducts.map((item) => (
+                        <div key={item.id} className="prod-mobile-card">
+                          <div className="prod-mobile-card-header">
+                            <div>
+                              <span className="wh-badge wh-badge-code">{item.product_code}</span>
+                              <div className="prod-mobile-card-name">{item.product_name}</div>
+                            </div>
+                            <span className="wh-badge wh-badge-location">{item.location_code}</span>
+                          </div>
+
+                          <div className="prod-mobile-card-body">
+                            <div className="wh-mobile-card-row">
+                              <span className="wh-mobile-card-label">Khu vực / Dãy:</span>
+                              <span className="wh-mobile-card-val">{[item.zone, item.aisle].filter(Boolean).join(' - ') || '—'}</span>
+                            </div>
+                            <div className="wh-mobile-card-row">
+                              <span className="wh-mobile-card-label">Số lượng tại kệ:</span>
+                              <span className="wh-mobile-card-val" style={{ color: '#0F8A5F', fontWeight: 700 }}>
+                                {item.quantity.toLocaleString('vi-VN')} {item.base_unit || 'Cái'}
+                              </span>
+                            </div>
+                            <div className="wh-mobile-card-row">
+                              <span className="wh-mobile-card-label">Tổng tồn kho:</span>
+                              <span className="wh-mobile-card-val">
+                                {item.warehouse_total_stock.toLocaleString('vi-VN')} {item.base_unit || 'Cái'}
+                              </span>
+                            </div>
+                          </div>
+
+                          {canManage && (
+                            <div className="prod-mobile-card-actions">
+                              <button
+                                type="button"
+                                className="wh-mobile-btn-edit"
+                                onClick={() => handleOpenAddStock(item)}
+                              >
+                                + Thêm hàng
+                              </button>
+                              <button
+                                type="button"
+                                className="wh-mobile-btn-manage"
+                                onClick={() => handleOpenTransferProduct(item)}
+                              >
+                                Chuyển kệ
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      ))}
                     </div>
                   </>
                 )}
