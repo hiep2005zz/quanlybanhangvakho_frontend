@@ -1107,9 +1107,21 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
         {/* Thanh tìm kiếm và bộ lọc đa tiêu chí - TẤT CẢ VÀO 1 HÀNG DUY NHẤT */}
         <div className="px-2.5 sm:px-3 py-2 bg-slate-50 border-b border-slate-200 flex items-center gap-1.5 text-xs shrink-0 w-full overflow-x-auto box-border">
           {/* Ô Tìm kiếm */}
-          <div className="relative flex-1 min-w-[130px] max-w-[190px] shrink-0">
-            <span className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none text-slate-400">
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <div className="relative flex-1 min-w-[130px] max-w-[190px] shrink-0 flex items-center">
+            <span
+              style={{
+                position: 'absolute',
+                left: '8px',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                display: 'flex',
+                alignItems: 'center',
+                pointerEvents: 'none',
+                color: '#94a3b8',
+                zIndex: 2,
+              }}
+            >
+              <svg style={{ width: '14px', height: '14px' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
             </span>
@@ -1118,9 +1130,42 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
               placeholder="Tìm mã đơn, KH..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full h-[32px] pl-8 pr-2 rounded-md border border-slate-300 text-xs bg-white outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 box-border placeholder:text-slate-400"
+              style={{
+                paddingLeft: '28px',
+                paddingRight: searchTerm ? '26px' : '8px',
+                height: '32px',
+                boxSizing: 'border-box',
+              }}
+              className="w-full rounded-md border border-slate-300 text-xs bg-white outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 placeholder:text-slate-400 text-slate-700"
               title="Tìm theo mã đơn hàng, tên khách hàng, người tạo"
             />
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={() => setSearchTerm('')}
+                style={{
+                  position: 'absolute',
+                  right: '6px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  width: '16px',
+                  height: '16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  border: 'none',
+                  background: 'transparent',
+                  color: '#94a3b8',
+                  fontSize: '11px',
+                  fontWeight: 'bold',
+                  zIndex: 2,
+                }}
+                title="Xóa tìm kiếm"
+              >
+                ✕
+              </button>
+            )}
           </div>
 
           {/* Ô 1: Trạng thái */}
