@@ -505,6 +505,21 @@ export default function DashboardPage({
       return;
     }
 
+    if (tab === 'warehouses') {
+      if (!canAccessWarehouses) {
+        setActiveTabState('inventory');
+        try { window.history.replaceState({}, '', '/'); } catch {}
+        return;
+      }
+      setActiveTabState('warehouses');
+      try {
+        window.history.pushState({}, '', '/warehouses');
+      } catch {
+        // ignore
+      }
+      return;
+    }
+
     if (tab === 'stock-book') {
       setActiveTabState('stock-book');
       try {
@@ -513,7 +528,9 @@ export default function DashboardPage({
         // ignore
       }
       return;
-    } else if (tab === 'orders') {
+    }
+
+    if (tab === 'orders') {
       setActiveTabState('orders');
       try {
         window.history.pushState({}, '', '/orders');
@@ -602,18 +619,7 @@ export default function DashboardPage({
       } catch {
         // ignore
       }
-    } else if (tab === 'warehouses') {
-      if (!canAccessWarehouses) {
-        setActiveTabState('inventory');
-        try { window.history.replaceState({}, '', '/'); } catch {}
-        return;
-      }
-      setActiveTabState('warehouses');
-      try {
-        window.history.pushState({}, '', '/warehouses');
-      } catch {
-        // ignore
-      }
+
     } else {
       setActiveTabState('inventory');
       window.history.replaceState({}, '', '/');
@@ -1039,7 +1045,7 @@ export default function DashboardPage({
     initialReason?: string;
   }>({ isOpen: false, actionType: 'receipt', product: null });
   const [isGoodsReceiptModalOpen, setIsGoodsReceiptModalOpen] = useState(false);
-  const [goodsReceiptInitialTab, setGoodsReceiptInitialTab] = useState<'form' | 'list'>('form');
+  const [goodsReceiptInitialTab] = useState<'form' | 'list'>('form');
   const [isSalesOrderEntryOpen, setIsSalesOrderEntryOpen] = useState(false);
   const [cloneOrderData, setCloneOrderData] = useState<any>(() => {
     try {
@@ -1104,8 +1110,6 @@ export default function DashboardPage({
   const [openProductMenuId, setOpenProductMenuId] = useState<number | null>(null);
   const [isExcelMenuOpen, setIsExcelMenuOpen] = useState(false);
   const excelMenuRef = useRef<HTMLDivElement>(null);
-  const [isCreateMenuOpen, setIsCreateMenuOpen] = useState(false);
-  const createMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleGlobalClick = (e: MouseEvent) => {
@@ -1113,30 +1117,26 @@ export default function DashboardPage({
       if (excelMenuRef.current && !excelMenuRef.current.contains(e.target as Node)) {
         setIsExcelMenuOpen(false);
       }
-      if (createMenuRef.current && !createMenuRef.current.contains(e.target as Node)) {
-        setIsCreateMenuOpen(false);
-      }
     };
     window.addEventListener('click', handleGlobalClick);
     return () => window.removeEventListener('click', handleGlobalClick);
   }, []);
 
-  // Tự động đóng popover user / Excel / Thêm mới khi bấm phím Esc
+  // Tự động đóng popover user / Excel khi bấm phím Esc
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         setIsUserMenuOpen(false);
         setIsExcelMenuOpen(false);
-        setIsCreateMenuOpen(false);
       }
     };
-    if (isUserMenuOpen || isExcelMenuOpen || isCreateMenuOpen) {
+    if (isUserMenuOpen || isExcelMenuOpen) {
       window.addEventListener('keydown', handleKeyDown);
     }
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [isUserMenuOpen, isExcelMenuOpen, isCreateMenuOpen]);
+  }, [isUserMenuOpen, isExcelMenuOpen]);
 
   // Lắng nghe cập nhật trạng thái phiên
   useEffect(() => {
@@ -1416,10 +1416,10 @@ export default function DashboardPage({
       }
       noScroll={!isMobileScreen && isLockedScrollTab}
       mainClassName={
-        isCustomer
-          ? 'flex-1 min-w-0 overflow-hidden p-0 flex flex-col bg-slate-50 h-full'
-          : isOrdersCreateSubpage || isPriceListsCreateSubpage || isPriceBookDetailSubpage || isPriceBookEditSubpage || isOrderDetailSubpage || isGoodsReceiptPage
+        isOrderDetailSubpage || isOrdersCreateSubpage || isPriceListsCreateSubpage || isPriceBookDetailSubpage || isPriceBookEditSubpage || isGoodsReceiptPage
           ? 'flex-1 min-w-0 overflow-y-auto p-0 flex flex-col bg-slate-50'
+          : isCustomer
+          ? 'flex-1 min-w-0 overflow-hidden p-0 flex flex-col bg-slate-50 h-full'
           : isMobileScreen
           ? 'flex-1 min-w-0 overflow-y-auto p-2 sm:p-3 flex flex-col'
           : undefined
@@ -2622,170 +2622,43 @@ export default function DashboardPage({
                     )}
                   </div>
 
-                  {/* Dropdown Thêm mới ▾ (Gộp Thêm sản phẩm và Nhập kho) */}
-                  {(canManageProducts || canWriteInventory) && (
-                    (canManageProducts && canWriteInventory) ? (
-                      <div ref={createMenuRef} style={{ position: 'relative' }}>
-                        <button
-                          type="button"
-                          id="btn-create-menu"
-                          onClick={() => setIsCreateMenuOpen(!isCreateMenuOpen)}
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            background: 'linear-gradient(135deg, #0fba90 0%, #0fad89 100%)',
-                            border: 'none',
-                            padding: '7px 16px',
-                            borderRadius: '8px',
-                            fontSize: '12.5px',
-                            fontWeight: '600',
-                            color: '#ffffff',
-                            cursor: 'pointer',
-                            boxShadow: '0 2px 8px rgba(15, 186, 144, 0.35)',
-                            transition: 'all 0.15s ease',
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.background = 'linear-gradient(135deg, #0fad89 0%, #0a8f70 100%)';
-                            e.currentTarget.style.boxShadow = '0 4px 14px rgba(15, 186, 144, 0.45)';
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.background = 'linear-gradient(135deg, #0fba90 0%, #0fad89 100%)';
-                            e.currentTarget.style.boxShadow = '0 2px 8px rgba(15, 186, 144, 0.35)';
-                          }}
-                          title="Thêm mới sản phẩm hoặc lập phiếu nhập kho"
-                        >
-                          Thêm mới ▾
-                        </button>
-
-                        {isCreateMenuOpen && (
-                          <div
-                            style={{
-                              position: 'absolute',
-                              top: 'calc(100% + 4px)',
-                              right: 0,
-                              minWidth: '150px',
-                              background: '#ffffff',
-                              border: '1px solid #e2e8f0',
-                              borderRadius: '8px',
-                              boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1)',
-                              zIndex: 50,
-                              padding: '4px',
-                              display: 'flex',
-                              flexDirection: 'column',
-                              gap: '2px',
-                            }}
-                          >
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setIsCreateMenuOpen(false);
-                                setProductDrawerState({ isOpen: true, product: null });
-                                try {
-                                  window.history.pushState({}, '', '/add-product');
-                                } catch { }
-                              }}
-                              style={{
-                                width: '100%',
-                                textAlign: 'left',
-                                background: 'transparent',
-                                border: 'none',
-                                padding: '8px 12px',
-                                borderRadius: '6px',
-                                fontSize: '12.5px',
-                                fontWeight: '500',
-                                color: '#0f172a',
-                                cursor: 'pointer',
-                                transition: 'background 0.15s ease',
-                              }}
-                              onMouseEnter={(e) => (e.currentTarget.style.background = '#f1f5f9')}
-                              onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-                            >
-                              Thêm sản phẩm
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setIsCreateMenuOpen(false);
-                                setGoodsReceiptInitialTab('form');
-                                setActiveTab('goods-receipt');
-                              }}
-                              style={{
-                                width: '100%',
-                                textAlign: 'left',
-                                background: 'transparent',
-                                border: 'none',
-                                padding: '8px 12px',
-                                borderRadius: '6px',
-                                fontSize: '12.5px',
-                                fontWeight: '500',
-                                color: '#0f172a',
-                                cursor: 'pointer',
-                                transition: 'background 0.15s ease',
-                              }}
-                              onMouseEnter={(e) => (e.currentTarget.style.background = '#f1f5f9')}
-                              onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-                            >
-                              Nhập kho
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    ) : canManageProducts ? (
-                      <button
-                        type="button"
-                        id="btn-add-product"
-                        onClick={() => {
-                          setProductDrawerState({ isOpen: true, product: null });
-                          try {
-                            window.history.pushState({}, '', '/add-product');
-                          } catch { }
-                        }}
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          background: 'linear-gradient(135deg, #0fba90 0%, #0fad89 100%)',
-                          border: 'none',
-                          padding: '7px 16px',
-                          borderRadius: '8px',
-                          fontSize: '12.5px',
-                          fontWeight: '600',
-                          color: '#ffffff',
-                          cursor: 'pointer',
-                          boxShadow: '0 2px 8px rgba(15, 186, 144, 0.35)',
-                          transition: 'all 0.15s ease',
-                        }}
-                        title="Thêm mới sản phẩm vào hệ thống kho"
-                      >
-                        Thêm sản phẩm
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        id="btn-goods-receipt-modal"
-                        onClick={() => {
-                          setGoodsReceiptInitialTab('form');
-                          setActiveTab('goods-receipt');
-                        }}
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
-                          border: 'none',
-                          padding: '7px 16px',
-                          borderRadius: '8px',
-                          fontSize: '12.5px',
-                          fontWeight: '600',
-                          color: '#ffffff',
-                          cursor: 'pointer',
-                          boxShadow: '0 2px 8px rgba(5, 150, 105, 0.35)',
-                          transition: 'all 0.15s ease',
-                        }}
-                        title="Lập phiếu nhập kho từ nhà cung cấp"
-                      >
-                        Nhập kho
-                      </button>
-                    )
+                  {/* Nút Thêm sản phẩm trực tiếp */}
+                  {canManageProducts && (
+                    <button
+                      type="button"
+                      id="btn-add-product"
+                      onClick={() => {
+                        setProductDrawerState({ isOpen: true, product: null });
+                        try {
+                          window.history.pushState({}, '', '/add-product');
+                        } catch { }
+                      }}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        background: 'linear-gradient(135deg, #0fba90 0%, #0fad89 100%)',
+                        border: 'none',
+                        padding: '7px 16px',
+                        borderRadius: '8px',
+                        fontSize: '12.5px',
+                        fontWeight: '600',
+                        color: '#ffffff',
+                        cursor: 'pointer',
+                        boxShadow: '0 2px 8px rgba(15, 186, 144, 0.35)',
+                        transition: 'all 0.15s ease',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = 'linear-gradient(135deg, #0fad89 0%, #0a8f70 100%)';
+                        e.currentTarget.style.boxShadow = '0 4px 14px rgba(15, 186, 144, 0.45)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = 'linear-gradient(135deg, #0fba90 0%, #0fad89 100%)';
+                        e.currentTarget.style.boxShadow = '0 2px 8px rgba(15, 186, 144, 0.35)';
+                      }}
+                      title="Thêm mới sản phẩm vào hệ thống kho"
+                    >
+                      Thêm sản phẩm
+                    </button>
                   )}
                 </div>
               </div>

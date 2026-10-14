@@ -1012,12 +1012,8 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
           attemptedAdd: netIncrease,
           availableSpace: rackCheck.availableSpace,
         });
+        setIsAssignModalOpen(false);
         setIsCapacityWarningModalOpen(true);
-        emitStatusToast({
-          message: `Vượt quá sức chứa và tải trọng của kệ ${targetLocCode}! Chỉ còn chỗ cho ${rackCheck.availableSpace} SP.`,
-          type: 'warning',
-          title: 'Cảnh báo quá tải kệ',
-        });
         return;
       }
 
@@ -1034,12 +1030,8 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
           maxCapacity: capCheck.maxCapacity,
           attemptedAdd: netIncrease,
         });
+        setIsAssignModalOpen(false);
         setIsCapacityWarningModalOpen(true);
-        emitStatusToast({
-          message: `Kho đầy! Khu vực ${zoneName} đã đạt giới hạn sức chứa tối đa. Vui lòng sắp xếp vị trí khác hoặc mở thêm kho mới.`,
-          type: 'warning',
-          title: 'Cảnh báo đầy kho',
-        });
         return;
       }
     }
@@ -1130,12 +1122,8 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
         attemptedAdd: qtyToAdd,
         availableSpace: rackCheck.availableSpace,
       });
+      setIsAddStockModalOpen(false);
       setIsCapacityWarningModalOpen(true);
-      emitStatusToast({
-        message: `Vượt quá sức chứa và tải trọng của kệ ${targetLocCode}! Vui lòng giảm số lượng nhập hoặc chuyển sang kệ khác.`,
-        type: 'warning',
-        title: 'Cảnh báo quá tải kệ',
-      });
       return;
     }
 
@@ -1152,12 +1140,8 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
         maxCapacity: zoneCheck.maxCapacity,
         attemptedAdd: qtyToAdd,
       });
+      setIsAddStockModalOpen(false);
       setIsCapacityWarningModalOpen(true);
-      emitStatusToast({
-        message: `Kho đầy! Khu vực ${zoneName} đã đạt giới hạn sức chứa tối đa. Vui lòng sắp xếp vị trí khác hoặc mở thêm kho mới.`,
-        type: 'warning',
-        title: 'Cảnh báo đầy kho',
-      });
       return;
     }
 
@@ -1269,172 +1253,174 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
   if (isWhFormPageActive) {
     return (
       <div className="wh-container wh-form-fullscreen-wrap">
-        <div className="wh-form-page-header">
-          <button
-            type="button"
-            className="wh-btn wh-btn-secondary"
-            onClick={() => {
-              setIsWhFormPageActive(false);
-              setEditingWarehouse(null);
-              setWhFormErrors({});
-            }}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="15 18 9 12 15 6" />
-            </svg>
-            Quay lại danh sách kho
-          </button>
-          <h2>{editingWarehouse ? `Cập nhật kho hàng: ${editingWarehouse.name}` : 'Khai Báo Kho Hàng Mới'}</h2>
-        </div>
+        <div className="wh-form-master-frame">
+          <div className="wh-form-page-header">
+            <button
+              type="button"
+              className="wh-btn wh-btn-secondary"
+              onClick={() => {
+                setIsWhFormPageActive(false);
+                setEditingWarehouse(null);
+                setWhFormErrors({});
+              }}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="15 18 9 12 15 6" />
+              </svg>
+              Quay lại danh sách kho
+            </button>
+            <h2>{editingWarehouse ? `Cập nhật kho hàng: ${editingWarehouse.name}` : 'Khai Báo Kho Hàng Mới'}</h2>
+          </div>
 
-        <form onSubmit={handleSaveWarehouse} className="wh-form-layout-3col">
-          {/* Ô 1: Thông tin kho hàng (3 phần) */}
-          <div className="wh-form-card wh-col-info">
-            <h3>Thông tin kho hàng</h3>
-            <div className="wh-form-col-fields">
-              <div className="wh-form-field">
-                <span>Mã kho hàng <b>*</b></span>
-                <div className="wh-code-input-wrap">
+          <form onSubmit={handleSaveWarehouse} className="wh-form-layout-3col">
+            {/* Ô 1: Thông tin kho hàng (3 phần) */}
+            <div className="wh-form-card wh-col-info">
+              <h3>Thông tin kho hàng</h3>
+              <div className="wh-form-col-fields">
+                <div className="wh-form-field">
+                  <span>Mã kho hàng <b>*</b></span>
+                  <div className="wh-code-input-wrap">
+                    <input
+                      type="text"
+                      placeholder="VD: KHO_HN, KHO_HCM..."
+                      disabled={Boolean(editingWarehouse)}
+                      value={whFormData.code}
+                      onChange={(e) => setWhFormData({ ...whFormData, code: e.target.value.toUpperCase() })}
+                    />
+                    {!editingWarehouse && (
+                      <button
+                        type="button"
+                        className="wh-btn-code-gen"
+                        onClick={() => {
+                          const rand = Math.floor(10 + Math.random() * 90);
+                          setWhFormData({ ...whFormData, code: `KHO_${rand}` });
+                        }}
+                        title="Sinh ngẫu nhiên mã kho"
+                      >
+                        Sinh mã
+                      </button>
+                    )}
+                  </div>
+                  {whFormErrors.code && <div className="wh-form-field-error">{whFormErrors.code}</div>}
+                </div>
+
+                <div className="wh-form-field">
+                  <span>Tên kho hàng <b>*</b></span>
                   <input
                     type="text"
-                    placeholder="VD: KHO_HN, KHO_HCM..."
-                    disabled={Boolean(editingWarehouse)}
-                    value={whFormData.code}
-                    onChange={(e) => setWhFormData({ ...whFormData, code: e.target.value.toUpperCase() })}
+                    placeholder="VD: Kho Tổng Hà Nội"
+                    value={whFormData.name}
+                    onChange={(e) => setWhFormData({ ...whFormData, name: e.target.value })}
                   />
-                  {!editingWarehouse && (
-                    <button
-                      type="button"
-                      className="wh-btn-code-gen"
-                      onClick={() => {
-                        const rand = Math.floor(10 + Math.random() * 90);
-                        setWhFormData({ ...whFormData, code: `KHO_${rand}` });
-                      }}
-                      title="Sinh ngẫu nhiên mã kho"
-                    >
-                      Sinh mã
-                    </button>
-                  )}
+                  {whFormErrors.name && <div className="wh-form-field-error">{whFormErrors.name}</div>}
                 </div>
-                {whFormErrors.code && <div className="wh-form-field-error">{whFormErrors.code}</div>}
+
+                <div className="wh-form-field">
+                  <span>Trạng thái hoạt động</span>
+                  <select
+                    value={whFormData.status}
+                    onChange={(e) => setWhFormData({ ...whFormData, status: e.target.value })}
+                  >
+                    <option value="Đang hoạt động">Đang hoạt động</option>
+                    <option value="Ngừng hoạt động">Ngừng hoạt động</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Ô 2: Địa chỉ & Người phụ trách (3 phần) */}
+            <div className="wh-form-card wh-col-contact">
+              <h3>Địa chỉ & Người phụ trách</h3>
+              <div className="wh-form-col-fields">
+                <div className="wh-form-field">
+                  <span>Địa chỉ kho</span>
+                  <input
+                    type="text"
+                    placeholder="VD: Lô CN1, Khu Công Nghiệp Từ Liêm, Hà Nội"
+                    value={whFormData.address}
+                    onChange={(e) => setWhFormData({ ...whFormData, address: e.target.value })}
+                  />
+                </div>
+
+                <div className="wh-form-field">
+                  <span>Người phụ trách kho</span>
+                  <input
+                    type="text"
+                    placeholder="Họ và tên thủ kho / quản lý"
+                    value={whFormData.manager_name}
+                    onChange={(e) => setWhFormData({ ...whFormData, manager_name: e.target.value })}
+                  />
+                </div>
+
+                <div className="wh-form-field">
+                  <span>Số điện thoại liên hệ</span>
+                  <input
+                    type="tel"
+                    placeholder="Số điện thoại (10 chữ số)"
+                    value={whFormData.phone}
+                    onChange={(e) => setWhFormData({ ...whFormData, phone: e.target.value.replace(/\D/g, '').slice(0, 10) })}
+                  />
+                  {whFormErrors.phone && <div className="wh-form-field-error">{whFormErrors.phone}</div>}
+                </div>
+              </div>
+            </div>
+
+            {/* Ô 3: Tổng kết kho hàng (2 phần) */}
+            <div className="wh-form-card wh-col-summary">
+              <h3 className="wh-summary-title-centered">Tổng kết kho hàng</h3>
+              <div className="wh-summary-rows">
+                <div className="wh-summary-row">
+                  <span>Mã kho:</span>
+                  <strong>{whFormData.code || '---'}</strong>
+                </div>
+                <div className="wh-summary-row">
+                  <span>Tên kho:</span>
+                  <strong>{whFormData.name || '---'}</strong>
+                </div>
+                <div className="wh-summary-row">
+                  <span>Người phụ trách:</span>
+                  <strong>{whFormData.manager_name || 'Chưa phân công'}</strong>
+                </div>
+                <div className="wh-summary-row">
+                  <span>Số điện thoại:</span>
+                  <strong>{whFormData.phone || '---'}</strong>
+                </div>
+                <div className="wh-summary-row">
+                  <span>Trạng thái:</span>
+                  <strong style={{ color: whFormData.status === 'Đang hoạt động' ? '#059669' : '#dc2626' }}>
+                    {whFormData.status}
+                  </strong>
+                </div>
               </div>
 
-              <div className="wh-form-field">
-                <span>Tên kho hàng <b>*</b></span>
-                <input
-                  type="text"
-                  placeholder="VD: Kho Tổng Hà Nội"
-                  value={whFormData.name}
-                  onChange={(e) => setWhFormData({ ...whFormData, name: e.target.value })}
-                />
-                {whFormErrors.name && <div className="wh-form-field-error">{whFormErrors.name}</div>}
-              </div>
-
-              <div className="wh-form-field">
-                <span>Trạng thái hoạt động</span>
-                <select
-                  value={whFormData.status}
-                  onChange={(e) => setWhFormData({ ...whFormData, status: e.target.value })}
+              <div className="wh-summary-actions">
+                <button
+                  type="submit"
+                  className="wh-btn wh-btn-primary wh-btn-block"
+                  disabled={isWhSubmitting}
                 >
-                  <option value="Đang hoạt động">Đang hoạt động</option>
-                  <option value="Ngừng hoạt động">Ngừng hoạt động</option>
-                </select>
+                  {isWhSubmitting ? 'Đang lưu...' : editingWarehouse ? 'Cập nhật kho' : 'Tạo kho hàng'}
+                </button>
+                <button
+                  type="button"
+                  className="wh-btn wh-btn-secondary wh-btn-block"
+                  onClick={() => {
+                    setIsWhFormPageActive(false);
+                    setEditingWarehouse(null);
+                    setWhFormErrors({});
+                  }}
+                  disabled={isWhSubmitting}
+                >
+                  Hủy bỏ
+                </button>
+                <p className="wh-summary-hint">
+                  Kho hàng sẽ được kết nối với hệ thống vị trí kệ và quản lý tồn kho tự động.
+                </p>
               </div>
             </div>
-          </div>
-
-          {/* Ô 2: Địa chỉ & Người phụ trách (3 phần) */}
-          <div className="wh-form-card wh-col-contact">
-            <h3>Địa chỉ & Người phụ trách</h3>
-            <div className="wh-form-col-fields">
-              <div className="wh-form-field">
-                <span>Địa chỉ kho</span>
-                <input
-                  type="text"
-                  placeholder="VD: Lô CN1, Khu Công Nghiệp Từ Liêm, Hà Nội"
-                  value={whFormData.address}
-                  onChange={(e) => setWhFormData({ ...whFormData, address: e.target.value })}
-                />
-              </div>
-
-              <div className="wh-form-field">
-                <span>Người phụ trách kho</span>
-                <input
-                  type="text"
-                  placeholder="Họ và tên thủ kho / quản lý"
-                  value={whFormData.manager_name}
-                  onChange={(e) => setWhFormData({ ...whFormData, manager_name: e.target.value })}
-                />
-              </div>
-
-              <div className="wh-form-field">
-                <span>Số điện thoại liên hệ</span>
-                <input
-                  type="tel"
-                  placeholder="Số điện thoại (10 chữ số)"
-                  value={whFormData.phone}
-                  onChange={(e) => setWhFormData({ ...whFormData, phone: e.target.value.replace(/\D/g, '').slice(0, 10) })}
-                />
-                {whFormErrors.phone && <div className="wh-form-field-error">{whFormErrors.phone}</div>}
-              </div>
-            </div>
-          </div>
-
-          {/* Ô 3: Tổng kết kho hàng (2 phần) */}
-          <div className="wh-form-card wh-col-summary">
-            <h3 className="wh-summary-title-centered">Tổng kết kho hàng</h3>
-            <div className="wh-summary-rows">
-              <div className="wh-summary-row">
-                <span>Mã kho:</span>
-                <strong>{whFormData.code || '---'}</strong>
-              </div>
-              <div className="wh-summary-row">
-                <span>Tên kho:</span>
-                <strong>{whFormData.name || '---'}</strong>
-              </div>
-              <div className="wh-summary-row">
-                <span>Người phụ trách:</span>
-                <strong>{whFormData.manager_name || 'Chưa phân công'}</strong>
-              </div>
-              <div className="wh-summary-row">
-                <span>Số điện thoại:</span>
-                <strong>{whFormData.phone || '---'}</strong>
-              </div>
-              <div className="wh-summary-row">
-                <span>Trạng thái:</span>
-                <strong style={{ color: whFormData.status === 'Đang hoạt động' ? '#059669' : '#dc2626' }}>
-                  {whFormData.status}
-                </strong>
-              </div>
-            </div>
-
-            <div className="wh-summary-actions">
-              <button
-                type="submit"
-                className="wh-btn wh-btn-primary wh-btn-block"
-                disabled={isWhSubmitting}
-              >
-                {isWhSubmitting ? 'Đang lưu...' : editingWarehouse ? 'Cập nhật kho' : 'Tạo kho hàng'}
-              </button>
-              <button
-                type="button"
-                className="wh-btn wh-btn-secondary wh-btn-block"
-                onClick={() => {
-                  setIsWhFormPageActive(false);
-                  setEditingWarehouse(null);
-                  setWhFormErrors({});
-                }}
-                disabled={isWhSubmitting}
-              >
-                Hủy bỏ
-              </button>
-              <p className="wh-summary-hint">
-                Kho hàng sẽ được kết nối với hệ thống vị trí kệ và quản lý tồn kho tự động.
-              </p>
-            </div>
-          </div>
-        </form>
+          </form>
+        </div>
       </div>
     );
   }
@@ -1443,7 +1429,8 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
   if (isLocFormPageActive && selectedWarehouse) {
     return (
       <div className="wh-container wh-form-fullscreen-wrap">
-        <div className="wh-form-page-header">
+        <div className="wh-form-master-frame">
+          <div className="wh-form-page-header">
           <button
             type="button"
             className="wh-btn wh-btn-secondary"
@@ -1692,6 +1679,7 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
             </div>
           </div>
         </form>
+        </div>
       </div>
     );
   }
@@ -3594,157 +3582,203 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
       {/* ==================================================== */}
       {/* MODAL 6B: THÊM HÀNG VÀO VỊ TRÍ KỆ                     */}
       {/* ==================================================== */}
-      {isAddStockModalOpen && addStockItem && (
-        <div className="wh-modal-backdrop">
-          <div className="wh-modal-card" style={{ maxWidth: '480px' }}>
-            <div className="wh-modal-header">
-              <h3>Thêm Hàng Vào Vị Trí Kệ</h3>
-              <button
-                type="button"
-                className="wh-modal-close-btn"
-                onClick={() => {
-                  setIsAddStockModalOpen(false);
-                  setAddStockItem(null);
-                }}
-              >
-                ✕
-              </button>
-            </div>
+      {isAddStockModalOpen && addStockItem && (() => {
+        const qtyNum = Number(addStockQuantity) || 0;
+        const targetLoc = locations.find((l) => l.id === addStockItem.location_id);
+        const targetLocCode = targetLoc?.location_code || addStockItem.location_code;
+        const newTotalForThisProduct = addStockItem.quantity + qtyNum;
+        const rackCheck = qtyNum > 0
+          ? checkRackCapacity(addStockItem.location_id, addStockItem.product_id, newTotalForThisProduct)
+          : null;
+        const isExceeded = Boolean(rackCheck && !rackCheck.ok);
 
-            <form onSubmit={handleSaveAddStock}>
-              <div className="wh-modal-body">
-                {/* Thông tin vị trí kệ hiện tại của sản phẩm */}
-                <div
-                  style={{
-                    background: '#f8fafc',
-                    border: '1px solid #e2e8f0',
-                    borderRadius: '8px',
-                    padding: '14px',
-                    marginBottom: '16px',
-                    fontSize: '13.5px',
-                  }}
-                >
-                  <div style={{ marginBottom: '8px' }}>
-                    <span style={{ color: '#64748b' }}>Sản phẩm:</span>{' '}
-                    <strong style={{ color: '#0f172a' }}>{addStockItem.product_name}</strong>{' '}
-                    <span className="wh-badge wh-badge-code" style={{ fontSize: '11px', padding: '1px 6px' }}>
-                      {addStockItem.product_code}
-                    </span>
-                  </div>
-                  <div style={{ marginBottom: '8px' }}>
-                    <span style={{ color: '#64748b' }}>Vị trí kệ hiện tại:</span>{' '}
-                    <span className="wh-badge wh-badge-location" style={{ fontWeight: 600 }}>
-                      {addStockItem.location_code}
-                    </span>{' '}
-                    {addStockItem.location_name && (
-                      <span style={{ color: '#475569' }}>({addStockItem.location_name})</span>
-                    )}
-                  </div>
-                  <div style={{ marginBottom: '8px' }}>
-                    <span style={{ color: '#64748b' }}>Khu vực / Dãy:</span>{' '}
-                    <span style={{ fontWeight: 500, color: '#334155' }}>
-                      {[addStockItem.zone, addStockItem.aisle, addStockItem.rack].filter(Boolean).join(' - ') || '—'}
-                    </span>
-                  </div>
-                  <div
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: '1fr 1fr',
-                      gap: '8px',
-                      marginTop: '10px',
-                      paddingTop: '10px',
-                      borderTop: '1px dashed #cbd5e1',
-                    }}
-                  >
-                    <div>
-                      <span style={{ color: '#64748b', fontSize: '12px' }}>Số lượng tại kệ này:</span>
-                      <div style={{ fontSize: '15px', fontWeight: 600, color: '#0f172a' }}>
-                        {addStockItem.quantity.toLocaleString('vi-VN')} {addStockItem.base_unit || 'Cái'}
-                      </div>
-                    </div>
-                    <div>
-                      <span style={{ color: '#64748b', fontSize: '12px' }}>Tổng tồn tại kho:</span>
-                      <div style={{ fontSize: '15px', fontWeight: 600, color: '#0f172a' }}>
-                        {addStockItem.warehouse_total_stock.toLocaleString('vi-VN')} {addStockItem.base_unit || 'Cái'}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="wh-form-group">
-                  <label>
-                    Số lượng hàng cần nhập thêm <span className="wh-required-star">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    required
-                    className="wh-form-input"
-                    placeholder="Nhập số lượng hàng..."
-                    value={addStockQuantity === 0 || addStockQuantity === '' ? '' : addStockQuantity}
-                    onFocus={(e) => e.target.select()}
-                    onChange={(e) => {
-                      const raw = e.target.value;
-                      if (raw === '') {
-                        setAddStockQuantity('');
-                        return;
-                      }
-                      const clean = raw.replace(/^0+(?=\d)/, '');
-                      if (clean === '0') {
-                        setAddStockQuantity('');
-                        return;
-                      }
-                      setAddStockQuantity(Number(clean));
-                    }}
-                  />
-                </div>
-
-                {/* Dự kiến cập nhật */}
-                <div
-                  style={{
-                    background: '#f0fdf4',
-                    border: '1px solid #bbf7d0',
-                    borderRadius: '6px',
-                    padding: '10px 12px',
-                    fontSize: '12.5px',
-                    color: '#166534',
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                    <span>Số lượng tại kệ này sau khi thêm:</span>
-                    <strong>{(addStockItem.quantity + Number(addStockQuantity || 0)).toLocaleString('vi-VN')} {addStockItem.base_unit || 'Cái'}</strong>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span>Tổng tồn tại kho sau khi thêm:</span>
-                    <strong>{(addStockItem.warehouse_total_stock + Number(addStockQuantity || 0)).toLocaleString('vi-VN')} {addStockItem.base_unit || 'Cái'}</strong>
-                  </div>
-                </div>
-              </div>
-
-              <div className="wh-modal-footer">
+        return (
+          <div className="wh-modal-backdrop">
+            <div className="wh-modal-card" style={{ maxWidth: '480px' }}>
+              <div className="wh-modal-header">
+                <h3>Thêm Hàng Vào Vị Trí Kệ</h3>
                 <button
                   type="button"
-                  className="wh-btn wh-btn-secondary"
+                  className="wh-modal-close-btn"
                   onClick={() => {
                     setIsAddStockModalOpen(false);
                     setAddStockItem(null);
                   }}
-                  disabled={isAddStockSubmitting}
                 >
-                  Hủy bỏ
-                </button>
-                <button
-                  type="submit"
-                  className="wh-btn wh-btn-primary"
-                  disabled={isAddStockSubmitting || Number(addStockQuantity) <= 0}
-                >
-                  {isAddStockSubmitting ? 'Đang lưu...' : 'Lưu và Cập nhật tồn'}
+                  ✕
                 </button>
               </div>
-            </form>
+
+              <form onSubmit={handleSaveAddStock}>
+                <div className="wh-modal-body">
+                  {/* Thông tin vị trí kệ hiện tại của sản phẩm */}
+                  <div
+                    style={{
+                      background: '#f8fafc',
+                      border: '1px solid #e2e8f0',
+                      borderRadius: '8px',
+                      padding: '14px',
+                      marginBottom: '16px',
+                      fontSize: '13.5px',
+                    }}
+                  >
+                    <div style={{ marginBottom: '8px' }}>
+                      <span style={{ color: '#64748b' }}>Sản phẩm:</span>{' '}
+                      <strong style={{ color: '#0f172a' }}>{addStockItem.product_name}</strong>{' '}
+                      <span className="wh-badge wh-badge-code" style={{ fontSize: '11px', padding: '1px 6px' }}>
+                        {addStockItem.product_code}
+                      </span>
+                    </div>
+                    <div style={{ marginBottom: '8px' }}>
+                      <span style={{ color: '#64748b' }}>Vị trí kệ hiện tại:</span>{' '}
+                      <span className="wh-badge wh-badge-location" style={{ fontWeight: 600 }}>
+                        {addStockItem.location_code}
+                      </span>{' '}
+                      {addStockItem.location_name && (
+                        <span style={{ color: '#475569' }}>({addStockItem.location_name})</span>
+                      )}
+                    </div>
+                    <div style={{ marginBottom: '8px' }}>
+                      <span style={{ color: '#64748b' }}>Khu vực / Dãy:</span>{' '}
+                      <span style={{ fontWeight: 500, color: '#334155' }}>
+                        {[addStockItem.zone, addStockItem.aisle, addStockItem.rack].filter(Boolean).join(' - ') || '—'}
+                      </span>
+                    </div>
+                    <div
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: '1fr 1fr',
+                        gap: '8px',
+                        marginTop: '10px',
+                        paddingTop: '10px',
+                        borderTop: '1px dashed #cbd5e1',
+                      }}
+                    >
+                      <div>
+                        <span style={{ color: '#64748b', fontSize: '12px' }}>Số lượng tại kệ này:</span>
+                        <div style={{ fontSize: '15px', fontWeight: 600, color: '#0f172a' }}>
+                          {addStockItem.quantity.toLocaleString('vi-VN')} {addStockItem.base_unit || 'Cái'}
+                        </div>
+                      </div>
+                      <div>
+                        <span style={{ color: '#64748b', fontSize: '12px' }}>Tổng tồn tại kho:</span>
+                        <div style={{ fontSize: '15px', fontWeight: 600, color: '#0f172a' }}>
+                          {addStockItem.warehouse_total_stock.toLocaleString('vi-VN')} {addStockItem.base_unit || 'Cái'}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="wh-form-group">
+                    <label>
+                      Số lượng hàng cần nhập thêm <span className="wh-required-star">*</span>
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      required
+                      className="wh-form-input"
+                      placeholder="Nhập số lượng hàng..."
+                      value={addStockQuantity === 0 || addStockQuantity === '' ? '' : addStockQuantity}
+                      onFocus={(e) => e.target.select()}
+                      onChange={(e) => {
+                        const raw = e.target.value;
+                        if (raw === '') {
+                          setAddStockQuantity('');
+                          return;
+                        }
+                        const clean = raw.replace(/^0+(?=\d)/, '');
+                        if (clean === '0') {
+                          setAddStockQuantity('');
+                          return;
+                        }
+                        setAddStockQuantity(Number(clean));
+                      }}
+                    />
+                  </div>
+
+                  {/* THÔNG BÁO DÒNG ĐỎ KHI VƯỢT QUÁ TẢI TRỌNG KỆ */}
+                  {isExceeded && rackCheck && (
+                    <div
+                      style={{
+                        background: '#fff1f2',
+                        border: '1px solid #fecdd3',
+                        borderRadius: '8px',
+                        padding: '12px 14px',
+                        marginBottom: '14px',
+                        color: '#9f1239',
+                        fontWeight: 600,
+                        fontSize: '13.5px',
+                        lineHeight: 1.5,
+                      }}
+                    >
+                      Vị trí kệ {targetLocCode} chỉ có sức chứa tối đa là {rackCheck.maxCapacity.toLocaleString('vi-VN')} SP (hiện đang chứa {rackCheck.currentStock.toLocaleString('vi-VN')} SP, chỉ còn chỗ cho {rackCheck.availableSpace.toLocaleString('vi-VN')} SP). Không thể nhập thêm {qtyNum.toLocaleString('vi-VN')} SP vượt tải trọng.
+                    </div>
+                  )}
+
+                  {/* Dự kiến cập nhật */}
+                  <div
+                    style={{
+                      background: isExceeded ? '#fff1f2' : '#f0fdf4',
+                      border: isExceeded ? '1px solid #fecdd3' : '1px solid #bbf7d0',
+                      borderRadius: '6px',
+                      padding: '10px 12px',
+                      fontSize: '12.5px',
+                      color: isExceeded ? '#9f1239' : '#166534',
+                      transition: 'all 0.2s ease',
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                      <span>Số lượng tại kệ này sau khi thêm:</span>
+                      <strong>
+                        {(addStockItem.quantity + qtyNum).toLocaleString('vi-VN')} {addStockItem.base_unit || 'Cái'}
+                        {isExceeded && rackCheck && (
+                          <span style={{ color: '#b91c1c', marginLeft: '6px', fontSize: '11.5px', fontWeight: 700 }}>
+                            (Vượt quá +{(rackCheck.currentStock + qtyNum - rackCheck.maxCapacity).toLocaleString('vi-VN')} SP)
+                          </span>
+                        )}
+                      </strong>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span>Tổng tồn tại kho sau khi thêm:</span>
+                      <strong>{(addStockItem.warehouse_total_stock + qtyNum).toLocaleString('vi-VN')} {addStockItem.base_unit || 'Cái'}</strong>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="wh-modal-footer">
+                  <button
+                    type="button"
+                    className="wh-btn wh-btn-secondary"
+                    onClick={() => {
+                      setIsAddStockModalOpen(false);
+                      setAddStockItem(null);
+                    }}
+                    disabled={isAddStockSubmitting}
+                  >
+                    Hủy bỏ
+                  </button>
+                  <button
+                    type="submit"
+                    className="wh-btn wh-btn-primary"
+                    style={{
+                      background: isExceeded ? '#dc2626' : undefined,
+                      borderColor: isExceeded ? '#dc2626' : undefined,
+                    }}
+                    disabled={isAddStockSubmitting || qtyNum <= 0}
+                  >
+                    {isAddStockSubmitting
+                      ? 'Đang lưu...'
+                      : isExceeded
+                      ? 'Vượt tải trọng — Xem chi tiết cảnh báo'
+                      : 'Lưu và Cập nhật tồn'}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* ==================================================== */}
       {/* MODAL 6C: CẢNH BÁO SỨC CHỨA & TẢI TRỌNG / ĐẦY KHO   */}
@@ -3770,7 +3804,12 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
               <button
                 type="button"
                 className="wh-modal-close-btn"
-                onClick={() => setIsCapacityWarningModalOpen(false)}
+                onClick={() => {
+                  setIsCapacityWarningModalOpen(false);
+                  if (addStockItem) {
+                    setIsAddStockModalOpen(true);
+                  }
+                }}
               >
                 ✕
               </button>
@@ -3861,7 +3900,12 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
               <button
                 type="button"
                 className="wh-btn wh-btn-secondary"
-                onClick={() => setIsCapacityWarningModalOpen(false)}
+                onClick={() => {
+                  setIsCapacityWarningModalOpen(false);
+                  if (addStockItem) {
+                    setIsAddStockModalOpen(true);
+                  }
+                }}
               >
                 Đóng
               </button>

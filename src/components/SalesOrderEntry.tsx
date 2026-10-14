@@ -1266,123 +1266,123 @@ export default function SalesOrderEntry({
                 />
               </label>
             </div>
-          </section>
 
-          {/* SCRUM-52 / SCRUM-57: Lịch sử mua hàng của đại lý & Gợi ý mặt hàng */}
-          {selectedDealer && !historyForbidden && (
-            <section className="sales-order-card sales-order-history-card">
-              <div className="sales-order-history-header">
-                <div className="sales-order-history-title-group">
-                  <div className="sales-order-history-badge">
-                    <span>Gợi ý theo lịch sử mua hàng</span>
+            {/* SCRUM-52 / SCRUM-57: Lịch sử mua hàng của đại lý & Gợi ý mặt hàng */}
+            {selectedDealer && !historyForbidden && (
+              <div className="sales-order-history-card" style={{ marginTop: '20px' }}>
+                <div className="sales-order-history-header">
+                  <div className="sales-order-history-title-group">
+                    <div className="sales-order-history-badge">
+                      <span>Gợi ý theo lịch sử mua hàng</span>
+                    </div>
+                    <h2 className="sales-order-history-title">
+                      Mặt hàng đại lý thường lấy (3 tháng gần nhất)
+                    </h2>
+                    <p className="sales-order-history-subtitle">
+                      {isLoadingHistory ? (
+                        'Đang tra cứu lịch sử mua hàng của đại lý...'
+                      ) : purchaseHistory && purchaseHistory.has_history ? (
+                        <>
+                          Đại lý <strong>{selectedDealer.name}</strong> đã đặt <strong>{purchaseHistory.total_orders_3_months} đơn hàng</strong> trong 3 tháng qua.
+                          {purchaseHistory.last_order && (
+                            <span className="history-last-order-tag">
+                              {' '}• Lần mua gần nhất: <strong>{purchaseHistory.last_order.order_code}</strong> ({purchaseHistory.last_order.created_at})
+                            </span>
+                          )}
+                        </>
+                      ) : (
+                        <>Đại lý <strong>{selectedDealer.name}</strong> chưa có lịch sử mua hàng trong 3 tháng gần nhất.</>
+                      )}
+                    </p>
                   </div>
-                  <h2 className="sales-order-history-title">
-                    Mặt hàng đại lý thường lấy (3 tháng gần nhất)
-                  </h2>
-                  <p className="sales-order-history-subtitle">
-                    {isLoadingHistory ? (
-                      'Đang tra cứu lịch sử mua hàng của đại lý...'
-                    ) : purchaseHistory && purchaseHistory.has_history ? (
-                      <>
-                        Đại lý <strong>{selectedDealer.name}</strong> đã đặt <strong>{purchaseHistory.total_orders_3_months} đơn hàng</strong> trong 3 tháng qua.
-                        {purchaseHistory.last_order && (
-                          <span className="history-last-order-tag">
-                            {' '}• Lần mua gần nhất: <strong>{purchaseHistory.last_order.order_code}</strong> ({purchaseHistory.last_order.created_at})
-                          </span>
-                        )}
-                      </>
-                    ) : (
-                      <>Đại lý <strong>{selectedDealer.name}</strong> chưa có lịch sử mua hàng trong 3 tháng gần nhất.</>
-                    )}
-                  </p>
+
+                  {purchaseHistory && purchaseHistory.has_history && (
+                    <div className="sales-order-history-actions">
+                      <button
+                        type="button"
+                        className="sales-order-btn-add-batch"
+                        onClick={handleAddAllPreviousItems}
+                        title="Thêm toàn bộ nhóm hàng đã mua ở đơn gần nhất vào đơn mới"
+                      >
+                        <span>Thêm nhanh cả nhóm hàng đã mua lần trước vào đơn mới</span>
+                        <span className="batch-count-badge">
+                          {purchaseHistory.last_order_items?.length || purchaseHistory.items.length} món
+                        </span>
+                      </button>
+                    </div>
+                  )}
                 </div>
 
-                {purchaseHistory && purchaseHistory.has_history && (
-                  <div className="sales-order-history-actions">
-                    <button
-                      type="button"
-                      className="sales-order-btn-add-batch"
-                      onClick={handleAddAllPreviousItems}
-                      title="Thêm toàn bộ nhóm hàng đã mua ở đơn gần nhất vào đơn mới"
-                    >
-                      <span>Thêm nhanh cả nhóm hàng đã mua lần trước vào đơn mới</span>
-                      <span className="batch-count-badge">
-                        {purchaseHistory.last_order_items?.length || purchaseHistory.items.length} món
-                      </span>
-                    </button>
+                {isLoadingHistory && (
+                  <div className="sales-order-history-loading">
+                    <div className="history-loading-spinner" />
+                    <span>Đang tải dữ liệu sản lượng bình quân...</span>
+                  </div>
+                )}
+
+                {!isLoadingHistory && purchaseHistory && purchaseHistory.has_history && (
+                  <div className="sales-order-history-table-wrapper">
+                    <table className="sales-order-history-table">
+                      <thead>
+                        <tr>
+                          <th>Mã SP</th>
+                          <th>Tên mặt hàng</th>
+                          <th>ĐVT</th>
+                          <th style={{ textAlign: 'center' }}>SL bình quân (3 tháng)</th>
+                          <th style={{ textAlign: 'center' }}>SL lần trước</th>
+                          <th style={{ textAlign: 'right' }}>Đơn giá</th>
+                          <th style={{ textAlign: 'center' }}>Hành động</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {purchaseHistory.items.map((item) => (
+                          <tr key={item.product_id} className="history-row">
+                            <td className="history-col-code">
+                              <span className="code-badge">{item.product_code}</span>
+                            </td>
+                            <td className="history-col-name">
+                              <div className="product-name-text">{item.product_name}</div>
+                              {item.last_purchased_date && (
+                                <span className="product-last-date">Mua gần nhất: {item.last_purchased_date}</span>
+                              )}
+                            </td>
+                            <td className="history-col-unit">{item.unit}</td>
+                            <td className="history-col-avg" style={{ textAlign: 'center' }}>
+                              <span className="avg-qty-badge" title={`Tổng ${item.total_quantity} ${item.unit} qua ${item.order_count} đơn hàng`}>
+                                <strong>{item.avg_quantity}</strong> {item.unit}/đơn
+                              </span>
+                            </td>
+                            <td className="history-col-last" style={{ textAlign: 'center' }}>
+                              {item.last_order_quantity > 0 ? (
+                                <span className="last-qty-text">{item.last_order_quantity} {item.unit}</span>
+                              ) : (
+                                <span className="text-muted">—</span>
+                              )}
+                            </td>
+                            <td className="history-col-price" style={{ textAlign: 'right' }}>
+                              {formatCurrency(item.price)}
+                            </td>
+                            <td className="history-col-action" style={{ textAlign: 'center' }}>
+                              <button
+                                type="button"
+                                className="btn-add-single-history"
+                                onClick={() => handleAddHistoryItem(item)}
+                                title={`Thêm ${item.product_name} vào đơn`}
+                              >
+                                + Thêm
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 )}
               </div>
+            )}
 
-              {isLoadingHistory && (
-                <div className="sales-order-history-loading">
-                  <div className="history-loading-spinner" />
-                  <span>Đang tải dữ liệu sản lượng bình quân...</span>
-                </div>
-              )}
+            <div className="sales-order-card-divider" />
 
-              {!isLoadingHistory && purchaseHistory && purchaseHistory.has_history && (
-                <div className="sales-order-history-table-wrapper">
-                  <table className="sales-order-history-table">
-                    <thead>
-                      <tr>
-                        <th>Mã SP</th>
-                        <th>Tên mặt hàng</th>
-                        <th>ĐVT</th>
-                        <th style={{ textAlign: 'center' }}>SL bình quân (3 tháng)</th>
-                        <th style={{ textAlign: 'center' }}>SL lần trước</th>
-                        <th style={{ textAlign: 'right' }}>Đơn giá</th>
-                        <th style={{ textAlign: 'center' }}>Hành động</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {purchaseHistory.items.map((item) => (
-                        <tr key={item.product_id} className="history-row">
-                          <td className="history-col-code">
-                            <span className="code-badge">{item.product_code}</span>
-                          </td>
-                          <td className="history-col-name">
-                            <div className="product-name-text">{item.product_name}</div>
-                            {item.last_purchased_date && (
-                              <span className="product-last-date">Mua gần nhất: {item.last_purchased_date}</span>
-                            )}
-                          </td>
-                          <td className="history-col-unit">{item.unit}</td>
-                          <td className="history-col-avg" style={{ textAlign: 'center' }}>
-                            <span className="avg-qty-badge" title={`Tổng ${item.total_quantity} ${item.unit} qua ${item.order_count} đơn hàng`}>
-                              <strong>{item.avg_quantity}</strong> {item.unit}/đơn
-                            </span>
-                          </td>
-                          <td className="history-col-last" style={{ textAlign: 'center' }}>
-                            {item.last_order_quantity > 0 ? (
-                              <span className="last-qty-text">{item.last_order_quantity} {item.unit}</span>
-                            ) : (
-                              <span className="text-muted">—</span>
-                            )}
-                          </td>
-                          <td className="history-col-price" style={{ textAlign: 'right' }}>
-                            {formatCurrency(item.price)}
-                          </td>
-                          <td className="history-col-action" style={{ textAlign: 'center' }}>
-                            <button
-                              type="button"
-                              className="btn-add-single-history"
-                              onClick={() => handleAddHistoryItem(item)}
-                              title={`Thêm ${item.product_name} vào đơn`}
-                            >
-                              + Thêm
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </section>
-          )}
-
-          <section className="sales-order-card">
             <h2>Sản phẩm</h2>
             <label className="sales-order-field">
               <span>Tìm theo mã hoặc tên sản phẩm</span>

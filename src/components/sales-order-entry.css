@@ -65,6 +65,11 @@
   font-weight: 750;
 }
 
+.sales-order-card-divider {
+  margin: 24px 0 20px;
+  border-top: 1px solid #e2e8f0;
+}
+
 .sales-order-fields {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
