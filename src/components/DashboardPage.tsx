@@ -512,6 +512,7 @@ export default function DashboardPage({
       } catch {
         // ignore
       }
+      return;
     } else if (tab === 'orders') {
       setActiveTabState('orders');
       try {
@@ -725,11 +726,20 @@ export default function DashboardPage({
       const isProfilePath = pathname === '/profile' || pathname.startsWith('/profile/');
       const isProductHistoryPath = pathname === '/product-history' || pathname.startsWith('/product-history/');
       const isStockTransfersPath = pathname === '/stock-transfers' || pathname.startsWith('/stock-transfers/');
+      const isStockBookPath = pathname === '/stock-book' || pathname.startsWith('/stock-book/');
       if (isProductsImportPath || tabParam === 'products-import') {
         if (pathname !== '/products/import' || tabParam) {
           try { window.history.replaceState({}, '', '/products/import'); } catch {}
         }
         setActiveTabState('products-import');
+        return;
+      }
+
+      if (isStockBookPath || tabParam === 'stock-book') {
+        if (pathname !== '/stock-book' || tabParam) {
+          try { window.history.replaceState({}, '', '/stock-book'); } catch {}
+        }
+        setActiveTabState('stock-book');
         return;
       }
 
