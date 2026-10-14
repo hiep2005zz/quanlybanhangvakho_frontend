@@ -1104,52 +1104,41 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
       <div
         className="bg-white border border-slate-200 rounded-xl shadow-xs flex-1 min-h-0 flex flex-col overflow-hidden"
       >
-        {/* Tìm kiếm và thống kê */}
-        <div className="p-2.5 sm:p-3.5 md:px-5 md:py-3 border-b border-slate-200 flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-2.5 sm:gap-3 bg-slate-50 shrink-0">
-          <div className="relative flex-1 max-w-md">
-            <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        {/* Thanh tìm kiếm và bộ lọc đa tiêu chí - TẤT CẢ VÀO 1 HÀNG DUY NHẤT */}
+        <div className="px-2.5 sm:px-3 py-2 bg-slate-50 border-b border-slate-200 flex items-center gap-1.5 text-xs shrink-0 w-full overflow-x-auto box-border">
+          {/* Ô Tìm kiếm */}
+          <div className="relative flex-1 min-w-[130px] max-w-[190px] shrink-0">
+            <span className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none text-slate-400">
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
             </span>
             <input
               type="text"
-              placeholder="Tìm theo mã đơn, khách hàng, người tạo..."
+              placeholder="Tìm mã đơn, KH..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-3 py-1.5 sm:py-2 rounded-lg border border-slate-300 text-xs sm:text-[13.5px] bg-white outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 box-border"
+              className="w-full h-[32px] pl-8 pr-2 rounded-md border border-slate-300 text-xs bg-white outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 box-border placeholder:text-slate-400"
+              title="Tìm theo mã đơn hàng, tên khách hàng, người tạo"
             />
           </div>
-
-          <div className="text-xs text-slate-500 whitespace-nowrap self-end sm:self-center">
-            Hiển thị <strong>{paginatedOrders.length}</strong> / {filteredOrders.length} đơn &bull; Tổng tiền lọc: <strong className="text-emerald-700 font-bold">{filteredTotalRevenue.toLocaleString('vi-VN')} đ</strong>
-          </div>
-        </div>
-
-        {/* Thanh lọc đa tiêu chí - tích hợp nhãn trong ô, không bị tràn cuộn, hiển thị đầy đủ nút Áp dụng & Đặt lại */}
-        <div className="px-2.5 sm:px-4 py-2 bg-slate-100/70 border-b border-slate-200 flex items-center gap-1.5 sm:gap-2 text-xs shrink-0 w-full overflow-x-auto box-border">
-          <span className="text-slate-500 shrink-0 flex items-center" title="Bộ lọc tìm kiếm">
-            <svg className="w-4 h-4 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-            </svg>
-          </span>
 
           {/* Ô 1: Trạng thái */}
           <select
             id="filter-status"
             value={draftStatusFilter}
             onChange={(e) => setDraftStatusFilter(e.target.value as any)}
-            className="h-[32px] px-2 bg-white border border-slate-300 rounded-md text-xs text-slate-700 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 cursor-pointer box-border flex-1 min-w-[110px] max-w-[145px] shrink-0 truncate"
+            className="h-[32px] px-2 bg-white border border-slate-300 rounded-md text-xs text-slate-700 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 cursor-pointer box-border flex-1 min-w-[105px] max-w-[130px] shrink-0 truncate"
             title="Lọc theo trạng thái đơn"
           >
-            <option value="ALL">Trạng thái: Tất cả ({totalOrdersCount})</option>
-            <option value="PENDING_APPROVAL">Trạng thái: {isCustomer ? 'Chờ xử lý' : 'Chờ duyệt'} ({pendingOrdersCount})</option>
-            <option value="CONFIRMED">Trạng thái: {isCustomer ? 'Đang giao' : 'Đã xác nhận'} ({confirmedOrdersCount})</option>
-            <option value="PICKING">Trạng thái: Đang soạn ({pickingOrdersCount})</option>
-            <option value="EXPORTED">Trạng thái: Đã xuất ({exportedOrdersCount})</option>
-            <option value="DELIVERED">Trạng thái: Đã giao ({deliveredOrdersCount})</option>
-            <option value="CANCELLED">Trạng thái: Đã hủy ({cancelledOrdersCount})</option>
-            <option value="REJECTED">Trạng thái: Từ chối ({rejectedOrdersCount})</option>
+            <option value="ALL">Trạng thái: Tất cả</option>
+            <option value="PENDING_APPROVAL">TT: {isCustomer ? 'Chờ xử lý' : 'Chờ duyệt'}</option>
+            <option value="CONFIRMED">TT: {isCustomer ? 'Đang giao' : 'Đã xác nhận'}</option>
+            <option value="PICKING">TT: Đang soạn</option>
+            <option value="EXPORTED">TT: Đã xuất</option>
+            <option value="DELIVERED">TT: Đã giao</option>
+            <option value="CANCELLED">TT: Đã hủy</option>
+            <option value="REJECTED">TT: Từ chối</option>
           </select>
 
           {/* Ô 2: Đại lý */}
@@ -1158,13 +1147,13 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
               id="filter-dealer"
               value={draftDealerFilter}
               onChange={(e) => setDraftDealerFilter(e.target.value)}
-              className="h-[32px] px-2 bg-white border border-slate-300 rounded-md text-xs text-slate-700 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 cursor-pointer box-border flex-1 min-w-[110px] max-w-[145px] shrink-0 truncate"
+              className="h-[32px] px-2 bg-white border border-slate-300 rounded-md text-xs text-slate-700 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 cursor-pointer box-border flex-1 min-w-[95px] max-w-[125px] shrink-0 truncate"
               title="Lọc theo đại lý"
             >
               <option value="ALL">Đại lý: Tất cả</option>
               {dealers.map((d) => (
                 <option key={d.id} value={d.id}>
-                  Đại lý: {d.name || d.code}
+                  ĐL: {d.name || d.code}
                 </option>
               ))}
             </select>
@@ -1176,7 +1165,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
               id="filter-sales-rep"
               value={draftSalesRepFilter}
               onChange={(e) => setDraftSalesRepFilter(e.target.value)}
-              className="h-[32px] px-2 bg-white border border-slate-300 rounded-md text-xs text-slate-700 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 cursor-pointer box-border flex-1 min-w-[110px] max-w-[145px] shrink-0 truncate"
+              className="h-[32px] px-2 bg-white border border-slate-300 rounded-md text-xs text-slate-700 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 cursor-pointer box-border flex-1 min-w-[95px] max-w-[125px] shrink-0 truncate"
               title="Lọc theo nhân viên kinh doanh"
             >
               <option value="ALL">Nhân viên: Tất cả</option>
@@ -1194,7 +1183,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
               id="filter-region"
               value={draftRegionFilter}
               onChange={(e) => setDraftRegionFilter(e.target.value)}
-              className="h-[32px] px-2 bg-white border border-slate-300 rounded-md text-xs text-slate-700 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 cursor-pointer box-border flex-1 min-w-[110px] max-w-[145px] shrink-0 truncate"
+              className="h-[32px] px-2 bg-white border border-slate-300 rounded-md text-xs text-slate-700 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 cursor-pointer box-border flex-1 min-w-[90px] max-w-[115px] shrink-0 truncate"
               title="Lọc theo khu vực"
             >
               <option value="ALL">Khu vực: Tất cả</option>
@@ -1215,7 +1204,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                 startDateInputRef.current?.focus();
               }
             }}
-            className="relative flex-1 min-w-[110px] max-w-[145px] shrink-0 h-[32px] cursor-pointer"
+            className="relative flex-1 min-w-[100px] max-w-[125px] shrink-0 h-[32px] cursor-pointer"
           >
             <input
               ref={startDateInputRef}
@@ -1266,7 +1255,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                 endDateInputRef.current?.focus();
               }
             }}
-            className="relative flex-1 min-w-[110px] max-w-[145px] shrink-0 h-[32px] cursor-pointer"
+            className="relative flex-1 min-w-[100px] max-w-[125px] shrink-0 h-[32px] cursor-pointer"
           >
             <input
               ref={endDateInputRef}
@@ -1335,6 +1324,13 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
             </svg>
             Đặt lại
           </button>
+
+          {/* Thống kê nhanh kết quả lọc (trên màn hình rộng) */}
+          <div className="text-xs text-slate-500 whitespace-nowrap ml-auto shrink-0 pl-1 hidden 2xl:flex items-center gap-1">
+            <span>Hiển thị <strong>{paginatedOrders.length}</strong>/{filteredOrders.length} đơn</span>
+            <span>&bull;</span>
+            <span>Tổng: <strong className="text-emerald-700 font-bold">{filteredTotalRevenue.toLocaleString('vi-VN')} đ</strong></span>
+          </div>
         </div>
 
 
@@ -1627,21 +1623,26 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
 
         )}
 
-        {/* FOOTER PHÂN TRANG (Hình 2) */}
+        {/* FOOTER PHÂN TRANG */}
         {!loading && !error && filteredOrders.length > 0 && (
           <div
             style={{
               padding: '8px 18px',
               display: 'flex',
-              justifyContent: 'flex-end',
+              justifyContent: 'space-between',
               alignItems: 'center',
               borderTop: '1px solid #e2e8f0',
               background: '#f8fafc',
               fontSize: '12px',
               color: '#64748b',
               flexShrink: 0,
+              gap: '12px',
+              flexWrap: 'wrap',
             }}
           >
+            <div className="text-xs text-slate-600 font-medium">
+              Hiển thị <strong>{paginatedOrders.length}</strong> / {filteredOrders.length} đơn &bull; Tổng tiền lọc: <strong className="text-emerald-700 font-bold">{filteredTotalRevenue.toLocaleString('vi-VN')} đ</strong>
+            </div>
             {/* Khối phân trang liền thanh chuẩn theo thiết kế (Hình 2) */}
             <div
               style={{
