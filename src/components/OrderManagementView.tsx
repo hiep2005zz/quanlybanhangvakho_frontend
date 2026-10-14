@@ -1124,123 +1124,115 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
           </div>
         </div>
 
-        {/* Thanh lọc đa tiêu chí - 1 dòng duy nhất, có nút Áp dụng và Đặt lại */}
-        <div className="px-3 sm:px-4 py-2 bg-slate-100/70 border-b border-slate-200 flex flex-nowrap items-center gap-2 text-xs shrink-0 overflow-x-auto">
-          <span className="font-bold text-slate-700 shrink-0 flex items-center gap-1 mr-0.5">
-            <svg className="w-3.5 h-3.5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        {/* Thanh lọc đa tiêu chí - tích hợp nhãn trong ô, không bị tràn cuộn, hiển thị đầy đủ nút Áp dụng & Đặt lại */}
+        <div className="px-2.5 sm:px-4 py-2 bg-slate-100/70 border-b border-slate-200 flex items-center gap-1.5 sm:gap-2 text-xs shrink-0 w-full overflow-x-auto box-border">
+          <span className="text-slate-500 shrink-0 flex items-center" title="Bộ lọc tìm kiếm">
+            <svg className="w-4 h-4 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
             </svg>
-            Bộ lọc:
           </span>
 
-          {/* Lọc Trạng thái */}
-          <div className="flex items-center gap-1 shrink-0">
-            <label htmlFor="filter-status" className="text-slate-600 font-medium shrink-0 text-xs">Trạng thái:</label>
+          {/* Ô 1: Trạng thái */}
+          <select
+            id="filter-status"
+            value={draftStatusFilter}
+            onChange={(e) => setDraftStatusFilter(e.target.value as any)}
+            className="h-[32px] px-2 bg-white border border-slate-300 rounded-md text-xs text-slate-700 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 cursor-pointer box-border flex-1 min-w-[110px] max-w-[145px] shrink-0 truncate"
+            title="Lọc theo trạng thái đơn"
+          >
+            <option value="ALL">Trạng thái: Tất cả ({totalOrdersCount})</option>
+            <option value="PENDING_APPROVAL">Trạng thái: {isCustomer ? 'Chờ xử lý' : 'Chờ duyệt'} ({pendingOrdersCount})</option>
+            <option value="CONFIRMED">Trạng thái: {isCustomer ? 'Đang giao' : 'Đã xác nhận'} ({confirmedOrdersCount})</option>
+            <option value="PICKING">Trạng thái: Đang soạn ({pickingOrdersCount})</option>
+            <option value="EXPORTED">Trạng thái: Đã xuất ({exportedOrdersCount})</option>
+            <option value="DELIVERED">Trạng thái: Đã giao ({deliveredOrdersCount})</option>
+            <option value="CANCELLED">Trạng thái: Đã hủy ({cancelledOrdersCount})</option>
+            <option value="REJECTED">Trạng thái: Từ chối ({rejectedOrdersCount})</option>
+          </select>
+
+          {/* Ô 2: Đại lý */}
+          {!isCustomer && (
             <select
-              id="filter-status"
-              value={draftStatusFilter}
-              onChange={(e) => setDraftStatusFilter(e.target.value as any)}
-              className="h-[30px] w-[130px] px-2 bg-white border border-slate-300 rounded-md text-xs text-slate-700 outline-none focus:border-emerald-500 cursor-pointer box-border shrink-0 truncate"
-              title="Chọn trạng thái đơn hàng"
+              id="filter-dealer"
+              value={draftDealerFilter}
+              onChange={(e) => setDraftDealerFilter(e.target.value)}
+              className="h-[32px] px-2 bg-white border border-slate-300 rounded-md text-xs text-slate-700 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 cursor-pointer box-border flex-1 min-w-[110px] max-w-[145px] shrink-0 truncate"
+              title="Lọc theo đại lý"
             >
-              <option value="ALL">Tất cả ({totalOrdersCount})</option>
-              <option value="PENDING_APPROVAL">{isCustomer ? 'Chờ xử lý' : 'Chờ duyệt'} ({pendingOrdersCount})</option>
-              <option value="CONFIRMED">{isCustomer ? 'Đang giao' : 'Đã xác nhận'} ({confirmedOrdersCount})</option>
-              <option value="PICKING">Đang soạn hàng ({pickingOrdersCount})</option>
-              <option value="EXPORTED">Đã xuất kho ({exportedOrdersCount})</option>
-              <option value="DELIVERED">Đã giao ({deliveredOrdersCount})</option>
-              <option value="CANCELLED">Đã hủy ({cancelledOrdersCount})</option>
-              <option value="REJECTED">Bị từ chối ({rejectedOrdersCount})</option>
+              <option value="ALL">Đại lý: Tất cả</option>
+              {dealers.map((d) => (
+                <option key={d.id} value={d.id}>
+                  Đại lý: {d.name || d.code}
+                </option>
+              ))}
             </select>
-          </div>
-
-          {/* Lọc Đại lý */}
-          {!isCustomer && (
-            <div className="flex items-center gap-1 shrink-0">
-              <label htmlFor="filter-dealer" className="text-slate-600 font-medium shrink-0 text-xs">Đại lý:</label>
-              <select
-                id="filter-dealer"
-                value={draftDealerFilter}
-                onChange={(e) => setDraftDealerFilter(e.target.value)}
-                className="h-[30px] w-[130px] px-2 bg-white border border-slate-300 rounded-md text-xs text-slate-700 outline-none focus:border-emerald-500 cursor-pointer box-border shrink-0 truncate"
-                title="Chọn đại lý"
-              >
-                <option value="ALL">Tất cả đại lý</option>
-                {dealers.map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.name || d.code}
-                  </option>
-                ))}
-              </select>
-            </div>
           )}
 
-          {/* Lọc Nhân viên (chỉ dành cho QLKD và Admin) */}
+          {/* Ô 3: Nhân viên (chỉ dành cho QLKD và Admin) */}
           {!isCustomer && (!isSales || isAdmin || isSalesManager) && (
-            <div className="flex items-center gap-1 shrink-0">
-              <label htmlFor="filter-sales-rep" className="text-slate-600 font-medium shrink-0 text-xs">Nhân viên:</label>
-              <select
-                id="filter-sales-rep"
-                value={draftSalesRepFilter}
-                onChange={(e) => setDraftSalesRepFilter(e.target.value)}
-                className="h-[30px] w-[130px] px-2 bg-white border border-slate-300 rounded-md text-xs text-slate-700 outline-none focus:border-emerald-500 cursor-pointer box-border shrink-0 truncate"
-                title="Chọn nhân viên kinh doanh"
-              >
-                <option value="ALL">Tất cả nhân viên</option>
-                {salesReps.map((sr) => (
-                  <option key={sr.id} value={sr.id}>
-                    {sr.full_name || sr.username}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <select
+              id="filter-sales-rep"
+              value={draftSalesRepFilter}
+              onChange={(e) => setDraftSalesRepFilter(e.target.value)}
+              className="h-[32px] px-2 bg-white border border-slate-300 rounded-md text-xs text-slate-700 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 cursor-pointer box-border flex-1 min-w-[110px] max-w-[145px] shrink-0 truncate"
+              title="Lọc theo nhân viên kinh doanh"
+            >
+              <option value="ALL">Nhân viên: Tất cả</option>
+              {salesReps.map((sr) => (
+                <option key={sr.id} value={sr.id}>
+                  NV: {sr.full_name || sr.username}
+                </option>
+              ))}
+            </select>
           )}
 
-          {/* Lọc Khu vực */}
+          {/* Ô 4: Khu vực */}
           {!isCustomer && (
-            <div className="flex items-center gap-1 shrink-0">
-              <label htmlFor="filter-region" className="text-slate-600 font-medium shrink-0 text-xs">Khu vực:</label>
-              <select
-                id="filter-region"
-                value={draftRegionFilter}
-                onChange={(e) => setDraftRegionFilter(e.target.value)}
-                className="h-[30px] w-[130px] px-2 bg-white border border-slate-300 rounded-md text-xs text-slate-700 outline-none focus:border-emerald-500 cursor-pointer box-border shrink-0 truncate"
-                title="Chọn khu vực"
-              >
-                <option value="ALL">Tất cả khu vực</option>
-                {regions.map((reg) => (
-                  <option key={reg} value={reg}>
-                    {reg}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <select
+              id="filter-region"
+              value={draftRegionFilter}
+              onChange={(e) => setDraftRegionFilter(e.target.value)}
+              className="h-[32px] px-2 bg-white border border-slate-300 rounded-md text-xs text-slate-700 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 cursor-pointer box-border flex-1 min-w-[110px] max-w-[145px] shrink-0 truncate"
+              title="Lọc theo khu vực"
+            >
+              <option value="ALL">Khu vực: Tất cả</option>
+              {regions.map((reg) => (
+                <option key={reg} value={reg}>
+                  KV: {reg}
+                </option>
+              ))}
+            </select>
           )}
 
-          {/* Khoảng thời gian: Từ ngày - Đến ngày */}
-          <div className="flex items-center gap-1 shrink-0">
-            <label htmlFor="filter-start-date" className="text-slate-600 font-medium shrink-0 text-xs">Từ:</label>
+          {/* Ô 5: Từ ngày */}
+          <div
+            className="flex items-center h-[32px] bg-white border border-slate-300 rounded-md px-2 flex-1 min-w-[115px] max-w-[145px] focus-within:border-emerald-500 focus-within:ring-1 focus-within:ring-emerald-500 box-border shrink-0"
+            title="Lọc từ ngày"
+          >
+            <span className="text-slate-500 text-xs font-medium shrink-0 mr-1 select-none">Từ:</span>
             <input
               type="date"
               id="filter-start-date"
               value={draftStartDate}
               onChange={(e) => setDraftStartDate(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') handleApplyFilter(); }}
-              className="h-[30px] w-[130px] px-2 bg-white border border-slate-300 rounded-md text-xs text-slate-700 outline-none focus:border-emerald-500 cursor-pointer box-border shrink-0"
-              title="Lọc từ ngày"
+              className="w-full text-xs text-slate-700 bg-transparent outline-none cursor-pointer p-0 min-w-0"
             />
           </div>
 
-          <div className="flex items-center gap-1 shrink-0">
-            <label htmlFor="filter-end-date" className="text-slate-600 font-medium shrink-0 text-xs">Đến:</label>
+          {/* Ô 6: Đến ngày */}
+          <div
+            className="flex items-center h-[32px] bg-white border border-slate-300 rounded-md px-2 flex-1 min-w-[115px] max-w-[145px] focus-within:border-emerald-500 focus-within:ring-1 focus-within:ring-emerald-500 box-border shrink-0"
+            title="Lọc đến ngày"
+          >
+            <span className="text-slate-500 text-xs font-medium shrink-0 mr-1 select-none">Đến:</span>
             <input
               type="date"
               id="filter-end-date"
               value={draftEndDate}
               onChange={(e) => setDraftEndDate(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') handleApplyFilter(); }}
-              className="h-[30px] w-[130px] px-2 bg-white border border-slate-300 rounded-md text-xs text-slate-700 outline-none focus:border-emerald-500 cursor-pointer box-border shrink-0"
-              title="Lọc đến ngày"
+              className="w-full text-xs text-slate-700 bg-transparent outline-none cursor-pointer p-0 min-w-0"
             />
           </div>
 
@@ -1249,7 +1241,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
             type="button"
             id="btn-apply-order-filter"
             onClick={handleApplyFilter}
-            className="h-[30px] px-3 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-semibold rounded-md text-xs cursor-pointer transition-colors whitespace-nowrap shrink-0 flex items-center gap-1 shadow-xs"
+            className="h-[32px] px-2.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-semibold rounded-md text-xs cursor-pointer transition-colors whitespace-nowrap shrink-0 flex items-center gap-1 shadow-xs"
             title="Nhấn để áp dụng các tiêu chí lọc đã chọn"
           >
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1263,7 +1255,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
             type="button"
             id="btn-reset-order-filter"
             onClick={handleResetFilter}
-            className="h-[30px] px-2.5 bg-slate-200 hover:bg-slate-300 active:bg-slate-400 text-slate-700 font-semibold rounded-md text-xs cursor-pointer transition-colors whitespace-nowrap shrink-0 flex items-center gap-1"
+            className="h-[32px] px-2 bg-slate-200 hover:bg-slate-300 active:bg-slate-400 text-slate-700 font-semibold rounded-md text-xs cursor-pointer transition-colors whitespace-nowrap shrink-0 flex items-center gap-1"
             title="Đặt lại các tiêu chí lọc về mặc định"
           >
             <svg className="w-3.5 h-3.5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
