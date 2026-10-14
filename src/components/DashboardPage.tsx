@@ -1415,7 +1415,15 @@ export default function DashboardPage({
         />
       }
       noScroll={!isMobileScreen && isLockedScrollTab}
-      mainClassName={isCustomer ? 'flex-1 min-w-0 overflow-hidden p-0 flex flex-col bg-slate-50 h-full' : (isOrdersCreateSubpage || isPriceListsCreateSubpage || isPriceBookDetailSubpage || isPriceBookEditSubpage || isOrderDetailSubpage || isGoodsReceiptPage ? 'flex-1 min-w-0 overflow-y-auto p-0 flex flex-col bg-slate-50' : isMobileScreen ? 'flex-1 min-w-0 overflow-y-auto p-2 sm:p-3 flex flex-col' : undefined)}
+      mainClassName={
+        isOrderDetailSubpage || isOrdersCreateSubpage || isPriceListsCreateSubpage || isPriceBookDetailSubpage || isPriceBookEditSubpage || isGoodsReceiptPage
+          ? 'flex-1 min-w-0 overflow-y-auto p-0 flex flex-col bg-slate-50'
+          : isCustomer
+          ? 'flex-1 min-w-0 overflow-hidden p-0 flex flex-col bg-slate-50 h-full'
+          : isMobileScreen
+          ? 'flex-1 min-w-0 overflow-y-auto p-2 sm:p-3 flex flex-col'
+          : undefined
+      }
       sidebar={
         <Sidebar
           activeTab={activeTab === 'users-import' ? 'users' : activeTab === 'products-import' ? 'inventory' : activeTab}
