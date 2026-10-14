@@ -262,8 +262,8 @@ export interface ProductListResponse {
 
 export interface GetProductsParams {
   page?: number;
-  page_size?: number;
   limit?: number;
+  page_size?: number;
   search?: string;
   category?: string;
   only_low_stock?: boolean;
@@ -648,13 +648,19 @@ export async function logoutApi(token: string): Promise<void> {
   }
 }
 
-export async function getProductsApi(token: string, params?: GetProductsParams): Promise<ProductListResponse> {
+export async function getProductsApi(
+  token: string,
+  params?: GetProductsParams
+): Promise<ProductListResponse> {
   const query = new URLSearchParams();
   if (params?.page) query.append('page', params.page.toString());
   const pageSizeVal = params?.page_size || params?.limit;
-  if (pageSizeVal) query.append('page_size', pageSizeVal.toString());
+  if (pageSizeVal) {
+    query.append('page_size', pageSizeVal.toString());
+    query.append('limit', pageSizeVal.toString());
+  }
   if (params?.search && params.search.trim()) query.append('search', params.search.trim());
-  if (params?.category && params.category !== 'ALL' && params.category !== 'all') {
+  if (params?.category && params.category.toLowerCase() !== 'all') {
     query.append('category', params.category);
   }
   if (params?.only_low_stock) query.append('only_low_stock', 'true');
@@ -1961,6 +1967,8 @@ export interface ReorderItemDetail {
   product_name: string;
   quantity: number;
   price: number;
+  current_price?: number;
+  subtotal?: number;
   old_price?: number;
   unit: string;
   unit_name?: string;
@@ -3012,13 +3020,23 @@ export async function deleteWarehouseRackApi(token: string, rackId: number): Pro
 
 export async function previewAuditProductsApi(
   token: string,
-  params: { warehouse_id: string; scope_type?: string; category_id?: number }
+  params: {
+    warehouse_id: string;
+    scope_type?: string;
+    category_id?: number;
+    page?: number;
+    page_size?: number;
+    search?: string;
+  }
 ): Promise<{
   warehouse_id: string;
   warehouse_name: string;
   scope_type: string;
   category_id?: number;
   total_items: number;
+  page?: number;
+  page_size?: number;
+  total_pages?: number;
   items: {
     product_id: number;
     product_code: string;
@@ -3036,6 +3054,15 @@ export async function previewAuditProductsApi(
   });
   if (params.category_id) {
     query.set('category_id', String(params.category_id));
+  }
+  if (params.page !== undefined) {
+    query.set('page', String(params.page));
+  }
+  if (params.page_size !== undefined) {
+    query.set('page_size', String(params.page_size));
+  }
+  if (params.search && params.search.trim()) {
+    query.set('search', params.search.trim());
   }
   const response = await authenticatedFetch(`${API_BASE_URL}/stock-audits/preview-products?${query.toString()}`, {
     method: 'GET',

@@ -155,6 +155,24 @@ export default function DashboardPage({
     user.role === 'warehouse'
   );
 
+  // Quyền truy cập Danh sách kho & Vị trí: Nhân viên kinh doanh không được xem chức năng này
+  const isSalesPerson = Boolean(
+    user.role === 'sales' ||
+    user.role === 'sales_manager' ||
+    officialRoles.includes('sales') ||
+    officialRoles.includes('sales_manager')
+  );
+  const canAccessWarehouses = !isCustomer && !isSalesPerson && Boolean(
+    isAdmin ||
+    canWriteInventory ||
+    user.role === 'warehouse_manager' ||
+    user.role === 'warehouse' ||
+    officialRoles.includes('warehouse_manager') ||
+    officialRoles.includes('warehouse') ||
+    user.role === 'accountant' ||
+    officialRoles.includes('accountant')
+  );
+
   // 2. Khởi tạo State với Clean URL
   const location = useLocation();
   const currentPath = location.pathname.toLowerCase();
@@ -251,10 +269,14 @@ export default function DashboardPage({
     }
 
     if (isWarehousesPath || oldTabVal === 'warehouses') {
-      if (pathname !== '/warehouses' || hasOldTabParam) {
-        try { window.history.replaceState({}, '', '/warehouses'); } catch { }
+      if (canAccessWarehouses) {
+        if (pathname !== '/warehouses' || hasOldTabParam) {
+          try { window.history.replaceState({}, '', '/warehouses'); } catch { }
+        }
+        return 'warehouses';
       }
-      return 'warehouses';
+      try { window.history.replaceState({}, '', '/'); } catch { }
+      return 'inventory';
     }
 
     if (isStockBookPath || oldTabVal === 'stock-book') {
@@ -416,7 +438,7 @@ export default function DashboardPage({
       setActiveTabState('inventory');
       setProductDrawerState({ isOpen: true, product: null });
       try {
-        window.history.pushState({}, '', '/');
+        window.history.pushState({}, '', '/add-product');
       } catch {
         // ignore
       }
@@ -484,6 +506,11 @@ export default function DashboardPage({
     }
 
     if (tab === 'warehouses') {
+      if (!canAccessWarehouses) {
+        setActiveTabState('inventory');
+        try { window.history.replaceState({}, '', '/'); } catch {}
+        return;
+      }
       setActiveTabState('warehouses');
       try {
         window.history.pushState({}, '', '/warehouses');
@@ -592,6 +619,7 @@ export default function DashboardPage({
       } catch {
         // ignore
       }
+
     } else {
       setActiveTabState('inventory');
       window.history.replaceState({}, '', '/');
@@ -610,6 +638,7 @@ export default function DashboardPage({
                 : activeTab === 'discounts' ? canAccessDiscounts
                   : activeTab === 'product-history' ? (isAdmin || isSalesManager || canWriteInventory)
                     : activeTab === 'stock-audits' ? canAccessStockAudit
+                      : activeTab === 'warehouses' ? canAccessWarehouses
                       : activeTab === 'goods-receipt' ? canWriteInventory
                         : true;
     if (!isAllowed) {
@@ -658,9 +687,15 @@ export default function DashboardPage({
       const tabParam = (params.get('tab') || params.get('view') || '').toLowerCase();
 
       const isAddProduct = pathname === '/add-product' || pathname.startsWith('/add-product/') || tabParam === 'add-product';
-      if (!isAddProduct) {
-        setProductDrawerState({ isOpen: false, product: null });
+      if (isAddProduct) {
+        if (tabParam) {
+          try { window.history.replaceState({}, '', '/add-product'); } catch {}
+        }
+        setActiveTabState('inventory');
+        setProductDrawerState((prev) => ({ isOpen: true, product: prev.product ?? null }));
+        return;
       }
+      setProductDrawerState({ isOpen: false, product: null });
 
       const isGoodsReceiptPath = pathname === '/goods-receipt' || pathname.startsWith('/goods-receipt/') || pathname === '/goods-receipts';
       if (isGoodsReceiptPath || tabParam === 'goods-receipt') {
@@ -703,14 +738,12 @@ export default function DashboardPage({
       const isProfilePath = pathname === '/profile' || pathname.startsWith('/profile/');
       const isProductHistoryPath = pathname === '/product-history' || pathname.startsWith('/product-history/');
       const isStockTransfersPath = pathname === '/stock-transfers' || pathname.startsWith('/stock-transfers/');
-      const isWarehousesPath = pathname === '/warehouses' || pathname.startsWith('/warehouses/');
       const isStockBookPath = pathname === '/stock-book' || pathname.startsWith('/stock-book/');
-
-      if (isWarehousesPath || tabParam === 'warehouses') {
-        if (pathname !== '/warehouses' || tabParam) {
-          try { window.history.replaceState({}, '', '/warehouses'); } catch {}
+      if (isProductsImportPath || tabParam === 'products-import') {
+        if (pathname !== '/products/import' || tabParam) {
+          try { window.history.replaceState({}, '', '/products/import'); } catch {}
         }
-        setActiveTabState('warehouses');
+        setActiveTabState('products-import');
         return;
       }
 
@@ -719,13 +752,6 @@ export default function DashboardPage({
           try { window.history.replaceState({}, '', '/stock-book'); } catch {}
         }
         setActiveTabState('stock-book');
-        return;
-      }
-      if (isProductsImportPath || tabParam === 'products-import') {
-        if (pathname !== '/products/import' || tabParam) {
-          try { window.history.replaceState({}, '', '/products/import'); } catch {}
-        }
-        setActiveTabState('products-import');
         return;
       }
 
@@ -886,6 +912,20 @@ export default function DashboardPage({
           }
         }
         setActiveTabState('users');
+      } else if (pathname === '/warehouses' || pathname.startsWith('/warehouses/') || tabParam === 'warehouses') {
+        if (canAccessWarehouses) {
+          if (pathname !== '/warehouses' || tabParam) {
+            try {
+              window.history.replaceState({}, '', '/warehouses');
+            } catch {
+              // ignore
+            }
+          }
+          setActiveTabState('warehouses');
+        } else {
+          setActiveTabState('inventory');
+          try { window.history.replaceState({}, '', '/'); } catch {}
+        }
       } else if (pathname === '/categories') {
         setActiveTabState('categories');
       } else {
@@ -896,7 +936,7 @@ export default function DashboardPage({
 
     window.addEventListener('popstate', syncFromUrl);
     return () => window.removeEventListener('popstate', syncFromUrl);
-  }, [canManageCategories, canManageSuppliers, canReadOrders, isAdmin, canAccessDiscounts]);
+  }, [canManageCategories, canManageSuppliers, canReadOrders, isAdmin, canAccessDiscounts, canAccessWarehouses]);
   const [products, setProducts] = useState<ProductItem[]>([]);
   const [appliedPriceBook, setAppliedPriceBook] = useState<string | null>(null);
   const [serverTotalCount, setServerTotalCount] = useState<number>(0);
@@ -954,6 +994,17 @@ export default function DashboardPage({
   const [isSecurityModalOpen, setIsSecurityModalOpen] = useState(false);
   const [isCreateAccountModalOpen, setIsCreateAccountModalOpen] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [isMobileScreen, setIsMobileScreen] = useState<boolean>(() =>
+    typeof window !== 'undefined' ? window.innerWidth <= 768 : false
+  );
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobileScreen(window.innerWidth <= 768);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
   const [productAuditDrawerState, setProductAuditDrawerState] = useState<{
     isOpen: boolean;
     productCode: string;
@@ -1106,7 +1157,7 @@ export default function DashboardPage({
 
   const fetchProducts = (targetPage?: number) => {
     // Đại lý (Customer) sử dụng cơ chế Server-side Pagination riêng (20 sp/trang) tại CustomerPortalView,
-    // tuyệt đối không tải toàn bộ 10.000 sản phẩm vào DashboardPage.
+    // tuyệt đối không tải toàn bộ sản phẩm vào DashboardPage.
     if (isPendingCustomer || isCustomer) {
       setIsLoading(false);
       return;
@@ -1369,8 +1420,8 @@ export default function DashboardPage({
           onToggleMobileSidebar={() => setIsMobileSidebarOpen((prev) => !prev)}
         />
       }
-      noScroll={isLockedScrollTab}
-      mainClassName={isCustomer ? 'flex-1 min-w-0 overflow-hidden p-0 flex flex-col bg-slate-50 h-full' : (isOrdersCreateSubpage || isPriceListsCreateSubpage || isPriceBookDetailSubpage || isPriceBookEditSubpage || isOrderDetailSubpage || isGoodsReceiptPage ? 'flex-1 min-w-0 overflow-y-auto p-0 flex flex-col bg-slate-50' : undefined)}
+      noScroll={!isMobileScreen && isLockedScrollTab}
+      mainClassName={isCustomer ? 'flex-1 min-w-0 overflow-hidden p-0 flex flex-col bg-slate-50 h-full' : (isOrdersCreateSubpage || isPriceListsCreateSubpage || isPriceBookDetailSubpage || isPriceBookEditSubpage || isOrderDetailSubpage || isGoodsReceiptPage ? 'flex-1 min-w-0 overflow-y-auto p-0 flex flex-col bg-slate-50' : isMobileScreen ? 'flex-1 min-w-0 overflow-y-auto p-2 sm:p-3 flex flex-col' : undefined)}
       sidebar={
         <Sidebar
           activeTab={activeTab === 'users-import' ? 'users' : activeTab === 'products-import' ? 'inventory' : activeTab}
@@ -1392,6 +1443,7 @@ export default function DashboardPage({
           canAccessDiscounts={canAccessDiscounts}
           canAccessStockAudit={canAccessStockAudit}
           canAccessStockTransfer={canAccessStockTransfer}
+          canAccessWarehouses={canAccessWarehouses}
           canWriteInventory={canWriteInventory}
           isAdmin={isAdmin}
           onLogout={() => {
@@ -1406,7 +1458,7 @@ export default function DashboardPage({
     >
       <div
         className="dashboard-main-container"
-        style={isCustomer || isOrdersCreateSubpage || isPriceListsCreateSubpage || isPriceBookDetailSubpage || isPriceBookEditSubpage || isOrderDetailSubpage || isGoodsReceiptPage ? {
+        style={isCustomer || isOrdersCreateSubpage || isPriceListsCreateSubpage || isPriceBookDetailSubpage || isPriceBookEditSubpage || isOrderDetailSubpage || isGoodsReceiptPage || isMobileScreen ? {
           width: '100%',
           display: 'flex',
           flexDirection: 'column',
@@ -1837,39 +1889,48 @@ export default function DashboardPage({
           />
         )
       ) : activeTab === 'warehouses' ? (
+        canAccessWarehouses ? (
           <WarehouseManagementView
             token={token}
             currentUser={user}
             onBackToHome={() => setActiveTab('inventory')}
           />
-        ) : activeTab === 'stock-thresholds' ? (
-          <StockThresholdManagementView
-            token={token}
-            canManageThresholds={canManageThreshold}
-            onBackToHome={() => {
-              setActiveTab('inventory');
-              fetchProducts();
-              fetchLowStockAlerts();
-            }}
-            onThresholdsUpdated={() => {
-              fetchProducts();
-              fetchLowStockAlerts();
-            }}
+        ) : (
+          <AccessDeniedView
+            currentUser={user}
+            requiredPermission="Quản lý danh sách kho và vị trí kệ (Nhân viên kinh doanh không có quyền truy cập)"
+            onBackToWorkflow={() => setActiveTab('inventory')}
+            onLogout={onLogout}
           />
-        ) : activeTab === 'low-stock-alerts' ? (
-          <LowStockAlertManagementView
-            token={token}
-            canManageThresholds={canManageThreshold}
-            canWriteInventory={canWriteInventory}
-            onOpenGoodsReceipt={canWriteInventory ? () => setIsGoodsReceiptModalOpen(true) : undefined}
-            onOpenThresholdConfig={canManageThreshold ? () => setActiveTab('stock-thresholds') : undefined}
-            onBackToHome={() => {
-              setActiveTab('inventory');
-              fetchProducts();
-              fetchLowStockAlerts();
-            }}
-          />
-        ) : activeTab === 'stock-book' ? (
+        )
+      ) : activeTab === 'stock-thresholds' ? (
+        <StockThresholdManagementView
+          token={token}
+          canManageThresholds={canManageThreshold}
+          onBackToHome={() => {
+            setActiveTab('inventory');
+            fetchProducts();
+            fetchLowStockAlerts();
+          }}
+          onThresholdsUpdated={() => {
+            fetchProducts();
+            fetchLowStockAlerts();
+          }}
+        />
+      ) : activeTab === 'low-stock-alerts' ? (
+        <LowStockAlertManagementView
+          token={token}
+          canManageThresholds={canManageThreshold}
+          canWriteInventory={canWriteInventory}
+          onOpenGoodsReceipt={canWriteInventory ? () => setIsGoodsReceiptModalOpen(true) : undefined}
+          onOpenThresholdConfig={canManageThreshold ? () => setActiveTab('stock-thresholds') : undefined}
+          onBackToHome={() => {
+            setActiveTab('inventory');
+            fetchProducts();
+            fetchLowStockAlerts();
+          }}
+        />
+      ) : activeTab === 'stock-book' ? (
           <WarehouseStockBookView
             token={token}
             onBackToHome={() => setActiveTab('inventory')}
