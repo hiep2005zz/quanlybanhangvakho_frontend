@@ -258,12 +258,14 @@ export interface ProductListResponse {
   limit?: number;
   page_size?: number;
   total_pages?: number;
+  has_more?: boolean;
 }
 
 export interface GetProductsParams {
   page?: number;
   limit?: number;
   page_size?: number;
+  skip?: number;
   search?: string;
   category?: string;
   only_low_stock?: boolean;
@@ -659,6 +661,7 @@ export async function getProductsApi(
     query.append('page_size', pageSizeVal.toString());
     query.append('limit', pageSizeVal.toString());
   }
+  if (params?.skip !== undefined) query.append('skip', params.skip.toString());
   if (params?.search && params.search.trim()) query.append('search', params.search.trim());
   if (params?.category && params.category.toLowerCase() !== 'all') {
     query.append('category', params.category);

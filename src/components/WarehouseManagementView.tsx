@@ -1269,172 +1269,174 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
   if (isWhFormPageActive) {
     return (
       <div className="wh-container wh-form-fullscreen-wrap">
-        <div className="wh-form-page-header">
-          <button
-            type="button"
-            className="wh-btn wh-btn-secondary"
-            onClick={() => {
-              setIsWhFormPageActive(false);
-              setEditingWarehouse(null);
-              setWhFormErrors({});
-            }}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="15 18 9 12 15 6" />
-            </svg>
-            Quay lại danh sách kho
-          </button>
-          <h2>{editingWarehouse ? `Cập nhật kho hàng: ${editingWarehouse.name}` : 'Khai Báo Kho Hàng Mới'}</h2>
-        </div>
+        <div className="wh-form-master-frame">
+          <div className="wh-form-page-header">
+            <button
+              type="button"
+              className="wh-btn wh-btn-secondary"
+              onClick={() => {
+                setIsWhFormPageActive(false);
+                setEditingWarehouse(null);
+                setWhFormErrors({});
+              }}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="15 18 9 12 15 6" />
+              </svg>
+              Quay lại danh sách kho
+            </button>
+            <h2>{editingWarehouse ? `Cập nhật kho hàng: ${editingWarehouse.name}` : 'Khai Báo Kho Hàng Mới'}</h2>
+          </div>
 
-        <form onSubmit={handleSaveWarehouse} className="wh-form-layout-3col">
-          {/* Ô 1: Thông tin kho hàng (3 phần) */}
-          <div className="wh-form-card wh-col-info">
-            <h3>Thông tin kho hàng</h3>
-            <div className="wh-form-col-fields">
-              <div className="wh-form-field">
-                <span>Mã kho hàng <b>*</b></span>
-                <div className="wh-code-input-wrap">
+          <form onSubmit={handleSaveWarehouse} className="wh-form-layout-3col">
+            {/* Ô 1: Thông tin kho hàng (3 phần) */}
+            <div className="wh-form-card wh-col-info">
+              <h3>Thông tin kho hàng</h3>
+              <div className="wh-form-col-fields">
+                <div className="wh-form-field">
+                  <span>Mã kho hàng <b>*</b></span>
+                  <div className="wh-code-input-wrap">
+                    <input
+                      type="text"
+                      placeholder="VD: KHO_HN, KHO_HCM..."
+                      disabled={Boolean(editingWarehouse)}
+                      value={whFormData.code}
+                      onChange={(e) => setWhFormData({ ...whFormData, code: e.target.value.toUpperCase() })}
+                    />
+                    {!editingWarehouse && (
+                      <button
+                        type="button"
+                        className="wh-btn-code-gen"
+                        onClick={() => {
+                          const rand = Math.floor(10 + Math.random() * 90);
+                          setWhFormData({ ...whFormData, code: `KHO_${rand}` });
+                        }}
+                        title="Sinh ngẫu nhiên mã kho"
+                      >
+                        Sinh mã
+                      </button>
+                    )}
+                  </div>
+                  {whFormErrors.code && <div className="wh-form-field-error">{whFormErrors.code}</div>}
+                </div>
+
+                <div className="wh-form-field">
+                  <span>Tên kho hàng <b>*</b></span>
                   <input
                     type="text"
-                    placeholder="VD: KHO_HN, KHO_HCM..."
-                    disabled={Boolean(editingWarehouse)}
-                    value={whFormData.code}
-                    onChange={(e) => setWhFormData({ ...whFormData, code: e.target.value.toUpperCase() })}
+                    placeholder="VD: Kho Tổng Hà Nội"
+                    value={whFormData.name}
+                    onChange={(e) => setWhFormData({ ...whFormData, name: e.target.value })}
                   />
-                  {!editingWarehouse && (
-                    <button
-                      type="button"
-                      className="wh-btn-code-gen"
-                      onClick={() => {
-                        const rand = Math.floor(10 + Math.random() * 90);
-                        setWhFormData({ ...whFormData, code: `KHO_${rand}` });
-                      }}
-                      title="Sinh ngẫu nhiên mã kho"
-                    >
-                      Sinh mã
-                    </button>
-                  )}
+                  {whFormErrors.name && <div className="wh-form-field-error">{whFormErrors.name}</div>}
                 </div>
-                {whFormErrors.code && <div className="wh-form-field-error">{whFormErrors.code}</div>}
+
+                <div className="wh-form-field">
+                  <span>Trạng thái hoạt động</span>
+                  <select
+                    value={whFormData.status}
+                    onChange={(e) => setWhFormData({ ...whFormData, status: e.target.value })}
+                  >
+                    <option value="Đang hoạt động">Đang hoạt động</option>
+                    <option value="Ngừng hoạt động">Ngừng hoạt động</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Ô 2: Địa chỉ & Người phụ trách (3 phần) */}
+            <div className="wh-form-card wh-col-contact">
+              <h3>Địa chỉ & Người phụ trách</h3>
+              <div className="wh-form-col-fields">
+                <div className="wh-form-field">
+                  <span>Địa chỉ kho</span>
+                  <input
+                    type="text"
+                    placeholder="VD: Lô CN1, Khu Công Nghiệp Từ Liêm, Hà Nội"
+                    value={whFormData.address}
+                    onChange={(e) => setWhFormData({ ...whFormData, address: e.target.value })}
+                  />
+                </div>
+
+                <div className="wh-form-field">
+                  <span>Người phụ trách kho</span>
+                  <input
+                    type="text"
+                    placeholder="Họ và tên thủ kho / quản lý"
+                    value={whFormData.manager_name}
+                    onChange={(e) => setWhFormData({ ...whFormData, manager_name: e.target.value })}
+                  />
+                </div>
+
+                <div className="wh-form-field">
+                  <span>Số điện thoại liên hệ</span>
+                  <input
+                    type="tel"
+                    placeholder="Số điện thoại (10 chữ số)"
+                    value={whFormData.phone}
+                    onChange={(e) => setWhFormData({ ...whFormData, phone: e.target.value.replace(/\D/g, '').slice(0, 10) })}
+                  />
+                  {whFormErrors.phone && <div className="wh-form-field-error">{whFormErrors.phone}</div>}
+                </div>
+              </div>
+            </div>
+
+            {/* Ô 3: Tổng kết kho hàng (2 phần) */}
+            <div className="wh-form-card wh-col-summary">
+              <h3 className="wh-summary-title-centered">Tổng kết kho hàng</h3>
+              <div className="wh-summary-rows">
+                <div className="wh-summary-row">
+                  <span>Mã kho:</span>
+                  <strong>{whFormData.code || '---'}</strong>
+                </div>
+                <div className="wh-summary-row">
+                  <span>Tên kho:</span>
+                  <strong>{whFormData.name || '---'}</strong>
+                </div>
+                <div className="wh-summary-row">
+                  <span>Người phụ trách:</span>
+                  <strong>{whFormData.manager_name || 'Chưa phân công'}</strong>
+                </div>
+                <div className="wh-summary-row">
+                  <span>Số điện thoại:</span>
+                  <strong>{whFormData.phone || '---'}</strong>
+                </div>
+                <div className="wh-summary-row">
+                  <span>Trạng thái:</span>
+                  <strong style={{ color: whFormData.status === 'Đang hoạt động' ? '#059669' : '#dc2626' }}>
+                    {whFormData.status}
+                  </strong>
+                </div>
               </div>
 
-              <div className="wh-form-field">
-                <span>Tên kho hàng <b>*</b></span>
-                <input
-                  type="text"
-                  placeholder="VD: Kho Tổng Hà Nội"
-                  value={whFormData.name}
-                  onChange={(e) => setWhFormData({ ...whFormData, name: e.target.value })}
-                />
-                {whFormErrors.name && <div className="wh-form-field-error">{whFormErrors.name}</div>}
-              </div>
-
-              <div className="wh-form-field">
-                <span>Trạng thái hoạt động</span>
-                <select
-                  value={whFormData.status}
-                  onChange={(e) => setWhFormData({ ...whFormData, status: e.target.value })}
+              <div className="wh-summary-actions">
+                <button
+                  type="submit"
+                  className="wh-btn wh-btn-primary wh-btn-block"
+                  disabled={isWhSubmitting}
                 >
-                  <option value="Đang hoạt động">Đang hoạt động</option>
-                  <option value="Ngừng hoạt động">Ngừng hoạt động</option>
-                </select>
+                  {isWhSubmitting ? 'Đang lưu...' : editingWarehouse ? 'Cập nhật kho' : 'Tạo kho hàng'}
+                </button>
+                <button
+                  type="button"
+                  className="wh-btn wh-btn-secondary wh-btn-block"
+                  onClick={() => {
+                    setIsWhFormPageActive(false);
+                    setEditingWarehouse(null);
+                    setWhFormErrors({});
+                  }}
+                  disabled={isWhSubmitting}
+                >
+                  Hủy bỏ
+                </button>
+                <p className="wh-summary-hint">
+                  Kho hàng sẽ được kết nối với hệ thống vị trí kệ và quản lý tồn kho tự động.
+                </p>
               </div>
             </div>
-          </div>
-
-          {/* Ô 2: Địa chỉ & Người phụ trách (3 phần) */}
-          <div className="wh-form-card wh-col-contact">
-            <h3>Địa chỉ & Người phụ trách</h3>
-            <div className="wh-form-col-fields">
-              <div className="wh-form-field">
-                <span>Địa chỉ kho</span>
-                <input
-                  type="text"
-                  placeholder="VD: Lô CN1, Khu Công Nghiệp Từ Liêm, Hà Nội"
-                  value={whFormData.address}
-                  onChange={(e) => setWhFormData({ ...whFormData, address: e.target.value })}
-                />
-              </div>
-
-              <div className="wh-form-field">
-                <span>Người phụ trách kho</span>
-                <input
-                  type="text"
-                  placeholder="Họ và tên thủ kho / quản lý"
-                  value={whFormData.manager_name}
-                  onChange={(e) => setWhFormData({ ...whFormData, manager_name: e.target.value })}
-                />
-              </div>
-
-              <div className="wh-form-field">
-                <span>Số điện thoại liên hệ</span>
-                <input
-                  type="tel"
-                  placeholder="Số điện thoại (10 chữ số)"
-                  value={whFormData.phone}
-                  onChange={(e) => setWhFormData({ ...whFormData, phone: e.target.value.replace(/\D/g, '').slice(0, 10) })}
-                />
-                {whFormErrors.phone && <div className="wh-form-field-error">{whFormErrors.phone}</div>}
-              </div>
-            </div>
-          </div>
-
-          {/* Ô 3: Tổng kết kho hàng (2 phần) */}
-          <div className="wh-form-card wh-col-summary">
-            <h3 className="wh-summary-title-centered">Tổng kết kho hàng</h3>
-            <div className="wh-summary-rows">
-              <div className="wh-summary-row">
-                <span>Mã kho:</span>
-                <strong>{whFormData.code || '---'}</strong>
-              </div>
-              <div className="wh-summary-row">
-                <span>Tên kho:</span>
-                <strong>{whFormData.name || '---'}</strong>
-              </div>
-              <div className="wh-summary-row">
-                <span>Người phụ trách:</span>
-                <strong>{whFormData.manager_name || 'Chưa phân công'}</strong>
-              </div>
-              <div className="wh-summary-row">
-                <span>Số điện thoại:</span>
-                <strong>{whFormData.phone || '---'}</strong>
-              </div>
-              <div className="wh-summary-row">
-                <span>Trạng thái:</span>
-                <strong style={{ color: whFormData.status === 'Đang hoạt động' ? '#059669' : '#dc2626' }}>
-                  {whFormData.status}
-                </strong>
-              </div>
-            </div>
-
-            <div className="wh-summary-actions">
-              <button
-                type="submit"
-                className="wh-btn wh-btn-primary wh-btn-block"
-                disabled={isWhSubmitting}
-              >
-                {isWhSubmitting ? 'Đang lưu...' : editingWarehouse ? 'Cập nhật kho' : 'Tạo kho hàng'}
-              </button>
-              <button
-                type="button"
-                className="wh-btn wh-btn-secondary wh-btn-block"
-                onClick={() => {
-                  setIsWhFormPageActive(false);
-                  setEditingWarehouse(null);
-                  setWhFormErrors({});
-                }}
-                disabled={isWhSubmitting}
-              >
-                Hủy bỏ
-              </button>
-              <p className="wh-summary-hint">
-                Kho hàng sẽ được kết nối với hệ thống vị trí kệ và quản lý tồn kho tự động.
-              </p>
-            </div>
-          </div>
-        </form>
+          </form>
+        </div>
       </div>
     );
   }
@@ -1443,7 +1445,8 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
   if (isLocFormPageActive && selectedWarehouse) {
     return (
       <div className="wh-container wh-form-fullscreen-wrap">
-        <div className="wh-form-page-header">
+        <div className="wh-form-master-frame">
+          <div className="wh-form-page-header">
           <button
             type="button"
             className="wh-btn wh-btn-secondary"
@@ -1692,6 +1695,7 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
             </div>
           </div>
         </form>
+        </div>
       </div>
     );
   }
