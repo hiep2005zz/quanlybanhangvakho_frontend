@@ -35,7 +35,7 @@ interface ReceiveItemDraft {
   product_name: string;
   unit: string;
   transfer_qty: number;
-  received_qty: number;
+  received_qty: number | string;
   reason: string;
 }
 
@@ -185,10 +185,48 @@ export function StockTransferManagementView({
       });
   }, [token, isCreatingPage, fromWarehouseId]);
 
-  // Hàm kiểm tra tình trạng giao bù của một phiếu chuyển kho
+  // Hàm phân loại chênh lệch Dư / Hụt của phiếu chuyển kho
+  const getTransferDiscrepancyInfo = useCallback((t: StockTransfer) => {
+    let surplus = 0;
+    let shortage = 0;
+
+    if (t.items && t.items.length > 0) {
+      for (const it of t.items) {
+        if (it.received_qty !== null && it.received_qty !== undefined) {
+          const d = it.received_qty - it.transfer_qty;
+          if (d > 0) surplus += d;
+          else if (d < 0) shortage += Math.abs(d);
+        }
+      }
+    } else if (t.total_received_qty !== null && t.total_received_qty !== undefined) {
+      const diff = t.total_received_qty - t.total_transfer_qty;
+      if (diff > 0) surplus = diff;
+      else if (diff < 0) shortage = Math.abs(diff);
+    } else if (t.discrepancy_qty > 0) {
+      shortage = t.discrepancy_qty;
+    }
+
+    return { surplus, shortage, hasDiscrepancy: surplus > 0 || shortage > 0 };
+  }, []);
+
+  // Hàm kiểm tra tình trạng giao bù của một phiếu chuyển kho (chỉ áp dụng cho hàng HỤT)
   const getTransferCompensationStatus = useCallback(
     (transfer: StockTransfer) => {
-      const shortage = transfer.discrepancy_qty || 0;
+      let shortage = 0;
+      if (transfer.items && transfer.items.length > 0) {
+        for (const it of transfer.items) {
+          if (it.received_qty !== null && it.received_qty !== undefined && it.transfer_qty > it.received_qty) {
+            shortage += (it.transfer_qty - it.received_qty);
+          }
+        }
+      } else if (transfer.total_received_qty !== null && transfer.total_received_qty !== undefined) {
+        if (transfer.total_transfer_qty > transfer.total_received_qty) {
+          shortage = transfer.total_transfer_qty - transfer.total_received_qty;
+        }
+      } else if (transfer.discrepancy_qty > 0) {
+        shortage = transfer.discrepancy_qty;
+      }
+
       if (shortage <= 0) {
         return {
           hasShortage: false,
@@ -430,7 +468,10 @@ export function StockTransferManagementView({
 
   // Tính tổng chênh lệch hiện tại trong modal nhận
   const totalReceiveDiscrepancy = useMemo(() => {
-    return receiveItems.reduce((acc, it) => acc + Math.abs(it.transfer_qty - it.received_qty), 0);
+    return receiveItems.reduce((acc, it) => {
+      const numReceived = typeof it.received_qty === 'number' ? it.received_qty : (parseInt(it.received_qty || '0', 10) || 0);
+      return acc + Math.abs(it.transfer_qty - numReceived);
+    }, 0);
   }, [receiveItems]);
 
   // Xác nhận nhập hàng vào kho đích
@@ -451,7 +492,7 @@ export function StockTransferManagementView({
       await receiveStockTransferApi(token, receivingTransfer.code, {
         items: receiveItems.map((it) => ({
           product_id: it.product_id,
-          received_qty: it.received_qty,
+          received_qty: typeof it.received_qty === 'number' ? it.received_qty : (parseInt(it.received_qty || '0', 10) || 0),
           reason: it.reason.trim() || undefined,
         })),
         discrepancy_reason: discrepancyReason.trim() || undefined,
@@ -516,29 +557,35 @@ export function StockTransferManagementView({
     }
   };
 
-  // Tính danh sách và số lượng hàng thiếu trong modal chi tiết
+  // Tính danh sách và số lượng hàng thiếu/dư trong modal chi tiết
   const detailShortages = useMemo(() => {
     if (!detailTransfer || !detailTransfer.items) return [];
     return detailTransfer.items.filter((it) => {
-      const shortage = it.discrepancy_qty > 0
-        ? it.discrepancy_qty
-        : (it.received_qty !== null && it.received_qty !== undefined && it.transfer_qty > it.received_qty
-            ? it.transfer_qty - it.received_qty
-            : 0);
-      return shortage > 0;
+      if (it.received_qty !== null && it.received_qty !== undefined) {
+        return it.transfer_qty > it.received_qty;
+      }
+      return it.discrepancy_qty > 0;
     });
   }, [detailTransfer]);
 
   const detailTotalShortage = useMemo(() => {
     return detailShortages.reduce((acc, it) => {
-      const shortage = it.discrepancy_qty > 0
-        ? it.discrepancy_qty
-        : (it.received_qty !== null && it.received_qty !== undefined && it.transfer_qty > it.received_qty
-            ? it.transfer_qty - it.received_qty
-            : 0);
-      return acc + shortage;
+      if (it.received_qty !== null && it.received_qty !== undefined) {
+        return acc + Math.max(0, it.transfer_qty - it.received_qty);
+      }
+      return acc + (it.discrepancy_qty > 0 ? it.discrepancy_qty : 0);
     }, 0);
   }, [detailShortages]);
+
+  const detailTotalSurplus = useMemo(() => {
+    if (!detailTransfer || !detailTransfer.items) return 0;
+    return detailTransfer.items.reduce((acc, it) => {
+      if (it.received_qty !== null && it.received_qty !== undefined && it.received_qty > it.transfer_qty) {
+        return acc + (it.received_qty - it.transfer_qty);
+      }
+      return acc;
+    }, 0);
+  }, [detailTransfer]);
 
   // Khởi tạo modal giao bù hàng thiếu đúng số lượng thiếu
   const handleOpenCompensateModal = async (transfer: StockTransfer) => {
@@ -1004,6 +1051,7 @@ export function StockTransferManagementView({
                                     min="1"
                                     max={it.available_stock}
                                     value={it.transfer_qty}
+                                    onFocus={(e) => e.target.select()}
                                     onChange={(e) =>
                                       handleUpdateTransferQty(idx, parseInt(e.target.value, 10) || 1)
                                     }
@@ -1421,55 +1469,48 @@ export function StockTransferManagementView({
                     </td>
                     <td className="py-2.5 px-2.5">
                       {t.status === 'COMPLETED' ? (
-                        t.discrepancy_qty > 0 ? (
-                          (() => {
-                            const comp = getTransferCompensationStatus(t);
-                            if (comp.isFullyCompensated) {
-                              return (
-                                <div className="text-xs">
+                        (() => {
+                          const disc = getTransferDiscrepancyInfo(t);
+                          if (!disc.hasDiscrepancy) {
+                            return (
+                              <span className="text-xs text-emerald-600 font-medium whitespace-nowrap">
+                                ✓ Nhận đủ 100%
+                              </span>
+                            );
+                          }
+                          const comp = getTransferCompensationStatus(t);
+                          return (
+                            <div className="text-xs flex flex-col gap-1 items-start">
+                              {disc.shortage > 0 && (
+                                comp.isFullyCompensated ? (
                                   <span className="font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 inline-block text-[11px]">
-                                    Đã giao bù {t.discrepancy_qty} SP
+                                    Đã giao bù {disc.shortage} SP
                                   </span>
-                                  {t.discrepancy_reason && (
-                                    <div className="text-slate-600 mt-0.5 italic text-[11px] truncate max-w-full" title={t.discrepancy_reason}>
-                                      "{t.discrepancy_reason}"
-                                    </div>
-                                  )}
-                                </div>
-                              );
-                            }
-                            if (comp.isCompensating) {
-                              return (
-                                <div className="text-xs">
+                                ) : comp.isCompensating ? (
                                   <span className="font-semibold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 inline-block text-[11px]">
                                     Đang giao bù {comp.inTransitCompensateQty} SP
                                   </span>
-                                  {t.discrepancy_reason && (
-                                    <div className="text-slate-600 mt-0.5 italic text-[11px] truncate max-w-full" title={t.discrepancy_reason}>
-                                      "{t.discrepancy_reason}"
-                                    </div>
-                                  )}
-                                </div>
-                              );
-                            }
-                            return (
-                              <div className="text-xs">
-                                <span className="font-semibold text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200 inline-block text-[11px]">
-                                  Hụt {t.discrepancy_qty} SP
+                                ) : (
+                                  <span className="font-semibold text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200 inline-block text-[11px]">
+                                    Hụt {disc.shortage} SP
+                                  </span>
+                                )
+                              )}
+
+                              {disc.surplus > 0 && (
+                                <span className="font-semibold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200 inline-block text-[11px]">
+                                  Dư {disc.surplus} SP
                                 </span>
-                                {t.discrepancy_reason && (
-                                  <div className="text-slate-600 mt-0.5 italic text-[11px] truncate max-w-full" title={t.discrepancy_reason}>
-                                    "{t.discrepancy_reason}"
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })()
-                        ) : (
-                          <span className="text-xs text-emerald-600 font-medium whitespace-nowrap">
-                            ✓ Nhận đủ 100%
-                          </span>
-                        )
+                              )}
+
+                              {t.discrepancy_reason && (
+                                <div className="text-slate-600 mt-0.5 italic text-[11px] truncate max-w-full" title={t.discrepancy_reason}>
+                                  "{t.discrepancy_reason}"
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()
                       ) : t.status === 'IN_TRANSIT' ? (
                         <span className="text-xs text-amber-600 italic whitespace-nowrap">
                           Chờ kiểm đếm
@@ -1654,7 +1695,8 @@ export function StockTransferManagementView({
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {receiveItems.map((it, idx) => {
-                        const diff = it.received_qty - it.transfer_qty;
+                        const numReceived = typeof it.received_qty === 'number' ? it.received_qty : (parseInt(it.received_qty || '0', 10) || 0);
+                        const diff = numReceived - it.transfer_qty;
                         return (
                           <tr key={it.product_id} className="hover:bg-slate-50">
                             <td className="py-2.5 px-3">
@@ -1670,17 +1712,57 @@ export function StockTransferManagementView({
                             </td>
                             <td className="py-2.5 px-3 text-center">
                               <input
-                                type="number"
-                                min="0"
+                                type="text"
+                                inputMode="numeric"
                                 value={it.received_qty}
+                                onFocus={(e) => e.target.select()}
                                 onChange={(e) => {
-                                  const val = parseInt(e.target.value, 10);
-                                  const newQty = isNaN(val) ? 0 : Math.max(0, val);
+                                  const raw = e.target.value;
+                                  if (raw === '') {
+                                    setReceiveItems((prev) => {
+                                      const next = [...prev];
+                                      next[idx].received_qty = '';
+                                      return next;
+                                    });
+                                    return;
+                                  }
+                                  let clean = raw.replace(/\D/g, '');
+                                  if (clean.length > 1 && clean.startsWith('0')) {
+                                    clean = clean.replace(/^0+/, '') || '0';
+                                  }
                                   setReceiveItems((prev) => {
                                     const next = [...prev];
-                                    next[idx].received_qty = newQty;
+                                    next[idx].received_qty = clean;
                                     return next;
                                   });
+                                }}
+                                onBlur={() => {
+                                  setReceiveItems((prev) => {
+                                    const next = [...prev];
+                                    if (next[idx].received_qty === '') {
+                                      next[idx].received_qty = 0;
+                                    }
+                                    return next;
+                                  });
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'ArrowUp') {
+                                    e.preventDefault();
+                                    const current = typeof it.received_qty === 'number' ? it.received_qty : (parseInt(it.received_qty || '0', 10) || 0);
+                                    setReceiveItems((prev) => {
+                                      const next = [...prev];
+                                      next[idx].received_qty = current + 1;
+                                      return next;
+                                    });
+                                  } else if (e.key === 'ArrowDown') {
+                                    e.preventDefault();
+                                    const current = typeof it.received_qty === 'number' ? it.received_qty : (parseInt(it.received_qty || '0', 10) || 0);
+                                    setReceiveItems((prev) => {
+                                      const next = [...prev];
+                                      next[idx].received_qty = Math.max(0, current - 1);
+                                      return next;
+                                    });
+                                  }
                                 }}
                                 className="w-24 text-center px-2 py-1 text-sm border border-slate-200 rounded-lg font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                               />
@@ -1868,21 +1950,32 @@ export function StockTransferManagementView({
                             )}
                           </td>
                           <td className="py-2.5 px-3 text-center">
-                            {it.discrepancy_qty > 0 ? (
-                              getTransferCompensationStatus(detailTransfer).isFullyCompensated ? (
-                                <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                                  Đã bù {it.discrepancy_qty}
-                                </span>
-                              ) : (
-                                <span className="text-xs font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded border border-rose-200">
-                                  -{it.discrepancy_qty}
-                                </span>
-                              )
-                            ) : it.received_qty !== null ? (
-                              <span className="text-xs text-emerald-600 font-medium">✓ Đủ</span>
-                            ) : (
-                              <span className="text-slate-400">-</span>
-                            )}
+                            {(() => {
+                              if (it.received_qty === null || it.received_qty === undefined) {
+                                return <span className="text-slate-400">-</span>;
+                              }
+                              const diff = it.received_qty - it.transfer_qty;
+                              if (diff > 0) {
+                                return (
+                                  <span className="text-xs font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                                    +{diff} (Dư)
+                                  </span>
+                                );
+                              }
+                              if (diff < 0) {
+                                const shortageQty = Math.abs(diff);
+                                return getTransferCompensationStatus(detailTransfer).isFullyCompensated ? (
+                                  <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                                    Đã bù {shortageQty}
+                                  </span>
+                                ) : (
+                                  <span className="text-xs font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded border border-rose-200">
+                                    -{shortageQty} (Hụt)
+                                  </span>
+                                );
+                              }
+                              return <span className="text-xs text-emerald-600 font-medium">✓ Đủ</span>;
+                            })()}
                           </td>
                         </tr>
                       ))}
@@ -1895,7 +1988,7 @@ export function StockTransferManagementView({
                 const comp = getTransferCompensationStatus(detailTransfer);
                 return (
                   <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
-                    <div>
+                    <div className="flex items-center gap-2">
                       {comp.isFullyCompensated ? (
                         <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200">
                           ✓ Đã giao bù đủ {detailTotalShortage} sản phẩm
@@ -1909,6 +2002,12 @@ export function StockTransferManagementView({
                           Thiếu {detailTotalShortage} sản phẩm
                         </span>
                       ) : null}
+
+                      {detailTotalSurplus > 0 && (
+                        <span className="text-xs font-semibold text-blue-700 bg-blue-50 px-2.5 py-1 rounded-md border border-blue-200">
+                          Dư {detailTotalSurplus} sản phẩm
+                        </span>
+                      )}
                     </div>
                     <div className="flex items-center gap-2">
                       <button
@@ -2034,6 +2133,7 @@ export function StockTransferManagementView({
                                   min="1"
                                   max={it.available_stock}
                                   value={it.compensate_qty}
+                                  onFocus={(e) => e.target.select()}
                                   onChange={(e) =>
                                     handleUpdateCompensateQty(idx, parseInt(e.target.value, 10) || 1)
                                   }
