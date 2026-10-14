@@ -263,8 +263,8 @@ export interface ProductListResponse {
 
 export interface GetProductsParams {
   page?: number;
-  page_size?: number;
   limit?: number;
+  page_size?: number;
   skip?: number;
   search?: string;
   category?: string;
@@ -652,12 +652,15 @@ export async function logoutApi(token: string): Promise<void> {
 
 export async function getProductsApi(
   token: string,
-  params?: GetProductsParams & { limit?: number; skip?: number }
+  params?: GetProductsParams
 ): Promise<ProductListResponse> {
   const query = new URLSearchParams();
   if (params?.page) query.append('page', params.page.toString());
   const pageSizeVal = params?.page_size || params?.limit;
-  if (pageSizeVal) query.append('page_size', pageSizeVal.toString());
+  if (pageSizeVal) {
+    query.append('page_size', pageSizeVal.toString());
+    query.append('limit', pageSizeVal.toString());
+  }
   if (params?.skip !== undefined) query.append('skip', params.skip.toString());
   if (params?.search && params.search.trim()) query.append('search', params.search.trim());
   if (params?.category && params.category.toLowerCase() !== 'all') {
@@ -3020,13 +3023,23 @@ export async function deleteWarehouseRackApi(token: string, rackId: number): Pro
 
 export async function previewAuditProductsApi(
   token: string,
-  params: { warehouse_id: string; scope_type?: string; category_id?: number }
+  params: {
+    warehouse_id: string;
+    scope_type?: string;
+    category_id?: number;
+    page?: number;
+    page_size?: number;
+    search?: string;
+  }
 ): Promise<{
   warehouse_id: string;
   warehouse_name: string;
   scope_type: string;
   category_id?: number;
   total_items: number;
+  page?: number;
+  page_size?: number;
+  total_pages?: number;
   items: {
     product_id: number;
     product_code: string;
@@ -3044,6 +3057,15 @@ export async function previewAuditProductsApi(
   });
   if (params.category_id) {
     query.set('category_id', String(params.category_id));
+  }
+  if (params.page !== undefined) {
+    query.set('page', String(params.page));
+  }
+  if (params.page_size !== undefined) {
+    query.set('page_size', String(params.page_size));
+  }
+  if (params.search && params.search.trim()) {
+    query.set('search', params.search.trim());
   }
   const response = await authenticatedFetch(`${API_BASE_URL}/stock-audits/preview-products?${query.toString()}`, {
     method: 'GET',

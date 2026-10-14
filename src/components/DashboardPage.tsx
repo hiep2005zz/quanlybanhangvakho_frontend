@@ -438,7 +438,7 @@ export default function DashboardPage({
       setActiveTabState('inventory');
       setProductDrawerState({ isOpen: true, product: null });
       try {
-        window.history.pushState({}, '', '/');
+        window.history.pushState({}, '', '/add-product');
       } catch {
         // ignore
       }
@@ -505,6 +505,21 @@ export default function DashboardPage({
       return;
     }
 
+    if (tab === 'warehouses') {
+      if (!canAccessWarehouses) {
+        setActiveTabState('inventory');
+        try { window.history.replaceState({}, '', '/'); } catch {}
+        return;
+      }
+      setActiveTabState('warehouses');
+      try {
+        window.history.pushState({}, '', '/warehouses');
+      } catch {
+        // ignore
+      }
+      return;
+    }
+
     if (tab === 'stock-book') {
       setActiveTabState('stock-book');
       try {
@@ -513,7 +528,9 @@ export default function DashboardPage({
         // ignore
       }
       return;
-    } else if (tab === 'orders') {
+    }
+
+    if (tab === 'orders') {
       setActiveTabState('orders');
       try {
         window.history.pushState({}, '', '/orders');
@@ -602,18 +619,7 @@ export default function DashboardPage({
       } catch {
         // ignore
       }
-    } else if (tab === 'warehouses') {
-      if (!canAccessWarehouses) {
-        setActiveTabState('inventory');
-        try { window.history.replaceState({}, '', '/'); } catch {}
-        return;
-      }
-      setActiveTabState('warehouses');
-      try {
-        window.history.pushState({}, '', '/warehouses');
-      } catch {
-        // ignore
-      }
+
     } else {
       setActiveTabState('inventory');
       window.history.replaceState({}, '', '/');
@@ -681,9 +687,15 @@ export default function DashboardPage({
       const tabParam = (params.get('tab') || params.get('view') || '').toLowerCase();
 
       const isAddProduct = pathname === '/add-product' || pathname.startsWith('/add-product/') || tabParam === 'add-product';
-      if (!isAddProduct) {
-        setProductDrawerState({ isOpen: false, product: null });
+      if (isAddProduct) {
+        if (tabParam) {
+          try { window.history.replaceState({}, '', '/add-product'); } catch {}
+        }
+        setActiveTabState('inventory');
+        setProductDrawerState((prev) => ({ isOpen: true, product: prev.product ?? null }));
+        return;
       }
+      setProductDrawerState({ isOpen: false, product: null });
 
       const isGoodsReceiptPath = pathname === '/goods-receipt' || pathname.startsWith('/goods-receipt/') || pathname === '/goods-receipts';
       if (isGoodsReceiptPath || tabParam === 'goods-receipt') {
@@ -1139,7 +1151,7 @@ export default function DashboardPage({
 
   const fetchProducts = (targetPage?: number) => {
     // Đại lý (Customer) sử dụng cơ chế Server-side Pagination riêng (20 sp/trang) tại CustomerPortalView,
-    // tuyệt đối không tải toàn bộ 10.000 sản phẩm vào DashboardPage.
+    // tuyệt đối không tải toàn bộ sản phẩm vào DashboardPage.
     if (isPendingCustomer || isCustomer) {
       setIsLoading(false);
       return;
@@ -1403,7 +1415,15 @@ export default function DashboardPage({
         />
       }
       noScroll={!isMobileScreen && isLockedScrollTab}
-      mainClassName={isCustomer ? 'flex-1 min-w-0 overflow-hidden p-0 flex flex-col bg-slate-50 h-full' : (isOrdersCreateSubpage || isPriceListsCreateSubpage || isPriceBookDetailSubpage || isPriceBookEditSubpage || isOrderDetailSubpage || isGoodsReceiptPage ? 'flex-1 min-w-0 overflow-y-auto p-0 flex flex-col bg-slate-50' : isMobileScreen ? 'flex-1 min-w-0 overflow-y-auto p-2 sm:p-3 flex flex-col' : undefined)}
+      mainClassName={
+        isOrderDetailSubpage || isOrdersCreateSubpage || isPriceListsCreateSubpage || isPriceBookDetailSubpage || isPriceBookEditSubpage || isGoodsReceiptPage
+          ? 'flex-1 min-w-0 overflow-y-auto p-0 flex flex-col bg-slate-50'
+          : isCustomer
+          ? 'flex-1 min-w-0 overflow-hidden p-0 flex flex-col bg-slate-50 h-full'
+          : isMobileScreen
+          ? 'flex-1 min-w-0 overflow-y-auto p-2 sm:p-3 flex flex-col'
+          : undefined
+      }
       sidebar={
         <Sidebar
           activeTab={activeTab === 'users-import' ? 'users' : activeTab === 'products-import' ? 'inventory' : activeTab}
