@@ -52,6 +52,7 @@ import WarehouseManagementView from './WarehouseManagementView';
 import { WarehouseStockBookView } from './WarehouseStockBookView';
 import { StockAuditManagementView } from './StockAuditManagementView';
 import { StockTransferManagementView } from './StockTransferManagementView';
+import { StockCardModal } from './StockCardModal';
 import { ModalPortal } from './ModalPortal';
 import { DashboardHeader } from './DashboardHeader';
 import { CustomerDebtView } from './CustomerDebtView';
@@ -1047,6 +1048,7 @@ export default function DashboardPage({
   }>({ isOpen: false, actionType: 'receipt', product: null });
   const [isGoodsReceiptModalOpen, setIsGoodsReceiptModalOpen] = useState(false);
   const [goodsReceiptInitialTab] = useState<'form' | 'list'>('form');
+  const [selectedProductForStockCard, setSelectedProductForStockCard] = useState<{ id: number; name: string; code: string } | null>(null);
   const [isSalesOrderEntryOpen, setIsSalesOrderEntryOpen] = useState(false);
   const [cloneOrderData, setCloneOrderData] = useState<any>(() => {
     try {
@@ -1937,6 +1939,9 @@ export default function DashboardPage({
           <WarehouseStockBookView
             token={token}
             onBackToHome={() => setActiveTab('inventory')}
+            onNavigateToTab={(tab) => {
+              setActiveTab(tab as TabType);
+            }}
           />
         ) : activeTab === 'stock-audits' ? (
           canAccessStockAudit ? (
@@ -3157,6 +3162,39 @@ export default function DashboardPage({
                                         <span>Xuất kho</span>
                                       </button>
                                     )}
+
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setSelectedProductForStockCard({ id: item.id, name: item.name, code: item.code });
+                                        setOpenProductMenuId(null);
+                                      }}
+                                      style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '8px',
+                                        width: '100%',
+                                        padding: '8px 12px',
+                                        background: 'transparent',
+                                        border: 'none',
+                                        borderRadius: '6px',
+                                        fontSize: '13px',
+                                        fontWeight: '600',
+                                        color: '#1d4ed8',
+                                        cursor: 'pointer',
+                                        boxShadow: 'none',
+                                        margin: 0,
+                                        transition: 'background 0.15s ease',
+                                        textAlign: 'left',
+                                      }}
+                                      onMouseEnter={(e) => (e.currentTarget.style.background = '#eff6ff')}
+                                      onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                                      title="Xem thẻ kho chi tiết để truy nguyên số tồn bị lệch"
+                                    >
+                                      <span style={{ fontSize: '14px', lineHeight: 1, flexShrink: 0 }}>📋</span>
+                                      <span>Xem thẻ kho</span>
+                                    </button>
                                   </div>
                                 )}
                               </div>
@@ -3644,6 +3682,20 @@ export default function DashboardPage({
           } : undefined}
           onOpenGoodsReceipt={canWriteInventory ? () => setIsGoodsReceiptModalOpen(true) : undefined}
         />
+
+        {selectedProductForStockCard && (
+          <StockCardModal
+            productId={selectedProductForStockCard.id}
+            productName={selectedProductForStockCard.name}
+            productCode={selectedProductForStockCard.code}
+            token={token}
+            isOpen={Boolean(selectedProductForStockCard)}
+            onClose={() => setSelectedProductForStockCard(null)}
+            onNavigateToTab={(tab) => {
+              setActiveTab(tab as TabType);
+            }}
+          />
+        )}
 
         <StatusToastHost />
       </div>

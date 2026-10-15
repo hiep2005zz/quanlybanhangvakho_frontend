@@ -4,19 +4,23 @@ import {
   StockBookResponse,
   StockBookFilterParams,
 } from '../services/api';
+import { StockCardModal } from './StockCardModal';
 
 interface WarehouseStockBookViewProps {
   token: string;
   onBackToHome?: () => void;
+  onNavigateToTab?: (tab: string, queryParam?: string) => void;
 }
 
 export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
   token,
   onBackToHome: _onBackToHome,
+  onNavigateToTab,
 }) => {
   const [data, setData] = useState<StockBookResponse | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedProductForStockCard, setSelectedProductForStockCard] = useState<{ id: number; name: string; code: string } | null>(null);
 
   // Bộ lọc
   const [selectedWarehouse, setSelectedWarehouse] = useState<string>('all');
@@ -523,18 +527,21 @@ export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
                 <th style={{ padding: '10px 14px', fontWeight: '700', width: '115px', minWidth: '105px', textAlign: 'center', backgroundColor: '#f1f5f9' }}>
                   Trạng thái
                 </th>
+                <th style={{ padding: '10px 14px', fontWeight: '700', width: '115px', minWidth: '100px', textAlign: 'center', backgroundColor: '#f1f5f9' }}>
+                  Thẻ kho
+                </th>
               </tr>
             </thead>
             <tbody>
               {isLoading && !data ? (
                 <tr>
-                  <td colSpan={8} style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>
+                  <td colSpan={9} style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>
                     Đang tải dữ liệu hàng tồn kho...
                   </td>
                 </tr>
               ) : items.length === 0 ? (
                 <tr>
-                  <td colSpan={8} style={{ padding: '48px 24px', textAlign: 'center', color: '#64748b' }}>
+                  <td colSpan={9} style={{ padding: '48px 24px', textAlign: 'center', color: '#64748b' }}>
                     <div style={{ fontSize: '15px', fontWeight: '600', color: '#475569', marginBottom: '4px' }}>
                       Không tìm thấy mặt hàng nào phù hợp với bộ lọc
                     </div>
@@ -687,6 +694,45 @@ export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
                           </span>
                         )}
                       </td>
+
+                      {/* Thao tác xem thẻ kho */}
+                      <td style={{ padding: '8px 12px', textAlign: 'center' }}>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedProductForStockCard({ id: it.product_id, name: it.product_name, code: it.product_code })}
+                          title={`Xem thẻ kho của ${it.product_name}`}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '6px',
+                            padding: '5px 12px',
+                            height: '32px',
+                            borderRadius: '6px',
+                            border: '1px solid #bfdbfe',
+                            backgroundColor: '#eff6ff',
+                            color: '#1d4ed8',
+                            fontSize: '12px',
+                            fontWeight: '600',
+                            cursor: 'pointer',
+                            whiteSpace: 'nowrap',
+                            flexShrink: 0,
+                            boxSizing: 'border-box',
+                            transition: 'all 0.15s ease',
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = '#dbeafe';
+                            e.currentTarget.style.borderColor = '#93c5fd';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = '#eff6ff';
+                            e.currentTarget.style.borderColor = '#bfdbfe';
+                          }}
+                        >
+                          <span style={{ fontSize: '13px', lineHeight: 1, flexShrink: 0 }}>📋</span>
+                          <span>Thẻ kho</span>
+                        </button>
+                      </td>
                     </tr>
                   );
                 })
@@ -794,6 +840,19 @@ export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Modal Thẻ kho sản phẩm chi tiết */}
+      {selectedProductForStockCard && (
+        <StockCardModal
+          productId={selectedProductForStockCard.id}
+          productName={selectedProductForStockCard.name}
+          productCode={selectedProductForStockCard.code}
+          token={token}
+          isOpen={Boolean(selectedProductForStockCard)}
+          onClose={() => setSelectedProductForStockCard(null)}
+          onNavigateToTab={onNavigateToTab}
+        />
+      )}
     </div>
   );
 };

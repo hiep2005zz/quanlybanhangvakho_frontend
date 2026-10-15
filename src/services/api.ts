@@ -3520,6 +3520,88 @@ export async function getStockBookApi(
   }
   return response.json();
 }
+
+// ==========================================
+// THẺ KHO SẢN PHẨM (PRODUCT STOCK CARD)
+// ==========================================
+
+export interface StockCardVoucherInfo {
+  voucher_type: 'grn' | 'order' | 'transfer' | 'audit' | 'initial' | 'adjustment' | 'other';
+  voucher_code: string;
+  voucher_id?: number | string | null;
+  url?: string | null;
+}
+
+export interface StockCardEntry {
+  id: number | string;
+  created_at: string;
+  transaction_type: 'RECEIPT' | 'ISSUE' | 'TRANSFER' | 'ADJUST';
+  transaction_label: string;
+  reference_code: string;
+  voucher_info?: StockCardVoucherInfo | null;
+  warehouse_id: string;
+  warehouse_name: string;
+  quantity: number;
+  receipt_quantity: number;
+  issue_quantity: number;
+  previous_stock: number;
+  balance_stock: number;
+  performed_by?: string | null;
+  note?: string | null;
+}
+
+export interface StockCardSummary {
+  product_id: number;
+  product_code: string;
+  product_name: string;
+  category?: string | null;
+  base_unit: string;
+  current_actual_stock: number;
+  opening_stock: number;
+  total_receipt: number;
+  total_issue: number;
+  closing_stock: number;
+  total_records: number;
+}
+
+export interface StockCardResponse {
+  summary: StockCardSummary;
+  entries: StockCardEntry[];
+  warehouses: WarehouseInfo[];
+}
+
+export interface StockCardFilterParams {
+  product_id: number;
+  warehouse_id?: string;
+  from_date?: string;
+  to_date?: string;
+}
+
+export async function getStockCardApi(
+  token: string,
+  params: StockCardFilterParams
+): Promise<StockCardResponse> {
+  const query = new URLSearchParams();
+  query.set('product_id', String(params.product_id));
+  if (params.warehouse_id && params.warehouse_id !== 'all') {
+    query.set('warehouse_id', params.warehouse_id);
+  }
+  if (params.from_date && params.from_date.trim()) {
+    query.set('from_date', params.from_date.trim());
+  }
+  if (params.to_date && params.to_date.trim()) {
+    query.set('to_date', params.to_date.trim());
+  }
+
+  const url = `${API_BASE_URL}/inventory/stock-card?${query.toString()}`;
+  const response = await authenticatedFetch(url, { method: 'GET' }, token);
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Lỗi tải dữ liệu thẻ kho sản phẩm');
+  }
+  return response.json();
+}
+
 // ==========================================
 // CHỨC NĂNG KIỂM KÊ KHO (STOCK AUDITS)
 // ==========================================
