@@ -628,16 +628,14 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
     return (
       <div
         style={{
-          padding: '12px 18px',
-          maxWidth: '1440px',
-          margin: '0 auto',
-          background: '#f8fafc',
-          height: 'calc(100vh - 65px)',
+          padding: '8px 14px',
+          width: '100%',
+          height: '100%',
+          boxSizing: 'border-box',
           display: 'flex',
           flexDirection: 'column',
-          gap: '8px',
-          boxSizing: 'border-box',
           overflow: 'hidden',
+          background: '#f8fafc',
         }}
       >
         <div
@@ -665,7 +663,26 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
               background: '#ffffff',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <h1 style={{ margin: 0, fontSize: '15.5px', fontWeight: '800', color: '#0f172a', whiteSpace: 'nowrap' }}>
+                Chuyến Giao Hàng {selectedTrip.trip_code}
+              </h1>
+              <span
+                style={{
+                  padding: '2px 8px',
+                  borderRadius: '4px',
+                  fontSize: '11px',
+                  fontWeight: '700',
+                  background: badge.bg,
+                  color: badge.color,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {badge.text}
+              </span>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
               <button
                 type="button"
                 onClick={() => {
@@ -684,29 +701,8 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
                   whiteSpace: 'nowrap',
                 }}
               >
-                ← Quay lại danh sách
+                Đóng
               </button>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <h1 style={{ margin: 0, fontSize: '15.5px', fontWeight: '800', color: '#0f172a', whiteSpace: 'nowrap' }}>
-                  Chuyến Giao Hàng {selectedTrip.trip_code}
-                </h1>
-                <span
-                  style={{
-                    padding: '2px 8px',
-                    borderRadius: '4px',
-                    fontSize: '11px',
-                    fontWeight: '700',
-                    background: badge.bg,
-                    color: badge.color,
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  {badge.text}
-                </span>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
               <button
                 type="button"
                 onClick={() => handleOpenPrint(selectedTrip.id)}
@@ -991,16 +987,14 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
     return (
       <div
         style={{
-          padding: '12px 18px',
-          maxWidth: '1440px',
-          margin: '0 auto',
-          background: '#f8fafc',
-          height: 'calc(100vh - 65px)',
+          padding: '8px 14px',
+          width: '100%',
+          height: '100%',
+          boxSizing: 'border-box',
           display: 'flex',
           flexDirection: 'column',
-          gap: '8px',
-          boxSizing: 'border-box',
           overflow: 'hidden',
+          background: '#f8fafc',
         }}
       >
         {/* Thanh Header điều hướng & Nút hành động */}
@@ -1017,32 +1011,13 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
             gap: '12px',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <button
-              type="button"
-              onClick={() => setViewMode('list')}
-              disabled={isSubmittingCreate}
-              style={{
-                padding: '5px 12px',
-                background: '#f8fafc',
-                border: '1px solid #cbd5e1',
-                borderRadius: '6px',
-                fontSize: '12px',
-                fontWeight: '600',
-                color: '#334155',
-                cursor: 'pointer',
-              }}
-            >
-              ← Quay lại danh sách
-            </button>
-            <div>
-              <h1 style={{ margin: 0, fontSize: '16px', fontWeight: '800', color: '#0f172a', lineHeight: 1.2 }}>
-                Tạo Chuyến Giao Hàng & Phân Tuyến
-              </h1>
-              <span style={{ fontSize: '11px', color: '#64748b' }}>
-                Người tạo chuyến: <strong style={{ color: '#0f172a' }}>{currentUser.full_name || currentUser.username}</strong>
-              </span>
-            </div>
+          <div>
+            <h1 style={{ margin: 0, fontSize: '15.5px', fontWeight: '800', color: '#0f172a', lineHeight: 1.2 }}>
+              Tạo Chuyến Giao Hàng & Phân Tuyến
+            </h1>
+            <span style={{ fontSize: '11px', color: '#64748b' }}>
+              Người tạo chuyến: <strong style={{ color: '#0f172a' }}>{currentUser.full_name || currentUser.username}</strong>
+            </span>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -1457,16 +1432,14 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
   return (
     <div
       style={{
-        padding: '12px 18px',
-        maxWidth: '1440px',
-        margin: '0 auto',
-        background: '#f8fafc',
-        height: 'calc(100vh - 65px)',
+        padding: '8px 14px',
+        width: '100%',
+        height: '100%',
+        boxSizing: 'border-box',
         display: 'flex',
         flexDirection: 'column',
-        gap: '8px',
-        boxSizing: 'border-box',
         overflow: 'hidden',
+        background: '#f8fafc',
       }}
     >
       <div

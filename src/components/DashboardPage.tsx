@@ -1538,8 +1538,8 @@ export default function DashboardPage({
       }
       noScroll={!isMobileScreen && isLockedScrollTab}
       mainClassName={
-        isOrderDetailSubpage || isOrdersCreateSubpage || isPriceListsCreateSubpage || isPriceBookDetailSubpage || isPriceBookEditSubpage || isGoodsReceiptPage || isStockTransferCreateSubpage || isBatchesCreateSubpage || isProductsImportPage || isUsersImportPage
-          ? 'flex-1 min-w-0 overflow-y-auto p-0 flex flex-col bg-slate-50'
+        isOrderDetailSubpage || isOrdersCreateSubpage || isPriceListsCreateSubpage || isPriceBookDetailSubpage || isPriceBookEditSubpage || isGoodsReceiptPage || isStockTransferCreateSubpage || isBatchesCreateSubpage || isProductsImportPage || isUsersImportPage || isWarehouseDispatchPage || isDeliveryTripsPage
+          ? 'flex-1 min-w-0 overflow-hidden p-0 flex flex-col bg-slate-50 h-full'
           : isCustomer
           ? 'flex-1 min-w-0 overflow-hidden p-0 flex flex-col bg-slate-50 h-full'
           : isMobileScreen
@@ -1582,13 +1582,15 @@ export default function DashboardPage({
     >
       <div
         className="dashboard-main-container"
-        style={isCustomer || isOrdersCreateSubpage || isPriceListsCreateSubpage || isPriceBookDetailSubpage || isPriceBookEditSubpage || isOrderDetailSubpage || isGoodsReceiptPage || isStockTransferCreateSubpage || isBatchesCreateSubpage || isProductsImportPage || isUsersImportPage || isMobileScreen ? {
+        style={isCustomer || isOrdersCreateSubpage || isPriceListsCreateSubpage || isPriceBookDetailSubpage || isPriceBookEditSubpage || isOrderDetailSubpage || isGoodsReceiptPage || isStockTransferCreateSubpage || isBatchesCreateSubpage || isProductsImportPage || isUsersImportPage || isWarehouseDispatchPage || isDeliveryTripsPage || isMobileScreen ? {
           width: '100%',
           display: 'flex',
           flexDirection: 'column',
           flex: 1,
-          minHeight: '100%',
+          height: '100%',
+          minHeight: 0,
           padding: 0,
+          overflow: 'hidden',
         } : isLockedScrollTab ? {
           height: '100%',
           maxHeight: '100%',

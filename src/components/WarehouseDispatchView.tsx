@@ -323,16 +323,14 @@ export const WarehouseDispatchView: React.FC<WarehouseDispatchViewProps> = ({
     return (
       <div
         style={{
-          padding: '12px 18px',
-          maxWidth: '1440px',
-          margin: '0 auto',
-          background: '#f8fafc',
-          height: 'calc(100vh - 65px)',
+          padding: '8px 14px',
+          width: '100%',
+          height: '100%',
+          boxSizing: 'border-box',
           display: 'flex',
           flexDirection: 'column',
-          gap: '8px',
-          boxSizing: 'border-box',
           overflow: 'hidden',
+          background: '#f8fafc',
         }}
       >
         <div
@@ -360,33 +358,13 @@ export const WarehouseDispatchView: React.FC<WarehouseDispatchViewProps> = ({
               background: '#ffffff',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <button
-                type="button"
-                onClick={() => setViewMode('list')}
-                disabled={isSubmittingDispatch}
-                style={{
-                  padding: '5px 12px',
-                  background: '#f8fafc',
-                  border: '1px solid #cbd5e1',
-                  borderRadius: '6px',
-                  fontSize: '12px',
-                  fontWeight: '600',
-                  color: '#334155',
-                  cursor: 'pointer',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                ← Quay lại danh sách
-              </button>
-              <div>
-                <h1 style={{ margin: 0, fontSize: '15.5px', fontWeight: '800', color: '#0f172a', whiteSpace: 'nowrap' }}>
-                  Xác Nhận Xuất Kho Đơn Hàng {selectedOrderForDispatch.order_code}
-                </h1>
-                <span style={{ fontSize: '11px', color: '#64748b', whiteSpace: 'nowrap' }}>
-                  Người thực hiện: <strong style={{ color: '#0f172a' }}>{currentUser.full_name || currentUser.username}</strong>
-                </span>
-              </div>
+            <div>
+              <h1 style={{ margin: 0, fontSize: '15.5px', fontWeight: '800', color: '#0f172a', whiteSpace: 'nowrap' }}>
+                Xác Nhận Xuất Kho Đơn Hàng {selectedOrderForDispatch.order_code}
+              </h1>
+              <span style={{ fontSize: '11px', color: '#64748b', whiteSpace: 'nowrap' }}>
+                Người thực hiện: <strong style={{ color: '#0f172a' }}>{currentUser.full_name || currentUser.username}</strong>
+              </span>
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
@@ -517,39 +495,7 @@ export const WarehouseDispatchView: React.FC<WarehouseDispatchViewProps> = ({
             </table>
           </div>
 
-          {/* Dải ghi chú & cảnh báo thiếu ở đáy khung */}
-          <div
-            style={{
-              padding: '8px 14px',
-              borderTop: '1px solid #e2e8f0',
-              background: '#f8fafc',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              flexShrink: 0,
-            }}
-          >
-            {dispatchShortageAnalysis.hasShortage && (
-              <span style={{ fontSize: '11.5px', color: '#b45309', background: '#fef3c7', padding: '4px 10px', borderRadius: '5px', fontWeight: '600', whiteSpace: 'nowrap' }}>
-                ⚠️ Xuất thiếu: Còn nợ {dispatchShortageAnalysis.totalRemainingShortage} SP (hệ thống tự động ghi nhận nợ hàng)
-              </span>
-            )}
-            <input
-              type="text"
-              value={dispatchNote}
-              onChange={(e) => setDispatchNote(e.target.value)}
-              placeholder="Ghi chú xuất kho (tùy chọn)..."
-              style={{
-                flex: 1,
-                padding: '6px 10px',
-                borderRadius: '6px',
-                border: '1px solid #cbd5e1',
-                fontSize: '12px',
-                color: '#0f172a',
-                boxSizing: 'border-box',
-              }}
-            />
-          </div>
+
         </div>
       </div>
     );
@@ -562,16 +508,14 @@ export const WarehouseDispatchView: React.FC<WarehouseDispatchViewProps> = ({
     return (
       <div
         style={{
-          padding: '12px 18px',
-          maxWidth: '1440px',
-          margin: '0 auto',
-          background: '#f8fafc',
-          height: 'calc(100vh - 65px)',
+          padding: '8px 14px',
+          width: '100%',
+          height: '100%',
+          boxSizing: 'border-box',
           display: 'flex',
           flexDirection: 'column',
-          gap: '8px',
-          boxSizing: 'border-box',
           overflow: 'hidden',
+          background: '#f8fafc',
         }}
       >
         <div
@@ -599,33 +543,13 @@ export const WarehouseDispatchView: React.FC<WarehouseDispatchViewProps> = ({
               background: '#ffffff',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <button
-                type="button"
-                onClick={() => setViewMode('list')}
-                disabled={isSubmittingSupp}
-                style={{
-                  padding: '5px 12px',
-                  background: '#f8fafc',
-                  border: '1px solid #cbd5e1',
-                  borderRadius: '6px',
-                  fontSize: '12px',
-                  fontWeight: '600',
-                  color: '#334155',
-                  cursor: 'pointer',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                ← Quay lại danh sách
-              </button>
-              <div>
-                <h1 style={{ margin: 0, fontSize: '15.5px', fontWeight: '800', color: '#0f172a', whiteSpace: 'nowrap' }}>
-                  Giao Bổ Sung Đơn Hàng {selectedOrderForSupp.order_code}
-                </h1>
-                <span style={{ fontSize: '11px', color: '#64748b', whiteSpace: 'nowrap' }}>
-                  Người thực hiện: <strong style={{ color: '#0f172a' }}>{currentUser.full_name || currentUser.username}</strong>
-                </span>
-              </div>
+            <div>
+              <h1 style={{ margin: 0, fontSize: '15.5px', fontWeight: '800', color: '#0f172a', whiteSpace: 'nowrap' }}>
+                Giao Bổ Sung Đơn Hàng {selectedOrderForSupp.order_code}
+              </h1>
+              <span style={{ fontSize: '11px', color: '#64748b', whiteSpace: 'nowrap' }}>
+                Người thực hiện: <strong style={{ color: '#0f172a' }}>{currentUser.full_name || currentUser.username}</strong>
+              </span>
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
@@ -806,16 +730,14 @@ export const WarehouseDispatchView: React.FC<WarehouseDispatchViewProps> = ({
     return (
       <div
         style={{
-          padding: '12px 18px',
-          maxWidth: '1440px',
-          margin: '0 auto',
-          background: '#f8fafc',
-          height: 'calc(100vh - 65px)',
+          padding: '8px 14px',
+          width: '100%',
+          height: '100%',
+          boxSizing: 'border-box',
           display: 'flex',
           flexDirection: 'column',
-          gap: '8px',
-          boxSizing: 'border-box',
           overflow: 'hidden',
+          background: '#f8fafc',
         }}
       >
         <div
@@ -843,12 +765,20 @@ export const WarehouseDispatchView: React.FC<WarehouseDispatchViewProps> = ({
               background: '#ffffff',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div>
+              <h1 style={{ margin: 0, fontSize: '15.5px', fontWeight: '800', color: '#0f172a', whiteSpace: 'nowrap' }}>
+                Lịch Sử Phiếu Xuất Kho Đơn Hàng {historyOrderCode}
+              </h1>
+              <span style={{ fontSize: '11px', color: '#64748b', whiteSpace: 'nowrap' }}>
+                Phiếu xuất kho đã xác nhận là chứng từ bất biến, không thể sửa hoặc xóa.
+              </span>
+            </div>
+            <div>
               <button
                 type="button"
                 onClick={() => setViewMode('list')}
                 style={{
-                  padding: '5px 12px',
+                  padding: '5px 14px',
                   background: '#f8fafc',
                   border: '1px solid #cbd5e1',
                   borderRadius: '6px',
@@ -859,16 +789,8 @@ export const WarehouseDispatchView: React.FC<WarehouseDispatchViewProps> = ({
                   whiteSpace: 'nowrap',
                 }}
               >
-                ← Quay lại danh sách
+                Đóng
               </button>
-              <div>
-                <h1 style={{ margin: 0, fontSize: '15.5px', fontWeight: '800', color: '#0f172a', whiteSpace: 'nowrap' }}>
-                  Lịch Sử Phiếu Xuất Kho Đơn Hàng {historyOrderCode}
-                </h1>
-                <span style={{ fontSize: '11px', color: '#64748b', whiteSpace: 'nowrap' }}>
-                  Phiếu xuất kho đã xác nhận là chứng từ bất biến, không thể sửa hoặc xóa.
-                </span>
-              </div>
             </div>
 
             <span style={{ padding: '4px 10px', background: '#dcfce7', color: '#15803d', borderRadius: '4px', fontSize: '11.5px', fontWeight: '700', whiteSpace: 'nowrap' }}>
@@ -971,16 +893,14 @@ export const WarehouseDispatchView: React.FC<WarehouseDispatchViewProps> = ({
   return (
     <div
       style={{
-        padding: '12px 18px',
-        maxWidth: '1440px',
-        margin: '0 auto',
-        background: '#f8fafc',
-        height: 'calc(100vh - 65px)',
+        padding: '8px 14px',
+        width: '100%',
+        height: '100%',
+        boxSizing: 'border-box',
         display: 'flex',
         flexDirection: 'column',
-        gap: '8px',
-        boxSizing: 'border-box',
         overflow: 'hidden',
+        background: '#f8fafc',
       }}
     >
       <div
