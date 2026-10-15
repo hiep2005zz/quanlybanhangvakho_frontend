@@ -620,175 +620,219 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
   }
 
   // =========================================================================
-  // VIEW: CHI TIẾT CHUYẾN GIAO HÀNG & CẬP NHẬT KẾT QUẢ
+  // VIEW: CHI TIẾT CHUYẾN GIAO HÀNG & CẬP NHẬT KẾT QUẢ (ĐÓNG GÓI TRONG 1 KHUNG DUY NHẤT)
   // =========================================================================
   if (viewMode === 'detail' && selectedTrip) {
     const badge = getTripStatusBadge(selectedTrip.status);
 
     return (
-      <div style={{ padding: '24px', maxWidth: '1400px', margin: '0 auto', background: '#f8fafc', minHeight: '100vh' }}>
-        {/* Thanh điều hướng quay lại */}
-        <div style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
-          <button
-            type="button"
-            onClick={() => {
-              setViewMode('list');
-              loadTrips();
-            }}
+      <div
+        style={{
+          padding: '12px 18px',
+          maxWidth: '1440px',
+          margin: '0 auto',
+          background: '#f8fafc',
+          height: 'calc(100vh - 65px)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '8px',
+          boxSizing: 'border-box',
+          overflow: 'hidden',
+        }}
+      >
+        <div
+          style={{
+            background: '#ffffff',
+            border: '1px solid #e2e8f0',
+            borderRadius: '8px',
+            display: 'flex',
+            flexDirection: 'column',
+            flex: 1,
+            minHeight: 0,
+            overflow: 'hidden',
+          }}
+        >
+          {/* Thanh tiêu đề & Nút thao tác */}
+          <div
             style={{
-              padding: '8px 16px',
+              padding: '8px 14px',
+              borderBottom: '1px solid #e2e8f0',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexShrink: 0,
+              gap: '12px',
               background: '#ffffff',
-              border: '1px solid #cbd5e1',
-              borderRadius: '8px',
-              fontSize: '13px',
-              fontWeight: '600',
-              color: '#334155',
-              cursor: 'pointer',
             }}
           >
-            Quay lại danh sách
-          </button>
-
-          <div style={{ display: 'flex', gap: '10px' }}>
-            <button
-              type="button"
-              onClick={() => handleOpenPrint(selectedTrip.id)}
-              style={{
-                padding: '8px 18px',
-                background: '#ffffff',
-                border: '1px solid #0284c7',
-                borderRadius: '8px',
-                fontSize: '13px',
-                fontWeight: '700',
-                color: '#0284c7',
-                cursor: 'pointer',
-              }}
-            >
-              In danh sách điểm giao
-            </button>
-
-            {selectedTrip.status === 'ASSIGNED' && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
               <button
                 type="button"
-                onClick={() => handleUpdateTripStatus('IN_PROGRESS')}
-                style={{
-                  padding: '8px 18px',
-                  background: '#0284c7',
-                  border: 'none',
-                  borderRadius: '8px',
-                  fontSize: '13px',
-                  fontWeight: '700',
-                  color: '#ffffff',
-                  cursor: 'pointer',
+                onClick={() => {
+                  setViewMode('list');
+                  loadTrips();
                 }}
-              >
-                Bắt đầu giao hàng
-              </button>
-            )}
-
-            {selectedTrip.status === 'IN_PROGRESS' && (
-              <button
-                type="button"
-                onClick={() => handleUpdateTripStatus('COMPLETED')}
                 style={{
-                  padding: '8px 18px',
-                  background: '#16a34a',
-                  border: 'none',
-                  borderRadius: '8px',
-                  fontSize: '13px',
-                  fontWeight: '700',
-                  color: '#ffffff',
-                  cursor: 'pointer',
-                }}
-              >
-                Hoàn tất toàn bộ chuyến
-              </button>
-            )}
-
-            {selectedTrip.status !== 'COMPLETED' && selectedTrip.status !== 'CANCELLED' && (
-              <button
-                type="button"
-                onClick={() => handleUpdateTripStatus('CANCELLED')}
-                style={{
-                  padding: '8px 16px',
-                  background: '#ffffff',
-                  border: '1px solid #dc2626',
-                  borderRadius: '8px',
-                  fontSize: '13px',
+                  padding: '5px 12px',
+                  background: '#f8fafc',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: '6px',
+                  fontSize: '12px',
                   fontWeight: '600',
-                  color: '#dc2626',
+                  color: '#334155',
                   cursor: 'pointer',
+                  whiteSpace: 'nowrap',
                 }}
               >
-                Hủy chuyến
+                ← Quay lại danh sách
               </button>
-            )}
-
-            {selectedTrip.status === 'DRAFT' && (
-              <button
-                type="button"
-                onClick={() => handleDeleteDraftTrip(selectedTrip.id)}
-                style={{
-                  padding: '8px 16px',
-                  background: '#fee2e2',
-                  border: '1px solid #fca5a5',
-                  borderRadius: '8px',
-                  fontSize: '13px',
-                  fontWeight: '600',
-                  color: '#b91c1c',
-                  cursor: 'pointer',
-                }}
-              >
-                Xóa chuyến nháp
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Thông tin chuyến giao */}
-        <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '20px 24px', marginBottom: '20px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <h1 style={{ margin: 0, fontSize: '22px', fontWeight: '800', color: '#0f172a' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <h1 style={{ margin: 0, fontSize: '15.5px', fontWeight: '800', color: '#0f172a', whiteSpace: 'nowrap' }}>
                   Chuyến Giao Hàng {selectedTrip.trip_code}
                 </h1>
                 <span
                   style={{
-                    padding: '4px 12px',
-                    borderRadius: '20px',
-                    fontSize: '12px',
+                    padding: '2px 8px',
+                    borderRadius: '4px',
+                    fontSize: '11px',
                     fontWeight: '700',
                     background: badge.bg,
                     color: badge.color,
+                    whiteSpace: 'nowrap',
                   }}
                 >
                   {badge.text}
                 </span>
               </div>
-              <div style={{ display: 'flex', gap: '24px', marginTop: '12px', fontSize: '13px', color: '#475569', flexWrap: 'wrap' }}>
-                <div>Ngày giao: <strong style={{ color: '#0f172a' }}>{selectedTrip.delivery_date}</strong></div>
-                <div>Tài xế: <strong style={{ color: '#0f172a' }}>{selectedTrip.driver_name || 'Chưa phân công'}</strong> {selectedTrip.driver_phone && `(${selectedTrip.driver_phone})`}</div>
-                <div>Phương tiện: <strong style={{ color: '#0f172a' }}>{selectedTrip.vehicle_plate || 'Chưa gán xe'}</strong> {selectedTrip.vehicle_type && `- ${selectedTrip.vehicle_type}`}</div>
-                <div>Kho xuất: <strong style={{ color: '#0f172a' }}>{selectedTrip.warehouse_name || 'Kho Tổng Hà Nội'}</strong></div>
-                <div>Tổng điểm dừng: <strong style={{ color: '#0284c7' }}>{selectedTrip.total_stops}</strong> | Tổng phiếu xuất: <strong style={{ color: '#0284c7' }}>{selectedTrip.total_dispatches}</strong></div>
-              </div>
-              {selectedTrip.note && (
-                <div style={{ marginTop: '10px', fontSize: '12.5px', color: '#64748b' }}>
-                  Ghi chú chuyến: <em>{selectedTrip.note}</em>
-                </div>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+              <button
+                type="button"
+                onClick={() => handleOpenPrint(selectedTrip.id)}
+                style={{
+                  padding: '5px 12px',
+                  background: '#ffffff',
+                  border: '1px solid #0284c7',
+                  borderRadius: '6px',
+                  fontSize: '12px',
+                  fontWeight: '700',
+                  color: '#0284c7',
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                In danh sách
+              </button>
+
+              {selectedTrip.status === 'ASSIGNED' && (
+                <button
+                  type="button"
+                  onClick={() => handleUpdateTripStatus('IN_PROGRESS')}
+                  style={{
+                    padding: '5px 14px',
+                    background: '#0284c7',
+                    border: 'none',
+                    borderRadius: '6px',
+                    fontSize: '12px',
+                    fontWeight: '700',
+                    color: '#ffffff',
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  Bắt đầu giao hàng
+                </button>
+              )}
+
+              {selectedTrip.status === 'IN_PROGRESS' && (
+                <button
+                  type="button"
+                  onClick={() => handleUpdateTripStatus('COMPLETED')}
+                  style={{
+                    padding: '5px 14px',
+                    background: '#16a34a',
+                    border: 'none',
+                    borderRadius: '6px',
+                    fontSize: '12px',
+                    fontWeight: '700',
+                    color: '#ffffff',
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  Hoàn tất toàn bộ chuyến
+                </button>
+              )}
+
+              {selectedTrip.status !== 'COMPLETED' && selectedTrip.status !== 'CANCELLED' && (
+                <button
+                  type="button"
+                  onClick={() => handleUpdateTripStatus('CANCELLED')}
+                  style={{
+                    padding: '5px 12px',
+                    background: '#ffffff',
+                    border: '1px solid #dc2626',
+                    borderRadius: '6px',
+                    fontSize: '12px',
+                    fontWeight: '600',
+                    color: '#dc2626',
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  Hủy chuyến
+                </button>
+              )}
+
+              {selectedTrip.status === 'DRAFT' && (
+                <button
+                  type="button"
+                  onClick={() => handleDeleteDraftTrip(selectedTrip.id)}
+                  style={{
+                    padding: '5px 12px',
+                    background: '#fee2e2',
+                    border: '1px solid #fca5a5',
+                    borderRadius: '6px',
+                    fontSize: '12px',
+                    fontWeight: '600',
+                    color: '#b91c1c',
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  Xóa nháp
+                </button>
               )}
             </div>
           </div>
-        </div>
 
-        {/* Danh sách các điểm dừng theo thứ tự */}
-        <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '20px 24px' }}>
-          <h2 style={{ margin: '0 0 16px 0', fontSize: '16px', fontWeight: '800', color: '#0f172a' }}>
-            Lộ Trình Điểm Dừng & Cập Nhật Kết Quả Giao Hàng
-          </h2>
+          {/* Dòng thông tin chuyến (1 dòng gọn gàng, không xuống dòng) */}
+          <div
+            style={{
+              padding: '7px 14px',
+              background: '#f8fafc',
+              borderBottom: '1px solid #e2e8f0',
+              display: 'flex',
+              gap: '24px',
+              fontSize: '12px',
+              color: '#475569',
+              alignItems: 'center',
+              flexShrink: 0,
+              whiteSpace: 'nowrap',
+              overflowX: 'auto',
+            }}
+          >
+            <div>Ngày giao: <strong style={{ color: '#0f172a' }}>{selectedTrip.delivery_date}</strong></div>
+            <div>Tài xế: <strong style={{ color: '#0f172a' }}>{selectedTrip.driver_name || 'Chưa phân công'}</strong> {selectedTrip.driver_phone && `(${selectedTrip.driver_phone})`}</div>
+            <div>Phương tiện: <strong style={{ color: '#0f172a' }}>{selectedTrip.vehicle_plate || 'Chưa gán xe'}</strong> {selectedTrip.vehicle_type && `- ${selectedTrip.vehicle_type}`}</div>
+            <div>Kho xuất: <strong style={{ color: '#0f172a' }}>{selectedTrip.warehouse_name || 'Kho Tổng Hà Nội'}</strong></div>
+            <div>Tổng điểm dừng: <strong style={{ color: '#0284c7' }}>{selectedTrip.total_stops}</strong> | Phiếu xuất: <strong style={{ color: '#0284c7' }}>{selectedTrip.total_dispatches}</strong></div>
+            {selectedTrip.note && <div>Ghi chú: <em style={{ color: '#334155' }}>{selectedTrip.note}</em></div>}
+          </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {/* Danh sách các điểm dừng theo thứ tự */}
+          <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {(selectedTrip.stops || []).map((st: any) => {
               const isPending = st.status === 'PENDING';
               const isDelivered = st.status === 'DELIVERED';
@@ -799,52 +843,59 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
                   key={st.id}
                   style={{
                     border: '1px solid #e2e8f0',
-                    borderRadius: '10px',
-                    padding: '16px 20px',
+                    borderRadius: '8px',
+                    padding: '8px 12px',
                     background: isDelivered ? '#f0fdf4' : isFailed ? '#fef2f2' : '#ffffff',
                   }}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px', borderBottom: '1px solid #f1f5f9', paddingBottom: '12px', marginBottom: '12px' }}>
-                    <div>
-                      <span style={{ display: 'inline-block', width: '28px', height: '28px', lineHeight: '28px', textAlign: 'center', background: '#0284c7', color: '#ffffff', borderRadius: '50%', fontWeight: '800', fontSize: '13px', marginRight: '10px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'nowrap', gap: '10px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: 1 }}>
+                      <span style={{ display: 'inline-block', width: '24px', height: '24px', minWidth: '24px', lineHeight: '24px', textAlign: 'center', background: '#0284c7', color: '#ffffff', borderRadius: '50%', fontWeight: '800', fontSize: '11.5px' }}>
                         {st.stop_order}
                       </span>
-                      <strong style={{ fontSize: '15px', color: '#0f172a' }}>{st.receiver_name}</strong>
-                      <span style={{ fontSize: '13px', color: '#475569', marginLeft: '10px' }}>
+                      <strong style={{ fontSize: '12.5px', color: '#0f172a', whiteSpace: 'nowrap' }}>{st.receiver_name}</strong>
+                      <span style={{ fontSize: '12px', color: '#475569', whiteSpace: 'nowrap' }}>
                         - ĐT: <strong>{st.receiver_phone}</strong> ({st.dealer_name})
+                      </span>
+                      <span style={{ fontSize: '12px', color: '#64748b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        | Địa chỉ: <strong>{st.address}</strong>
+                      </span>
+                      <span style={{ fontSize: '11px', color: '#0284c7', whiteSpace: 'nowrap' }}>
+                        | Gom {st.dispatches?.length || 0} phiếu: {(st.dispatches || []).map((d: any) => d.dispatch_code).join(', ')}
                       </span>
                     </div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
                       <span
                         style={{
-                          padding: '3px 10px',
+                          padding: '2px 8px',
                           borderRadius: '4px',
-                          fontSize: '12px',
+                          fontSize: '11px',
                           fontWeight: '700',
                           background: isDelivered ? '#dcfce7' : isFailed ? '#fee2e2' : '#fef3c7',
                           color: isDelivered ? '#166534' : isFailed ? '#b91c1c' : '#b45309',
+                          whiteSpace: 'nowrap',
                         }}
                       >
                         {isDelivered ? 'Đã giao thành công' : isFailed ? 'Giao thất bại' : 'Chờ giao hàng'}
                       </span>
 
-                      {/* Các nút cập nhật kết quả giao */}
                       {isPending && (
-                        <div style={{ display: 'flex', gap: '6px' }}>
+                        <div style={{ display: 'flex', gap: '4px' }}>
                           <button
                             type="button"
                             onClick={() => handleUpdateStopResult(st.id, 'DELIVERED')}
                             disabled={isUpdatingStop}
                             style={{
-                              padding: '5px 12px',
+                              padding: '4px 10px',
                               background: '#16a34a',
                               border: 'none',
-                              borderRadius: '6px',
-                              fontSize: '12px',
+                              borderRadius: '4px',
+                              fontSize: '11px',
                               fontWeight: '700',
                               color: '#ffffff',
                               cursor: 'pointer',
+                              whiteSpace: 'nowrap',
                             }}
                           >
                             Đã giao xong
@@ -854,122 +905,76 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
                             onClick={() => setActiveFailureStopId(activeFailureStopId === st.id ? null : st.id)}
                             disabled={isUpdatingStop}
                             style={{
-                              padding: '5px 12px',
+                              padding: '4px 10px',
                               background: '#ffffff',
                               border: '1px solid #dc2626',
-                              borderRadius: '6px',
-                              fontSize: '12px',
+                              borderRadius: '4px',
+                              fontSize: '11px',
                               fontWeight: '600',
                               color: '#dc2626',
                               cursor: 'pointer',
+                              whiteSpace: 'nowrap',
                             }}
                           >
-                            Báo giao thất bại
+                            Báo thất bại
                           </button>
                         </div>
                       )}
                     </div>
                   </div>
 
-                  <div style={{ fontSize: '13px', color: '#334155', marginBottom: '8px' }}>
-                    Địa chỉ: <strong>{st.address}</strong>
-                  </div>
-                  {st.route_note && (
-                    <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '8px' }}>
-                      Ghi chú tuyến: <em>{st.route_note}</em>
-                    </div>
-                  )}
-
-                  {/* Form nhập lý do thất bại */}
                   {activeFailureStopId === st.id && (
-                    <div style={{ marginTop: '10px', padding: '12px', background: '#fff1f2', borderRadius: '8px', border: '1px solid #fecdd3' }}>
-                      <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#9f1239', marginBottom: '4px' }}>
-                        Lý do giao hàng thất bại:
-                      </label>
+                    <div style={{ marginTop: '8px', padding: '8px 10px', background: '#fff1f2', borderRadius: '6px', border: '1px solid #fecdd3', display: 'flex', gap: '8px', alignItems: 'center' }}>
                       <input
                         type="text"
                         value={failureReasonInput}
                         onChange={(e) => setFailureReasonInput(e.target.value)}
-                        placeholder="Ví dụ: Khách đi vắng, không liên lạc được số điện thoại, đổi lịch giao..."
+                        placeholder="Nhập lý do thất bại (khách vắng nhà, không liên lạc được...)..."
                         style={{
-                          width: '100%',
-                          padding: '7px 10px',
-                          borderRadius: '6px',
+                          flex: 1,
+                          padding: '5px 8px',
+                          borderRadius: '4px',
                           border: '1px solid #fda4af',
-                          fontSize: '13px',
+                          fontSize: '12px',
                           color: '#0f172a',
-                          boxSizing: 'border-box',
-                          marginBottom: '8px',
                         }}
                       />
-                      <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                        <button
-                          type="button"
-                          onClick={() => setActiveFailureStopId(null)}
-                          style={{
-                            padding: '5px 12px',
-                            background: '#ffffff',
-                            border: '1px solid #cbd5e1',
-                            borderRadius: '6px',
-                            fontSize: '12px',
-                            cursor: 'pointer',
-                          }}
-                        >
-                          Hủy
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleUpdateStopResult(st.id, 'FAILED', failureReasonInput)}
-                          disabled={isUpdatingStop}
-                          style={{
-                            padding: '5px 14px',
-                            background: '#dc2626',
-                            border: 'none',
-                            borderRadius: '6px',
-                            fontSize: '12px',
-                            fontWeight: '700',
-                            color: '#ffffff',
-                            cursor: 'pointer',
-                          }}
-                        >
-                          Xác nhận thất bại
-                        </button>
-                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleUpdateStopResult(st.id, 'FAILED')}
+                        disabled={isUpdatingStop}
+                        style={{
+                          padding: '5px 12px',
+                          background: '#dc2626',
+                          border: 'none',
+                          borderRadius: '4px',
+                          fontSize: '11px',
+                          fontWeight: '700',
+                          color: '#ffffff',
+                          cursor: 'pointer',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        Xác nhận
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setActiveFailureStopId(null)}
+                        style={{
+                          padding: '5px 10px',
+                          background: '#ffffff',
+                          border: '1px solid #cbd5e1',
+                          borderRadius: '4px',
+                          fontSize: '11px',
+                          color: '#475569',
+                          cursor: 'pointer',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        Hủy
+                      </button>
                     </div>
                   )}
-
-                  {isFailed && st.failure_reason && (
-                    <div style={{ fontSize: '12px', color: '#b91c1c', marginTop: '6px', fontWeight: '600' }}>
-                      Lý do giao thất bại: {st.failure_reason}
-                    </div>
-                  )}
-                  {isDelivered && st.delivered_at && (
-                    <div style={{ fontSize: '12px', color: '#15803d', marginTop: '6px' }}>
-                      Thời gian giao hoàn tất: {new Date(st.delivered_at).toLocaleString('vi-VN')}
-                    </div>
-                  )}
-
-                  {/* Danh sách phiếu xuất gom tại điểm này */}
-                  <div style={{ marginTop: '10px', borderTop: '1px solid #f1f5f9', paddingTop: '8px' }}>
-                    <span style={{ fontSize: '12px', fontWeight: '700', color: '#64748b' }}>Phiếu xuất giao tại điểm này:</span>
-                    <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '4px' }}>
-                      {(st.dispatches || []).map((d: any) => (
-                        <span
-                          key={d.id}
-                          style={{
-                            padding: '3px 8px',
-                            background: '#f1f5f9',
-                            border: '1px solid #e2e8f0',
-                            borderRadius: '4px',
-                            fontSize: '12px',
-                            color: '#0f172a',
-                          }}
-                        >
-                          <strong>{d.dispatch_code}</strong> ({d.order_code}) {d.items_summary && `- ${d.items_summary}`}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
                 </div>
               );
             })}
@@ -1303,23 +1308,23 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
                             style={{ cursor: 'pointer' }}
                           />
                         </td>
-                        <td style={{ padding: '6px 8px', fontWeight: '700', color: '#0284c7' }}>
+                        <td style={{ padding: '6px 8px', fontWeight: '700', color: '#0284c7', whiteSpace: 'nowrap' }}>
                           {disp.dispatch_code}
                         </td>
-                        <td style={{ padding: '6px 8px', fontWeight: '600', color: '#0f172a' }}>
+                        <td style={{ padding: '6px 8px', fontWeight: '600', color: '#0f172a', whiteSpace: 'nowrap' }}>
                           {disp.order_code}
                         </td>
-                        <td style={{ padding: '6px 8px' }}>
+                        <td style={{ padding: '6px 8px', whiteSpace: 'nowrap' }}>
                           <div style={{ fontWeight: '600', color: '#0f172a' }}>{disp.receiver_name}</div>
                           <div style={{ fontSize: '10.5px', color: '#64748b' }}>{disp.dealer_name}</div>
                         </td>
-                        <td style={{ padding: '6px 8px', fontWeight: '600', color: '#475569' }}>
+                        <td style={{ padding: '6px 8px', fontWeight: '600', color: '#475569', whiteSpace: 'nowrap' }}>
                           {disp.receiver_phone}
                         </td>
-                        <td style={{ padding: '6px 8px', color: '#334155' }}>
+                        <td style={{ padding: '6px 8px', color: '#334155', whiteSpace: 'nowrap' }}>
                           {disp.address}
                         </td>
-                        <td style={{ padding: '6px 8px', color: '#64748b', fontSize: '11px' }}>
+                        <td style={{ padding: '6px 8px', color: '#64748b', fontSize: '11px', whiteSpace: 'nowrap' }}>
                           {disp.items_summary || '—'}
                         </td>
                       </tr>
@@ -1445,55 +1450,154 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
     );
   }
 
+
   // =========================================================================
-  // VIEW: DANH SÁCH CÁC CHUYẾN GIAO HÀNG (LIST VIEW)
+  // VIEW: DANH SÁCH CÁC CHUYẾN GIAO HÀNG (ĐÓNG GÓI TRONG 1 KHUNG DUY NHẤT)
   // =========================================================================
   return (
-    <div style={{ padding: '24px', maxWidth: '1400px', margin: '0 auto', background: '#f8fafc', minHeight: '100vh' }}>
-      {/* Tiêu đề & Nút thao tác */}
-      <div style={{ marginBottom: '24px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
+    <div
+      style={{
+        padding: '12px 18px',
+        maxWidth: '1440px',
+        margin: '0 auto',
+        background: '#f8fafc',
+        height: 'calc(100vh - 65px)',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '8px',
+        boxSizing: 'border-box',
+        overflow: 'hidden',
+      }}
+    >
+      <div
+        style={{
+          background: '#ffffff',
+          border: '1px solid #e2e8f0',
+          borderRadius: '8px',
+          display: 'flex',
+          flexDirection: 'column',
+          flex: 1,
+          minHeight: 0,
+          overflow: 'hidden',
+        }}
+      >
+        {/* Header tích hợp: Tiêu đề + Chỉ số nhanh + Nút tạo chuyến */}
+        <div
+          style={{
+            padding: '8px 14px',
+            borderBottom: '1px solid #e2e8f0',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexShrink: 0,
+            gap: '12px',
+            flexWrap: 'nowrap',
+          }}
+        >
           <div>
-            <h1 style={{ margin: 0, fontSize: '24px', fontWeight: '800', color: '#0f172a', letterSpacing: '-0.5px' }}>
+            <h1 style={{ margin: 0, fontSize: '16px', fontWeight: '800', color: '#0f172a', whiteSpace: 'nowrap' }}>
               Quản Lý Chuyến Giao Hàng & Phân Tuyến
             </h1>
-            <p style={{ margin: '4px 0 0 0', fontSize: '13.5px', color: '#475569' }}>
-              Gom nhiều phiếu xuất kho theo khu vực, gán tài xế và phương tiện, theo dõi kết quả từng điểm giao.
-            </p>
+            <span style={{ fontSize: '11px', color: '#64748b', whiteSpace: 'nowrap' }}>
+              Gom nhiều phiếu xuất kho theo khu vực, gán tài xế & phương tiện, theo dõi kết quả từng điểm giao
+            </span>
           </div>
 
-          <div style={{ display: 'flex', gap: '10px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+            {/* 4 Huy hiệu tóm tắt nhanh nằm ngay trên thanh tiêu đề, không tạo ô rời rạc */}
+            <span
+              style={{
+                padding: '4px 10px',
+                background: '#f1f5f9',
+                color: '#334155',
+                border: '1px solid #e2e8f0',
+                borderRadius: '6px',
+                fontSize: '11.5px',
+                fontWeight: '700',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              Tổng: <strong>{totalTripsCount}</strong> chuyến
+            </span>
+
+            <span
+              style={{
+                padding: '4px 10px',
+                background: '#fef3c7',
+                color: '#b45309',
+                border: '1px solid #fde68a',
+                borderRadius: '6px',
+                fontSize: '11.5px',
+                fontWeight: '700',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              Đang giao: <strong>{inProgressTripsCount}</strong>
+            </span>
+
+            <span
+              style={{
+                padding: '4px 10px',
+                background: '#dcfce7',
+                color: '#15803d',
+                border: '1px solid #86efac',
+                borderRadius: '6px',
+                fontSize: '11.5px',
+                fontWeight: '700',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              Đã xong: <strong>{completedTripsCount}</strong>
+            </span>
+
+            <span
+              style={{
+                padding: '4px 10px',
+                background: '#e0f2fe',
+                color: '#0369a1',
+                border: '1px solid #7dd3fc',
+                borderRadius: '6px',
+                fontSize: '11.5px',
+                fontWeight: '700',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              Chờ khởi hành: <strong>{pendingAssignedTripsCount}</strong>
+            </span>
+
             <button
               type="button"
               onClick={loadTrips}
               disabled={isLoading}
               style={{
-                padding: '9px 18px',
+                padding: '5px 12px',
                 background: '#ffffff',
                 border: '1px solid #cbd5e1',
-                borderRadius: '8px',
-                fontSize: '13px',
+                borderRadius: '6px',
+                fontSize: '12px',
                 fontWeight: '600',
                 color: '#334155',
                 cursor: 'pointer',
-                boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                whiteSpace: 'nowrap',
               }}
             >
               {isLoading ? 'Đang tải...' : 'Làm mới'}
             </button>
+
             <button
               type="button"
               onClick={handleOpenCreatePage}
               style={{
-                padding: '9px 20px',
+                padding: '5px 14px',
                 background: '#0284c7',
                 border: 'none',
-                borderRadius: '8px',
-                fontSize: '13px',
+                borderRadius: '6px',
+                fontSize: '12px',
                 fontWeight: '700',
                 color: '#ffffff',
                 cursor: 'pointer',
-                boxShadow: '0 1px 2px rgba(2,132,199,0.3)',
+                whiteSpace: 'nowrap',
+                boxShadow: '0 1px 2px rgba(2,132,199,0.2)',
               }}
             >
               + Tạo chuyến giao hàng
@@ -1501,42 +1605,19 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
           </div>
         </div>
 
-        {/* 4 Thẻ chỉ số tổng quan */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px', marginTop: '20px' }}>
-          <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '16px 20px' }}>
-            <span style={{ fontSize: '13px', fontWeight: '600', color: '#64748b' }}>Tổng số chuyến giao</span>
-            <div style={{ marginTop: '10px', fontSize: '28px', fontWeight: '800', color: '#0f172a' }}>
-              {totalTripsCount} <span style={{ fontSize: '14px', fontWeight: '500', color: '#64748b' }}>chuyến</span>
-            </div>
-          </div>
-
-          <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '16px 20px' }}>
-            <span style={{ fontSize: '13px', fontWeight: '600', color: '#64748b' }}>Đang trên đường giao</span>
-            <div style={{ marginTop: '10px', fontSize: '28px', fontWeight: '800', color: '#b45309' }}>
-              {inProgressTripsCount} <span style={{ fontSize: '14px', fontWeight: '500', color: '#64748b' }}>chuyến</span>
-            </div>
-          </div>
-
-          <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '16px 20px' }}>
-            <span style={{ fontSize: '13px', fontWeight: '600', color: '#64748b' }}>Đã hoàn thành</span>
-            <div style={{ marginTop: '10px', fontSize: '28px', fontWeight: '800', color: '#16a34a' }}>
-              {completedTripsCount} <span style={{ fontSize: '14px', fontWeight: '500', color: '#64748b' }}>chuyến</span>
-            </div>
-          </div>
-
-          <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '16px 20px' }}>
-            <span style={{ fontSize: '13px', fontWeight: '600', color: '#64748b' }}>Chờ điều phối / Khởi hành</span>
-            <div style={{ marginTop: '10px', fontSize: '28px', fontWeight: '800', color: '#0284c7' }}>
-              {pendingAssignedTripsCount} <span style={{ fontSize: '14px', fontWeight: '500', color: '#64748b' }}>chuyến</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Bộ lọc & Bảng danh sách chuyến */}
-      <div style={{ background: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
-        {/* Bộ lọc */}
-        <div style={{ padding: '16px 20px', borderBottom: '1px solid #f1f5f9', display: 'flex', gap: '14px', flexWrap: 'wrap', alignItems: 'center' }}>
+        {/* Thanh Bộ lọc tìm kiếm (Nằm ngang trong cùng 1 khung) */}
+        <div
+          style={{
+            padding: '8px 14px',
+            borderBottom: '1px solid #f1f5f9',
+            display: 'flex',
+            gap: '10px',
+            flexWrap: 'nowrap',
+            alignItems: 'center',
+            background: '#f8fafc',
+            flexShrink: 0,
+          }}
+        >
           <input
             type="text"
             value={searchTerm}
@@ -1544,11 +1625,10 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
             placeholder="Tìm theo mã chuyến, tài xế, biển số..."
             style={{
               flex: 1,
-              minWidth: '260px',
-              padding: '9px 14px',
-              borderRadius: '8px',
+              padding: '6px 12px',
+              borderRadius: '6px',
               border: '1px solid #cbd5e1',
-              fontSize: '13.5px',
+              fontSize: '12px',
               color: '#0f172a',
               boxSizing: 'border-box',
             }}
@@ -1559,11 +1639,12 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
             value={dateFilter}
             onChange={(e) => setDateFilter(e.target.value)}
             style={{
-              padding: '8px 12px',
-              borderRadius: '8px',
+              padding: '5px 10px',
+              borderRadius: '6px',
               border: '1px solid #cbd5e1',
-              fontSize: '13px',
+              fontSize: '12px',
               color: '#0f172a',
+              whiteSpace: 'nowrap',
             }}
           />
 
@@ -1571,12 +1652,13 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
             style={{
-              padding: '9px 14px',
-              borderRadius: '8px',
+              padding: '5px 10px',
+              borderRadius: '6px',
               border: '1px solid #cbd5e1',
-              fontSize: '13px',
+              fontSize: '12px',
               color: '#0f172a',
               background: '#ffffff',
+              whiteSpace: 'nowrap',
             }}
           >
             <option value="ALL">Tất cả trạng thái</option>
@@ -1597,13 +1679,14 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
                 setStatusFilter('ALL');
               }}
               style={{
-                padding: '8px 14px',
-                background: '#f1f5f9',
+                padding: '5px 10px',
+                background: '#ffffff',
                 border: '1px solid #cbd5e1',
-                borderRadius: '8px',
-                fontSize: '12.5px',
+                borderRadius: '6px',
+                fontSize: '11.5px',
                 color: '#475569',
                 cursor: 'pointer',
+                whiteSpace: 'nowrap',
               }}
             >
               Xóa bộ lọc
@@ -1611,27 +1694,27 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
           )}
         </div>
 
-        {/* Bảng danh sách chuyến - Tiêu đề đứng yên */}
-        <div style={{ maxHeight: 'calc(100vh - 360px)', overflowY: 'auto', overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+        {/* Bảng danh sách chuyến - Tiêu đề đứng yên, không xuống dòng */}
+        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '12px' }}>
             <thead style={{ position: 'sticky', top: 0, zIndex: 10, background: '#f8fafc' }}>
-              <tr style={{ background: '#f8fafc', color: '#475569', borderBottom: '2px solid #cbd5e1' }}>
-                <th style={{ position: 'sticky', top: 0, background: '#f8fafc', zIndex: 10, padding: '12px 16px', fontWeight: '700' }}>Mã chuyến</th>
-                <th style={{ position: 'sticky', top: 0, background: '#f8fafc', zIndex: 10, padding: '12px 16px', fontWeight: '700' }}>Ngày giao</th>
-                <th style={{ position: 'sticky', top: 0, background: '#f8fafc', zIndex: 10, padding: '12px 16px', fontWeight: '700' }}>Tài xế phụ trách</th>
-                <th style={{ position: 'sticky', top: 0, background: '#f8fafc', zIndex: 10, padding: '12px 16px', fontWeight: '700' }}>Phương tiện</th>
-                <th style={{ position: 'sticky', top: 0, background: '#f8fafc', zIndex: 10, padding: '12px 16px', fontWeight: '700', textAlign: 'center' }}>Điểm giao</th>
-                <th style={{ position: 'sticky', top: 0, background: '#f8fafc', zIndex: 10, padding: '12px 16px', fontWeight: '700', textAlign: 'center' }}>Số phiếu xuất</th>
-                <th style={{ position: 'sticky', top: 0, background: '#f8fafc', zIndex: 10, padding: '12px 16px', fontWeight: '700' }}>Trạng thái</th>
-                <th style={{ position: 'sticky', top: 0, background: '#f8fafc', zIndex: 10, padding: '12px 16px', fontWeight: '700', textAlign: 'right' }}>Thao tác</th>
+              <tr style={{ background: '#f8fafc', color: '#475569', borderBottom: '1px solid #cbd5e1' }}>
+                <th style={{ padding: '7px 12px', fontWeight: '700', whiteSpace: 'nowrap', width: '120px' }}>Mã chuyến</th>
+                <th style={{ padding: '7px 12px', fontWeight: '700', whiteSpace: 'nowrap', width: '100px' }}>Ngày giao</th>
+                <th style={{ padding: '7px 12px', fontWeight: '700', whiteSpace: 'nowrap' }}>Tài xế phụ trách</th>
+                <th style={{ padding: '7px 12px', fontWeight: '700', whiteSpace: 'nowrap', width: '180px' }}>Phương tiện / Biển số</th>
+                <th style={{ padding: '7px 12px', fontWeight: '700', whiteSpace: 'nowrap', width: '90px', textAlign: 'center' }}>Điểm giao</th>
+                <th style={{ padding: '7px 12px', fontWeight: '700', whiteSpace: 'nowrap', width: '100px', textAlign: 'center' }}>Số phiếu xuất</th>
+                <th style={{ padding: '7px 12px', fontWeight: '700', whiteSpace: 'nowrap', width: '120px' }}>Trạng thái</th>
+                <th style={{ padding: '7px 12px', fontWeight: '700', whiteSpace: 'nowrap', width: '130px', textAlign: 'right' }}>Thao tác</th>
               </tr>
             </thead>
             <tbody>
               {trips.length === 0 ? (
                 <tr>
-                  <td colSpan={8} style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>
+                  <td colSpan={8} style={{ padding: '30px', textAlign: 'center', color: '#64748b' }}>
                     <div style={{ fontWeight: '600', color: '#0f172a' }}>Không có chuyến giao hàng nào</div>
-                    <div style={{ fontSize: '12px', marginTop: '4px' }}>Bấm nút "+ Tạo chuyến giao hàng" ở trên để phân tuyến chuyến mới.</div>
+                    <div style={{ fontSize: '11.5px', marginTop: '4px' }}>Bấm nút "+ Tạo chuyến giao hàng" ở trên để phân tuyến chuyến mới.</div>
                   </td>
                 </tr>
               ) : (
@@ -1639,54 +1722,56 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
                   const badge = getTripStatusBadge(t.status);
                   return (
                     <tr key={t.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                      <td style={{ padding: '12px 16px', fontWeight: '700', color: '#0284c7' }}>
+                      <td style={{ padding: '6px 12px', fontWeight: '700', color: '#0284c7', whiteSpace: 'nowrap' }}>
                         {t.trip_code}
                       </td>
-                      <td style={{ padding: '12px 16px', fontWeight: '600', color: '#0f172a' }}>
+                      <td style={{ padding: '6px 12px', fontWeight: '600', color: '#0f172a', whiteSpace: 'nowrap' }}>
                         {t.delivery_date}
                       </td>
-                      <td style={{ padding: '12px 16px', color: '#334155' }}>
-                        <div><strong>{t.driver_name || 'Chưa phân công'}</strong></div>
-                        {t.driver_phone && <div style={{ fontSize: '11px', color: '#64748b' }}>{t.driver_phone}</div>}
+                      <td style={{ padding: '6px 12px', color: '#334155', whiteSpace: 'nowrap' }}>
+                        <strong>{t.driver_name || 'Chưa phân công'}</strong>
+                        {t.driver_phone && <span style={{ fontSize: '11px', color: '#64748b', marginLeft: '6px' }}>({t.driver_phone})</span>}
                       </td>
-                      <td style={{ padding: '12px 16px', color: '#334155' }}>
-                        <div><strong>{t.vehicle_plate || 'Chưa gán xe'}</strong></div>
-                        {t.vehicle_type && <div style={{ fontSize: '11px', color: '#64748b' }}>{t.vehicle_type}</div>}
+                      <td style={{ padding: '6px 12px', color: '#334155', whiteSpace: 'nowrap' }}>
+                        <strong>{t.vehicle_plate || 'Chưa gán xe'}</strong>
+                        {t.vehicle_type && <span style={{ fontSize: '11px', color: '#64748b', marginLeft: '6px' }}>({t.vehicle_type})</span>}
                       </td>
-                      <td style={{ padding: '12px 16px', textAlign: 'center', fontWeight: '700', color: '#0f172a' }}>
+                      <td style={{ padding: '6px 12px', textAlign: 'center', fontWeight: '700', color: '#0f172a', whiteSpace: 'nowrap' }}>
                         {t.total_stops} điểm
                       </td>
-                      <td style={{ padding: '12px 16px', textAlign: 'center', fontWeight: '700', color: '#0284c7' }}>
+                      <td style={{ padding: '6px 12px', textAlign: 'center', fontWeight: '700', color: '#0284c7', whiteSpace: 'nowrap' }}>
                         {t.total_dispatches} phiếu
                       </td>
-                      <td style={{ padding: '12px 16px' }}>
+                      <td style={{ padding: '6px 12px', whiteSpace: 'nowrap' }}>
                         <span
                           style={{
-                            padding: '3px 8px',
+                            padding: '2px 8px',
                             borderRadius: '4px',
-                            fontSize: '11.5px',
+                            fontSize: '11px',
                             fontWeight: '700',
                             background: badge.bg,
                             color: badge.color,
+                            whiteSpace: 'nowrap',
                           }}
                         >
                           {badge.text}
                         </span>
                       </td>
-                      <td style={{ padding: '12px 16px', textAlign: 'right' }}>
-                        <div style={{ display: 'inline-flex', gap: '8px' }}>
+                      <td style={{ padding: '6px 12px', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                        <div style={{ display: 'inline-flex', gap: '6px' }}>
                           <button
                             type="button"
                             onClick={() => handleOpenPrint(t.id)}
                             style={{
-                              padding: '5px 10px',
+                              padding: '4px 8px',
                               background: '#f1f5f9',
                               border: '1px solid #cbd5e1',
-                              borderRadius: '6px',
-                              fontSize: '12px',
+                              borderRadius: '4px',
+                              fontSize: '11.5px',
                               fontWeight: '600',
                               color: '#475569',
                               cursor: 'pointer',
+                              whiteSpace: 'nowrap',
                             }}
                           >
                             In phiếu
@@ -1695,14 +1780,16 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
                             type="button"
                             onClick={() => handleOpenDetail(t.id)}
                             style={{
-                              padding: '5px 12px',
+                              padding: '4px 10px',
                               background: '#0284c7',
                               border: 'none',
-                              borderRadius: '6px',
-                              fontSize: '12px',
+                              borderRadius: '4px',
+                              fontSize: '11.5px',
                               fontWeight: '700',
                               color: '#ffffff',
                               cursor: 'pointer',
+                              whiteSpace: 'nowrap',
+                              boxShadow: '0 1px 2px rgba(2,132,199,0.2)',
                             }}
                           >
                             Chi tiết
