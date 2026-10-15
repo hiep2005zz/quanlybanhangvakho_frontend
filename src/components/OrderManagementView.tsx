@@ -309,11 +309,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
   const totalOrdersCount = orders.length;
   const pendingOrdersCount = orders.filter((o) => o.status === 'PENDING_APPROVAL' || o.status === 'PENDING').length;
   const confirmedOrdersCount = orders.filter((o) => ['CONFIRMED', 'APPROVED'].includes(o.status)).length;
-  const pickingOrdersCount = orders.filter((o) => ['PICKING', 'PREPARING', 'PACKING', 'ĐANG SOẠN HÀNG'].includes((o.status || '').toUpperCase())).length;
-  const exportedOrdersCount = orders.filter((o) => ['EXPORTED', 'SHIPPED', 'DISPATCHED', 'ĐÃ XUẤT'].includes((o.status || '').toUpperCase())).length;
   const deliveredOrdersCount = orders.filter((o) => ['DELIVERED', 'CLOSED', 'COMPLETED', 'ĐÃ GIAO'].includes((o.status || '').toUpperCase())).length;
-  const rejectedOrdersCount = orders.filter((o) => o.status === 'REJECTED').length;
-  const cancelledOrdersCount = orders.filter((o) => o.status === 'CANCELLED').length;
   const totalRevenue = orders.reduce((sum, o) => sum + (o.total_amount || 0), 0);
 
   // Bộ lọc và sắp xếp đơn hàng: Ưu tiên đơn chưa duyệt (PENDING_APPROVAL) lên đầu trang
@@ -507,7 +503,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
         </span>
       );
     }
-    if (['EXPORTED', 'SHIPPED', 'DISPATCHED', 'ĐÃ XUẤT'].includes((status || '').toUpperCase())) {
+    if (['SHIPPED', 'DISPATCHED', 'DELIVERING', 'IN_TRANSIT', 'ĐANG GIAO'].includes((status || '').toUpperCase())) {
       return (
         <span
           style={{
@@ -522,11 +518,30 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
             whiteSpace: 'nowrap',
           }}
         >
-          Đã xuất kho
+          Đang giao
         </span>
       );
     }
-    if (['PICKING', 'PREPARING', 'PACKING', 'ĐANG SOẠN HÀNG'].includes((status || '').toUpperCase())) {
+    if (['EXPORTED', 'ĐÃ XUẤT'].includes((status || '').toUpperCase())) {
+      return (
+        <span
+          style={{
+            display: 'inline-block',
+            background: '#f0fdf4',
+            color: '#15803d',
+            border: '1px solid #bbf7d0',
+            borderRadius: '999px',
+            padding: '2.5px 10px',
+            fontSize: '11.5px',
+            fontWeight: '600',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          Đã xuất
+        </span>
+      );
+    }
+    if (['PICKING', 'PREPARING', 'PACKING', 'ĐANG SOẠN', 'ĐANG SOẠN HÀNG'].includes((status || '').toUpperCase())) {
       return (
         <span
           style={{
@@ -541,7 +556,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
             whiteSpace: 'nowrap',
           }}
         >
-          Đang soạn hàng
+          Đang soạn
         </span>
       );
     }

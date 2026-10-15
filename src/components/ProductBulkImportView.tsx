@@ -1,5 +1,5 @@
 // frontend/src/components/ProductBulkImportView.tsx
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   ProductBulkPreviewResponse,
   downloadProductImportTemplateApi,
@@ -35,6 +35,9 @@ export const ProductBulkImportView: React.FC<ProductBulkImportViewProps> = ({
 
   // Filter xem theo trạng thái: ALL | NEW | UPDATE | ERROR
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'NEW' | 'UPDATE' | 'ERROR'>('ALL');
+
+  // Tìm kiếm sản phẩm trong danh sách xem trước (SKU, Tên)
+  const [searchTerm, setSearchTerm] = useState<string>('');
 
   // Màn hình kết quả hoàn tất
   const [isCompleted, setIsCompleted] = useState<boolean>(false);
@@ -76,6 +79,7 @@ export const ProductBulkImportView: React.FC<ProductBulkImportViewProps> = ({
     setPreview(null);
     setCurrentPage(1);
     setStatusFilter('ALL');
+    setSearchTerm('');
 
     try {
       const data = await uploadProductBulkPreviewApi(token, selectedFile, 1, pageSize, 'ALL');
@@ -94,11 +98,12 @@ export const ProductBulkImportView: React.FC<ProductBulkImportViewProps> = ({
     }
   };
 
-  // Tải trang từ Backend khi chuyển trang hoặc đổi bộ lọc (Server-side Pagination)
+  // Tải trang từ Backend khi chuyển trang hoặc đổi bộ lọc / tìm kiếm (Server-side Pagination)
   const handlePageChange = async (
     targetPage: number,
     targetPageSize: number = pageSize,
-    targetFilter: 'ALL' | 'NEW' | 'UPDATE' | 'ERROR' = statusFilter
+    targetFilter: 'ALL' | 'NEW' | 'UPDATE' | 'ERROR' = statusFilter,
+    querySearch: string = searchTerm
   ) => {
     if (!preview?.file_id) return;
     setIsPageLoading(true);
@@ -110,7 +115,8 @@ export const ProductBulkImportView: React.FC<ProductBulkImportViewProps> = ({
         preview.file_id,
         targetPage,
         targetPageSize,
-        targetFilter
+        targetFilter,
+        querySearch.trim() || undefined
       );
       setPreview(data);
       setCurrentPage(data.page || targetPage);
@@ -122,6 +128,21 @@ export const ProductBulkImportView: React.FC<ProductBulkImportViewProps> = ({
       setIsPageLoading(false);
     }
   };
+
+  // Debounce tìm kiếm sản phẩm
+  const isFirstMountRef = useRef(true);
+  useEffect(() => {
+    if (isFirstMountRef.current) {
+      isFirstMountRef.current = false;
+      return;
+    }
+    if (!preview?.file_id) return;
+    const timer = setTimeout(() => {
+      handlePageChange(1, pageSize, statusFilter, searchTerm);
+    }, 300);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchTerm]);
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -199,6 +220,7 @@ export const ProductBulkImportView: React.FC<ProductBulkImportViewProps> = ({
     setSummary(null);
     setCurrentPage(1);
     setStatusFilter('ALL');
+    setSearchTerm('');
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -209,20 +231,19 @@ export const ProductBulkImportView: React.FC<ProductBulkImportViewProps> = ({
       style={{
         display: 'flex',
         flexDirection: 'column',
-        height: '100%',
-        maxHeight: '100%',
-        minHeight: 0,
-        overflow: 'hidden',
-        gap: preview ? '10px' : '18px',
+        width: '100%',
+        minHeight: '100%',
+        gap: '16px',
+        padding: '16px 20px 32px 20px',
+        boxSizing: 'border-box',
       }}
     >
-      {/* KHỐI TRÊN: ĐỨNG IM CỐ ĐỊNH (Breadcrumb + Header + Quy trình + File box) */}
+      {/* Khối trên: Breadcrumb + Tiêu đề + Khung chọn file */}
       <div
         style={{
-          flexShrink: 0,
           display: 'flex',
           flexDirection: 'column',
-          gap: preview ? '8px' : '14px',
+          gap: '12px',
         }}
       >
         {/* 1. Breadcrumb điều hướng */}
@@ -402,52 +423,6 @@ export const ProductBulkImportView: React.FC<ProductBulkImportViewProps> = ({
         {/* 3. Quy trình & Khung chọn file (nếu chưa hoàn tất) */}
         {!isCompleted && (
           <>
-            {/* Quy trình hướng dẫn: Ẩn khi đã tải file lên để ưu tiên tối đa diện tích cho bảng xem trước */}
-            {!preview && (
-              <div
-                style={{
-                  padding: '16px 20px',
-                  background: '#f8fafc',
-                  borderRadius: '12px',
-                  border: '1px solid #e2e8f0',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  flexWrap: 'wrap',
-                  gap: '12px',
-                }}
-              >
-                <div>
-                  <div style={{ fontWeight: '700', color: '#1e293b', fontSize: '13.5px', marginBottom: '3px' }}>
-                    Quy trình nhập dữ liệu danh mục sản phẩm:
-                  </div>
-                  <div style={{ color: '#64748b', fontSize: '12.5px', lineHeight: '1.5' }}>
-                    1. Bấm <strong>Tải file mẫu</strong> để có định dạng chuẩn các cột (SKU, Tên, ĐVT, Giá bán, Giá vốn, Danh mục).<br />
-                    2. Tải file đã điền lên hệ thống. Kiểm tra dòng <strong>[Tạo mới]</strong> (xanh lá) và <strong>[Cập nhật]</strong> (vàng cam).<br />
-                    3. Kiểm tra danh sách phân trang (20 sản phẩm/trang) và các cảnh báo lỗi đỏ trước khi xác nhận.
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleDownloadTemplate}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    padding: '7px 14px',
-                    background: '#ffffff',
-                    border: '1px solid #cbd5e1',
-                    borderRadius: '8px',
-                    color: '#2563eb',
-                    fontWeight: '600',
-                    fontSize: '12.5px',
-                    cursor: 'pointer',
-                  }}
-                >
-                  Tải file mẫu
-                </button>
-              </div>
-            )}
 
             {/* Khung kéo thả chọn file */}
             <div>
@@ -553,16 +528,10 @@ export const ProductBulkImportView: React.FC<ProductBulkImportViewProps> = ({
         )}
       </div>
 
-      {/* KHỐI DƯỚI: CÒN LẠI BÊN DƯỚI VẪN GIỮ NGUYÊN LƯỚT ĐƯỢC */}
+      {/* Khối nội dung kết quả hoàn tất hoặc xem trước dữ liệu */}
       {isCompleted ? (
         /* Màn hình kết quả hoàn tất */
-        <div
-          style={{
-            flex: 1,
-            minHeight: 0,
-            overflowY: 'auto',
-          }}
-        >
+        <div>
           <div
             style={{
               background: '#ffffff',
@@ -647,21 +616,17 @@ export const ProductBulkImportView: React.FC<ProductBulkImportViewProps> = ({
         preview && (
           <div
             style={{
-              flex: 1,
-              minHeight: 0,
               display: 'flex',
               flexDirection: 'column',
               background: '#ffffff',
               border: '1px solid #e2e8f0',
               borderRadius: '14px',
               boxShadow: '0 1px 3px 0 rgb(0 0 0 / 0.05)',
-              overflow: 'hidden',
             }}
           >
-            {/* 1. THANH LỌC XEM ĐỨNG IM CỐ ĐỊNH (Không bị cuộn mất) */}
+            {/* 1. Thanh lọc xem & tìm kiếm sản phẩm */}
             <div
               style={{
-                flexShrink: 0,
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
@@ -670,6 +635,7 @@ export const ProductBulkImportView: React.FC<ProductBulkImportViewProps> = ({
                 padding: '12px 20px',
                 background: '#ffffff',
                 borderBottom: '1px solid #e2e8f0',
+                borderRadius: '14px 14px 0 0',
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
@@ -752,6 +718,77 @@ export const ProductBulkImportView: React.FC<ProductBulkImportViewProps> = ({
                 >
                   Lỗi ({preview.error_count.toLocaleString('vi-VN')})
                 </button>
+
+                {/* Ô tìm kiếm sản phẩm trong danh sách xem trước */}
+                <div style={{ position: 'relative', width: '260px', marginLeft: '6px' }}>
+                  <span
+                    style={{
+                      position: 'absolute',
+                      left: '10px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      color: '#94a3b8',
+                      display: 'flex',
+                      alignItems: 'center',
+                      pointerEvents: 'none',
+                    }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="11" cy="11" r="8" />
+                      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                    </svg>
+                  </span>
+                  <input
+                    type="text"
+                    id="input-search-bulk-preview-product"
+                    placeholder="Tìm theo mã SKU, tên sản phẩm..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '5px 28px 5px 30px',
+                      borderRadius: '8px',
+                      border: '1px solid #cbd5e1',
+                      fontSize: '12.5px',
+                      color: '#0f172a',
+                      background: '#ffffff',
+                      outline: 'none',
+                      boxSizing: 'border-box',
+                      transition: 'border-color 0.15s ease, box-shadow 0.15s ease',
+                    }}
+                    onFocus={(e) => {
+                      e.currentTarget.style.borderColor = '#0fba90';
+                      e.currentTarget.style.boxShadow = '0 0 0 2px rgba(15, 186, 144, 0.15)';
+                    }}
+                    onBlur={(e) => {
+                      e.currentTarget.style.borderColor = '#cbd5e1';
+                      e.currentTarget.style.boxShadow = 'none';
+                    }}
+                  />
+                  {searchTerm && (
+                    <button
+                      type="button"
+                      onClick={() => setSearchTerm('')}
+                      style={{
+                        position: 'absolute',
+                        right: '8px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        background: 'none',
+                        border: 'none',
+                        color: '#94a3b8',
+                        cursor: 'pointer',
+                        padding: '2px',
+                        fontSize: '12px',
+                        display: 'flex',
+                        alignItems: 'center',
+                      }}
+                      title="Xóa tìm kiếm"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
               </div>
 
               {/* Option: Bỏ qua lỗi */}
@@ -778,12 +815,10 @@ export const ProductBulkImportView: React.FC<ProductBulkImportViewProps> = ({
               )}
             </div>
 
-            {/* 2. KHUNG BẢNG CUỘN RIÊNG BIỆT - TIÊU ĐỀ THEAD ĐỨNG IM CỐ ĐỊNH Ở TOP: 0, KHÔNG CHE MẤT SẢN PHẨM */}
+            {/* 2. Khung bảng dữ liệu tự nhiên, cuộn ngang linh hoạt */}
             <div
               style={{
-                flex: 1,
-                minHeight: 0,
-                overflow: 'auto',
+                overflowX: 'auto',
                 position: 'relative',
                 background: '#ffffff',
               }}
@@ -797,6 +832,7 @@ export const ProductBulkImportView: React.FC<ProductBulkImportViewProps> = ({
                     left: 0,
                     right: 0,
                     bottom: 0,
+                    minHeight: '200px',
                     background: 'rgba(255, 255, 255, 0.75)',
                     backdropFilter: 'blur(1.5px)',
                     display: 'flex',
@@ -829,11 +865,8 @@ export const ProductBulkImportView: React.FC<ProductBulkImportViewProps> = ({
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
                 <thead
                   style={{
-                    position: 'sticky',
-                    top: 0,
-                    zIndex: 10,
                     background: '#f8fafc',
-                    boxShadow: '0 1px 2px rgba(0, 0, 0, 0.06)',
+                    borderBottom: '1px solid #e2e8f0',
                   }}
                 >
                   <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
@@ -852,8 +885,30 @@ export const ProductBulkImportView: React.FC<ProductBulkImportViewProps> = ({
                 <tbody style={{ opacity: isPageLoading ? 0.6 : 1, transition: 'opacity 0.15s ease' }}>
                   {rowsToDisplay.length === 0 ? (
                     <tr>
-                      <td colSpan={10} style={{ padding: '28px', textAlign: 'center', color: '#94a3b8' }}>
-                        Không có dòng nào phù hợp với bộ lọc này.
+                      <td colSpan={10} style={{ padding: '36px 20px', textAlign: 'center', color: '#64748b' }}>
+                        <div style={{ fontSize: '26px', marginBottom: '8px' }}>🔍</div>
+                        <div style={{ fontWeight: '600', fontSize: '13.5px', color: '#334155', marginBottom: '4px' }}>
+                          {searchTerm ? `Không tìm thấy sản phẩm nào khớp với từ khóa "${searchTerm}"` : 'Không có dòng nào phù hợp với bộ lọc này.'}
+                        </div>
+                        {searchTerm && (
+                          <button
+                            type="button"
+                            onClick={() => setSearchTerm('')}
+                            style={{
+                              marginTop: '8px',
+                              padding: '5px 12px',
+                              fontSize: '12px',
+                              background: '#f1f5f9',
+                              border: '1px solid #cbd5e1',
+                              borderRadius: '6px',
+                              color: '#2563eb',
+                              cursor: 'pointer',
+                              fontWeight: '600',
+                            }}
+                          >
+                            Xóa bộ lọc tìm kiếm
+                          </button>
+                        )}
                       </td>
                     </tr>
                   ) : (
@@ -974,16 +1029,16 @@ export const ProductBulkImportView: React.FC<ProductBulkImportViewProps> = ({
               </table>
             </div>
 
-            {/* 3. KHỐI CHÂN ĐỨNG IM CỐ ĐỊNH: Phân trang + Xác nhận */}
+            {/* 3. Khối chân trang: Phân trang + Xác nhận */}
             <div
               style={{
-                flexShrink: 0,
                 background: '#ffffff',
                 borderTop: '1px solid #e2e8f0',
-                padding: '10px 20px',
+                padding: '14px 20px',
                 display: 'flex',
                 flexDirection: 'column',
-                gap: '8px',
+                gap: '12px',
+                borderRadius: '0 0 14px 14px',
               }}
             >
               {/* PHÂN TRANG (Mặc định 20 sản phẩm/trang từ Server-side) */}

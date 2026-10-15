@@ -489,12 +489,20 @@ export async function authenticatedFetch(input: string, init: RequestInit = {}, 
             }
           } catch {
             isRefreshingGlobal = false;
+            const waiting = [...refreshSubscribersGlobal];
             refreshSubscribersGlobal = [];
+            waiting.forEach((cb) => {
+              try { cb(''); } catch {}
+            });
           }
         } else {
           // Đang có một tiến trình refresh chạy dở -> chờ token mới rồi retry
           return new Promise<Response>((resolve, reject) => {
             refreshSubscribersGlobal.push(async (newToken: string) => {
+              if (!newToken) {
+                reject(new Error('Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại.'));
+                return;
+              }
               const retryHeaders = new Headers(init.headers || {});
               retryHeaders.set('Authorization', `Bearer ${newToken}`);
               if (init.body && !retryHeaders.has('Content-Type') && !isFormData) {
@@ -948,7 +956,17 @@ export async function createStockReceiptApi(
 
 export async function createStockIssueApi(
   token: string,
-  payload: { product_id: number; quantity: number; destination: string; note?: string; unit_name?: string; conversion_rate?: number }
+  payload: {
+    product_id: number;
+    quantity: number;
+    destination: string;
+    note?: string;
+    unit_name?: string;
+    conversion_rate?: number;
+    batch_number?: string;
+    override_expired?: boolean;
+    override_reason?: string;
+  }
 ): Promise<InventoryResponse> {
   const response = await authenticatedFetch(`${API_BASE_URL}/inventory/issue`, {
     method: 'POST',
@@ -3897,3 +3915,130 @@ export async function cancelStockTransferApi(token: string, code: string, reason
   }
   return data;
 }
+
+// ==========================================
+// QUẢN LÝ LÔ VÀ HẠN SỬ DỤNG HÀNG HÓA (BATCH & EXPIRY TRACKING)
+// ==========================================
+export interface BatchItem {
+  id: number;
+  product_id: number;
+  product_code: string;
+  product_name: string;
+  base_unit: string;
+  warehouse_id: number;
+  warehouse_name: string;
+  batch_number: string;
+  manufacturing_date: string | null;
+  expiry_date: string | null;
+  remaining_quantity: number;
+  days_until_expiry: number | null;
+  expiry_status: 'EXPIRED' | 'NEAR_EXPIRY' | 'SAFE';
+  warning_threshold_days: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface BatchListResponse {
+  items: BatchItem[];
+  total: number;
+  expired_count: number;
+  near_expiry_count: number;
+  safe_count: number;
+  warning_threshold_days: number;
+  page?: number;
+  page_size?: number;
+  total_pages?: number;
+}
+
+export interface BatchCreatePayload {
+  product_id: number;
+  warehouse_id?: number;
+  batch_number: string;
+  manufacturing_date?: string | null;
+  expiry_date: string;
+  initial_quantity?: number;
+  note?: string;
+}
+
+export interface BatchTrackingTogglePayload {
+  is_batch_managed: boolean;
+  initial_batch_number?: string;
+  initial_manufacturing_date?: string | null;
+  initial_expiry_date?: string | null;
+  reason?: string;
+}
+
+export interface BatchTrackingToggleResponse {
+  product_id: number;
+  product_code: string;
+  product_name: string;
+  is_batch_managed: boolean;
+  message: string;
+  batch_created?: BatchItem | null;
+}
+
+export async function getBatchesApi(
+  token: string,
+  params?: {
+    product_id?: number;
+    warehouse_id?: number;
+    status?: string;
+    warning_days?: number;
+    search?: string;
+    page?: number;
+    page_size?: number;
+  }
+): Promise<BatchListResponse> {
+  const query = new URLSearchParams();
+  if (params?.product_id) query.append('product_id', String(params.product_id));
+  if (params?.warehouse_id) query.append('warehouse_id', String(params.warehouse_id));
+  if (params?.status) query.append('status', params.status);
+  if (params?.warning_days) query.append('warning_days', String(params.warning_days));
+  if (params?.search) query.append('search', params.search);
+  if (params?.page) query.append('page', String(params.page));
+  if (params?.page_size) query.append('page_size', String(params.page_size));
+
+  const url = `${API_BASE_URL}/batches${query.toString() ? `?${query.toString()}` : ''}`;
+  const response = await authenticatedFetch(url, { method: 'GET' }, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi tải danh sách lô hàng (${response.status})`);
+  }
+  return data;
+}
+
+export async function createBatchApi(
+  token: string,
+  payload: BatchCreatePayload
+): Promise<BatchItem> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/batches`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  }, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const errorMsg = formatErrorMessage(data.detail, data.message || `Lỗi tạo lô hàng (${response.status})`);
+    throw new Error(errorMsg);
+  }
+  return data;
+}
+
+export async function toggleProductBatchTrackingApi(
+  token: string,
+  productId: number,
+  payload: BatchTrackingTogglePayload
+): Promise<BatchTrackingToggleResponse> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/batches/product/${productId}/tracking`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  }, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const errorMsg = formatErrorMessage(data.detail, data.message || `Lỗi chuyển đổi cấu hình lô (${response.status})`);
+    throw new Error(errorMsg);
+  }
+  return data;
+}
+
