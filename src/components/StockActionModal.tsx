@@ -133,6 +133,12 @@ export const StockActionModal: React.FC<StockActionModalProps> = ({
     availableUnits.find((u) => u.unit_name === selectedUnitName) || availableUnits[0];
   const numQty = typeof inputQuantity === 'string' ? parseFloat(inputQuantity) || 0 : inputQuantity;
   const baseQuantity = Math.round(numQty * currentUnit.conversion_rate);
+  const isInvalidQty =
+    actionType === 'adjust'
+      ? inputQuantity === '' || isNaN(Number(inputQuantity)) || numQty === 0
+      : inputQuantity === '' || isNaN(Number(inputQuantity)) || numQty <= 0;
+  const isExceedingStock =
+    actionType === 'issue' && !!currentProduct && currentProduct.stock < baseQuantity;
 
   const getTitle = () => {
     switch (actionType) {
@@ -315,6 +321,12 @@ export const StockActionModal: React.FC<StockActionModalProps> = ({
           message: res.message,
         });
       }
+      try {
+        if (currentProduct?.code) {
+          sessionStorage.setItem('last_product_history_code', currentProduct.code);
+        }
+        window.dispatchEvent(new CustomEvent('INVENTORY_STOCK_UPDATED'));
+      } catch { }
 
       onSuccess();
       onClose();
@@ -673,23 +685,42 @@ export const StockActionModal: React.FC<StockActionModalProps> = ({
                 </label>
                 <input
                   type="number"
+                  min={actionType === 'adjust' ? undefined : "1"}
                   step="any"
                   required
                   value={inputQuantity}
-                  onChange={(e) => setInputQuantity(e.target.value)}
+                  onChange={(e) => {
+                    setInputQuantity(e.target.value);
+                    if (errorMsg) setErrorMsg(null);
+                  }}
                   placeholder="Nhập số lượng..."
                   style={{
                     width: '100%',
                     padding: '9px 12px',
                     borderRadius: '8px',
-                    border: '1px solid #cbd5e1',
+                    border: (isInvalidQty && inputQuantity !== '') || isExceedingStock ? '1.5px solid #ef4444' : '1px solid #cbd5e1',
+                    background: (isInvalidQty && inputQuantity !== '') || isExceedingStock ? '#fef2f2' : '#ffffff',
                     fontSize: '13.5px',
                     outline: 'none',
                     textAlign: 'right',
                     boxSizing: 'border-box',
                     fontWeight: '600',
+                    color: (isInvalidQty && inputQuantity !== '') || isExceedingStock ? '#b91c1c' : '#0f172a',
+                    transition: 'border-color 0.15s, background-color 0.15s',
                   }}
                 />
+                {isInvalidQty && inputQuantity !== '' && (
+                  <div style={{ marginTop: '4px', fontSize: '11.5px', color: '#dc2626', fontWeight: '500' }}>
+                    {actionType === 'adjust'
+                      ? '⚠️ Số lượng điều chỉnh phải khác 0'
+                      : '⚠️ Số lượng phải lớn hơn 0 (tối thiểu 1 đơn vị)'}
+                  </div>
+                )}
+                {isExceedingStock && (
+                  <div style={{ marginTop: '4px', fontSize: '11.5px', color: '#dc2626', fontWeight: '500' }}>
+                    ⚠️ Vượt quá tồn kho khả dụng ({currentProduct.stock} {baseUnit})
+                  </div>
+                )}
               </div>
             </div>
 
@@ -766,17 +797,18 @@ export const StockActionModal: React.FC<StockActionModalProps> = ({
               </button>
               <button
                 type="submit"
-                disabled={isSubmitting}
+                disabled={isSubmitting || isInvalidQty || isExceedingStock}
                 style={{
                   padding: '9px 20px',
                   borderRadius: '8px',
                   border: 'none',
-                  background: getActionColor(),
-                  color: '#ffffff',
+                  background: isSubmitting || isInvalidQty || isExceedingStock ? '#cbd5e1' : getActionColor(),
+                  color: isSubmitting || isInvalidQty || isExceedingStock ? '#64748b' : '#ffffff',
                   fontSize: '13.5px',
                   fontWeight: '600',
-                  cursor: isSubmitting ? 'not-allowed' : 'pointer',
-                  boxShadow: '0 2px 6px rgba(0, 0, 0, 0.15)',
+                  cursor: isSubmitting || isInvalidQty || isExceedingStock ? 'not-allowed' : 'pointer',
+                  boxShadow: isSubmitting || isInvalidQty || isExceedingStock ? 'none' : '0 2px 6px rgba(0, 0, 0, 0.15)',
+                  transition: 'all 0.15s ease',
                 }}
               >
                 {isSubmitting ? 'Đang thực hiện...' : 'Xác nhận ghi sổ'}

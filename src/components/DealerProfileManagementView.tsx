@@ -18,6 +18,10 @@ import {
 } from '../services/dealerSearchApi';
 import { User, getWarehousesApi, WarehouseItem } from '../services/api';
 import { emitStatusToast } from './StatusToast';
+import { ReceiptVoucherPrintModal } from './ReceiptVoucherPrintModal';
+import { CreateReceiptVoucherModal } from './CreateReceiptVoucherModal';
+import { ReceiptVoucherData } from '../services/dealerSearchApi';
+import { convertNumberToVietnameseWords } from '../utils/numberToWords';
 import './dealer-profile-management.css';
 
 interface DealerProfileManagementProps {
@@ -150,6 +154,14 @@ export default function DealerProfileManagementView({
   // Modal Xác nhận xóa an toàn (Chưa phát sinh giao dịch)
   const [isConfirmDeleteModalOpen, setIsConfirmDeleteModalOpen] = useState(false);
   const [confirmDeleteTarget, setConfirmDeleteTarget] = useState<DealerSearchItem | null>(null);
+
+  // Modal Phiếu thu tiền cho Kế toán công nợ
+  const [printVoucherTarget, setPrintVoucherTarget] = useState<ReceiptVoucherData | null>(null);
+  const [isPrintVoucherOpen, setIsPrintVoucherOpen] = useState(false);
+  const [createReceiptTargetDealer, setCreateReceiptTargetDealer] = useState<DealerSearchItem | null>(null);
+  const [createReceiptOrderCode, setCreateReceiptOrderCode] = useState<string | undefined>(undefined);
+  const [createReceiptDefaultAmount, setCreateReceiptDefaultAmount] = useState<number | undefined>(undefined);
+  const [isCreateReceiptOpen, setIsCreateReceiptOpen] = useState(false);
 
 
 
@@ -591,6 +603,46 @@ export default function DealerProfileManagementView({
     } finally {
       setLoadingTx(false);
     }
+  };
+
+  const handleOpenPrintReceiptForTx = (tx: DealerTransactionItem, dealer: DealerSearchItem) => {
+    const voucher: ReceiptVoucherData = {
+      receipt_code: `PT-${dealer.code}-${tx.order_code}`,
+      dealer_id: dealer.id,
+      dealer_code: dealer.code,
+      dealer_name: dealer.name,
+      dealer_address: dealer.address || '—',
+      dealer_phone: dealer.phone || '—',
+      dealer_tax_code: dealer.tax_code || '—',
+      order_code: tx.order_code,
+      amount: tx.total_amount,
+      amount_in_words: convertNumberToVietnameseWords(tx.total_amount),
+      payment_method: 'Tiền mặt',
+      reason: `Thu tiền thanh toán đơn hàng ${tx.order_code}`,
+      payer_name: `Đại diện ${dealer.name}`,
+      collector_name: _currentUser?.full_name || _currentUser?.username || 'Kế toán công nợ',
+      collector_role: 'Kế toán công nợ',
+      created_at: tx.created_at || new Date().toISOString(),
+    };
+    setPrintVoucherTarget(voucher);
+    setIsPrintVoucherOpen(true);
+  };
+
+  const handleOpenCreateReceipt = (dealer: DealerSearchItem, orderCode?: string, defaultAmount?: number) => {
+    setCreateReceiptTargetDealer(dealer);
+    setCreateReceiptOrderCode(orderCode);
+    setCreateReceiptDefaultAmount(defaultAmount);
+    setIsCreateReceiptOpen(true);
+  };
+
+  const handleCreateReceiptSuccess = (voucher: ReceiptVoucherData) => {
+    setIsCreateReceiptOpen(false);
+    setPrintVoucherTarget(voucher);
+    setIsPrintVoucherOpen(true);
+    emitStatusToast({
+      title: 'Ghi nhận phiếu thu thành công',
+      message: `Đã lập phiếu thu ${voucher.receipt_code} (${(voucher.amount || 0).toLocaleString('vi-VN')} đ).`,
+    });
   };
 
   const getGroupBadgeClass = (grp?: string | null) => {
@@ -1515,6 +1567,22 @@ export default function DealerProfileManagementView({
                         {/* 10. Thao tác: Sửa & Xóa sử dụng tooltip tự nhiên không bị tràn mép hay che chữ */}
                         <td style={{ textAlign: 'center' }}>
                           <div className="action-btn-group">
+                            {/* Nút Lập phiếu thu tiền */}
+                            <button
+                              type="button"
+                              className="btn-icon-action"
+                              style={{ color: '#16a34a', borderColor: '#bbf7d0', background: '#f0fdf4' }}
+                              onClick={() => handleOpenCreateReceipt(dealer)}
+                              title="Lập phiếu thu tiền / In phiếu thu chứng từ cho đại lý này"
+                            >
+                              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                <polyline points="14 2 14 8 20 8"></polyline>
+                                <line x1="12" y1="18" x2="12" y2="12"></line>
+                                <line x1="9" y1="15" x2="15" y2="15"></line>
+                              </svg>
+                            </button>
+
                             {/* Nút Chỉnh sửa */}
                             <button
                               type="button"
@@ -1665,6 +1733,14 @@ export default function DealerProfileManagementView({
                         onClick={() => handleOpenEditModal(dealer)}
                       >
                         Sửa hồ sơ
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-action-mobile-tx"
+                        style={{ background: '#16a34a', color: '#ffffff' }}
+                        onClick={() => handleOpenCreateReceipt(dealer)}
+                      >
+                        Lập phiếu thu
                       </button>
                       <button
                         type="button"
@@ -2006,21 +2082,55 @@ export default function DealerProfileManagementView({
                     <line x1="2" y1="10" x2="22" y2="10" />
                   </svg>
                   <h4 style={{ margin: '0 0 6px 0', color: '#1e293b' }}>Chưa phát sinh giao dịch nào</h4>
-                  <p style={{ margin: 0 }}>Đại lý này chưa có đơn hàng hoặc chứng từ nào được ghi nhận trên hệ thống.</p>
+                  <p style={{ margin: '0 0 16px 0' }}>Đại lý này chưa có đơn hàng hoặc chứng từ nào được ghi nhận trên hệ thống.</p>
+                  <button
+                    type="button"
+                    onClick={() => handleOpenCreateReceipt(txModalDealer)}
+                    style={{
+                      padding: '7px 16px',
+                      borderRadius: '7px',
+                      border: 'none',
+                      background: '#16a34a',
+                      color: '#ffffff',
+                      fontSize: '13px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Lập phiếu thu tại chỗ
+                  </button>
                 </div>
               ) : (
                 <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', fontSize: '13.5px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', fontSize: '13.5px', flexWrap: 'wrap', gap: '8px' }}>
                     <span style={{ color: '#64748b' }}>
                       Tổng cộng <strong>{txList.length}</strong> giao dịch / đơn hàng đã phát sinh
                     </span>
-                    <span style={{ color: '#15803d', fontWeight: '700' }}>
-                      Tổng giá trị:{' '}
-                      {txList
-                        .reduce((sum, item) => sum + (item.total_amount || 0), 0)
-                        .toLocaleString('vi-VN')}{' '}
-                      đ
-                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <span style={{ color: '#15803d', fontWeight: '700' }}>
+                        Tổng giá trị:{' '}
+                        {txList
+                          .reduce((sum, item) => sum + (item.total_amount || 0), 0)
+                          .toLocaleString('vi-VN')}{' '}
+                        đ
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleOpenCreateReceipt(txModalDealer)}
+                        style={{
+                          padding: '5px 12px',
+                          borderRadius: '6px',
+                          border: 'none',
+                          background: '#16a34a',
+                          color: '#ffffff',
+                          fontSize: '12.5px',
+                          fontWeight: '600',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Lập phiếu thu tại chỗ
+                      </button>
+                    </div>
                   </div>
 
                   <div className="tx-modal-table-wrap">
@@ -2033,6 +2143,7 @@ export default function DealerProfileManagementView({
                           <th style={{ textAlign: 'right' }}>Tổng tiền</th>
                           <th style={{ textAlign: 'center' }}>Trạng thái</th>
                           <th>Nhân viên</th>
+                          <th style={{ textAlign: 'center' }}>Thao tác</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -2086,6 +2197,25 @@ export default function DealerProfileManagementView({
                               </span>
                             </td>
                             <td>{tx.assigned_sale_name || '—'}</td>
+                            <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
+                              <button
+                                type="button"
+                                onClick={() => handleOpenPrintReceiptForTx(tx, txModalDealer)}
+                                style={{
+                                  padding: '4px 10px',
+                                  borderRadius: '5px',
+                                  border: '1px solid #cbd5e1',
+                                  background: '#ffffff',
+                                  color: '#1e40af',
+                                  fontSize: '11.5px',
+                                  fontWeight: '600',
+                                  cursor: 'pointer',
+                                }}
+                                title={`In phiếu thu cho đơn ${tx.order_code}`}
+                              >
+                                In phiếu thu
+                              </button>
+                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -2102,6 +2232,35 @@ export default function DealerProfileManagementView({
             </div>
           </div>
         </div>
+      )}
+
+      {/* Modal In phiếu thu cho Kế toán công nợ */}
+      {isPrintVoucherOpen && printVoucherTarget && (
+        <ReceiptVoucherPrintModal
+          voucher={printVoucherTarget}
+          currentUser={_currentUser}
+          onClose={() => {
+            setIsPrintVoucherOpen(false);
+            setPrintVoucherTarget(null);
+          }}
+        />
+      )}
+
+      {/* Modal Lập phiếu thu tiền tại chỗ */}
+      {isCreateReceiptOpen && createReceiptTargetDealer && (
+        <CreateReceiptVoucherModal
+          isOpen={isCreateReceiptOpen}
+          dealer={createReceiptTargetDealer}
+          orderCode={createReceiptOrderCode}
+          defaultAmount={createReceiptDefaultAmount}
+          currentUser={_currentUser}
+          token={token}
+          onClose={() => {
+            setIsCreateReceiptOpen(false);
+            setCreateReceiptTargetDealer(null);
+          }}
+          onSuccess={handleCreateReceiptSuccess}
+        />
       )}
     </div>
   );

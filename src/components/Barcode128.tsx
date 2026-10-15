@@ -109,6 +109,8 @@ export const Barcode128: React.FC<Barcode128Props> = ({
         alignItems: 'center',
         background: '#ffffff',
         padding: '2px 4px',
+        maxWidth: '100%',
+        boxSizing: 'border-box',
         ...style,
       }}
     >
@@ -118,7 +120,7 @@ export const Barcode128: React.FC<Barcode128Props> = ({
         viewBox={`0 0 ${barcodeData.totalWidth} ${barcodeData.totalHeight}`}
         xmlns="http://www.w3.org/2000/svg"
         shapeRendering="crispEdges"
-        style={{ display: 'block' }}
+        style={{ display: 'block', maxWidth: '100%', height: 'auto' }}
       >
         <rect width={barcodeData.totalWidth} height={barcodeData.totalHeight} fill="#ffffff" />
         {barcodeData.bars.map((bar, idx) => (

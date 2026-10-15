@@ -2796,6 +2796,140 @@ export async function getOrderPickingLocationsApi(
 export const getWarehousePickingSummaryApi = getOrderPickingLocationsApi;
 
 // ==========================================================
+// WAVE / BATCH PICKING THEO LỘ TRÌNH KHO (OPTIMIZED PICK PATH)
+// ==========================================================
+
+export interface OrderBreakdownItem {
+  order_code: string;
+  quantity: number;
+  dealer_name?: string;
+  desired_delivery_date?: string;
+}
+
+export interface BatchPickingRouteItem {
+  step_number: number;
+  product_id: number;
+  product_code: string;
+  product_name: string;
+  unit_name: string;
+  total_ordered_quantity: number;
+  available_stock: number;
+  location_id?: number;
+  location_code: string;
+  location_name: string;
+  zone?: string;
+  aisle?: string;
+  rack?: string;
+  bin?: string;
+  pick_path_code: string;
+  order_breakdown: OrderBreakdownItem[];
+}
+
+export interface BatchPickingPreviewResponse {
+  batch_code: string;
+  warehouse_id?: number;
+  warehouse_name?: string;
+  selected_order_codes: string[];
+  total_orders: number;
+  total_unique_items: number;
+  total_pick_units: number;
+  route_items: BatchPickingRouteItem[];
+}
+
+export interface EligiblePickingOrder {
+  order_code: string;
+  dealer_id?: number;
+  dealer_name?: string;
+  status: string;
+  created_at?: string;
+  desired_delivery_date?: string;
+  delivery_point?: string;
+  total_items: number;
+  total_quantity: number;
+  items_summary: string[];
+}
+
+export interface PickingItemExecution {
+  product_id: number;
+  product_code: string;
+  ordered_quantity: number;
+  picked_quantity: number;
+  shortage_reason?: string;
+  location_code?: string;
+}
+
+export interface BatchPickingCompleteRequest {
+  batch_code?: string;
+  order_codes: string[];
+  items: PickingItemExecution[];
+  picker_name?: string;
+  notes?: string;
+}
+
+export interface BatchPickingCompleteResponse {
+  success: boolean;
+  batch_code: string;
+  message: string;
+  total_orders_updated: number;
+  total_items_picked: number;
+  shortage_items_count: number;
+  updated_at: string;
+}
+
+export async function getEligiblePickingOrdersApi(
+  token: string,
+  search?: string,
+  statusFilter?: string
+): Promise<EligiblePickingOrder[]> {
+  const params = new URLSearchParams();
+  if (search) params.set('search', search);
+  if (statusFilter && statusFilter !== 'all') params.set('status_filter', statusFilter);
+
+  const url = `${API_BASE_URL}/warehouses/picking/eligible-orders${params.toString() ? `?${params.toString()}` : ''}`;
+  const response = await authenticatedFetch(url, { method: 'GET' }, token);
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Lỗi tải danh sách đơn hàng sẵn sàng soạn.');
+  }
+  return await response.json();
+}
+
+export async function previewBatchPickingApi(
+  token: string,
+  orderCodes: string[]
+): Promise<BatchPickingPreviewResponse> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/warehouses/picking/batch-preview`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ order_codes: orderCodes }),
+  }, token);
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Lỗi tạo bản xem trước phiếu soạn hàng gộp.');
+  }
+  return await response.json();
+}
+
+export async function completeBatchPickingApi(
+  token: string,
+  data: BatchPickingCompleteRequest
+): Promise<BatchPickingCompleteResponse> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/warehouses/picking/batch-complete`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  }, token);
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Lỗi hoàn tất phiếu soạn hàng.');
+  }
+  return await response.json();
+}
+
+
+// ==========================================================
 // MASTER DATA: KHU VỰC (ZONES) & KỆ / DÃY (RACKS / AISLES)
 // ==========================================================
 
