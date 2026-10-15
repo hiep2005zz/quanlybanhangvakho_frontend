@@ -406,11 +406,7 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
     }
   };
 
-  // Thống kê số lượng chuyến
-  const totalTripsCount = trips.length;
-  const inProgressTripsCount = trips.filter((t) => t.status === 'IN_PROGRESS').length;
-  const completedTripsCount = trips.filter((t) => t.status === 'COMPLETED').length;
-  const pendingAssignedTripsCount = trips.filter((t) => t.status === 'ASSIGNED' || t.status === 'DRAFT').length;
+
 
   // Lấy màu sắc badge trạng thái chuyến
   const getTripStatusBadge = (st: string) => {
@@ -1490,67 +1486,6 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-            {/* 4 Huy hiệu tóm tắt nhanh nằm ngay trên thanh tiêu đề, không tạo ô rời rạc */}
-            <span
-              style={{
-                padding: '4px 10px',
-                background: '#f1f5f9',
-                color: '#334155',
-                border: '1px solid #e2e8f0',
-                borderRadius: '6px',
-                fontSize: '11.5px',
-                fontWeight: '700',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              Tổng: <strong>{totalTripsCount}</strong> chuyến
-            </span>
-
-            <span
-              style={{
-                padding: '4px 10px',
-                background: '#fef3c7',
-                color: '#b45309',
-                border: '1px solid #fde68a',
-                borderRadius: '6px',
-                fontSize: '11.5px',
-                fontWeight: '700',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              Đang giao: <strong>{inProgressTripsCount}</strong>
-            </span>
-
-            <span
-              style={{
-                padding: '4px 10px',
-                background: '#dcfce7',
-                color: '#15803d',
-                border: '1px solid #86efac',
-                borderRadius: '6px',
-                fontSize: '11.5px',
-                fontWeight: '700',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              Đã xong: <strong>{completedTripsCount}</strong>
-            </span>
-
-            <span
-              style={{
-                padding: '4px 10px',
-                background: '#e0f2fe',
-                color: '#0369a1',
-                border: '1px solid #7dd3fc',
-                borderRadius: '6px',
-                fontSize: '11.5px',
-                fontWeight: '700',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              Chờ khởi hành: <strong>{pendingAssignedTripsCount}</strong>
-            </span>
-
             <button
               type="button"
               onClick={loadTrips}

@@ -139,13 +139,7 @@ export const WarehouseDispatchView: React.FC<WarehouseDispatchViewProps> = ({
     );
   }, [allDispatches, searchTerm]);
 
-  // Tổng hợp chỉ số thống kê
-  const totalPendingDispatchCount = dispatchPendingOrders.length;
-  const totalSupplementaryCount = supplementaryOrders.length;
-  const totalShortageItemUnits = supplementaryOrders.reduce(
-    (sum, o) => sum + (o.total_shortage_quantity || 0),
-    0
-  );
+
 
   // Chuyển sang Trang Xác nhận xuất kho
   const handleOpenDispatchPage = (order: WarehouseDispatchOrder) => {
@@ -938,58 +932,6 @@ export const WarehouseDispatchView: React.FC<WarehouseDispatchViewProps> = ({
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-            {/* 3 Huy hiệu tóm tắt nhanh nằm ngay trên thanh tiêu đề, không tạo 3 ô rời rạc */}
-            <span
-              onClick={() => switchTab('dispatch')}
-              style={{
-                padding: '4px 10px',
-                background: activeTab === 'dispatch' ? '#e0f2fe' : '#f1f5f9',
-                color: activeTab === 'dispatch' ? '#0369a1' : '#475569',
-                border: activeTab === 'dispatch' ? '1px solid #7dd3fc' : '1px solid #e2e8f0',
-                borderRadius: '6px',
-                fontSize: '11.5px',
-                fontWeight: '700',
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              Chờ xuất: <strong>{totalPendingDispatchCount}</strong> đơn
-            </span>
-
-            <span
-              onClick={() => switchTab('supplementary')}
-              style={{
-                padding: '4px 10px',
-                background: activeTab === 'supplementary' ? '#fef3c7' : '#f1f5f9',
-                color: activeTab === 'supplementary' ? '#b45309' : '#475569',
-                border: activeTab === 'supplementary' ? '1px solid #fde68a' : '1px solid #e2e8f0',
-                borderRadius: '6px',
-                fontSize: '11.5px',
-                fontWeight: '700',
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              Chờ bổ sung: <strong>{totalSupplementaryCount}</strong> đơn (thiếu {totalShortageItemUnits} SP)
-            </span>
-
-            <span
-              onClick={() => switchTab('history')}
-              style={{
-                padding: '4px 10px',
-                background: activeTab === 'history' ? '#dcfce7' : '#f1f5f9',
-                color: activeTab === 'history' ? '#15803d' : '#475569',
-                border: activeTab === 'history' ? '1px solid #86efac' : '1px solid #e2e8f0',
-                borderRadius: '6px',
-                fontSize: '11.5px',
-                fontWeight: '700',
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              Lịch sử: <strong>{allDispatches.length}</strong> phiếu
-            </span>
-
             <button
               type="button"
               onClick={loadData}
