@@ -113,9 +113,7 @@ export const StockCardModal: React.FC<StockCardModalProps> = ({
         return (
           <span
             style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '4px',
+              display: 'inline-block',
               padding: '3px 8px',
               borderRadius: '9999px',
               fontSize: '11.5px',
@@ -126,17 +124,14 @@ export const StockCardModal: React.FC<StockCardModalProps> = ({
               whiteSpace: 'nowrap',
             }}
           >
-            <span style={{ fontSize: '12px', flexShrink: 0 }}>📥</span>
-            <span>{label || 'Nhập kho'}</span>
+            {label || 'Nhập kho'}
           </span>
         );
       case 'ISSUE':
         return (
           <span
             style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '4px',
+              display: 'inline-block',
               padding: '3px 8px',
               borderRadius: '9999px',
               fontSize: '11.5px',
@@ -147,17 +142,14 @@ export const StockCardModal: React.FC<StockCardModalProps> = ({
               whiteSpace: 'nowrap',
             }}
           >
-            <span style={{ fontSize: '12px', flexShrink: 0 }}>📤</span>
-            <span>{label || 'Xuất kho'}</span>
+            {label || 'Xuất kho'}
           </span>
         );
       case 'TRANSFER':
         return (
           <span
             style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '4px',
+              display: 'inline-block',
               padding: '3px 8px',
               borderRadius: '9999px',
               fontSize: '11.5px',
@@ -168,8 +160,7 @@ export const StockCardModal: React.FC<StockCardModalProps> = ({
               whiteSpace: 'nowrap',
             }}
           >
-            <span style={{ fontSize: '12px', flexShrink: 0 }}>🔄</span>
-            <span>{label || 'Chuyển kho'}</span>
+            {label || 'Chuyển kho'}
           </span>
         );
       case 'ADJUST':
@@ -177,9 +168,7 @@ export const StockCardModal: React.FC<StockCardModalProps> = ({
         return (
           <span
             style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '4px',
+              display: 'inline-block',
               padding: '3px 8px',
               borderRadius: '9999px',
               fontSize: '11.5px',
@@ -190,8 +179,7 @@ export const StockCardModal: React.FC<StockCardModalProps> = ({
               whiteSpace: 'nowrap',
             }}
           >
-            <span style={{ fontSize: '12px', flexShrink: 0 }}>⚖️</span>
-            <span>{label || 'Điều chỉnh'}</span>
+            {label || 'Điều chỉnh'}
           </span>
         );
     }
@@ -283,23 +271,6 @@ export const StockCardModal: React.FC<StockCardModalProps> = ({
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
-            <div
-              style={{
-                width: '42px',
-                height: '42px',
-                borderRadius: '10px',
-                backgroundColor: '#2563eb',
-                color: '#ffffff',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '20px',
-                flexShrink: 0,
-                boxShadow: '0 4px 6px -1px rgba(37, 99, 235, 0.25)',
-              }}
-            >
-              📋
-            </div>
             <div style={{ minWidth: 0 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                 <h2
@@ -429,185 +400,100 @@ export const StockCardModal: React.FC<StockCardModalProps> = ({
             {/* 1. TỒN ĐẦU KỲ */}
             <div
               style={{
-                padding: '12px 14px',
+                padding: '12px 16px',
                 borderRadius: '10px',
                 backgroundColor: '#ffffff',
                 border: '1px solid #e2e8f0',
                 boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
                 display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
+                flexDirection: 'column',
+                justifyContent: 'center',
+                gap: '4px',
               }}
             >
-              <div
-                style={{
-                  width: '38px',
-                  height: '38px',
-                  borderRadius: '8px',
-                  backgroundColor: '#f1f5f9',
-                  color: '#475569',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '18px',
-                  flexShrink: 0,
-                }}
-              >
-                📦
-              </div>
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: '11.5px', color: '#64748b', fontWeight: '600' }}>Tồn đầu kỳ</div>
-                <div style={{ fontSize: '16px', fontWeight: '800', color: '#1e293b' }}>
-                  {formatNumber(summary?.opening_stock)}
-                </div>
+              <div style={{ fontSize: '11.5px', color: '#64748b', fontWeight: '600' }}>Tồn đầu kỳ</div>
+              <div style={{ fontSize: '18px', fontWeight: '800', color: '#1e293b' }}>
+                {formatNumber(summary?.opening_stock)}
               </div>
             </div>
 
             {/* 2. TỔNG NHẬP TRONG KỲ */}
             <div
               style={{
-                padding: '12px 14px',
+                padding: '12px 16px',
                 borderRadius: '10px',
                 backgroundColor: '#f0fdf4',
                 border: '1px solid #bbf7d0',
                 boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
                 display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
+                flexDirection: 'column',
+                justifyContent: 'center',
+                gap: '4px',
               }}
             >
-              <div
-                style={{
-                  width: '38px',
-                  height: '38px',
-                  borderRadius: '8px',
-                  backgroundColor: '#dcfce7',
-                  color: '#15803d',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '18px',
-                  flexShrink: 0,
-                }}
-              >
-                📥
-              </div>
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: '11.5px', color: '#15803d', fontWeight: '600' }}>Tổng nhập trong kỳ</div>
-                <div style={{ fontSize: '16px', fontWeight: '800', color: '#15803d' }}>
-                  +{formatNumber(summary?.total_receipt)}
-                </div>
+              <div style={{ fontSize: '11.5px', color: '#15803d', fontWeight: '600' }}>Tổng nhập trong kỳ</div>
+              <div style={{ fontSize: '18px', fontWeight: '800', color: '#15803d' }}>
+                +{formatNumber(summary?.total_receipt)}
               </div>
             </div>
 
             {/* 3. TỔNG XUẤT TRONG KỲ */}
             <div
               style={{
-                padding: '12px 14px',
+                padding: '12px 16px',
                 borderRadius: '10px',
                 backgroundColor: '#fef2f2',
                 border: '1px solid #fecaca',
                 boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
                 display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
+                flexDirection: 'column',
+                justifyContent: 'center',
+                gap: '4px',
               }}
             >
-              <div
-                style={{
-                  width: '38px',
-                  height: '38px',
-                  borderRadius: '8px',
-                  backgroundColor: '#fee2e2',
-                  color: '#b91c1c',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '18px',
-                  flexShrink: 0,
-                }}
-              >
-                📤
-              </div>
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: '11.5px', color: '#b91c1c', fontWeight: '600' }}>Tổng xuất trong kỳ</div>
-                <div style={{ fontSize: '16px', fontWeight: '800', color: '#b91c1c' }}>
-                  -{formatNumber(summary?.total_issue)}
-                </div>
+              <div style={{ fontSize: '11.5px', color: '#b91c1c', fontWeight: '600' }}>Tổng xuất trong kỳ</div>
+              <div style={{ fontSize: '18px', fontWeight: '800', color: '#b91c1c' }}>
+                -{formatNumber(summary?.total_issue)}
               </div>
             </div>
 
             {/* 4. TỒN CUỐI KỲ */}
             <div
               style={{
-                padding: '12px 14px',
+                padding: '12px 16px',
                 borderRadius: '10px',
                 backgroundColor: '#eff6ff',
                 border: '1px solid #bfdbfe',
                 boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
                 display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
+                flexDirection: 'column',
+                justifyContent: 'center',
+                gap: '4px',
               }}
             >
-              <div
-                style={{
-                  width: '38px',
-                  height: '38px',
-                  borderRadius: '8px',
-                  backgroundColor: '#dbeafe',
-                  color: '#1d4ed8',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '18px',
-                  flexShrink: 0,
-                }}
-              >
-                📊
-              </div>
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: '11.5px', color: '#1d4ed8', fontWeight: '600' }}>Tồn cuối kỳ</div>
-                <div style={{ fontSize: '16px', fontWeight: '800', color: '#1d4ed8' }}>
-                  {formatNumber(summary?.closing_stock)}
-                </div>
+              <div style={{ fontSize: '11.5px', color: '#1d4ed8', fontWeight: '600' }}>Tồn cuối kỳ</div>
+              <div style={{ fontSize: '18px', fontWeight: '800', color: '#1d4ed8' }}>
+                {formatNumber(summary?.closing_stock)}
               </div>
             </div>
 
             {/* 5. TỒN THỰC TẾ HIỆN TẠI TRÊN HỆ THỐNG */}
             <div
               style={{
-                padding: '12px 14px',
+                padding: '12px 16px',
                 borderRadius: '10px',
                 backgroundColor: '#faf5ff',
                 border: '1px solid #e9d5ff',
                 boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
                 display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
+                flexDirection: 'column',
+                justifyContent: 'center',
+                gap: '4px',
               }}
             >
-              <div
-                style={{
-                  width: '38px',
-                  height: '38px',
-                  borderRadius: '8px',
-                  backgroundColor: '#f3e8ff',
-                  color: '#7e22ce',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '18px',
-                  flexShrink: 0,
-                }}
-              >
-                🏢
-              </div>
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: '11.5px', color: '#7e22ce', fontWeight: '600' }}>Tồn thực tế hiện tại</div>
-                <div style={{ fontSize: '16px', fontWeight: '800', color: '#7e22ce' }}>
-                  {formatNumber(summary?.current_actual_stock)}
-                </div>
+              <div style={{ fontSize: '11.5px', color: '#7e22ce', fontWeight: '600' }}>Tồn thực tế hiện tại</div>
+              <div style={{ fontSize: '18px', fontWeight: '800', color: '#7e22ce' }}>
+                {formatNumber(summary?.current_actual_stock)}
               </div>
             </div>
           </div>
@@ -717,14 +603,10 @@ export const StockCardModal: React.FC<StockCardModalProps> = ({
                     backgroundColor: '#ffffff',
                     color: '#64748b',
                     cursor: 'pointer',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '4px',
                     transition: 'all 0.15s ease',
                   }}
                 >
-                  <span style={{ fontSize: '12px', flexShrink: 0 }}>↺</span>
-                  <span>Xóa lọc</span>
+                  Xóa lọc
                 </button>
               )}
             </div>
@@ -750,7 +632,6 @@ export const StockCardModal: React.FC<StockCardModalProps> = ({
                 gap: '8px',
               }}
             >
-              <span>⚠️</span>
               <span>{error}</span>
             </div>
           )}
@@ -899,7 +780,6 @@ export const StockCardModal: React.FC<StockCardModalProps> = ({
                                 e.currentTarget.style.borderColor = '#cbd5e1';
                               }}
                             >
-                              <span style={{ fontSize: '11px', flexShrink: 0 }}>🔗</span>
                               <span style={{ textDecoration: 'underline' }}>{entry.reference_code}</span>
                             </button>
                           </td>
@@ -1048,7 +928,6 @@ export const StockCardModal: React.FC<StockCardModalProps> = ({
             >
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ fontSize: '20px', flexShrink: 0 }}>🔍</span>
                   <h3 style={{ fontSize: '16px', fontWeight: '700', color: '#0f172a', margin: 0 }}>
                     Chi tiết chứng từ gốc
                   </h3>
@@ -1128,7 +1007,6 @@ export const StockCardModal: React.FC<StockCardModalProps> = ({
                     }}
                   >
                     <span>Mở phiếu chứng từ</span>
-                    <span style={{ fontSize: '13px' }}>→</span>
                   </button>
                 )}
               </div>
