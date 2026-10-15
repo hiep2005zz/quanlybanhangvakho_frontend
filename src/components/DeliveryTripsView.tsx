@@ -1616,7 +1616,7 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
         </div>
 
         {/* Bảng danh sách chuyến - Tiêu đề đứng yên, không xuống dòng */}
-        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'auto' }}>
+        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '12px' }}>
             <thead style={{ position: 'sticky', top: 0, zIndex: 10, background: '#f8fafc' }}>
               <tr style={{ background: '#f8fafc', color: '#475569', borderBottom: '1px solid #cbd5e1' }}>

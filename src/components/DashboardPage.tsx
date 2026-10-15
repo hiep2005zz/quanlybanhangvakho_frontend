@@ -444,6 +444,12 @@ export default function DashboardPage({
     if (isCategoriesPath) {
       return 'categories';
     }
+    if (pathname.startsWith('/warehouse/') || pathname === '/warehouse/dispatch' || pathname === '/warehouse/dispatch-history' || pathname === '/warehouse/supplementary-deliveries' || oldTabVal === 'warehouse-dispatch') {
+      return 'warehouse-dispatch';
+    }
+    if (pathname === '/delivery-trips' || pathname.startsWith('/delivery-trips/') || oldTabVal === 'delivery-trips') {
+      return 'delivery-trips';
+    }
     return 'inventory';
   });
   // 3. Chuyển đổi Route Clean URL
@@ -1041,6 +1047,12 @@ export default function DashboardPage({
         }
       } else if (pathname === '/categories') {
         setActiveTabState('categories');
+      } else if (pathname.startsWith('/warehouse/') || pathname === '/warehouse/dispatch' || pathname === '/warehouse/dispatch-history' || pathname === '/warehouse/supplementary-deliveries' || tabParam === 'warehouse-dispatch') {
+        setActiveTabState('warehouse-dispatch');
+        return;
+      } else if (pathname === '/delivery-trips' || pathname.startsWith('/delivery-trips/') || tabParam === 'delivery-trips') {
+        setActiveTabState('delivery-trips');
+        return;
       } else {
         setActiveTabState('inventory');
         if (pathname !== '/' || params.size) window.history.replaceState({}, '', '/');

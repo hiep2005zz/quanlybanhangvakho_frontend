@@ -426,7 +426,7 @@ export const WarehouseDispatchView: React.FC<WarehouseDispatchViewProps> = ({
           </div>
 
           {/* Bảng danh sách sản phẩm xuất kho - Chiếm trọn không gian, cuộn nội bộ */}
-          <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'auto' }}>
+          <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', textAlign: 'left' }}>
               <thead style={{ position: 'sticky', top: 0, zIndex: 10, background: '#f8fafc' }}>
                 <tr style={{ background: '#f8fafc', color: '#475569', borderBottom: '1px solid #cbd5e1' }}>
@@ -611,7 +611,7 @@ export const WarehouseDispatchView: React.FC<WarehouseDispatchViewProps> = ({
           </div>
 
           {/* Bảng danh sách mặt hàng còn nợ */}
-          <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'auto' }}>
+          <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', textAlign: 'left' }}>
               <thead style={{ position: 'sticky', top: 0, zIndex: 10, background: '#f8fafc' }}>
                 <tr style={{ background: '#f8fafc', color: '#475569', borderBottom: '1px solid #cbd5e1' }}>
@@ -1044,17 +1044,17 @@ export const WarehouseDispatchView: React.FC<WarehouseDispatchViewProps> = ({
 
         {/* BẢNG TAB 1: CHỜ XÁC NHẬN XUẤT KHO - ĐÃ XÓA NÚT LỊCH SỬ Ở CỘT THAO TÁC, KHÔNG XUỐNG DÒNG */}
         {activeTab === 'dispatch' && (
-          <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '12px' }}>
+          <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '12px', tableLayout: 'fixed' }}>
               <thead style={{ position: 'sticky', top: 0, zIndex: 10, background: '#f8fafc' }}>
                 <tr style={{ background: '#f8fafc', color: '#475569', borderBottom: '1px solid #cbd5e1' }}>
-                  <th style={{ padding: '7px 12px', fontWeight: '700', whiteSpace: 'nowrap', width: '120px' }}>Mã đơn hàng</th>
-                  <th style={{ padding: '7px 12px', fontWeight: '700', whiteSpace: 'nowrap' }}>Khách hàng / Đại lý</th>
-                  <th style={{ padding: '7px 12px', fontWeight: '700', whiteSpace: 'nowrap', width: '160px' }}>Kho phụ trách</th>
-                  <th style={{ padding: '7px 12px', fontWeight: '700', whiteSpace: 'nowrap', width: '100px' }}>Ngày đặt</th>
-                  <th style={{ padding: '7px 12px', fontWeight: '700', whiteSpace: 'nowrap', width: '90px', textAlign: 'center' }}>Số loại SP</th>
-                  <th style={{ padding: '7px 12px', fontWeight: '700', whiteSpace: 'nowrap', width: '110px' }}>Trạng thái</th>
-                  <th style={{ padding: '7px 12px', fontWeight: '700', whiteSpace: 'nowrap', width: '140px', textAlign: 'right' }}>Thao tác</th>
+                  <th style={{ padding: '7px 8px', fontWeight: '700', whiteSpace: 'nowrap', width: '13%' }}>Mã đơn hàng</th>
+                  <th style={{ padding: '7px 8px', fontWeight: '700', whiteSpace: 'nowrap', width: '27%' }}>Khách hàng / Đại lý</th>
+                  <th style={{ padding: '7px 8px', fontWeight: '700', whiteSpace: 'nowrap', width: '16%' }}>Kho phụ trách</th>
+                  <th style={{ padding: '7px 8px', fontWeight: '700', whiteSpace: 'nowrap', width: '11%' }}>Ngày đặt</th>
+                  <th style={{ padding: '7px 8px', fontWeight: '700', whiteSpace: 'nowrap', width: '8%', textAlign: 'center' }}>Số loại SP</th>
+                  <th style={{ padding: '7px 8px', fontWeight: '700', whiteSpace: 'nowrap', width: '10%' }}>Trạng thái</th>
+                  <th style={{ padding: '7px 8px', fontWeight: '700', whiteSpace: 'nowrap', width: '15%', textAlign: 'right' }}>Thao tác</th>
                 </tr>
               </thead>
               <tbody>
@@ -1068,36 +1068,36 @@ export const WarehouseDispatchView: React.FC<WarehouseDispatchViewProps> = ({
                 ) : (
                   filteredDispatchOrders.map((ord) => (
                     <tr key={ord.order_code} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                      <td style={{ padding: '6px 12px', fontWeight: '700', color: '#0284c7', whiteSpace: 'nowrap' }}>
+                      <td style={{ padding: '6px 8px', fontWeight: '700', color: '#0284c7', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {ord.order_code}
                       </td>
-                      <td style={{ padding: '6px 12px', fontWeight: '600', color: '#0f172a', whiteSpace: 'nowrap' }}>
+                      <td title={ord.dealer_name} style={{ padding: '6px 8px', fontWeight: '600', color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {ord.dealer_name}
                       </td>
-                      <td style={{ padding: '6px 12px', color: '#475569', whiteSpace: 'nowrap' }}>
+                      <td title={ord.warehouse_name || 'Kho Tổng Hà Nội'} style={{ padding: '6px 8px', color: '#475569', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {ord.warehouse_name || 'Kho Tổng Hà Nội'}
                       </td>
-                      <td style={{ padding: '6px 12px', color: '#64748b', whiteSpace: 'nowrap' }}>
+                      <td style={{ padding: '6px 8px', color: '#64748b', whiteSpace: 'nowrap' }}>
                         {ord.created_at ? new Date(ord.created_at).toLocaleDateString('vi-VN') : '—'}
                       </td>
-                      <td style={{ padding: '6px 12px', textAlign: 'center', fontWeight: '700', color: '#334155', whiteSpace: 'nowrap' }}>
+                      <td style={{ padding: '6px 8px', textAlign: 'center', fontWeight: '700', color: '#334155', whiteSpace: 'nowrap' }}>
                         {ord.items?.length || 0}
                       </td>
-                      <td style={{ padding: '6px 12px', whiteSpace: 'nowrap' }}>
+                      <td style={{ padding: '6px 8px', whiteSpace: 'nowrap' }}>
                         <span style={{ padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: '700', background: '#dcfce7', color: '#166534', whiteSpace: 'nowrap' }}>
                           ĐÃ DUYỆT
                         </span>
                       </td>
-                      <td style={{ padding: '6px 12px', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                      <td style={{ padding: '6px 8px', textAlign: 'right', whiteSpace: 'nowrap' }}>
                         <button
                           type="button"
                           onClick={() => handleOpenDispatchPage(ord)}
                           style={{
-                            padding: '5px 14px',
+                            padding: '4px 10px',
                             background: '#0284c7',
                             border: 'none',
                             borderRadius: '5px',
-                            fontSize: '11.5px',
+                            fontSize: '11px',
                             fontWeight: '700',
                             color: '#ffffff',
                             cursor: 'pointer',
@@ -1118,18 +1118,18 @@ export const WarehouseDispatchView: React.FC<WarehouseDispatchViewProps> = ({
 
         {/* BẢNG TAB 2: CHỜ GIAO BỔ SUNG - ĐÃ XÓA NÚT LỊCH SỬ Ở CỘT THAO TÁC, KHÔNG XUỐNG DÒNG */}
         {activeTab === 'supplementary' && (
-          <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '12px' }}>
+          <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '12px', tableLayout: 'fixed' }}>
               <thead style={{ position: 'sticky', top: 0, zIndex: 10, background: '#f8fafc' }}>
                 <tr style={{ background: '#f8fafc', color: '#475569', borderBottom: '1px solid #cbd5e1' }}>
-                  <th style={{ padding: '7px 12px', fontWeight: '700', whiteSpace: 'nowrap', width: '120px' }}>Mã đơn hàng</th>
-                  <th style={{ padding: '7px 12px', fontWeight: '700', whiteSpace: 'nowrap' }}>Khách hàng / Đại lý</th>
-                  <th style={{ padding: '7px 12px', fontWeight: '700', whiteSpace: 'nowrap', width: '160px' }}>Kho phụ trách</th>
-                  <th style={{ padding: '7px 12px', fontWeight: '700', whiteSpace: 'nowrap', width: '100px', textAlign: 'center' }}>SP còn thiếu</th>
-                  <th style={{ padding: '7px 12px', fontWeight: '700', whiteSpace: 'nowrap', width: '100px', textAlign: 'center' }}>Tổng SL thiếu</th>
-                  <th style={{ padding: '7px 12px', fontWeight: '700', whiteSpace: 'nowrap', width: '130px' }}>Lần xuất gần nhất</th>
-                  <th style={{ padding: '7px 12px', fontWeight: '700', whiteSpace: 'nowrap', width: '130px' }}>Trạng thái</th>
-                  <th style={{ padding: '7px 12px', fontWeight: '700', whiteSpace: 'nowrap', width: '130px', textAlign: 'right' }}>Thao tác</th>
+                  <th style={{ padding: '7px 8px', fontWeight: '700', whiteSpace: 'nowrap', width: '13%' }}>Mã đơn hàng</th>
+                  <th style={{ padding: '7px 8px', fontWeight: '700', whiteSpace: 'nowrap', width: '24%' }}>Khách hàng / Đại lý</th>
+                  <th style={{ padding: '7px 8px', fontWeight: '700', whiteSpace: 'nowrap', width: '15%' }}>Kho phụ trách</th>
+                  <th style={{ padding: '7px 8px', fontWeight: '700', whiteSpace: 'nowrap', width: '9%', textAlign: 'center' }}>SP còn thiếu</th>
+                  <th style={{ padding: '7px 8px', fontWeight: '700', whiteSpace: 'nowrap', width: '9%', textAlign: 'center' }}>Tổng SL thiếu</th>
+                  <th style={{ padding: '7px 8px', fontWeight: '700', whiteSpace: 'nowrap', width: '11%' }}>Lần xuất trước</th>
+                  <th style={{ padding: '7px 8px', fontWeight: '700', whiteSpace: 'nowrap', width: '9%' }}>Trạng thái</th>
+                  <th style={{ padding: '7px 8px', fontWeight: '700', whiteSpace: 'nowrap', width: '10%', textAlign: 'right' }}>Thao tác</th>
                 </tr>
               </thead>
               <tbody>
@@ -1143,39 +1143,39 @@ export const WarehouseDispatchView: React.FC<WarehouseDispatchViewProps> = ({
                 ) : (
                   filteredSuppOrders.map((ord) => (
                     <tr key={ord.order_code} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                      <td style={{ padding: '6px 12px', fontWeight: '700', color: '#d97706', whiteSpace: 'nowrap' }}>
+                      <td style={{ padding: '6px 8px', fontWeight: '700', color: '#d97706', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {ord.order_code}
                       </td>
-                      <td style={{ padding: '6px 12px', fontWeight: '600', color: '#0f172a', whiteSpace: 'nowrap' }}>
+                      <td title={ord.dealer_name} style={{ padding: '6px 8px', fontWeight: '600', color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {ord.dealer_name}
                       </td>
-                      <td style={{ padding: '6px 12px', color: '#475569', whiteSpace: 'nowrap' }}>
+                      <td title={ord.warehouse_name || 'Kho Tổng Hà Nội'} style={{ padding: '6px 8px', color: '#475569', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {ord.warehouse_name || 'Kho Tổng Hà Nội'}
                       </td>
-                      <td style={{ padding: '6px 12px', textAlign: 'center', fontWeight: '700', color: '#b45309', whiteSpace: 'nowrap' }}>
+                      <td style={{ padding: '6px 8px', textAlign: 'center', fontWeight: '700', color: '#b45309', whiteSpace: 'nowrap' }}>
                         {ord.shortage_items_count || ord.items?.length || 0} loại
                       </td>
-                      <td style={{ padding: '6px 12px', textAlign: 'center', fontWeight: '800', color: '#dc2626', whiteSpace: 'nowrap' }}>
+                      <td style={{ padding: '6px 8px', textAlign: 'center', fontWeight: '800', color: '#dc2626', whiteSpace: 'nowrap' }}>
                         {ord.total_shortage_quantity || 0}
                       </td>
-                      <td style={{ padding: '6px 12px', color: '#64748b', whiteSpace: 'nowrap' }}>
-                        {ord.last_dispatch_date ? new Date(ord.last_dispatch_date).toLocaleString('vi-VN') : '—'}
+                      <td style={{ padding: '6px 8px', color: '#64748b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {ord.last_dispatch_date ? new Date(ord.last_dispatch_date).toLocaleDateString('vi-VN') : '—'}
                       </td>
-                      <td style={{ padding: '6px 12px', whiteSpace: 'nowrap' }}>
+                      <td style={{ padding: '6px 8px', whiteSpace: 'nowrap' }}>
                         <span style={{ padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: '700', background: '#fef3c7', color: '#b45309', whiteSpace: 'nowrap' }}>
-                          Giao thiếu đợt {ord.dispatch_count || 1}
+                          Thiếu đợt {ord.dispatch_count || 1}
                         </span>
                       </td>
-                      <td style={{ padding: '6px 12px', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                      <td style={{ padding: '6px 8px', textAlign: 'right', whiteSpace: 'nowrap' }}>
                         <button
                           type="button"
                           onClick={() => handleOpenSupplementaryPage(ord)}
                           style={{
-                            padding: '5px 14px',
+                            padding: '4px 8px',
                             background: '#d97706',
                             border: 'none',
                             borderRadius: '5px',
-                            fontSize: '11.5px',
+                            fontSize: '11px',
                             fontWeight: '700',
                             color: '#ffffff',
                             cursor: 'pointer',
@@ -1196,20 +1196,20 @@ export const WarehouseDispatchView: React.FC<WarehouseDispatchViewProps> = ({
 
         {/* BẢNG TAB 3: LỊCH SỬ PHIẾU XUẤT KHO - KHÔNG XUỐNG DÒNG */}
         {activeTab === 'history' && (
-          <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '12px' }}>
+          <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '12px', tableLayout: 'fixed' }}>
               <thead style={{ position: 'sticky', top: 0, zIndex: 10, background: '#f8fafc' }}>
                 <tr style={{ background: '#f8fafc', color: '#475569', borderBottom: '1px solid #cbd5e1' }}>
-                  <th style={{ padding: '7px 12px', fontWeight: '700', whiteSpace: 'nowrap', width: '140px' }}>Mã phiếu xuất</th>
-                  <th style={{ padding: '7px 12px', fontWeight: '700', whiteSpace: 'nowrap', width: '120px' }}>Mã đơn hàng</th>
-                  <th style={{ padding: '7px 12px', fontWeight: '700', whiteSpace: 'nowrap' }}>Khách hàng / Đại lý</th>
-                  <th style={{ padding: '7px 12px', fontWeight: '700', whiteSpace: 'nowrap', width: '150px' }}>Kho xuất</th>
-                  <th style={{ padding: '7px 12px', fontWeight: '700', whiteSpace: 'nowrap', width: '90px', textAlign: 'center' }}>Đợt xuất</th>
-                  <th style={{ padding: '7px 12px', fontWeight: '700', whiteSpace: 'nowrap', width: '100px', textAlign: 'center' }}>SL xuất</th>
-                  <th style={{ padding: '7px 12px', fontWeight: '700', whiteSpace: 'nowrap', width: '130px' }}>Người thực hiện</th>
-                  <th style={{ padding: '7px 12px', fontWeight: '700', whiteSpace: 'nowrap', width: '140px' }}>Thời gian</th>
-                  <th style={{ padding: '7px 12px', fontWeight: '700', whiteSpace: 'nowrap', width: '110px' }}>Trạng thái đơn</th>
-                  <th style={{ padding: '7px 12px', fontWeight: '700', whiteSpace: 'nowrap', width: '100px', textAlign: 'right' }}>Thao tác</th>
+                  <th style={{ padding: '7px 8px', fontWeight: '700', whiteSpace: 'nowrap', width: '13%' }}>Mã phiếu xuất</th>
+                  <th style={{ padding: '7px 8px', fontWeight: '700', whiteSpace: 'nowrap', width: '10%' }}>Mã đơn hàng</th>
+                  <th style={{ padding: '7px 8px', fontWeight: '700', whiteSpace: 'nowrap', width: '18%' }}>Khách hàng / Đại lý</th>
+                  <th style={{ padding: '7px 8px', fontWeight: '700', whiteSpace: 'nowrap', width: '12%' }}>Kho xuất</th>
+                  <th style={{ padding: '7px 8px', fontWeight: '700', whiteSpace: 'nowrap', width: '7%', textAlign: 'center' }}>Đợt xuất</th>
+                  <th style={{ padding: '7px 8px', fontWeight: '700', whiteSpace: 'nowrap', width: '6%', textAlign: 'center' }}>SL xuất</th>
+                  <th style={{ padding: '7px 8px', fontWeight: '700', whiteSpace: 'nowrap', width: '10%' }}>Người thực hiện</th>
+                  <th style={{ padding: '7px 8px', fontWeight: '700', whiteSpace: 'nowrap', width: '11%' }}>Thời gian</th>
+                  <th style={{ padding: '7px 8px', fontWeight: '700', whiteSpace: 'nowrap', width: '7%', textAlign: 'center' }}>Trạng thái</th>
+                  <th style={{ padding: '7px 8px', fontWeight: '700', whiteSpace: 'nowrap', width: '6%', textAlign: 'right' }}>Thao tác</th>
                 </tr>
               </thead>
               <tbody>
@@ -1223,22 +1223,22 @@ export const WarehouseDispatchView: React.FC<WarehouseDispatchViewProps> = ({
                 ) : (
                   filteredAllDispatches.map((dp) => (
                     <tr key={dp.dispatch_code || dp.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                      <td style={{ padding: '6px 12px', fontWeight: '700', color: '#0284c7', whiteSpace: 'nowrap' }}>
+                      <td style={{ padding: '6px 8px', fontWeight: '700', color: '#0284c7', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {dp.dispatch_code}
                       </td>
-                      <td style={{ padding: '6px 12px', fontWeight: '700', color: '#0f172a', whiteSpace: 'nowrap' }}>
+                      <td style={{ padding: '6px 8px', fontWeight: '700', color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {dp.order_code}
                       </td>
-                      <td style={{ padding: '6px 12px', fontWeight: '600', color: '#0f172a', whiteSpace: 'nowrap' }}>
+                      <td title={dp.dealer_name} style={{ padding: '6px 8px', fontWeight: '600', color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {dp.dealer_name || 'Khách Mua Hàng'}
                       </td>
-                      <td style={{ padding: '6px 12px', color: '#475569', whiteSpace: 'nowrap' }}>
+                      <td title={dp.warehouse_name || 'Kho Tổng'} style={{ padding: '6px 8px', color: '#475569', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {dp.warehouse_name || 'Kho Tổng'}
                       </td>
-                      <td style={{ padding: '6px 12px', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                      <td style={{ padding: '6px 8px', textAlign: 'center', whiteSpace: 'nowrap' }}>
                         <span
                           style={{
-                            padding: '2px 8px',
+                            padding: '2px 6px',
                             borderRadius: '4px',
                             fontSize: '11px',
                             fontWeight: '700',
@@ -1250,21 +1250,21 @@ export const WarehouseDispatchView: React.FC<WarehouseDispatchViewProps> = ({
                           {dp.round_number === 1 ? 'Lần đầu' : `Đợt ${dp.round_number}`}
                         </span>
                       </td>
-                      <td style={{ padding: '6px 12px', textAlign: 'center', fontWeight: '700', color: '#16a34a', whiteSpace: 'nowrap' }}>
+                      <td style={{ padding: '6px 8px', textAlign: 'center', fontWeight: '700', color: '#16a34a', whiteSpace: 'nowrap' }}>
                         +{dp.total_dispatched_qty} sp
                       </td>
-                      <td style={{ padding: '6px 12px', color: '#334155', fontWeight: '600', whiteSpace: 'nowrap' }}>
+                      <td title={dp.performed_by} style={{ padding: '6px 8px', color: '#334155', fontWeight: '600', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {dp.performed_by}
                       </td>
-                      <td style={{ padding: '6px 12px', color: '#64748b', fontSize: '11.5px', whiteSpace: 'nowrap' }}>
-                        {dp.created_at ? new Date(dp.created_at).toLocaleString('vi-VN') : '—'}
+                      <td style={{ padding: '6px 8px', color: '#64748b', fontSize: '11px', whiteSpace: 'nowrap' }}>
+                        {dp.created_at ? new Date(dp.created_at).toLocaleDateString('vi-VN') + ' ' + new Date(dp.created_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '—'}
                       </td>
-                      <td style={{ padding: '6px 12px', whiteSpace: 'nowrap' }}>
+                      <td style={{ padding: '6px 8px', textAlign: 'center', whiteSpace: 'nowrap' }}>
                         <span
                           style={{
-                            padding: '2px 8px',
+                            padding: '2px 6px',
                             borderRadius: '4px',
-                            fontSize: '11px',
+                            fontSize: '10.5px',
                             fontWeight: '700',
                             background: dp.order_status === 'DELIVERED' ? '#dcfce7' : dp.order_status === 'PARTIALLY_DELIVERED' ? '#fef3c7' : '#e0f2fe',
                             color: dp.order_status === 'DELIVERED' ? '#166534' : dp.order_status === 'PARTIALLY_DELIVERED' ? '#b45309' : '#0369a1',
@@ -1274,16 +1274,16 @@ export const WarehouseDispatchView: React.FC<WarehouseDispatchViewProps> = ({
                           {dp.order_status === 'DELIVERED' ? 'HOÀN THÀNH' : dp.order_status === 'PARTIALLY_DELIVERED' ? 'GIAO THIẾU' : (dp.order_status || 'ĐÃ XUẤT')}
                         </span>
                       </td>
-                      <td style={{ padding: '6px 12px', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                      <td style={{ padding: '6px 8px', textAlign: 'right', whiteSpace: 'nowrap' }}>
                         <button
                           type="button"
                           onClick={() => handleViewDispatchHistoryPage(dp.order_code)}
                           style={{
-                            padding: '5px 12px',
+                            padding: '4px 8px',
                             background: '#059669',
                             border: 'none',
-                            borderRadius: '5px',
-                            fontSize: '11.5px',
+                            borderRadius: '4px',
+                            fontSize: '11px',
                             fontWeight: '700',
                             color: '#ffffff',
                             cursor: 'pointer',
@@ -1291,7 +1291,7 @@ export const WarehouseDispatchView: React.FC<WarehouseDispatchViewProps> = ({
                             boxShadow: '0 1px 2px rgba(5,150,105,0.2)',
                           }}
                         >
-                          Xem chi tiết
+                          Chi tiết
                         </button>
                       </td>
                     </tr>
