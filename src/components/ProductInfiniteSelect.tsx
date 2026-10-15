@@ -255,14 +255,6 @@ export const ProductInfiniteSelect: React.FC<ProductInfiniteSelectProps> = ({
                 </button>
               )}
             </div>
-            <div className="flex items-center justify-between text-[11px] text-slate-500 px-1 font-medium">
-              <span>
-                Mỗi lần tải <strong className="text-emerald-700">10 sản phẩm</strong> (cuộn xuống để xem thêm)
-              </span>
-              <span className="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-bold">
-                Đã tải: {products.length}/{totalCount}
-              </span>
-            </div>
           </div>
 
           {/* Scrollable Products List */}
@@ -277,7 +269,7 @@ export const ProductInfiniteSelect: React.FC<ProductInfiniteSelectProps> = ({
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                 </svg>
-                <span>Đang tải 10 sản phẩm đầu tiên...</span>
+                <span>Đang tải danh sách sản phẩm...</span>
               </div>
             ) : products.length === 0 ? (
               <div className="p-8 text-center text-slate-500 text-xs sm:text-sm">
@@ -354,7 +346,7 @@ export const ProductInfiniteSelect: React.FC<ProductInfiniteSelectProps> = ({
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                 </svg>
-                <span>Đang tải tiếp 10 sản phẩm...</span>
+                <span>Đang tải thêm sản phẩm...</span>
               </div>
             )}
 
@@ -368,7 +360,7 @@ export const ProductInfiniteSelect: React.FC<ProductInfiniteSelectProps> = ({
                   }}
                   className="text-xs text-emerald-700 hover:text-emerald-900 font-bold cursor-pointer bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-3 py-1.5 rounded-lg transition-colors inline-flex items-center gap-1.5 shadow-2xs"
                 >
-                  <span>Tải thêm 10 sản phẩm nữa</span>
+                  <span>Tải thêm sản phẩm</span>
                   <svg className="w-3.5 h-3.5 inline animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
                   </svg>
