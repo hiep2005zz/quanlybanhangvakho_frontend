@@ -56,6 +56,7 @@ import { DashboardHeader } from './DashboardHeader';
 import { CustomerDebtView } from './CustomerDebtView';
 import { CustomerPortalView } from './CustomerPortalView';
 import { BatchManagementView } from './BatchManagementView';
+import WarehousePickingView from './WarehousePickingView';
 
 import './dashboard.css';
 import { Sidebar, type TabType } from './Sidebar';
@@ -173,6 +174,15 @@ export default function DashboardPage({
     officialRoles.includes('accountant')
   );
 
+  // Quyền truy cập các phân hệ kho vận (Chỉ Admin, Quản lý kho, Thủ kho): Soạn hàng & Theo dõi Lô
+  const isWarehouseOrAdmin = Boolean(
+    isAdmin ||
+    user.role === 'warehouse' ||
+    user.role === 'warehouse_manager' ||
+    officialRoles.includes('warehouse') ||
+    officialRoles.includes('warehouse_manager')
+  );
+
   // 2. Khởi tạo State với Clean URL
   const location = useLocation();
   const currentPath = location.pathname.toLowerCase();
@@ -231,6 +241,7 @@ export default function DashboardPage({
     const isStockAuditsPath = pathname === '/stock-audits' || pathname.startsWith('/stock-audits/');
     const isStockTransfersPath = pathname === '/stock-transfers' || pathname.startsWith('/stock-transfers/');
     const isBatchesPath = pathname === '/batches' || pathname.startsWith('/batches/');
+    const isPickingPath = pathname === '/picking' || pathname.startsWith('/picking/') || pathname === '/warehouse-picking' || pathname.startsWith('/warehouse-picking/');
     const isStockThresholdsPath = pathname === '/stock-thresholds' || pathname.startsWith('/stock-thresholds/');
     const isLowStockAlertsPath = pathname === '/low-stock-alerts' || pathname.startsWith('/low-stock-alerts/');
     const isGoodsReceiptPath = pathname === '/goods-receipt' || pathname.startsWith('/goods-receipt/') || pathname === '/goods-receipts';
@@ -239,23 +250,30 @@ export default function DashboardPage({
     const hasOldTabParam = params.has('tab') || params.has('view');
     const oldTabVal = (params.get('tab') || params.get('view') || '').toLowerCase();
 
+    if (isPickingPath || oldTabVal === 'picking' || oldTabVal === 'warehouse-picking') {
+      if (hasOldTabParam || (pathname !== '/picking' && pathname !== '/warehouse-picking')) {
+        try { window.history.replaceState({}, '', '/picking'); } catch { }
+      }
+      return 'picking';
+    }
+
     if (isBatchesPath || oldTabVal === 'batches' || oldTabVal === 'batch') {
       if (hasOldTabParam || (pathname !== '/batches' && !pathname.startsWith('/batches/create'))) {
-        try { window.history.replaceState({}, '', pathname.startsWith('/batches/create') ? '/batches/create' : '/batches'); } catch {}
+        try { window.history.replaceState({}, '', pathname.startsWith('/batches/create') ? '/batches/create' : '/batches'); } catch { }
       }
       return 'batches';
     }
 
     if (isLowStockAlertsPath || oldTabVal === 'low-stock-alerts' || oldTabVal === 'low-stock-alert') {
       if (hasOldTabParam || pathname !== '/low-stock-alerts') {
-        try { window.history.replaceState({}, '', '/low-stock-alerts'); } catch {}
+        try { window.history.replaceState({}, '', '/low-stock-alerts'); } catch { }
       }
       return 'low-stock-alerts';
     }
 
     if (isStockThresholdsPath || oldTabVal === 'stock-thresholds') {
       if (hasOldTabParam || pathname !== '/stock-thresholds') {
-        try { window.history.replaceState({}, '', '/stock-thresholds'); } catch {}
+        try { window.history.replaceState({}, '', '/stock-thresholds'); } catch { }
       }
       return 'stock-thresholds';
     }
@@ -263,11 +281,11 @@ export default function DashboardPage({
     if (isGoodsReceiptPath || oldTabVal === 'goods-receipt') {
       if (canWriteInventory) {
         if (hasOldTabParam || pathname !== '/goods-receipt') {
-          try { window.history.replaceState({}, '', '/goods-receipt'); } catch {}
+          try { window.history.replaceState({}, '', '/goods-receipt'); } catch { }
         }
         return 'goods-receipt';
       }
-      try { window.history.replaceState({}, '', '/'); } catch {}
+      try { window.history.replaceState({}, '', '/'); } catch { }
       return 'inventory';
     }
 
@@ -298,7 +316,7 @@ export default function DashboardPage({
 
     if (isStockTransfersPath || oldTabVal === 'stock-transfers' || oldTabVal === 'stock-transfer') {
       if (hasOldTabParam || (pathname !== '/stock-transfers' && !pathname.startsWith('/stock-transfers/create'))) {
-        try { window.history.replaceState({}, '', '/stock-transfers'); } catch {}
+        try { window.history.replaceState({}, '', '/stock-transfers'); } catch { }
       }
       return 'stock-transfers';
     }
@@ -351,7 +369,7 @@ export default function DashboardPage({
     }
     if (isOrdersPath || oldTabVal === 'orders') {
       if (hasOldTabParam || (pathname !== '/orders' && !isOrdersCreatePath && !isOrdersDetailPath)) {
-        try { window.history.replaceState({}, '', '/orders'); } catch {}
+        try { window.history.replaceState({}, '', '/orders'); } catch { }
       }
       return 'orders';
     }
@@ -458,13 +476,13 @@ export default function DashboardPage({
     if (tab === 'goods-receipt') {
       if (!canWriteInventory) {
         setActiveTabState('inventory');
-        try { window.history.replaceState({}, '', '/'); } catch {}
+        try { window.history.replaceState({}, '', '/'); } catch { }
         return;
       }
       setActiveTabState('goods-receipt');
       try {
         window.history.pushState({}, '', '/goods-receipt');
-      } catch {}
+      } catch { }
       return;
     }
 
@@ -472,20 +490,33 @@ export default function DashboardPage({
       setActiveTabState('stock-transfers');
       try {
         window.history.pushState({}, '', '/stock-transfers');
-      } catch {}
+      } catch { }
       return;
     }
 
     if (tab === 'batches') {
-      if (isCustomer) {
+      if (!isWarehouseOrAdmin) {
         setActiveTabState('inventory');
-        try { window.history.replaceState({}, '', '/'); } catch {}
+        try { window.history.replaceState({}, '', '/'); } catch { }
         return;
       }
       setActiveTabState('batches');
       try {
         window.history.pushState({}, '', '/batches');
-      } catch {}
+      } catch { }
+      return;
+    }
+
+    if (tab === 'picking') {
+      if (!isWarehouseOrAdmin) {
+        setActiveTabState('inventory');
+        try { window.history.replaceState({}, '', '/'); } catch { }
+        return;
+      }
+      setActiveTabState('picking');
+      try {
+        window.history.pushState({}, '', '/picking');
+      } catch { }
       return;
     }
 
@@ -506,7 +537,7 @@ export default function DashboardPage({
       setActiveTabState('stock-thresholds');
       try {
         window.history.pushState({}, '', '/stock-thresholds');
-      } catch {}
+      } catch { }
       return;
     }
 
@@ -514,7 +545,7 @@ export default function DashboardPage({
       setActiveTabState('low-stock-alerts');
       try {
         window.history.pushState({}, '', '/low-stock-alerts');
-      } catch {}
+      } catch { }
       return;
     }
 
@@ -531,7 +562,7 @@ export default function DashboardPage({
     if (tab === 'warehouses') {
       if (!canAccessWarehouses) {
         setActiveTabState('inventory');
-        try { window.history.replaceState({}, '', '/'); } catch {}
+        try { window.history.replaceState({}, '', '/'); } catch { }
         return;
       }
       setActiveTabState('warehouses');
@@ -662,9 +693,10 @@ export default function DashboardPage({
                   : activeTab === 'product-history' ? (isAdmin || isSalesManager || canWriteInventory)
                     : activeTab === 'stock-audits' ? canAccessStockAudit
                       : activeTab === 'warehouses' ? canAccessWarehouses
-                      : activeTab === 'goods-receipt' ? canWriteInventory
-                        : activeTab === 'batches' ? !isCustomer
-                          : true;
+                        : activeTab === 'goods-receipt' ? canWriteInventory
+                          : activeTab === 'batches' ? isWarehouseOrAdmin
+                            : activeTab === 'picking' ? isWarehouseOrAdmin
+                              : true;
     if (!isAllowed) {
       setActiveTabState('inventory');
       window.history.replaceState({}, '', '/');
@@ -713,7 +745,7 @@ export default function DashboardPage({
       const isAddProduct = pathname === '/add-product' || pathname.startsWith('/add-product/') || tabParam === 'add-product';
       if (isAddProduct) {
         if (tabParam) {
-          try { window.history.replaceState({}, '', '/add-product'); } catch {}
+          try { window.history.replaceState({}, '', '/add-product'); } catch { }
         }
         setActiveTabState('inventory');
         setProductDrawerState((prev) => ({ isOpen: true, product: prev.product ?? null }));
@@ -725,12 +757,12 @@ export default function DashboardPage({
       if (isGoodsReceiptPath || tabParam === 'goods-receipt') {
         if (canWriteInventory) {
           if (pathname !== '/goods-receipt' || tabParam) {
-            try { window.history.replaceState({}, '', '/goods-receipt'); } catch {}
+            try { window.history.replaceState({}, '', '/goods-receipt'); } catch { }
           }
           setActiveTabState('goods-receipt');
         } else {
           setActiveTabState('inventory');
-          try { window.history.replaceState({}, '', '/'); } catch {}
+          try { window.history.replaceState({}, '', '/'); } catch { }
         }
         return;
       }
@@ -740,7 +772,7 @@ export default function DashboardPage({
 
       if (isLowStockAlertsPath || tabParam === 'low-stock-alerts' || tabParam === 'low-stock-alert') {
         if (pathname !== '/low-stock-alerts' || tabParam) {
-          try { window.history.replaceState({}, '', '/low-stock-alerts'); } catch {}
+          try { window.history.replaceState({}, '', '/low-stock-alerts'); } catch { }
         }
         setActiveTabState('low-stock-alerts');
         return;
@@ -748,7 +780,7 @@ export default function DashboardPage({
 
       if (isStockThresholdsPath || tabParam === 'stock-thresholds') {
         if (pathname !== '/stock-thresholds' || tabParam) {
-          try { window.history.replaceState({}, '', '/stock-thresholds'); } catch {}
+          try { window.history.replaceState({}, '', '/stock-thresholds'); } catch { }
         }
         setActiveTabState('stock-thresholds');
         return;
@@ -764,9 +796,11 @@ export default function DashboardPage({
       const isStockTransfersPath = pathname === '/stock-transfers' || pathname.startsWith('/stock-transfers/');
       const isStockBookPath = pathname === '/stock-book' || pathname.startsWith('/stock-book/');
       const isBatchesPath = pathname === '/batches' || pathname.startsWith('/batches/');
+      const isPickingPath = pathname === '/picking' || pathname.startsWith('/picking/') || pathname === '/warehouse-picking' || pathname.startsWith('/warehouse-picking/');
+
       if (isProductsImportPath || tabParam === 'products-import') {
         if (pathname !== '/products/import' || tabParam) {
-          try { window.history.replaceState({}, '', '/products/import'); } catch {}
+          try { window.history.replaceState({}, '', '/products/import'); } catch { }
         }
         setActiveTabState('products-import');
         return;
@@ -774,7 +808,7 @@ export default function DashboardPage({
 
       if (isStockBookPath || tabParam === 'stock-book') {
         if (pathname !== '/stock-book' || tabParam) {
-          try { window.history.replaceState({}, '', '/stock-book'); } catch {}
+          try { window.history.replaceState({}, '', '/stock-book'); } catch { }
         }
         setActiveTabState('stock-book');
         return;
@@ -782,21 +816,34 @@ export default function DashboardPage({
 
       if (isStockTransfersPath || tabParam === 'stock-transfers' || tabParam === 'stock-transfer') {
         if ((pathname !== '/stock-transfers' && !pathname.startsWith('/stock-transfers/create')) || tabParam) {
-          try { window.history.replaceState({}, '', pathname.startsWith('/stock-transfers/create') ? '/stock-transfers/create' : '/stock-transfers'); } catch {}
+          try { window.history.replaceState({}, '', pathname.startsWith('/stock-transfers/create') ? '/stock-transfers/create' : '/stock-transfers'); } catch { }
         }
         setActiveTabState('stock-transfers');
         return;
       }
 
+      if (isPickingPath || tabParam === 'picking' || tabParam === 'warehouse-picking') {
+        if (isWarehouseOrAdmin) {
+          if (pathname !== '/picking' || tabParam) {
+            try { window.history.replaceState({}, '', '/picking'); } catch { }
+          }
+          setActiveTabState('picking');
+        } else {
+          setActiveTabState('inventory');
+          try { window.history.replaceState({}, '', '/'); } catch { }
+        }
+        return;
+      }
+
       if (isBatchesPath || tabParam === 'batches' || tabParam === 'batch') {
-        if (!isCustomer) {
+        if (isWarehouseOrAdmin) {
           if ((pathname !== '/batches' && !pathname.startsWith('/batches/create')) || tabParam) {
-            try { window.history.replaceState({}, '', pathname.startsWith('/batches/create') ? '/batches/create' : '/batches'); } catch {}
+            try { window.history.replaceState({}, '', pathname.startsWith('/batches/create') ? '/batches/create' : '/batches'); } catch { }
           }
           setActiveTabState('batches');
         } else {
           setActiveTabState('inventory');
-          try { window.history.replaceState({}, '', '/'); } catch {}
+          try { window.history.replaceState({}, '', '/'); } catch { }
         }
         return;
       }
@@ -806,7 +853,7 @@ export default function DashboardPage({
 
       if (isCreateOrderPath || tabParam === 'create-order') {
         if (pathname !== '/create-order' || tabParam) {
-          try { window.history.replaceState({}, '', '/create-order'); } catch {}
+          try { window.history.replaceState({}, '', '/create-order'); } catch { }
         }
         setActiveTabState('create-order');
         return;
@@ -857,7 +904,7 @@ export default function DashboardPage({
 
       if (isOrdersPath || tabParam === 'orders') {
         if (pathname !== '/orders' || tabParam) {
-          try { window.history.replaceState({}, '', '/orders'); } catch {}
+          try { window.history.replaceState({}, '', '/orders'); } catch { }
         }
         setActiveTabState('orders');
         return;
@@ -962,7 +1009,7 @@ export default function DashboardPage({
           setActiveTabState('warehouses');
         } else {
           setActiveTabState('inventory');
-          try { window.history.replaceState({}, '', '/'); } catch {}
+          try { window.history.replaceState({}, '', '/'); } catch { }
         }
       } else if (pathname === '/categories') {
         setActiveTabState('categories');
@@ -1006,7 +1053,7 @@ export default function DashboardPage({
           setCategoryList((prev) => Array.from(new Set([...prev, ...names])));
         }
       })
-      .catch(() => {});
+      .catch(() => { });
   }, [token]);
 
   // Debounce tìm kiếm sản phẩm: Chỉ lọc khi người dùng ngừng nhập 350ms
@@ -1088,7 +1135,7 @@ export default function DashboardPage({
     try {
       const stored = sessionStorage.getItem('clone_order_draft');
       if (stored) return JSON.parse(stored);
-    } catch {}
+    } catch { }
     return null;
   });
   const [isDiscountExpanded, setIsDiscountExpanded] = useState(false);
@@ -1096,7 +1143,7 @@ export default function DashboardPage({
     try {
       const saved = localStorage.getItem('discountPolicies');
       if (saved) return JSON.parse(saved);
-    } catch {}
+    } catch { }
     return [];
   });
 
@@ -1113,8 +1160,8 @@ export default function DashboardPage({
               target_group: (bePolicy.target_dealer_type === 'agent_tier_1' || bePolicy.target_group === 'agent_tier_1')
                 ? 'agent_tier_1'
                 : (bePolicy.target_dealer_type === 'agent_tier_2' || bePolicy.target_group === 'agent_tier_2')
-                ? 'agent_tier_2'
-                : 'all',
+                  ? 'agent_tier_2'
+                  : 'all',
               start_date: bePolicy.start_date || '2026-01-01',
               end_date: bePolicy.end_date || '',
               status: bePolicy.is_active ? 'active' : 'expired',
@@ -1130,7 +1177,7 @@ export default function DashboardPage({
             localStorage.setItem('discountPolicies', JSON.stringify(mapped));
           }
         })
-        .catch(() => {});
+        .catch(() => { });
     }
   }, [token]);
 
@@ -1246,6 +1293,18 @@ export default function DashboardPage({
       fetchLowStockAlerts();
     }
   }, [token, isPendingCustomer, isCustomer, activeTab, currentPage, productSearchTerm, selectedCategory, onlyLowStockFilter]);
+
+  // Lắng nghe sự kiện cập nhật tồn kho để đồng bộ tức thì
+  useEffect(() => {
+    const handleStockUpdate = () => {
+      fetchProducts();
+      fetchLowStockAlerts();
+    };
+    window.addEventListener('INVENTORY_STOCK_UPDATED', handleStockUpdate);
+    return () => {
+      window.removeEventListener('INVENTORY_STOCK_UPDATED', handleStockUpdate);
+    };
+  }, []);
 
   // Tính toán số liệu thống kê: Ưu tiên lấy từ financialSummary (toàn kho do Backend tổng hợp)
   const { totalStock, totalSellValue, totalCostValue, totalProfit, isCostAvailable, totalProductsCount } = useMemo(() => {
@@ -1432,7 +1491,7 @@ export default function DashboardPage({
   const isGoodsReceiptPage = activeTab === 'goods-receipt';
   const isProductsImportPage = activeTab === 'products-import';
   const isUsersImportPage = activeTab === 'users-import';
-  const isLockedScrollTab = !isProductFormOpen && !isSalesOrderOpen && !isOrdersCreateSubpage && !isOrderDetailSubpage && !isPriceListsCreateSubpage && !isPriceBookDetailSubpage && !isPriceBookEditSubpage && !isGoodsReceiptPage && !isStockTransferCreateSubpage && !isBatchesCreateSubpage && !isProductsImportPage && !isUsersImportPage && (activeTab === 'inventory' || activeTab === 'dealers' || activeTab === 'dealer-profiles' || activeTab === 'delivery-points' || activeTab === 'suppliers' || activeTab === 'price-books' || activeTab === 'categories' || activeTab === 'orders' || activeTab === 'product-history' || activeTab === 'stock-book' || activeTab === 'stock-audits' || activeTab === 'stock-transfers' || activeTab === 'stock-thresholds' || activeTab === 'low-stock-alerts' || activeTab === 'batches') && !isPendingCustomer;
+  const isLockedScrollTab = !isProductFormOpen && !isSalesOrderOpen && !isOrdersCreateSubpage && !isOrderDetailSubpage && !isPriceListsCreateSubpage && !isPriceBookDetailSubpage && !isPriceBookEditSubpage && !isGoodsReceiptPage && !isStockTransferCreateSubpage && !isBatchesCreateSubpage && !isProductsImportPage && !isUsersImportPage && (activeTab === 'inventory' || activeTab === 'dealers' || activeTab === 'dealer-profiles' || activeTab === 'delivery-points' || activeTab === 'suppliers' || activeTab === 'price-books' || activeTab === 'categories' || activeTab === 'orders' || activeTab === 'product-history' || activeTab === 'stock-book' || activeTab === 'stock-audits' || activeTab === 'stock-transfers' || activeTab === 'stock-thresholds' || activeTab === 'low-stock-alerts' || activeTab === 'batches' || activeTab === 'picking') && !isPendingCustomer;
 
   return (
     <DashboardLayout
@@ -1464,10 +1523,10 @@ export default function DashboardPage({
         isOrderDetailSubpage || isOrdersCreateSubpage || isPriceListsCreateSubpage || isPriceBookDetailSubpage || isPriceBookEditSubpage || isGoodsReceiptPage || isStockTransferCreateSubpage || isBatchesCreateSubpage || isProductsImportPage || isUsersImportPage
           ? 'flex-1 min-w-0 overflow-y-auto p-0 flex flex-col bg-slate-50'
           : isCustomer
-          ? 'flex-1 min-w-0 overflow-hidden p-0 flex flex-col bg-slate-50 h-full'
-          : isMobileScreen
-          ? 'flex-1 min-w-0 overflow-y-auto p-2 sm:p-3 flex flex-col'
-          : undefined
+            ? 'flex-1 min-w-0 overflow-hidden p-0 flex flex-col bg-slate-50 h-full'
+            : isMobileScreen
+              ? 'flex-1 min-w-0 overflow-y-auto p-2 sm:p-3 flex flex-col'
+              : undefined
       }
       sidebar={
         <Sidebar
@@ -1492,6 +1551,7 @@ export default function DashboardPage({
           canAccessStockTransfer={canAccessStockTransfer}
           canAccessWarehouses={canAccessWarehouses}
           canWriteInventory={canWriteInventory}
+          isWarehouseOrAdmin={isWarehouseOrAdmin}
           isAdmin={isAdmin}
           onLogout={() => {
             if (isLoggingOut) return;
@@ -1609,14 +1669,14 @@ export default function DashboardPage({
                 onClose={() => {
                   try {
                     sessionStorage.removeItem('clone_order_draft');
-                  } catch {}
+                  } catch { }
                   setCloneOrderData(null);
                   window.history.pushState({}, '', '/orders');
                 }}
                 onSuccess={() => {
                   try {
                     sessionStorage.removeItem('clone_order_draft');
-                  } catch {}
+                  } catch { }
                   setCloneOrderData(null);
                   window.history.pushState({}, '', '/orders');
                   fetchProducts();
@@ -1632,7 +1692,7 @@ export default function DashboardPage({
                 onCloneOrder={(data) => {
                   try {
                     sessionStorage.setItem('clone_order_draft', JSON.stringify(data));
-                  } catch {}
+                  } catch { }
                   setCloneOrderData(data);
                   window.history.pushState({}, '', '/orders/create');
                 }}
@@ -1649,7 +1709,7 @@ export default function DashboardPage({
                 onCloneOrder={(data) => {
                   try {
                     sessionStorage.setItem('clone_order_draft', JSON.stringify(data));
-                  } catch {}
+                  } catch { }
                   setCloneOrderData(data);
                   window.history.pushState({}, '', '/orders/create');
                 }}
@@ -1921,73 +1981,98 @@ export default function DashboardPage({
             />
           )
         ) : activeTab === 'stock-transfers' ? (
-        canAccessStockTransfer ? (
-          <StockTransferManagementView
+          canAccessStockTransfer ? (
+            <StockTransferManagementView
+              token={token}
+              currentUser={user}
+              onBackToHome={() => setActiveTab('inventory')}
+            />
+          ) : (
+            <AccessDeniedView
+              currentUser={user}
+              requiredPermission="Quản lý chuyển kho nội bộ (Quản trị hệ thống / Quản lý kho / Thủ kho)"
+              onBackToWorkflow={() => setActiveTab('inventory')}
+              onLogout={onLogout}
+            />
+          )
+        ) : activeTab === 'warehouses' ? (
+          canAccessWarehouses ? (
+            <WarehouseManagementView
+              token={token}
+              currentUser={user}
+              onBackToHome={() => setActiveTab('inventory')}
+            />
+          ) : (
+            <AccessDeniedView
+              currentUser={user}
+              requiredPermission="Quản lý danh sách kho và vị trí kệ (Nhân viên kinh doanh không có quyền truy cập)"
+              onBackToWorkflow={() => setActiveTab('inventory')}
+              onLogout={onLogout}
+            />
+          )
+        ) : activeTab === 'stock-thresholds' ? (
+          <StockThresholdManagementView
             token={token}
-            currentUser={user}
-            onBackToHome={() => setActiveTab('inventory')}
+            canManageThresholds={canManageThreshold}
+            onBackToHome={() => {
+              setActiveTab('inventory');
+              fetchProducts();
+              fetchLowStockAlerts();
+            }}
+            onThresholdsUpdated={() => {
+              fetchProducts();
+              fetchLowStockAlerts();
+            }}
           />
-        ) : (
-          <AccessDeniedView
-            currentUser={user}
-            requiredPermission="Quản lý chuyển kho nội bộ (Quản trị hệ thống / Quản lý kho / Thủ kho)"
-            onBackToWorkflow={() => setActiveTab('inventory')}
-            onLogout={onLogout}
-          />
-        )
-      ) : activeTab === 'warehouses' ? (
-        canAccessWarehouses ? (
-          <WarehouseManagementView
+        ) : activeTab === 'low-stock-alerts' ? (
+          <LowStockAlertManagementView
             token={token}
-            currentUser={user}
-            onBackToHome={() => setActiveTab('inventory')}
+            canManageThresholds={canManageThreshold}
+            canWriteInventory={canWriteInventory}
+            onOpenGoodsReceipt={canWriteInventory ? () => setActiveTab('goods-receipt') : undefined}
+            onOpenThresholdConfig={canManageThreshold ? () => setActiveTab('stock-thresholds') : undefined}
+            onBackToHome={() => {
+              setActiveTab('inventory');
+              fetchProducts();
+              fetchLowStockAlerts();
+            }}
           />
-        ) : (
-          <AccessDeniedView
-            currentUser={user}
-            requiredPermission="Quản lý danh sách kho và vị trí kệ (Nhân viên kinh doanh không có quyền truy cập)"
-            onBackToWorkflow={() => setActiveTab('inventory')}
-            onLogout={onLogout}
-          />
-        )
-      ) : activeTab === 'stock-thresholds' ? (
-        <StockThresholdManagementView
-          token={token}
-          canManageThresholds={canManageThreshold}
-          onBackToHome={() => {
-            setActiveTab('inventory');
-            fetchProducts();
-            fetchLowStockAlerts();
-          }}
-          onThresholdsUpdated={() => {
-            fetchProducts();
-            fetchLowStockAlerts();
-          }}
-        />
-      ) : activeTab === 'low-stock-alerts' ? (
-        <LowStockAlertManagementView
-          token={token}
-          canManageThresholds={canManageThreshold}
-          canWriteInventory={canWriteInventory}
-          onOpenGoodsReceipt={canWriteInventory ? () => setActiveTab('goods-receipt') : undefined}
-          onOpenThresholdConfig={canManageThreshold ? () => setActiveTab('stock-thresholds') : undefined}
-          onBackToHome={() => {
-            setActiveTab('inventory');
-            fetchProducts();
-            fetchLowStockAlerts();
-          }}
-        />
-      ) : activeTab === 'stock-book' ? (
+        ) : activeTab === 'stock-book' ? (
           <WarehouseStockBookView
             token={token}
             onBackToHome={() => setActiveTab('inventory')}
           />
         ) : activeTab === 'batches' ? (
-          <BatchManagementView
-            token={token}
-            user={user}
-            canWriteInventory={canWriteInventory}
-          />
+          isWarehouseOrAdmin ? (
+            <BatchManagementView
+              token={token}
+              user={user}
+              canWriteInventory={canWriteInventory}
+              onStockUpdated={fetchProducts}
+            />
+          ) : (
+            <AccessDeniedView
+              currentUser={user}
+              requiredPermission="Theo dõi lô & hạn sử dụng (Quản trị hệ thống / Quản lý kho / Thủ kho)"
+              onBackToWorkflow={() => setActiveTab('inventory')}
+              onLogout={onLogout}
+            />
+          )
+        ) : activeTab === 'picking' ? (
+          isWarehouseOrAdmin ? (
+            <WarehousePickingView
+              token={token}
+              currentUser={user}
+              onBackToHome={() => setActiveTab('inventory')}
+            />
+          ) : (
+            <AccessDeniedView
+              currentUser={user}
+              requiredPermission="Soạn hàng theo lộ trình kho (Quản trị hệ thống / Quản lý kho / Thủ kho)"
+              onBackToWorkflow={() => setActiveTab('inventory')}
+              onLogout={onLogout}
+            />
+          )
         ) : activeTab === 'stock-audits' ? (
           canAccessStockAudit ? (
             <StockAuditManagementView
@@ -2308,113 +2393,113 @@ export default function DashboardPage({
                   : (localStorage.getItem('discountPolicies') ? JSON.parse(localStorage.getItem('discountPolicies')!) : []);
                 const activePolicies = policies.filter((p: any) => p.status === 'active');
                 if (activePolicies.length > 0) {
-                    return (
+                  return (
+                    <div style={{
+                      marginBottom: '10px',
+                      background: '#ffffff',
+                      borderRadius: '8px',
+                      border: '1px solid #e2e8f0',
+                      padding: '7px 12px',
+                    }}>
                       <div style={{
-                        marginBottom: '10px',
-                        background: '#ffffff',
-                        borderRadius: '8px',
-                        border: '1px solid #e2e8f0',
-                        padding: '7px 12px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: '10px',
+                        flexWrap: 'wrap',
                       }}>
-                        <div style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          gap: '10px',
-                          flexWrap: 'wrap',
-                        }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', flex: 1 }}>
-                            <span style={{ fontSize: '12px', fontWeight: '600', color: '#0f172a', whiteSpace: 'nowrap' }}>
-                              Chính sách chiết khấu:
-                            </span>
-                            {activePolicies.map((p: any) => (
-                              <div
-                                key={p.id}
-                                style={{
-                                  background: '#f8fafc',
-                                  border: '1px solid #e2e8f0',
-                                  borderRadius: '5px',
-                                  padding: '2px 8px',
-                                  fontSize: '11.5px',
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '5px',
-                                }}
-                              >
-                                <strong style={{ color: '#2563eb' }}>{p.code}</strong>
-                                <span style={{ color: '#475569' }}>
-                                  {p.target_group === 'all' ? 'Tất cả đại lý' : p.target_group === 'agent_tier_1' ? 'Đại lý Cấp 1' : 'Đại lý Cấp 2'}:
-                                </span>
-                                <span style={{ color: '#059669', fontWeight: '600' }}>
-                                  {p.tiers?.map((t: any) => {
-                                    const isAmt = t.discount_type === 'amount' || (t.discount_amount && t.discount_amount > 0 && !t.discount_percent);
-                                    const valStr = isAmt ? `${Number(t.discount_amount).toLocaleString('vi-VN')}đ/sp` : `${t.discount_percent}%`;
-                                    return `≥${t.min_quantity}sp (-${valStr})`;
-                                  }).join(', ')}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-
-                          <button
-                            type="button"
-                            onClick={() => setIsDiscountExpanded(!isDiscountExpanded)}
-                            style={{
-                              background: 'transparent',
-                              border: '1px solid #cbd5e1',
-                              borderRadius: '5px',
-                              padding: '2px 8px',
-                              fontSize: '11px',
-                              color: '#475569',
-                              cursor: 'pointer',
-                              fontWeight: '500',
-                            }}
-                          >
-                            {isDiscountExpanded ? 'Thu gọn ▲' : 'Bảng chi tiết ▼'}
-                          </button>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', flex: 1 }}>
+                          <span style={{ fontSize: '12px', fontWeight: '600', color: '#0f172a', whiteSpace: 'nowrap' }}>
+                            Chính sách chiết khấu:
+                          </span>
+                          {activePolicies.map((p: any) => (
+                            <div
+                              key={p.id}
+                              style={{
+                                background: '#f8fafc',
+                                border: '1px solid #e2e8f0',
+                                borderRadius: '5px',
+                                padding: '2px 8px',
+                                fontSize: '11.5px',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '5px',
+                              }}
+                            >
+                              <strong style={{ color: '#2563eb' }}>{p.code}</strong>
+                              <span style={{ color: '#475569' }}>
+                                {p.target_group === 'all' ? 'Tất cả đại lý' : p.target_group === 'agent_tier_1' ? 'Đại lý Cấp 1' : 'Đại lý Cấp 2'}:
+                              </span>
+                              <span style={{ color: '#059669', fontWeight: '600' }}>
+                                {p.tiers?.map((t: any) => {
+                                  const isAmt = t.discount_type === 'amount' || (t.discount_amount && t.discount_amount > 0 && !t.discount_percent);
+                                  const valStr = isAmt ? `${Number(t.discount_amount).toLocaleString('vi-VN')}đ/sp` : `${t.discount_percent}%`;
+                                  return `≥${t.min_quantity}sp (-${valStr})`;
+                                }).join(', ')}
+                              </span>
+                            </div>
+                          ))}
                         </div>
 
-                        {isDiscountExpanded && (
-                          <div style={{ overflowX: 'auto', marginTop: '8px', borderTop: '1px solid #f1f5f9', paddingTop: '8px' }}>
-                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
-                              <thead>
-                                <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', textAlign: 'left' }}>
-                                  <th style={{ padding: '6px 10px', fontWeight: '600', color: '#475569' }}>Mã CS</th>
-                                  <th style={{ padding: '6px 10px', fontWeight: '600', color: '#475569' }}>Sản phẩm áp dụng</th>
-                                  <th style={{ padding: '6px 10px', fontWeight: '600', color: '#475569' }}>Đối tượng</th>
-                                  <th style={{ padding: '6px 10px', fontWeight: '600', color: '#475569' }}>Thời hạn</th>
-                                  <th style={{ padding: '6px 10px', fontWeight: '600', color: '#475569' }}>Bậc chiết khấu</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {activePolicies.map((p: any) => (
-                                  <tr key={p.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                                    <td style={{ padding: '6px 10px', fontWeight: '600', color: '#2563eb' }}>{p.code}</td>
-                                    <td style={{ padding: '6px 10px', color: '#334155' }}>{p.title === 'Tất cả sản phẩm' ? <span style={{ background: '#dbeafe', color: '#1e40af', padding: '1px 6px', borderRadius: '10px', fontSize: '11px' }}>Tất cả SP</span> : p.title}</td>
-                                    <td style={{ padding: '6px 10px', color: '#475569' }}>{p.target_group === 'all' ? 'Tất cả đại lý' : p.target_group === 'agent_tier_1' ? 'Đại lý Cấp 1' : 'Đại lý Cấp 2'}</td>
-                                    <td style={{ padding: '6px 10px', color: '#64748b' }}>{p.start_date} - {p.end_date || 'Vô thời hạn'}</td>
-                                    <td style={{ padding: '6px 10px' }}>
-                                      <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-                                        {p.tiers && p.tiers.map((t: any, idx: number) => {
-                                          const isAmt = t.discount_type === 'amount' || (t.discount_amount && t.discount_amount > 0 && !t.discount_percent);
-                                          const valStr = isAmt ? `${Number(t.discount_amount).toLocaleString('vi-VN')}đ/sp` : `${t.discount_percent}%`;
-                                          return (
-                                            <span key={idx} style={{ background: '#ecfdf5', color: '#059669', border: '1px solid #d1fae5', padding: '1px 5px', borderRadius: '4px', fontSize: '10.5px', fontWeight: '500' }}>
-                                              Từ {t.min_quantity}sp: -{valStr}
-                                            </span>
-                                          );
-                                        })}
-                                      </div>
-                                    </td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        )}
+                        <button
+                          type="button"
+                          onClick={() => setIsDiscountExpanded(!isDiscountExpanded)}
+                          style={{
+                            background: 'transparent',
+                            border: '1px solid #cbd5e1',
+                            borderRadius: '5px',
+                            padding: '2px 8px',
+                            fontSize: '11px',
+                            color: '#475569',
+                            cursor: 'pointer',
+                            fontWeight: '500',
+                          }}
+                        >
+                          {isDiscountExpanded ? 'Thu gọn ▲' : 'Bảng chi tiết ▼'}
+                        </button>
                       </div>
-                    );
-                  }
+
+                      {isDiscountExpanded && (
+                        <div style={{ overflowX: 'auto', marginTop: '8px', borderTop: '1px solid #f1f5f9', paddingTop: '8px' }}>
+                          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                            <thead>
+                              <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', textAlign: 'left' }}>
+                                <th style={{ padding: '6px 10px', fontWeight: '600', color: '#475569' }}>Mã CS</th>
+                                <th style={{ padding: '6px 10px', fontWeight: '600', color: '#475569' }}>Sản phẩm áp dụng</th>
+                                <th style={{ padding: '6px 10px', fontWeight: '600', color: '#475569' }}>Đối tượng</th>
+                                <th style={{ padding: '6px 10px', fontWeight: '600', color: '#475569' }}>Thời hạn</th>
+                                <th style={{ padding: '6px 10px', fontWeight: '600', color: '#475569' }}>Bậc chiết khấu</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {activePolicies.map((p: any) => (
+                                <tr key={p.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                  <td style={{ padding: '6px 10px', fontWeight: '600', color: '#2563eb' }}>{p.code}</td>
+                                  <td style={{ padding: '6px 10px', color: '#334155' }}>{p.title === 'Tất cả sản phẩm' ? <span style={{ background: '#dbeafe', color: '#1e40af', padding: '1px 6px', borderRadius: '10px', fontSize: '11px' }}>Tất cả SP</span> : p.title}</td>
+                                  <td style={{ padding: '6px 10px', color: '#475569' }}>{p.target_group === 'all' ? 'Tất cả đại lý' : p.target_group === 'agent_tier_1' ? 'Đại lý Cấp 1' : 'Đại lý Cấp 2'}</td>
+                                  <td style={{ padding: '6px 10px', color: '#64748b' }}>{p.start_date} - {p.end_date || 'Vô thời hạn'}</td>
+                                  <td style={{ padding: '6px 10px' }}>
+                                    <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                                      {p.tiers && p.tiers.map((t: any, idx: number) => {
+                                        const isAmt = t.discount_type === 'amount' || (t.discount_amount && t.discount_amount > 0 && !t.discount_percent);
+                                        const valStr = isAmt ? `${Number(t.discount_amount).toLocaleString('vi-VN')}đ/sp` : `${t.discount_percent}%`;
+                                        return (
+                                          <span key={idx} style={{ background: '#ecfdf5', color: '#059669', border: '1px solid #d1fae5', padding: '1px 5px', borderRadius: '4px', fontSize: '10.5px', fontWeight: '500' }}>
+                                            Từ {t.min_quantity}sp: -{valStr}
+                                          </span>
+                                        );
+                                      })}
+                                    </div>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  );
+                }
               } catch (e) { }
               return null;
             })()}

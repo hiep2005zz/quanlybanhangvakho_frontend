@@ -18,12 +18,14 @@ interface BatchManagementViewProps {
   token: string;
   user?: { role?: string; roles?: string[]; full_name?: string; username?: string };
   canWriteInventory?: boolean;
+  onStockUpdated?: () => void;
 }
 
 export const BatchManagementView: React.FC<BatchManagementViewProps> = ({
   token,
   user,
   canWriteInventory = true,
+  onStockUpdated,
 }) => {
   const [batches, setBatches] = useState<BatchItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -614,14 +616,13 @@ export const BatchManagementView: React.FC<BatchManagementViewProps> = ({
                             style={{
                               padding: '6px 13px',
                               borderRadius: '6px',
-                              border: isExpired ? '1px solid #b91c1c' : '1px solid #c2410c',
+                              border: b.remaining_quantity <= 0 ? '1px solid #e2e8f0' : (isExpired ? '1px solid #b91c1c' : '1px solid #c2410c'),
                               fontSize: '12.5px',
                               fontWeight: '600',
-                              background: isExpired ? '#dc2626' : '#ea580c',
-                              color: '#ffffff',
+                              background: b.remaining_quantity <= 0 ? '#f1f5f9' : (isExpired ? '#dc2626' : '#ea580c'),
+                              color: b.remaining_quantity <= 0 ? '#94a3b8' : '#ffffff',
                               cursor: b.remaining_quantity <= 0 ? 'not-allowed' : 'pointer',
-                              opacity: b.remaining_quantity <= 0 ? 0.5 : 1,
-                              boxShadow: isExpired ? '0 1px 3px rgba(220, 38, 38, 0.25)' : '0 1px 3px rgba(234, 88, 12, 0.25)',
+                              boxShadow: b.remaining_quantity <= 0 ? 'none' : (isExpired ? '0 1px 3px rgba(220, 38, 38, 0.25)' : '0 1px 3px rgba(234, 88, 12, 0.25)'),
                               transition: 'all 0.15s ease',
                               whiteSpace: 'nowrap',
                               display: 'inline-flex',
@@ -641,7 +642,7 @@ export const BatchManagementView: React.FC<BatchManagementViewProps> = ({
                               }
                             }}
                           >
-                            {isExpired ? 'Ghi đè' : 'Xuất kho lô'}
+                            {b.remaining_quantity <= 0 ? 'Hết hàng' : (isExpired ? 'Ghi đè' : 'Xuất kho lô')}
                           </button>
                         </td>
                       )}
@@ -823,6 +824,7 @@ export const BatchManagementView: React.FC<BatchManagementViewProps> = ({
           onSuccess={() => {
             setIssueBatchTarget(null);
             fetchBatches();
+            onStockUpdated?.();
           }}
         />
       )}
@@ -930,6 +932,7 @@ const ToggleBatchTrackingModal: React.FC<ToggleBatchTrackingModalProps> = ({
           justifyContent: 'center',
           zIndex: 9999,
           padding: '16px',
+          overflowY: 'auto',
         }}
       >
         <div
@@ -938,160 +941,312 @@ const ToggleBatchTrackingModal: React.FC<ToggleBatchTrackingModalProps> = ({
             borderRadius: '16px',
             maxWidth: '540px',
             width: '100%',
-            padding: '24px',
-            boxShadow: '0 20px 25px -5px rgba(0,0,0,0.2)',
+            display: 'flex',
+            flexDirection: 'column',
+            padding: '20px 24px',
+            boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)',
             color: '#0f172a',
+            boxSizing: 'border-box',
+            position: 'relative',
           }}
         >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-            <h2 style={{ fontSize: '18px', fontWeight: '700', margin: 0, color: '#0f172a' }}>
-              Cấu hình theo dõi lô theo SKU
-            </h2>
-            <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#94a3b8' }}>
+          {/* Header */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexShrink: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#2563eb' }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+                  <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+                  <line x1="12" y1="22.08" x2="12" y2="12" />
+                </svg>
+              </div>
+              <div>
+                <h2 style={{ fontSize: '17px', fontWeight: '700', margin: 0, color: '#0f172a' }}>
+                  Cấu hình theo dõi lô theo SKU
+                </h2>
+                <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>
+                  Bật/tắt chế độ quản lý số lô & hạn sử dụng
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={onClose}
+              style={{
+                background: '#f1f5f9',
+                border: 'none',
+                width: '30px',
+                height: '30px',
+                borderRadius: '8px',
+                fontSize: '14px',
+                cursor: 'pointer',
+                color: '#64748b',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 0.15s',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = '#e2e8f0')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = '#f1f5f9')}
+            >
               ✕
             </button>
           </div>
 
           {errorMsg && (
-            <div style={{ padding: '10px 14px', borderRadius: '8px', background: '#fef2f2', border: '1px solid #fecaca', color: '#dc2626', fontSize: '13px', marginBottom: '16px' }}>
+            <div style={{ padding: '9px 13px', borderRadius: '8px', background: '#fef2f2', border: '1px solid #fecaca', color: '#dc2626', fontSize: '12.5px', marginBottom: '14px', flexShrink: 0 }}>
               {errorMsg}
             </div>
           )}
 
-          <form onSubmit={handleSubmit}>
-            <div style={{ marginBottom: '16px' }}>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '6px' }}>
-                Chọn sản phẩm / SKU <span style={{ color: '#dc2626' }}>*</span>
-              </label>
-              <ProductSelectDropdown
-                token={token}
-                selectedProductId={selectedProductId}
-                onSelectProduct={(p) => {
-                  setSelectedProductId(p.id);
-                  setCurrentProd(p);
-                  setIsManaged(Boolean(p.is_batch_managed));
-                }}
-                placeholder="Chọn sản phẩm / SKU cần cấu hình..."
-              />
-            </div>
-
-            {/* Toggle Switch */}
+          <form
+            onSubmit={handleSubmit}
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              flex: 1,
+              overflow: 'visible',
+            }}
+          >
             <div
               style={{
-                marginBottom: '16px',
-                padding: '14px',
-                borderRadius: '10px',
-                background: isManaged ? '#eff6ff' : '#f8fafc',
-                border: isManaged ? '1px solid #bfdbfe' : '1px solid #e2e8f0',
                 display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
+                flexDirection: 'column',
+                gap: '14px',
+                marginBottom: '18px',
               }}
             >
-              <div>
-                <div style={{ fontSize: '14px', fontWeight: '700', color: '#0f172a' }}>
-                  Trạng thái quản lý theo lô: {isManaged ? 'ĐANG BẬT' : 'ĐANG TẮT'}
-                </div>
-                <div style={{ fontSize: '12.5px', color: '#64748b', marginTop: '2px' }}>
-                  {isManaged
-                    ? 'Bắt buộc truy vết chính xác số lô & HSD khi nhập và xuất kho.'
-                    : 'Nhập/xuất kho theo số lượng tổng bình thường, không yêu cầu lô.'}
-                </div>
+              {/* Chọn sản phẩm / SKU */}
+              <div style={{ position: 'relative', zIndex: 40 }}>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '5px' }}>
+                  Chọn sản phẩm / SKU <span style={{ color: '#dc2626' }}>*</span>
+                </label>
+                <ProductSelectDropdown
+                  token={token}
+                  selectedProductId={selectedProductId}
+                  onSelectProduct={(p) => {
+                    setSelectedProductId(p.id);
+                    setCurrentProd(p);
+                    setIsManaged(Boolean(p.is_batch_managed));
+                  }}
+                  placeholder="Chọn sản phẩm / SKU cần cấu hình..."
+                  dropdownMaxHeight="220px"
+                />
               </div>
 
-              <input
-                type="checkbox"
-                checked={isManaged}
-                onChange={(e) => setIsManaged(e.target.checked)}
-                style={{ width: '22px', height: '22px', cursor: 'pointer', accentColor: '#2563eb' }}
-              />
-            </div>
-
-            {/* Khối điều kiện biên: Bắt buộc lô khởi tạo nếu bật và có tồn kho hiện hữu */}
-            {isManaged && (currentProd?.stock || 0) > 0 && (
+              {/* Toggle Switch Card */}
               <div
                 style={{
-                  marginBottom: '16px',
-                  padding: '14px',
+                  padding: '12px 14px',
                   borderRadius: '10px',
-                  background: '#fefce8',
-                  border: '1px solid #fef08a',
+                  background: isManaged ? '#eff6ff' : '#f8fafc',
+                  border: isManaged ? '1.5px solid #bfdbfe' : '1px solid #e2e8f0',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '12px',
+                  transition: 'background 0.2s, border-color 0.2s',
                 }}
               >
-                <div style={{ fontSize: '13px', fontWeight: '700', color: '#854d0e', marginBottom: '8px' }}>
-                  Ràng buộc dữ liệu: Sản phẩm đang có {currentProd?.stock} {currentProd?.base_unit || 'Cái'} tồn kho!
-                </div>
-                <div style={{ fontSize: '12px', color: '#713f12', marginBottom: '12px' }}>
-                  Để đảm bảo tính nhất quán dữ liệu, hệ thống yêu cầu khai báo số lô và hạn sử dụng ban đầu để phân bổ toàn bộ số tồn kho này.
-                </div>
-
-                <div style={{ marginBottom: '10px' }}>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#713f12', marginBottom: '4px' }}>
-                    Số lô khởi tạo <span style={{ color: '#dc2626' }}>*</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={initialBatch}
-                    onChange={(e) => setInitialBatch(e.target.value)}
-                    placeholder="VD: LOT-INIT-2026"
-                    style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px', boxSizing: 'border-box' }}
-                  />
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#713f12', marginBottom: '4px' }}>
-                      Ngày sản xuất
-                    </label>
-                    <input
-                      type="date"
-                      value={initialMfg}
-                      onChange={(e) => setInitialMfg(e.target.value)}
-                      style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px', boxSizing: 'border-box' }}
-                    />
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '13.5px', fontWeight: '700', color: '#0f172a' }}>
+                      Quản lý theo lô:
+                    </span>
+                    <span
+                      style={{
+                        padding: '2px 8px',
+                        borderRadius: '9999px',
+                        fontSize: '11px',
+                        fontWeight: '700',
+                        background: isManaged ? '#dcfce7' : '#f1f5f9',
+                        color: isManaged ? '#15803d' : '#64748b',
+                        border: isManaged ? '1px solid #bbf7d0' : '1px solid #e2e8f0',
+                      }}
+                    >
+                      {isManaged ? 'ĐANG BẬT' : 'ĐANG TẮT'}
+                    </span>
                   </div>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#713f12', marginBottom: '4px' }}>
-                      Hạn sử dụng <span style={{ color: '#dc2626' }}>*</span>
-                    </label>
-                    <input
-                      type="date"
-                      required
-                      value={initialExp}
-                      onChange={(e) => setInitialExp(e.target.value)}
-                      style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px', boxSizing: 'border-box' }}
-                    />
+                  <div style={{ fontSize: '12px', color: '#64748b', marginTop: '3px', lineHeight: '1.4' }}>
+                    {isManaged
+                      ? 'Bắt buộc truy vết chính xác số lô & HSD khi nhập và xuất kho.'
+                      : 'Nhập/xuất theo tổng tồn kho bình thường, không yêu cầu lô.'}
                   </div>
                 </div>
+
+                <input
+                  type="checkbox"
+                  checked={isManaged}
+                  onChange={(e) => setIsManaged(e.target.checked)}
+                  style={{ width: '20px', height: '20px', cursor: 'pointer', accentColor: '#2563eb', flexShrink: 0 }}
+                />
               </div>
-            )}
 
-            <div style={{ marginBottom: '20px' }}>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '6px' }}>
-                Lý do chuyển đổi trạng thái
-              </label>
-              <input
-                type="text"
-                value={reason}
-                onChange={(e) => setReason(e.target.value)}
-                placeholder="VD: Thay đổi chính sách theo dõi hạn dùng dược phẩm..."
-                style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13.5px', outline: 'none', boxSizing: 'border-box' }}
-              />
+              {/* Khối điều kiện biên: Bắt buộc lô khởi tạo nếu bật và có tồn kho hiện hữu */}
+              {isManaged && (currentProd?.stock || 0) > 0 && (
+                <div
+                  style={{
+                    padding: '11px 13px',
+                    borderRadius: '10px',
+                    background: '#fefce8',
+                    border: '1px solid #fef08a',
+                  }}
+                >
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: '6px',
+                      fontSize: '12px',
+                      color: '#854d0e',
+                      lineHeight: '1.4',
+                      marginBottom: '8px',
+                    }}
+                  >
+                    <span style={{ fontSize: '13px', flexShrink: 0 }}>⚠️</span>
+                    <span>
+                      Tồn hiện tại: <strong>{currentProd?.stock} {currentProd?.base_unit || 'Cái'}</strong>. Vui lòng nhập số lô & HSD ban đầu để đồng bộ:
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr', gap: '8px' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '11.5px', fontWeight: '600', color: '#713f12', marginBottom: '3px' }}>
+                        Số lô khởi tạo <span style={{ color: '#dc2626' }}>*</span>
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={initialBatch}
+                        onChange={(e) => setInitialBatch(e.target.value)}
+                        placeholder="VD: LOT-INIT-2026"
+                        style={{
+                          width: '100%',
+                          padding: '7px 9px',
+                          borderRadius: '6px',
+                          border: '1px solid #fde047',
+                          background: '#ffffff',
+                          fontSize: '12px',
+                          boxSizing: 'border-box',
+                          outline: 'none',
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '11.5px', fontWeight: '600', color: '#713f12', marginBottom: '3px' }}>
+                        Ngày sản xuất
+                      </label>
+                      <input
+                        type="date"
+                        value={initialMfg}
+                        onChange={(e) => setInitialMfg(e.target.value)}
+                        style={{
+                          width: '100%',
+                          padding: '7px 9px',
+                          borderRadius: '6px',
+                          border: '1px solid #cbd5e1',
+                          background: '#ffffff',
+                          fontSize: '12px',
+                          boxSizing: 'border-box',
+                          outline: 'none',
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '11.5px', fontWeight: '600', color: '#713f12', marginBottom: '3px' }}>
+                        Hạn sử dụng <span style={{ color: '#dc2626' }}>*</span>
+                      </label>
+                      <input
+                        type="date"
+                        required
+                        value={initialExp}
+                        onChange={(e) => setInitialExp(e.target.value)}
+                        style={{
+                          width: '100%',
+                          padding: '7px 9px',
+                          borderRadius: '6px',
+                          border: '1px solid #cbd5e1',
+                          background: '#ffffff',
+                          fontSize: '12px',
+                          boxSizing: 'border-box',
+                          outline: 'none',
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Lý do chuyển đổi */}
+              <div>
+                <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>
+                  Lý do chuyển đổi trạng thái
+                </label>
+                <input
+                  type="text"
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                  placeholder="VD: Thay đổi chính sách theo dõi hạn dùng dược phẩm..."
+                  style={{
+                    width: '100%',
+                    padding: '8px 11px',
+                    borderRadius: '7px',
+                    border: '1px solid #cbd5e1',
+                    fontSize: '12.5px',
+                    outline: 'none',
+                    boxSizing: 'border-box',
+                  }}
+                />
+              </div>
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+            {/* Footer Buttons */}
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'flex-end',
+                gap: '10px',
+                paddingTop: '14px',
+                borderTop: '1px solid #f1f5f9',
+                flexShrink: 0,
+              }}
+            >
               <button
                 type="button"
                 onClick={onClose}
-                style={{ padding: '9px 16px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#ffffff', color: '#475569', fontSize: '13.5px', fontWeight: '600', cursor: 'pointer' }}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '8px',
+                  border: '1px solid #cbd5e1',
+                  background: '#ffffff',
+                  color: '#475569',
+                  fontSize: '13px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'background 0.15s',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = '#f8fafc')}
+                onMouseLeave={(e) => (e.currentTarget.style.background = '#ffffff')}
               >
                 Hủy
               </button>
               <button
                 type="submit"
                 disabled={submitting}
-                style={{ padding: '9px 20px', borderRadius: '8px', border: 'none', background: '#2563eb', color: '#ffffff', fontSize: '13.5px', fontWeight: '600', cursor: submitting ? 'not-allowed' : 'pointer' }}
+                style={{
+                  padding: '8px 20px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  background: '#2563eb',
+                  color: '#ffffff',
+                  fontSize: '13px',
+                  fontWeight: '600',
+                  cursor: submitting ? 'not-allowed' : 'pointer',
+                  opacity: submitting ? 0.7 : 1,
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                  transition: 'background 0.15s',
+                }}
+                onMouseEnter={(e) => !submitting && (e.currentTarget.style.background = '#1d4ed8')}
+                onMouseLeave={(e) => !submitting && (e.currentTarget.style.background = '#2563eb')}
               >
                 {submitting ? 'Đang cập nhật...' : 'Lưu cấu hình'}
               </button>
@@ -1123,7 +1278,7 @@ const IssueBatchModal: React.FC<IssueBatchModalProps> = ({
   onClose,
   onSuccess,
 }) => {
-  const [quantity, setQuantity] = useState<number | string>(1);
+  const [quantity, setQuantity] = useState<number | string>(batch.remaining_quantity > 0 ? 1 : '');
   const [destination, setDestination] = useState('');
   const [note, setNote] = useState('');
   const [overrideExpired, setOverrideExpired] = useState(false);
@@ -1134,21 +1289,28 @@ const IssueBatchModal: React.FC<IssueBatchModalProps> = ({
   if (!isOpen) return null;
 
   const isExpired = batch.expiry_status === 'EXPIRED';
+  const numQty = Number(quantity);
+  const isZeroOrNegative = quantity === '' || isNaN(numQty) || numQty <= 0;
+  const isExceedingStock = numQty > batch.remaining_quantity;
+  const isDestinationMissing = !destination.trim();
+  const isExpiredBlocked = isExpired && !overrideExpired;
+  const isOverrideMissingReason = isExpired && overrideExpired && isManager && (!overrideReason.trim() || overrideReason.trim().length < 5);
+
+  const isInvalidForm = isZeroOrNegative || isExceedingStock || isDestinationMissing || isExpiredBlocked || isOverrideMissingReason;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
 
-    const qty = Number(quantity);
-    if (isNaN(qty) || qty <= 0) {
-      setErrorMsg('Số lượng xuất kho phải lớn hơn 0.');
+    if (isZeroOrNegative) {
+      setErrorMsg('Số lượng xuất kho phải lớn hơn 0 (tối thiểu 1 đơn vị).');
       return;
     }
-    if (qty > batch.remaining_quantity) {
+    if (isExceedingStock) {
       setErrorMsg(`Lô ${batch.batch_number} chỉ còn ${batch.remaining_quantity} ${bUnit}, không đủ để xuất.`);
       return;
     }
-    if (!destination.trim()) {
+    if (isDestinationMissing) {
       setErrorMsg('Vui lòng nhập nơi nhận / khách hàng.');
       return;
     }
@@ -1173,7 +1335,7 @@ const IssueBatchModal: React.FC<IssueBatchModalProps> = ({
     try {
       const res = await createStockIssueApi(token, {
         product_id: batch.product_id,
-        quantity: Math.round(qty),
+        quantity: Math.round(numQty),
         destination: destination.trim(),
         note: note.trim() || undefined,
         batch_number: batch.batch_number,
@@ -1185,6 +1347,10 @@ const IssueBatchModal: React.FC<IssueBatchModalProps> = ({
         title: 'Xuất kho thành công',
         message: res.message,
       });
+      try {
+        sessionStorage.setItem('last_product_history_code', batch.product_code);
+        window.dispatchEvent(new CustomEvent('INVENTORY_STOCK_UPDATED'));
+      } catch { }
       onSuccess();
     } catch (err: any) {
       setErrorMsg(formatErrorMessage(err?.message || err, 'Lỗi xuất kho theo lô.'));
@@ -1216,171 +1382,267 @@ const IssueBatchModal: React.FC<IssueBatchModalProps> = ({
           style={{
             background: '#ffffff',
             borderRadius: '16px',
-            maxWidth: '520px',
+            maxWidth: '500px',
             width: '100%',
-            padding: '24px',
-            boxShadow: '0 20px 25px -5px rgba(0,0,0,0.2)',
+            maxHeight: 'min(90vh, 620px)',
+            display: 'flex',
+            flexDirection: 'column',
+            padding: '16px 20px',
+            boxShadow: '0 20px 25px -5px rgba(0,0,0,0.25)',
             color: '#0f172a',
+            boxSizing: 'border-box',
           }}
         >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+          {/* Header */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', flexShrink: 0 }}>
             <div>
-              <h2 style={{ fontSize: '18px', fontWeight: '700', margin: '0 0 4px 0', color: '#0f172a' }}>
+              <h2 style={{ fontSize: '16px', fontWeight: '700', margin: '0 0 2px 0', color: '#0f172a' }}>
                 Xuất Kho Theo Lô Hàng
               </h2>
-              <div style={{ fontSize: '13px', color: '#64748b' }}>
+              <div style={{ fontSize: '12px', color: '#64748b' }}>
                 [{batch.product_code}] {batch.product_name} — Lô: <strong style={{ color: '#0f172a' }}>{batch.batch_number}</strong>
               </div>
             </div>
-            <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#94a3b8' }}>
+            <button
+              onClick={onClose}
+              style={{
+                background: '#f1f5f9',
+                border: 'none',
+                width: '26px',
+                height: '26px',
+                borderRadius: '6px',
+                fontSize: '14px',
+                cursor: 'pointer',
+                color: '#64748b',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 0.15s',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = '#e2e8f0')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = '#f1f5f9')}
+            >
               ✕
             </button>
           </div>
 
-          {/* Cảnh báo lô quá hạn & Cơ chế ghi đè của Warehouse Manager */}
-          {isExpired && (
+          <form
+            onSubmit={handleSubmit}
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              flex: 1,
+              minHeight: 0,
+              overflow: 'hidden',
+            }}
+          >
             <div
               style={{
-                marginBottom: '16px',
-                padding: '14px',
-                borderRadius: '10px',
-                background: '#fef2f2',
-                border: '1px solid #fecaca',
+                flex: 1,
+                overflowY: 'auto',
+                paddingRight: '2px',
+                marginBottom: '10px',
               }}
             >
-              <div style={{ fontSize: '13.5px', fontWeight: '700', color: '#b91c1c', marginBottom: '6px' }}>
-                CẢNH BÁO: LÔ HÀNG ĐÃ QUÁ HẠN SỬ DỤNG!
-              </div>
-              <div style={{ fontSize: '12.5px', color: '#7f1d1d', marginBottom: '10px' }}>
-                Hạn sử dụng: <strong>{new Date(batch.expiry_date || '').toLocaleDateString('vi-VN')}</strong>.
-                Mặc định hệ thống chặn xuất để chống giao nhầm cho đại lý.
-              </div>
+              {/* Cảnh báo lô quá hạn & Cơ chế ghi đè của Warehouse Manager */}
+              {isExpired && (
+                <div
+                  style={{
+                    marginBottom: '10px',
+                    padding: '10px 12px',
+                    borderRadius: '8px',
+                    background: '#fef2f2',
+                    border: '1px solid #fecaca',
+                  }}
+                >
+                  <div style={{ fontSize: '12.5px', fontWeight: '700', color: '#b91c1c', marginBottom: '4px' }}>
+                    CẢNH BÁO: LÔ HÀNG ĐÃ QUÁ HẠN SỬ DỤNG!
+                  </div>
+                  <div style={{ fontSize: '11.5px', color: '#7f1d1d', marginBottom: '8px' }}>
+                    Hạn sử dụng: <strong>{new Date(batch.expiry_date || '').toLocaleDateString('vi-VN')}</strong>.
+                    Mặc định hệ thống chặn xuất để chống giao nhầm cho đại lý.
+                  </div>
 
-              {isManager ? (
-                <div>
-                  <label
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      fontSize: '13px',
-                      fontWeight: '700',
-                      color: '#991b1b',
-                      cursor: 'pointer',
-                      marginBottom: '8px',
-                    }}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={overrideExpired}
-                      onChange={(e) => setOverrideExpired(e.target.checked)}
-                      style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: '#dc2626' }}
-                    />
-                    Quản lý kho xác nhận GHI ĐÈ xuất lô quá hạn
-                  </label>
-
-                  {overrideExpired && (
+                  {isManager ? (
                     <div>
-                      <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#7f1d1d', marginBottom: '4px' }}>
-                        Lý do ghi đè bắt buộc (ghi vào Audit Log) <span style={{ color: '#dc2626' }}>*</span>
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={overrideReason}
-                        onChange={(e) => setOverrideReason(e.target.value)}
-                        placeholder="VD: Xuất mẫu tiêu hủy / Xuất trả nhà cung cấp..."
+                      <label
                         style={{
-                          width: '100%',
-                          padding: '8px 10px',
-                          borderRadius: '6px',
-                          border: '1px solid #fca5a5',
-                          fontSize: '13px',
-                          boxSizing: 'border-box',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          fontSize: '12px',
+                          fontWeight: '700',
+                          color: '#991b1b',
+                          cursor: 'pointer',
+                          marginBottom: '6px',
                         }}
-                      />
+                      >
+                        <input
+                          type="checkbox"
+                          checked={overrideExpired}
+                          onChange={(e) => setOverrideExpired(e.target.checked)}
+                          style={{ width: '16px', height: '16px', cursor: 'pointer', accentColor: '#dc2626' }}
+                        />
+                        Quản lý kho xác nhận GHI ĐÈ xuất lô quá hạn
+                      </label>
+
+                      {overrideExpired && (
+                        <div>
+                          <label style={{ display: 'block', fontSize: '11.5px', fontWeight: '600', color: '#7f1d1d', marginBottom: '2px' }}>
+                            Lý do ghi đè bắt buộc (lưu Audit Log) <span style={{ color: '#dc2626' }}>*</span>
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            value={overrideReason}
+                            onChange={(e) => setOverrideReason(e.target.value)}
+                            placeholder="VD: Xuất mẫu tiêu hủy / Xuất trả nhà cung cấp..."
+                            style={{
+                              width: '100%',
+                              padding: '6px 8px',
+                              borderRadius: '6px',
+                              border: '1px solid #fca5a5',
+                              fontSize: '12px',
+                              boxSizing: 'border-box',
+                            }}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: '11.5px', color: '#dc2626', fontWeight: '600' }}>
+                      🚫 Bạn không có quyền Quản lý kho. Vui lòng liên hệ Warehouse Manager để phê duyệt ghi đè.
                     </div>
                   )}
                 </div>
-              ) : (
-                <div style={{ fontSize: '12px', color: '#dc2626', fontWeight: '600' }}>
-                  🚫 Bạn không có quyền Quản lý kho. Vui lòng liên hệ Warehouse Manager để phê duyệt ghi đè.
+              )}
+
+              {errorMsg && (
+                <div style={{ padding: '8px 12px', borderRadius: '7px', background: '#fef2f2', border: '1px solid #fecaca', color: '#dc2626', fontSize: '12px', marginBottom: '10px' }}>
+                  {errorMsg}
                 </div>
               )}
-            </div>
-          )}
 
-          {errorMsg && (
-            <div style={{ padding: '10px 14px', borderRadius: '8px', background: '#fef2f2', border: '1px solid #fecaca', color: '#dc2626', fontSize: '13px', marginBottom: '16px' }}>
-              {errorMsg}
-            </div>
-          )}
+              <div style={{ marginBottom: '10px' }}>
+                <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '600', color: '#334155', marginBottom: '3px' }}>
+                  Nơi nhận / Khách hàng / Đại lý <span style={{ color: '#dc2626' }}>*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={destination}
+                  onChange={(e) => setDestination(e.target.value)}
+                  placeholder="VD: Đại lý Hà Đông / Kho chi nhánh..."
+                  style={{ width: '100%', padding: '7px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }}
+                />
+              </div>
 
-          <form onSubmit={handleSubmit}>
-            <div style={{ marginBottom: '14px' }}>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '6px' }}>
-                Nơi nhận / Khách hàng / Đại lý <span style={{ color: '#dc2626' }}>*</span>
-              </label>
-              <input
-                type="text"
-                required
-                value={destination}
-                onChange={(e) => setDestination(e.target.value)}
-                placeholder="VD: Đại lý Hà Đông / Kho chi nhánh..."
-                style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13.5px', outline: 'none', boxSizing: 'border-box' }}
-              />
+              <div style={{ marginBottom: '10px' }}>
+                <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '600', color: '#334155', marginBottom: '3px' }}>
+                  Số lượng xuất ({bUnit}) — Tồn lô: <strong style={{ color: '#2563eb' }}>{batch.remaining_quantity} {bUnit}</strong> <span style={{ color: '#dc2626' }}>*</span>
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max={batch.remaining_quantity}
+                  step="any"
+                  required
+                  value={quantity}
+                  onChange={(e) => {
+                    setQuantity(e.target.value);
+                    if (errorMsg) setErrorMsg(null);
+                  }}
+                  placeholder="Nhập số lượng xuất (> 0)..."
+                  style={{
+                    width: '100%',
+                    padding: '7px 10px',
+                    borderRadius: '6px',
+                    border: isZeroOrNegative || isExceedingStock ? '1.5px solid #ef4444' : '1px solid #cbd5e1',
+                    background: isZeroOrNegative || isExceedingStock ? '#fef2f2' : '#ffffff',
+                    fontSize: '13px',
+                    outline: 'none',
+                    boxSizing: 'border-box',
+                    fontWeight: '600',
+                    color: isZeroOrNegative || isExceedingStock ? '#b91c1c' : '#0f172a',
+                    transition: 'border-color 0.15s, background-color 0.15s',
+                  }}
+                />
+                {isZeroOrNegative && (
+                  <div style={{ fontSize: '11.5px', color: '#dc2626', marginTop: '3px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <span>⚠️ Số lượng xuất phải lớn hơn 0 (tối thiểu 1 {bUnit}).</span>
+                  </div>
+                )}
+                {isExceedingStock && (
+                  <div style={{ fontSize: '11.5px', color: '#dc2626', marginTop: '3px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <span>⚠️ Vượt quá tồn kho còn lại của lô (tối đa {batch.remaining_quantity} {bUnit}).</span>
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '600', color: '#334155', marginBottom: '3px' }}>
+                  Ghi chú phiếu xuất
+                </label>
+                <input
+                  type="text"
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  placeholder="Ghi chú thêm về lô hàng..."
+                  style={{ width: '100%', padding: '7px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }}
+                />
+              </div>
             </div>
 
-            <div style={{ marginBottom: '14px' }}>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '6px' }}>
-                Số lượng xuất ({bUnit}) — Tồn lô còn lại: <strong style={{ color: '#2563eb' }}>{batch.remaining_quantity} {bUnit}</strong> <span style={{ color: '#dc2626' }}>*</span>
-              </label>
-              <input
-                type="number"
-                min="1"
-                max={batch.remaining_quantity}
-                step="any"
-                required
-                value={quantity}
-                onChange={(e) => setQuantity(e.target.value)}
-                style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13.5px', outline: 'none', boxSizing: 'border-box' }}
-              />
-            </div>
-
-            <div style={{ marginBottom: '20px' }}>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '6px' }}>
-                Ghi chú phiếu xuất
-              </label>
-              <input
-                type="text"
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                placeholder="Ghi chú thêm về lô hàng..."
-                style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13.5px', outline: 'none', boxSizing: 'border-box' }}
-              />
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+            {/* Footer Buttons */}
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'flex-end',
+                gap: '8px',
+                paddingTop: '8px',
+                borderTop: '1px solid #f1f5f9',
+                flexShrink: 0,
+              }}
+            >
               <button
                 type="button"
                 onClick={onClose}
-                style={{ padding: '9px 16px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#ffffff', color: '#475569', fontSize: '13.5px', fontWeight: '600', cursor: 'pointer' }}
+                style={{ padding: '7px 14px', borderRadius: '7px', border: '1px solid #cbd5e1', background: '#ffffff', color: '#475569', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}
               >
                 Hủy
               </button>
               <button
                 type="submit"
-                disabled={submitting || (isExpired && !overrideExpired)}
+                disabled={submitting || isInvalidForm}
+                title={
+                  isZeroOrNegative
+                    ? 'Số lượng xuất kho phải lớn hơn 0'
+                    : isExceedingStock
+                    ? 'Vượt quá số lượng tồn kho của lô'
+                    : isDestinationMissing
+                    ? 'Vui lòng nhập nơi nhận / khách hàng'
+                    : isExpiredBlocked
+                    ? 'Lô hàng quá hạn chưa được ghi đè'
+                    : isOverrideMissingReason
+                    ? 'Bắt buộc nhập lý do ghi đè (tối thiểu 5 ký tự)'
+                    : ''
+                }
                 style={{
-                  padding: '9px 20px',
-                  borderRadius: '8px',
+                  padding: '7px 18px',
+                  borderRadius: '7px',
                   border: 'none',
-                  background: isExpired ? '#dc2626' : '#ea580c',
-                  color: '#ffffff',
-                  fontSize: '13.5px',
+                  background: isInvalidForm
+                    ? '#cbd5e1'
+                    : isExpired
+                    ? '#dc2626'
+                    : '#ea580c',
+                  color: isInvalidForm ? '#64748b' : '#ffffff',
+                  fontSize: '13px',
                   fontWeight: '600',
-                  cursor: submitting || (isExpired && !overrideExpired) ? 'not-allowed' : 'pointer',
-                  opacity: submitting || (isExpired && !overrideExpired) ? 0.6 : 1,
+                  cursor: submitting || isInvalidForm ? 'not-allowed' : 'pointer',
+                  opacity: submitting ? 0.6 : 1,
+                  boxShadow: !isInvalidForm ? '0 1px 2px rgba(0,0,0,0.05)' : 'none',
+                  transition: 'all 0.15s ease',
                 }}
               >
                 {submitting ? 'Đang xuất kho...' : isExpired ? 'Xác nhận ghi đè xuất kho' : 'Xác nhận xuất kho'}
