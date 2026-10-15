@@ -25,7 +25,8 @@ export type TabType =
   | 'low-stock-alerts'
   | 'goods-receipt'
   | 'add-product'
-  | 'products-import';
+  | 'products-import'
+  | 'stock-card';
 
 export interface SidebarProps {
   activeTab?: TabType;

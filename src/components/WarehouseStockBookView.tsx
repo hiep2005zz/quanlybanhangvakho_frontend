@@ -4,18 +4,20 @@ import {
   StockBookResponse,
   StockBookFilterParams,
 } from '../services/api';
-import { StockCardModal } from './StockCardModal';
+import { StockCardView } from './StockCardView';
 
 interface WarehouseStockBookViewProps {
   token: string;
   onBackToHome?: () => void;
   onNavigateToTab?: (tab: string, queryParam?: string) => void;
+  onOpenStockCard?: (productId: number, productName: string, productCode: string) => void;
 }
 
 export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
   token,
   onBackToHome: _onBackToHome,
   onNavigateToTab,
+  onOpenStockCard,
 }) => {
   const [data, setData] = useState<StockBookResponse | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -96,6 +98,19 @@ export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
   const startIndex = (safePage - 1) * pageSize;
   const endIndex = Math.min(startIndex + pageSize, totalItems);
   const pageItems = items.length > pageSize ? items.slice(startIndex, endIndex) : items;
+
+  if (selectedProductForStockCard) {
+    return (
+      <StockCardView
+        productId={selectedProductForStockCard.id}
+        productName={selectedProductForStockCard.name}
+        productCode={selectedProductForStockCard.code}
+        token={token}
+        onBack={() => setSelectedProductForStockCard(null)}
+        onNavigateToTab={onNavigateToTab}
+      />
+    );
+  }
 
   return (
     <div
@@ -699,20 +714,25 @@ export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
                       <td style={{ padding: '8px 12px', textAlign: 'center' }}>
                         <button
                           type="button"
-                          onClick={() => setSelectedProductForStockCard({ id: it.product_id, name: it.product_name, code: it.product_code })}
+                          onClick={() => {
+                            if (onOpenStockCard) {
+                              onOpenStockCard(it.product_id, it.product_name, it.product_code);
+                            } else {
+                              setSelectedProductForStockCard({ id: it.product_id, name: it.product_name, code: it.product_code });
+                            }
+                          }}
                           title={`Xem thẻ kho của ${it.product_name}`}
                           style={{
                             display: 'inline-flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            gap: '6px',
-                            padding: '5px 12px',
+                            padding: '5px 14px',
                             height: '32px',
                             borderRadius: '6px',
                             border: '1px solid #bfdbfe',
                             backgroundColor: '#eff6ff',
                             color: '#1d4ed8',
-                            fontSize: '12px',
+                            fontSize: '12.5px',
                             fontWeight: '600',
                             cursor: 'pointer',
                             whiteSpace: 'nowrap',
@@ -729,8 +749,7 @@ export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
                             e.currentTarget.style.borderColor = '#bfdbfe';
                           }}
                         >
-                          <span style={{ fontSize: '13px', lineHeight: 1, flexShrink: 0 }}>📋</span>
-                          <span>Thẻ kho</span>
+                          Thẻ kho
                         </button>
                       </td>
                     </tr>
@@ -840,19 +859,6 @@ export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
           </div>
         </div>
       </div>
-
-      {/* Modal Thẻ kho sản phẩm chi tiết */}
-      {selectedProductForStockCard && (
-        <StockCardModal
-          productId={selectedProductForStockCard.id}
-          productName={selectedProductForStockCard.name}
-          productCode={selectedProductForStockCard.code}
-          token={token}
-          isOpen={Boolean(selectedProductForStockCard)}
-          onClose={() => setSelectedProductForStockCard(null)}
-          onNavigateToTab={onNavigateToTab}
-        />
-      )}
     </div>
   );
 };
