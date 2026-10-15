@@ -10,6 +10,7 @@ export interface StatusToastPayload {
   message: string | any;
   title?: string;
   type?: 'success' | 'warning' | 'error' | 'info';
+  actionType?: 'create' | 'update' | 'delete' | 'export';
 }
 
 /**
@@ -44,13 +45,14 @@ function cleanToastMessage(raw: any): string {
 }
 
 /**
- * "Ổ" hiển thị thông báo nổi.
+ * "Ổ" hiển thị thông báo nổi ở góc dưới màn hình.
  * Dùng createPortal gắn trực tiếp vào document.body với z-index cao nhất để không bao giờ bị modal/phiếu đè.
  */
 export const StatusToastHost: React.FC = () => {
   const [message, setMessage] = useState<string | null>(null);
   const [title, setTitle] = useState<string>('Thông báo hệ thống');
   const [toastType, setToastType] = useState<'success' | 'warning' | 'error' | 'info'>('success');
+  const [actionCategory, setActionCategory] = useState<'create' | 'update' | 'delete' | null>(null);
   const [isExiting, setIsExiting] = useState<boolean>(false);
   // Số thứ tự thông báo: dùng làm "key" để buộc toast mount lại -> hiệu ứng trượt vào luôn phát lại
   const [seq, setSeq] = useState<number>(0);
@@ -63,9 +65,21 @@ export const StatusToastHost: React.FC = () => {
       const cleanedMsg = cleanToastMessage(d.message);
       if (!cleanedMsg) return;
 
-      const rawTitle = d.title ?? 'Thông báo hệ thống';
+      let rawTitle = d.title ?? 'Thông báo hệ thống';
       const lowerTitle = rawTitle.toLowerCase();
       const lowerMsg = cleanedMsg.toLowerCase();
+
+      // Nhận diện hành động Thêm mới, Chỉnh sửa, hoặc Xóa
+      let detectedAction: 'create' | 'update' | 'delete' | null = d.actionType && d.actionType !== 'export' ? d.actionType : null;
+      if (!detectedAction) {
+        if (lowerTitle.includes('xóa') || lowerMsg.includes('đã xóa') || lowerMsg.includes('xóa thành công')) {
+          detectedAction = 'delete';
+        } else if (lowerTitle.includes('thêm') || lowerTitle.includes('tạo') || lowerMsg.includes('thêm mới') || lowerMsg.includes('đã tạo')) {
+          detectedAction = 'create';
+        } else if (lowerTitle.includes('sửa') || lowerTitle.includes('cập nhật') || lowerMsg.includes('đã cập nhật') || lowerMsg.includes('cập nhật')) {
+          detectedAction = 'update';
+        }
+      }
 
       // Kiểm tra xem có phải là thông báo thành công hay không
       const isExplicitSuccess =
@@ -85,7 +99,6 @@ export const StatusToastHost: React.FC = () => {
       // Tự động nhận diện loại thông báo nếu chưa truyền hoặc có dấu hiệu lỗi / cảnh báo
       let determinedType = d.type;
 
-      // QUY TẮC CỐT LÕI: Nếu là thành công, TUYỆT ĐỐI KHÔNG BAO GIỜ HIỂN THỊ MÀU ĐỎ!
       if (isExplicitSuccess) {
         determinedType = 'success';
       } else if (!determinedType) {
@@ -121,6 +134,7 @@ export const StatusToastHost: React.FC = () => {
       setMessage(cleanedMsg);
       setTitle(rawTitle);
       setToastType(determinedType);
+      setActionCategory(detectedAction);
       setIsExiting(false);
       setSeq((s) => s + 1);
     };
@@ -151,19 +165,58 @@ export const StatusToastHost: React.FC = () => {
   const isError = toastType === 'error';
   const isInfo = toastType === 'info';
 
-  // Màu sắc thiết kế: khi thành công là màu XANH LÁ CÂY TƯƠI SÁNG ĐẸP MẮT (#16a34a, #059669, #f0fdf4)
-  const borderColor = isError ? '#fca5a5' : isWarning ? '#fed7aa' : isInfo ? '#bfdbfe' : '#86efac';
-  const borderLeftColor = isError ? '#dc2626' : isWarning ? '#f59e0b' : isInfo ? '#3b82f6' : '#16a34a';
-  const titleColor = isError ? '#dc2626' : isWarning ? '#c2410c' : isInfo ? '#1d4ed8' : '#15803d';
-  const textColor = isError ? '#991b1b' : isWarning ? '#9a3412' : isInfo ? '#1e40af' : '#14532d';
-  const bgColor = isError ? '#fef2f2' : isWarning ? '#fffbeb' : isInfo ? '#eff6ff' : '#f0fdf4';
-  const closeColor = isError ? '#dc2626' : isWarning ? '#c2410c' : isInfo ? '#2563eb' : '#16a34a';
-  const progressBg = isError
+  // Phân bổ màu sắc trực quan theo quy định:
+  // - THÊM MỚI (Create / Success): Xanh lá cây (#16a34a, #dcfce7, #f0fdf4)
+  // - CHỈNH SỬA / CẬP NHẬT (Update): Xanh dương tươi (#2563eb, #dbeafe, #eff6ff)
+  // - XÓA / NGUY HIỂM (Delete / Error): Đỏ thắm (#dc2626, #fee2e2, #fef2f2)
+  // - CẢNH BÁO (Warning): Vàng cam / Hổ phách (#d97706, #fef3c7, #fffbeb)
+  let borderColor = '#86efac';
+  let borderLeftColor = '#16a34a';
+  let titleColor = '#15803d';
+  let textColor = '#14532d';
+  let bgColor = '#f0fdf4';
+  let closeColor = '#16a34a';
+
+  if (isError || actionCategory === 'delete') {
+    borderColor = '#fca5a5';
+    borderLeftColor = '#dc2626';
+    titleColor = '#dc2626';
+    textColor = '#991b1b';
+    bgColor = '#fef2f2';
+    closeColor = '#dc2626';
+  } else if (isWarning) {
+    borderColor = '#fed7aa';
+    borderLeftColor = '#f59e0b';
+    titleColor = '#c2410c';
+    textColor = '#9a3412';
+    bgColor = '#fffbeb';
+    closeColor = '#c2410c';
+  } else if (actionCategory === 'update' || isInfo) {
+    borderColor = '#93c5fd';
+    borderLeftColor = '#2563eb';
+    titleColor = '#1d4ed8';
+    textColor = '#1e40af';
+    bgColor = '#eff6ff';
+    closeColor = '#2563eb';
+  } else {
+    // actionCategory === 'create' hoặc success chung
+    borderColor = '#86efac';
+    borderLeftColor = '#16a34a';
+    titleColor = '#15803d';
+    textColor = '#14532d';
+    bgColor = '#f0fdf4';
+    closeColor = '#16a34a';
+  }
+
+  const isDeleteTheme = isError || actionCategory === 'delete';
+  const isUpdateTheme = !isError && actionCategory === 'update';
+
+  const progressBg = isDeleteTheme
     ? 'linear-gradient(90deg, #f87171, #dc2626)'
     : isWarning
     ? 'linear-gradient(90deg, #fcd34d, #f59e0b)'
-    : isInfo
-    ? 'linear-gradient(90deg, #60a5fa, #3b82f6)'
+    : isUpdateTheme
+    ? 'linear-gradient(90deg, #60a5fa, #2563eb)'
     : 'linear-gradient(90deg, #34d399, #16a34a)';
 
   return createPortal(
@@ -184,17 +237,17 @@ export const StatusToastHost: React.FC = () => {
         gap: '10px',
         padding: '12px 14px',
         border: `1px solid ${borderColor}`,
-        borderLeft: `4px solid ${borderLeftColor}`,
+        borderLeft: `5px solid ${borderLeftColor}`,
         borderRadius: '10px',
         overflow: 'hidden',
         background: bgColor,
         color: textColor,
-        boxShadow: isError
+        boxShadow: isDeleteTheme
           ? '0 10px 25px rgba(220, 38, 38, 0.18), 0 4px 10px rgba(0, 0, 0, 0.05)'
           : isWarning
           ? '0 10px 25px rgba(245, 158, 11, 0.18), 0 4px 10px rgba(0, 0, 0, 0.05)'
-          : isInfo
-          ? '0 10px 25px rgba(59, 130, 246, 0.18), 0 4px 10px rgba(0, 0, 0, 0.05)'
+          : isUpdateTheme
+          ? '0 10px 25px rgba(37, 99, 235, 0.18), 0 4px 10px rgba(0, 0, 0, 0.05)'
           : '0 10px 25px rgba(22, 163, 74, 0.18), 0 4px 10px rgba(0, 0, 0, 0.05)',
         willChange: 'transform, opacity',
         animation: isExiting
@@ -204,12 +257,23 @@ export const StatusToastHost: React.FC = () => {
     >
       {/* Icon trạng thái */}
       <div style={{ flexShrink: 0, marginTop: '1px' }}>
-        {isError && (
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="10" />
-            <line x1="12" y1="8" x2="12" y2="12" />
-            <line x1="12" y1="16" x2="12.01" y2="16" />
-          </svg>
+        {isDeleteTheme && (
+          <div
+            style={{
+              width: '24px',
+              height: '24px',
+              borderRadius: '50%',
+              background: '#fee2e2',
+              border: '1px solid #fecaca',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+            </svg>
+          </div>
         )}
         {isWarning && (
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
@@ -218,11 +282,29 @@ export const StatusToastHost: React.FC = () => {
             <line x1="12" y1="17" x2="12.01" y2="17" />
           </svg>
         )}
-        {!isError && !isWarning && !isInfo && (
+        {isUpdateTheme && (
           <div
             style={{
-              width: '22px',
-              height: '22px',
+              width: '24px',
+              height: '24px',
+              borderRadius: '50%',
+              background: '#dbeafe',
+              border: '1px solid #bfdbfe',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+            </svg>
+          </div>
+        )}
+        {!isDeleteTheme && !isWarning && !isUpdateTheme && (
+          <div
+            style={{
+              width: '24px',
+              height: '24px',
               borderRadius: '50%',
               background: '#dcfce7',
               border: '1px solid #bbf7d0',

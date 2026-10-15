@@ -56,6 +56,7 @@ import { ModalPortal } from './ModalPortal';
 import { DashboardHeader } from './DashboardHeader';
 import { CustomerDebtView } from './CustomerDebtView';
 import { CustomerPortalView } from './CustomerPortalView';
+import { DebtAgeingLedgerView } from './DebtAgeingLedgerView';
 
 import './dashboard.css';
 import { Sidebar, type TabType } from './Sidebar';
@@ -222,6 +223,7 @@ export default function DashboardPage({
     const isProfilePath = pathname === '/profile' || pathname.startsWith('/profile/');
     const isDiscountsPath = pathname === '/discounts' || pathname.startsWith('/discounts/');
     const isDealerProfilesPath = pathname === '/dealer-profiles' || pathname.startsWith('/dealer-profiles/');
+    const isDebtLedgerPath = pathname === '/debt-ledger' || pathname.startsWith('/debt-ledger/');
     const isDealersPath = pathname === '/dealers' || pathname.startsWith('/dealers/');
     const isDeliveryPointsPath = pathname === '/delivery-points' || pathname.startsWith('/delivery-points/');
     const isProductHistoryPath = pathname === '/product-history' || pathname.startsWith('/product-history/');
@@ -361,6 +363,12 @@ export default function DashboardPage({
         try { window.history.replaceState({}, '', '/dealer-profiles'); } catch { }
       }
       return 'dealer-profiles';
+    }
+    if (isDebtLedgerPath || oldTabVal === 'debt-ledger') {
+      if (hasOldTabParam || pathname !== '/debt-ledger') {
+        try { window.history.replaceState({}, '', '/debt-ledger'); } catch { }
+      }
+      return 'debt-ledger';
     }
     if (isDealersPath || oldTabVal === 'dealers') {
       if (hasOldTabParam || pathname !== '/dealers') {
@@ -556,6 +564,13 @@ export default function DashboardPage({
       setActiveTabState('dealer-profiles');
       try {
         window.history.pushState({}, '', '/dealer-profiles');
+      } catch {
+        // ignore
+      }
+    } else if (tab === 'debt-ledger') {
+      setActiveTabState('debt-ledger');
+      try {
+        window.history.pushState({}, '', '/debt-ledger');
       } catch {
         // ignore
       }
@@ -862,6 +877,17 @@ export default function DashboardPage({
           } catch { }
         }
         setActiveTabState('dealer-profiles');
+        return;
+      }
+
+      const isDebtLedgerPath = pathname === '/debt-ledger' || pathname.startsWith('/debt-ledger/');
+      if (isDebtLedgerPath || tabParam === 'debt-ledger') {
+        if (pathname !== '/debt-ledger' || tabParam) {
+          try {
+            window.history.replaceState({}, '', '/debt-ledger');
+          } catch { }
+        }
+        setActiveTabState('debt-ledger');
         return;
       }
       const isDealersPath = pathname === '/dealers' || pathname.startsWith('/dealers/');
@@ -1438,6 +1464,7 @@ export default function DashboardPage({
           canReadOrders={canReadOrders}
           canViewDealers={canViewDealers}
           canManageDealerProfiles={canManageDealerProfiles}
+          canAccessDebtLedger={isAccountant || isSalesManager || isAdmin}
           canManageDeliveryPoints={canManageDeliveryPoints}
           canManageSuppliers={canManageSuppliers}
           canAccessPriceBooks={canAccessPriceBooks}
@@ -1799,6 +1826,17 @@ export default function DashboardPage({
             <AccessDeniedView
               currentUser={user}
               requiredPermission="Quản lý hồ sơ đại lý (Kế toán công nợ / Quản lý kinh doanh / Quản trị viên)"
+              onBackToWorkflow={() => setActiveTab('inventory')}
+              onLogout={onLogout}
+            />
+          )
+        ) : activeTab === 'debt-ledger' ? (
+          (isAccountant || isSalesManager || isAdmin) ? (
+            <DebtAgeingLedgerView token={token} />
+          ) : (
+            <AccessDeniedView
+              currentUser={user}
+              requiredPermission="Sổ công nợ theo đại lý & Phân tích tuổi nợ (Kế toán công nợ / Quản lý kinh doanh / Quản trị viên)"
               onBackToWorkflow={() => setActiveTab('inventory')}
               onLogout={onLogout}
             />

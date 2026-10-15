@@ -948,7 +948,18 @@ export async function createStockReceiptApi(
 
 export async function createStockIssueApi(
   token: string,
-  payload: { product_id: number; quantity: number; destination: string; note?: string; unit_name?: string; conversion_rate?: number }
+  payload: {
+    product_id: number;
+    quantity: number;
+    destination: string;
+    note?: string;
+    unit_name?: string;
+    conversion_rate?: number;
+    warehouse_id?: string | number;
+    selected_batch_id?: number | null;
+    suggested_batch_id?: number | null;
+    batch_change_reason?: string | null;
+  }
 ): Promise<InventoryResponse> {
   const response = await authenticatedFetch(`${API_BASE_URL}/inventory/issue`, {
     method: 'POST',
@@ -960,6 +971,38 @@ export async function createStockIssueApi(
   if (!response.ok) {
     const errorMsg = formatErrorMessage(data.detail, data.message || `Lỗi xuất kho (Mã lỗi ${response.status})`);
     throw new Error(errorMsg);
+  }
+  return data;
+}
+
+export async function getBatchSuggestionsApi(
+  token: string,
+  params: {
+    product_id: number;
+    warehouse_id?: string | number;
+    quantity?: number;
+    conversion_rate?: number;
+  }
+): Promise<{
+  product_id: number;
+  warehouse_id: number;
+  required_base_qty: number;
+  suggested_batch: ProductBatchInfo | null;
+  available_batches: ProductBatchInfo[];
+}> {
+  const q = new URLSearchParams();
+  q.set('product_id', String(params.product_id));
+  if (params.warehouse_id) q.set('warehouse_id', String(params.warehouse_id));
+  if (params.quantity) q.set('quantity', String(params.quantity));
+  if (params.conversion_rate) q.set('conversion_rate', String(params.conversion_rate));
+
+  const response = await authenticatedFetch(`${API_BASE_URL}/inventory/batches/suggest?${q.toString()}`, {
+    method: 'GET',
+  }, token);
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || 'Lỗi khi lấy danh sách lô gợi ý');
   }
   return data;
 }
@@ -2430,16 +2473,33 @@ export interface ProductPickingLocationItem {
   actual_quantity?: number;
 }
 
+export interface ProductBatchInfo {
+  id: number;
+  batch_number: string;
+  manufacturing_date?: string | null;
+  expiry_date?: string | null;
+  quantity: number;
+  reserved_quantity?: number;
+  available_quantity: number;
+}
+
 export interface OrderPickingItem {
   product_id: number;
   product_code: string;
   product_name: string;
   ordered_quantity: number;
   unit_name: string;
+  conversion_rate?: number;
+  base_quantity?: number;
+  is_batch_managed?: boolean;
   warehouse_id?: number;
   warehouse_code?: string;
   warehouse_name?: string;
   locations: ProductPickingLocationItem[];
+  suggested_batch?: ProductBatchInfo | null;
+  available_batches?: ProductBatchInfo[];
+  selected_batch_id?: number | null;
+  batch_change_reason?: string | null;
 }
 
 export interface OrderPickingSummary {
@@ -3859,3 +3919,95 @@ export async function cancelStockTransferApi(token: string, code: string, reason
   }
   return data;
 }
+
+// ==========================================
+// SCRUM-91: Báo cáo Sổ công nợ theo đại lý & Phân tích tuổi nợ
+// ==========================================
+
+export interface AgeingBuckets {
+  bucket_0_30: number;
+  bucket_31_60: number;
+  bucket_61_90: number;
+  bucket_over_90: number;
+}
+
+export interface DealerDebtAgeingItem {
+  dealer_id: number;
+  dealer_code: string;
+  dealer_name: string;
+  region?: string | null;
+  assigned_sale_id?: number | null;
+  assigned_sale_name?: string | null;
+  phone?: string | null;
+  credit_limit: number;
+  max_debt_days: number;
+  overdue_days_allowed: number;
+  total_receivable: number;
+  total_paid: number;
+  remaining_debt: number;
+  oldest_debt_days: number;
+  is_overdue: boolean;
+  ageing: AgeingBuckets;
+}
+
+export interface DebtLedgerSummary {
+  total_dealers: number;
+  total_receivable: number;
+  total_paid: number;
+  total_remaining_debt: number;
+  total_bucket_0_30: number;
+  total_bucket_31_60: number;
+  total_bucket_61_90: number;
+  total_bucket_over_90: number;
+}
+
+export interface DebtLedgerResponse {
+  items: DealerDebtAgeingItem[];
+  summary: DebtLedgerSummary;
+}
+
+export interface DebtLedgerFilters {
+  region?: string;
+  assigned_sale_id?: number;
+  overdue_only?: boolean;
+  search?: string;
+}
+
+export async function getDebtLedgerApi(token: string, filters?: DebtLedgerFilters): Promise<DebtLedgerResponse> {
+  const params = new URLSearchParams();
+  if (filters?.region) params.append('region', filters.region);
+  if (filters?.assigned_sale_id) params.append('assigned_sale_id', String(filters.assigned_sale_id));
+  if (filters?.overdue_only) params.append('overdue_only', 'true');
+  if (filters?.search) params.append('search', filters.search);
+
+  const qs = params.toString() ? `?${params.toString()}` : '';
+  const response = await authenticatedFetch(`${API_BASE_URL}/dealers/debt-ledger${qs}`, {
+    method: 'GET',
+  }, token);
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi tải sổ công nợ (${response.status})`);
+  }
+  return data;
+}
+
+export async function exportDebtLedgerExcelApi(token: string, filters?: DebtLedgerFilters): Promise<Blob> {
+  const params = new URLSearchParams();
+  if (filters?.region) params.append('region', filters.region);
+  if (filters?.assigned_sale_id) params.append('assigned_sale_id', String(filters.assigned_sale_id));
+  if (filters?.overdue_only) params.append('overdue_only', 'true');
+  if (filters?.search) params.append('search', filters.search);
+
+  const qs = params.toString() ? `?${params.toString()}` : '';
+  const response = await authenticatedFetch(`${API_BASE_URL}/dealers/debt-ledger/export${qs}`, {
+    method: 'GET',
+  }, token);
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data.detail || `Lỗi tải file Excel (${response.status})`);
+  }
+  return await response.blob();
+}
+

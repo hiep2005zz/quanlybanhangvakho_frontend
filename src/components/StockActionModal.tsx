@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import {
   ProductItem,
+  ProductBatchInfo,
   createStockReceiptApi,
   createStockIssueApi,
   adjustStockApi,
+  getBatchSuggestionsApi,
   Supplier,
   getSuppliersApi,
   formatErrorMessage,
@@ -70,6 +72,13 @@ export const StockActionModal: React.FC<StockActionModalProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  // SCRUM-81: Quản lý lô xuất theo FEFO
+  const [suggestedBatch, setSuggestedBatch] = useState<ProductBatchInfo | null>(null);
+  const [availableBatches, setAvailableBatches] = useState<ProductBatchInfo[]>([]);
+  const [selectedBatchId, setSelectedBatchId] = useState<number | null>(null);
+  const [batchChangeReason, setBatchChangeReason] = useState<string>('');
+  const [isLoadingBatches, setIsLoadingBatches] = useState(false);
+
   React.useEffect(() => {
     if (isOpen && initialReason) {
       setNoteOrReason(initialReason);
@@ -81,6 +90,41 @@ export const StockActionModal: React.FC<StockActionModalProps> = ({
       setSelectedUnitName(currentProduct.base_unit || 'Cái');
     }
   }, [currentProduct?.id]);
+
+  React.useEffect(() => {
+    if (isOpen && actionType === 'issue' && currentProduct?.id && token) {
+      setIsLoadingBatches(true);
+      getBatchSuggestionsApi(token, {
+        product_id: currentProduct.id,
+        warehouse_id: 'WH01',
+        quantity: typeof inputQuantity === 'string' ? parseFloat(inputQuantity) || 1 : inputQuantity,
+        conversion_rate: currentUnit?.conversion_rate || 1.0,
+      })
+        .then((res) => {
+          setSuggestedBatch(res.suggested_batch);
+          setAvailableBatches(res.available_batches || []);
+          if (res.suggested_batch) {
+            setSelectedBatchId(res.suggested_batch.id);
+          } else if (res.available_batches && res.available_batches.length > 0) {
+            setSelectedBatchId(res.available_batches[0].id);
+          } else {
+            setSelectedBatchId(null);
+          }
+          setBatchChangeReason('');
+        })
+        .catch(() => {
+          // ignore or fallback
+        })
+        .finally(() => {
+          setIsLoadingBatches(false);
+        });
+    } else {
+      setSuggestedBatch(null);
+      setAvailableBatches([]);
+      setSelectedBatchId(null);
+      setBatchChangeReason('');
+    }
+  }, [isOpen, actionType, currentProduct?.id, token]);
 
   React.useEffect(() => {
     if (isOpen && actionType === 'receipt' && token) {
@@ -204,6 +248,15 @@ export const StockActionModal: React.FC<StockActionModalProps> = ({
       return;
     }
 
+    // SCRUM-81 Tiêu chí 2: Bắt buộc nhập lý do nếu chọn lô khác với lô gợi ý
+    const isDifferentBatch = suggestedBatch && selectedBatchId && selectedBatchId !== suggestedBatch.id;
+    if (actionType === 'issue' && isDifferentBatch) {
+      if (!batchChangeReason.trim()) {
+        setErrorMsg('Vui lòng nhập lý do khi chọn lô khác với lô hệ thống gợi ý.');
+        return;
+      }
+    }
+
     setIsSubmitting(true);
     try {
       if (actionType === 'receipt') {
@@ -227,6 +280,10 @@ export const StockActionModal: React.FC<StockActionModalProps> = ({
           note: noteOrReason.trim() || undefined,
           unit_name: currentUnit.unit_name,
           conversion_rate: currentUnit.conversion_rate,
+          warehouse_id: 'WH01',
+          selected_batch_id: selectedBatchId,
+          suggested_batch_id: suggestedBatch?.id || null,
+          batch_change_reason: isDifferentBatch ? batchChangeReason.trim() : undefined,
         });
         emitStatusToast({
           title: 'Xuất kho thành công',
@@ -565,8 +622,136 @@ export const StockActionModal: React.FC<StockActionModalProps> = ({
                 </span>
               </div>
             </div>
+            {/* SCRUM-81: Gợi ý và lựa chọn Lô xuất hàng theo FEFO (nếu có lô) */}
+            {actionType === 'issue' && (
+              <div
+                style={{
+                  marginBottom: '16px',
+                  padding: '14px',
+                  borderRadius: '10px',
+                  background: '#f8fafc',
+                  border: '1px solid #e2e8f0',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                  <label style={{ fontSize: '13px', fontWeight: '700', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span>📦 Lô hàng xuất kho</span>
+                    {suggestedBatch && (
+                      <span
+                        style={{
+                          fontSize: '11px',
+                          background: '#dcfce7',
+                          color: '#15803d',
+                          padding: '2px 8px',
+                          borderRadius: '12px',
+                          fontWeight: '700',
+                          border: '1px solid #bbf7d0',
+                        }}
+                      >
+                        Gợi ý (HSD gần nhất)
+                      </span>
+                    )}
+                  </label>
+                  {isLoadingBatches && <span style={{ fontSize: '11px', color: '#64748b' }}>Đang tải lô...</span>}
+                </div>
 
-            {/* Lý do / Ghi chú */}
+                {availableBatches.length > 0 ? (
+                  <>
+                    <select
+                      value={selectedBatchId || ''}
+                      onChange={(e) => {
+                        const val = e.target.value ? Number(e.target.value) : null;
+                        setSelectedBatchId(val);
+                      }}
+                      style={{
+                        width: '100%',
+                        padding: '9px 12px',
+                        borderRadius: '8px',
+                        border: '1px solid #cbd5e1',
+                        fontSize: '13px',
+                        background: '#ffffff',
+                        outline: 'none',
+                        cursor: 'pointer',
+                        boxSizing: 'border-box',
+                        marginBottom: '8px',
+                      }}
+                    >
+                      {availableBatches.map((b) => {
+                        const isSugg = suggestedBatch && b.id === suggestedBatch.id;
+                        return (
+                          <option key={b.id} value={b.id}>
+                            {isSugg ? '★ [GỢI Ý] ' : ''}Số lô: {b.batch_number} | HSD: {b.expiry_date || 'N/A'} | Khả dụng: {b.available_quantity} {baseUnit}
+                          </option>
+                        );
+                      })}
+                    </select>
+
+                    {/* Hiển thị chi tiết lô đã chọn */}
+                    {selectedBatchId && (
+                      <div
+                        style={{
+                          fontSize: '12px',
+                          color: '#475569',
+                          background: '#ffffff',
+                          padding: '8px 12px',
+                          borderRadius: '6px',
+                          border: '1px solid #e2e8f0',
+                          marginBottom: '8px',
+                          display: 'flex',
+                          flexWrap: 'wrap',
+                          gap: '12px',
+                        }}
+                      >
+                        {(() => {
+                          const curBatch = availableBatches.find((b) => b.id === selectedBatchId);
+                          if (!curBatch) return null;
+                          const isSugg = suggestedBatch && curBatch.id === suggestedBatch.id;
+                          return (
+                            <>
+                              <span>Số lô: <strong style={{ color: '#0f172a' }}>{curBatch.batch_number}</strong></span>
+                              <span>HSD: <strong style={{ color: '#0f172a' }}>{curBatch.expiry_date || 'N/A'}</strong></span>
+                              <span>Tồn khả dụng: <strong style={{ color: curBatch.available_quantity >= baseQuantity ? '#16a34a' : '#ea580c' }}>{curBatch.available_quantity} {baseUnit}</strong></span>
+                              {isSugg && <span style={{ color: '#16a34a', fontWeight: '600' }}>✓ Đúng lô hệ thống gợi ý</span>}
+                            </>
+                          );
+                        })()}
+                      </div>
+                    )}
+
+                    {/* Tiêu chí 2: Hiển thị ô bắt buộc nhập lý do nếu chọn lô khác lô gợi ý */}
+                    {suggestedBatch && selectedBatchId && selectedBatchId !== suggestedBatch.id && (
+                      <div style={{ marginTop: '8px', animation: 'fadeInCard 0.15s ease-out' }}>
+                        <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '700', color: '#b45309', marginBottom: '4px' }}>
+                          Lý do đổi lô <span style={{ color: '#dc2626' }}>*</span> (Bắt buộc khi không xuất lô HSD gần nhất)
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={batchChangeReason}
+                          onChange={(e) => setBatchChangeReason(e.target.value)}
+                          placeholder="Nhập lý do đổi lô (VD: Khách yêu cầu date mới, bao bì lô cũ lỗi...)"
+                          style={{
+                            width: '100%',
+                            padding: '8px 12px',
+                            borderRadius: '8px',
+                            border: '1.5px solid #f59e0b',
+                            background: '#fffbeb',
+                            fontSize: '13px',
+                            outline: 'none',
+                            boxSizing: 'border-box',
+                          }}
+                        />
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div style={{ fontSize: '12px', color: '#64748b', fontStyle: 'italic' }}>
+                    {isLoadingBatches ? 'Đang kiểm tra dữ liệu lô hàng...' : 'Sản phẩm này hiện chưa có lô hàng chi tiết tại kho hoặc đã hết hạn.'}
+                  </div>
+                )}
+              </div>
+            )}
+
             <div style={{ marginBottom: '20px' }}>
               <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '6px' }}>
                 {actionType === 'adjust' ? 'Lý do điều chỉnh (*)' : 'Ghi chú phiếu kho'}
