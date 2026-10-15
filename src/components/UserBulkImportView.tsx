@@ -218,20 +218,19 @@ export const UserBulkImportView: React.FC<UserBulkImportViewProps> = ({
       style={{
         display: 'flex',
         flexDirection: 'column',
-        height: '100%',
-        maxHeight: '100%',
-        minHeight: 0,
-        overflow: 'hidden',
-        gap: preview ? '10px' : '18px',
+        width: '100%',
+        minHeight: '100%',
+        gap: '16px',
+        padding: '16px 20px 32px 20px',
+        boxSizing: 'border-box',
       }}
     >
-      {/* KHỐI TRÊN: ĐỨNG IM CỐ ĐỊNH (Breadcrumb + Header + Quy trình + File box) */}
+      {/* Khối trên: Breadcrumb + Header + Khung chọn file */}
       <div
         style={{
-          flexShrink: 0,
           display: 'flex',
           flexDirection: 'column',
-          gap: preview ? '8px' : '14px',
+          gap: '12px',
         }}
       >
         {/* 1. Breadcrumb điều hướng */}
@@ -536,16 +535,10 @@ export const UserBulkImportView: React.FC<UserBulkImportViewProps> = ({
         )}
       </div>
 
-      {/* KHỐI DƯỚI: CÒN LẠI BÊN DƯỚI VẪN GIỮ NGUYÊN LƯỚT ĐƯỢC */}
+      {/* Khối kết quả hoặc xem trước */}
       {isCompleted ? (
         /* Màn hình kết quả hoàn tất */
-        <div
-          style={{
-            flex: 1,
-            minHeight: 0,
-            overflowY: 'auto',
-          }}
-        >
+        <div>
           <div
             style={{
               background: '#ffffff',
@@ -656,12 +649,8 @@ export const UserBulkImportView: React.FC<UserBulkImportViewProps> = ({
         preview && (
           <div
             style={{
-              flex: 1,
-              minHeight: 0,
-              overflowY: 'auto',
               display: 'flex',
               flexDirection: 'column',
-              paddingRight: '2px',
             }}
           >
             <div

@@ -403,7 +403,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
         </span>
       );
     }
-    if (['EXPORTED', 'SHIPPED', 'DISPATCHED', 'ĐÃ XUẤT'].includes((status || '').toUpperCase())) {
+    if (['SHIPPED', 'DISPATCHED', 'DELIVERING', 'IN_TRANSIT', 'ĐANG GIAO'].includes((status || '').toUpperCase())) {
       return (
         <span
           style={{
@@ -418,11 +418,30 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
             whiteSpace: 'nowrap',
           }}
         >
-          Đã xuất kho
+          Đang giao
         </span>
       );
     }
-    if (['PICKING', 'PREPARING', 'PACKING', 'ĐANG SOẠN HÀNG'].includes((status || '').toUpperCase())) {
+    if (['EXPORTED', 'ĐÃ XUẤT'].includes((status || '').toUpperCase())) {
+      return (
+        <span
+          style={{
+            display: 'inline-block',
+            background: '#f0fdf4',
+            color: '#15803d',
+            border: '1px solid #bbf7d0',
+            borderRadius: '999px',
+            padding: '2.5px 10px',
+            fontSize: '11.5px',
+            fontWeight: '600',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          Đã xuất
+        </span>
+      );
+    }
+    if (['PICKING', 'PREPARING', 'PACKING', 'ĐANG SOẠN', 'ĐANG SOẠN HÀNG'].includes((status || '').toUpperCase())) {
       return (
         <span
           style={{
@@ -437,7 +456,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
             whiteSpace: 'nowrap',
           }}
         >
-          Đang soạn hàng
+          Đang soạn
         </span>
       );
     }
