@@ -79,6 +79,10 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
   const [failureReasonInput, setFailureReasonInput] = useState('');
   const [isUpdatingStop, setIsUpdatingStop] = useState(false);
 
+  // State xác nhận xóa chuyến nháp qua Popup thay vì window.confirm
+  const [tripToDeleteId, setTripToDeleteId] = useState<number | null>(null);
+  const [isDeletingTrip, setIsDeletingTrip] = useState(false);
+
   // 1. Tải danh sách chuyến giao hàng
   const loadTrips = useCallback(async () => {
     setIsLoading(true);
@@ -372,16 +376,23 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
     }
   };
 
-  // 7. Xóa chuyến nháp
-  const handleDeleteDraftTrip = async (tripId: number) => {
-    if (!window.confirm('Bạn có chắc chắn muốn xóa chuyến giao hàng này?')) return;
+  // 7. Mở popup xác nhận xóa chuyến nháp
+  const handleRequestDeleteDraftTrip = (tripId: number) => {
+    setTripToDeleteId(tripId);
+  };
+
+  // Xác nhận thực hiện xóa chuyến từ popup
+  const handleConfirmDeleteTrip = async () => {
+    if (!tripToDeleteId) return;
+    setIsDeletingTrip(true);
     try {
-      await deleteDeliveryTripApi(token, tripId);
+      await deleteDeliveryTripApi(token, tripToDeleteId);
       emitStatusToast({
         type: 'success',
         title: 'Xóa chuyến thành công',
         message: 'Đã xóa chuyến giao hàng.',
       });
+      setTripToDeleteId(null);
       if (viewMode === 'detail') setViewMode('list');
       await loadTrips();
     } catch (err: any) {
@@ -390,6 +401,8 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
         title: 'Lỗi xóa chuyến',
         message: err.message || 'Không thể xóa chuyến giao hàng.',
       });
+    } finally {
+      setIsDeletingTrip(false);
     }
   };
 
@@ -784,7 +797,7 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
               {selectedTrip.status === 'DRAFT' && (
                 <button
                   type="button"
-                  onClick={() => handleDeleteDraftTrip(selectedTrip.id)}
+                  onClick={() => handleRequestDeleteDraftTrip(selectedTrip.id)}
                   style={{
                     padding: '5px 12px',
                     background: '#fee2e2',
@@ -1573,7 +1586,7 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
                 boxShadow: '0 1px 2px rgba(2,132,199,0.2)',
               }}
             >
-              + Tạo chuyến giao hàng
+              Tạo chuyến giao hàng
             </button>
           </div>
         </div>
@@ -1687,7 +1700,7 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
                 <tr>
                   <td colSpan={8} style={{ padding: '30px', textAlign: 'center', color: '#64748b' }}>
                     <div style={{ fontWeight: '600', color: '#0f172a' }}>Không có chuyến giao hàng nào</div>
-                    <div style={{ fontSize: '11.5px', marginTop: '4px' }}>Bấm nút "+ Tạo chuyến giao hàng" ở trên để phân tuyến chuyến mới.</div>
+                    <div style={{ fontSize: '11.5px', marginTop: '4px' }}>Bấm nút "Tạo chuyến giao hàng" ở trên để phân tuyến chuyến mới.</div>
                   </td>
                 </tr>
               ) : (
@@ -1777,6 +1790,105 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
           </table>
         </div>
       </div>
+
+      {/* Popup Modal xác nhận xóa chuyến nháp chuẩn UI chuyên nghiệp */}
+      {tripToDeleteId !== null && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(15, 23, 42, 0.45)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 99999,
+            backdropFilter: 'blur(2px)',
+          }}
+        >
+          <div
+            style={{
+              background: '#ffffff',
+              borderRadius: '12px',
+              width: '420px',
+              maxWidth: '92%',
+              padding: '22px 24px',
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '16px',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '14px' }}>
+              <div
+                style={{
+                  width: '42px',
+                  height: '42px',
+                  borderRadius: '50%',
+                  background: '#fee2e2',
+                  color: '#dc2626',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '20px',
+                  flexShrink: 0,
+                }}
+              >
+                ⚠️
+              </div>
+              <div style={{ flex: 1 }}>
+                <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '800', color: '#0f172a' }}>
+                  Xác nhận xóa chuyến giao hàng
+                </h3>
+                <p style={{ margin: '6px 0 0 0', fontSize: '13px', color: '#475569', lineHeight: 1.5 }}>
+                  Bạn có chắc chắn muốn xóa chuyến giao hàng này không? Thao tác này sẽ giải phóng toàn bộ phiếu xuất kho liên quan về trạng thái sẵn sàng giao.
+                </p>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '6px' }}>
+              <button
+                type="button"
+                onClick={() => setTripToDeleteId(null)}
+                disabled={isDeletingTrip}
+                style={{
+                  padding: '7px 16px',
+                  background: '#ffffff',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: '6px',
+                  fontSize: '13px',
+                  fontWeight: '600',
+                  color: '#475569',
+                  cursor: isDeletingTrip ? 'not-allowed' : 'pointer',
+                }}
+              >
+                Hủy bỏ
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDeleteTrip}
+                disabled={isDeletingTrip}
+                style={{
+                  padding: '7px 18px',
+                  background: '#dc2626',
+                  border: 'none',
+                  borderRadius: '6px',
+                  fontSize: '13px',
+                  fontWeight: '700',
+                  color: '#ffffff',
+                  cursor: isDeletingTrip ? 'not-allowed' : 'pointer',
+                  opacity: isDeletingTrip ? 0.7 : 1,
+                  boxShadow: '0 1px 2px rgba(220, 38, 38, 0.25)',
+                }}
+              >
+                {isDeletingTrip ? 'Đang xóa...' : 'Xác nhận xóa'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
