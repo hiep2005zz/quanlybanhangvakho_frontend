@@ -27,7 +27,8 @@ export type TabType =
   | 'low-stock-alerts'
   | 'goods-receipt'
   | 'add-product'
-  | 'products-import';
+  | 'products-import'
+  | 'batches';
 
 export interface SidebarProps {
   activeTab?: TabType;
@@ -323,6 +324,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
           <line x1="9" y1="7" x2="15" y2="7" />
           <line x1="9" y1="11" x2="15" y2="11" />
+        </svg>
+      ),
+    },
+    {
+      id: 'btn-sidebar-batches',
+      tab: 'batches',
+      path: '/batches',
+      label: 'Lô & Hạn sử dụng',
+      visible: !isCustomer,
+      icon: (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="10" />
+          <polyline points="12 6 12 12 16 14" />
         </svg>
       ),
     },

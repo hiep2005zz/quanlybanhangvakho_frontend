@@ -76,8 +76,10 @@ export function StockTransferManagementView({
   const [warehouseFilter, setWarehouseFilter] = useState<string>('ALL');
   const [searchTerm, setSearchTerm] = useState<string>('');
 
-  // Trạng thái hiển thị trang tạo phiếu
-  const [isCreatingPage, setIsCreatingPage] = useState(false);
+  // Trạng thái hiển thị trang tạo phiếu (đồng bộ Clean URL /stock-transfers/create)
+  const [isCreatingPage, setIsCreatingPage] = useState(() => {
+    return window.location.pathname.toLowerCase().includes('/create');
+  });
   const [fromWarehouseId, setFromWarehouseId] = useState<string>('WH01');
   const [toWarehouseId, setToWarehouseId] = useState<string>('WH02');
   const [transferItems, setTransferItems] = useState<TransferItemDraft[]>([]);
@@ -95,34 +97,76 @@ export function StockTransferManagementView({
   const [transferNote, setTransferNote] = useState('');
   const [creating, setCreating] = useState(false);
 
-  // Dropdown chọn sản phẩm có phân trang cuộn (mới đầu load 10 SP, dài xuống dưới, lướt tải thêm 10 SP)
+  // Dropdown chọn sản phẩm phân trang từ máy chủ (Server-side pagination & SQL search)
+  const PRODUCT_PAGE_SIZE = 10;
   const [productDropdownOpen, setProductDropdownOpen] = useState(false);
   const [productSearchTerm, setProductSearchTerm] = useState('');
-  const [productDisplayLimit, setProductDisplayLimit] = useState(10);
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
+  const [productPage, setProductPage] = useState(1);
+  const [totalProductsCount, setTotalProductsCount] = useState(0);
+  const [loadingMoreProducts, setLoadingMoreProducts] = useState(false);
   const productDropdownRef = useRef<HTMLDivElement | null>(null);
 
-  const filteredAvailableProducts = useMemo(() => {
-    const term = productSearchTerm.trim().toLowerCase();
-    if (!term) return availableProducts;
-    return availableProducts.filter(
-      (p) =>
-        p.product_code.toLowerCase().includes(term) ||
-        p.product_name.toLowerCase().includes(term) ||
-        (p.category_name && p.category_name.toLowerCase().includes(term))
-    );
-  }, [availableProducts, productSearchTerm]);
+  // Debounce 300ms khi người dùng gõ từ khóa tìm kiếm
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(productSearchTerm);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [productSearchTerm]);
 
-  const displayedProducts = useMemo(() => {
-    return filteredAvailableProducts.slice(0, productDisplayLimit);
-  }, [filteredAvailableProducts, productDisplayLimit]);
+  // Nạp thêm 10 sản phẩm tiếp theo từ Backend
+  const handleLoadMoreProducts = useCallback(async () => {
+    if (loadingProducts || loadingMoreProducts) return;
+    if (availableProducts.length >= totalProductsCount) return;
 
-  // Cuộn xuống để nạp thêm 10 sản phẩm (infinite scroll 10 SP/lần)
+    const nextPage = productPage + 1;
+    setLoadingMoreProducts(true);
+    try {
+      const res = await getStockBookApi(token, {
+        warehouse_id: fromWarehouseId,
+        page: nextPage,
+        page_size: PRODUCT_PAGE_SIZE,
+        search: debouncedSearchTerm.trim() || undefined,
+      });
+      const mapped = (res.items || []).map((it) => ({
+        product_id: it.product_id,
+        product_code: it.product_code,
+        product_name: it.product_name,
+        category_name: it.category,
+        base_unit: it.base_unit || 'Cái',
+        available_stock: it.available_stock ?? 0,
+      }));
+      setAvailableProducts((prev) => {
+        const existingIds = new Set(prev.map((p) => p.product_id));
+        const filteredNew = mapped.filter((p) => !existingIds.has(p.product_id));
+        return [...prev, ...filteredNew];
+      });
+      setProductPage(nextPage);
+      if (res.total !== undefined) {
+        setTotalProductsCount(res.total);
+      }
+    } catch (err) {
+      console.error('Lỗi nạp thêm sản phẩm từ backend:', err);
+    } finally {
+      setLoadingMoreProducts(false);
+    }
+  }, [
+    loadingProducts,
+    loadingMoreProducts,
+    availableProducts.length,
+    totalProductsCount,
+    productPage,
+    token,
+    fromWarehouseId,
+    debouncedSearchTerm,
+  ]);
+
+  // Cuộn xuống gần đáy danh sách để tự động nạp thêm (Infinite scroll từ backend)
   const handleProductListScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
-    if (scrollTop + clientHeight >= scrollHeight - 25) {
-      if (productDisplayLimit < filteredAvailableProducts.length) {
-        setProductDisplayLimit((prev) => Math.min(prev + 10, filteredAvailableProducts.length));
-      }
+    if (scrollTop + clientHeight >= scrollHeight - 30) {
+      handleLoadMoreProducts();
     }
   };
 
@@ -149,6 +193,26 @@ export function StockTransferManagementView({
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('keydown', handleKeyDown);
     };
+  }, [productDropdownOpen]);
+
+  // Đồng bộ URL popstate khi người dùng bấm Back/Forward
+  useEffect(() => {
+    const handlePop = () => {
+      const isCreate = window.location.pathname.toLowerCase().includes('/create');
+      setIsCreatingPage(isCreate);
+    };
+    window.addEventListener('popstate', handlePop);
+    return () => window.removeEventListener('popstate', handlePop);
+  }, []);
+
+  // Tự động cuộn ô chọn vào tầm nhìn thuận tiện khi mở dropdown
+  useEffect(() => {
+    if (productDropdownOpen && productDropdownRef.current) {
+      const timer = setTimeout(() => {
+        productDropdownRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }, 60);
+      return () => clearTimeout(timer);
+    }
   }, [productDropdownOpen]);
 
   // Modal nhận hàng
@@ -216,12 +280,21 @@ export function StockTransferManagementView({
     fetchTransfers();
   }, [fetchTransfers]);
 
-  // Tải sản phẩm và tồn khả dụng khi đổi kho đi
+  // Tải sản phẩm trang 1 và tổng số tồn khả dụng khi đổi kho đi hoặc đổi từ khóa tìm kiếm (Server-side)
   useEffect(() => {
     if (!isCreatingPage || !fromWarehouseId) return;
+    let isCancelled = false;
     setLoadingProducts(true);
-    getStockBookApi(token, { warehouse_id: fromWarehouseId })
+    setProductPage(1);
+
+    getStockBookApi(token, {
+      warehouse_id: fromWarehouseId,
+      page: 1,
+      page_size: PRODUCT_PAGE_SIZE,
+      search: debouncedSearchTerm.trim() || undefined,
+    })
       .then((res) => {
+        if (isCancelled) return;
         const mapped = (res.items || []).map((it) => ({
           product_id: it.product_id,
           product_code: it.product_code,
@@ -231,15 +304,24 @@ export function StockTransferManagementView({
           available_stock: it.available_stock ?? 0,
         }));
         setAvailableProducts(mapped);
+        setTotalProductsCount(res.total ?? res.summary?.total_skus ?? mapped.length);
       })
       .catch((err) => {
-        console.error('Lỗi tải sản phẩm theo kho:', err);
+        if (isCancelled) return;
+        console.error('Lỗi tải sản phẩm theo kho từ backend:', err);
         setAvailableProducts([]);
+        setTotalProductsCount(0);
       })
       .finally(() => {
-        setLoadingProducts(false);
+        if (!isCancelled) {
+          setLoadingProducts(false);
+        }
       });
-  }, [token, isCreatingPage, fromWarehouseId]);
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [token, isCreatingPage, fromWarehouseId, debouncedSearchTerm]);
 
   // Hàm phân loại chênh lệch Dư / Hụt của phiếu chuyển kho
   const getTransferDiscrepancyInfo = useCallback((t: StockTransfer) => {
@@ -392,7 +474,10 @@ export function StockTransferManagementView({
     setTransferNote('');
     setProductDropdownOpen(false);
     setProductSearchTerm('');
-    setProductDisplayLimit(10);
+    setDebouncedSearchTerm('');
+    try {
+      window.history.pushState({}, '', '/stock-transfers/create');
+    } catch {}
     setIsCreatingPage(true);
   };
 
@@ -400,7 +485,10 @@ export function StockTransferManagementView({
   const handleCloseCreatePage = () => {
     setProductDropdownOpen(false);
     setProductSearchTerm('');
-    setProductDisplayLimit(10);
+    setDebouncedSearchTerm('');
+    try {
+      window.history.pushState({}, '', '/stock-transfers');
+    } catch {}
     setIsCreatingPage(false);
   };
 
@@ -496,6 +584,9 @@ export function StockTransferManagementView({
         type: 'success',
       });
 
+      try {
+        window.history.pushState({}, '', '/stock-transfers');
+      } catch {}
       setIsCreatingPage(false);
       fetchTransfers();
     } catch (err: any) {
@@ -843,11 +934,11 @@ export function StockTransferManagementView({
     const hasAnyOverStock = transferItems.some((it) => it.transfer_qty > it.available_stock);
 
     return (
-      <div className="w-full h-full max-h-full overflow-y-auto p-4 md:p-6 bg-slate-100/60 flex flex-col">
+      <div className="w-full min-h-full flex-1 flex flex-col p-4 md:p-6 bg-slate-100/60 overflow-y-auto">
         {/* ======================================================== */}
         {/* TOÀN BỘ PHIẾU CHUYỂN KHO LIỀN TRONG 1 KHUNG DUY NHẤT    */}
         {/* ======================================================== */}
-        <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm overflow-hidden flex flex-col">
+        <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm flex flex-col">
           {/* HEADER NẰM TRÊN CÙNG CỦA KHUNG */}
           <div className="px-6 py-4.5 border-b border-slate-200/80 bg-gradient-to-r from-slate-50/90 via-white to-blue-50/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3.5">
@@ -993,12 +1084,13 @@ export function StockTransferManagementView({
                       role="button"
                       tabIndex={0}
                       id="page-select-add-product"
-                      className="flex-1 w-full px-3.5 py-2.5 text-sm border border-slate-300 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-2xs transition-all flex items-center justify-between cursor-pointer hover:border-slate-400 select-none text-slate-800"
+                      className={`flex-1 w-full px-3.5 py-2.5 text-sm border rounded-xl bg-white focus:outline-none transition-all flex items-center justify-between cursor-pointer select-none text-slate-800 ${
+                        productDropdownOpen
+                          ? 'border-blue-500 ring-2 ring-blue-500/20 shadow-sm'
+                          : 'border-slate-300 hover:border-slate-400 shadow-2xs'
+                      }`}
                       onClick={() => {
                         setProductDropdownOpen((prev) => !prev);
-                        if (!productDropdownOpen) {
-                          setProductDisplayLimit(10);
-                        }
                       }}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter' || e.key === ' ') {
@@ -1007,9 +1099,18 @@ export function StockTransferManagementView({
                         }
                       }}
                     >
-                      <span className="text-slate-600 truncate text-xs sm:text-sm font-medium">
-                        -- Chọn sản phẩm tại {fromWarehouseObj?.name || fromWarehouseId} để thêm vào phiếu --
-                      </span>
+                      <div className="flex items-center gap-2 min-w-0 pr-2">
+                        <span className="text-slate-700 truncate text-xs sm:text-sm font-medium">
+                          {productDropdownOpen
+                            ? `Đang chọn sản phẩm tại ${fromWarehouseObj?.name || fromWarehouseId}`
+                            : `-- Bấm vào đây để tìm và chọn sản phẩm tại ${fromWarehouseObj?.name || fromWarehouseId} --`}
+                        </span>
+                        {totalProductsCount > 0 && (
+                          <span className="text-[11px] font-bold text-blue-700 bg-blue-50 border border-blue-200/80 px-2 py-0.5 rounded-full shrink-0">
+                            {totalProductsCount} mặt hàng
+                          </span>
+                        )}
+                      </div>
                       <svg
                         className={`w-4 h-4 text-slate-500 transition-transform flex-shrink-0 ml-2 ${
                           productDropdownOpen ? 'rotate-180' : ''
@@ -1023,74 +1124,110 @@ export function StockTransferManagementView({
                     </div>
                   </div>
 
-                  {/* Danh sách sản phẩm: Mở trong luồng giao diện, dài rộng rãi xuống dưới, KHÔNG che khuất và KHÔNG bị cắt xén */}
+                  {/* Danh sách sản phẩm: Tối ưu hiển thị rộng rãi, cuộn mượt mà, không bị che khuất cạnh màn hình */}
                   {productDropdownOpen && (
                     <div
-                      className="w-full mt-2.5 bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden flex flex-col animate-in fade-in duration-150"
+                      className="w-full mt-2 bg-white border border-slate-200 rounded-xl shadow-xl flex flex-col animate-in fade-in duration-150"
                     >
-                      {/* Ô tìm kiếm nhanh */}
-                      <div className="p-2.5 border-b border-slate-100 bg-slate-50/80 flex items-center gap-2 shrink-0">
-                        <svg className="w-4 h-4 text-slate-400 ml-1.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                        </svg>
-                        <input
-                          type="text"
-                          className="w-full px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-slate-800 placeholder-slate-400 font-medium"
-                          placeholder="Tìm nhanh theo mã hoặc tên sản phẩm..."
-                          value={productSearchTerm}
-                          onChange={(e) => {
-                            setProductSearchTerm(e.target.value);
-                            setProductDisplayLimit(10);
-                          }}
-                          autoFocus
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                        {productSearchTerm && (
+                      {/* Ô tìm kiếm nhanh với thông tin số lượng sản phẩm */}
+                      <div className="p-3 border-b border-slate-200/80 bg-slate-50/90 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 shrink-0 rounded-t-xl">
+                        <div className="relative flex-1 flex items-center">
+                          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 z-10 text-slate-400">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                          </div>
+                          <input
+                            type="text"
+                            style={{ paddingLeft: '38px', paddingRight: '32px' }}
+                            className="w-full py-2 text-xs sm:text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-slate-900 placeholder-slate-400 font-medium"
+                            placeholder="Tìm nhanh theo mã SKU hoặc tên sản phẩm..."
+                            value={productSearchTerm}
+                            onChange={(e) => {
+                              setProductSearchTerm(e.target.value);
+                            }}
+                            autoFocus
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                          {productSearchTerm && (
+                            <button
+                              type="button"
+                              className="absolute right-2.5 text-xs text-slate-400 hover:text-slate-600 px-1.5 py-0.5 cursor-pointer font-bold rounded z-10"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setProductSearchTerm('');
+                                setDebouncedSearchTerm('');
+                              }}
+                            >
+                              ✕
+                            </button>
+                          )}
+                        </div>
+
+                        <div className="flex items-center justify-between sm:justify-end gap-2 text-[11px] text-slate-600 font-medium px-1">
+                          <span>
+                            Khả dụng: <b className="text-blue-700 font-bold">{totalProductsCount}</b> mặt hàng
+                          </span>
                           <button
                             type="button"
-                            className="text-xs text-slate-400 hover:text-slate-600 px-2 py-1 cursor-pointer font-bold"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setProductSearchTerm('');
-                              setProductDisplayLimit(10);
-                            }}
+                            onClick={() => setProductDropdownOpen(false)}
+                            className="text-xs text-slate-500 hover:text-slate-800 bg-white hover:bg-slate-100 border border-slate-200 px-2 py-1 rounded-lg cursor-pointer transition-colors"
                           >
-                            ✕
+                            Đóng lại ✕
                           </button>
-                        )}
+                        </div>
                       </div>
 
-                      {/* Danh sách nạp 10 sản phẩm đầu tiên, dài xuống dưới thoải mái, cuộn xuống nạp tiếp 10 sản phẩm */}
+                      {/* Danh sách sản phẩm cuộn mượt, chiều cao linh hoạt, không bị che khuất */}
                       <div
                         className="overflow-y-auto divide-y divide-slate-100"
-                        style={{ height: '280px', minHeight: '280px', maxHeight: '280px' }}
+                        style={{ maxHeight: '340px', minHeight: availableProducts.length === 0 ? '120px' : '160px' }}
                         onScroll={handleProductListScroll}
                       >
                         {loadingProducts ? (
-                          <div className="h-full flex items-center justify-center p-6 text-center text-xs text-slate-500 gap-2">
-                            <span className="w-4 h-4 border-2 border-blue-600/30 border-t-blue-600 rounded-full animate-spin" />
-                            <span>Đang nạp tồn kho tại {fromWarehouseObj?.name || fromWarehouseId}...</span>
+                          <div className="p-8 flex items-center justify-center text-center text-xs text-slate-500 gap-2">
+                            <span className="w-5 h-5 border-2 border-blue-600/30 border-t-blue-600 rounded-full animate-spin" />
+                            <span>
+                              {debouncedSearchTerm
+                                ? `Đang tìm kiếm "${debouncedSearchTerm}" từ máy chủ...`
+                                : `Đang nạp tồn kho tại ${fromWarehouseObj?.name || fromWarehouseId}...`}
+                            </span>
                           </div>
-                        ) : displayedProducts.length === 0 ? (
-                          <div className="h-full flex items-center justify-center p-6 text-center text-xs text-slate-500">
-                            {productSearchTerm
-                              ? 'Không tìm thấy sản phẩm nào khớp từ khóa.'
-                              : 'Kho này hiện không có sản phẩm nào khả dụng.'}
+                        ) : availableProducts.length === 0 ? (
+                          <div className="p-8 flex flex-col items-center justify-center text-center text-xs text-slate-500 gap-1.5">
+                            <span className="text-2xl">📦</span>
+                            <span className="font-semibold text-slate-700">
+                              {debouncedSearchTerm
+                                ? `Không tìm thấy sản phẩm nào khớp từ khóa "${debouncedSearchTerm}".`
+                                : `Kho ${fromWarehouseObj?.name || fromWarehouseId} hiện không có sản phẩm nào khả dụng.`}
+                            </span>
+                            {productSearchTerm && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setProductSearchTerm('');
+                                  setDebouncedSearchTerm('');
+                                }}
+                                className="text-blue-600 hover:underline mt-1 font-medium"
+                              >
+                                Xóa từ khóa tìm kiếm
+                              </button>
+                            )}
                           </div>
                         ) : (
-                          displayedProducts.map((p) => {
+                          availableProducts.map((p) => {
                             const isOut = p.available_stock <= 0;
                             const isAlreadyAdded = transferItems.some((it) => it.product_id === p.product_id);
 
                             return (
                               <div
                                 key={p.product_id}
-                                className={`px-3.5 py-2.5 text-xs flex items-center justify-between gap-3 transition-colors ${
+                                className={`px-4 py-3 text-xs flex items-center justify-between gap-3 transition-colors group cursor-pointer ${
                                   isOut
-                                    ? 'bg-slate-50/60 opacity-60 cursor-not-allowed text-slate-400'
+                                    ? 'bg-slate-50/70 opacity-60 cursor-not-allowed text-slate-400'
                                     : isAlreadyAdded
-                                    ? 'bg-blue-50/40 hover:bg-blue-50/70 cursor-pointer text-slate-700'
-                                    : 'hover:bg-slate-50 cursor-pointer text-slate-800'
+                                    ? 'bg-blue-50/50 hover:bg-blue-50/80 text-slate-800'
+                                    : 'hover:bg-slate-50/90 text-slate-800'
                                 }`}
                                 onClick={() => {
                                   if (isOut) {
@@ -1104,37 +1241,58 @@ export function StockTransferManagementView({
                                   handleAddProductToTransfer(String(p.product_id));
                                   setProductDropdownOpen(false);
                                   setProductSearchTerm('');
-                                  setProductDisplayLimit(10);
+                                  setDebouncedSearchTerm('');
                                 }}
                               >
                                 <div className="flex flex-col min-w-0 pr-2">
                                   <div className="flex items-center gap-2 flex-wrap">
-                                    <span className="font-bold text-emerald-700 font-mono text-[11px] bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                                    <span className="font-bold text-emerald-700 font-mono text-[11px] bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
                                       {p.product_code}
                                     </span>
-                                    <span className="font-semibold text-slate-800 truncate" title={p.product_name}>
+                                    <span className="font-bold text-slate-800 text-xs sm:text-sm" title={p.product_name}>
                                       {p.product_name}
                                     </span>
+                                    {p.category_name && (
+                                      <span className="text-[10px] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
+                                        {p.category_name}
+                                      </span>
+                                    )}
                                     {isAlreadyAdded && (
-                                      <span className="text-[10px] text-blue-700 bg-blue-100/70 px-1.5 py-0.5 rounded font-bold">
-                                        ✓ Đã thêm
+                                      <span className="text-[10px] text-blue-700 bg-blue-100/80 px-2 py-0.5 rounded font-bold border border-blue-200">
+                                        ✓ Đã có trong phiếu
                                       </span>
                                     )}
                                   </div>
                                 </div>
 
-                                <div className="flex items-center gap-2 flex-shrink-0 text-right">
-                                  <span
-                                    className={`font-semibold text-xs ${
-                                      isOut ? 'text-rose-500' : 'text-slate-700'
-                                    }`}
-                                  >
-                                    Tồn: <b>{p.available_stock}</b> {p.base_unit || 'Cái'}
-                                  </span>
-                                  {isOut && (
-                                    <span className="text-[10px] font-bold text-rose-600 bg-rose-50 border border-rose-200 px-1.5 py-0.5 rounded">
-                                      Hết hàng
+                                <div className="flex items-center gap-3 flex-shrink-0 text-right">
+                                  <div className="flex flex-col items-end">
+                                    <span
+                                      className={`font-bold text-xs ${
+                                        isOut ? 'text-rose-500' : 'text-slate-800'
+                                      }`}
+                                    >
+                                      Tồn: <b className="text-blue-700 text-sm">{p.available_stock}</b> {p.base_unit || 'Cái'}
                                     </span>
+                                    {isOut && (
+                                      <span className="text-[10px] font-bold text-rose-600 bg-rose-50 border border-rose-200 px-1.5 py-0.5 rounded mt-0.5">
+                                        Hết hàng
+                                      </span>
+                                    )}
+                                  </div>
+
+                                  {!isOut && (
+                                    <button
+                                      type="button"
+                                      tabIndex={-1}
+                                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-2xs ${
+                                        isAlreadyAdded
+                                          ? 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+                                          : 'bg-blue-600 text-white hover:bg-blue-700 group-hover:scale-105'
+                                      }`}
+                                    >
+                                      {isAlreadyAdded ? 'Đã thêm' : '+ Thêm'}
+                                    </button>
                                   )}
                                 </div>
                               </div>
@@ -1143,20 +1301,39 @@ export function StockTransferManagementView({
                         )}
                       </div>
 
-                      {/* Thanh đếm số lượng & báo hiệu cuộn thêm 10 SP */}
-                      <div className="px-3.5 py-2.5 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-xs text-slate-600 shrink-0">
+                      {/* Thanh đếm số lượng & nút tải thêm */}
+                      <div className="px-4 py-2.5 bg-slate-50 border-t border-slate-200/80 flex items-center justify-between text-xs text-slate-600 shrink-0 rounded-b-xl">
                         <span>
-                          Hiển thị <b className="text-slate-800">{displayedProducts.length}</b> / <b className="text-slate-800">{filteredAvailableProducts.length}</b> sản phẩm
+                          Đang hiển thị <b className="text-slate-800 font-bold">{availableProducts.length}</b> / <b className="text-slate-800 font-bold">{totalProductsCount}</b> sản phẩm
                         </span>
-                        {displayedProducts.length < filteredAvailableProducts.length ? (
-                          <span className="text-blue-600 font-semibold flex items-center gap-1.5">
-                            <span>Cuộn xuống nạp thêm 10 SP</span>
-                            <svg className="w-3.5 h-3.5 inline animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-                            </svg>
-                          </span>
+                        {availableProducts.length < totalProductsCount ? (
+                          <button
+                            type="button"
+                            disabled={loadingMoreProducts}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleLoadMoreProducts();
+                            }}
+                            className="text-blue-600 hover:text-blue-800 font-bold flex items-center gap-1.5 hover:underline cursor-pointer bg-blue-50 hover:bg-blue-100 border border-blue-200 px-2.5 py-1 rounded-lg transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                          >
+                            {loadingMoreProducts ? (
+                              <>
+                                <span className="w-3.5 h-3.5 border-2 border-blue-600/30 border-t-blue-600 rounded-full animate-spin" />
+                                <span>Đang tải thêm sản phẩm...</span>
+                              </>
+                            ) : (
+                              <>
+                                <span>Tải thêm sản phẩm</span>
+                                <svg className="w-3.5 h-3.5 inline animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                                </svg>
+                              </>
+                            )}
+                          </button>
                         ) : (
-                          <span className="text-slate-400 font-medium">Đã nạp hết</span>
+                          <span className="text-slate-500 font-medium bg-slate-100 px-2 py-0.5 rounded text-[11px]">
+                            ✓ Đã hiển thị toàn bộ {totalProductsCount} sản phẩm
+                          </span>
                         )}
                       </div>
                     </div>

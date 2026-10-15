@@ -39,6 +39,9 @@ export const ProductBulkImportModal: React.FC<ProductBulkImportModalProps> = ({
   // Filter xem theo trạng thái: all | new | update | error
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'NEW' | 'UPDATE' | 'ERROR'>('ALL');
 
+  // Tìm kiếm sản phẩm trong danh sách xem trước
+  const [searchTerm, setSearchTerm] = useState<string>('');
+
   const handleDownloadTemplate = async () => {
     try {
       const blob = await downloadProductImportTemplateApi(token);
@@ -62,6 +65,7 @@ export const ProductBulkImportModal: React.FC<ProductBulkImportModalProps> = ({
     setError(null);
     setLoading(true);
     setCurrentPage(1);
+    setSearchTerm('');
     try {
       const data = await uploadProductBulkPreviewApi(token, selected);
       setPreview(data);
@@ -89,6 +93,7 @@ export const ProductBulkImportModal: React.FC<ProductBulkImportModalProps> = ({
     setError(null);
     setLoading(true);
     setCurrentPage(1);
+    setSearchTerm('');
     try {
       const data = await uploadProductBulkPreviewApi(token, droppedFile);
       setPreview(data);
@@ -126,10 +131,15 @@ export const ProductBulkImportModal: React.FC<ProductBulkImportModalProps> = ({
     }
   };
 
-  // Lọc các dòng hiển thị theo filter
+  // Lọc các dòng hiển thị theo filter và từ khóa tìm kiếm
   const filteredRows = preview?.rows.filter((row) => {
-    if (statusFilter === 'ALL') return true;
-    return row.status === statusFilter;
+    const matchesFilter = statusFilter === 'ALL' || row.status === statusFilter;
+    const q = searchTerm.trim().toLowerCase();
+    const matchesSearch = !q ||
+      (row.sku && row.sku.toLowerCase().includes(q)) ||
+      (row.name && row.name.toLowerCase().includes(q)) ||
+      (row.category && row.category.toLowerCase().includes(q));
+    return matchesFilter && matchesSearch;
   }) || [];
 
   const totalPages = Math.ceil(filteredRows.length / pageSize) || 1;
@@ -285,31 +295,8 @@ export const ProductBulkImportModal: React.FC<ProductBulkImportModalProps> = ({
             </div>
           ) : (
             <>
-              {/* Instructions and Template Download */}
-              <div
-                style={{
-                  marginBottom: '18px',
-                  padding: '14px 18px',
-                  background: '#f8fafc',
-                  borderRadius: '10px',
-                  border: '1px solid #e2e8f0',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  flexWrap: 'wrap',
-                  gap: '12px',
-                }}
-              >
-                <div>
-                  <div style={{ fontWeight: '600', color: '#1e293b', fontSize: '13.5px', marginBottom: '3px' }}>
-                    Quy trình nhập dữ liệu danh mục sản phẩm:
-                  </div>
-                  <div style={{ color: '#64748b', fontSize: '12.5px', lineHeight: '1.5' }}>
-                    1. Bấm <strong>Tải file mẫu</strong> để có định dạng chuẩn các cột (SKU, Tên, ĐVT, Giá bán, Giá vốn, Danh mục).<br />
-                    2. Tải file đã điền lên hệ thống. Kiểm tra dòng <strong>[Tạo mới]</strong> (xanh lá) và <strong>[Cập nhật]</strong> (vàng cam).<br />
-                    3. Kiểm tra các dòng cảnh báo lỗi đỏ trước khi xác nhận.
-                  </div>
-                </div>
+              {/* Template Download */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '12px' }}>
                 <button
                   type="button"
                   onClick={handleDownloadTemplate}
@@ -504,6 +491,73 @@ export const ProductBulkImportModal: React.FC<ProductBulkImportModalProps> = ({
                       >
                         Lỗi ({preview.error_count})
                       </button>
+
+                      {/* Ô tìm kiếm sản phẩm xem trước */}
+                      <div style={{ position: 'relative', width: '240px', marginLeft: '6px' }}>
+                        <span
+                          style={{
+                            position: 'absolute',
+                            left: '9px',
+                            top: '50%',
+                            transform: 'translateY(-50%)',
+                            color: '#94a3b8',
+                            display: 'flex',
+                            alignItems: 'center',
+                            pointerEvents: 'none',
+                          }}
+                        >
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                            <circle cx="11" cy="11" r="8" />
+                            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                          </svg>
+                        </span>
+                        <input
+                          type="text"
+                          placeholder="Tìm mã SKU, tên SP..."
+                          value={searchTerm}
+                          onChange={(e) => {
+                            setSearchTerm(e.target.value);
+                            setCurrentPage(1);
+                          }}
+                          style={{
+                            width: '100%',
+                            padding: '4px 24px 4px 28px',
+                            borderRadius: '6px',
+                            border: '1px solid #cbd5e1',
+                            fontSize: '12px',
+                            color: '#0f172a',
+                            background: '#ffffff',
+                            outline: 'none',
+                            boxSizing: 'border-box',
+                          }}
+                        />
+                        {searchTerm && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSearchTerm('');
+                              setCurrentPage(1);
+                            }}
+                            style={{
+                              position: 'absolute',
+                              right: '6px',
+                              top: '50%',
+                              transform: 'translateY(-50%)',
+                              background: 'none',
+                              border: 'none',
+                              color: '#94a3b8',
+                              cursor: 'pointer',
+                              padding: '2px',
+                              fontSize: '11px',
+                              display: 'flex',
+                              alignItems: 'center',
+                            }}
+                            title="Xóa tìm kiếm"
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
                     </div>
 
                     {/* Option: Skip errors checkbox */}
@@ -557,8 +611,11 @@ export const ProductBulkImportModal: React.FC<ProductBulkImportModalProps> = ({
                       <tbody>
                         {paginatedRows.length === 0 ? (
                           <tr>
-                            <td colSpan={10} style={{ padding: '24px', textAlign: 'center', color: '#94a3b8' }}>
-                              Không có dòng nào thuộc bộ lọc này.
+                            <td colSpan={10} style={{ padding: '32px 20px', textAlign: 'center', color: '#64748b' }}>
+                              <div style={{ fontSize: '24px', marginBottom: '6px' }}>🔍</div>
+                              <div style={{ fontWeight: '600', fontSize: '13px', color: '#334155' }}>
+                                {searchTerm ? `Không tìm thấy sản phẩm nào khớp với từ khóa "${searchTerm}"` : 'Không có dòng nào thuộc bộ lọc này.'}
+                              </div>
                             </td>
                           </tr>
                         ) : (
