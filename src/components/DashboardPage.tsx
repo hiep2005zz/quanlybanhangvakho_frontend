@@ -228,6 +228,7 @@ export default function DashboardPage({
     const isProductHistoryPath = pathname === '/product-history' || pathname.startsWith('/product-history/');
     const isWarehousesPath = pathname === '/warehouses' || pathname.startsWith('/warehouses/');
     const isStockBookPath = pathname === '/stock-book' || pathname.startsWith('/stock-book/');
+    const isStockCardPath = pathname === '/stock-card' || pathname.startsWith('/stock-card/');
     const isStockAuditsPath = pathname === '/stock-audits' || pathname.startsWith('/stock-audits/');
     const isStockTransfersPath = pathname === '/stock-transfers' || pathname.startsWith('/stock-transfers/');
     const isStockThresholdsPath = pathname === '/stock-thresholds' || pathname.startsWith('/stock-thresholds/');
@@ -279,6 +280,10 @@ export default function DashboardPage({
       }
       try { window.history.replaceState({}, '', '/'); } catch { }
       return 'inventory';
+    }
+
+    if (isStockCardPath || oldTabVal === 'stock-card') {
+      return 'stock-card';
     }
 
     if (isStockBookPath || oldTabVal === 'stock-book') {
@@ -522,6 +527,11 @@ export default function DashboardPage({
       return;
     }
 
+    if (tab === 'stock-card') {
+      setActiveTabState('stock-card');
+      return;
+    }
+
     if (tab === 'stock-book') {
       setActiveTabState('stock-book');
       try {
@@ -746,6 +756,12 @@ export default function DashboardPage({
           try { window.history.replaceState({}, '', '/products/import'); } catch {}
         }
         setActiveTabState('products-import');
+        return;
+      }
+
+      const isStockCardPath = pathname === '/stock-card' || pathname.startsWith('/stock-card/');
+      if (isStockCardPath || tabParam === 'stock-card') {
+        setActiveTabState('stock-card');
         return;
       }
 
@@ -1049,6 +1065,7 @@ export default function DashboardPage({
   const [isGoodsReceiptModalOpen, setIsGoodsReceiptModalOpen] = useState(false);
   const [goodsReceiptInitialTab] = useState<'form' | 'list'>('form');
   const [selectedProductForStockCard, setSelectedProductForStockCard] = useState<{ id: number; name: string; code: string } | null>(null);
+  const [stockCardReturnTab, setStockCardReturnTab] = useState<TabType>('stock-book');
   const [isSalesOrderEntryOpen, setIsSalesOrderEntryOpen] = useState(false);
   const [cloneOrderData, setCloneOrderData] = useState<any>(() => {
     try {
@@ -1935,14 +1952,14 @@ export default function DashboardPage({
             fetchLowStockAlerts();
           }}
         />
-      ) : activeTab === 'stock-card' && selectedProductForStockCard ? (
+      ) : activeTab === 'stock-card' ? (
           <StockCardView
-            productId={selectedProductForStockCard.id}
-            productName={selectedProductForStockCard.name}
-            productCode={selectedProductForStockCard.code}
+            productId={selectedProductForStockCard?.id || 1}
+            productName={selectedProductForStockCard?.name}
+            productCode={selectedProductForStockCard?.code}
             token={token}
             onBack={() => {
-              setActiveTab('stock-book');
+              setActiveTab(stockCardReturnTab || 'stock-book');
               setSelectedProductForStockCard(null);
             }}
             onNavigateToTab={(tab) => {
@@ -1959,6 +1976,7 @@ export default function DashboardPage({
             }}
             onOpenStockCard={(productId, productName, productCode) => {
               setSelectedProductForStockCard({ id: productId, name: productName, code: productCode });
+              setStockCardReturnTab('stock-book');
               setActiveTab('stock-card');
             }}
           />
@@ -3187,6 +3205,7 @@ export default function DashboardPage({
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         setSelectedProductForStockCard({ id: item.id, name: item.name, code: item.code });
+                                        setStockCardReturnTab('inventory');
                                         setActiveTab('stock-card');
                                         setOpenProductMenuId(null);
                                       }}
