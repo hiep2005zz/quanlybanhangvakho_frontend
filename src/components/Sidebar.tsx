@@ -26,7 +26,8 @@ export type TabType =
   | 'goods-receipt'
   | 'add-product'
   | 'products-import'
-  | 'batches';
+  | 'batches'
+  | 'delivery-tracking';
 
 export interface SidebarProps {
   activeTab?: TabType;
@@ -47,6 +48,7 @@ export interface SidebarProps {
   canAccessStockTransfer?: boolean;
   canAccessWarehouses?: boolean;
   canWriteInventory?: boolean;
+  canAccessDeliveryTracking?: boolean;
   isAdmin?: boolean;
   onLogout?: () => void;
   isLoggingOut?: boolean;
@@ -84,6 +86,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   canAccessStockTransfer = false,
   canAccessWarehouses = false,
   canWriteInventory: _canWriteInventory = false,
+  canAccessDeliveryTracking = false,
   onLogout,
   isLoggingOut = false,
 }) => {
@@ -445,6 +448,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
           <circle cx="12" cy="10" r="3" />
+        </svg>
+      ),
+    },
+    {
+      id: 'btn-sidebar-delivery-tracking',
+      tab: 'delivery-tracking',
+      path: '/delivery-tracking',
+      label: 'Theo dõi giao hàng',
+      visible: canAccessDeliveryTracking,
+      icon: (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="1" y="3" width="15" height="13" rx="1" />
+          <polygon points="16 8 20 8 23 11 23 16 16 16 8" />
+          <circle cx="5.5" cy="18.5" r="2.5" />
+          <circle cx="18.5" cy="18.5" r="2.5" />
+          <line x1="9" y1="11" x2="12" y2="11" />
         </svg>
       ),
     },

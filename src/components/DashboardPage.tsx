@@ -35,6 +35,9 @@ import { ProductBulkImportModal } from './ProductBulkImportModal';
 import DealerSearchView from './DealerSearchView';
 import DealerProfileManagementView from './DealerProfileManagementView';
 import DeliveryPointsView from './DeliveryPointsView';
+import DeliveryTrackingView from './DeliveryTrackingView';
+import DeliveryTripDetailView from './DeliveryTripDetailView';
+import CreateDeliveryTripView from './CreateDeliveryTripView';
 import { ProductUnitModal } from './ProductUnitModal';
 import { StockActionModal } from './StockActionModal';
 import { GoodsReceiptView } from './GoodsReceiptView';
@@ -125,6 +128,18 @@ export default function DashboardPage({
     officialRoles.some((r) => DELIVERY_ROLES.includes(r))
   );
 
+  // Quyền theo dõi hàng đang giao (SCRUM-84): Quản lý kho, Admin, Thủ kho, Quản lý kinh doanh
+  const canAccessDeliveryTracking = Boolean(
+    isAdmin ||
+    user.role === 'warehouse_manager' ||
+    user.role === 'warehouse_mgr' ||
+    officialRoles.includes('warehouse_manager') ||
+    officialRoles.includes('warehouse_mgr') ||
+    user.role === 'warehouse' ||
+    officialRoles.includes('warehouse') ||
+    isSalesManager
+  );
+
   // Quyền thao tác kho (Nhập/xuất/sửa kho: Admin, Quản lý kho, Thủ kho)
   const canWriteInventory = user.can_write_inventory ?? (isAdmin || officialRoles.some((r) => ['admin', 'warehouse', 'warehouse_manager'].includes(r)));
 
@@ -197,6 +212,13 @@ export default function DashboardPage({
     !isPriceBookEditSubpage &&
     currentPath !== '/price-books' &&
     currentPath !== '/price-lists';
+  const isDeliveryTrackingCreateSubpage =
+    currentPath === '/delivery-tracking/create' ||
+    currentPath.startsWith('/delivery-tracking/create');
+  const isDeliveryTrackingDetailSubpage =
+    currentPath.startsWith('/delivery-tracking/') &&
+    !isDeliveryTrackingCreateSubpage &&
+    currentPath !== '/delivery-tracking';
 
   const [activeTab, setActiveTabState] = useState<TabType>(() => {
     const pathname = window.location.pathname.toLowerCase();
@@ -225,6 +247,7 @@ export default function DashboardPage({
     const isDealerProfilesPath = pathname === '/dealer-profiles' || pathname.startsWith('/dealer-profiles/');
     const isDealersPath = pathname === '/dealers' || pathname.startsWith('/dealers/');
     const isDeliveryPointsPath = pathname === '/delivery-points' || pathname.startsWith('/delivery-points/');
+    const isDeliveryTrackingPath = pathname === '/delivery-tracking' || pathname.startsWith('/delivery-tracking');
     const isProductHistoryPath = pathname === '/product-history' || pathname.startsWith('/product-history/');
     const isWarehousesPath = pathname === '/warehouses' || pathname.startsWith('/warehouses/');
     const isStockBookPath = pathname === '/stock-book' || pathname.startsWith('/stock-book/');
@@ -364,6 +387,20 @@ export default function DashboardPage({
         }
       }
       return 'delivery-points';
+    }
+    if (isDeliveryTrackingPath || oldTabVal === 'delivery-tracking' || oldTabVal === 'in-transit') {
+      if (canAccessDeliveryTracking) {
+        if (hasOldTabParam || (!pathname.startsWith('/delivery-tracking') && pathname !== '/delivery-tracking')) {
+          try {
+            window.history.replaceState({}, '', pathname.startsWith('/delivery-tracking') ? pathname : '/delivery-tracking');
+          } catch {
+            // ignore
+          }
+        }
+        return 'delivery-tracking';
+      }
+      try { window.history.replaceState({}, '', '/'); } catch {}
+      return 'inventory';
     }
     if (isDealerProfilesPath || oldTabVal === 'dealer-profiles') {
       if (hasOldTabParam || pathname !== '/dealer-profiles') {
@@ -574,6 +611,18 @@ export default function DashboardPage({
       } catch {
         // ignore
       }
+    } else if (tab === 'delivery-tracking') {
+      if (!canAccessDeliveryTracking) {
+        setActiveTabState('inventory');
+        try { window.history.replaceState({}, '', '/'); } catch {}
+        return;
+      }
+      setActiveTabState('delivery-tracking');
+      try {
+        window.history.pushState({}, '', '/delivery-tracking');
+      } catch {
+        // ignore
+      }
     } else if (tab === 'dealer-profiles') {
       setActiveTabState('dealer-profiles');
       try {
@@ -664,7 +713,8 @@ export default function DashboardPage({
                       : activeTab === 'warehouses' ? canAccessWarehouses
                       : activeTab === 'goods-receipt' ? canWriteInventory
                         : activeTab === 'batches' ? !isCustomer
-                          : true;
+                          : activeTab === 'delivery-tracking' ? canAccessDeliveryTracking
+                            : true;
     if (!isAllowed) {
       setActiveTabState('inventory');
       window.history.replaceState({}, '', '/');
@@ -691,7 +741,15 @@ export default function DashboardPage({
         // ignore
       }
     }
-  }, [activeTab, canManageCategories, canViewDealers, canManageDealerProfiles, canManageDeliveryPoints, canAccessDiscounts, canWriteInventory, user.username, isCustomer]);
+    if (activeTab === 'delivery-tracking' && !canAccessDeliveryTracking) {
+      setActiveTabState('inventory');
+      try {
+        window.history.replaceState({}, '', '/');
+      } catch {
+        // ignore
+      }
+    }
+  }, [activeTab, canManageCategories, canViewDealers, canManageDealerProfiles, canManageDeliveryPoints, canAccessDeliveryTracking, canAccessDiscounts, canWriteInventory, user.username, isCustomer]);
 
   useEffect(() => {
     const syncFromUrl = () => {
@@ -888,6 +946,24 @@ export default function DashboardPage({
           }
         }
         setActiveTabState('delivery-points');
+        return;
+      }
+
+      const isDeliveryTrackingPath = pathname === '/delivery-tracking' || pathname.startsWith('/delivery-tracking');
+      if (isDeliveryTrackingPath || tabParam === 'delivery-tracking' || tabParam === 'in-transit') {
+        if (canAccessDeliveryTracking) {
+          if (tabParam || (!pathname.startsWith('/delivery-tracking') && pathname !== '/delivery-tracking')) {
+            try {
+              window.history.replaceState({}, '', pathname.startsWith('/delivery-tracking') ? pathname : '/delivery-tracking');
+            } catch {
+              // ignore
+            }
+          }
+          setActiveTabState('delivery-tracking');
+        } else {
+          setActiveTabState('inventory');
+          try { window.history.replaceState({}, '', '/'); } catch {}
+        }
         return;
       }
 
@@ -1432,7 +1508,8 @@ export default function DashboardPage({
   const isGoodsReceiptPage = activeTab === 'goods-receipt';
   const isProductsImportPage = activeTab === 'products-import';
   const isUsersImportPage = activeTab === 'users-import';
-  const isLockedScrollTab = !isProductFormOpen && !isSalesOrderOpen && !isOrdersCreateSubpage && !isOrderDetailSubpage && !isPriceListsCreateSubpage && !isPriceBookDetailSubpage && !isPriceBookEditSubpage && !isGoodsReceiptPage && !isStockTransferCreateSubpage && !isBatchesCreateSubpage && !isProductsImportPage && !isUsersImportPage && (activeTab === 'inventory' || activeTab === 'dealers' || activeTab === 'dealer-profiles' || activeTab === 'delivery-points' || activeTab === 'suppliers' || activeTab === 'price-books' || activeTab === 'categories' || activeTab === 'orders' || activeTab === 'product-history' || activeTab === 'stock-book' || activeTab === 'stock-audits' || activeTab === 'stock-transfers' || activeTab === 'stock-thresholds' || activeTab === 'low-stock-alerts' || activeTab === 'batches') && !isPendingCustomer;
+  const isDeliveryTrackingPage = activeTab === 'delivery-tracking' || currentPath === '/delivery-tracking' || currentPath.startsWith('/delivery-tracking/');
+  const isLockedScrollTab = !isProductFormOpen && !isSalesOrderOpen && !isOrdersCreateSubpage && !isOrderDetailSubpage && !isPriceListsCreateSubpage && !isPriceBookDetailSubpage && !isPriceBookEditSubpage && !isGoodsReceiptPage && !isStockTransferCreateSubpage && !isBatchesCreateSubpage && !isProductsImportPage && !isUsersImportPage && !isDeliveryTrackingPage && (activeTab === 'inventory' || activeTab === 'dealers' || activeTab === 'dealer-profiles' || activeTab === 'delivery-points' || activeTab === 'suppliers' || activeTab === 'price-books' || activeTab === 'categories' || activeTab === 'orders' || activeTab === 'product-history' || activeTab === 'stock-book' || activeTab === 'stock-audits' || activeTab === 'stock-transfers' || activeTab === 'stock-thresholds' || activeTab === 'low-stock-alerts' || activeTab === 'batches') && !isPendingCustomer;
 
   return (
     <DashboardLayout
@@ -1461,12 +1538,12 @@ export default function DashboardPage({
       }
       noScroll={!isMobileScreen && isLockedScrollTab}
       mainClassName={
-        isOrderDetailSubpage || isOrdersCreateSubpage || isPriceListsCreateSubpage || isPriceBookDetailSubpage || isPriceBookEditSubpage || isGoodsReceiptPage || isStockTransferCreateSubpage || isBatchesCreateSubpage || isProductsImportPage || isUsersImportPage
-          ? 'flex-1 min-w-0 overflow-y-auto p-0 flex flex-col bg-slate-50'
+        isOrderDetailSubpage || isOrdersCreateSubpage || isPriceListsCreateSubpage || isPriceBookDetailSubpage || isPriceBookEditSubpage || isGoodsReceiptPage || isStockTransferCreateSubpage || isBatchesCreateSubpage || isProductsImportPage || isUsersImportPage || isDeliveryTrackingPage
+          ? 'flex-1 h-full min-h-0 overflow-y-auto p-0 flex flex-col bg-slate-50'
           : isCustomer
           ? 'flex-1 min-w-0 overflow-hidden p-0 flex flex-col bg-slate-50 h-full'
           : isMobileScreen
-          ? 'flex-1 min-w-0 overflow-y-auto p-2 sm:p-3 flex flex-col'
+          ? 'flex-1 h-full min-h-0 overflow-y-auto p-2 sm:p-3 flex flex-col'
           : undefined
       }
       sidebar={
@@ -1483,6 +1560,7 @@ export default function DashboardPage({
           canViewDealers={canViewDealers}
           canManageDealerProfiles={canManageDealerProfiles}
           canManageDeliveryPoints={canManageDeliveryPoints}
+          canAccessDeliveryTracking={canAccessDeliveryTracking}
           canManageSuppliers={canManageSuppliers}
           canAccessPriceBooks={canAccessPriceBooks}
           canManageCategories={canManageCategories}
@@ -1505,7 +1583,7 @@ export default function DashboardPage({
     >
       <div
         className="dashboard-main-container"
-        style={isCustomer || isOrdersCreateSubpage || isPriceListsCreateSubpage || isPriceBookDetailSubpage || isPriceBookEditSubpage || isOrderDetailSubpage || isGoodsReceiptPage || isStockTransferCreateSubpage || isBatchesCreateSubpage || isProductsImportPage || isUsersImportPage || isMobileScreen ? {
+        style={isCustomer || isOrdersCreateSubpage || isPriceListsCreateSubpage || isPriceBookDetailSubpage || isPriceBookEditSubpage || isOrderDetailSubpage || isGoodsReceiptPage || isStockTransferCreateSubpage || isBatchesCreateSubpage || isProductsImportPage || isUsersImportPage || isDeliveryTrackingPage || isMobileScreen ? {
           width: '100%',
           display: 'flex',
           flexDirection: 'column',
@@ -1916,6 +1994,46 @@ export default function DashboardPage({
             <AccessDeniedView
               currentUser={user}
               requiredPermission="Quản lý điểm giao hàng"
+              onBackToWorkflow={() => setActiveTab('inventory')}
+              onLogout={onLogout}
+            />
+          )
+        ) : activeTab === 'delivery-tracking' ? (
+          canAccessDeliveryTracking ? (
+            isDeliveryTrackingCreateSubpage ? (
+              <CreateDeliveryTripView
+                token={token}
+                userRole={user.role}
+                userRoles={officialRoles}
+                userName={user.full_name || user.username}
+                canManage={canAccessDeliveryTracking}
+                onBack={() => {
+                  window.history.pushState({}, '', '/delivery-tracking');
+                }}
+              />
+            ) : isDeliveryTrackingDetailSubpage ? (
+              <DeliveryTripDetailView
+                token={token}
+                userRole={user.role}
+                userRoles={officialRoles}
+                userName={user.full_name || user.username}
+                canManage={canAccessDeliveryTracking}
+                onBack={() => {
+                  window.history.pushState({}, '', '/delivery-tracking');
+                }}
+              />
+            ) : (
+              <DeliveryTrackingView
+                token={token}
+                userRole={user.role}
+                userRoles={officialRoles}
+                canManage={canAccessDeliveryTracking}
+              />
+            )
+          ) : (
+            <AccessDeniedView
+              currentUser={user}
+              requiredPermission="Theo dõi hàng đang giao (Quản trị hệ thống / Quản lý kho)"
               onBackToWorkflow={() => setActiveTab('inventory')}
               onLogout={onLogout}
             />

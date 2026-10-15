@@ -10,6 +10,7 @@ export interface StatusToastPayload {
   message: string | any;
   title?: string;
   type?: 'success' | 'warning' | 'error' | 'info';
+  durationMs?: number;
 }
 
 /**
@@ -51,6 +52,7 @@ export const StatusToastHost: React.FC = () => {
   const [message, setMessage] = useState<string | null>(null);
   const [title, setTitle] = useState<string>('Thông báo hệ thống');
   const [toastType, setToastType] = useState<'success' | 'warning' | 'error' | 'info'>('success');
+  const [durationMs, setDurationMs] = useState<number>(STATUS_TOAST_VISIBLE_MS);
   const [isExiting, setIsExiting] = useState<boolean>(false);
   // Số thứ tự thông báo: dùng làm "key" để buộc toast mount lại -> hiệu ứng trượt vào luôn phát lại
   const [seq, setSeq] = useState<number>(0);
@@ -121,6 +123,7 @@ export const StatusToastHost: React.FC = () => {
       setMessage(cleanedMsg);
       setTitle(rawTitle);
       setToastType(determinedType);
+      setDurationMs(d.durationMs && d.durationMs > 0 ? d.durationMs : STATUS_TOAST_VISIBLE_MS);
       setIsExiting(false);
       setSeq((s) => s + 1);
     };
@@ -129,21 +132,21 @@ export const StatusToastHost: React.FC = () => {
     return () => window.removeEventListener(STATUS_TOAST_EVENT, handleToast);
   }, []);
 
-  // Tự động ẩn: hiển thị 5s -> trượt ra về mép phải -> gỡ khỏi DOM.
+  // Tự động ẩn: hiển thị durationMs -> trượt ra về mép phải -> gỡ khỏi DOM.
   useEffect(() => {
     if (!message) return;
     const hideTimer = setTimeout(() => {
       setIsExiting(true);
-    }, STATUS_TOAST_VISIBLE_MS);
+    }, durationMs);
     const removeTimer = setTimeout(() => {
       setMessage(null);
       setIsExiting(false);
-    }, STATUS_TOAST_VISIBLE_MS + STATUS_TOAST_EXIT_MS + 60);
+    }, durationMs + STATUS_TOAST_EXIT_MS + 60);
     return () => {
       clearTimeout(hideTimer);
       clearTimeout(removeTimer);
     };
-  }, [seq, message]);
+  }, [seq, message, durationMs]);
 
   if (!message || typeof document === 'undefined') return null;
 
