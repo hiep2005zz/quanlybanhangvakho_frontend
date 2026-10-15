@@ -7,6 +7,8 @@ export type TabType =
   | 'stock-book'
   | 'stock-audits'
   | 'stock-transfers'
+  | 'warehouse-dispatch'
+  | 'delivery-trips'
   | 'orders'
   | 'create-order'
   | 'users'
@@ -82,11 +84,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
   canAccessStockAudit = false,
   canAccessStockTransfer = false,
   canAccessWarehouses = false,
-  canWriteInventory: _canWriteInventory = false,
+  canWriteInventory = false,
+  isAdmin = false,
   onLogout,
   isLoggingOut = false,
 }) => {
-  void _canWriteInventory;
   // Lấy pathname hiện tại từ hook useLocation
   const location = useLocation();
   const currentPath = location.pathname.toLowerCase();
@@ -350,6 +352,34 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2" />
           <rect x="9" y="3" width="6" height="4" rx="1" />
           <path d="m9 14 2 2 4-4" />
+        </svg>
+      ),
+    },
+    {
+      id: 'btn-sidebar-warehouse-dispatch',
+      tab: 'warehouse-dispatch',
+      path: '/warehouse/dispatch',
+      label: 'Xuất kho & Giao thiếu',
+      visible: !isCustomer && (canAccessWarehouses || canWriteInventory || isAdmin),
+      icon: (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M5 18H3c-.6 0-1-.4-1-1V7c0-.6.4-1 1-1h10c.6 0 1 .4 1 1v11" />
+          <path d="M14 9h4l4 4v4c0 .6-.4 1-1 1h-2" />
+          <circle cx="7" cy="18" r="2" />
+          <circle cx="17" cy="18" r="2" />
+        </svg>
+      ),
+    },
+    {
+      id: 'btn-sidebar-delivery-trips',
+      tab: 'delivery-trips',
+      path: '/delivery-trips',
+      label: 'Chuyến giao hàng',
+      visible: !isCustomer && (canAccessWarehouses || canWriteInventory || isAdmin),
+      icon: (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="10" />
+          <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" />
         </svg>
       ),
     },

@@ -3357,6 +3357,162 @@ export async function supplementaryDeliveryApi(
   return data;
 }
 
+export interface WarehouseDispatchOrderItem {
+  product_id: number;
+  sku_id: string;
+  product_name: string;
+  quantity: number;
+  delivered_quantity: number;
+  remaining_quantity?: number;
+  shortage_quantity?: number;
+  unit: string;
+  available_stock: number;
+}
+
+export interface WarehouseDispatchOrder {
+  id: number;
+  order_code: string;
+  dealer_id: number;
+  dealer_name: string;
+  created_at: string;
+  status: string;
+  total_amount: number;
+  total_items?: number;
+  shortage_items_count?: number;
+  total_shortage_quantity?: number;
+  last_dispatch_date?: string | null;
+  dispatch_count?: number;
+  note?: string;
+  warehouse_id?: string;
+  warehouse_name?: string;
+  items: WarehouseDispatchOrderItem[];
+}
+
+export interface OrderDispatchHistoryItem {
+  id: number;
+  dispatch_code: string;
+  order_code: string;
+  dispatch_type: 'INITIAL' | 'SUPPLEMENTARY';
+  round_number: number;
+  warehouse_id?: string;
+  warehouse_name?: string;
+  performed_by: string;
+  note?: string;
+  created_at: string;
+  items: Array<{
+    product_id: number;
+    sku_id: string;
+    product_name: string;
+    ordered_quantity: number;
+    dispatched_this_round: number;
+    total_delivered: number;
+    remaining_shortage: number;
+    unit: string;
+  }>;
+}
+
+export async function getWarehouseDispatchPendingApi(token: string): Promise<WarehouseDispatchOrder[]> {
+  const response = await authenticatedFetch(
+    `${API_BASE_URL}/orders/warehouse/dispatch-pending`,
+    { method: 'GET' },
+    token
+  );
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Lỗi tải danh sách đơn chờ xuất kho');
+  }
+  return response.json();
+}
+
+export async function getWarehouseSupplementaryPendingApi(token: string): Promise<WarehouseDispatchOrder[]> {
+  const response = await authenticatedFetch(
+    `${API_BASE_URL}/orders/warehouse/supplementary-pending`,
+    { method: 'GET' },
+    token
+  );
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Lỗi tải danh sách đơn chờ giao bổ sung');
+  }
+  return response.json();
+}
+
+export async function confirmOrderDispatchApi(
+  token: string,
+  orderCode: string,
+  payload: { delivered_quantities: Record<string, number>; note?: string }
+): Promise<any> {
+  const response = await authenticatedFetch(
+    `${API_BASE_URL}/orders/${encodeURIComponent(orderCode)}/confirm-dispatch`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    },
+    token
+  );
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi xác nhận xuất kho (Mã lỗi ${response.status})`);
+  }
+  return data;
+}
+
+export async function getOrderDispatchHistoryApi(
+  token: string,
+  orderCode: string
+): Promise<OrderDispatchHistoryItem[]> {
+  const response = await authenticatedFetch(
+    `${API_BASE_URL}/orders/${encodeURIComponent(orderCode)}/dispatch-history`,
+    { method: 'GET' },
+    token
+  );
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Lỗi tải lịch sử phiếu xuất kho');
+  }
+  return response.json();
+}
+
+export interface WarehouseDispatchRecord {
+  id: number;
+  dispatch_code: string;
+  order_id: number;
+  order_code: string;
+  dealer_name?: string;
+  order_status?: string;
+  total_order_amount?: number;
+  dispatch_type: 'INITIAL' | 'SUPPLEMENTARY' | string;
+  round_number: number;
+  warehouse_id?: string;
+  warehouse_name?: string;
+  performed_by: string;
+  note?: string;
+  created_at: string;
+  items_count: number;
+  total_dispatched_qty: number;
+  items?: Array<{
+    product_id: number;
+    product_name: string;
+    sku_id?: string;
+    unit?: string;
+    ordered_quantity: number;
+    dispatched_this_round: number;
+    total_delivered: number;
+    remaining_shortage: number;
+  }>;
+}
+
+export async function getWarehouseAllDispatchesApi(token: string): Promise<WarehouseDispatchRecord[]> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/orders/warehouse/dispatches`, { method: 'GET' }, token);
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Lỗi tải danh sách phiếu xuất kho');
+  }
+  return response.json();
+}
+
+
 export async function getInventoryWarehousesApi(token: string): Promise<WarehouseInfo[]> {
   const response = await authenticatedFetch(`${API_BASE_URL}/inventory/warehouses`, { method: 'GET' }, token);
   if (!response.ok) {
@@ -3859,3 +4015,283 @@ export async function cancelStockTransferApi(token: string, code: string, reason
   }
   return data;
 }
+
+// =============================================================================
+// SCRUM-83: QUẢN LÝ CHUYẾN GIAO HÀNG (DELIVERY TRIPS)
+// =============================================================================
+
+export interface DriverOption {
+  id: number;
+  code: string;
+  name: string;
+  phone: string;
+  license_number?: string;
+  status: string;
+  is_busy?: boolean;
+  current_trip_code?: string;
+}
+
+export interface VehicleOption {
+  id: number;
+  plate_number: string;
+  vehicle_type: string;
+  capacity_kg?: number;
+  status: string;
+  is_busy?: boolean;
+  current_trip_code?: string;
+}
+
+export interface EligibleDispatch {
+  dispatch_id: number;
+  dispatch_code: string;
+  order_id: number;
+  order_code: string;
+  dispatch_type: string;
+  round_number: number;
+  warehouse_id?: string;
+  warehouse_name?: string;
+  performed_by: string;
+  created_at: string;
+  dealer_id?: number;
+  dealer_name: string;
+  delivery_point_id?: number;
+  receiver_name: string;
+  receiver_phone: string;
+  address: string;
+  route_note?: string;
+  items_summary?: string;
+}
+
+export interface DeliveryTripDispatch {
+  id: number;
+  dispatch_id: number;
+  dispatch_code: string;
+  order_code: string;
+  items_summary?: string;
+  status: string;
+}
+
+export interface DeliveryTripStop {
+  id: number;
+  stop_order: number;
+  dealer_id?: number;
+  dealer_name: string;
+  delivery_point_id?: number;
+  address: string;
+  receiver_name: string;
+  receiver_phone: string;
+  route_note?: string;
+  status: 'PENDING' | 'DELIVERED' | 'FAILED';
+  delivered_at?: string;
+  failure_reason?: string;
+  note?: string;
+  dispatches: DeliveryTripDispatch[];
+}
+
+export interface DeliveryTrip {
+  id: number;
+  trip_code: string;
+  delivery_date: string;
+  driver_id?: number;
+  driver_name?: string;
+  driver_phone?: string;
+  vehicle_id?: number;
+  vehicle_plate?: string;
+  vehicle_type?: string;
+  warehouse_id?: string;
+  warehouse_name?: string;
+  status: 'DRAFT' | 'ASSIGNED' | 'IN_PROGRESS' | 'COMPLETED' | 'PARTIALLY_FAILED' | 'CANCELLED';
+  note?: string;
+  total_stops: number;
+  total_dispatches: number;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+  stops?: DeliveryTripStop[];
+}
+
+export interface CreateDeliveryTripPayload {
+  delivery_date: string;
+  driver_id?: number;
+  vehicle_id?: number;
+  warehouse_id?: string;
+  warehouse_name?: string;
+  note?: string;
+  dispatch_ids?: number[];
+  stops?: {
+    stop_order: number;
+    dealer_id?: number;
+    dealer_name: string;
+    delivery_point_id?: number;
+    address: string;
+    receiver_name: string;
+    receiver_phone: string;
+    route_note?: string;
+    dispatch_ids: number[];
+  }[];
+}
+
+export async function listDeliveryTripsApi(
+  token: string,
+  params?: { status?: string; delivery_date?: string; driver_id?: number; search?: string }
+): Promise<DeliveryTrip[]> {
+  const qs = new URLSearchParams();
+  if (params?.status && params.status !== 'ALL') qs.set('status', params.status);
+  if (params?.delivery_date) qs.set('delivery_date', params.delivery_date);
+  if (params?.driver_id) qs.set('driver_id', String(params.driver_id));
+  if (params?.search) qs.set('search', params.search);
+
+  const queryStr = qs.toString();
+  const url = `${API_BASE_URL}/delivery-trips${queryStr ? `?${queryStr}` : ''}`;
+  const response = await authenticatedFetch(url, { method: 'GET' }, token);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.detail || 'Lỗi tải danh sách chuyến giao hàng');
+  }
+  return response.json();
+}
+
+export async function getDeliveryTripDetailApi(token: string, tripId: number): Promise<DeliveryTrip> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/delivery-trips/${tripId}`, { method: 'GET' }, token);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.detail || 'Lỗi tải chi tiết chuyến giao hàng');
+  }
+  return response.json();
+}
+
+export async function createDeliveryTripApi(
+  token: string,
+  payload: CreateDeliveryTripPayload
+): Promise<{ status: string; message: string; trip_id: number; trip_code: string }> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/delivery-trips`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  }, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || 'Lỗi tạo chuyến giao hàng');
+  }
+  return data;
+}
+
+export async function updateDeliveryTripApi(
+  token: string,
+  tripId: number,
+  payload: Partial<CreateDeliveryTripPayload>
+): Promise<{ status: string; message: string }> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/delivery-trips/${tripId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  }, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || 'Lỗi cập nhật chuyến giao hàng');
+  }
+  return data;
+}
+
+export async function assignDeliveryTripApi(
+  token: string,
+  tripId: number,
+  payload: { driver_id: number; vehicle_id: number }
+): Promise<{ status: string; message: string }> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/delivery-trips/${tripId}/assign`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  }, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || 'Lỗi phân công tài xế & phương tiện');
+  }
+  return data;
+}
+
+export async function updateDeliveryTripStatusApi(
+  token: string,
+  tripId: number,
+  payload: { status: string; note?: string }
+): Promise<{ status: string; message: string; new_status: string }> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/delivery-trips/${tripId}/status`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  }, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || 'Lỗi cập nhật trạng thái chuyến giao');
+  }
+  return data;
+}
+
+export async function updateDeliveryTripStopResultApi(
+  token: string,
+  tripId: number,
+  stopId: number,
+  payload: { status: string; failure_reason?: string; note?: string; delivered_at?: string }
+): Promise<{ status: string; message: string; stop_status: string; trip_status: string }> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/delivery-trips/${tripId}/stops/${stopId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  }, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || 'Lỗi cập nhật kết quả điểm giao');
+  }
+  return data;
+}
+
+export async function deleteDeliveryTripApi(
+  token: string,
+  tripId: number
+): Promise<{ status: string; message: string }> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/delivery-trips/${tripId}`, {
+    method: 'DELETE',
+  }, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || 'Lỗi xóa chuyến giao hàng');
+  }
+  return data;
+}
+
+export async function listEligibleDispatchesApi(token: string, warehouseId?: string): Promise<EligibleDispatch[]> {
+  const qs = warehouseId ? `?warehouse_id=${encodeURIComponent(warehouseId)}` : '';
+  const response = await authenticatedFetch(`${API_BASE_URL}/delivery-trips/eligible-dispatches${qs}`, {
+    method: 'GET',
+  }, token);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.detail || 'Lỗi nạp danh sách phiếu xuất hợp lệ');
+  }
+  return response.json();
+}
+
+export async function listDriversApi(token: string, deliveryDate?: string): Promise<DriverOption[]> {
+  const qs = deliveryDate ? `?delivery_date=${encodeURIComponent(deliveryDate)}` : '';
+  const response = await authenticatedFetch(`${API_BASE_URL}/delivery-trips/drivers${qs}`, {
+    method: 'GET',
+  }, token);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.detail || 'Lỗi tải danh sách tài xế');
+  }
+  return response.json();
+}
+
+export async function listVehiclesApi(token: string, deliveryDate?: string): Promise<VehicleOption[]> {
+  const qs = deliveryDate ? `?delivery_date=${encodeURIComponent(deliveryDate)}` : '';
+  const response = await authenticatedFetch(`${API_BASE_URL}/delivery-trips/vehicles${qs}`, {
+    method: 'GET',
+  }, token);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.detail || 'Lỗi tải danh sách phương tiện');
+  }
+  return response.json();
+}
+

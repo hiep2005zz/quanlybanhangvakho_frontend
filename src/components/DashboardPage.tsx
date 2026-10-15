@@ -52,6 +52,8 @@ import WarehouseManagementView from './WarehouseManagementView';
 import { WarehouseStockBookView } from './WarehouseStockBookView';
 import { StockAuditManagementView } from './StockAuditManagementView';
 import { StockTransferManagementView } from './StockTransferManagementView';
+import { WarehouseDispatchView } from './WarehouseDispatchView';
+import { DeliveryTripsView } from './DeliveryTripsView';
 import { ModalPortal } from './ModalPortal';
 import { DashboardHeader } from './DashboardHeader';
 import { CustomerDebtView } from './CustomerDebtView';
@@ -231,10 +233,31 @@ export default function DashboardPage({
     const isStockThresholdsPath = pathname === '/stock-thresholds' || pathname.startsWith('/stock-thresholds/');
     const isLowStockAlertsPath = pathname === '/low-stock-alerts' || pathname.startsWith('/low-stock-alerts/');
     const isGoodsReceiptPath = pathname === '/goods-receipt' || pathname.startsWith('/goods-receipt/') || pathname === '/goods-receipts';
+    const isWarehouseDispatchPath = pathname === '/warehouse/dispatch' || pathname.startsWith('/warehouse/dispatch') || pathname === '/warehouse/supplementary-deliveries' || pathname === '/warehouse/dispatch-history' || pathname === '/warehouse-dispatch';
+    const isDeliveryTripsPath = pathname === '/delivery-trips' || pathname.startsWith('/delivery-trips/') || pathname === '/warehouse/delivery-trips' || pathname.startsWith('/warehouse/delivery-trips');
 
     const params = new URLSearchParams(window.location.search);
     const hasOldTabParam = params.has('tab') || params.has('view');
     const oldTabVal = (params.get('tab') || params.get('view') || '').toLowerCase();
+
+    if (isDeliveryTripsPath || oldTabVal === 'delivery-trips' || oldTabVal === 'trips') {
+      if (!canAccessWarehouses && !canWriteInventory && !isAdmin) {
+        try { window.history.replaceState({}, '', '/'); } catch {}
+        return 'inventory';
+      }
+      if (hasOldTabParam || pathname !== '/delivery-trips') {
+        try { window.history.replaceState({}, '', '/delivery-trips'); } catch {}
+      }
+      return 'delivery-trips';
+    }
+
+    if (isWarehouseDispatchPath || oldTabVal === 'warehouse-dispatch' || oldTabVal === 'dispatch') {
+      const targetUrl = pathname.includes('supplementary') ? '/warehouse/supplementary-deliveries' : pathname.includes('history') ? '/warehouse/dispatch-history' : '/warehouse/dispatch';
+      if (hasOldTabParam || (pathname !== '/warehouse/dispatch' && pathname !== '/warehouse/supplementary-deliveries' && pathname !== '/warehouse/dispatch-history')) {
+        try { window.history.replaceState({}, '', targetUrl); } catch {}
+      }
+      return 'warehouse-dispatch';
+    }
 
     if (isLowStockAlertsPath || oldTabVal === 'low-stock-alerts' || oldTabVal === 'low-stock-alert') {
       if (hasOldTabParam || pathname !== '/low-stock-alerts') {
@@ -466,6 +489,32 @@ export default function DashboardPage({
       return;
     }
 
+    if (tab === 'warehouse-dispatch') {
+      if (!canAccessWarehouses && !canWriteInventory && !isAdmin) {
+        setActiveTabState('inventory');
+        try { window.history.replaceState({}, '', '/'); } catch {}
+        return;
+      }
+      setActiveTabState('warehouse-dispatch');
+      try {
+        window.history.pushState({}, '', '/warehouse/dispatch');
+      } catch {}
+      return;
+    }
+
+    if (tab === 'delivery-trips') {
+      if (!canAccessWarehouses && !canWriteInventory && !isAdmin) {
+        setActiveTabState('inventory');
+        try { window.history.replaceState({}, '', '/'); } catch {}
+        return;
+      }
+      setActiveTabState('delivery-trips');
+      try {
+        window.history.pushState({}, '', '/delivery-trips');
+      } catch {}
+      return;
+    }
+
     if (tab === 'stock-audits') {
       if (!canAccessStockAudit) {
         setActiveTabState('inventory');
@@ -640,6 +689,8 @@ export default function DashboardPage({
                     : activeTab === 'stock-audits' ? canAccessStockAudit
                       : activeTab === 'warehouses' ? canAccessWarehouses
                       : activeTab === 'goods-receipt' ? canWriteInventory
+                      : activeTab === 'delivery-trips' ? (canAccessWarehouses || canWriteInventory || isAdmin)
+                      : activeTab === 'warehouse-dispatch' ? (canAccessWarehouses || canWriteInventory || isAdmin)
                         : true;
     if (!isAllowed) {
       setActiveTabState('inventory');
@@ -738,7 +789,31 @@ export default function DashboardPage({
       const isProfilePath = pathname === '/profile' || pathname.startsWith('/profile/');
       const isProductHistoryPath = pathname === '/product-history' || pathname.startsWith('/product-history/');
       const isStockTransfersPath = pathname === '/stock-transfers' || pathname.startsWith('/stock-transfers/');
+      const isWarehouseDispatchPath = pathname === '/warehouse/dispatch' || pathname.startsWith('/warehouse/dispatch') || pathname === '/warehouse/supplementary-deliveries' || pathname === '/warehouse/dispatch-history' || pathname === '/warehouse-dispatch';
+      const isDeliveryTripsPath = pathname === '/delivery-trips' || pathname.startsWith('/delivery-trips/') || pathname === '/warehouse/delivery-trips' || pathname.startsWith('/warehouse/delivery-trips');
       const isStockBookPath = pathname === '/stock-book' || pathname.startsWith('/stock-book/');
+
+      if (isDeliveryTripsPath || tabParam === 'delivery-trips' || tabParam === 'trips') {
+        if (!canAccessWarehouses && !canWriteInventory && !isAdmin) {
+          setActiveTabState('inventory');
+          try { window.history.replaceState({}, '', '/'); } catch {}
+          return;
+        }
+        if (pathname !== '/delivery-trips' || tabParam) {
+          try { window.history.replaceState({}, '', '/delivery-trips'); } catch {}
+        }
+        setActiveTabState('delivery-trips');
+        return;
+      }
+
+      if (isWarehouseDispatchPath || tabParam === 'warehouse-dispatch' || tabParam === 'dispatch') {
+        const targetUrl = pathname.includes('supplementary') ? '/warehouse/supplementary-deliveries' : pathname.includes('history') ? '/warehouse/dispatch-history' : '/warehouse/dispatch';
+        if (pathname !== targetUrl || tabParam) {
+          try { window.history.replaceState({}, '', targetUrl); } catch {}
+        }
+        setActiveTabState('warehouse-dispatch');
+        return;
+      }
       if (isProductsImportPath || tabParam === 'products-import') {
         if (pathname !== '/products/import' || tabParam) {
           try { window.history.replaceState({}, '', '/products/import'); } catch {}
@@ -1387,7 +1462,8 @@ export default function DashboardPage({
   const isProductFormOpen = productDrawerState.isOpen && activeTab === 'inventory';
   const isSalesOrderOpen = activeTab === 'create-order' || isSalesOrderEntryOpen;
   const isGoodsReceiptPage = activeTab === 'goods-receipt';
-  const isLockedScrollTab = !isProductFormOpen && !isSalesOrderOpen && !isOrdersCreateSubpage && !isOrderDetailSubpage && !isPriceListsCreateSubpage && !isPriceBookDetailSubpage && !isPriceBookEditSubpage && !isGoodsReceiptPage && (activeTab === 'inventory' || activeTab === 'dealers' || activeTab === 'dealer-profiles' || activeTab === 'delivery-points' || activeTab === 'suppliers' || activeTab === 'price-books' || activeTab === 'categories' || activeTab === 'orders' || activeTab === 'product-history' || activeTab === 'stock-book' || activeTab === 'stock-audits' || activeTab === 'stock-transfers' || activeTab === 'stock-thresholds' || activeTab === 'low-stock-alerts' || activeTab === 'products-import' || activeTab === 'users-import') && !isPendingCustomer;
+  const isWarehouseDispatchPage = activeTab === 'warehouse-dispatch';
+  const isLockedScrollTab = !isProductFormOpen && !isSalesOrderOpen && !isOrdersCreateSubpage && !isOrderDetailSubpage && !isPriceListsCreateSubpage && !isPriceBookDetailSubpage && !isPriceBookEditSubpage && !isGoodsReceiptPage && !isWarehouseDispatchPage && (activeTab === 'inventory' || activeTab === 'dealers' || activeTab === 'dealer-profiles' || activeTab === 'delivery-points' || activeTab === 'suppliers' || activeTab === 'price-books' || activeTab === 'categories' || activeTab === 'orders' || activeTab === 'product-history' || activeTab === 'stock-book' || activeTab === 'stock-audits' || activeTab === 'stock-transfers' || activeTab === 'stock-thresholds' || activeTab === 'low-stock-alerts' || activeTab === 'products-import' || activeTab === 'users-import') && !isPendingCustomer;
 
   return (
     <DashboardLayout
@@ -1871,6 +1947,41 @@ export default function DashboardPage({
             <AccessDeniedView
               currentUser={user}
               requiredPermission="Quản lý điểm giao hàng"
+              onBackToWorkflow={() => setActiveTab('inventory')}
+              onLogout={onLogout}
+            />
+          )
+        ) : activeTab === 'warehouse-dispatch' ? (
+          canAccessWarehouses || canWriteInventory || isAdmin ? (
+            <WarehouseDispatchView
+              token={token}
+              currentUser={user}
+              initialTab={window.location.pathname.toLowerCase().includes('supplementary') ? 'supplementary' : window.location.pathname.toLowerCase().includes('history') ? 'history' : 'dispatch'}
+              onNavigateTab={(subTab) => {
+                const newUrl = subTab === 'supplementary' ? '/warehouse/supplementary-deliveries' : subTab === 'history' ? '/warehouse/dispatch-history' : '/warehouse/dispatch';
+                try { window.history.pushState({}, '', newUrl); } catch {}
+              }}
+              onBackToHome={() => setActiveTab('inventory')}
+            />
+          ) : (
+            <AccessDeniedView
+              currentUser={user}
+              requiredPermission="Xác nhận xuất kho và giao thiếu (Thủ kho / Quản lý kho / Quản trị viên)"
+              onBackToWorkflow={() => setActiveTab('inventory')}
+              onLogout={onLogout}
+            />
+          )
+        ) : activeTab === 'delivery-trips' ? (
+          canAccessWarehouses || canWriteInventory || isAdmin ? (
+            <DeliveryTripsView
+              token={token}
+              currentUser={user}
+              onBackToHome={() => setActiveTab('inventory')}
+            />
+          ) : (
+            <AccessDeniedView
+              currentUser={user}
+              requiredPermission="Quản lý chuyến giao hàng (Quản lý kho / Thủ kho / Quản trị viên)"
               onBackToWorkflow={() => setActiveTab('inventory')}
               onLogout={onLogout}
             />
