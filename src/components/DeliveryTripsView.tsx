@@ -551,7 +551,7 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
               </tr>
             </thead>
             <tbody>
-              {(selectedTrip.stops || []).map((st) => (
+              {(selectedTrip.stops || []).map((st: any) => (
                 <tr key={st.id} style={{ borderBottom: '1px solid #cccccc' }}>
                   <td style={{ border: '1px solid #000000', padding: '6px', textAlign: 'center', fontWeight: '800' }}>
                     {st.stop_order}
@@ -568,7 +568,7 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
                     {st.route_note && <div style={{ fontSize: '10.5px', color: '#555555', fontStyle: 'italic' }}>Lưu ý: {st.route_note}</div>}
                   </td>
                   <td style={{ border: '1px solid #000000', padding: '6px' }}>
-                    {(st.dispatches || []).map((d) => (
+                    {(st.dispatches || []).map((d: any) => (
                       <div key={d.id} style={{ fontWeight: '600' }}>
                         {d.dispatch_code}
                       </div>
@@ -789,7 +789,7 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
           </h2>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            {(selectedTrip.stops || []).map((st) => {
+            {(selectedTrip.stops || []).map((st: any) => {
               const isPending = st.status === 'PENDING';
               const isDelivered = st.status === 'DELIVERED';
               const isFailed = st.status === 'FAILED';
@@ -953,7 +953,7 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
                   <div style={{ marginTop: '10px', borderTop: '1px solid #f1f5f9', paddingTop: '8px' }}>
                     <span style={{ fontSize: '12px', fontWeight: '700', color: '#64748b' }}>Phiếu xuất giao tại điểm này:</span>
                     <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '4px' }}>
-                      {(st.dispatches || []).map((d) => (
+                      {(st.dispatches || []).map((d: any) => (
                         <span
                           key={d.id}
                           style={{
@@ -980,44 +980,126 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
   }
 
   // =========================================================================
-  // VIEW: TẠO CHUYẾN GIAO HÀNG (CREATE VIEW)
+  // VIEW: TẠO CHUYẾN GIAO HÀNG (CREATE VIEW - COMPACT 100% ZOOM FIT)
   // =========================================================================
   if (viewMode === 'create') {
     return (
-      <div style={{ padding: '24px', maxWidth: '1400px', margin: '0 auto', background: '#f8fafc', minHeight: '100vh' }}>
-        {/* Header tạo chuyến */}
-        <div style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <button
-            type="button"
-            onClick={() => setViewMode('list')}
-            disabled={isSubmittingCreate}
-            style={{
-              padding: '8px 16px',
-              background: '#ffffff',
-              border: '1px solid #cbd5e1',
-              borderRadius: '8px',
-              fontSize: '13px',
-              fontWeight: '600',
-              color: '#334155',
-              cursor: 'pointer',
-            }}
-          >
-            Quay lại danh sách
-          </button>
-          <span style={{ fontSize: '13px', color: '#64748b' }}>
-            Người tạo chuyến: <strong style={{ color: '#0f172a' }}>{currentUser.full_name || currentUser.username}</strong>
-          </span>
+      <div
+        style={{
+          padding: '12px 18px',
+          maxWidth: '1440px',
+          margin: '0 auto',
+          background: '#f8fafc',
+          height: 'calc(100vh - 65px)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '8px',
+          boxSizing: 'border-box',
+          overflow: 'hidden',
+        }}
+      >
+        {/* Thanh Header điều hướng & Nút hành động */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            background: '#ffffff',
+            border: '1px solid #e2e8f0',
+            borderRadius: '8px',
+            padding: '8px 14px',
+            flexShrink: 0,
+            gap: '12px',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <button
+              type="button"
+              onClick={() => setViewMode('list')}
+              disabled={isSubmittingCreate}
+              style={{
+                padding: '5px 12px',
+                background: '#f8fafc',
+                border: '1px solid #cbd5e1',
+                borderRadius: '6px',
+                fontSize: '12px',
+                fontWeight: '600',
+                color: '#334155',
+                cursor: 'pointer',
+              }}
+            >
+              ← Quay lại danh sách
+            </button>
+            <div>
+              <h1 style={{ margin: 0, fontSize: '16px', fontWeight: '800', color: '#0f172a', lineHeight: 1.2 }}>
+                Tạo Chuyến Giao Hàng & Phân Tuyến
+              </h1>
+              <span style={{ fontSize: '11px', color: '#64748b' }}>
+                Người tạo chuyến: <strong style={{ color: '#0f172a' }}>{currentUser.full_name || currentUser.username}</strong>
+              </span>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <button
+              type="button"
+              onClick={() => setViewMode('list')}
+              disabled={isSubmittingCreate}
+              style={{
+                padding: '6px 14px',
+                background: '#ffffff',
+                border: '1px solid #cbd5e1',
+                borderRadius: '6px',
+                fontSize: '12px',
+                fontWeight: '600',
+                color: '#475569',
+                cursor: 'pointer',
+              }}
+            >
+              Hủy bỏ
+            </button>
+            <button
+              type="button"
+              onClick={handleSubmitCreateTrip}
+              disabled={isSubmittingCreate || selectedDispatchIds.length === 0}
+              style={{
+                padding: '6px 18px',
+                background: '#0284c7',
+                border: 'none',
+                borderRadius: '6px',
+                fontSize: '12px',
+                fontWeight: '700',
+                color: '#ffffff',
+                cursor: isSubmittingCreate || selectedDispatchIds.length === 0 ? 'not-allowed' : 'pointer',
+                opacity: isSubmittingCreate || selectedDispatchIds.length === 0 ? 0.6 : 1,
+                boxShadow: '0 1px 2px rgba(2, 132, 199, 0.2)',
+              }}
+            >
+              {isSubmittingCreate ? 'Đang tạo...' : `Xác nhận tạo chuyến (${selectedDispatchIds.length} phiếu)`}
+            </button>
+          </div>
         </div>
 
-        {/* Khối 1: Thông tin chuyến */}
-        <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '20px 24px', marginBottom: '20px' }}>
-          <h1 style={{ margin: '0 0 16px 0', fontSize: '20px', fontWeight: '800', color: '#0f172a' }}>
-            Tạo Chuyến Giao Hàng & Phân Tuyến
-          </h1>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
+        {/* Khối 1: Thông tin chuyến (Dàn ngang 1 hàng gọn gàng) */}
+        <div
+          style={{
+            background: '#ffffff',
+            border: '1px solid #e2e8f0',
+            borderRadius: '8px',
+            padding: '8px 14px',
+            flexShrink: 0,
+          }}
+        >
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: '135px 165px 1.2fr 1.2fr 1.8fr',
+              gap: '10px',
+              alignItems: 'end',
+            }}
+          >
             <div>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>
+              <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#475569', marginBottom: '3px' }}>
                 Ngày giao hàng *
               </label>
               <input
@@ -1026,10 +1108,10 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
                 onChange={(e) => handleDeliveryDateChange(e.target.value)}
                 style={{
                   width: '100%',
-                  padding: '9px 12px',
-                  borderRadius: '8px',
+                  padding: '6px 8px',
+                  borderRadius: '6px',
                   border: '1px solid #cbd5e1',
-                  fontSize: '13px',
+                  fontSize: '12px',
                   color: '#0f172a',
                   boxSizing: 'border-box',
                 }}
@@ -1037,59 +1119,7 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>
-                Tài xế phụ trách
-              </label>
-              <select
-                value={createDriverId}
-                onChange={(e) => setCreateDriverId(e.target.value ? Number(e.target.value) : '')}
-                style={{
-                  width: '100%',
-                  padding: '9px 12px',
-                  borderRadius: '8px',
-                  border: '1px solid #cbd5e1',
-                  fontSize: '13px',
-                  color: '#0f172a',
-                  boxSizing: 'border-box',
-                }}
-              >
-                <option value="">-- Chọn tài xế (hoặc để sau) --</option>
-                {drivers.map((d) => (
-                  <option key={d.id} value={d.id} disabled={d.is_busy}>
-                    {d.name} ({d.phone}) {d.is_busy ? `[Đã bận chuyến ${d.current_trip_code}]` : ''}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>
-                Phương tiện / Biển số xe
-              </label>
-              <select
-                value={createVehicleId}
-                onChange={(e) => setCreateVehicleId(e.target.value ? Number(e.target.value) : '')}
-                style={{
-                  width: '100%',
-                  padding: '9px 12px',
-                  borderRadius: '8px',
-                  border: '1px solid #cbd5e1',
-                  fontSize: '13px',
-                  color: '#0f172a',
-                  boxSizing: 'border-box',
-                }}
-              >
-                <option value="">-- Chọn phương tiện (hoặc để sau) --</option>
-                {vehicles.map((v) => (
-                  <option key={v.id} value={v.id} disabled={v.is_busy}>
-                    {v.plate_number} - {v.vehicle_type} {v.capacity_kg ? `(${v.capacity_kg} kg)` : ''} {v.is_busy ? `[Đã bận chuyến ${v.current_trip_code}]` : ''}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>
+              <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#475569', marginBottom: '3px' }}>
                 Kho xuất phát
               </label>
               <input
@@ -1098,93 +1128,162 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
                 onChange={(e) => setCreateWarehouseName(e.target.value)}
                 style={{
                   width: '100%',
-                  padding: '9px 12px',
-                  borderRadius: '8px',
+                  padding: '6px 8px',
+                  borderRadius: '6px',
                   border: '1px solid #cbd5e1',
-                  fontSize: '13px',
+                  fontSize: '12px',
+                  color: '#0f172a',
+                  boxSizing: 'border-box',
+                }}
+              />
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#475569', marginBottom: '3px' }}>
+                Tài xế phụ trách
+              </label>
+              <select
+                value={createDriverId}
+                onChange={(e) => setCreateDriverId(e.target.value ? Number(e.target.value) : '')}
+                style={{
+                  width: '100%',
+                  padding: '6px 8px',
+                  borderRadius: '6px',
+                  border: '1px solid #cbd5e1',
+                  fontSize: '12px',
+                  color: '#0f172a',
+                  boxSizing: 'border-box',
+                }}
+              >
+                <option value="">-- Chọn tài xế (hoặc để sau) --</option>
+                {drivers.map((d: any) => (
+                  <option key={d.id} value={d.id} disabled={d.is_busy}>
+                    {d.name} ({d.phone}) {d.is_busy ? `[Đã bận chuyến ${d.current_trip_code}]` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#475569', marginBottom: '3px' }}>
+                Phương tiện / Xe
+              </label>
+              <select
+                value={createVehicleId}
+                onChange={(e) => setCreateVehicleId(e.target.value ? Number(e.target.value) : '')}
+                style={{
+                  width: '100%',
+                  padding: '6px 8px',
+                  borderRadius: '6px',
+                  border: '1px solid #cbd5e1',
+                  fontSize: '12px',
+                  color: '#0f172a',
+                  boxSizing: 'border-box',
+                }}
+              >
+                <option value="">-- Chọn phương tiện (hoặc để sau) --</option>
+                {vehicles.map((v: any) => (
+                  <option key={v.id} value={v.id} disabled={v.is_busy}>
+                    {v.plate_number} - {v.vehicle_type} {v.capacity_kg ? `(${v.capacity_kg} kg)` : ''} {v.is_busy ? `[Đã bận chuyến ${v.current_trip_code}]` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#475569', marginBottom: '3px' }}>
+                Ghi chú điều phối chuyến
+              </label>
+              <input
+                type="text"
+                value={createNote}
+                onChange={(e) => setCreateNote(e.target.value)}
+                placeholder="Ví dụ: Xe giao tuyến Cầu Giấy - Đống Đa - Ba Đình..."
+                style={{
+                  width: '100%',
+                  padding: '6px 8px',
+                  borderRadius: '6px',
+                  border: '1px solid #cbd5e1',
+                  fontSize: '12px',
                   color: '#0f172a',
                   boxSizing: 'border-box',
                 }}
               />
             </div>
           </div>
-
-          <div style={{ marginTop: '16px' }}>
-            <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>
-              Ghi chú điều phối chuyến
-            </label>
-            <input
-              type="text"
-              value={createNote}
-              onChange={(e) => setCreateNote(e.target.value)}
-              placeholder="Ví dụ: Xe giao tuyến Cầu Giấy - Đống Đa - Ba Đình..."
-              style={{
-                width: '100%',
-                padding: '9px 12px',
-                borderRadius: '8px',
-                border: '1px solid #cbd5e1',
-                fontSize: '13px',
-                color: '#0f172a',
-                boxSizing: 'border-box',
-              }}
-            />
-          </div>
         </div>
 
-        {/* Khối 2: Chọn phiếu xuất kho */}
-        <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '20px 24px', marginBottom: '20px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '10px' }}>
-            <div>
-              <h2 style={{ margin: 0, fontSize: '16px', fontWeight: '800', color: '#0f172a' }}>
-                1. Chọn Phiếu Xuất Kho Đủ Điều Kiện Giao
+        {/* Khối 2: Chọn phiếu xuất kho đủ điều kiện giao */}
+        <div
+          style={{
+            background: '#ffffff',
+            border: '1px solid #e2e8f0',
+            borderRadius: '8px',
+            padding: '10px 14px',
+            flex: stagedStops.length > 0 ? '1 1 52%' : '1 1 auto',
+            minHeight: 0,
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '8px',
+              flexShrink: 0,
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <h2 style={{ margin: 0, fontSize: '13.5px', fontWeight: '800', color: '#0f172a' }}>
+                Chọn Phiếu Xuất Kho Đủ Điều Kiện Giao
               </h2>
-              <div style={{ fontSize: '12.5px', color: '#64748b', marginTop: '2px' }}>
-                Các phiếu xuất đã xác nhận và chưa nằm trong chuyến giao nào đang hoạt động.
-              </div>
+              <span style={{ fontSize: '11px', color: '#64748b' }}>
+                (Phiếu xuất đã xác nhận và chưa nằm trong chuyến giao nào đang chạy)
+              </span>
             </div>
 
-            <div>
-              <button
-                type="button"
-                onClick={handleSelectAllDispatches}
-                style={{
-                  padding: '6px 14px',
-                  background: '#f1f5f9',
-                  border: '1px solid #cbd5e1',
-                  borderRadius: '6px',
-                  fontSize: '12px',
-                  fontWeight: '600',
-                  color: '#334155',
-                  cursor: 'pointer',
-                }}
-              >
-                {selectedDispatchIds.length === eligibleDispatches.length && eligibleDispatches.length > 0 ? 'Bỏ chọn tất cả' : 'Chọn tất cả'}
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={handleSelectAllDispatches}
+              style={{
+                padding: '4px 10px',
+                background: '#f1f5f9',
+                border: '1px solid #cbd5e1',
+                borderRadius: '5px',
+                fontSize: '11px',
+                fontWeight: '600',
+                color: '#334155',
+                cursor: 'pointer',
+              }}
+            >
+              {selectedDispatchIds.length === eligibleDispatches.length && eligibleDispatches.length > 0 ? 'Bỏ chọn tất cả' : 'Chọn tất cả'}
+            </button>
           </div>
 
           {isLoadingCreateData ? (
-            <div style={{ textAlign: 'center', padding: '30px', color: '#64748b' }}>Đang nạp danh sách phiếu xuất...</div>
+            <div style={{ textAlign: 'center', padding: '20px', color: '#64748b', fontSize: '12px' }}>Đang nạp danh sách phiếu xuất...</div>
           ) : eligibleDispatches.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '30px', color: '#64748b' }}>
+            <div style={{ textAlign: 'center', padding: '20px', color: '#64748b', fontSize: '12px' }}>
               Hiện không có phiếu xuất kho nào sẵn sàng giao. Vui lòng xác nhận xuất kho trước tại mục <strong>Xuất kho & Giao thiếu</strong>.
             </div>
           ) : (
-            <div style={{ maxHeight: '350px', overflowY: 'auto', border: '1px solid #e2e8f0', borderRadius: '8px' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12.5px', textAlign: 'left' }}>
+            <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', border: '1px solid #e2e8f0', borderRadius: '6px' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11.5px', textAlign: 'left' }}>
                 <thead style={{ position: 'sticky', top: 0, zIndex: 10, background: '#f8fafc' }}>
                   <tr style={{ background: '#f8fafc', color: '#475569', borderBottom: '1px solid #cbd5e1' }}>
-                    <th style={{ padding: '10px 12px', width: '40px', textAlign: 'center' }}>Chọn</th>
-                    <th style={{ padding: '10px 12px' }}>Mã phiếu xuất</th>
-                    <th style={{ padding: '10px 12px' }}>Mã đơn hàng</th>
-                    <th style={{ padding: '10px 12px' }}>Đại lý / Người nhận</th>
-                    <th style={{ padding: '10px 12px' }}>Số điện thoại</th>
-                    <th style={{ padding: '10px 12px' }}>Địa chỉ giao hàng</th>
-                    <th style={{ padding: '10px 12px' }}>Mặt hàng</th>
+                    <th style={{ padding: '6px 8px', width: '36px', textAlign: 'center' }}>Chọn</th>
+                    <th style={{ padding: '6px 8px', width: '130px' }}>Mã phiếu xuất</th>
+                    <th style={{ padding: '6px 8px', width: '120px' }}>Mã đơn hàng</th>
+                    <th style={{ padding: '6px 8px', width: '170px' }}>Đại lý / Người nhận</th>
+                    <th style={{ padding: '6px 8px', width: '100px' }}>Số điện thoại</th>
+                    <th style={{ padding: '6px 8px', width: '220px' }}>Địa chỉ giao hàng</th>
+                    <th style={{ padding: '6px 8px' }}>Mặt hàng</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {eligibleDispatches.map((disp) => {
+                  {eligibleDispatches.map((disp: any) => {
                     const isChecked = selectedDispatchIds.includes(disp.dispatch_id);
                     return (
                       <tr
@@ -1196,7 +1295,7 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
                           cursor: 'pointer',
                         }}
                       >
-                        <td style={{ padding: '10px 12px', textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
+                        <td style={{ padding: '6px 8px', textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
                           <input
                             type="checkbox"
                             checked={isChecked}
@@ -1204,23 +1303,23 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
                             style={{ cursor: 'pointer' }}
                           />
                         </td>
-                        <td style={{ padding: '10px 12px', fontWeight: '700', color: '#0284c7' }}>
+                        <td style={{ padding: '6px 8px', fontWeight: '700', color: '#0284c7' }}>
                           {disp.dispatch_code}
                         </td>
-                        <td style={{ padding: '10px 12px', fontWeight: '600', color: '#0f172a' }}>
+                        <td style={{ padding: '6px 8px', fontWeight: '600', color: '#0f172a' }}>
                           {disp.order_code}
                         </td>
-                        <td style={{ padding: '10px 12px' }}>
-                          <div style={{ fontWeight: '600' }}>{disp.receiver_name}</div>
-                          <div style={{ fontSize: '11px', color: '#64748b' }}>{disp.dealer_name}</div>
+                        <td style={{ padding: '6px 8px' }}>
+                          <div style={{ fontWeight: '600', color: '#0f172a' }}>{disp.receiver_name}</div>
+                          <div style={{ fontSize: '10.5px', color: '#64748b' }}>{disp.dealer_name}</div>
                         </td>
-                        <td style={{ padding: '10px 12px', fontWeight: '600', color: '#475569' }}>
+                        <td style={{ padding: '6px 8px', fontWeight: '600', color: '#475569' }}>
                           {disp.receiver_phone}
                         </td>
-                        <td style={{ padding: '10px 12px', color: '#334155' }}>
+                        <td style={{ padding: '6px 8px', color: '#334155' }}>
                           {disp.address}
                         </td>
-                        <td style={{ padding: '10px 12px', color: '#64748b', fontSize: '11.5px' }}>
+                        <td style={{ padding: '6px 8px', color: '#64748b', fontSize: '11px' }}>
                           {disp.items_summary || '—'}
                         </td>
                       </tr>
@@ -1232,39 +1331,50 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
           )}
         </div>
 
-        {/* Khối 3: Sắp xếp thứ tự các điểm dừng đã gom */}
+        {/* Khối 3: Sắp xếp thứ tự các điểm dừng đã gom (Gọn gàng) */}
         {stagedStops.length > 0 && (
-          <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '20px 24px', marginBottom: '24px' }}>
-            <div style={{ marginBottom: '14px' }}>
-              <h2 style={{ margin: 0, fontSize: '16px', fontWeight: '800', color: '#0f172a' }}>
-                2. Thứ Tự Giao Hàng & Phân Tuyến ({stagedStops.length} điểm dừng)
+          <div
+            style={{
+              background: '#ffffff',
+              border: '1px solid #e2e8f0',
+              borderRadius: '8px',
+              padding: '10px 14px',
+              flex: '1 1 48%',
+              minHeight: 0,
+              display: 'flex',
+              flexDirection: 'column',
+            }}
+          >
+            <div style={{ marginBottom: '6px', flexShrink: 0 }}>
+              <h2 style={{ margin: 0, fontSize: '13.5px', fontWeight: '800', color: '#0f172a' }}>
+                Thứ Tự Giao Hàng & Phân Tuyến ({stagedStops.length} điểm dừng)
               </h2>
-              <div style={{ fontSize: '12.5px', color: '#64748b', marginTop: '2px' }}>
-                Hệ thống đã tự động gom các phiếu cùng địa chỉ vào 1 điểm dừng. Bạn có thể sắp xếp lại thứ tự xe chạy bằng nút Lên / Xuống.
+              <div style={{ fontSize: '11px', color: '#64748b', marginTop: '1px' }}>
+                Tự động gom các phiếu cùng địa chỉ vào 1 điểm dừng. Dùng nút Lên / Xuống để tối ưu hóa lộ trình xe chạy.
               </div>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {stagedStops.map((st, idx) => (
+            <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '6px', paddingRight: '4px' }}>
+              {stagedStops.map((st: any, idx: number) => (
                 <div
                   key={idx}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
-                    padding: '12px 16px',
+                    padding: '6px 10px',
                     border: '1px solid #e2e8f0',
-                    borderRadius: '8px',
+                    borderRadius: '6px',
                     background: '#f8fafc',
-                    flexWrap: 'wrap',
-                    gap: '12px',
+                    gap: '10px',
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: 1 }}>
                     <div
                       style={{
-                        width: '32px',
-                        height: '32px',
+                        width: '24px',
+                        height: '24px',
+                        minWidth: '24px',
                         borderRadius: '50%',
                         background: '#0284c7',
                         color: '#ffffff',
@@ -1272,35 +1382,35 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
                         alignItems: 'center',
                         justifyContent: 'center',
                         fontWeight: '800',
-                        fontSize: '13px',
+                        fontSize: '11.5px',
                       }}
                     >
                       {st.stop_order}
                     </div>
-                    <div>
-                      <div style={{ fontSize: '14px', fontWeight: '700', color: '#0f172a' }}>
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <div style={{ fontSize: '12px', fontWeight: '700', color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {st.receiver_name} - ĐT: {st.receiver_phone}
                       </div>
-                      <div style={{ fontSize: '12.5px', color: '#475569' }}>
+                      <div style={{ fontSize: '11px', color: '#475569', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         Địa chỉ: <strong>{st.address}</strong>
                       </div>
-                      <div style={{ fontSize: '11.5px', color: '#0284c7', marginTop: '2px' }}>
-                        Gom {st.dispatches.length} phiếu xuất: {st.dispatches.map((d) => d.dispatch_code).join(', ')}
+                      <div style={{ fontSize: '10.5px', color: '#0284c7', marginTop: '1px' }}>
+                        Gom {st.dispatches.length} phiếu xuất: {st.dispatches.map((d: any) => d.dispatch_code).join(', ')}
                       </div>
                     </div>
                   </div>
 
-                  <div style={{ display: 'flex', gap: '6px' }}>
+                  <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }}>
                     <button
                       type="button"
                       disabled={idx === 0}
                       onClick={() => handleMoveStop(idx, 'UP')}
                       style={{
-                        padding: '6px 12px',
+                        padding: '3px 8px',
                         background: '#ffffff',
                         border: '1px solid #cbd5e1',
-                        borderRadius: '6px',
-                        fontSize: '12px',
+                        borderRadius: '4px',
+                        fontSize: '11px',
                         fontWeight: '600',
                         color: idx === 0 ? '#cbd5e1' : '#334155',
                         cursor: idx === 0 ? 'not-allowed' : 'pointer',
@@ -1313,11 +1423,11 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
                       disabled={idx === stagedStops.length - 1}
                       onClick={() => handleMoveStop(idx, 'DOWN')}
                       style={{
-                        padding: '6px 12px',
+                        padding: '3px 8px',
                         background: '#ffffff',
                         border: '1px solid #cbd5e1',
-                        borderRadius: '6px',
-                        fontSize: '12px',
+                        borderRadius: '4px',
+                        fontSize: '11px',
                         fontWeight: '600',
                         color: idx === stagedStops.length - 1 ? '#cbd5e1' : '#334155',
                         cursor: idx === stagedStops.length - 1 ? 'not-allowed' : 'pointer',
@@ -1331,45 +1441,6 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
             </div>
           </div>
         )}
-
-        {/* Nút lưu tạo chuyến */}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
-          <button
-            type="button"
-            onClick={() => setViewMode('list')}
-            disabled={isSubmittingCreate}
-            style={{
-              padding: '9px 20px',
-              background: '#ffffff',
-              border: '1px solid #cbd5e1',
-              borderRadius: '8px',
-              fontSize: '13.5px',
-              fontWeight: '600',
-              color: '#475569',
-              cursor: 'pointer',
-            }}
-          >
-            Hủy bỏ
-          </button>
-          <button
-            type="button"
-            onClick={handleSubmitCreateTrip}
-            disabled={isSubmittingCreate || selectedDispatchIds.length === 0}
-            style={{
-              padding: '9px 26px',
-              background: '#0284c7',
-              border: 'none',
-              borderRadius: '8px',
-              fontSize: '13.5px',
-              fontWeight: '700',
-              color: '#ffffff',
-              cursor: isSubmittingCreate || selectedDispatchIds.length === 0 ? 'not-allowed' : 'pointer',
-              opacity: isSubmittingCreate || selectedDispatchIds.length === 0 ? 0.6 : 1,
-            }}
-          >
-            {isSubmittingCreate ? 'Đang tạo chuyến...' : 'Xác nhận tạo chuyến giao'}
-          </button>
-        </div>
       </div>
     );
   }

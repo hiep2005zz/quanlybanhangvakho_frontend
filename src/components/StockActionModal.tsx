@@ -58,7 +58,7 @@ export const StockActionModal: React.FC<StockActionModalProps> = ({
   React.useEffect(() => {
     if (isOpen && actionType === 'issue' && currentProduct?.is_batch_managed && token) {
       getBatchesApi(token, { product_id: currentProduct.id })
-        .then((res) => {
+        .then((res: any) => {
           setBatchesList(res.items || []);
           if (res.items && res.items.length > 0) {
             setSelectedBatchNumber(res.items[0].batch_number);
