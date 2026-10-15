@@ -4,7 +4,7 @@ import {
   StockBookResponse,
   StockBookFilterParams,
 } from '../services/api';
-import { StockCardModal } from './StockCardModal';
+import { StockCardView } from './StockCardView';
 
 interface WarehouseStockBookViewProps {
   token: string;
@@ -98,6 +98,19 @@ export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
   const startIndex = (safePage - 1) * pageSize;
   const endIndex = Math.min(startIndex + pageSize, totalItems);
   const pageItems = items.length > pageSize ? items.slice(startIndex, endIndex) : items;
+
+  if (selectedProductForStockCard) {
+    return (
+      <StockCardView
+        productId={selectedProductForStockCard.id}
+        productName={selectedProductForStockCard.name}
+        productCode={selectedProductForStockCard.code}
+        token={token}
+        onBack={() => setSelectedProductForStockCard(null)}
+        onNavigateToTab={onNavigateToTab}
+      />
+    );
+  }
 
   return (
     <div
@@ -848,19 +861,6 @@ export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
           </div>
         </div>
       </div>
-
-      {/* Modal Thẻ kho sản phẩm chi tiết */}
-      {selectedProductForStockCard && (
-        <StockCardModal
-          productId={selectedProductForStockCard.id}
-          productName={selectedProductForStockCard.name}
-          productCode={selectedProductForStockCard.code}
-          token={token}
-          isOpen={Boolean(selectedProductForStockCard)}
-          onClose={() => setSelectedProductForStockCard(null)}
-          onNavigateToTab={onNavigateToTab}
-        />
-      )}
     </div>
   );
 };

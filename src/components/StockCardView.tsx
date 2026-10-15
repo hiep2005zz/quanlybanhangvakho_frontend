@@ -1,9 +1,11 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   getStockCardApi,
+  getProductsApi,
   StockCardResponse,
   StockCardFilterParams,
   StockCardVoucherInfo,
+  ProductItem,
 } from '../services/api';
 
 interface StockCardViewProps {
@@ -16,13 +18,15 @@ interface StockCardViewProps {
 }
 
 export const StockCardView: React.FC<StockCardViewProps> = ({
-  productId,
+  productId: initialProductId,
   productName: initialProductName,
   productCode: initialProductCode,
   token,
   onBack,
   onNavigateToTab,
 }) => {
+  const [selectedProductId, setSelectedProductId] = useState<number>(initialProductId);
+  const [productsList, setProductsList] = useState<ProductItem[]>([]);
   const [data, setData] = useState<StockCardResponse | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -33,36 +37,75 @@ export const StockCardView: React.FC<StockCardViewProps> = ({
   const [toDate, setToDate] = useState<string>('');
   const [activeVoucher, setActiveVoucher] = useState<{ code: string; type: string; url?: string | null } | null>(null);
 
+  // Phân trang 20 dòng / sản phẩm mỗi trang theo đúng yêu cầu
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const pageSize = 20;
+
+  // Tải danh sách sản phẩm để cho phép chọn nhanh sản phẩm khác ngay trên trang này
+  useEffect(() => {
+    let isMounted = true;
+    const fetchProducts = async () => {
+      try {
+        const res = await getProductsApi(token);
+        if (isMounted && res?.items) {
+          setProductsList(res.items);
+        }
+      } catch (e) {
+        console.warn('Không thể tải danh sách sản phẩm cho bộ chọn thẻ kho:', e);
+      }
+    };
+    fetchProducts();
+    return () => {
+      isMounted = false;
+    };
+  }, [token]);
+
+  // Cập nhật selectedProductId khi initialProductId thay đổi
+  useEffect(() => {
+    if (initialProductId) {
+      setSelectedProductId(initialProductId);
+    }
+  }, [initialProductId]);
+
   const fetchStockCard = useCallback(async () => {
-    if (!productId) return;
+    if (!selectedProductId) return;
     setIsLoading(true);
     setError(null);
     try {
       const params: StockCardFilterParams = {
-        product_id: productId,
+        product_id: selectedProductId,
         warehouse_id: selectedWarehouse !== 'all' ? selectedWarehouse : undefined,
         from_date: fromDate || undefined,
         to_date: toDate || undefined,
       };
       const res = await getStockCardApi(token, params);
       setData(res);
+      setCurrentPage(1); // Reset về trang 1 khi đổi bộ lọc
     } catch (err: any) {
       console.error('Lỗi khi tải thẻ kho:', err);
       setError(err?.message || 'Không thể tải dữ liệu thẻ kho sản phẩm.');
     } finally {
       setIsLoading(false);
     }
-  }, [productId, selectedWarehouse, fromDate, toDate, token]);
+  }, [selectedProductId, selectedWarehouse, fromDate, toDate, token]);
 
   useEffect(() => {
-    if (productId) {
+    if (selectedProductId) {
       fetchStockCard();
     }
-  }, [productId, fetchStockCard]);
+  }, [selectedProductId, fetchStockCard]);
 
   const summary = data?.summary;
-  const entries = data?.entries || [];
+  const entries = useMemo(() => data?.entries || [], [data?.entries]);
   const warehouses = data?.warehouses || [];
+
+  // Tính toán phân trang 20 dòng / trang
+  const totalEntries = entries.length;
+  const totalPages = Math.max(1, Math.ceil(totalEntries / pageSize));
+  const safeCurrentPage = Math.min(Math.max(1, currentPage), totalPages);
+  const startIndex = (safeCurrentPage - 1) * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, totalEntries);
+  const paginatedEntries = entries.slice(startIndex, endIndex);
 
   const formatNumber = (val: number | undefined | null) => {
     if (val === undefined || val === null) return '0';
@@ -85,7 +128,7 @@ export const StockCardView: React.FC<StockCardViewProps> = ({
     }
   };
 
-  // Huy hiệu loại phát sinh (Đồng bộ không dùng icon, dùng badge màu trang nhã)
+  // Huy hiệu loại phát sinh (Dạng chữ phẳng, không chứa icon)
   const renderTransactionTypeBadge = (type: string, label: string) => {
     switch (type) {
       case 'RECEIPT':
@@ -95,7 +138,7 @@ export const StockCardView: React.FC<StockCardViewProps> = ({
               display: 'inline-block',
               padding: '3px 10px',
               borderRadius: '9999px',
-              fontSize: '12px',
+              fontSize: '11.5px',
               fontWeight: '600',
               backgroundColor: '#dcfce7',
               color: '#15803d',
@@ -113,7 +156,7 @@ export const StockCardView: React.FC<StockCardViewProps> = ({
               display: 'inline-block',
               padding: '3px 10px',
               borderRadius: '9999px',
-              fontSize: '12px',
+              fontSize: '11.5px',
               fontWeight: '600',
               backgroundColor: '#fee2e2',
               color: '#b91c1c',
@@ -131,7 +174,7 @@ export const StockCardView: React.FC<StockCardViewProps> = ({
               display: 'inline-block',
               padding: '3px 10px',
               borderRadius: '9999px',
-              fontSize: '12px',
+              fontSize: '11.5px',
               fontWeight: '600',
               backgroundColor: '#e0f2fe',
               color: '#0369a1',
@@ -150,7 +193,7 @@ export const StockCardView: React.FC<StockCardViewProps> = ({
               display: 'inline-block',
               padding: '3px 10px',
               borderRadius: '9999px',
-              fontSize: '12px',
+              fontSize: '11.5px',
               fontWeight: '600',
               backgroundColor: '#f3e8ff',
               color: '#7e22ce',
@@ -158,7 +201,7 @@ export const StockCardView: React.FC<StockCardViewProps> = ({
               whiteSpace: 'nowrap',
             }}
           >
-            {label || 'Điều chỉnh / Kiểm kê'}
+            {label || 'Điều chỉnh'}
           </span>
         );
     }
@@ -198,69 +241,51 @@ export const StockCardView: React.FC<StockCardViewProps> = ({
     setToDate('');
   };
 
-  const displayProductName = summary?.product_name || initialProductName || `Sản phẩm #${productId}`;
-  const displayProductCode = summary?.product_code || initialProductCode || '';
+  const currentProductFromList = productsList.find((p) => p.id === selectedProductId);
+  const displayProductName = summary?.product_name || currentProductFromList?.name || initialProductName || `Sản phẩm #${selectedProductId}`;
+  const displayProductCode = summary?.product_code || currentProductFromList?.code || initialProductCode || '';
+  const displayCategory = summary?.category || currentProductFromList?.category || '';
+  const displayUnit = summary?.base_unit || currentProductFromList?.base_unit || 'Cái';
 
   return (
     <div
       style={{
-        padding: '20px 28px',
-        backgroundColor: '#f8fafc',
+        padding: '20px 24px',
+        backgroundColor: '#f1f5f9',
         minHeight: '100%',
+        boxSizing: 'border-box',
         display: 'flex',
         flexDirection: 'column',
-        gap: '18px',
-        boxSizing: 'border-box',
+        gap: '16px',
       }}
     >
-      {/* THANH ĐIỀU HƯỚNG TRÊN CÙNG: NÚT QUAY LẠI VÀ TIÊU ĐỀ TRANG */}
+      {/* THẺ CONTAINER CHÍNH CHUẨN THIẾT KẾ CARD TRANG NHÃ */}
       <div
         style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: '14px',
           backgroundColor: '#ffffff',
-          padding: '16px 20px',
-          borderRadius: '12px',
+          borderRadius: '16px',
           border: '1px solid #e2e8f0',
-          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
+          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05)',
+          overflow: 'hidden',
+          display: 'flex',
+          flexDirection: 'column',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px', minWidth: 0 }}>
-          <button
-            type="button"
-            onClick={onBack}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: '8px 16px',
-              borderRadius: '8px',
-              border: '1px solid #cbd5e1',
-              backgroundColor: '#ffffff',
-              color: '#334155',
-              fontSize: '13px',
-              fontWeight: '600',
-              cursor: 'pointer',
-              transition: 'all 0.15s ease',
-              whiteSpace: 'nowrap',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = '#f1f5f9';
-              e.currentTarget.style.borderColor = '#94a3b8';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = '#ffffff';
-              e.currentTarget.style.borderColor = '#cbd5e1';
-            }}
-          >
-            ← Quay lại
-          </button>
-
-          <div style={{ minWidth: 0 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+        {/* HEADER TRANG */}
+        <div
+          style={{
+            padding: '20px 24px',
+            borderBottom: '1px solid #e2e8f0',
+            backgroundColor: '#ffffff',
+            display: 'flex',
+            alignItems: 'flex-start',
+            justifyContent: 'space-between',
+            gap: '16px',
+            flexWrap: 'wrap',
+          }}
+        >
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', marginBottom: '6px' }}>
               <h1
                 style={{
                   fontSize: '20px',
@@ -272,525 +297,752 @@ export const StockCardView: React.FC<StockCardViewProps> = ({
               >
                 Thẻ kho: {displayProductName}
               </h1>
+
               {displayProductCode && (
                 <span
                   style={{
-                    padding: '2px 8px',
+                    padding: '3px 10px',
                     borderRadius: '6px',
                     backgroundColor: '#eff6ff',
                     color: '#1d4ed8',
                     fontSize: '12px',
                     fontWeight: '700',
                     border: '1px solid #bfdbfe',
+                    whiteSpace: 'nowrap',
                   }}
                 >
                   SKU: {displayProductCode}
                 </span>
               )}
-              {summary?.base_unit && (
+
+              {displayUnit && (
                 <span
                   style={{
-                    padding: '2px 8px',
+                    padding: '3px 10px',
                     borderRadius: '6px',
                     backgroundColor: '#f1f5f9',
                     color: '#475569',
                     fontSize: '12px',
                     fontWeight: '600',
                     border: '1px solid #e2e8f0',
+                    whiteSpace: 'nowrap',
                   }}
                 >
-                  ĐVT: {summary.base_unit}
+                  ĐVT: {displayUnit}
                 </span>
               )}
-              {summary?.category && (
+
+              {displayCategory && (
                 <span
                   style={{
-                    padding: '2px 8px',
+                    padding: '3px 10px',
                     borderRadius: '6px',
-                    backgroundColor: '#ffffff',
+                    backgroundColor: '#f8fafc',
                     color: '#64748b',
                     fontSize: '12px',
                     border: '1px solid #e2e8f0',
+                    whiteSpace: 'nowrap',
                   }}
                 >
-                  {summary.category}
+                  {displayCategory}
                 </span>
               )}
             </div>
+
             <p
               style={{
-                fontSize: '12.5px',
+                fontSize: '13px',
                 color: '#64748b',
-                margin: '3px 0 0 0',
+                margin: 0,
+                lineHeight: 1.4,
               }}
             >
-              Nhật ký truy nguyên toàn bộ phát sinh nhập, xuất, chuyển kho và điều chỉnh để xác định chính xác số tồn bị lệch.
+              Nhật ký truy nguyên toàn bộ biến động nhập, xuất, chuyển kho và điều chỉnh để xác định nguyên nhân lệch tồn.
             </p>
           </div>
-        </div>
-      </div>
 
-      {/* 5 THẺ THỐNG KÊ (ĐỒNG BỘ NỀN TRẮNG HOÀN TOÀN, XÓA HẾT HÌNH ICON) */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-          gap: '14px',
-        }}
-      >
-        {/* 1. TỒN ĐẦU KỲ */}
-        <div
-          style={{
-            padding: '16px 20px',
-            borderRadius: '12px',
-            backgroundColor: '#ffffff',
-            border: '1px solid #e2e8f0',
-            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '6px',
-          }}
-        >
-          <div style={{ fontSize: '13px', color: '#64748b', fontWeight: '600' }}>
-            Tồn đầu kỳ
-          </div>
-          <div style={{ fontSize: '24px', fontWeight: '800', color: '#1e293b' }}>
-            {formatNumber(summary?.opening_stock)}
-          </div>
-        </div>
-
-        {/* 2. TỔNG NHẬP TRONG KỲ */}
-        <div
-          style={{
-            padding: '16px 20px',
-            borderRadius: '12px',
-            backgroundColor: '#ffffff',
-            border: '1px solid #e2e8f0',
-            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '6px',
-          }}
-        >
-          <div style={{ fontSize: '13px', color: '#64748b', fontWeight: '600' }}>
-            Tổng nhập trong kỳ
-          </div>
-          <div style={{ fontSize: '24px', fontWeight: '800', color: '#15803d' }}>
-            +{formatNumber(summary?.total_receipt)}
-          </div>
+          {/* NÚT QUAY LẠI TRANG CHỦ / HÀNG TỒN KHO */}
+          <button
+            type="button"
+            onClick={onBack}
+            style={{
+              padding: '8px 18px',
+              borderRadius: '8px',
+              border: '1px solid #cbd5e1',
+              backgroundColor: '#ffffff',
+              color: '#334155',
+              fontSize: '13px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+              whiteSpace: 'nowrap',
+              boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = '#f8fafc';
+              e.currentTarget.style.borderColor = '#94a3b8';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = '#ffffff';
+              e.currentTarget.style.borderColor = '#cbd5e1';
+            }}
+          >
+            ← Quay lại
+          </button>
         </div>
 
-        {/* 3. TỔNG XUẤT TRONG KỲ */}
-        <div
-          style={{
-            padding: '16px 20px',
-            borderRadius: '12px',
-            backgroundColor: '#ffffff',
-            border: '1px solid #e2e8f0',
-            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '6px',
-          }}
-        >
-          <div style={{ fontSize: '13px', color: '#64748b', fontWeight: '600' }}>
-            Tổng xuất trong kỳ
-          </div>
-          <div style={{ fontSize: '24px', fontWeight: '800', color: '#b91c1c' }}>
-            -{formatNumber(summary?.total_issue)}
-          </div>
-        </div>
-
-        {/* 4. TỒN CUỐI KỲ */}
-        <div
-          style={{
-            padding: '16px 20px',
-            borderRadius: '12px',
-            backgroundColor: '#ffffff',
-            border: '1px solid #e2e8f0',
-            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '6px',
-          }}
-        >
-          <div style={{ fontSize: '13px', color: '#64748b', fontWeight: '600' }}>
-            Tồn cuối kỳ
-          </div>
-          <div style={{ fontSize: '24px', fontWeight: '800', color: '#1d4ed8' }}>
-            {formatNumber(summary?.closing_stock)}
-          </div>
-        </div>
-
-        {/* 5. TỒN THỰC TẾ HIỆN TẠI TRÊN HỆ THỐNG */}
-        <div
-          style={{
-            padding: '16px 20px',
-            borderRadius: '12px',
-            backgroundColor: '#ffffff',
-            border: '1px solid #e2e8f0',
-            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '6px',
-          }}
-        >
-          <div style={{ fontSize: '13px', color: '#64748b', fontWeight: '600' }}>
-            Tồn thực tế hiện tại
-          </div>
-          <div style={{ fontSize: '24px', fontWeight: '800', color: '#0f172a' }}>
-            {formatNumber(summary?.current_actual_stock)}
-          </div>
-        </div>
-      </div>
-
-      {/* THANH BỘ LỌC THEO KHO VÀ KHOẢNG THỜI GIAN (TIÊU CHÍ 3) */}
-      <div
-        style={{
-          padding: '14px 20px',
-          borderRadius: '12px',
-          backgroundColor: '#ffffff',
-          border: '1px solid #e2e8f0',
-          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: '14px',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
-          {/* Lọc theo kho */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <label style={{ fontSize: '13px', fontWeight: '600', color: '#475569', whiteSpace: 'nowrap' }}>
-              Kho hàng:
-            </label>
-            <select
-              value={selectedWarehouse}
-              onChange={(e) => setSelectedWarehouse(e.target.value)}
+        {/* NỘI DUNG CHÍNH */}
+        <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
+          {/* 5 THẺ THỐNG KÊ (ĐÚNG THEO GIAO DIỆN HÌNH ẢNH: NỀN MÀU PASTEL THANH LỊCH, KHÔNG CÓ ICON) */}
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+              gap: '14px',
+            }}
+          >
+            {/* 1. TỒN ĐẦU KỲ */}
+            <div
               style={{
-                height: '36px',
-                padding: '0 12px',
-                fontSize: '13px',
-                borderRadius: '8px',
-                border: '1px solid #cbd5e1',
+                padding: '14px 18px',
+                borderRadius: '12px',
                 backgroundColor: '#ffffff',
-                color: '#1e293b',
-                fontWeight: '500',
-                outline: 'none',
-                cursor: 'pointer',
+                border: '1px solid #e2e8f0',
+                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'center',
+                gap: '5px',
               }}
             >
-              <option value="all">Tất cả kho</option>
-              {warehouses.map((w) => (
-                <option key={w.warehouse_id} value={w.warehouse_id}>
-                  {w.warehouse_name} ({w.warehouse_id})
-                </option>
-              ))}
-            </select>
-          </div>
+              <div style={{ fontSize: '12px', color: '#64748b', fontWeight: '600' }}>Tồn đầu kỳ</div>
+              <div style={{ fontSize: '22px', fontWeight: '800', color: '#1e293b', fontVariantNumeric: 'tabular-nums' }}>
+                {formatNumber(summary?.opening_stock)}
+              </div>
+            </div>
 
-          {/* Lọc khoảng thời gian: Từ ngày */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <label style={{ fontSize: '13px', fontWeight: '600', color: '#475569', whiteSpace: 'nowrap' }}>
-              Từ ngày:
-            </label>
-            <input
-              type="date"
-              value={fromDate}
-              onChange={(e) => setFromDate(e.target.value)}
+            {/* 2. TỔNG NHẬP TRONG KỲ */}
+            <div
               style={{
-                height: '36px',
-                padding: '0 10px',
-                fontSize: '13px',
-                borderRadius: '8px',
-                border: '1px solid #cbd5e1',
-                backgroundColor: '#ffffff',
-                color: '#1e293b',
-                outline: 'none',
-              }}
-            />
-          </div>
-
-          {/* Lọc khoảng thời gian: Đến ngày */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <label style={{ fontSize: '13px', fontWeight: '600', color: '#475569', whiteSpace: 'nowrap' }}>
-              Đến ngày:
-            </label>
-            <input
-              type="date"
-              value={toDate}
-              onChange={(e) => setToDate(e.target.value)}
-              style={{
-                height: '36px',
-                padding: '0 10px',
-                fontSize: '13px',
-                borderRadius: '8px',
-                border: '1px solid #cbd5e1',
-                backgroundColor: '#ffffff',
-                color: '#1e293b',
-                outline: 'none',
-              }}
-            />
-          </div>
-
-          {/* Nút Xóa lọc */}
-          {(selectedWarehouse !== 'all' || fromDate || toDate) && (
-            <button
-              type="button"
-              onClick={handleResetFilters}
-              style={{
-                height: '36px',
-                padding: '0 14px',
-                fontSize: '13px',
-                fontWeight: '600',
-                borderRadius: '8px',
-                border: '1px solid #cbd5e1',
-                backgroundColor: '#ffffff',
-                color: '#64748b',
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f1f5f9')}
-              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#ffffff')}
-            >
-              Xóa lọc
-            </button>
-          )}
-        </div>
-
-        <div style={{ fontSize: '13px', color: '#64748b', fontWeight: '500' }}>
-          Tìm thấy <strong style={{ color: '#0f172a' }}>{entries.length}</strong> phát sinh trong kỳ
-        </div>
-      </div>
-
-      {/* THÔNG BÁO LỖI NẾU CÓ */}
-      {error && (
-        <div
-          style={{
-            padding: '12px 16px',
-            borderRadius: '8px',
-            backgroundColor: '#fef2f2',
-            border: '1px solid #fecaca',
-            color: '#b91c1c',
-            fontSize: '13.5px',
-          }}
-        >
-          {error}
-        </div>
-      )}
-
-      {/* BẢNG DỮ LIỆU THẺ KHO CHI TIẾT (TIÊU CHÍ 1 & TIÊU CHÍ 2) */}
-      <div
-        style={{
-          backgroundColor: '#ffffff',
-          borderRadius: '12px',
-          border: '1px solid #e2e8f0',
-          overflow: 'hidden',
-          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
-          flexGrow: 1,
-          display: 'flex',
-          flexDirection: 'column',
-        }}
-      >
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
-            <thead
-              style={{
-                backgroundColor: '#f8fafc',
-                borderBottom: '2px solid #e2e8f0',
+                padding: '14px 18px',
+                borderRadius: '12px',
+                backgroundColor: '#f0fdf4',
+                border: '1px solid #bbf7d0',
+                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'center',
+                gap: '5px',
               }}
             >
-              <tr>
-                <th style={{ padding: '12px 14px', fontWeight: '700', color: '#475569', width: '50px', textAlign: 'center' }}>
-                  #
-                </th>
-                <th style={{ padding: '12px 14px', fontWeight: '700', color: '#475569', width: '150px', whiteSpace: 'nowrap' }}>
-                  Thời gian
-                </th>
-                <th style={{ padding: '12px 14px', fontWeight: '700', color: '#475569', width: '150px' }}>
-                  Loại nghiệp vụ
-                </th>
-                <th style={{ padding: '12px 14px', fontWeight: '700', color: '#475569', width: '160px' }}>
-                  Chứng từ gốc
-                </th>
-                <th style={{ padding: '12px 14px', fontWeight: '700', color: '#475569', width: '160px' }}>
-                  Kho hàng
-                </th>
-                <th style={{ padding: '12px 14px', fontWeight: '700', color: '#15803d', textAlign: 'right', width: '100px' }}>
-                  Nhập (+)
-                </th>
-                <th style={{ padding: '12px 14px', fontWeight: '700', color: '#b91c1c', textAlign: 'right', width: '100px' }}>
-                  Xuất (-)
-                </th>
-                <th
+              <div style={{ fontSize: '12px', color: '#15803d', fontWeight: '600' }}>Tổng nhập trong kỳ</div>
+              <div style={{ fontSize: '22px', fontWeight: '800', color: '#15803d', fontVariantNumeric: 'tabular-nums' }}>
+                +{formatNumber(summary?.total_receipt)}
+              </div>
+            </div>
+
+            {/* 3. TỔNG XUẤT TRONG KỲ */}
+            <div
+              style={{
+                padding: '14px 18px',
+                borderRadius: '12px',
+                backgroundColor: '#fef2f2',
+                border: '1px solid #fecaca',
+                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'center',
+                gap: '5px',
+              }}
+            >
+              <div style={{ fontSize: '12px', color: '#b91c1c', fontWeight: '600' }}>Tổng xuất trong kỳ</div>
+              <div style={{ fontSize: '22px', fontWeight: '800', color: '#b91c1c', fontVariantNumeric: 'tabular-nums' }}>
+                -{formatNumber(summary?.total_issue)}
+              </div>
+            </div>
+
+            {/* 4. TỒN CUỐI KỲ */}
+            <div
+              style={{
+                padding: '14px 18px',
+                borderRadius: '12px',
+                backgroundColor: '#eff6ff',
+                border: '1px solid #bfdbfe',
+                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'center',
+                gap: '5px',
+              }}
+            >
+              <div style={{ fontSize: '12px', color: '#1d4ed8', fontWeight: '600' }}>Tồn cuối kỳ</div>
+              <div style={{ fontSize: '22px', fontWeight: '800', color: '#1d4ed8', fontVariantNumeric: 'tabular-nums' }}>
+                {formatNumber(summary?.closing_stock)}
+              </div>
+            </div>
+
+            {/* 5. TỒN THỰC TẾ HIỆN TẠI TRÊN HỆ THỐNG */}
+            <div
+              style={{
+                padding: '14px 18px',
+                borderRadius: '12px',
+                backgroundColor: '#faf5ff',
+                border: '1px solid #e9d5ff',
+                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'center',
+                gap: '5px',
+              }}
+            >
+              <div style={{ fontSize: '12px', color: '#7e22ce', fontWeight: '600' }}>Tồn thực tế hiện tại</div>
+              <div style={{ fontSize: '22px', fontWeight: '800', color: '#7e22ce', fontVariantNumeric: 'tabular-nums' }}>
+                {formatNumber(summary?.current_actual_stock)}
+              </div>
+            </div>
+          </div>
+
+          {/* BỘ LỌC THEO KHO, THỜI GIAN VÀ CHỌN SẢN PHẨM */}
+          <div
+            style={{
+              padding: '14px 18px',
+              borderRadius: '12px',
+              backgroundColor: '#f8fafc',
+              border: '1px solid #e2e8f0',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '12px',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
+              {/* Chọn sản phẩm trực tiếp (Nếu muốn chuyển sang xem sản phẩm khác) */}
+              {productsList.length > 0 && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <label style={{ fontSize: '12.5px', fontWeight: '600', color: '#475569', whiteSpace: 'nowrap' }}>
+                    Sản phẩm:
+                  </label>
+                  <select
+                    value={selectedProductId}
+                    onChange={(e) => setSelectedProductId(Number(e.target.value))}
+                    style={{
+                      height: '36px',
+                      padding: '0 10px',
+                      fontSize: '12.5px',
+                      borderRadius: '8px',
+                      border: '1px solid #cbd5e1',
+                      backgroundColor: '#ffffff',
+                      color: '#1e293b',
+                      fontWeight: '500',
+                      outline: 'none',
+                      cursor: 'pointer',
+                      maxWidth: '240px',
+                    }}
+                  >
+                    {productsList.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.code ? `[${p.code}] ` : ''}{p.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Lọc theo kho */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <label style={{ fontSize: '12.5px', fontWeight: '600', color: '#475569', whiteSpace: 'nowrap' }}>
+                  Kho hàng:
+                </label>
+                <select
+                  value={selectedWarehouse}
+                  onChange={(e) => setSelectedWarehouse(e.target.value)}
                   style={{
-                    padding: '12px 16px',
-                    fontWeight: '800',
-                    color: '#1d4ed8',
-                    textAlign: 'right',
-                    width: '130px',
-                    backgroundColor: '#eff6ff',
-                    borderLeft: '1px solid #dbeafe',
-                    borderRight: '1px solid #dbeafe',
+                    height: '36px',
+                    padding: '0 10px',
+                    fontSize: '12.5px',
+                    borderRadius: '8px',
+                    border: '1px solid #cbd5e1',
+                    backgroundColor: '#ffffff',
+                    color: '#1e293b',
+                    fontWeight: '500',
+                    outline: 'none',
+                    cursor: 'pointer',
                   }}
                 >
-                  Tồn sau phát sinh
-                </th>
-                <th style={{ padding: '12px 14px', fontWeight: '700', color: '#475569', width: '130px' }}>
-                  Người thực hiện
-                </th>
-                <th style={{ padding: '12px 16px', fontWeight: '700', color: '#475569', minWidth: '200px' }}>
-                  Diễn giải / Ghi chú
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {isLoading && !data ? (
-                <tr>
-                  <td colSpan={10} style={{ padding: '48px', textAlign: 'center', color: '#64748b' }}>
-                    Đang tải dữ liệu thẻ kho...
-                  </td>
-                </tr>
-              ) : entries.length === 0 ? (
-                <tr>
-                  <td colSpan={10} style={{ padding: '56px 24px', textAlign: 'center', color: '#64748b' }}>
-                    <div style={{ fontSize: '15px', fontWeight: '600', color: '#334155', marginBottom: '6px' }}>
-                      Không có phát sinh kho nào trong điều kiện lọc này
-                    </div>
-                    <div style={{ fontSize: '13px', color: '#94a3b8' }}>
-                      Thử chọn khoảng thời gian rộng hơn hoặc chọn "Tất cả kho" để xem toàn bộ lịch sử.
-                    </div>
-                  </td>
-                </tr>
-              ) : (
-                entries.map((entry, idx) => {
-                  const isReceipt = entry.quantity > 0;
-                  const isIssue = entry.quantity < 0;
+                  <option value="all">Tất cả kho</option>
+                  {warehouses.map((w) => (
+                    <option key={w.warehouse_id} value={w.warehouse_id}>
+                      {w.warehouse_name} ({w.warehouse_id})
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-                  return (
-                    <tr
-                      key={entry.id || idx}
+              {/* Lọc khoảng thời gian: Từ ngày */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <label style={{ fontSize: '12.5px', fontWeight: '600', color: '#475569', whiteSpace: 'nowrap' }}>
+                  Từ ngày:
+                </label>
+                <input
+                  type="date"
+                  value={fromDate}
+                  onChange={(e) => setFromDate(e.target.value)}
+                  style={{
+                    height: '36px',
+                    padding: '0 8px',
+                    fontSize: '12.5px',
+                    borderRadius: '8px',
+                    border: '1px solid #cbd5e1',
+                    backgroundColor: '#ffffff',
+                    color: '#1e293b',
+                    outline: 'none',
+                  }}
+                />
+              </div>
+
+              {/* Lọc khoảng thời gian: Đến ngày */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <label style={{ fontSize: '12.5px', fontWeight: '600', color: '#475569', whiteSpace: 'nowrap' }}>
+                  Đến ngày:
+                </label>
+                <input
+                  type="date"
+                  value={toDate}
+                  onChange={(e) => setToDate(e.target.value)}
+                  style={{
+                    height: '36px',
+                    padding: '0 8px',
+                    fontSize: '12.5px',
+                    borderRadius: '8px',
+                    border: '1px solid #cbd5e1',
+                    backgroundColor: '#ffffff',
+                    color: '#1e293b',
+                    outline: 'none',
+                  }}
+                />
+              </div>
+
+              {/* Nút Xóa lọc */}
+              {(selectedWarehouse !== 'all' || fromDate || toDate) && (
+                <button
+                  type="button"
+                  onClick={handleResetFilters}
+                  style={{
+                    height: '36px',
+                    padding: '0 12px',
+                    fontSize: '12px',
+                    fontWeight: '600',
+                    borderRadius: '8px',
+                    border: '1px solid #cbd5e1',
+                    backgroundColor: '#ffffff',
+                    color: '#64748b',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f1f5f9')}
+                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#ffffff')}
+                >
+                  Xóa lọc
+                </button>
+              )}
+            </div>
+
+            {/* Thông tin số lượng dòng phát sinh */}
+            <div style={{ fontSize: '12.5px', color: '#64748b', fontWeight: '500' }}>
+              Tìm thấy <strong style={{ color: '#0f172a' }}>{entries.length}</strong> phát sinh trong kỳ
+            </div>
+          </div>
+
+          {/* THÔNG BÁO LỖI NẾU CÓ */}
+          {error && (
+            <div
+              style={{
+                padding: '12px 16px',
+                borderRadius: '8px',
+                backgroundColor: '#fef2f2',
+                border: '1px solid #fecaca',
+                color: '#b91c1c',
+                fontSize: '13px',
+              }}
+            >
+              {error}
+            </div>
+          )}
+
+          {/* BẢNG DỮ LIỆU THẺ KHO CHI TIẾT */}
+          <div
+            style={{
+              backgroundColor: '#ffffff',
+              borderRadius: '12px',
+              border: '1px solid #e2e8f0',
+              overflow: 'hidden',
+              boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
+              display: 'flex',
+              flexDirection: 'column',
+            }}
+          >
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+                <thead
+                  style={{
+                    backgroundColor: '#f8fafc',
+                    borderBottom: '2px solid #e2e8f0',
+                  }}
+                >
+                  <tr>
+                    <th style={{ padding: '12px 14px', fontWeight: '700', color: '#475569', width: '50px', textAlign: 'center' }}>
+                      #
+                    </th>
+                    <th style={{ padding: '12px 14px', fontWeight: '700', color: '#475569', width: '150px', whiteSpace: 'nowrap' }}>
+                      Thời gian
+                    </th>
+                    <th style={{ padding: '12px 14px', fontWeight: '700', color: '#475569', width: '140px' }}>
+                      Loại nghiệp vụ
+                    </th>
+                    <th style={{ padding: '12px 14px', fontWeight: '700', color: '#475569', width: '160px' }}>
+                      Chứng từ gốc
+                    </th>
+                    <th style={{ padding: '12px 14px', fontWeight: '700', color: '#475569', width: '160px' }}>
+                      Kho hàng
+                    </th>
+                    <th style={{ padding: '12px 14px', fontWeight: '700', color: '#15803d', textAlign: 'right', width: '100px' }}>
+                      Nhập (+)
+                    </th>
+                    <th style={{ padding: '12px 14px', fontWeight: '700', color: '#b91c1c', textAlign: 'right', width: '100px' }}>
+                      Xuất (-)
+                    </th>
+                    <th
                       style={{
-                        borderBottom: '1px solid #f1f5f9',
-                        backgroundColor: idx % 2 === 0 ? '#ffffff' : '#fafafa',
-                        transition: 'background-color 0.1s ease',
+                        padding: '12px 16px',
+                        fontWeight: '800',
+                        color: '#1d4ed8',
+                        textAlign: 'right',
+                        width: '130px',
+                        backgroundColor: '#eff6ff',
+                        borderLeft: '1px solid #dbeafe',
+                        borderRight: '1px solid #dbeafe',
                       }}
                     >
-                      {/* STT */}
-                      <td style={{ padding: '12px 14px', textAlign: 'center', color: '#94a3b8', fontSize: '12px' }}>
-                        {idx + 1}
-                      </td>
-
-                      {/* Thời gian */}
-                      <td style={{ padding: '12px 14px', color: '#334155', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
-                        {formatDateTime(entry.created_at)}
-                      </td>
-
-                      {/* Loại nghiệp vụ (Không có icon) */}
-                      <td style={{ padding: '12px 14px' }}>
-                        {renderTransactionTypeBadge(entry.transaction_type, entry.transaction_label)}
-                      </td>
-
-                      {/* Liên kết chứng từ gốc (Không có icon, dạng link bấm) */}
-                      <td style={{ padding: '12px 14px' }}>
-                        <button
-                          type="button"
-                          onClick={() => handleVoucherClick(entry.voucher_info, entry.reference_code)}
-                          title={`Bấm để truy nguyên chứng từ gốc ${entry.reference_code}`}
-                          style={{
-                            padding: '4px 10px',
-                            borderRadius: '6px',
-                            backgroundColor: '#ffffff',
-                            border: '1px solid #cbd5e1',
-                            color: '#0284c7',
-                            fontWeight: '700',
-                            fontSize: '12.5px',
-                            cursor: 'pointer',
-                            textDecoration: 'underline',
-                            transition: 'all 0.15s ease',
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.backgroundColor = '#f1f5f9';
-                            e.currentTarget.style.borderColor = '#94a3b8';
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.backgroundColor = '#ffffff';
-                            e.currentTarget.style.borderColor = '#cbd5e1';
-                          }}
-                        >
-                          {entry.reference_code}
-                        </button>
-                      </td>
-
-                      {/* Kho hàng */}
-                      <td style={{ padding: '12px 14px', color: '#475569' }}>
-                        <div style={{ fontWeight: '600' }}>{entry.warehouse_name}</div>
-                        <div style={{ fontSize: '11.5px', color: '#94a3b8' }}>{entry.warehouse_id}</div>
-                      </td>
-
-                      {/* Số lượng nhập (+) */}
-                      <td
-                        style={{
-                          padding: '12px 14px',
-                          textAlign: 'right',
-                          fontWeight: '700',
-                          color: isReceipt ? '#15803d' : '#94a3b8',
-                          fontVariantNumeric: 'tabular-nums',
-                        }}
-                      >
-                        {isReceipt ? `+${formatNumber(entry.receipt_quantity || entry.quantity)}` : '—'}
-                      </td>
-
-                      {/* Số lượng xuất (-) */}
-                      <td
-                        style={{
-                          padding: '12px 14px',
-                          textAlign: 'right',
-                          fontWeight: '700',
-                          color: isIssue ? '#b91c1c' : '#94a3b8',
-                          fontVariantNumeric: 'tabular-nums',
-                        }}
-                      >
-                        {isIssue ? `-${formatNumber(entry.issue_quantity || Math.abs(entry.quantity))}` : '—'}
-                      </td>
-
-                      {/* TỒN SAU PHÁT SINH (TIÊU CHÍ 2 - NỔI BẬT) */}
-                      <td
-                        style={{
-                          padding: '12px 16px',
-                          textAlign: 'right',
-                          fontWeight: '800',
-                          fontSize: '14px',
-                          color: '#1d4ed8',
-                          backgroundColor: '#eff6ff',
-                          borderLeft: '1px solid #dbeafe',
-                          borderRight: '1px solid #dbeafe',
-                          fontVariantNumeric: 'tabular-nums',
-                        }}
-                      >
-                        {formatNumber(entry.balance_stock)}
-                      </td>
-
-                      {/* Người thực hiện */}
-                      <td style={{ padding: '12px 14px', color: '#475569', fontSize: '12.5px' }}>
-                        {entry.performed_by || '—'}
-                      </td>
-
-                      {/* Diễn giải / Ghi chú */}
-                      <td style={{ padding: '12px 16px', color: '#64748b', fontSize: '12.5px', lineHeight: 1.4 }}>
-                        {entry.note || '—'}
+                      Tồn sau phát sinh
+                    </th>
+                    <th style={{ padding: '12px 14px', fontWeight: '700', color: '#475569', width: '130px' }}>
+                      Người thực hiện
+                    </th>
+                    <th style={{ padding: '12px 16px', fontWeight: '700', color: '#475569', minWidth: '200px' }}>
+                      Diễn giải / Ghi chú
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {isLoading && !data ? (
+                    <tr>
+                      <td colSpan={10} style={{ padding: '48px', textAlign: 'center', color: '#64748b' }}>
+                        Đang tải dữ liệu thẻ kho...
                       </td>
                     </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
+                  ) : entries.length === 0 ? (
+                    <tr>
+                      <td colSpan={10} style={{ padding: '56px 24px', textAlign: 'center', color: '#64748b' }}>
+                        <div style={{ fontSize: '15px', fontWeight: '600', color: '#334155', marginBottom: '6px' }}>
+                          Không có phát sinh kho nào trong điều kiện lọc này
+                        </div>
+                        <div style={{ fontSize: '13px', color: '#94a3b8' }}>
+                          Thử chọn khoảng thời gian rộng hơn hoặc chọn "Tất cả kho" để xem toàn bộ lịch sử.
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    paginatedEntries.map((entry, idx) => {
+                      const isReceipt = entry.quantity > 0;
+                      const isIssue = entry.quantity < 0;
+                      const itemIndex = startIndex + idx + 1;
+
+                      return (
+                        <tr
+                          key={entry.id || idx}
+                          style={{
+                            borderBottom: '1px solid #f1f5f9',
+                            backgroundColor: idx % 2 === 0 ? '#ffffff' : '#fafafa',
+                            transition: 'background-color 0.1s ease',
+                          }}
+                        >
+                          {/* STT */}
+                          <td style={{ padding: '12px 14px', textAlign: 'center', color: '#94a3b8', fontSize: '12px' }}>
+                            {itemIndex}
+                          </td>
+
+                          {/* Thời gian */}
+                          <td style={{ padding: '12px 14px', color: '#334155', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
+                            {formatDateTime(entry.created_at)}
+                          </td>
+
+                          {/* Loại nghiệp vụ (Không có icon) */}
+                          <td style={{ padding: '12px 14px' }}>
+                            {renderTransactionTypeBadge(entry.transaction_type, entry.transaction_label)}
+                          </td>
+
+                          {/* Liên kết chứng từ gốc */}
+                          <td style={{ padding: '12px 14px' }}>
+                            <button
+                              type="button"
+                              onClick={() => handleVoucherClick(entry.voucher_info, entry.reference_code)}
+                              title={`Bấm để truy nguyên chứng từ gốc ${entry.reference_code}`}
+                              style={{
+                                padding: '4px 10px',
+                                borderRadius: '6px',
+                                backgroundColor: '#f8fafc',
+                                border: '1px solid #cbd5e1',
+                                color: '#0284c7',
+                                fontWeight: '700',
+                                fontSize: '12.5px',
+                                cursor: 'pointer',
+                                textDecoration: 'underline',
+                                transition: 'all 0.15s ease',
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.backgroundColor = '#e0f2fe';
+                                e.currentTarget.style.borderColor = '#7dd3fc';
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.backgroundColor = '#f8fafc';
+                                e.currentTarget.style.borderColor = '#cbd5e1';
+                              }}
+                            >
+                              {entry.reference_code}
+                            </button>
+                          </td>
+
+                          {/* Kho hàng */}
+                          <td style={{ padding: '12px 14px', color: '#475569' }}>
+                            <div style={{ fontWeight: '600' }}>{entry.warehouse_name}</div>
+                            <div style={{ fontSize: '11.5px', color: '#94a3b8' }}>{entry.warehouse_id}</div>
+                          </td>
+
+                          {/* Số lượng nhập (+) */}
+                          <td
+                            style={{
+                              padding: '12px 14px',
+                              textAlign: 'right',
+                              fontWeight: '700',
+                              color: isReceipt ? '#15803d' : '#94a3b8',
+                              fontVariantNumeric: 'tabular-nums',
+                            }}
+                          >
+                            {isReceipt ? `+${formatNumber(entry.receipt_quantity || entry.quantity)}` : '—'}
+                          </td>
+
+                          {/* Số lượng xuất (-) */}
+                          <td
+                            style={{
+                              padding: '12px 14px',
+                              textAlign: 'right',
+                              fontWeight: '700',
+                              color: isIssue ? '#b91c1c' : '#94a3b8',
+                              fontVariantNumeric: 'tabular-nums',
+                            }}
+                          >
+                            {isIssue ? `-${formatNumber(entry.issue_quantity || Math.abs(entry.quantity))}` : '—'}
+                          </td>
+
+                          {/* TỒN SAU PHÁT SINH */}
+                          <td
+                            style={{
+                              padding: '12px 16px',
+                              textAlign: 'right',
+                              fontWeight: '800',
+                              fontSize: '14px',
+                              color: '#1d4ed8',
+                              backgroundColor: '#eff6ff',
+                              borderLeft: '1px solid #dbeafe',
+                              borderRight: '1px solid #dbeafe',
+                              fontVariantNumeric: 'tabular-nums',
+                            }}
+                          >
+                            {formatNumber(entry.balance_stock)}
+                          </td>
+
+                          {/* Người thực hiện */}
+                          <td style={{ padding: '12px 14px', color: '#475569', fontSize: '12.5px' }}>
+                            {entry.performed_by || '—'}
+                          </td>
+
+                          {/* Diễn giải / Ghi chú */}
+                          <td style={{ padding: '12px 16px', color: '#64748b', fontSize: '12.5px', lineHeight: 1.4 }}>
+                            {entry.note || '—'}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* THANH PHÂN TRANG: 20 DÒNG / TRANG CHUẨN THEO YÊU CẦU */}
+            {totalEntries > 0 && (
+              <div
+                style={{
+                  padding: '10px 18px',
+                  backgroundColor: '#ffffff',
+                  borderTop: '1px solid #e2e8f0',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  fontSize: '12.5px',
+                  color: '#64748b',
+                  flexWrap: 'wrap',
+                  gap: '12px',
+                }}
+              >
+                <div>
+                  Hiển thị <strong>{startIndex + 1}</strong> - <strong>{endIndex}</strong> trên tổng số{' '}
+                  <strong style={{ color: '#0f172a' }}>{totalEntries}</strong> phát sinh
+                  {totalPages > 1 && ` (Trang ${safeCurrentPage} / ${totalPages})`}
+                </div>
+
+                {totalPages > 1 && (
+                  <div
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'stretch',
+                      border: '1px solid #d1d5db',
+                      borderRadius: '6px',
+                      overflow: 'hidden',
+                    }}
+                  >
+                    <button
+                      type="button"
+                      disabled={safeCurrentPage <= 1}
+                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                      style={{
+                        padding: '6px 12px',
+                        border: 'none',
+                        borderRight: '1px solid #d1d5db',
+                        backgroundColor: safeCurrentPage <= 1 ? '#f3f4f6' : '#ffffff',
+                        color: safeCurrentPage <= 1 ? '#9ca3af' : '#374151',
+                        cursor: safeCurrentPage <= 1 ? 'not-allowed' : 'pointer',
+                        fontSize: '12px',
+                        fontWeight: '600',
+                      }}
+                    >
+                      ‹ Trước
+                    </button>
+
+                    {Array.from({ length: totalPages }, (_, i) => i + 1)
+                      .filter((p) => p === 1 || p === totalPages || Math.abs(p - safeCurrentPage) <= 2)
+                      .reduce<(number | string)[]>((acc, p, idx, arr) => {
+                        if (idx > 0 && p - (arr[idx - 1] as number) > 1) {
+                          acc.push('...');
+                        }
+                        acc.push(p);
+                        return acc;
+                      }, [])
+                      .map((p, idx) => {
+                        if (typeof p === 'string') {
+                          return (
+                            <span
+                              key={`ellipsis-${idx}`}
+                              style={{
+                                padding: '6px 10px',
+                                borderRight: '1px solid #d1d5db',
+                                backgroundColor: '#f9fafb',
+                                color: '#9ca3af',
+                                fontSize: '12px',
+                              }}
+                            >
+                              {p}
+                            </span>
+                          );
+                        }
+                        const isActive = p === safeCurrentPage;
+                        return (
+                          <button
+                            key={p}
+                            type="button"
+                            onClick={() => setCurrentPage(p)}
+                            style={{
+                              padding: '6px 12px',
+                              border: 'none',
+                              borderRight: '1px solid #d1d5db',
+                              backgroundColor: isActive ? '#2563eb' : '#ffffff',
+                              color: isActive ? '#ffffff' : '#374151',
+                              cursor: isActive ? 'default' : 'pointer',
+                              fontSize: '12px',
+                              fontWeight: isActive ? '700' : '500',
+                              minWidth: '32px',
+                            }}
+                          >
+                            {p}
+                          </button>
+                        );
+                      })}
+
+                    <button
+                      type="button"
+                      disabled={safeCurrentPage >= totalPages}
+                      onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                      style={{
+                        padding: '6px 12px',
+                        border: 'none',
+                        backgroundColor: safeCurrentPage >= totalPages ? '#f3f4f6' : '#ffffff',
+                        color: safeCurrentPage >= totalPages ? '#9ca3af' : '#374151',
+                        cursor: safeCurrentPage >= totalPages ? 'not-allowed' : 'pointer',
+                        fontSize: '12px',
+                        fontWeight: '600',
+                      }}
+                    >
+                      Sau ›
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* CHÂN TRANG FOOTER */}
+        <div
+          style={{
+            padding: '14px 24px',
+            borderTop: '1px solid #e2e8f0',
+            backgroundColor: '#f8fafc',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '12px',
+          }}
+        >
+          <div style={{ fontSize: '12.5px', color: '#64748b' }}>
+            <span>Đơn vị tính: <strong>{displayUnit}</strong></span>
+            <span style={{ margin: '0 8px' }}>•</span>
+            <span>Trạng thái: <strong>Đồng bộ thẻ kho trực tiếp từ CSDL</strong></span>
+          </div>
+
+          <button
+            type="button"
+            onClick={onBack}
+            style={{
+              padding: '8px 18px',
+              backgroundColor: '#ffffff',
+              border: '1px solid #cbd5e1',
+              borderRadius: '8px',
+              fontSize: '13px',
+              fontWeight: '600',
+              color: '#334155',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f1f5f9')}
+            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#ffffff')}
+          >
+            Đóng
+          </button>
         </div>
       </div>
 
-      {/* POPUP CHI TIẾT CHỨNG TỪ GỐC */}
+      {/* DIALOG CHI TIẾT CHỨNG TỪ GỐC */}
       {activeVoucher && (
         <div
           style={{
