@@ -422,8 +422,8 @@ export const StockCardModal: React.FC<StockCardModalProps> = ({
               style={{
                 padding: '12px 16px',
                 borderRadius: '10px',
-                backgroundColor: '#f0fdf4',
-                border: '1px solid #bbf7d0',
+                backgroundColor: '#ffffff',
+                border: '1px solid #e2e8f0',
                 boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
                 display: 'flex',
                 flexDirection: 'column',
@@ -431,9 +431,9 @@ export const StockCardModal: React.FC<StockCardModalProps> = ({
                 gap: '4px',
               }}
             >
-              <div style={{ fontSize: '11.5px', color: '#15803d', fontWeight: '600' }}>Tổng nhập trong kỳ</div>
-              <div style={{ fontSize: '18px', fontWeight: '800', color: '#15803d' }}>
-                +{formatNumber(summary?.total_receipt)}
+              <div style={{ fontSize: '11.5px', color: '#64748b', fontWeight: '600' }}>Tổng nhập trong kỳ</div>
+              <div style={{ fontSize: '18px', fontWeight: '800', color: '#1e293b' }}>
+                {formatNumber(summary?.total_receipt)}
               </div>
             </div>
 
@@ -442,8 +442,8 @@ export const StockCardModal: React.FC<StockCardModalProps> = ({
               style={{
                 padding: '12px 16px',
                 borderRadius: '10px',
-                backgroundColor: '#fef2f2',
-                border: '1px solid #fecaca',
+                backgroundColor: '#ffffff',
+                border: '1px solid #e2e8f0',
                 boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
                 display: 'flex',
                 flexDirection: 'column',
@@ -451,9 +451,9 @@ export const StockCardModal: React.FC<StockCardModalProps> = ({
                 gap: '4px',
               }}
             >
-              <div style={{ fontSize: '11.5px', color: '#b91c1c', fontWeight: '600' }}>Tổng xuất trong kỳ</div>
-              <div style={{ fontSize: '18px', fontWeight: '800', color: '#b91c1c' }}>
-                -{formatNumber(summary?.total_issue)}
+              <div style={{ fontSize: '11.5px', color: '#64748b', fontWeight: '600' }}>Tổng xuất trong kỳ</div>
+              <div style={{ fontSize: '18px', fontWeight: '800', color: '#1e293b' }}>
+                {formatNumber(summary?.total_issue)}
               </div>
             </div>
 
@@ -462,8 +462,8 @@ export const StockCardModal: React.FC<StockCardModalProps> = ({
               style={{
                 padding: '12px 16px',
                 borderRadius: '10px',
-                backgroundColor: '#eff6ff',
-                border: '1px solid #bfdbfe',
+                backgroundColor: '#ffffff',
+                border: '1px solid #e2e8f0',
                 boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
                 display: 'flex',
                 flexDirection: 'column',
@@ -471,8 +471,8 @@ export const StockCardModal: React.FC<StockCardModalProps> = ({
                 gap: '4px',
               }}
             >
-              <div style={{ fontSize: '11.5px', color: '#1d4ed8', fontWeight: '600' }}>Tồn cuối kỳ</div>
-              <div style={{ fontSize: '18px', fontWeight: '800', color: '#1d4ed8' }}>
+              <div style={{ fontSize: '11.5px', color: '#64748b', fontWeight: '600' }}>Tồn cuối kỳ</div>
+              <div style={{ fontSize: '18px', fontWeight: '800', color: '#1e293b' }}>
                 {formatNumber(summary?.closing_stock)}
               </div>
             </div>
@@ -482,8 +482,8 @@ export const StockCardModal: React.FC<StockCardModalProps> = ({
               style={{
                 padding: '12px 16px',
                 borderRadius: '10px',
-                backgroundColor: '#faf5ff',
-                border: '1px solid #e9d5ff',
+                backgroundColor: '#ffffff',
+                border: '1px solid #e2e8f0',
                 boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
                 display: 'flex',
                 flexDirection: 'column',
@@ -491,8 +491,8 @@ export const StockCardModal: React.FC<StockCardModalProps> = ({
                 gap: '4px',
               }}
             >
-              <div style={{ fontSize: '11.5px', color: '#7e22ce', fontWeight: '600' }}>Tồn thực tế hiện tại</div>
-              <div style={{ fontSize: '18px', fontWeight: '800', color: '#7e22ce' }}>
+              <div style={{ fontSize: '11.5px', color: '#64748b', fontWeight: '600' }}>Tồn thực tế hiện tại</div>
+              <div style={{ fontSize: '18px', fontWeight: '800', color: '#1e293b' }}>
                 {formatNumber(summary?.current_actual_stock)}
               </div>
             </div>
@@ -676,22 +676,19 @@ export const StockCardModal: React.FC<StockCardModalProps> = ({
                     <th style={{ padding: '10px 12px', fontWeight: '700', color: '#475569', width: '150px' }}>
                       Kho hàng
                     </th>
-                    <th style={{ padding: '10px 12px', fontWeight: '700', color: '#15803d', textAlign: 'right', width: '90px' }}>
+                    <th style={{ padding: '10px 12px', fontWeight: '700', color: '#475569', textAlign: 'right', width: '90px' }}>
                       Nhập (+)
                     </th>
-                    <th style={{ padding: '10px 12px', fontWeight: '700', color: '#b91c1c', textAlign: 'right', width: '90px' }}>
+                    <th style={{ padding: '10px 12px', fontWeight: '700', color: '#475569', textAlign: 'right', width: '90px' }}>
                       Xuất (-)
                     </th>
                     <th
                       style={{
                         padding: '10px 14px',
-                        fontWeight: '800',
-                        color: '#1d4ed8',
+                        fontWeight: '700',
+                        color: '#475569',
                         textAlign: 'right',
                         width: '120px',
-                        backgroundColor: '#eff6ff',
-                        borderLeft: '1px solid #dbeafe',
-                        borderRight: '1px solid #dbeafe',
                       }}
                     >
                       Tồn sau phát sinh

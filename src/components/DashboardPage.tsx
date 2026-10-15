@@ -1407,7 +1407,7 @@ export default function DashboardPage({
   const isProductFormOpen = productDrawerState.isOpen && activeTab === 'inventory';
   const isSalesOrderOpen = activeTab === 'create-order' || isSalesOrderEntryOpen;
   const isGoodsReceiptPage = activeTab === 'goods-receipt';
-  const isLockedScrollTab = !isProductFormOpen && !isSalesOrderOpen && !isOrdersCreateSubpage && !isOrderDetailSubpage && !isPriceListsCreateSubpage && !isPriceBookDetailSubpage && !isPriceBookEditSubpage && !isGoodsReceiptPage && !isStockTransferCreateSubpage && (activeTab === 'inventory' || activeTab === 'dealers' || activeTab === 'dealer-profiles' || activeTab === 'delivery-points' || activeTab === 'suppliers' || activeTab === 'price-books' || activeTab === 'categories' || activeTab === 'orders' || activeTab === 'product-history' || activeTab === 'stock-book' || activeTab === 'stock-audits' || activeTab === 'stock-transfers' || activeTab === 'stock-thresholds' || activeTab === 'low-stock-alerts' || activeTab === 'products-import' || activeTab === 'users-import') && !isPendingCustomer;
+  const isLockedScrollTab = !isProductFormOpen && !isSalesOrderOpen && !isOrdersCreateSubpage && !isOrderDetailSubpage && !isPriceListsCreateSubpage && !isPriceBookDetailSubpage && !isPriceBookEditSubpage && !isGoodsReceiptPage && !isStockTransferCreateSubpage && (activeTab === 'inventory' || activeTab === 'dealers' || activeTab === 'dealer-profiles' || activeTab === 'delivery-points' || activeTab === 'suppliers' || activeTab === 'price-books' || activeTab === 'categories' || activeTab === 'orders' || activeTab === 'product-history' || activeTab === 'stock-book' || activeTab === 'stock-card' || activeTab === 'stock-audits' || activeTab === 'stock-transfers' || activeTab === 'stock-thresholds' || activeTab === 'low-stock-alerts' || activeTab === 'products-import' || activeTab === 'users-import') && !isPendingCustomer;
 
   return (
     <DashboardLayout
@@ -3231,7 +3231,6 @@ export default function DashboardPage({
                                       onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                                       title="Xem thẻ kho chi tiết để truy nguyên số tồn bị lệch"
                                     >
-                                      <span style={{ fontSize: '14px', lineHeight: 1, flexShrink: 0 }}>📋</span>
                                       <span>Xem thẻ kho</span>
                                     </button>
                                   </div>

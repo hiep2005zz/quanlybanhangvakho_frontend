@@ -250,45 +250,52 @@ export const StockCardView: React.FC<StockCardViewProps> = ({
   return (
     <div
       style={{
-        padding: '20px 24px',
+        padding: '8px 12px',
         backgroundColor: '#f1f5f9',
-        minHeight: '100%',
+        height: '100%',
+        maxHeight: '100%',
         boxSizing: 'border-box',
         display: 'flex',
         flexDirection: 'column',
-        gap: '16px',
+        overflow: 'hidden',
+        width: '100%',
       }}
     >
       {/* THẺ CONTAINER CHÍNH CHUẨN THIẾT KẾ CARD TRANG NHÃ */}
       <div
         style={{
           backgroundColor: '#ffffff',
-          borderRadius: '16px',
+          borderRadius: '12px',
           border: '1px solid #e2e8f0',
-          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05)',
+          boxShadow: '0 2px 4px rgba(0, 0, 0, 0.04)',
           overflow: 'hidden',
           display: 'flex',
           flexDirection: 'column',
+          flex: 1,
+          minHeight: 0,
+          height: '100%',
+          maxHeight: '100%',
         }}
       >
-        {/* HEADER TRANG */}
+        {/* HEADER TRANG (THU GỌN VỪA VẶN MÀN HÌNH 100%) */}
         <div
           style={{
-            padding: '20px 24px',
+            padding: '10px 16px',
             borderBottom: '1px solid #e2e8f0',
             backgroundColor: '#ffffff',
             display: 'flex',
-            alignItems: 'flex-start',
+            alignItems: 'center',
             justifyContent: 'space-between',
-            gap: '16px',
+            gap: '12px',
             flexWrap: 'wrap',
+            flexShrink: 0,
           }}
         >
           <div style={{ minWidth: 0, flex: 1 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', marginBottom: '6px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '2px' }}>
               <h1
                 style={{
-                  fontSize: '20px',
+                  fontSize: '16px',
                   fontWeight: '700',
                   color: '#0f172a',
                   margin: 0,
@@ -301,11 +308,11 @@ export const StockCardView: React.FC<StockCardViewProps> = ({
               {displayProductCode && (
                 <span
                   style={{
-                    padding: '3px 10px',
-                    borderRadius: '6px',
+                    padding: '2px 8px',
+                    borderRadius: '5px',
                     backgroundColor: '#eff6ff',
                     color: '#1d4ed8',
-                    fontSize: '12px',
+                    fontSize: '11px',
                     fontWeight: '700',
                     border: '1px solid #bfdbfe',
                     whiteSpace: 'nowrap',
@@ -318,11 +325,11 @@ export const StockCardView: React.FC<StockCardViewProps> = ({
               {displayUnit && (
                 <span
                   style={{
-                    padding: '3px 10px',
-                    borderRadius: '6px',
+                    padding: '2px 8px',
+                    borderRadius: '5px',
                     backgroundColor: '#f1f5f9',
                     color: '#475569',
-                    fontSize: '12px',
+                    fontSize: '11px',
                     fontWeight: '600',
                     border: '1px solid #e2e8f0',
                     whiteSpace: 'nowrap',
@@ -335,11 +342,11 @@ export const StockCardView: React.FC<StockCardViewProps> = ({
               {displayCategory && (
                 <span
                   style={{
-                    padding: '3px 10px',
-                    borderRadius: '6px',
+                    padding: '2px 8px',
+                    borderRadius: '5px',
                     backgroundColor: '#f8fafc',
                     color: '#64748b',
-                    fontSize: '12px',
+                    fontSize: '11px',
                     border: '1px solid #e2e8f0',
                     whiteSpace: 'nowrap',
                   }}
@@ -351,10 +358,10 @@ export const StockCardView: React.FC<StockCardViewProps> = ({
 
             <p
               style={{
-                fontSize: '13px',
+                fontSize: '11.5px',
                 color: '#64748b',
                 margin: 0,
-                lineHeight: 1.4,
+                lineHeight: 1.3,
               }}
             >
               Nhật ký truy nguyên toàn bộ biến động nhập, xuất, chuyển kho và điều chỉnh để xác định nguyên nhân lệch tồn.
@@ -366,17 +373,17 @@ export const StockCardView: React.FC<StockCardViewProps> = ({
             type="button"
             onClick={onBack}
             style={{
-              padding: '8px 18px',
-              borderRadius: '8px',
+              padding: '6px 14px',
+              borderRadius: '7px',
               border: '1px solid #cbd5e1',
               backgroundColor: '#ffffff',
               color: '#334155',
-              fontSize: '13px',
+              fontSize: '12px',
               fontWeight: '600',
               cursor: 'pointer',
               transition: 'all 0.15s ease',
               whiteSpace: 'nowrap',
-              boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
+              boxShadow: '0 1px 2px rgba(0, 0, 0, 0.04)',
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.backgroundColor = '#f8fafc';
@@ -391,32 +398,33 @@ export const StockCardView: React.FC<StockCardViewProps> = ({
           </button>
         </div>
 
-        {/* NỘI DUNG CHÍNH */}
-        <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
-          {/* 5 THẺ THỐNG KÊ (ĐÚNG THEO GIAO DIỆN HÌNH ẢNH: NỀN MÀU PASTEL THANH LỊCH, KHÔNG CÓ ICON) */}
+        {/* NỘI DUNG CHÍNH (CỐ ĐỊNH PHẦN TRÊN, CHỈ CUỘN TRONG BẢNG DỮ LIỆU) */}
+        <div style={{ padding: '8px 14px', display: 'flex', flexDirection: 'column', gap: '8px', flex: 1, minHeight: 0, overflow: 'hidden' }}>
+          {/* 5 THẺ THỐNG KÊ (CỐ ĐỊNH, THU GỌN VỪA VẶN MÀN HÌNH 100%) */}
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-              gap: '14px',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
+              gap: '8px',
+              flexShrink: 0,
             }}
           >
             {/* 1. TỒN ĐẦU KỲ */}
             <div
               style={{
-                padding: '14px 18px',
-                borderRadius: '12px',
+                padding: '6px 12px',
+                borderRadius: '8px',
                 backgroundColor: '#ffffff',
                 border: '1px solid #e2e8f0',
-                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
+                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.03)',
                 display: 'flex',
                 flexDirection: 'column',
                 justifyContent: 'center',
-                gap: '5px',
+                gap: '2px',
               }}
             >
-              <div style={{ fontSize: '12px', color: '#64748b', fontWeight: '600' }}>Tồn đầu kỳ</div>
-              <div style={{ fontSize: '22px', fontWeight: '800', color: '#1e293b', fontVariantNumeric: 'tabular-nums' }}>
+              <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600' }}>Tồn đầu kỳ</div>
+              <div style={{ fontSize: '17px', fontWeight: '800', color: '#1e293b', fontVariantNumeric: 'tabular-nums' }}>
                 {formatNumber(summary?.opening_stock)}
               </div>
             </div>
@@ -424,59 +432,59 @@ export const StockCardView: React.FC<StockCardViewProps> = ({
             {/* 2. TỔNG NHẬP TRONG KỲ */}
             <div
               style={{
-                padding: '14px 18px',
-                borderRadius: '12px',
-                backgroundColor: '#f0fdf4',
-                border: '1px solid #bbf7d0',
-                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
+                padding: '6px 12px',
+                borderRadius: '8px',
+                backgroundColor: '#ffffff',
+                border: '1px solid #e2e8f0',
+                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.03)',
                 display: 'flex',
                 flexDirection: 'column',
                 justifyContent: 'center',
-                gap: '5px',
+                gap: '2px',
               }}
             >
-              <div style={{ fontSize: '12px', color: '#15803d', fontWeight: '600' }}>Tổng nhập trong kỳ</div>
-              <div style={{ fontSize: '22px', fontWeight: '800', color: '#15803d', fontVariantNumeric: 'tabular-nums' }}>
-                +{formatNumber(summary?.total_receipt)}
+              <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600' }}>Tổng nhập trong kỳ</div>
+              <div style={{ fontSize: '17px', fontWeight: '800', color: '#1e293b', fontVariantNumeric: 'tabular-nums' }}>
+                {formatNumber(summary?.total_receipt)}
               </div>
             </div>
 
             {/* 3. TỔNG XUẤT TRONG KỲ */}
             <div
               style={{
-                padding: '14px 18px',
-                borderRadius: '12px',
-                backgroundColor: '#fef2f2',
-                border: '1px solid #fecaca',
-                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
+                padding: '6px 12px',
+                borderRadius: '8px',
+                backgroundColor: '#ffffff',
+                border: '1px solid #e2e8f0',
+                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.03)',
                 display: 'flex',
                 flexDirection: 'column',
                 justifyContent: 'center',
-                gap: '5px',
+                gap: '2px',
               }}
             >
-              <div style={{ fontSize: '12px', color: '#b91c1c', fontWeight: '600' }}>Tổng xuất trong kỳ</div>
-              <div style={{ fontSize: '22px', fontWeight: '800', color: '#b91c1c', fontVariantNumeric: 'tabular-nums' }}>
-                -{formatNumber(summary?.total_issue)}
+              <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600' }}>Tổng xuất trong kỳ</div>
+              <div style={{ fontSize: '17px', fontWeight: '800', color: '#1e293b', fontVariantNumeric: 'tabular-nums' }}>
+                {formatNumber(summary?.total_issue)}
               </div>
             </div>
 
             {/* 4. TỒN CUỐI KỲ */}
             <div
               style={{
-                padding: '14px 18px',
-                borderRadius: '12px',
-                backgroundColor: '#eff6ff',
-                border: '1px solid #bfdbfe',
-                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
+                padding: '6px 12px',
+                borderRadius: '8px',
+                backgroundColor: '#ffffff',
+                border: '1px solid #e2e8f0',
+                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.03)',
                 display: 'flex',
                 flexDirection: 'column',
                 justifyContent: 'center',
-                gap: '5px',
+                gap: '2px',
               }}
             >
-              <div style={{ fontSize: '12px', color: '#1d4ed8', fontWeight: '600' }}>Tồn cuối kỳ</div>
-              <div style={{ fontSize: '22px', fontWeight: '800', color: '#1d4ed8', fontVariantNumeric: 'tabular-nums' }}>
+              <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600' }}>Tồn cuối kỳ</div>
+              <div style={{ fontSize: '17px', fontWeight: '800', color: '#1e293b', fontVariantNumeric: 'tabular-nums' }}>
                 {formatNumber(summary?.closing_stock)}
               </div>
             </div>
@@ -484,60 +492,61 @@ export const StockCardView: React.FC<StockCardViewProps> = ({
             {/* 5. TỒN THỰC TẾ HIỆN TẠI TRÊN HỆ THỐNG */}
             <div
               style={{
-                padding: '14px 18px',
-                borderRadius: '12px',
-                backgroundColor: '#faf5ff',
-                border: '1px solid #e9d5ff',
-                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
+                padding: '6px 12px',
+                borderRadius: '8px',
+                backgroundColor: '#ffffff',
+                border: '1px solid #e2e8f0',
+                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.03)',
                 display: 'flex',
                 flexDirection: 'column',
                 justifyContent: 'center',
-                gap: '5px',
+                gap: '2px',
               }}
             >
-              <div style={{ fontSize: '12px', color: '#7e22ce', fontWeight: '600' }}>Tồn thực tế hiện tại</div>
-              <div style={{ fontSize: '22px', fontWeight: '800', color: '#7e22ce', fontVariantNumeric: 'tabular-nums' }}>
+              <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600' }}>Tồn thực tế hiện tại</div>
+              <div style={{ fontSize: '17px', fontWeight: '800', color: '#1e293b', fontVariantNumeric: 'tabular-nums' }}>
                 {formatNumber(summary?.current_actual_stock)}
               </div>
             </div>
           </div>
 
-          {/* BỘ LỌC THEO KHO, THỜI GIAN VÀ CHỌN SẢN PHẨM */}
+          {/* BỘ LỌC THEO KHO, THỜI GIAN VÀ CHỌN SẢN PHẨM (THU GỌN 1 DÒNG VỪA MÀN HÌNH 100%) */}
           <div
             style={{
-              padding: '14px 18px',
-              borderRadius: '12px',
+              padding: '6px 12px',
+              borderRadius: '8px',
               backgroundColor: '#f8fafc',
               border: '1px solid #e2e8f0',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
               flexWrap: 'wrap',
-              gap: '12px',
+              gap: '8px',
+              flexShrink: 0,
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
               {/* Chọn sản phẩm trực tiếp (Nếu muốn chuyển sang xem sản phẩm khác) */}
               {productsList.length > 0 && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <label style={{ fontSize: '12.5px', fontWeight: '600', color: '#475569', whiteSpace: 'nowrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <label style={{ fontSize: '11.5px', fontWeight: '600', color: '#475569', whiteSpace: 'nowrap' }}>
                     Sản phẩm:
                   </label>
                   <select
                     value={selectedProductId}
                     onChange={(e) => setSelectedProductId(Number(e.target.value))}
                     style={{
-                      height: '36px',
-                      padding: '0 10px',
-                      fontSize: '12.5px',
-                      borderRadius: '8px',
+                      height: '30px',
+                      padding: '0 8px',
+                      fontSize: '11.5px',
+                      borderRadius: '6px',
                       border: '1px solid #cbd5e1',
                       backgroundColor: '#ffffff',
                       color: '#1e293b',
                       fontWeight: '500',
                       outline: 'none',
                       cursor: 'pointer',
-                      maxWidth: '240px',
+                      maxWidth: '190px',
                     }}
                   >
                     {productsList.map((p) => (
@@ -550,24 +559,25 @@ export const StockCardView: React.FC<StockCardViewProps> = ({
               )}
 
               {/* Lọc theo kho */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <label style={{ fontSize: '12.5px', fontWeight: '600', color: '#475569', whiteSpace: 'nowrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <label style={{ fontSize: '11.5px', fontWeight: '600', color: '#475569', whiteSpace: 'nowrap' }}>
                   Kho hàng:
                 </label>
                 <select
                   value={selectedWarehouse}
                   onChange={(e) => setSelectedWarehouse(e.target.value)}
                   style={{
-                    height: '36px',
-                    padding: '0 10px',
-                    fontSize: '12.5px',
-                    borderRadius: '8px',
+                    height: '30px',
+                    padding: '0 8px',
+                    fontSize: '11.5px',
+                    borderRadius: '6px',
                     border: '1px solid #cbd5e1',
                     backgroundColor: '#ffffff',
                     color: '#1e293b',
                     fontWeight: '500',
                     outline: 'none',
                     cursor: 'pointer',
+                    maxWidth: '135px',
                   }}
                 >
                   <option value="all">Tất cả kho</option>
@@ -580,8 +590,8 @@ export const StockCardView: React.FC<StockCardViewProps> = ({
               </div>
 
               {/* Lọc khoảng thời gian: Từ ngày */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <label style={{ fontSize: '12.5px', fontWeight: '600', color: '#475569', whiteSpace: 'nowrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <label style={{ fontSize: '11.5px', fontWeight: '600', color: '#475569', whiteSpace: 'nowrap' }}>
                   Từ ngày:
                 </label>
                 <input
@@ -589,21 +599,22 @@ export const StockCardView: React.FC<StockCardViewProps> = ({
                   value={fromDate}
                   onChange={(e) => setFromDate(e.target.value)}
                   style={{
-                    height: '36px',
-                    padding: '0 8px',
-                    fontSize: '12.5px',
-                    borderRadius: '8px',
+                    height: '30px',
+                    padding: '0 6px',
+                    fontSize: '11.5px',
+                    borderRadius: '6px',
                     border: '1px solid #cbd5e1',
                     backgroundColor: '#ffffff',
                     color: '#1e293b',
                     outline: 'none',
+                    width: '120px',
                   }}
                 />
               </div>
 
               {/* Lọc khoảng thời gian: Đến ngày */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <label style={{ fontSize: '12.5px', fontWeight: '600', color: '#475569', whiteSpace: 'nowrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <label style={{ fontSize: '11.5px', fontWeight: '600', color: '#475569', whiteSpace: 'nowrap' }}>
                   Đến ngày:
                 </label>
                 <input
@@ -611,14 +622,15 @@ export const StockCardView: React.FC<StockCardViewProps> = ({
                   value={toDate}
                   onChange={(e) => setToDate(e.target.value)}
                   style={{
-                    height: '36px',
-                    padding: '0 8px',
-                    fontSize: '12.5px',
-                    borderRadius: '8px',
+                    height: '30px',
+                    padding: '0 6px',
+                    fontSize: '11.5px',
+                    borderRadius: '6px',
                     border: '1px solid #cbd5e1',
                     backgroundColor: '#ffffff',
                     color: '#1e293b',
                     outline: 'none',
+                    width: '120px',
                   }}
                 />
               </div>
@@ -629,11 +641,11 @@ export const StockCardView: React.FC<StockCardViewProps> = ({
                   type="button"
                   onClick={handleResetFilters}
                   style={{
-                    height: '36px',
-                    padding: '0 12px',
-                    fontSize: '12px',
+                    height: '30px',
+                    padding: '0 10px',
+                    fontSize: '11.5px',
                     fontWeight: '600',
-                    borderRadius: '8px',
+                    borderRadius: '6px',
                     border: '1px solid #cbd5e1',
                     backgroundColor: '#ffffff',
                     color: '#64748b',
@@ -649,7 +661,7 @@ export const StockCardView: React.FC<StockCardViewProps> = ({
             </div>
 
             {/* Thông tin số lượng dòng phát sinh */}
-            <div style={{ fontSize: '12.5px', color: '#64748b', fontWeight: '500' }}>
+            <div style={{ fontSize: '11.5px', color: '#64748b', fontWeight: '500', whiteSpace: 'nowrap' }}>
               Tìm thấy <strong style={{ color: '#0f172a' }}>{entries.length}</strong> phát sinh trong kỳ
             </div>
           </div>
@@ -658,19 +670,20 @@ export const StockCardView: React.FC<StockCardViewProps> = ({
           {error && (
             <div
               style={{
-                padding: '12px 16px',
+                padding: '10px 16px',
                 borderRadius: '8px',
                 backgroundColor: '#fef2f2',
                 border: '1px solid #fecaca',
                 color: '#b91c1c',
                 fontSize: '13px',
+                flexShrink: 0,
               }}
             >
               {error}
             </div>
           )}
 
-          {/* BẢNG DỮ LIỆU THẺ KHO CHI TIẾT */}
+          {/* BẢNG DỮ LIỆU THẺ KHO CHI TIẾT (VÙNG DUY NHẤT CUỘN NỘI DUNG) */}
           <div
             style={{
               backgroundColor: '#ffffff',
@@ -680,56 +693,60 @@ export const StockCardView: React.FC<StockCardViewProps> = ({
               boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
               display: 'flex',
               flexDirection: 'column',
+              flex: 1,
+              minHeight: 0,
             }}
           >
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+            <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'auto' }}>
+              <table style={{ width: '100%', minWidth: '1000px', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
                 <thead
                   style={{
                     backgroundColor: '#f8fafc',
+                    position: 'sticky',
+                    top: 0,
+                    zIndex: 10,
                     borderBottom: '2px solid #e2e8f0',
                   }}
                 >
                   <tr>
-                    <th style={{ padding: '12px 14px', fontWeight: '700', color: '#475569', width: '50px', textAlign: 'center' }}>
+                    <th style={{ padding: '8px 10px', fontWeight: '700', color: '#475569', width: '45px', textAlign: 'center', backgroundColor: '#f8fafc', fontSize: '12px' }}>
                       #
                     </th>
-                    <th style={{ padding: '12px 14px', fontWeight: '700', color: '#475569', width: '150px', whiteSpace: 'nowrap' }}>
+                    <th style={{ padding: '8px 10px', fontWeight: '700', color: '#475569', width: '135px', whiteSpace: 'nowrap', backgroundColor: '#f8fafc', fontSize: '12px' }}>
                       Thời gian
                     </th>
-                    <th style={{ padding: '12px 14px', fontWeight: '700', color: '#475569', width: '140px' }}>
+                    <th style={{ padding: '8px 10px', fontWeight: '700', color: '#475569', width: '130px', backgroundColor: '#f8fafc', fontSize: '12px' }}>
                       Loại nghiệp vụ
                     </th>
-                    <th style={{ padding: '12px 14px', fontWeight: '700', color: '#475569', width: '160px' }}>
+                    <th style={{ padding: '8px 10px', fontWeight: '700', color: '#475569', width: '150px', backgroundColor: '#f8fafc', fontSize: '12px' }}>
                       Chứng từ gốc
                     </th>
-                    <th style={{ padding: '12px 14px', fontWeight: '700', color: '#475569', width: '160px' }}>
+                    <th style={{ padding: '8px 10px', fontWeight: '700', color: '#475569', width: '140px', backgroundColor: '#f8fafc', fontSize: '12px' }}>
                       Kho hàng
                     </th>
-                    <th style={{ padding: '12px 14px', fontWeight: '700', color: '#15803d', textAlign: 'right', width: '100px' }}>
+                    <th style={{ padding: '8px 10px', fontWeight: '700', color: '#475569', textAlign: 'right', width: '90px', backgroundColor: '#f8fafc', fontSize: '12px' }}>
                       Nhập (+)
                     </th>
-                    <th style={{ padding: '12px 14px', fontWeight: '700', color: '#b91c1c', textAlign: 'right', width: '100px' }}>
+                    <th style={{ padding: '8px 10px', fontWeight: '700', color: '#475569', textAlign: 'right', width: '90px', backgroundColor: '#f8fafc', fontSize: '12px' }}>
                       Xuất (-)
                     </th>
                     <th
                       style={{
-                        padding: '12px 16px',
-                        fontWeight: '800',
-                        color: '#1d4ed8',
+                        padding: '8px 12px',
+                        fontWeight: '700',
+                        color: '#475569',
                         textAlign: 'right',
-                        width: '130px',
-                        backgroundColor: '#eff6ff',
-                        borderLeft: '1px solid #dbeafe',
-                        borderRight: '1px solid #dbeafe',
+                        width: '120px',
+                        backgroundColor: '#f8fafc',
+                        fontSize: '12px',
                       }}
                     >
                       Tồn sau phát sinh
                     </th>
-                    <th style={{ padding: '12px 14px', fontWeight: '700', color: '#475569', width: '130px' }}>
+                    <th style={{ padding: '8px 10px', fontWeight: '700', color: '#475569', width: '120px', backgroundColor: '#f8fafc', fontSize: '12px' }}>
                       Người thực hiện
                     </th>
-                    <th style={{ padding: '12px 16px', fontWeight: '700', color: '#475569', minWidth: '200px' }}>
+                    <th style={{ padding: '8px 12px', fontWeight: '700', color: '#475569', minWidth: '180px', backgroundColor: '#f8fafc', fontSize: '12px' }}>
                       Diễn giải / Ghi chú
                     </th>
                   </tr>
@@ -768,34 +785,34 @@ export const StockCardView: React.FC<StockCardViewProps> = ({
                           }}
                         >
                           {/* STT */}
-                          <td style={{ padding: '12px 14px', textAlign: 'center', color: '#94a3b8', fontSize: '12px' }}>
+                          <td style={{ padding: '7px 10px', textAlign: 'center', color: '#94a3b8', fontSize: '11.5px' }}>
                             {itemIndex}
                           </td>
 
                           {/* Thời gian */}
-                          <td style={{ padding: '12px 14px', color: '#334155', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
+                          <td style={{ padding: '7px 10px', color: '#334155', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', fontSize: '12px' }}>
                             {formatDateTime(entry.created_at)}
                           </td>
 
                           {/* Loại nghiệp vụ (Không có icon) */}
-                          <td style={{ padding: '12px 14px' }}>
+                          <td style={{ padding: '7px 10px' }}>
                             {renderTransactionTypeBadge(entry.transaction_type, entry.transaction_label)}
                           </td>
 
                           {/* Liên kết chứng từ gốc */}
-                          <td style={{ padding: '12px 14px' }}>
+                          <td style={{ padding: '7px 10px' }}>
                             <button
                               type="button"
                               onClick={() => handleVoucherClick(entry.voucher_info, entry.reference_code)}
                               title={`Bấm để truy nguyên chứng từ gốc ${entry.reference_code}`}
                               style={{
-                                padding: '4px 10px',
-                                borderRadius: '6px',
+                                padding: '2px 8px',
+                                borderRadius: '5px',
                                 backgroundColor: '#f8fafc',
                                 border: '1px solid #cbd5e1',
                                 color: '#0284c7',
                                 fontWeight: '700',
-                                fontSize: '12.5px',
+                                fontSize: '11.5px',
                                 cursor: 'pointer',
                                 textDecoration: 'underline',
                                 transition: 'all 0.15s ease',
@@ -814,19 +831,20 @@ export const StockCardView: React.FC<StockCardViewProps> = ({
                           </td>
 
                           {/* Kho hàng */}
-                          <td style={{ padding: '12px 14px', color: '#475569' }}>
+                          <td style={{ padding: '7px 10px', color: '#475569', fontSize: '12px' }}>
                             <div style={{ fontWeight: '600' }}>{entry.warehouse_name}</div>
-                            <div style={{ fontSize: '11.5px', color: '#94a3b8' }}>{entry.warehouse_id}</div>
+                            <div style={{ fontSize: '11px', color: '#94a3b8' }}>{entry.warehouse_id}</div>
                           </td>
 
                           {/* Số lượng nhập (+) */}
                           <td
                             style={{
-                              padding: '12px 14px',
+                              padding: '7px 10px',
                               textAlign: 'right',
                               fontWeight: '700',
                               color: isReceipt ? '#15803d' : '#94a3b8',
                               fontVariantNumeric: 'tabular-nums',
+                              fontSize: '12px',
                             }}
                           >
                             {isReceipt ? `+${formatNumber(entry.receipt_quantity || entry.quantity)}` : '—'}
@@ -835,11 +853,12 @@ export const StockCardView: React.FC<StockCardViewProps> = ({
                           {/* Số lượng xuất (-) */}
                           <td
                             style={{
-                              padding: '12px 14px',
+                              padding: '7px 10px',
                               textAlign: 'right',
                               fontWeight: '700',
                               color: isIssue ? '#b91c1c' : '#94a3b8',
                               fontVariantNumeric: 'tabular-nums',
+                              fontSize: '12px',
                             }}
                           >
                             {isIssue ? `-${formatNumber(entry.issue_quantity || Math.abs(entry.quantity))}` : '—'}
@@ -848,14 +867,11 @@ export const StockCardView: React.FC<StockCardViewProps> = ({
                           {/* TỒN SAU PHÁT SINH */}
                           <td
                             style={{
-                              padding: '12px 16px',
+                              padding: '7px 12px',
                               textAlign: 'right',
                               fontWeight: '800',
-                              fontSize: '14px',
-                              color: '#1d4ed8',
-                              backgroundColor: '#eff6ff',
-                              borderLeft: '1px solid #dbeafe',
-                              borderRight: '1px solid #dbeafe',
+                              fontSize: '12.5px',
+                              color: '#1e293b',
                               fontVariantNumeric: 'tabular-nums',
                             }}
                           >
@@ -863,12 +879,12 @@ export const StockCardView: React.FC<StockCardViewProps> = ({
                           </td>
 
                           {/* Người thực hiện */}
-                          <td style={{ padding: '12px 14px', color: '#475569', fontSize: '12.5px' }}>
+                          <td style={{ padding: '7px 10px', color: '#475569', fontSize: '12px' }}>
                             {entry.performed_by || '—'}
                           </td>
 
                           {/* Diễn giải / Ghi chú */}
-                          <td style={{ padding: '12px 16px', color: '#64748b', fontSize: '12.5px', lineHeight: 1.4 }}>
+                          <td style={{ padding: '7px 12px', color: '#64748b', fontSize: '12px', lineHeight: 1.3 }}>
                             {entry.note || '—'}
                           </td>
                         </tr>
@@ -883,16 +899,17 @@ export const StockCardView: React.FC<StockCardViewProps> = ({
             {totalEntries > 0 && (
               <div
                 style={{
-                  padding: '10px 18px',
+                  padding: '6px 14px',
                   backgroundColor: '#ffffff',
                   borderTop: '1px solid #e2e8f0',
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
-                  fontSize: '12.5px',
+                  fontSize: '11.5px',
                   color: '#64748b',
                   flexWrap: 'wrap',
-                  gap: '12px',
+                  gap: '8px',
+                  flexShrink: 0,
                 }}
               >
                 <div>
@@ -907,7 +924,7 @@ export const StockCardView: React.FC<StockCardViewProps> = ({
                       display: 'inline-flex',
                       alignItems: 'stretch',
                       border: '1px solid #d1d5db',
-                      borderRadius: '6px',
+                      borderRadius: '5px',
                       overflow: 'hidden',
                     }}
                   >
@@ -916,13 +933,13 @@ export const StockCardView: React.FC<StockCardViewProps> = ({
                       disabled={safeCurrentPage <= 1}
                       onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                       style={{
-                        padding: '6px 12px',
+                        padding: '4px 10px',
                         border: 'none',
                         borderRight: '1px solid #d1d5db',
                         backgroundColor: safeCurrentPage <= 1 ? '#f3f4f6' : '#ffffff',
                         color: safeCurrentPage <= 1 ? '#9ca3af' : '#374151',
                         cursor: safeCurrentPage <= 1 ? 'not-allowed' : 'pointer',
-                        fontSize: '12px',
+                        fontSize: '11.5px',
                         fontWeight: '600',
                       }}
                     >
@@ -944,11 +961,11 @@ export const StockCardView: React.FC<StockCardViewProps> = ({
                             <span
                               key={`ellipsis-${idx}`}
                               style={{
-                                padding: '6px 10px',
+                                padding: '4px 8px',
                                 borderRight: '1px solid #d1d5db',
                                 backgroundColor: '#f9fafb',
                                 color: '#9ca3af',
-                                fontSize: '12px',
+                                fontSize: '11.5px',
                               }}
                             >
                               {p}
@@ -962,15 +979,15 @@ export const StockCardView: React.FC<StockCardViewProps> = ({
                             type="button"
                             onClick={() => setCurrentPage(p)}
                             style={{
-                              padding: '6px 12px',
+                              padding: '4px 10px',
                               border: 'none',
                               borderRight: '1px solid #d1d5db',
                               backgroundColor: isActive ? '#2563eb' : '#ffffff',
                               color: isActive ? '#ffffff' : '#374151',
                               cursor: isActive ? 'default' : 'pointer',
-                              fontSize: '12px',
+                              fontSize: '11.5px',
                               fontWeight: isActive ? '700' : '500',
-                              minWidth: '32px',
+                              minWidth: '28px',
                             }}
                           >
                             {p}
@@ -983,12 +1000,12 @@ export const StockCardView: React.FC<StockCardViewProps> = ({
                       disabled={safeCurrentPage >= totalPages}
                       onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                       style={{
-                        padding: '6px 12px',
+                        padding: '4px 10px',
                         border: 'none',
                         backgroundColor: safeCurrentPage >= totalPages ? '#f3f4f6' : '#ffffff',
                         color: safeCurrentPage >= totalPages ? '#9ca3af' : '#374151',
                         cursor: safeCurrentPage >= totalPages ? 'not-allowed' : 'pointer',
-                        fontSize: '12px',
+                        fontSize: '11.5px',
                         fontWeight: '600',
                       }}
                     >
@@ -1004,17 +1021,18 @@ export const StockCardView: React.FC<StockCardViewProps> = ({
         {/* CHÂN TRANG FOOTER */}
         <div
           style={{
-            padding: '14px 24px',
+            padding: '6px 16px',
             borderTop: '1px solid #e2e8f0',
             backgroundColor: '#f8fafc',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
             flexWrap: 'wrap',
-            gap: '12px',
+            gap: '8px',
+            flexShrink: 0,
           }}
         >
-          <div style={{ fontSize: '12.5px', color: '#64748b' }}>
+          <div style={{ fontSize: '11.5px', color: '#64748b' }}>
             <span>Đơn vị tính: <strong>{displayUnit}</strong></span>
             <span style={{ margin: '0 8px' }}>•</span>
             <span>Trạng thái: <strong>Đồng bộ thẻ kho trực tiếp từ CSDL</strong></span>
@@ -1024,11 +1042,11 @@ export const StockCardView: React.FC<StockCardViewProps> = ({
             type="button"
             onClick={onBack}
             style={{
-              padding: '8px 18px',
+              padding: '4px 14px',
               backgroundColor: '#ffffff',
               border: '1px solid #cbd5e1',
-              borderRadius: '8px',
-              fontSize: '13px',
+              borderRadius: '6px',
+              fontSize: '11.5px',
               fontWeight: '600',
               color: '#334155',
               cursor: 'pointer',

@@ -750,7 +750,6 @@ export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
                             e.currentTarget.style.borderColor = '#bfdbfe';
                           }}
                         >
-                          <span style={{ fontSize: '13px', lineHeight: 1 }}>📋</span>
                           <span>Thẻ kho</span>
                         </button>
                       </td>
