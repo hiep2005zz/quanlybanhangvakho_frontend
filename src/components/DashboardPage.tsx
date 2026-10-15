@@ -52,7 +52,7 @@ import WarehouseManagementView from './WarehouseManagementView';
 import { WarehouseStockBookView } from './WarehouseStockBookView';
 import { StockAuditManagementView } from './StockAuditManagementView';
 import { StockTransferManagementView } from './StockTransferManagementView';
-import { StockCardView } from './StockCardView';
+import { StockCardModal } from './StockCardModal';
 import { ModalPortal } from './ModalPortal';
 import { DashboardHeader } from './DashboardHeader';
 import { CustomerDebtView } from './CustomerDebtView';
@@ -1935,21 +1935,6 @@ export default function DashboardPage({
             fetchLowStockAlerts();
           }}
         />
-      ) : activeTab === 'stock-card' && selectedProductForStockCard ? (
-          <StockCardView
-            productId={selectedProductForStockCard.id}
-            productName={selectedProductForStockCard.name}
-            productCode={selectedProductForStockCard.code}
-            token={token}
-            onBack={() => {
-              setActiveTab('stock-book');
-              setSelectedProductForStockCard(null);
-            }}
-            onNavigateToTab={(tab) => {
-              setActiveTab(tab as TabType);
-              setSelectedProductForStockCard(null);
-            }}
-          />
       ) : activeTab === 'stock-book' ? (
           <WarehouseStockBookView
             token={token}
@@ -1959,7 +1944,6 @@ export default function DashboardPage({
             }}
             onOpenStockCard={(productId, productName, productCode) => {
               setSelectedProductForStockCard({ id: productId, name: productName, code: productCode });
-              setActiveTab('stock-card');
             }}
           />
         ) : activeTab === 'stock-audits' ? (
@@ -3212,6 +3196,7 @@ export default function DashboardPage({
                                       onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                                       title="Xem thẻ kho chi tiết để truy nguyên số tồn bị lệch"
                                     >
+                                      <span style={{ fontSize: '14px', lineHeight: 1, flexShrink: 0 }}>📋</span>
                                       <span>Xem thẻ kho</span>
                                     </button>
                                   </div>
@@ -3701,6 +3686,20 @@ export default function DashboardPage({
           } : undefined}
           onOpenGoodsReceipt={canWriteInventory ? () => setIsGoodsReceiptModalOpen(true) : undefined}
         />
+
+        {selectedProductForStockCard && (
+          <StockCardModal
+            productId={selectedProductForStockCard.id}
+            productName={selectedProductForStockCard.name}
+            productCode={selectedProductForStockCard.code}
+            token={token}
+            isOpen={Boolean(selectedProductForStockCard)}
+            onClose={() => setSelectedProductForStockCard(null)}
+            onNavigateToTab={(tab) => {
+              setActiveTab(tab as TabType);
+            }}
+          />
+        )}
 
         <StatusToastHost />
       </div>
