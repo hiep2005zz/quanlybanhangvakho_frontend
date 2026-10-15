@@ -489,12 +489,20 @@ export async function authenticatedFetch(input: string, init: RequestInit = {}, 
             }
           } catch {
             isRefreshingGlobal = false;
+            const waiting = [...refreshSubscribersGlobal];
             refreshSubscribersGlobal = [];
+            waiting.forEach((cb) => {
+              try { cb(''); } catch {}
+            });
           }
         } else {
           // Đang có một tiến trình refresh chạy dở -> chờ token mới rồi retry
           return new Promise<Response>((resolve, reject) => {
             refreshSubscribersGlobal.push(async (newToken: string) => {
+              if (!newToken) {
+                reject(new Error('Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại.'));
+                return;
+              }
               const retryHeaders = new Headers(init.headers || {});
               retryHeaders.set('Authorization', `Bearer ${newToken}`);
               if (init.body && !retryHeaders.has('Content-Type') && !isFormData) {
@@ -959,6 +967,9 @@ export async function createStockIssueApi(
     selected_batch_id?: number | null;
     suggested_batch_id?: number | null;
     batch_change_reason?: string | null;
+    batch_number?: string;
+    override_expired?: boolean;
+    override_reason?: string;
   }
 ): Promise<InventoryResponse> {
   const response = await authenticatedFetch(`${API_BASE_URL}/inventory/issue`, {
@@ -4009,5 +4020,290 @@ export async function exportDebtLedgerExcelApi(token: string, filters?: DebtLedg
     throw new Error(data.detail || `Lỗi tải file Excel (${response.status})`);
   }
   return await response.blob();
+}
+
+// ==========================================
+// SCRUM-84: THEO DÕI HÀNG TRÊN ĐƯỜNG & CHUYẾN GIAO HÀNG
+// ==========================================
+export interface DeliveryTripStopItem {
+  product_id?: number;
+  product_code?: string;
+  product_name: string;
+  unit: string;
+  quantity: number;
+  price: number;
+  line_total: number;
+}
+
+export interface DeliveryTripStop {
+  id: number;
+  trip_id?: number;
+  stop_order: number;
+  dealer_name: string;
+  order_code: string;
+  delivery_address: string;
+  total_amount: number;
+  status: 'PENDING' | 'DELIVERED' | 'FAILED' | 'RETURNED_TO_WAREHOUSE' | string;
+  status_label: string;
+  items?: DeliveryTripStopItem[];
+  failure_reason?: string | null;
+  return_note?: string | null;
+  returned_at?: string | null;
+  returned_to_warehouse_at?: string | null;
+  returned_by?: string | null;
+  delivered_at?: string | null;
+}
+
+export interface DeliveryTrip {
+  id: number;
+  trip_code: string;
+  warehouse_id: number;
+  warehouse_name: string;
+  driver_name: string;
+  driver_phone?: string | null;
+  license_plate: string;
+  departure_time: string;
+  expected_completion_time: string;
+  actual_completion_time?: string | null;
+  total_stops: number;
+  delivered_stops: number;
+  remaining_stops: number;
+  failed_stops?: number;
+  failed_stops_count: number;
+  in_transit_amount: number;
+  total_trip_amount: number;
+  status: 'IN_TRANSIT' | 'COMPLETED' | 'CANCELLED' | string;
+  is_overdue: boolean;
+  overdue_hours?: number;
+  overdue_text?: string;
+  note?: string | null;
+  stops: DeliveryTripStop[];
+}
+
+export interface InTransitSummary {
+  total_active_trips: number;
+  total_stops: number;
+  total_remaining_stops: number;
+  total_delivered_stops: number;
+  total_in_transit_amount: number;
+  total_overdue_trips: number;
+  trips: DeliveryTrip[];
+}
+
+export interface CreateDeliveryTripPayload {
+  warehouse_id: string | number;
+  driver_name: string;
+  driver_phone?: string;
+  license_plate: string;
+  expected_completion_time: string;
+  note?: string;
+  stops: Array<{
+    order_code: string;
+    dealer_name: string;
+    delivery_address: string;
+    items: Array<{
+      product_id: number;
+      product_code: string;
+      product_name: string;
+      unit: string;
+      quantity: number;
+      price: number;
+      line_total: number;
+    }>;
+  }>;
+}
+
+export async function getInTransitTripsApi(
+  token: string,
+  warehouseId?: string,
+  onlyOverdue?: boolean
+): Promise<InTransitSummary> {
+  const query = new URLSearchParams();
+  if (warehouseId && warehouseId !== 'all') query.append('warehouse_id', warehouseId);
+  if (onlyOverdue) query.append('only_overdue', 'true');
+  const url = `${API_BASE_URL}/inventory/delivery-trips/in-transit${query.toString() ? `?${query.toString()}` : ''}`;
+  const response = await authenticatedFetch(url, { method: 'GET' }, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi tải danh sách chuyến giao hàng (${response.status})`);
+  }
+  return data;
+}
+
+export async function createDeliveryTripApi(
+  token: string,
+  payload: CreateDeliveryTripPayload
+): Promise<DeliveryTrip> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/inventory/delivery-trips`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  }, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi tạo chuyến giao hàng (${response.status})`);
+  }
+  return data;
+}
+
+export async function updateTripStopStatusApi(
+  token: string,
+  stopId: number,
+  status: 'DELIVERED' | 'FAILED',
+  failureReason?: string
+): Promise<DeliveryTripStop> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/inventory/delivery-trips/stops/${stopId}/status`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status, failure_reason: failureReason }),
+  }, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi cập nhật trạng thái điểm giao (${response.status})`);
+  }
+  return data;
+}
+
+export async function returnStopGoodsToWarehouseApi(
+  token: string,
+  stopId: number,
+  returnNote?: string
+): Promise<DeliveryTripStop> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/inventory/delivery-trips/stops/${stopId}/return-to-warehouse`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ return_note: returnNote }),
+  }, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi hoàn nhập hàng về kho (${response.status})`);
+  }
+  return data;
+}
+
+// ==========================================
+// QUẢN LÝ LÔ VÀ HẠN SỬ DỤNG HÀNG HÓA (BATCH & EXPIRY TRACKING)
+// ==========================================
+export interface BatchItem {
+  id: number;
+  product_id: number;
+  product_code: string;
+  product_name: string;
+  base_unit: string;
+  warehouse_id: number;
+  warehouse_name: string;
+  batch_number: string;
+  manufacturing_date: string | null;
+  expiry_date: string | null;
+  remaining_quantity: number;
+  days_until_expiry: number | null;
+  expiry_status: 'EXPIRED' | 'NEAR_EXPIRY' | 'SAFE';
+  warning_threshold_days: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface BatchListResponse {
+  items: BatchItem[];
+  total: number;
+  expired_count: number;
+  near_expiry_count: number;
+  safe_count: number;
+  warning_threshold_days: number;
+  page?: number;
+  page_size?: number;
+  total_pages?: number;
+}
+
+export interface BatchCreatePayload {
+  product_id: number;
+  warehouse_id?: number;
+  batch_number: string;
+  manufacturing_date?: string | null;
+  expiry_date: string;
+  initial_quantity?: number;
+  note?: string;
+}
+
+export interface BatchTrackingTogglePayload {
+  is_batch_managed: boolean;
+  initial_batch_number?: string;
+  initial_manufacturing_date?: string | null;
+  initial_expiry_date?: string | null;
+  reason?: string;
+}
+
+export interface BatchTrackingToggleResponse {
+  product_id: number;
+  product_code: string;
+  product_name: string;
+  is_batch_managed: boolean;
+  message: string;
+  batch_created?: BatchItem | null;
+}
+
+export async function getBatchesApi(
+  token: string,
+  params?: {
+    product_id?: number;
+    warehouse_id?: number;
+    status?: string;
+    warning_days?: number;
+    search?: string;
+    page?: number;
+    page_size?: number;
+  }
+): Promise<BatchListResponse> {
+  const query = new URLSearchParams();
+  if (params?.product_id) query.append('product_id', String(params.product_id));
+  if (params?.warehouse_id) query.append('warehouse_id', String(params.warehouse_id));
+  if (params?.status) query.append('status', params.status);
+  if (params?.warning_days) query.append('warning_days', String(params.warning_days));
+  if (params?.search) query.append('search', params.search);
+  if (params?.page) query.append('page', String(params.page));
+  if (params?.page_size) query.append('page_size', String(params.page_size));
+
+  const url = `${API_BASE_URL}/batches${query.toString() ? `?${query.toString()}` : ''}`;
+  const response = await authenticatedFetch(url, { method: 'GET' }, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi tải danh sách lô hàng (${response.status})`);
+  }
+  return data;
+}
+
+export async function createBatchApi(
+  token: string,
+  payload: BatchCreatePayload
+): Promise<BatchItem> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/batches`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  }, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const errorMsg = formatErrorMessage(data.detail, data.message || `Lỗi tạo lô hàng (${response.status})`);
+    throw new Error(errorMsg);
+  }
+  return data;
+}
+
+export async function toggleProductBatchTrackingApi(
+  token: string,
+  productId: number,
+  payload: BatchTrackingTogglePayload
+): Promise<BatchTrackingToggleResponse> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/batches/product/${productId}/tracking`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  }, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const errorMsg = formatErrorMessage(data.detail, data.message || `Lỗi chuyển đổi cấu hình lô (${response.status})`);
+    throw new Error(errorMsg);
+  }
+  return data;
 }
 

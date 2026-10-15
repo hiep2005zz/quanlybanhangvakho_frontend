@@ -1319,11 +1319,11 @@ export function StockTransferManagementView({
                             {loadingMoreProducts ? (
                               <>
                                 <span className="w-3.5 h-3.5 border-2 border-blue-600/30 border-t-blue-600 rounded-full animate-spin" />
-                                <span>Đang nạp 10 sản phẩm tiếp theo...</span>
+                                <span>Đang tải thêm sản phẩm...</span>
                               </>
                             ) : (
                               <>
-                                <span>Tải thêm 10 sản phẩm nữa</span>
+                                <span>Tải thêm sản phẩm</span>
                                 <svg className="w-3.5 h-3.5 inline animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
                                 </svg>
