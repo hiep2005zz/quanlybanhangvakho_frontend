@@ -157,22 +157,20 @@ export default function DashboardPage({
     user.role === 'warehouse'
   );
 
-  // Quyền truy cập Danh sách kho & Vị trí: Nhân viên kinh doanh không được xem chức năng này
+  // Quyền truy cập Danh sách kho & Vị trí: Chỉ dành riêng cho Admin, Quản lý kho, Thủ kho (Kế toán và Sales không thao tác)
   const isSalesPerson = Boolean(
     user.role === 'sales' ||
     user.role === 'sales_manager' ||
     officialRoles.includes('sales') ||
     officialRoles.includes('sales_manager')
   );
-  const canAccessWarehouses = !isCustomer && !isSalesPerson && Boolean(
+  const canAccessWarehouses = !isCustomer && !isSalesPerson && !isAccountant && Boolean(
     isAdmin ||
     canWriteInventory ||
     user.role === 'warehouse_manager' ||
     user.role === 'warehouse' ||
     officialRoles.includes('warehouse_manager') ||
-    officialRoles.includes('warehouse') ||
-    user.role === 'accountant' ||
-    officialRoles.includes('accountant')
+    officialRoles.includes('warehouse')
   );
 
   // 2. Khởi tạo State với Clean URL
