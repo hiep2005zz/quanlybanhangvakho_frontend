@@ -317,22 +317,117 @@
   width: 100%;
 }
 
+/* ========================================================================== */
+/* MEDIA PRINT - KHI BẤM IN HOẶC XUẤT PDF HÓA ĐƠN                              */
+/* Tối ưu hóa gom trọn vẹn trong đúng 1 trang A4 duy nhất, ẩn sidebar & header */
+/* ========================================================================== */
 @media print {
-  body * {
-    visibility: hidden;
+  @page {
+    size: A4 portrait;
+    margin: 8mm 12mm;
   }
-  .agency-invoice-paper, .agency-invoice-paper * {
-    visibility: visible;
-  }
-  .agency-invoice-paper {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
-    padding: 0;
-  }
-  .agency-modal-hide-on-print {
+
+  /* Ẩn triệt để thanh sidebar, header và các nút thao tác web */
+  aside,
+  header,
+  nav,
+  .agency-invoice-page-header,
+  .agency-modal-hide-on-print,
+  #app-sidebar,
+  .dashboard-header,
+  .mobile-drawer,
+  body > div > div > header,
+  body > div > div > div > aside {
     display: none !important;
+    visibility: hidden !important;
+    width: 0 !important;
+    height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+  }
+
+  /* Gỡ bỏ các giới hạn cuộn, flexbox cố định của trang web */
+  html, body {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    height: auto !important;
+    min-height: auto !important;
+    width: 100% !important;
+    overflow: visible !important;
+  }
+
+  #root,
+  #root > div,
+  #root > div > div,
+  .dashboard-layout,
+  main,
+  .agency-invoice-page-container,
+  .agency-invoice-page-body {
+    display: block !important;
+    position: static !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: auto !important;
+    max-height: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    background: #ffffff !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+
+  /* Tờ giấy hóa đơn A4 nằm trọn vẹn trong 1 trang duy nhất */
+  .agency-invoice-paper {
+    display: block !important;
+    position: static !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    box-shadow: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+    page-break-after: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  .agency-invoice-paper * {
+    visibility: visible !important;
+    box-shadow: none !important;
+  }
+
+  /* Tinh chỉnh cỡ chữ & khoảng cách gọn gàng vừa vặn 1 trang */
+  .agency-invoice-paper h1 {
+    font-size: 15pt !important;
+    margin-bottom: 2pt !important;
+  }
+
+  .agency-invoice-paper .border-b {
+    border-bottom: 1px solid #cbd5e1 !important;
+  }
+
+  .agency-invoice-paper table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    margin-top: 4pt !important;
+  }
+
+  .agency-invoice-paper th,
+  .agency-invoice-paper td {
+    padding: 3.5pt 5pt !important;
+    font-size: 8.5pt !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+  }
+
+  .agency-invoice-signatures {
+    page-break-inside: avoid !important;
+    margin-top: 14pt !important;
   }
 }
 

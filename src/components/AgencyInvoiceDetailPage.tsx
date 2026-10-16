@@ -276,7 +276,7 @@ export const AgencyInvoiceDetailPage: React.FC<AgencyInvoiceDetailPageProps> = (
               <p className="italic">
                 * Ghi chú: {detail.note || 'Thanh toán theo điều khoản tín dụng hợp đồng đại lý.'}
               </p>
-              <div className="grid grid-cols-2 gap-4 mt-8 pt-4 text-center">
+              <div className="agency-invoice-signatures grid grid-cols-2 gap-4 mt-8 pt-4 text-center">
                 <div>
                   <p className="font-bold text-gray-800 uppercase">ĐẠI DIỆN BÊN MUA</p>
                   <p className="text-[11px] text-gray-400 italic">(Ký, ghi rõ họ tên)</p>
