@@ -4,17 +4,27 @@ import {
   StockBookResponse,
   StockBookFilterParams,
 } from '../services/api';
+import { StockCardModal } from './StockCardModal';
 
 interface WarehouseStockBookViewProps {
   token: string;
   onBackToHome?: () => void;
   onOpenTurnoverReport?: () => void;
+  onNavigateToAdjustments?: () => void;
+  currentUser?: {
+    id?: number;
+    username?: string;
+    full_name?: string;
+    role?: string;
+  };
 }
 
 export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
   token,
   onBackToHome: _onBackToHome,
   onOpenTurnoverReport: _onOpenTurnoverReport,
+  onNavigateToAdjustments,
+  currentUser,
 }) => {
   const [data, setData] = useState<StockBookResponse | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -31,6 +41,15 @@ export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
   // Phân trang
   const [currentPage, setCurrentPage] = useState<number>(1);
   const pageSize = 20;
+
+  // Modal Thẻ kho
+  const [selectedStockCardProduct, setSelectedStockCardProduct] = useState<{
+    productId: number;
+    productCode: string;
+    productName: string;
+    warehouseId?: string | number;
+    warehouseName?: string;
+  } | null>(null);
 
   // Debounce tìm kiếm 300ms để không gọi API và render liên tục theo từng phím gõ
   useEffect(() => {
@@ -109,11 +128,56 @@ export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
         width: '100%',
       }}
     >
-      {/* Tiêu đề */}
-      <div style={{ marginBottom: '14px', flexShrink: 0 }}>
-        <h1 style={{ fontSize: '22px', fontWeight: '800', color: '#0f172a', margin: 0, letterSpacing: '-0.02em' }}>
-          Hàng Tồn Kho Theo Kho & SKU
-        </h1>
+      {/* Tiêu đề & Điều hướng */}
+      <div
+        style={{
+          marginBottom: '14px',
+          flexShrink: 0,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '12px',
+        }}
+      >
+        <div>
+          <h1 style={{ fontSize: '22px', fontWeight: '800', color: '#0f172a', margin: 0, letterSpacing: '-0.02em' }}>
+            Hàng Tồn Kho Theo Kho & SKU
+          </h1>
+          <div style={{ fontSize: '12.5px', color: '#64748b', marginTop: '2px' }}>
+            Theo dõi tồn kho thực tế, tồn khả dụng và lịch sử biến động Thẻ kho
+          </div>
+        </div>
+
+        {/* Nút Chuyển sang Trang Điều chỉnh tồn kho */}
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+          <button
+            type="button"
+            onClick={() => {
+              if (onNavigateToAdjustments) {
+                onNavigateToAdjustments();
+              } else {
+                try {
+                  window.history.pushState({}, '', '/stock-adjustments');
+                  window.dispatchEvent(new PopStateEvent('popstate'));
+                } catch { }
+              }
+            }}
+            style={{
+              padding: '8px 16px',
+              backgroundColor: '#0f172a',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: '6px',
+              fontSize: '13px',
+              fontWeight: '700',
+              cursor: 'pointer',
+              boxShadow: '0 1px 2px rgba(0, 0, 0, 0.1)',
+            }}
+          >
+            Điều chỉnh tồn kho
+          </button>
+        </div>
       </div>
 
       {/* 4 Thẻ KPI Tóm tắt nhanh */}
@@ -525,23 +589,28 @@ export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
                 <th style={{ padding: '10px 14px', fontWeight: '700', width: '115px', minWidth: '105px', textAlign: 'center', backgroundColor: '#f1f5f9' }}>
                   Trạng thái
                 </th>
+                <th style={{ padding: '10px 14px', fontWeight: '700', width: '100px', minWidth: '95px', textAlign: 'center', backgroundColor: '#f1f5f9' }}>
+                  Thao tác
+                </th>
               </tr>
             </thead>
             <tbody>
               {isLoading && !data ? (
                 <tr>
-                  <td colSpan={8} style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>
+                  <td colSpan={9} style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>
                     Đang tải dữ liệu hàng tồn kho...
                   </td>
                 </tr>
               ) : items.length === 0 ? (
                 <tr>
-                  <td colSpan={8} style={{ padding: '48px 24px', textAlign: 'center', color: '#64748b' }}>
-                    <div style={{ fontSize: '15px', fontWeight: '600', color: '#475569', marginBottom: '4px' }}>
-                      Không tìm thấy mặt hàng nào phù hợp với bộ lọc
+                  <td colSpan={9} style={{ padding: '48px 24px', textAlign: 'center', color: '#64748b' }}>
+                    <div style={{ fontSize: '15px', fontWeight: '700', color: '#1e293b', marginBottom: '6px' }}>
+                      {selectedWarehouse !== 'all' ? 'Kho này hiện chưa có mặt hàng nào' : 'Không tìm thấy mặt hàng nào phù hợp với bộ lọc'}
                     </div>
-                    <div style={{ fontSize: '13px' }}>
-                      Hãy thử chọn kho khác hoặc thay đổi từ khóa tìm kiếm.
+                    <div style={{ fontSize: '13px', color: '#64748b' }}>
+                      {selectedWarehouse !== 'all'
+                        ? 'Vui lòng thực hiện nhập kho hoặc chuyển kho nội bộ để lưu trữ và phân bổ sản phẩm vào kho này.'
+                        : 'Hãy thử chọn kho khác hoặc thay đổi từ khóa tìm kiếm.'}
                     </div>
                   </td>
                 </tr>
@@ -689,6 +758,36 @@ export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
                           </span>
                         )}
                       </td>
+
+                      {/* Thao tác: Xem thẻ kho */}
+                      <td style={{ padding: '8px 12px', textAlign: 'center' }}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedStockCardProduct({
+                              productId: it.product_id,
+                              productCode: it.product_code,
+                              productName: it.product_name,
+                              warehouseId: it.warehouse_id,
+                              warehouseName: it.warehouse_name,
+                            });
+                          }}
+                          style={{
+                            padding: '4px 10px',
+                            backgroundColor: '#ffffff',
+                            color: '#1e293b',
+                            border: '1px solid #cbd5e1',
+                            borderRadius: '4px',
+                            fontSize: '12px',
+                            fontWeight: '600',
+                            cursor: 'pointer',
+                            whiteSpace: 'nowrap',
+                          }}
+                          title="Xem thẻ kho chi tiết (Nhập, xuất, điều chỉnh tổn thất)"
+                        >
+                          Thẻ kho
+                        </button>
+                      </td>
                     </tr>
                   );
                 })
@@ -698,11 +797,12 @@ export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
         </div>
 
         {/* Chân trang bảng: Khối phân trang liền thanh chuẩn theo thiết kế thu nhỏ */}
-        <div
-          style={{
-            padding: '8px 18px',
-            backgroundColor: '#ffffff',
-            borderTop: '1px solid #e2e8f0',
+        {totalItems > 0 && (
+          <div
+            style={{
+              padding: '8px 18px',
+              backgroundColor: '#ffffff',
+              borderTop: '1px solid #e2e8f0',
             display: 'flex',
             justifyContent: 'flex-end',
             alignItems: 'center',
@@ -795,7 +895,23 @@ export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
               })}
           </div>
         </div>
-      </div>
+      )}
+    </div>
+
+      {/* Modal Thẻ kho chi tiết cho từng sản phẩm */}
+      {selectedStockCardProduct && (
+        <StockCardModal
+          token={token}
+          isOpen={!!selectedStockCardProduct}
+          onClose={() => setSelectedStockCardProduct(null)}
+          productId={selectedStockCardProduct.productId}
+          productCode={selectedStockCardProduct.productCode}
+          productName={selectedStockCardProduct.productName}
+          warehouseId={selectedStockCardProduct.warehouseId}
+          warehouseName={selectedStockCardProduct.warehouseName}
+          currentUser={currentUser}
+        />
+      )}
     </div>
   );
 };

@@ -718,10 +718,11 @@
     margin: 6mm 10mm;
   }
 
-  /* 1. Ẩn hoàn toàn ứng dụng web (#root) và các thành phần khác khi đang mở modal in để không chiếm chiều cao trang */
+  /* 1. Ẩn hoàn toàn ứng dụng web (#root) và các thành phần khác CHỈ KHI đang mở modal in đơn hàng */
   body:has(.order-print-backdrop) #root,
-  body.has-print-modal #root,
-  body > :not(.order-print-backdrop):not(#root) {
+  body.has-order-print-modal #root,
+  body:has(.order-print-backdrop) > :not(.order-print-backdrop):not(#root),
+  body.has-order-print-modal > :not(.order-print-backdrop):not(#root) {
     display: none !important;
     visibility: hidden !important;
     height: 0 !important;

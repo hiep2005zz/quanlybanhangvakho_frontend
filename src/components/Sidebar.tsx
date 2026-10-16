@@ -32,7 +32,9 @@ export type TabType =
   | 'agency-debts'
   | 'picking'
   | 'batches'
-  | 'delivery-tracking';
+  | 'delivery-tracking'
+  | 'stock-adjustments'
+  | 'payment-collections';
 
 export interface SidebarProps {
   activeTab?: TabType;
@@ -57,6 +59,7 @@ export interface SidebarProps {
   canAccessDeliveryTracking?: boolean;
   isWarehouseOrAdmin?: boolean;
   isAdmin?: boolean;
+  canAccessPaymentCollections?: boolean;
   onLogout?: () => void;
   isLoggingOut?: boolean;
   isMobileOpen?: boolean;
@@ -96,6 +99,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   canWriteInventory: _canWriteInventory = false,
   canAccessDeliveryTracking = false,
   isWarehouseOrAdmin = false,
+  isAdmin: _isAdmin = false,
+  canAccessPaymentCollections = false,
   onLogout,
   isLoggingOut = false,
 }) => {
@@ -422,6 +427,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </svg>
       ),
     },
+
     {
       id: 'btn-sidebar-product-history',
       tab: 'product-history',
@@ -486,6 +492,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
           <path d="M8 7h6M8 11h6" />
+        </svg>
+      ),
+    },
+    {
+      id: 'btn-sidebar-payment-collections',
+      tab: 'payment-collections',
+      path: '/payment-collections',
+      label: 'Thu tiền theo tuyến',
+      visible: !isCustomer && canAccessPaymentCollections,
+      icon: (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="2" y="4" width="20" height="16" rx="2" />
+          <line x1="2" y1="10" x2="22" y2="10" />
+          <line x1="6" y1="15" x2="6.01" y2="15" />
+          <line x1="10" y1="15" x2="14" y2="15" />
         </svg>
       ),
     },
