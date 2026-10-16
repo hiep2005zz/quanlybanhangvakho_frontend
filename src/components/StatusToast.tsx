@@ -9,6 +9,7 @@ const STATUS_TOAST_EVENT = 'APP_STATUS_TOAST';
 export interface StatusToastPayload {
   message: string | any;
   title?: string;
+  type?: 'success' | 'warning' | 'error' | 'info';
   actionType?: 'create' | 'update' | 'delete' | 'export';
   durationMs?: number;
 }
@@ -51,6 +52,7 @@ function cleanToastMessage(raw: any): string {
 export const StatusToastHost: React.FC = () => {
   const [message, setMessage] = useState<string | null>(null);
   const [title, setTitle] = useState<string>('Thông báo hệ thống');
+  const [toastType, setToastType] = useState<'success' | 'warning' | 'error' | 'info'>('success');
   const [actionCategory, setActionCategory] = useState<'create' | 'update' | 'delete' | null>(null);
   const [durationMs, setDurationMs] = useState<number>(STATUS_TOAST_VISIBLE_MS);
   const [isExiting, setIsExiting] = useState<boolean>(false);
@@ -133,6 +135,7 @@ export const StatusToastHost: React.FC = () => {
 
       setMessage(cleanedMsg);
       setTitle(rawTitle);
+      setToastType(determinedType);
       setActionCategory(detectedAction);
       setDurationMs(d.durationMs && d.durationMs > 0 ? d.durationMs : STATUS_TOAST_VISIBLE_MS);
       setIsExiting(false);
