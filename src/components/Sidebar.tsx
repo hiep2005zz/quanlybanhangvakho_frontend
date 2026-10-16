@@ -3,6 +3,7 @@ import { useLocation } from '../hooks/useLocation';
 
 export type TabType =
   | 'inventory'
+  | 'cart'
   | 'warehouses'
   | 'stock-book'
   | 'stock-audits'
@@ -17,6 +18,7 @@ export type TabType =
   | 'suppliers'
   | 'dealers'
   | 'dealer-profiles'
+  | 'debt-ledger'
   | 'price-books'
   | 'delivery-points'
   | 'product-history'
@@ -39,6 +41,7 @@ export interface SidebarProps {
   canReadOrders?: boolean;
   canViewDealers?: boolean;
   canManageDealerProfiles?: boolean;
+  canAccessDebtLedger?: boolean;
   canManageDeliveryPoints?: boolean;
   canManageSuppliers?: boolean;
   canAccessPriceBooks?: boolean;
@@ -78,6 +81,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   canReadOrders = false,
   canViewDealers = false,
   canManageDealerProfiles = false,
+  canAccessDebtLedger = false,
   canManageDeliveryPoints = false,
   canManageSuppliers = false,
   canAccessPriceBooks = false,
@@ -99,7 +103,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   // TIÊU CHÍ CHẤP NHẬN 1: Nếu user là Customer, ẨN HOÀN TOÀN các menu:
   // Quản lý Kho, Nhập/Xuất tồn, Duyệt đơn hàng, Báo cáo, Quản lý người dùng.
-  // CHỈ HIỂN THỊ: Danh sách Sản phẩm, Đơn hàng của tôi, Công nợ & Hóa đơn.
+  // CHỈ HIỂN THỊ: Danh sách Sản phẩm, Giỏ hàng của tôi, Đơn hàng của tôi, Danh bạ đại lý.
   if (isCustomer) {
     const customerMenuItems: MenuItemConfig[] = [
       {
@@ -168,18 +172,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     boxShadow: 'none',
                     marginTop: 0,
                   }}
-                  className={`group w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm transition-colors text-left border-0 cursor-pointer ${isActive
+                  className={`group w-full flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-lg text-sm transition-colors text-left border-0 cursor-pointer ${isActive
                       ? 'bg-emerald-50 text-emerald-800 font-semibold'
                       : 'bg-transparent text-gray-700 hover:bg-gray-100 hover:text-gray-900 font-medium'
                     }`}
                 >
-                  <span
-                    className={`flex-shrink-0 transition-colors ${isActive ? 'text-[#0fad89]' : 'text-gray-500 group-hover:text-gray-700'
-                      }`}
-                  >
-                    {item.icon}
-                  </span>
-                  <span className="truncate">{item.label}</span>
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span
+                      className={`flex-shrink-0 transition-colors ${isActive ? 'text-[#0fad89]' : 'text-gray-500 group-hover:text-gray-700'
+                        }`}
+                    >
+                      {item.icon}
+                    </span>
+                    <span className="truncate">{item.label}</span>
+                  </div>
                 </button>
               );
             })}
@@ -241,15 +247,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         onSelectTab(item.tab);
                         onCloseMobile?.();
                       }}
-                      className={`group w-full flex items-center gap-3 px-3.5 py-3 rounded-lg text-sm transition-colors text-left border-0 cursor-pointer ${isActive
+                      className={`group w-full flex items-center justify-between gap-3 px-3.5 py-3 rounded-lg text-sm transition-colors text-left border-0 cursor-pointer ${isActive
                           ? 'bg-emerald-50 text-emerald-800 font-semibold'
                           : 'bg-transparent text-gray-700 hover:bg-gray-100 hover:text-gray-900 font-medium'
                         }`}
                     >
-                      <span className={`flex-shrink-0 transition-colors ${isActive ? 'text-[#0fad89]' : 'text-gray-500'}`}>
-                        {item.icon}
-                      </span>
-                      <span className="truncate">{item.label}</span>
+                      <div className="flex items-center gap-3 min-w-0">
+                        <span className={`flex-shrink-0 transition-colors ${isActive ? 'text-[#0fad89]' : 'text-gray-500'}`}>
+                          {item.icon}
+                        </span>
+                        <span className="truncate">{item.label}</span>
+                      </div>
                     </button>
                   );
                 })}
@@ -434,6 +442,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <circle cx="9" cy="7" r="4" />
           <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
           <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+        </svg>
+      ),
+    },
+    {
+      id: 'btn-sidebar-debt-ledger',
+      tab: 'debt-ledger',
+      path: '/debt-ledger',
+      label: 'Sổ công nợ & Tuổi nợ',
+      visible: Boolean(canAccessDebtLedger),
+      icon: (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
+          <path d="M8 7h6M8 11h6" />
         </svg>
       ),
     },

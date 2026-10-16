@@ -440,6 +440,29 @@ export default function OrderDetailsModal({
                                   ? `✓ Đủ hàng tại kho (${totalAvailable} ${item.unit || 'Cái'} khả dụng)`
                                   : `⚠ Thiếu hàng (Chỉ có ${totalAvailable}/${item.quantity} ${item.unit || 'Cái'})`}
                               </div>
+                              {/* SCRUM-81: Gợi ý lô theo FEFO */}
+                              {pickingItem?.is_batch_managed && pickingItem.suggested_batch && (
+                                <div
+                                  style={{
+                                    marginTop: '4px',
+                                    padding: '4px 8px',
+                                    borderRadius: '6px',
+                                    background: '#ecfdf5',
+                                    border: '1px solid #a7f3d0',
+                                    fontSize: '11px',
+                                    color: '#065f46',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '6px',
+                                  }}
+                                >
+                                  <span style={{ fontWeight: '700', color: '#047857' }}>★ Gợi ý FEFO:</span>
+                                  <span>Lô {pickingItem.suggested_batch.batch_number} (HSD: {pickingItem.suggested_batch.expiry_date})</span>
+                                  <span style={{ marginLeft: 'auto', fontWeight: '600' }}>
+                                    Tồn: {pickingItem.suggested_batch.available_quantity} {item.unit || 'Cái'}
+                                  </span>
+                                </div>
+                              )}
                             </div>
                           ) : (
                             <div style={{ color: '#b45309', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>

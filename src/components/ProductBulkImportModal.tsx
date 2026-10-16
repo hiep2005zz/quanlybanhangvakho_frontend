@@ -6,6 +6,7 @@ import {
   executeProductBulkConfirmApi,
 } from '../services/productApi';
 import { ModalPortal } from './ModalPortal';
+import { emitStatusToast } from './StatusToast';
 
 interface ProductBulkImportModalProps {
   token: string;
@@ -54,7 +55,11 @@ export const ProductBulkImportModal: React.FC<ProductBulkImportModalProps> = ({
       a.remove();
       window.URL.revokeObjectURL(url);
     } catch (err: any) {
-      alert(err.message || 'Lỗi khi tải file mẫu Excel.');
+      emitStatusToast({
+        type: 'error',
+        title: 'Tải file mẫu',
+        message: err.message || 'Lỗi khi tải file mẫu Excel.',
+      });
     }
   };
 
