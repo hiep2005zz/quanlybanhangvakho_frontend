@@ -3,6 +3,7 @@ import { useLocation } from '../hooks/useLocation';
 
 export type TabType =
   | 'inventory'
+  | 'cart'
   | 'warehouses'
   | 'stock-book'
   | 'stock-audits'
@@ -99,7 +100,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   // TIÊU CHÍ CHẤP NHẬN 1: Nếu user là Customer, ẨN HOÀN TOÀN các menu:
   // Quản lý Kho, Nhập/Xuất tồn, Duyệt đơn hàng, Báo cáo, Quản lý người dùng.
-  // CHỈ HIỂN THỊ: Danh sách Sản phẩm, Đơn hàng của tôi, Công nợ & Hóa đơn.
+  // CHỈ HIỂN THỊ: Danh sách Sản phẩm, Giỏ hàng của tôi, Đơn hàng của tôi, Danh bạ đại lý.
   if (isCustomer) {
     const customerMenuItems: MenuItemConfig[] = [
       {
@@ -168,18 +169,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     boxShadow: 'none',
                     marginTop: 0,
                   }}
-                  className={`group w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm transition-colors text-left border-0 cursor-pointer ${isActive
+                  className={`group w-full flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-lg text-sm transition-colors text-left border-0 cursor-pointer ${isActive
                       ? 'bg-emerald-50 text-emerald-800 font-semibold'
                       : 'bg-transparent text-gray-700 hover:bg-gray-100 hover:text-gray-900 font-medium'
                     }`}
                 >
-                  <span
-                    className={`flex-shrink-0 transition-colors ${isActive ? 'text-[#0fad89]' : 'text-gray-500 group-hover:text-gray-700'
-                      }`}
-                  >
-                    {item.icon}
-                  </span>
-                  <span className="truncate">{item.label}</span>
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span
+                      className={`flex-shrink-0 transition-colors ${isActive ? 'text-[#0fad89]' : 'text-gray-500 group-hover:text-gray-700'
+                        }`}
+                    >
+                      {item.icon}
+                    </span>
+                    <span className="truncate">{item.label}</span>
+                  </div>
                 </button>
               );
             })}
@@ -241,15 +244,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         onSelectTab(item.tab);
                         onCloseMobile?.();
                       }}
-                      className={`group w-full flex items-center gap-3 px-3.5 py-3 rounded-lg text-sm transition-colors text-left border-0 cursor-pointer ${isActive
+                      className={`group w-full flex items-center justify-between gap-3 px-3.5 py-3 rounded-lg text-sm transition-colors text-left border-0 cursor-pointer ${isActive
                           ? 'bg-emerald-50 text-emerald-800 font-semibold'
                           : 'bg-transparent text-gray-700 hover:bg-gray-100 hover:text-gray-900 font-medium'
                         }`}
                     >
-                      <span className={`flex-shrink-0 transition-colors ${isActive ? 'text-[#0fad89]' : 'text-gray-500'}`}>
-                        {item.icon}
-                      </span>
-                      <span className="truncate">{item.label}</span>
+                      <div className="flex items-center gap-3 min-w-0">
+                        <span className={`flex-shrink-0 transition-colors ${isActive ? 'text-[#0fad89]' : 'text-gray-500'}`}>
+                          {item.icon}
+                        </span>
+                        <span className="truncate">{item.label}</span>
+                      </div>
                     </button>
                   );
                 })}

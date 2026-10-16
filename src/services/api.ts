@@ -98,7 +98,7 @@ export interface ProductItem {
   // Chi tiết form quản lý sản phẩm
   packaging_specification?: string;
   images?: string[];
-  status?: 'active' | 'inactive';
+  status?: 'active' | 'inactive' | 'out_of_stock' | string;
   is_batch_managed?: boolean;
   min_stock?: number;
   transaction_count?: number; // Số giao dịch đã phát sinh (đơn hàng, nhập/xuất kho)

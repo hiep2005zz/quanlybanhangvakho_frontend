@@ -548,6 +548,18 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({
   const handleSelectProductItem = async (prod: ProductItem) => {
     if (!prod) return;
 
+    const stockItem = stockMap.get(prod.id);
+    const availableStock = stockItem ? stockItem.available_stock : (prod.stock ?? 0);
+    const isOutOfStock = availableStock <= 0 || prod.status === 'out_of_stock' || prod.status === 'inactive';
+    if (isOutOfStock) {
+      emitStatusToast({
+        title: 'Hết hàng',
+        message: `Sản phẩm "${prod.name}" hiện đã hết hàng tại kho, không thể chọn đặt hàng!`,
+        type: 'warning',
+      });
+      return;
+    }
+
     // Lưu vào cache để các phần khác luôn tra cứu được thông tin sản phẩm
     setLoadedProductsMap((prev) => {
       const next = new Map(prev);
