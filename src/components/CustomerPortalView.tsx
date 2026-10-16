@@ -321,6 +321,15 @@ export const CustomerPortalView: React.FC<CustomerPortalViewProps> = ({
       return;
     }
 
+    if (isOverCredit && creditInfo?.over_limit_action === 'BLOCK') {
+      emitStatusToast({
+        type: 'error',
+        title: 'Chặn tạo đơn do vượt hạn mức',
+        message: 'Đại lý đang vượt hạn mức công nợ cho phép. Hệ thống đang cấu hình CHẶN tạo đơn mới. Vui lòng liên hệ Kế toán thanh toán công nợ cũ trước khi tiếp tục!',
+      });
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const orderPayload = {
@@ -897,8 +906,16 @@ export const CustomerPortalView: React.FC<CustomerPortalViewProps> = ({
                 </div>
 
                 {isOverCredit && (
-                  <div className="mt-2 p-2 bg-amber-50 border border-amber-300 rounded text-amber-800 text-[11px] leading-tight">
-                    ⚠️ <strong>Vượt hạn mức tín dụng:</strong> Đơn hàng sẽ tự động đưa vào trạng thái <strong>Chờ Quản Lý Duyệt</strong>.
+                  <div className={`mt-2 p-2 border rounded text-[11px] leading-tight ${
+                    creditInfo?.over_limit_action === 'BLOCK'
+                      ? 'bg-rose-50 border-rose-300 text-rose-800'
+                      : 'bg-amber-50 border border-amber-300 text-amber-800'
+                  }`}>
+                    <strong>Vượt hạn mức tín dụng:</strong>{' '}
+                    {creditInfo?.over_limit_action === 'BLOCK'
+                      ? 'Đại lý đang vượt quá hạn mức công nợ. Hệ thống đang cấu hình CHẶN tạo đơn mới. Vui lòng liên hệ Kế toán thanh toán công nợ!'
+                      : 'Đơn hàng sẽ tự động đưa vào trạng thái Chờ Quản Lý Duyệt.'
+                    }
                   </div>
                 )}
               </div>

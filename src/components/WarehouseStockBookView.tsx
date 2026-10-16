@@ -11,6 +11,7 @@ interface WarehouseStockBookViewProps {
   onBackToHome?: () => void;
   onNavigateToTab?: (tab: string, queryParam?: string) => void;
   onOpenStockCard?: (productId: number, productName: string, productCode: string) => void;
+  canAccessStockCard?: boolean;
 }
 
 export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
@@ -18,6 +19,7 @@ export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
   onBackToHome: _onBackToHome,
   onNavigateToTab,
   onOpenStockCard,
+  canAccessStockCard = true,
 }) => {
   const [data, setData] = useState<StockBookResponse | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -99,7 +101,7 @@ export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
   const endIndex = Math.min(startIndex + pageSize, totalItems);
   const pageItems = items.length > pageSize ? items.slice(startIndex, endIndex) : items;
 
-  if (selectedProductForStockCard) {
+  if (selectedProductForStockCard && canAccessStockCard) {
     return (
       <StockCardView
         productId={selectedProductForStockCard.id}
@@ -542,21 +544,23 @@ export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
                 <th style={{ padding: '10px 14px', fontWeight: '700', width: '115px', minWidth: '105px', textAlign: 'center', backgroundColor: '#f1f5f9' }}>
                   Trạng thái
                 </th>
-                <th style={{ padding: '10px 14px', fontWeight: '700', width: '115px', minWidth: '100px', textAlign: 'center', backgroundColor: '#f1f5f9' }}>
-                  Thẻ kho
-                </th>
+                {canAccessStockCard && (
+                  <th style={{ padding: '10px 14px', fontWeight: '700', width: '115px', minWidth: '100px', textAlign: 'center', backgroundColor: '#f1f5f9' }}>
+                    Thẻ kho
+                  </th>
+                )}
               </tr>
             </thead>
             <tbody>
               {isLoading && !data ? (
                 <tr>
-                  <td colSpan={9} style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>
+                  <td colSpan={canAccessStockCard ? 9 : 8} style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>
                     Đang tải dữ liệu hàng tồn kho...
                   </td>
                 </tr>
               ) : items.length === 0 ? (
                 <tr>
-                  <td colSpan={9} style={{ padding: '48px 24px', textAlign: 'center', color: '#64748b' }}>
+                  <td colSpan={canAccessStockCard ? 9 : 8} style={{ padding: '48px 24px', textAlign: 'center', color: '#64748b' }}>
                     <div style={{ fontSize: '15px', fontWeight: '600', color: '#475569', marginBottom: '4px' }}>
                       Không tìm thấy mặt hàng nào phù hợp với bộ lọc
                     </div>
@@ -711,48 +715,50 @@ export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
                       </td>
 
                       {/* Thao tác xem thẻ kho */}
-                      <td style={{ padding: '8px 12px', textAlign: 'center' }}>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (onOpenStockCard) {
-                              onOpenStockCard(it.product_id, it.product_name, it.product_code);
-                            } else {
-                              setSelectedProductForStockCard({ id: it.product_id, name: it.product_name, code: it.product_code });
-                            }
-                          }}
-                          title={`Xem thẻ kho của ${it.product_name}`}
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '5px',
-                            padding: '5px 12px',
-                            height: '32px',
-                            borderRadius: '6px',
-                            border: '1px solid #bfdbfe',
-                            backgroundColor: '#eff6ff',
-                            color: '#1d4ed8',
-                            fontSize: '12.5px',
-                            fontWeight: '600',
-                            cursor: 'pointer',
-                            whiteSpace: 'nowrap',
-                            flexShrink: 0,
-                            boxSizing: 'border-box',
-                            transition: 'all 0.15s ease',
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.backgroundColor = '#dbeafe';
-                            e.currentTarget.style.borderColor = '#93c5fd';
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.backgroundColor = '#eff6ff';
-                            e.currentTarget.style.borderColor = '#bfdbfe';
-                          }}
-                        >
-                          <span>Thẻ kho</span>
-                        </button>
-                      </td>
+                      {canAccessStockCard && (
+                        <td style={{ padding: '8px 12px', textAlign: 'center' }}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (onOpenStockCard) {
+                                onOpenStockCard(it.product_id, it.product_name, it.product_code);
+                              } else {
+                                setSelectedProductForStockCard({ id: it.product_id, name: it.product_name, code: it.product_code });
+                              }
+                            }}
+                            title={`Xem thẻ kho của ${it.product_name}`}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '5px',
+                              padding: '5px 12px',
+                              height: '32px',
+                              borderRadius: '6px',
+                              border: '1px solid #bfdbfe',
+                              backgroundColor: '#eff6ff',
+                              color: '#1d4ed8',
+                              fontSize: '12.5px',
+                              fontWeight: '600',
+                              cursor: 'pointer',
+                              whiteSpace: 'nowrap',
+                              flexShrink: 0,
+                              boxSizing: 'border-box',
+                              transition: 'all 0.15s ease',
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.backgroundColor = '#dbeafe';
+                              e.currentTarget.style.borderColor = '#93c5fd';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.backgroundColor = '#eff6ff';
+                              e.currentTarget.style.borderColor = '#bfdbfe';
+                            }}
+                          >
+                            <span>Thẻ kho</span>
+                          </button>
+                        </td>
+                      )}
                     </tr>
                   );
                 })

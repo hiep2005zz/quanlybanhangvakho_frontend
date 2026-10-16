@@ -911,15 +911,21 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({
   );
   const canCreateOrder = (isSalesOrAdmin || isCustomerRole) && !isStrictlyBlockedRole;
 
-  // Kiểm tra công nợ
-  const isOverdueBlocked = Boolean(
+  // Kiểm tra công nợ theo chính sách rủi ro (S7-04)
+  const isOverdue = Boolean(
     creditInfo?.is_overdue ||
     (creditInfo && creditInfo.max_debt_age > (creditInfo.overdue_days_allowed || 30))
+  );
+  const isOverdueBlocked = Boolean(
+    isOverdue && creditInfo?.overdue_action !== 'REQUIRE_APPROVAL'
   );
   const isOverLimit = Boolean(
     creditInfo &&
     creditInfo.credit_limit > 0 &&
-    (creditInfo.current_debt + totalAmount > creditInfo.credit_limit)
+    (creditInfo.current_debt + totalAmount > creditInfo.credit_limit || creditInfo.is_over_limit || creditInfo.is_over_credit_limit)
+  );
+  const isOverLimitBlocked = Boolean(
+    isOverLimit && creditInfo?.over_limit_action === 'BLOCK'
   );
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -946,10 +952,23 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({
       return;
     }
 
+    if (isOverLimitBlocked) {
+      const debtAfter = (creditInfo?.current_debt || 0) + totalAmount;
+      const limit = creditInfo?.credit_limit || 0;
+      const overLimitMsg = `Đại lý "${selectedDealer?.name}" vượt hạn mức công nợ cho phép (Tổng nợ sau đơn ${debtAfter.toLocaleString('vi-VN')} đ > Hạn mức ${limit.toLocaleString('vi-VN')} đ). Hệ thống đang cấu hình CHẶN tạo đơn hoàn toàn theo chính sách rủi ro công nợ (S7-04)!`;
+      setErrorMsg(overLimitMsg);
+      emitStatusToast({
+        title: 'Chặn tạo đơn do vượt hạn mức',
+        message: overLimitMsg,
+        type: 'error',
+      });
+      return;
+    }
+
     if (isOverdueBlocked) {
       const overdueDays = creditInfo?.max_debt_age || 0;
       const maxAllowed = creditInfo?.overdue_days_allowed || 30;
-      const overdueMsg = `Đại lý "${selectedDealer?.name}" có khoản nợ quá hạn (${overdueDays} ngày, vượt mức cho phép ${maxAllowed} ngày). Hệ thống chặn tạo đơn hàng hoàn toàn!`;
+      const overdueMsg = `Đại lý "${selectedDealer?.name}" có khoản nợ quá hạn (${overdueDays} ngày, vượt mức cho phép ${maxAllowed} ngày). Hệ thống đang cấu hình CHẶN tạo đơn hoàn toàn theo chính sách rủi ro công nợ (S7-04)!`;
       setErrorMsg(overdueMsg);
       emitStatusToast({
         title: 'Chặn tạo đơn do nợ quá hạn',
@@ -1666,12 +1685,21 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({
 
                 {/* Cảnh báo vượt hạn mức */}
                 {isOverLimit && !isOverdueBlocked && (
-                  <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-xl text-xs sm:text-[13px] text-amber-800 font-medium space-y-1">
-                    <div className="font-bold flex items-center gap-1.5 text-amber-900">
-                      <span>⚠️ Đơn hàng vượt hạn mức công nợ</span>
+                  <div className={`p-3.5 rounded-xl text-xs sm:text-[13px] font-medium space-y-1 ${
+                    isOverLimitBlocked
+                      ? 'bg-rose-50 border border-rose-300 text-rose-800'
+                      : 'bg-amber-50 border border-amber-200 text-amber-800'
+                  }`}>
+                    <div className={`font-bold flex items-center gap-1.5 ${
+                      isOverLimitBlocked ? 'text-rose-900' : 'text-amber-900'
+                    }`}>
+                      <span>Đơn hàng vượt hạn mức công nợ</span>
                     </div>
                     <p>
-                      Tổng giá trị đơn hàng cộng công nợ hiện tại vượt quá hạn mức cho phép. Đơn hàng sẽ yêu cầu Quản lý kinh doanh phê duyệt.
+                      {isOverLimitBlocked
+                        ? 'Tổng giá trị đơn hàng cộng công nợ hiện tại vượt quá hạn mức cho phép. Hệ thống đang cấu hình CHẶN tạo đơn hoàn toàn theo chính sách rủi ro công nợ (S7-04). Vui lòng yêu cầu đại lý thanh toán công nợ trước khi tiếp tục!'
+                        : 'Tổng giá trị đơn hàng cộng công nợ hiện tại vượt quá hạn mức cho phép. Đơn hàng sẽ yêu cầu Quản lý kinh doanh phê duyệt ngoại lệ (S4-05).'
+                      }
                     </p>
                   </div>
                 )}

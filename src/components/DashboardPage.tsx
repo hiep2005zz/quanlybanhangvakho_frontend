@@ -174,6 +174,19 @@ export default function DashboardPage({
     officialRoles.includes('accountant')
   );
 
+  // Quyền truy cập Thẻ kho (S5-04: Thủ kho, Quản lý kho, Quản trị hệ thống, Kế toán)
+  const canAccessStockCard = Boolean(
+    isAdmin ||
+    (!isCustomer && !isSalesPerson && (
+      isAccountant ||
+      user.role === 'warehouse' ||
+      user.role === 'warehouse_manager' ||
+      officialRoles.includes('warehouse') ||
+      officialRoles.includes('warehouse_manager')
+    )) ||
+    (!isCustomer && isAccountant)
+  );
+
   // 2. Khởi tạo State với Clean URL
   const location = useLocation();
   const currentPath = location.pathname.toLowerCase();
@@ -675,6 +688,7 @@ export default function DashboardPage({
                       : activeTab === 'warehouses' ? canAccessWarehouses
                       : activeTab === 'goods-receipt' ? canWriteInventory
                         : activeTab === 'batches' ? !isCustomer
+                          : activeTab === 'stock-card' ? canAccessStockCard
                           : true;
     if (!isAllowed) {
       setActiveTabState('inventory');
@@ -1997,6 +2011,7 @@ export default function DashboardPage({
           }}
         />
       ) : activeTab === 'stock-card' ? (
+        canAccessStockCard ? (
           <StockCardView
             productId={selectedProductForStockCard?.id || 1}
             productName={selectedProductForStockCard?.name}
@@ -2011,17 +2026,28 @@ export default function DashboardPage({
               setSelectedProductForStockCard(null);
             }}
           />
+        ) : (
+          <AccessDeniedView
+            currentUser={user}
+            requiredPermission="Xem Thẻ kho sản phẩm (Thủ kho / Quản lý kho / Quản trị hệ thống / Kế toán)"
+            onBackToWorkflow={() => setActiveTab('inventory')}
+            onLogout={onLogout}
+          />
+        )
       ) : activeTab === 'stock-book' ? (
           <WarehouseStockBookView
             token={token}
+            canAccessStockCard={canAccessStockCard}
             onBackToHome={() => setActiveTab('inventory')}
             onNavigateToTab={(tab) => {
               setActiveTab(tab as TabType);
             }}
             onOpenStockCard={(productId, productName, productCode) => {
-              setSelectedProductForStockCard({ id: productId, name: productName, code: productCode });
-              setStockCardReturnTab('stock-book');
-              setActiveTab('stock-card');
+              if (canAccessStockCard) {
+                setSelectedProductForStockCard({ id: productId, name: productName, code: productCode });
+                setStockCardReturnTab('stock-book');
+                setActiveTab('stock-card');
+              }
             }}
           />
         ) : activeTab === 'batches' ? (
@@ -3463,6 +3489,7 @@ export default function DashboardPage({
                                       </>
                                     )}
 
+                                    {canAccessStockCard && (
                                     <button
                                       type="button"
                                       onClick={(e) => {
@@ -3496,6 +3523,7 @@ export default function DashboardPage({
                                     >
                                       <span>Xem thẻ kho</span>
                                     </button>
+                                    )}
                                   </div>
                                 )}
                               </div>
