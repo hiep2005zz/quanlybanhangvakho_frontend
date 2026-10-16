@@ -688,3 +688,93 @@ export async function deleteDealer(dealerId: number, token?: string): Promise<an
     return response.json();
 }
 
+export interface ReceiptVoucherData {
+    id?: number;
+    receipt_code: string;
+    dealer_id: number;
+    dealer_code: string;
+    dealer_name: string;
+    dealer_address?: string | null;
+    dealer_phone?: string | null;
+    dealer_tax_code?: string | null;
+    order_code?: string | null;
+    amount: number;
+    amount_in_words: string;
+    payment_method: string;
+    reason: string;
+    payer_name: string;
+    collector_name: string;
+    collector_role: string;
+    created_at: string;
+    note?: string | null;
+}
+
+export interface CreateReceiptVoucherPayload {
+    amount: number;
+    payment_method?: string;
+    reason?: string;
+    order_code?: string;
+    payer_name?: string;
+    note?: string;
+}
+
+export async function createReceiptVoucherApi(
+    dealerId: number,
+    payload: CreateReceiptVoucherPayload,
+    token?: string
+): Promise<ReceiptVoucherData> {
+    const authToken = getAuthToken(token);
+    const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+    };
+    if (authToken) {
+        headers['Authorization'] = `Bearer ${authToken}`;
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/v1/dealers/${dealerId}/receipt-vouchers`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+        let errorDetail = `Lỗi lập phiếu thu (HTTP ${response.status})`;
+        try {
+            const errData = await response.json();
+            if (errData && errData.detail) errorDetail = typeof errData.detail === 'string' ? errData.detail : JSON.stringify(errData.detail);
+        } catch {}
+        throw new Error(errorDetail);
+    }
+    return response.json();
+}
+
+export async function getDealerReceiptVouchersApi(
+    dealerId: number,
+    token?: string
+): Promise<ReceiptVoucherData[]> {
+    const authToken = getAuthToken(token);
+    const headers: Record<string, string> = {
+        Accept: 'application/json',
+    };
+    if (authToken) {
+        headers['Authorization'] = `Bearer ${authToken}`;
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/v1/dealers/${dealerId}/receipt-vouchers`, {
+        method: 'GET',
+        headers,
+    });
+
+    if (!response.ok) {
+        let errorDetail = `Lỗi lấy danh sách phiếu thu (HTTP ${response.status})`;
+        try {
+            const errData = await response.json();
+            if (errData && errData.detail) errorDetail = typeof errData.detail === 'string' ? errData.detail : JSON.stringify(errData.detail);
+        } catch {}
+        throw new Error(errorDetail);
+    }
+    return response.json();
+}
+
+

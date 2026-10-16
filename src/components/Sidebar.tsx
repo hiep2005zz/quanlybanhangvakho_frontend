@@ -27,6 +27,7 @@ export type TabType =
   | 'add-product'
   | 'products-import'
   | 'stock-card'
+  | 'picking'
   | 'batches';
 
 export interface SidebarProps {
@@ -48,6 +49,7 @@ export interface SidebarProps {
   canAccessStockTransfer?: boolean;
   canAccessWarehouses?: boolean;
   canWriteInventory?: boolean;
+  isWarehouseOrAdmin?: boolean;
   isAdmin?: boolean;
   onLogout?: () => void;
   isLoggingOut?: boolean;
@@ -85,6 +87,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   canAccessStockTransfer = false,
   canAccessWarehouses = false,
   canWriteInventory: _canWriteInventory = false,
+  isWarehouseOrAdmin = false,
   onLogout,
   isLoggingOut = false,
 }) => {
@@ -163,16 +166,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     boxShadow: 'none',
                     marginTop: 0,
                   }}
-                  className={`group w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm transition-colors text-left border-0 cursor-pointer ${
-                    isActive
+                  className={`group w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm transition-colors text-left border-0 cursor-pointer ${isActive
                       ? 'bg-emerald-50 text-emerald-800 font-semibold'
                       : 'bg-transparent text-gray-700 hover:bg-gray-100 hover:text-gray-900 font-medium'
-                  }`}
+                    }`}
                 >
                   <span
-                    className={`flex-shrink-0 transition-colors ${
-                      isActive ? 'text-[#0fad89]' : 'text-gray-500 group-hover:text-gray-700'
-                    }`}
+                    className={`flex-shrink-0 transition-colors ${isActive ? 'text-[#0fad89]' : 'text-gray-500 group-hover:text-gray-700'
+                      }`}
                   >
                     {item.icon}
                   </span>
@@ -238,11 +239,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         onSelectTab(item.tab);
                         onCloseMobile?.();
                       }}
-                      className={`group w-full flex items-center gap-3 px-3.5 py-3 rounded-lg text-sm transition-colors text-left border-0 cursor-pointer ${
-                        isActive
+                      className={`group w-full flex items-center gap-3 px-3.5 py-3 rounded-lg text-sm transition-colors text-left border-0 cursor-pointer ${isActive
                           ? 'bg-emerald-50 text-emerald-800 font-semibold'
                           : 'bg-transparent text-gray-700 hover:bg-gray-100 hover:text-gray-900 font-medium'
-                      }`}
+                        }`}
                     >
                       <span className={`flex-shrink-0 transition-colors ${isActive ? 'text-[#0fad89]' : 'text-gray-500'}`}>
                         {item.icon}
@@ -326,11 +326,25 @@ export const Sidebar: React.FC<SidebarProps> = ({
       ),
     },
     {
+      id: 'btn-sidebar-picking',
+      tab: 'picking',
+      path: '/picking',
+      label: 'Phiếu soạn hàng',
+      visible: isWarehouseOrAdmin,
+      icon: (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+          <rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
+          <path d="m9 14 2 2 4-4" />
+        </svg>
+      ),
+    },
+    {
       id: 'btn-sidebar-batches',
       tab: 'batches',
       path: '/batches',
       label: 'Lô & Hạn sử dụng',
-      visible: !isCustomer,
+      visible: isWarehouseOrAdmin,
       icon: (
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <circle cx="12" cy="12" r="10" />
@@ -529,8 +543,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
               const isActive = isAnyPathMatched
                 ? isPathMatched
                 : activeTab
-                ? activeTab === item.tab
-                : isPathMatched;
+                  ? activeTab === item.tab
+                  : isPathMatched;
 
               return (
                 <button
@@ -543,16 +557,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     boxShadow: 'none',
                     marginTop: 0,
                   }}
-                  className={`group w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm transition-colors text-left border-0 cursor-pointer ${
-                    isActive
+                  className={`group w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm transition-colors text-left border-0 cursor-pointer ${isActive
                       ? 'bg-emerald-50 text-emerald-800 font-semibold'
                       : 'bg-transparent text-gray-700 hover:bg-gray-100 hover:text-gray-900 font-medium'
-                  }`}
+                    }`}
                 >
                   <span
-                    className={`flex-shrink-0 transition-colors ${
-                      isActive ? 'text-[#0fad89]' : 'text-gray-500 group-hover:text-gray-700'
-                    }`}
+                    className={`flex-shrink-0 transition-colors ${isActive ? 'text-[#0fad89]' : 'text-gray-500 group-hover:text-gray-700'
+                      }`}
                   >
                     {item.icon}
                   </span>
@@ -622,11 +634,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         onSelectTab(item.tab);
                         onCloseMobile?.();
                       }}
-                      className={`group w-full flex items-center gap-3 px-3.5 py-3 rounded-lg text-sm transition-colors text-left border-0 cursor-pointer ${
-                        isActive
+                      className={`group w-full flex items-center gap-3 px-3.5 py-3 rounded-lg text-sm transition-colors text-left border-0 cursor-pointer ${isActive
                           ? 'bg-emerald-50 text-emerald-800 font-semibold'
                           : 'bg-transparent text-gray-700 hover:bg-gray-100 hover:text-gray-900 font-medium'
-                      }`}
+                        }`}
                     >
                       <span className={`flex-shrink-0 transition-colors ${isActive ? 'text-[#0fad89]' : 'text-gray-500'}`}>
                         {item.icon}

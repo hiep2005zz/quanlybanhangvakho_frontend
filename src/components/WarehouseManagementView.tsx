@@ -32,6 +32,8 @@ import {
 } from '../services/api';
 import './warehouse-management.css';
 import { emitStatusToast } from './StatusToast';
+import WarehousePickingView from './WarehousePickingView';
+
 
 interface WarehouseManagementViewProps {
   token: string;
@@ -72,7 +74,9 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
 
   // Kho đang chọn để xem vị trí / gán sản phẩm
   const [selectedWarehouse, setSelectedWarehouse] = useState<WarehouseItem | null>(null);
-  const [subTab, setSubTab] = useState<'locations' | 'master-data' | 'products'>('locations');
+  const [subTab, setSubTab] = useState<'locations' | 'master-data' | 'products' | 'picking'>('locations');
+  const [isGlobalPickingOpen, setIsGlobalPickingOpen] = useState<boolean>(false);
+
 
   // State Vị trí kho (Locations)
   const [locations, setLocations] = useState<WarehouseLocationItem[]>([]);
@@ -1936,6 +1940,18 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
     );
   }
 
+  if (isGlobalPickingOpen && canManage) {
+    return (
+      <div className="wh-container">
+        <WarehousePickingView
+          token={token}
+          currentUser={currentUser}
+          onBackToHome={() => setIsGlobalPickingOpen(false)}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="wh-container">
 
@@ -1963,14 +1979,36 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
               Quay lại danh sách kho
             </button>
           ) : (
-            canManage && (
-              <button type="button" className="wh-btn wh-btn-primary" onClick={handleOpenCreateWarehouse}>
-                Thêm kho mới
-              </button>
-            )
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              {canManage && (
+                <button
+                  type="button"
+                  className="wh-btn"
+                  style={{
+                    background: '#4f46e5',
+                    color: '#ffffff',
+                    fontWeight: 600,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    border: 'none',
+                    cursor: 'pointer',
+                  }}
+                  onClick={() => setIsGlobalPickingOpen(true)}
+                >
+                  Lập phiếu soạn hàng
+                </button>
+              )}
+              {canManage && (
+                <button type="button" className="wh-btn wh-btn-primary" onClick={handleOpenCreateWarehouse}>
+                  Thêm kho mới
+                </button>
+              )}
+            </div>
           )}
         </div>
       </div>
+
 
       {/* Bố cục: Nếu chưa chọn kho -> Xem bảng danh sách kho */}
       {!selectedWarehouse ? (
@@ -2251,7 +2289,17 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
               <span>Sản phẩm theo kệ</span>
               <span className="wh-tab-count">{locationProducts.length}</span>
             </button>
+            {canManage && (
+              <button
+                type="button"
+                className={`wh-tab-btn ${subTab === 'picking' ? 'active' : ''}`}
+                onClick={() => setSubTab('picking')}
+              >
+                <span>Phiếu soạn hàng</span>
+              </button>
+            )}
           </div>
+
 
           {/* TAB 1: DANH SÁCH VỊ TRÍ KỆ (LOCATIONS) */}
           {subTab === 'locations' && (
@@ -2995,8 +3043,18 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
               </div>
             </>
           )}
+
+          {/* TAB 4: PHIẾU SOẠN HÀNG (WAVE / BATCH PICKING THEO LỘ TRÌNH KHO) */}
+          {subTab === 'picking' && (
+            <WarehousePickingView
+              token={token}
+              currentUser={currentUser}
+              onBackToHome={() => setSubTab('locations')}
+            />
+          )}
         </>
       )}
+
 
       {/* ==================================================== */}
       {/* MODAL 1: THÊM / SỬA KHO HÀNG                          */}
