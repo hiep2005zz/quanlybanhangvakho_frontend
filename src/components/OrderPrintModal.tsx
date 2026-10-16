@@ -230,6 +230,14 @@ export const OrderPrintModal: React.FC<OrderPrintModalProps> = ({
     }
   }, [order]);
 
+  // Đảm bảo class has-print-modal được gắn vào body
+  useEffect(() => {
+    document.body.classList.add('has-print-modal');
+    return () => {
+      document.body.classList.remove('has-print-modal');
+    };
+  }, []);
+
   // Đóng modal khi bấm phím Escape
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {

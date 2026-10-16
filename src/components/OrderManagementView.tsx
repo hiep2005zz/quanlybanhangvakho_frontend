@@ -193,7 +193,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
   const isCustomerLocked = isCustomer && Boolean(
     customerDealer?.status &&
     (customerDealer.status.toLowerCase().includes('khóa') ||
-     customerDealer.status.toLowerCase().includes('lock'))
+      customerDealer.status.toLowerCase().includes('lock'))
   );
 
   const fetchCustomerDealer = async () => {
@@ -995,27 +995,24 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
               <button
                 type="button"
                 onClick={() => setStatusFilter('ALL')}
-                className={`px-2.5 sm:px-3 py-1 rounded-md text-xs sm:text-[13px] font-semibold whitespace-nowrap cursor-pointer transition-all border-0 ${
-                  statusFilter === 'ALL' ? 'bg-white text-slate-900 shadow-xs' : 'bg-transparent text-slate-600 hover:text-slate-900'
-                }`}
+                className={`px-2.5 sm:px-3 py-1 rounded-md text-xs sm:text-[13px] font-semibold whitespace-nowrap cursor-pointer transition-all border-0 ${statusFilter === 'ALL' ? 'bg-white text-slate-900 shadow-xs' : 'bg-transparent text-slate-600 hover:text-slate-900'
+                  }`}
               >
                 Tất cả ({totalOrdersCount})
               </button>
               <button
                 type="button"
                 onClick={() => setStatusFilter('PENDING_APPROVAL')}
-                className={`px-2.5 sm:px-3 py-1 rounded-md text-xs sm:text-[13px] font-semibold whitespace-nowrap cursor-pointer transition-all border-0 ${
-                  statusFilter === 'PENDING_APPROVAL' ? 'bg-white text-amber-700 shadow-xs' : 'bg-transparent text-slate-600 hover:text-amber-700'
-                }`}
+                className={`px-2.5 sm:px-3 py-1 rounded-md text-xs sm:text-[13px] font-semibold whitespace-nowrap cursor-pointer transition-all border-0 ${statusFilter === 'PENDING_APPROVAL' ? 'bg-white text-amber-700 shadow-xs' : 'bg-transparent text-slate-600 hover:text-amber-700'
+                  }`}
               >
                 {isCustomer ? 'Chờ xử lý' : 'Chờ duyệt'} ({pendingOrdersCount})
               </button>
               <button
                 type="button"
                 onClick={() => setStatusFilter('CONFIRMED')}
-                className={`px-2.5 sm:px-3 py-1 rounded-md text-xs sm:text-[13px] font-semibold whitespace-nowrap cursor-pointer transition-all border-0 ${
-                  statusFilter === 'CONFIRMED' ? 'bg-white text-emerald-700 shadow-xs' : 'bg-transparent text-slate-600 hover:text-emerald-700'
-                }`}
+                className={`px-2.5 sm:px-3 py-1 rounded-md text-xs sm:text-[13px] font-semibold whitespace-nowrap cursor-pointer transition-all border-0 ${statusFilter === 'CONFIRMED' ? 'bg-white text-emerald-700 shadow-xs' : 'bg-transparent text-slate-600 hover:text-emerald-700'
+                  }`}
               >
                 {isCustomer ? 'Đang giao' : 'Đã xác nhận'} ({confirmedOrdersCount})
               </button>
@@ -1040,9 +1037,8 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                 <button
                   type="button"
                   onClick={() => setStatusFilter('REJECTED')}
-                  className={`px-2.5 sm:px-3 py-1 rounded-md text-xs sm:text-[13px] font-semibold whitespace-nowrap cursor-pointer transition-all border-0 ${
-                    statusFilter === 'REJECTED' ? 'bg-white text-red-700 shadow-xs' : 'bg-transparent text-slate-600 hover:text-red-700'
-                  }`}
+                  className={`px-2.5 sm:px-3 py-1 rounded-md text-xs sm:text-[13px] font-semibold whitespace-nowrap cursor-pointer transition-all border-0 ${statusFilter === 'REJECTED' ? 'bg-white text-red-700 shadow-xs' : 'bg-transparent text-slate-600 hover:text-red-700'
+                    }`}
                 >
                   Bị từ chối ({rejectedOrdersCount})
                 </button>
@@ -1051,9 +1047,8 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                 <button
                   type="button"
                   onClick={() => setStatusFilter('CANCELLED')}
-                  className={`px-2.5 sm:px-3 py-1 rounded-md text-xs sm:text-[13px] font-semibold whitespace-nowrap cursor-pointer transition-all border-0 ${
-                    statusFilter === 'CANCELLED' ? 'bg-white text-slate-700 shadow-xs' : 'bg-transparent text-slate-600 hover:text-slate-900'
-                  }`}
+                  className={`px-2.5 sm:px-3 py-1 rounded-md text-xs sm:text-[13px] font-semibold whitespace-nowrap cursor-pointer transition-all border-0 ${statusFilter === 'CANCELLED' ? 'bg-white text-slate-700 shadow-xs' : 'bg-transparent text-slate-600 hover:text-slate-900'
+                    }`}
                 >
                   Đã hủy ({cancelledOrdersCount})
                 </button>
@@ -1119,13 +1114,13 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                         {Boolean(
                           order.dealer_status &&
                           (order.dealer_status.toLowerCase().includes('khóa') ||
-                           order.dealer_status.toLowerCase().includes('lock') ||
-                           order.dealer_status.toLowerCase().includes('ngừng'))
+                            order.dealer_status.toLowerCase().includes('lock') ||
+                            order.dealer_status.toLowerCase().includes('ngừng'))
                         ) && (
-                          <span className="bg-red-100 text-red-700 border border-red-200 rounded px-1.5 py-0.5 text-[10px] font-bold">
-                            Đã khóa
-                          </span>
-                        )}
+                            <span className="bg-red-100 text-red-700 border border-red-200 rounded px-1.5 py-0.5 text-[10px] font-bold">
+                              Đã khóa
+                            </span>
+                          )}
                       </div>
                       <div className="text-[11px] text-slate-400 mt-0.5">
                         Mã KH: #{order.dealer_id} • Người tạo: {order.created_by}
@@ -1138,7 +1133,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                       const hasLocked = Boolean(
                         order.dealer_status &&
                         (order.dealer_status.toLowerCase().includes('khóa') ||
-                         order.dealer_status.toLowerCase().includes('lock'))
+                          order.dealer_status.toLowerCase().includes('lock'))
                       );
                       if (!cleanReason && !hasLocked) return null;
                       return (
@@ -1227,24 +1222,24 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                             {Boolean(
                               order.dealer_status &&
                               (order.dealer_status.toLowerCase().includes('khóa') ||
-                               order.dealer_status.toLowerCase().includes('lock') ||
-                               order.dealer_status.toLowerCase().includes('ngừng'))
+                                order.dealer_status.toLowerCase().includes('lock') ||
+                                order.dealer_status.toLowerCase().includes('ngừng'))
                             ) && (
-                              <span
-                                style={{
-                                  background: '#fee2e2',
-                                  color: '#b91c1c',
-                                  border: '1px solid #fca5a5',
-                                  borderRadius: '4px',
-                                  padding: '1px 6px',
-                                  fontSize: '11px',
-                                  fontWeight: 750,
-                                }}
-                                title={order.dealer_lock_reason ? `Lý do: ${order.dealer_lock_reason}` : 'Đại lý bị khóa giao dịch'}
-                              >
-                                Đã khóa
-                              </span>
-                            )}
+                                <span
+                                  style={{
+                                    background: '#fee2e2',
+                                    color: '#b91c1c',
+                                    border: '1px solid #fca5a5',
+                                    borderRadius: '4px',
+                                    padding: '1px 6px',
+                                    fontSize: '11px',
+                                    fontWeight: 750,
+                                  }}
+                                  title={order.dealer_lock_reason ? `Lý do: ${order.dealer_lock_reason}` : 'Đại lý bị khóa giao dịch'}
+                                >
+                                  Đã khóa
+                                </span>
+                              )}
                           </div>
                           <div style={{ fontSize: '11px', color: '#64748b', marginTop: '1px' }}>
                             Mã khách hàng: #{order.dealer_id}
@@ -1271,7 +1266,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                             const hasLocked = Boolean(
                               order.dealer_status &&
                               (order.dealer_status.toLowerCase().includes('khóa') ||
-                               order.dealer_status.toLowerCase().includes('lock'))
+                                order.dealer_status.toLowerCase().includes('lock'))
                             );
                             const s = (order.status || '').toUpperCase();
                             const isApprovedOrConfirmed =
