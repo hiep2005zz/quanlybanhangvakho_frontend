@@ -14,6 +14,8 @@ import {
   getWarehouseProductsApi,
   assignProductToLocationApi,
   transferLocationProductApi,
+  getProductLocationAllocationStatusApi,
+  ProductAllocationStatusResponse,
   User,
   getProductsApi,
   Product,
@@ -33,6 +35,7 @@ import {
 import './warehouse-management.css';
 import { emitStatusToast } from './StatusToast';
 import WarehousePickingView from './WarehousePickingView';
+import { ProductSelectDropdown } from './ProductSelectDropdown';
 
 
 interface WarehouseManagementViewProps {
@@ -109,19 +112,6 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
   const [addStockQuantity, setAddStockQuantity] = useState<number | string>(10);
   const [isAddStockSubmitting, setIsAddStockSubmitting] = useState<boolean>(false);
 
-  // Modal Cảnh Báo Sức Chứa & Tải Trọng Kệ / Kho Đầy
-  const [isCapacityWarningModalOpen, setIsCapacityWarningModalOpen] = useState<boolean>(false);
-  const [capacityWarningData, setCapacityWarningData] = useState<{
-    zoneName: string;
-    locationCode?: string;
-    currentStock: number;
-    maxCapacity: number;
-    attemptedAdd: number;
-    availableSpace?: number;
-    warningType?: 'rack' | 'zone';
-    title?: string;
-    message?: string;
-  } | null>(null);
 
   // --- MODALS & FORM PAGES STATE ---
   // Trang riêng khai báo Full-page
@@ -233,6 +223,9 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
     quantity: 10,
   });
   const [isAssignSubmitting, setIsAssignSubmitting] = useState<boolean>(false);
+  const [assignAllocationStatus, setAssignAllocationStatus] = useState<ProductAllocationStatusResponse | null>(null);
+  const [isFetchingAllocation, setIsFetchingAllocation] = useState<boolean>(false);
+  const [selectedDropdownProduct, setSelectedDropdownProduct] = useState<any | null>(null);
 
   // Modal Chuyển sản phẩm giữa các vị trí
   const [isTransferModalOpen, setIsTransferModalOpen] = useState<boolean>(false);
@@ -890,18 +883,75 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
     }
   };
 
+  const fetchAllocationStatus = useCallback(async (warehouseId: number, productId: number) => {
+    if (!warehouseId || !productId) return;
+    setIsFetchingAllocation(true);
+    try {
+      const res = await getProductLocationAllocationStatusApi(token, warehouseId, productId);
+      setAssignAllocationStatus(res);
+    } catch (err) {
+      console.warn('Failed to fetch allocation status', err);
+      setAssignAllocationStatus(null);
+    } finally {
+      setIsFetchingAllocation(false);
+    }
+  }, [token]);
+
   // --- XỬ LÝ GÁN SẢN PHẨM VÀO VỊ TRÍ ---
-  const handleOpenAssignProduct = () => {
+  const handleOpenAssignProduct = (preferredProductId?: number | React.MouseEvent, preferredLocationId?: number) => {
     if (locations.length === 0) {
       setErrorMsg('Kho này chưa có vị trí kệ nào. Vui lòng tạo vị trí trước khi gán hàng.');
       return;
     }
+
+    const actualPid = typeof preferredProductId === 'number' ? preferredProductId : undefined;
+    const actualLocId = typeof preferredLocationId === 'number' ? preferredLocationId : undefined;
+
+    // 1. Xác định sản phẩm: ưu tiên sản phẩm có tồn kho chưa phân bổ
+    let initialProd = allProducts[0] || null;
+    if (actualPid) {
+      initialProd = allProducts.find((p) => p.id === actualPid) || initialProd;
+    } else {
+      const prodWithUnallocated = allProducts.find((p) => {
+        const allocated = locationProducts
+          .filter((lp) => lp.product_id === p.id)
+          .reduce((sum, lp) => sum + (Number(lp.quantity) || 0), 0);
+        return (p.stock || 0) > allocated;
+      });
+      if (prodWithUnallocated) {
+        initialProd = prodWithUnallocated;
+      }
+    }
+
+    const initialPid = initialProd?.id || 1;
+    const curProductShelfItems = locationProducts.filter((lp) => lp.product_id === initialPid);
+
+    // 2. Xác định vị trí kệ: Nếu sản phẩm đã ở 1 kệ nào đó và không chỉ định kệ, ưu tiên kệ đó để không bị rơi vào trạng thái 0
+    let initialLocId = locations[0]?.id || 0;
+    if (actualLocId) {
+      initialLocId = actualLocId;
+    } else if (curProductShelfItems.length > 0 && curProductShelfItems[0].quantity > 0) {
+      initialLocId = curProductShelfItems[0].location_id;
+    }
+
+    const whStock = curProductShelfItems[0]?.warehouse_total_stock ?? (initialProd?.stock ?? 0);
+    const allocatedOther = curProductShelfItems
+      .filter((lp) => lp.location_id !== initialLocId)
+      .reduce((sum, lp) => sum + (Number(lp.quantity) || 0), 0);
+    const maxAssignable = Math.max(0, whStock - allocatedOther);
+    const curOnThisShelf = curProductShelfItems.find((lp) => lp.location_id === initialLocId)?.quantity || 0;
+    const defaultQty = curOnThisShelf > 0 ? curOnThisShelf : Math.min(10, maxAssignable);
+
+    setSelectedDropdownProduct(initialProd);
     setAssignFormData({
-      location_id: locations[0]?.id || 0,
-      product_id: allProducts[0]?.id || 1,
-      quantity: 10,
+      location_id: initialLocId,
+      product_id: initialPid,
+      quantity: defaultQty,
     });
     setIsAssignModalOpen(true);
+    if (selectedWarehouse) {
+      fetchAllocationStatus(selectedWarehouse.id, initialPid);
+    }
   };
 
   // --- KIỂM TRA SỨC CHỨA VỊ TRÍ KỆ (RACK LEVEL) ---
@@ -1001,49 +1051,52 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
     const oldQty = existingStock ? existingStock.quantity : 0;
     const netIncrease = targetQty - oldQty;
 
+    // 0. KIỂM TRA TỒN CHƯA PHÂN BỔ CỦA SẢN PHẨM TRONG KHO
+    const selectedProd = allProducts.find((p) => p.id === assignFormData.product_id);
+    const curProductShelfItems = locationProducts.filter(
+      (lp) => lp.product_id === assignFormData.product_id
+    );
+    const whStock =
+      assignAllocationStatus?.warehouse_total_stock ??
+      (curProductShelfItems[0]?.warehouse_total_stock ??
+        (selectedProd?.stock ?? 0));
+    const allocatedOther = curProductShelfItems
+      .filter((lp) => lp.location_id !== assignFormData.location_id)
+      .reduce((sum, lp) => sum + (Number(lp.quantity) || 0), 0);
+    const maxAssignable = Math.max(0, whStock - allocatedOther);
+
+    if (targetQty > maxAssignable) {
+      emitStatusToast({
+        message: `Vượt quá tồn chưa phân bổ của kho! Tối đa có thể gán vào kệ này là ${maxAssignable} ${selectedProd?.base_unit || 'Cái'}.`,
+        type: 'error',
+        title: 'Chặn gán vượt tồn kho',
+      });
+      setErrorMsg(`Vượt quá tồn chưa phân bổ của kho! Vị trí này chỉ được gán tối đa ${maxAssignable} ${selectedProd?.base_unit || 'Cái'}.`);
+      return;
+    }
+
     if (netIncrease > 0) {
       // 1. Kiểm tra tải trọng và sức chứa của vị trí kệ
       const rackCheck = checkRackCapacity(assignFormData.location_id, assignFormData.product_id, targetQty);
       if (!rackCheck.ok) {
-        setCapacityWarningData({
-          warningType: 'rack',
-          title: 'Vượt Tải Trọng Kệ! Cảnh Báo Sức Chứa',
-          message: `Vị trí kệ ${targetLocCode} chỉ có sức chứa tối đa là ${rackCheck.maxCapacity} SP. Số lượng hàng vượt quá tải trọng cho phép. Vui lòng giảm số lượng nhập hoặc chuyển sang kệ khác.`,
-          zoneName,
-          locationCode: targetLocCode,
-          currentStock: rackCheck.currentStock,
-          maxCapacity: rackCheck.maxCapacity,
-          attemptedAdd: netIncrease,
-          availableSpace: rackCheck.availableSpace,
-        });
-        setIsCapacityWarningModalOpen(true);
         emitStatusToast({
           message: `Vượt quá sức chứa và tải trọng của kệ ${targetLocCode}! Chỉ còn chỗ cho ${rackCheck.availableSpace} SP.`,
           type: 'warning',
           title: 'Cảnh báo quá tải kệ',
         });
+        setErrorMsg(`Vị trí kệ ${targetLocCode} chỉ có sức chứa tối đa là ${rackCheck.maxCapacity} SP. Số lượng hàng vượt quá tải trọng cho phép.`);
         return;
       }
 
       // 2. Kiểm tra sức chứa khu vực
       const capCheck = checkZoneCapacity(zoneName, netIncrease);
       if (!capCheck.ok) {
-        setCapacityWarningData({
-          warningType: 'zone',
-          title: 'Kho Đầy! Cảnh Báo Vượt Sức Chứa',
-          message: `Kho đầy! Khu vực ${zoneName} đã đạt giới hạn sức chứa tối đa. Vui lòng sắp xếp vị trí khác hoặc mở thêm kho mới.`,
-          zoneName,
-          locationCode: targetLocCode,
-          currentStock: capCheck.currentStock,
-          maxCapacity: capCheck.maxCapacity,
-          attemptedAdd: netIncrease,
-        });
-        setIsCapacityWarningModalOpen(true);
         emitStatusToast({
           message: `Kho đầy! Khu vực ${zoneName} đã đạt giới hạn sức chứa tối đa. Vui lòng sắp xếp vị trí khác hoặc mở thêm kho mới.`,
           type: 'warning',
           title: 'Cảnh báo đầy kho',
         });
+        setErrorMsg(`Kho đầy! Khu vực ${zoneName} đã đạt giới hạn sức chứa tối đa.`);
         return;
       }
     }
@@ -1066,32 +1119,11 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
       ]);
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : 'Lỗi gán sản phẩm';
-      if (errMsg.includes('sức chứa') || errMsg.includes('tải trọng')) {
-        setCapacityWarningData({
-          warningType: 'rack',
-          title: 'Vượt Tải Trọng Kệ! Cảnh Báo Sức Chứa',
-          message: errMsg,
-          zoneName,
-          locationCode: targetLocCode,
-          currentStock: targetLoc?.total_quantity || 0,
-          maxCapacity: targetLoc?.max_capacity || 500,
-          attemptedAdd: netIncrease,
-          availableSpace: Math.max(0, (targetLoc?.max_capacity || 500) - (targetLoc?.total_quantity || 0)),
-        });
-        setIsCapacityWarningModalOpen(true);
-      } else if (errMsg.includes('Kho đầy')) {
-        setCapacityWarningData({
-          warningType: 'zone',
-          title: 'Kho Đầy! Cảnh Báo Vượt Sức Chứa',
-          message: errMsg,
-          zoneName,
-          locationCode: targetLocCode,
-          currentStock: targetLoc?.total_quantity || 0,
-          maxCapacity: targetLoc?.max_capacity || 500,
-          attemptedAdd: netIncrease,
-        });
-        setIsCapacityWarningModalOpen(true);
-      }
+      emitStatusToast({
+        message: errMsg,
+        type: 'error',
+        title: 'Lỗi gán sản phẩm',
+      });
       setErrorMsg(errMsg);
     } finally {
       setIsAssignSubmitting(false);
@@ -1101,7 +1133,13 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
   // --- THAO TÁC THÊM HÀNG VÀO VỊ TRÍ KỆ HIỆN TẠI ---
   const handleOpenAddStock = (item: LocationProductStockItem) => {
     setAddStockItem(item);
-    setAddStockQuantity(10);
+    const curProductShelfItems = locationProducts.filter((lp) => lp.product_id === item.product_id);
+    const otherShelvesQty = curProductShelfItems
+      .filter((lp) => lp.location_id !== item.location_id)
+      .reduce((s, lp) => s + (Number(lp.quantity) || 0), 0);
+    const maxAllowed = Math.max(0, item.warehouse_total_stock - otherShelvesQty);
+    const unallocated = Math.max(0, maxAllowed - item.quantity);
+    setAddStockQuantity(unallocated > 0 ? Math.min(10, unallocated) : 0);
     setIsAddStockModalOpen(true);
   };
 
@@ -1120,48 +1158,47 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
     const zoneName = targetLoc?.zone || addStockItem.zone || 'Khu A';
     const newTotalForThisProduct = addStockItem.quantity + qtyToAdd;
 
+    // 0. Kiểm tra số tồn chưa phân bổ của kho
+    const curProductShelfItems = locationProducts.filter(
+      (lp) => lp.product_id === addStockItem.product_id
+    );
+    const otherShelvesQty = curProductShelfItems
+      .filter((lp) => lp.location_id !== addStockItem.location_id)
+      .reduce((s, lp) => s + (Number(lp.quantity) || 0), 0);
+    const maxAllowedOnThisShelf = Math.max(0, addStockItem.warehouse_total_stock - otherShelvesQty);
+    const unallocatedAvail = Math.max(0, maxAllowedOnThisShelf - addStockItem.quantity);
+
+    if (qtyToAdd > unallocatedAvail) {
+      emitStatusToast({
+        message: `Vượt quá tồn chưa phân bổ của kho! Chỉ còn có thể thêm tối đa ${unallocatedAvail} ${addStockItem.base_unit || 'Cái'}.`,
+        type: 'error',
+        title: 'Chặn thêm vượt tồn kho',
+      });
+      setErrorMsg(`Vượt quá tồn chưa phân bổ! Chỉ còn có thể thêm tối đa ${unallocatedAvail} ${addStockItem.base_unit || 'Cái'}.`);
+      return;
+    }
+
     // 1. Kiểm tra sức chứa & tải trọng kệ cụ thể
     const rackCheck = checkRackCapacity(addStockItem.location_id, addStockItem.product_id, newTotalForThisProduct);
     if (!rackCheck.ok) {
-      setCapacityWarningData({
-        warningType: 'rack',
-        title: 'Vượt Tải Trọng Kệ! Cảnh Báo Sức Chứa',
-        message: `Vị trí kệ ${targetLocCode} chỉ có sức chứa tối đa là ${rackCheck.maxCapacity} SP (hiện đang chứa ${rackCheck.currentStock} SP, chỉ còn chỗ cho ${rackCheck.availableSpace} SP). Không thể nhập thêm ${qtyToAdd} SP vượt tải trọng.`,
-        zoneName,
-        locationCode: targetLocCode,
-        currentStock: rackCheck.currentStock,
-        maxCapacity: rackCheck.maxCapacity,
-        attemptedAdd: qtyToAdd,
-        availableSpace: rackCheck.availableSpace,
-      });
-      setIsCapacityWarningModalOpen(true);
       emitStatusToast({
-        message: `Vượt quá sức chứa và tải trọng của kệ ${targetLocCode}! Vui lòng giảm số lượng nhập hoặc chuyển sang kệ khác.`,
+        message: `Vượt quá sức chứa và tải trọng của kệ ${targetLocCode}! Vui lòng giảm số lượng nhập hoặc chuyển sang kệ khác (chỉ còn chỗ cho ${rackCheck.availableSpace} SP).`,
         type: 'warning',
         title: 'Cảnh báo quá tải kệ',
       });
+      setErrorMsg(`Vị trí kệ ${targetLocCode} chỉ có sức chứa tối đa là ${rackCheck.maxCapacity} SP. Không thể nhập thêm vượt tải trọng.`);
       return;
     }
 
     // 2. Kiểm tra giới hạn sức chứa toàn Khu vực
     const zoneCheck = checkZoneCapacity(zoneName, qtyToAdd);
     if (!zoneCheck.ok) {
-      setCapacityWarningData({
-        warningType: 'zone',
-        title: 'Kho Đầy! Cảnh Báo Vượt Sức Chứa',
-        message: `Kho đầy! Khu vực ${zoneName} đã đạt giới hạn sức chứa tối đa. Vui lòng sắp xếp vị trí khác hoặc mở thêm kho mới.`,
-        zoneName,
-        locationCode: targetLocCode,
-        currentStock: zoneCheck.currentStock,
-        maxCapacity: zoneCheck.maxCapacity,
-        attemptedAdd: qtyToAdd,
-      });
-      setIsCapacityWarningModalOpen(true);
       emitStatusToast({
         message: `Kho đầy! Khu vực ${zoneName} đã đạt giới hạn sức chứa tối đa. Vui lòng sắp xếp vị trí khác hoặc mở thêm kho mới.`,
         type: 'warning',
         title: 'Cảnh báo đầy kho',
       });
+      setErrorMsg(`Kho đầy! Khu vực ${zoneName} đã đạt giới hạn sức chứa tối đa.`);
       return;
     }
 
@@ -1187,32 +1224,11 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
       ]);
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : 'Lỗi nhập thêm hàng';
-      if (errMsg.includes('sức chứa') || errMsg.includes('tải trọng')) {
-        setCapacityWarningData({
-          warningType: 'rack',
-          title: 'Vượt Tải Trọng Kệ! Cảnh Báo Sức Chứa',
-          message: errMsg,
-          zoneName,
-          locationCode: targetLocCode,
-          currentStock: rackCheck.currentStock,
-          maxCapacity: rackCheck.maxCapacity,
-          attemptedAdd: qtyToAdd,
-          availableSpace: rackCheck.availableSpace,
-        });
-        setIsCapacityWarningModalOpen(true);
-      } else if (errMsg.includes('Kho đầy')) {
-        setCapacityWarningData({
-          warningType: 'zone',
-          title: 'Kho Đầy! Cảnh Báo Vượt Sức Chứa',
-          message: errMsg,
-          zoneName,
-          locationCode: targetLocCode,
-          currentStock: zoneCheck.currentStock,
-          maxCapacity: zoneCheck.maxCapacity,
-          attemptedAdd: qtyToAdd,
-        });
-        setIsCapacityWarningModalOpen(true);
-      }
+      emitStatusToast({
+        message: errMsg,
+        type: 'error',
+        title: 'Lỗi nhập thêm hàng',
+      });
       setErrorMsg(errMsg);
     } finally {
       setIsAddStockSubmitting(false);
@@ -1220,17 +1236,21 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
   };
 
   // --- XỬ LÝ CHUYỂN VỊ TRÍ SẢN PHẨM ---
-  const handleOpenTransferProduct = (item: LocationProductStockItem) => {
+  const handleOpenTransferProduct = (item: LocationProductStockItem, targetLocId?: number) => {
     const otherLocations = locations.filter((l) => l.id !== item.location_id);
     if (otherLocations.length === 0) {
       setErrorMsg('Kho này chỉ có 1 vị trí kệ, không có vị trí khác để chuyển tới.');
       return;
     }
+    const defaultToLocId = targetLocId && otherLocations.some((l) => l.id === targetLocId)
+      ? targetLocId
+      : otherLocations[0].id;
+
     setTransferFormData({
       from_location_id: item.location_id,
-      to_location_id: otherLocations[0].id,
+      to_location_id: defaultToLocId,
       product_id: item.product_id,
-      quantity: 1,
+      quantity: Math.min(10, item.quantity),
       product_name: item.product_name,
       max_available: item.quantity,
     });
@@ -3472,96 +3492,385 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
       {/* ==================================================== */}
       {/* MODAL 5: GÁN SẢN PHẨM VÀO VỊ TRÍ                     */}
       {/* ==================================================== */}
-      {isAssignModalOpen && (
-        <div className="wh-modal-backdrop">
-          <div className="wh-modal-card">
-            <div className="wh-modal-header">
-              <h3>Gán Sản Phẩm Vào Vị Trí Kệ</h3>
-              <button type="button" className="wh-modal-close-btn" onClick={() => setIsAssignModalOpen(false)}>
-                ✕
-              </button>
-            </div>
+      {isAssignModalOpen && (() => {
+        const selectedProd =
+          allProducts.find((p) => p.id === assignFormData.product_id) ||
+          (selectedDropdownProduct && selectedDropdownProduct.id === assignFormData.product_id
+            ? selectedDropdownProduct
+            : null);
+        const curProductShelfItems = locationProducts.filter((lp) => lp.product_id === assignFormData.product_id);
+        const whStock = assignAllocationStatus?.warehouse_total_stock ?? (curProductShelfItems[0]?.warehouse_total_stock ?? (selectedProd?.stock ?? 0));
+        const allocatedOther = curProductShelfItems
+          .filter((lp) => lp.location_id !== assignFormData.location_id)
+          .reduce((sum, lp) => sum + (Number(lp.quantity) || 0), 0);
+        const curOnThisShelf = curProductShelfItems.find((lp) => lp.location_id === assignFormData.location_id)?.quantity || 0;
+        const maxAssignable = Math.max(0, whStock - allocatedOther);
+        const unallocatedOverall = assignAllocationStatus?.unallocated_stock ?? Math.max(0, whStock - (allocatedOther + curOnThisShelf));
+        const isExhausted = maxAssignable === 0;
 
-            <form onSubmit={handleSaveAssignProduct}>
-              <div className="wh-modal-body">
-                <div className="wh-form-group">
-                  <label>
-                    Chọn sản phẩm <span className="wh-required-star">*</span>
-                  </label>
-                  <select
-                    className="wh-form-select"
-                    value={assignFormData.product_id}
-                    onChange={(e) => setAssignFormData({ ...assignFormData, product_id: Number(e.target.value) })}
-                  >
-                    {allProducts.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        [{p.code}] {p.name} (Tồn tổng: {p.stock} {p.base_unit || 'Cái'})
-                      </option>
-                    ))}
-                  </select>
+        return (
+          <div className="wh-modal-backdrop" style={{ padding: '24px 16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div className="wh-modal-card" style={{ maxWidth: '490px', width: '100%', maxHeight: 'calc(100vh - 48px)', margin: 'auto', borderRadius: '16px', overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }}>
+              <div className="wh-modal-header" style={{ padding: '10px 18px', borderTopLeftRadius: '16px', borderTopRightRadius: '16px' }}>
+                <div style={{ minWidth: 0, flex: 1, paddingRight: '10px' }}>
+                  <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                    <span>Gán Sản Phẩm Vào Vị Trí Kệ</span>
+                    {selectedProd && (
+                      <span
+                        className="wh-badge"
+                        style={{
+                          background: '#ecfdf5',
+                          color: '#047857',
+                          border: '1px solid #a7f3d0',
+                          fontSize: '11.5px',
+                          fontWeight: 600,
+                          maxWidth: '240px',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        [{selectedProd.code}] {selectedProd.name}
+                      </span>
+                    )}
+                  </h3>
+                  {selectedWarehouse && (
+                    <div style={{ fontSize: '11.5px', color: '#64748b', marginTop: '1px', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span>Kho áp dụng:</span>
+                      <strong style={{ color: '#0f172a' }}>{selectedWarehouse.name}</strong>
+                      <span className="wh-badge wh-badge-code" style={{ fontSize: '10px', padding: '1px 5px' }}>
+                        {selectedWarehouse.code}
+                      </span>
+                    </div>
+                  )}
                 </div>
+                <button type="button" className="wh-modal-close-btn" onClick={() => setIsAssignModalOpen(false)}>
+                  ✕
+                </button>
+              </div>
 
-                <div className="wh-form-group">
-                  <label>
-                    Chọn vị trí kệ lưu trữ <span className="wh-required-star">*</span>
-                  </label>
-                  <select
-                    className="wh-form-select"
-                    value={assignFormData.location_id}
-                    onChange={(e) => setAssignFormData({ ...assignFormData, location_id: Number(e.target.value) })}
-                  >
-                    {locations.map((l) => (
-                      <option key={l.id} value={l.id}>
-                        {l.location_code} — {l.location_name || l.zone || 'Kệ'} (Hiện có: {l.total_quantity} SP)
-                      </option>
-                    ))}
-                  </select>
-                </div>
+              <form onSubmit={handleSaveAssignProduct}>
+                <div className="wh-modal-body" style={{ padding: '12px 18px', overflow: 'visible' }}>
+                  <div className="wh-form-group" style={{ marginBottom: '8px' }}>
+                    <label
+                      style={{
+                        display: 'block',
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        textTransform: 'uppercase',
+                        color: '#047857',
+                        letterSpacing: '0.05em',
+                        marginBottom: '3px',
+                      }}
+                    >
+                      SẢN PHẨM / SKU <span style={{ color: '#ef4444' }}>*</span>
+                    </label>
+                    <ProductSelectDropdown
+                      token={token}
+                      selectedProductId={assignFormData.product_id}
+                      onSelectProduct={(p) => {
+                        setSelectedDropdownProduct(p);
+                        const pShelfItems = locationProducts.filter((lp) => lp.product_id === p.id);
+                        const existingShelfId = pShelfItems.find((lp) => Number(lp.quantity) > 0)?.location_id;
+                        const targetLocId = existingShelfId || assignFormData.location_id;
 
-                <div className="wh-form-group">
-                  <label>
-                    Số lượng gán tại vị trí này <span className="wh-required-star">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    className="wh-form-input"
-                    placeholder="Nhập số lượng..."
-                    value={assignFormData.quantity === '' ? '' : assignFormData.quantity}
-                    onFocus={(e) => e.target.select()}
-                    onChange={(e) => {
-                      const raw = e.target.value;
-                      if (raw === '') {
-                        setAssignFormData((prev) => ({ ...prev, quantity: '' }));
-                        return;
+                        const allocOther = pShelfItems
+                          .filter((lp) => lp.location_id !== targetLocId)
+                          .reduce((s, lp) => s + (Number(lp.quantity) || 0), 0);
+                        const maxAssign = Math.max(0, (p.stock || 0) - allocOther);
+                        const onShelf = pShelfItems.find((lp) => lp.location_id === targetLocId)?.quantity || 0;
+
+                        setAssignFormData((prev) => ({
+                          ...prev,
+                          product_id: p.id,
+                          location_id: targetLocId,
+                          quantity: onShelf > 0 ? onShelf : (maxAssign > 0 ? Math.min(10, maxAssign) : 0),
+                        }));
+                        if (selectedWarehouse) {
+                          fetchAllocationStatus(selectedWarehouse.id, p.id);
+                        }
+                      }}
+                      placeholder="Tìm kiếm theo mã SKU, tên hàng hóa hoặc ngành hàng..."
+                      dropdownMaxHeight="160px"
+                      autoSelectFirst={false}
+                      fallbackProduct={
+                        selectedProd
+                          ? {
+                              id: selectedProd.id,
+                              code: selectedProd.code,
+                              name: selectedProd.name,
+                              is_batch_managed: (selectedProd as any).is_batch_managed,
+                            }
+                          : null
                       }
-                      const clean = raw.replace(/^0+(?=\d)/, '');
-                      setAssignFormData((prev) => ({ ...prev, quantity: clean === '' ? 0 : Number(clean) }));
+                    />
+                  </div>
+
+                  <div className="wh-form-group" style={{ marginBottom: '8px' }}>
+                    <label style={{ fontSize: '11.5px', marginBottom: '3px', fontWeight: 600, color: '#334155' }}>
+                      Chọn vị trí kệ lưu trữ <span className="wh-required-star">*</span>
+                    </label>
+                    <select
+                      className="wh-form-select"
+                      style={{ height: '34px', fontSize: '12.5px', padding: '4px 10px' }}
+                      value={assignFormData.location_id}
+                      onChange={(e) => {
+                        const newLocId = Number(e.target.value);
+                        const shelfItem = curProductShelfItems.find((lp) => lp.location_id === newLocId);
+                        const onThisShelf = shelfItem ? Number(shelfItem.quantity) || 0 : 0;
+                        const allocOther = curProductShelfItems
+                          .filter((lp) => lp.location_id !== newLocId)
+                          .reduce((s, lp) => s + (Number(lp.quantity) || 0), 0);
+                        const maxAssign = Math.max(0, whStock - allocOther);
+                        setAssignFormData((prev) => ({
+                          ...prev,
+                          location_id: newLocId,
+                          quantity: onThisShelf > 0 ? onThisShelf : (maxAssign > 0 ? Math.min(10, maxAssign) : 0),
+                        }));
+                      }}
+                    >
+                      {locations.map((l) => (
+                        <option key={l.id} value={l.id}>
+                          {l.location_code} — {l.location_name || l.zone || 'Kệ'} (Hiện có: {l.total_quantity} SP)
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* THẺ TỔNG HỢP PHÂN BỔ TỒN KHO (Dạng 4 ô ngang siêu gọn) */}
+                  <div
+                    style={{
+                      background: '#f8fafc',
+                      border: '1px solid #e2e8f0',
+                      borderRadius: '8px',
+                      padding: '6px 8px',
+                      marginBottom: '8px',
                     }}
-                  />
-                  <div style={{ fontSize: '12px', color: '#64748b' }}>
-                    Nếu nhập 0, sản phẩm sẽ được gỡ khỏi vị trí kệ này.
+                  >
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px', textAlign: 'center' }}>
+                      <div style={{ background: '#ffffff', padding: '4px 2px', borderRadius: '5px', border: '1px solid #e2e8f0' }}>
+                        <div style={{ color: '#64748b', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '3px' }}>
+                          <span>Tổng tồn</span>
+                          {isFetchingAllocation && <span style={{ color: '#6366f1', fontSize: '9px' }}>...</span>}
+                        </div>
+                        <div style={{ fontSize: '13px', fontWeight: 700, color: '#0f172a', marginTop: '1px' }}>
+                          {whStock.toLocaleString('vi-VN')}
+                        </div>
+                      </div>
+                      <div style={{ background: '#ffffff', padding: '4px 2px', borderRadius: '5px', border: '1px solid #e2e8f0' }}>
+                        <div style={{ color: '#64748b', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase' }}>Kệ khác</div>
+                        <div style={{ fontSize: '13px', fontWeight: 600, color: '#475569', marginTop: '1px' }}>
+                          {allocatedOther.toLocaleString('vi-VN')}
+                        </div>
+                      </div>
+                      <div style={{ background: '#ffffff', padding: '4px 2px', borderRadius: '5px', border: '1px solid #e2e8f0' }}>
+                        <div style={{ color: '#64748b', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase' }}>Kệ này</div>
+                        <div style={{ fontSize: '13px', fontWeight: 600, color: '#2563eb', marginTop: '1px' }}>
+                          {curOnThisShelf.toLocaleString('vi-VN')}
+                        </div>
+                      </div>
+                      <div style={{ background: unallocatedOverall > 0 ? '#f0fdf4' : '#fef2f2', padding: '4px 2px', borderRadius: '5px', border: `1px solid ${unallocatedOverall > 0 ? '#bbf7d0' : '#fecaca'}` }}>
+                        <div style={{ color: unallocatedOverall > 0 ? '#166534' : '#991b1b', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase' }}>Chưa gán</div>
+                        <div style={{ fontSize: '13px', fontWeight: 700, color: unallocatedOverall > 0 ? '#15803d' : '#dc2626', marginTop: '1px' }}>
+                          {unallocatedOverall.toLocaleString('vi-VN')}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div
+                      style={{
+                        marginTop: '5px',
+                        paddingTop: '4px',
+                        borderTop: '1px dashed #cbd5e1',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        fontSize: '11.5px',
+                      }}
+                    >
+                      <span style={{ color: '#475569', fontWeight: 500 }}>Tối đa có thể gán vào kệ này:</span>
+                      <span
+                        className="wh-badge"
+                        style={{
+                          fontSize: '11px',
+                          fontWeight: 700,
+                          padding: '1px 6px',
+                          background: maxAssignable > 0 ? '#dcfce7' : '#fee2e2',
+                          color: maxAssignable > 0 ? '#15803d' : '#b91c1c',
+                          borderRadius: '4px',
+                        }}
+                      >
+                        {maxAssignable.toLocaleString('vi-VN')} {selectedProd?.base_unit || 'Cái'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* HƯỚNG DẪN / ĐIỀU CHUYỂN KHI HÀNG ĐANG Ở KỆ KHÁC */}
+                  {isExhausted && curOnThisShelf === 0 && (
+                    <div
+                      style={{
+                        background: '#eff6ff',
+                        border: '1px solid #bfdbfe',
+                        borderRadius: '8px',
+                        padding: '10px 12px',
+                        marginBottom: '8px',
+                        fontSize: '12px',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 700, color: '#1e40af' }}>
+                        <span>💡</span>
+                        <span>Sản phẩm này hiện đang lưu tại các kệ khác trong kho:</span>
+                      </div>
+                      <div style={{ margin: '6px 0 2px 0' }}>
+                        {curProductShelfItems
+                          .filter((lp) => lp.location_id !== assignFormData.location_id && Number(lp.quantity) > 0)
+                          .map((lp) => (
+                            <div
+                              key={lp.id}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                background: '#ffffff',
+                                padding: '6px 10px',
+                                borderRadius: '6px',
+                                border: '1px solid #dbeafe',
+                                marginTop: '4px',
+                                fontSize: '12px',
+                              }}
+                            >
+                              <div>
+                                <span style={{ color: '#475569' }}>Kệ </span>
+                                <strong style={{ color: '#0f172a' }}>{lp.location_code}</strong>
+                                <span style={{ color: '#64748b', marginLeft: '6px' }}>
+                                  ({Number(lp.quantity).toLocaleString('vi-VN')} {selectedProd?.base_unit || 'Cái'})
+                                </span>
+                              </div>
+                              <button
+                                type="button"
+                                className="wh-btn wh-btn-primary"
+                                style={{
+                                  padding: '4px 10px',
+                                  fontSize: '11.5px',
+                                  height: 'auto',
+                                  background: '#2563eb',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                }}
+                                onClick={() => {
+                                  setIsAssignModalOpen(false);
+                                  handleOpenTransferProduct(lp, assignFormData.location_id);
+                                }}
+                              >
+                                <span>⇄</span>
+                                <span>Chuyển sang kệ này</span>
+                              </button>
+                            </div>
+                          ))}
+                      </div>
+                      <div style={{ marginTop: '6px', fontSize: '11px', color: '#64748b' }}>
+                        * Để xếp hàng vào kệ đang chọn, hãy nhấn <strong>Chuyển sang kệ này</strong> ở trên hoặc nút bên dưới.
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="wh-form-group" style={{ marginBottom: '4px' }}>
+                    <label style={{ fontSize: '11.5px', marginBottom: '3px', fontWeight: 600, color: '#334155' }}>
+                      Số lượng gán tại vị trí này <span className="wh-required-star">*</span>
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      max={maxAssignable}
+                      disabled={isExhausted && curOnThisShelf === 0}
+                      className="wh-form-input"
+                      style={{ height: '34px', fontSize: '13px' }}
+                      placeholder={isExhausted && curOnThisShelf === 0 ? 'Đã hết hàng để gán' : 'Nhập số lượng...'}
+                      value={assignFormData.quantity === '' ? '' : assignFormData.quantity}
+                      onFocus={(e) => e.target.select()}
+                      onChange={(e) => {
+                        const raw = e.target.value;
+                        if (raw === '') {
+                          setAssignFormData((prev) => ({ ...prev, quantity: '' }));
+                          return;
+                        }
+                        const clean = raw.replace(/^0+(?=\d)/, '');
+                        const numVal = clean === '' ? 0 : Number(clean);
+                        setAssignFormData((prev) => ({ ...prev, quantity: numVal }));
+                      }}
+                    />
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', marginTop: '2px' }}>
+                      <span style={{ color: '#64748b' }}>
+                        {curOnThisShelf > 0
+                          ? `Kệ này đang có ${curOnThisShelf.toLocaleString('vi-VN')} ${selectedProd?.base_unit || 'Cái'}. Nhập 0 để gỡ khỏi kệ.`
+                          : maxAssignable > 0
+                          ? `Gán tồn chưa phân bổ vào kệ này.`
+                          : `Không còn tồn chưa phân bổ. Bấm nút Chuyển hàng bên dưới.`}
+                      </span>
+                      {Number(assignFormData.quantity || 0) > maxAssignable ? (
+                        <span style={{ color: '#dc2626', fontWeight: 600 }}>
+                          Vượt mức tối đa ({maxAssignable})!
+                        </span>
+                      ) : (
+                        <span style={{ color: maxAssignable > 0 ? '#16a34a' : '#64748b', fontWeight: 500 }}>
+                          Tối đa: {maxAssignable}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="wh-modal-footer">
-                <button
-                  type="button"
-                  className="wh-btn wh-btn-secondary"
-                  onClick={() => setIsAssignModalOpen(false)}
-                  disabled={isAssignSubmitting}
-                >
-                  Hủy bỏ
-                </button>
-                <button type="submit" className="wh-btn wh-btn-primary" disabled={isAssignSubmitting}>
-                  {isAssignSubmitting ? 'Đang lưu...' : 'Gán vào vị trí'}
-                </button>
-              </div>
-            </form>
+                <div className="wh-modal-footer" style={{ padding: '10px 18px', borderBottomLeftRadius: '16px', borderBottomRightRadius: '16px' }}>
+                  <button
+                    type="button"
+                    className="wh-btn wh-btn-secondary"
+                    onClick={() => setIsAssignModalOpen(false)}
+                    disabled={isAssignSubmitting}
+                  >
+                    Hủy bỏ
+                  </button>
+                  {isExhausted && curOnThisShelf === 0 && allocatedOther > 0 ? (
+                    <button
+                      type="button"
+                      className="wh-btn wh-btn-primary"
+                      style={{ background: '#2563eb', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                      onClick={() => {
+                        const sourceItem = curProductShelfItems.find(
+                          (lp) => lp.location_id !== assignFormData.location_id && Number(lp.quantity) > 0
+                        );
+                        if (sourceItem) {
+                          setIsAssignModalOpen(false);
+                          handleOpenTransferProduct(sourceItem, assignFormData.location_id);
+                        }
+                      }}
+                    >
+                      <span>⇄</span>
+                      <span>Chuyển hàng sang kệ này</span>
+                    </button>
+                  ) : (
+                    <button
+                      type="submit"
+                      className="wh-btn wh-btn-primary"
+                      disabled={
+                        isAssignSubmitting ||
+                        (isExhausted && curOnThisShelf === 0) ||
+                        Number(assignFormData.quantity || 0) > maxAssignable
+                      }
+                    >
+                      {isAssignSubmitting
+                        ? 'Đang lưu...'
+                        : curOnThisShelf > 0
+                        ? 'Cập nhật vị trí kệ'
+                        : 'Gán vào vị trí'}
+                    </button>
+                  )}
+                </div>
+              </form>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* ==================================================== */}
       {/* MODAL 6: CHUYỂN VỊ TRÍ HÀNG HÓA                      */}
@@ -3674,292 +3983,220 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
             </div>
 
             <form onSubmit={handleSaveAddStock}>
-              <div className="wh-modal-body">
-                {/* Thông tin vị trí kệ hiện tại của sản phẩm */}
-                <div
-                  style={{
-                    background: '#f8fafc',
-                    border: '1px solid #e2e8f0',
-                    borderRadius: '8px',
-                    padding: '14px',
-                    marginBottom: '16px',
-                    fontSize: '13.5px',
-                  }}
-                >
-                  <div style={{ marginBottom: '8px' }}>
-                    <span style={{ color: '#64748b' }}>Sản phẩm:</span>{' '}
-                    <strong style={{ color: '#0f172a' }}>{addStockItem.product_name}</strong>{' '}
-                    <span className="wh-badge wh-badge-code" style={{ fontSize: '11px', padding: '1px 6px' }}>
-                      {addStockItem.product_code}
-                    </span>
-                  </div>
-                  <div style={{ marginBottom: '8px' }}>
-                    <span style={{ color: '#64748b' }}>Vị trí kệ hiện tại:</span>{' '}
-                    <span className="wh-badge wh-badge-location" style={{ fontWeight: 600 }}>
-                      {addStockItem.location_code}
-                    </span>{' '}
-                    {addStockItem.location_name && (
-                      <span style={{ color: '#475569' }}>({addStockItem.location_name})</span>
-                    )}
-                  </div>
-                  <div style={{ marginBottom: '8px' }}>
-                    <span style={{ color: '#64748b' }}>Khu vực / Dãy:</span>{' '}
-                    <span style={{ fontWeight: 500, color: '#334155' }}>
-                      {[addStockItem.zone, addStockItem.aisle, addStockItem.rack].filter(Boolean).join(' - ') || '—'}
-                    </span>
-                  </div>
-                  <div
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: '1fr 1fr',
-                      gap: '8px',
-                      marginTop: '10px',
-                      paddingTop: '10px',
-                      borderTop: '1px dashed #cbd5e1',
-                    }}
-                  >
-                    <div>
-                      <span style={{ color: '#64748b', fontSize: '12px' }}>Số lượng tại kệ này:</span>
-                      <div style={{ fontSize: '15px', fontWeight: 600, color: '#0f172a' }}>
-                        {addStockItem.quantity.toLocaleString('vi-VN')} {addStockItem.base_unit || 'Cái'}
+              {(() => {
+                const curProductShelfItems = locationProducts.filter((lp) => lp.product_id === addStockItem.product_id);
+                const otherShelvesQty = curProductShelfItems
+                  .filter((lp) => lp.location_id !== addStockItem.location_id)
+                  .reduce((s, lp) => s + (Number(lp.quantity) || 0), 0);
+                const maxAllowedOnThisShelf = Math.max(0, addStockItem.warehouse_total_stock - otherShelvesQty);
+                const unallocatedStock = Math.max(0, maxAllowedOnThisShelf - addStockItem.quantity);
+                const isAddStockExhausted = unallocatedStock <= 0;
+                const enteredQty = Number(addStockQuantity) || 0;
+                const isExceeded = enteredQty > unallocatedStock;
+
+                return (
+                  <>
+                    <div className="wh-modal-body">
+                      {/* Thông tin vị trí kệ hiện tại của sản phẩm */}
+                      <div
+                        style={{
+                          background: '#f8fafc',
+                          border: '1px solid #e2e8f0',
+                          borderRadius: '8px',
+                          padding: '14px',
+                          marginBottom: '16px',
+                          fontSize: '13.5px',
+                        }}
+                      >
+                        <div style={{ marginBottom: '8px' }}>
+                          <span style={{ color: '#64748b' }}>Sản phẩm:</span>{' '}
+                          <strong style={{ color: '#0f172a' }}>{addStockItem.product_name}</strong>{' '}
+                          <span className="wh-badge wh-badge-code" style={{ fontSize: '11px', padding: '1px 6px' }}>
+                            {addStockItem.product_code}
+                          </span>
+                        </div>
+                        <div style={{ marginBottom: '8px' }}>
+                          <span style={{ color: '#64748b' }}>Vị trí kệ hiện tại:</span>{' '}
+                          <span className="wh-badge wh-badge-location" style={{ fontWeight: 600 }}>
+                            {addStockItem.location_code}
+                          </span>{' '}
+                          {addStockItem.location_name && (
+                            <span style={{ color: '#475569' }}>({addStockItem.location_name})</span>
+                          )}
+                        </div>
+                        <div style={{ marginBottom: '8px' }}>
+                          <span style={{ color: '#64748b' }}>Khu vực / Dãy:</span>{' '}
+                          <span style={{ fontWeight: 500, color: '#334155' }}>
+                            {[addStockItem.zone, addStockItem.aisle, addStockItem.rack].filter(Boolean).join(' - ') || '—'}
+                          </span>
+                        </div>
+                        <div
+                          style={{
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(3, 1fr)',
+                            gap: '8px',
+                            marginTop: '10px',
+                            paddingTop: '10px',
+                            borderTop: '1px dashed #cbd5e1',
+                          }}
+                        >
+                          <div>
+                            <span style={{ color: '#64748b', fontSize: '11.5px' }}>Tại kệ này:</span>
+                            <div style={{ fontSize: '14px', fontWeight: 600, color: '#0f172a' }}>
+                              {addStockItem.quantity.toLocaleString('vi-VN')} {addStockItem.base_unit || 'Cái'}
+                            </div>
+                          </div>
+                          <div>
+                            <span style={{ color: '#64748b', fontSize: '11.5px' }}>Chưa lên kệ:</span>
+                            <div style={{ fontSize: '14px', fontWeight: 700, color: isAddStockExhausted ? '#ef4444' : '#16a34a' }}>
+                              {unallocatedStock.toLocaleString('vi-VN')} {addStockItem.base_unit || 'Cái'}
+                            </div>
+                          </div>
+                          <div>
+                            <span style={{ color: '#64748b', fontSize: '11.5px' }}>Tổng tại kho:</span>
+                            <div style={{ fontSize: '14px', fontWeight: 600, color: '#0f172a' }}>
+                              {addStockItem.warehouse_total_stock.toLocaleString('vi-VN')} {addStockItem.base_unit || 'Cái'}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Cảnh báo đỏ nếu đã phân bổ hết toàn bộ tồn kho */}
+                      {isAddStockExhausted && (
+                        <div
+                          style={{
+                            background: '#fef2f2',
+                            border: '1px solid #fecaca',
+                            borderRadius: '8px',
+                            padding: '12px 14px',
+                            marginBottom: '16px',
+                            color: '#991b1b',
+                            fontSize: '13px',
+                            display: 'flex',
+                            gap: '10px',
+                            alignItems: 'flex-start',
+                          }}
+                        >
+                          <span style={{ fontSize: '18px', lineHeight: 1 }}>⛔</span>
+                          <div>
+                            <strong style={{ fontSize: '13.5px' }}>Toàn bộ tồn kho đã được xếp hết lên các kệ!</strong>
+                            <p style={{ margin: '4px 0 0 0', color: '#b91c1c', fontSize: '12.5px', lineHeight: 1.5 }}>
+                              Kho hiện có <strong>{addStockItem.warehouse_total_stock.toLocaleString('vi-VN')} {addStockItem.base_unit || 'Cái'}</strong> và toàn bộ đã được phân bổ (kệ này: {addStockItem.quantity.toLocaleString('vi-VN')}, các kệ khác: {otherShelvesQty.toLocaleString('vi-VN')}).
+                              <br />
+                              Số lượng chưa phân bổ còn <strong>0 {addStockItem.base_unit || 'Cái'}</strong>. Nếu muốn tăng thêm vào kệ này, vui lòng sử dụng chức năng <strong>"Chuyển kệ"</strong> từ kệ khác sang.
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="wh-form-group">
+                        <label>
+                          Số lượng hàng cần xếp thêm vào kệ <span className="wh-required-star">*</span>
+                          {!isAddStockExhausted && (
+                            <span style={{ fontSize: '12px', color: '#16a34a', fontWeight: 500, marginLeft: '8px' }}>
+                              (Tối đa có thể thêm: {unallocatedStock.toLocaleString('vi-VN')} {addStockItem.base_unit || 'Cái'})
+                            </span>
+                          )}
+                        </label>
+                        <input
+                          type="number"
+                          min="1"
+                          max={unallocatedStock}
+                          required
+                          disabled={isAddStockExhausted}
+                          className="wh-form-input"
+                          placeholder={isAddStockExhausted ? 'Đã hết hàng chưa phân bổ trong kho' : `Tối đa ${unallocatedStock} ${addStockItem.base_unit || 'Cái'}...`}
+                          value={addStockQuantity === 0 || addStockQuantity === '' ? '' : addStockQuantity}
+                          onFocus={(e) => e.target.select()}
+                          onChange={(e) => {
+                            const raw = e.target.value;
+                            if (raw === '') {
+                              setAddStockQuantity('');
+                              return;
+                            }
+                            const clean = raw.replace(/^0+(?=\d)/, '');
+                            if (clean === '0') {
+                              setAddStockQuantity('');
+                              return;
+                            }
+                            setAddStockQuantity(Number(clean));
+                          }}
+                        />
+                        {isExceeded && !isAddStockExhausted && (
+                          <div style={{ color: '#ef4444', fontSize: '12px', marginTop: '4px', fontWeight: 500 }}>
+                            ⚠️ Số lượng nhập ({enteredQty}) vượt quá tồn chưa phân bổ ({unallocatedStock})!
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Dự kiến cập nhật */}
+                      <div
+                        style={{
+                          background: '#f8fafc',
+                          border: '1px solid #e2e8f0',
+                          borderRadius: '8px',
+                          padding: '12px 14px',
+                          fontSize: '13px',
+                          color: '#334155',
+                        }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                          <span style={{ color: '#64748b' }}>Tại kệ này sau khi thêm:</span>
+                          <strong style={{ color: '#0f172a' }}>
+                            {(addStockItem.quantity + enteredQty).toLocaleString('vi-VN')} {addStockItem.base_unit || 'Cái'}
+                          </strong>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                          <span style={{ color: '#64748b' }}>Tồn chưa phân bổ còn lại:</span>
+                          <strong style={{ color: Math.max(0, unallocatedStock - enteredQty) === 0 ? '#dc2626' : '#16a34a' }}>
+                            {Math.max(0, unallocatedStock - enteredQty).toLocaleString('vi-VN')} {addStockItem.base_unit || 'Cái'}
+                          </strong>
+                        </div>
+                        <div
+                          style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            borderTop: '1px dashed #cbd5e1',
+                            paddingTop: '6px',
+                            marginTop: '6px',
+                          }}
+                        >
+                          <span style={{ color: '#64748b', fontWeight: 600 }}>Tổng tồn tại kho (Cố định):</span>
+                          <strong style={{ color: '#0f172a', fontWeight: 700 }}>
+                            {addStockItem.warehouse_total_stock.toLocaleString('vi-VN')} {addStockItem.base_unit || 'Cái'}
+                          </strong>
+                        </div>
                       </div>
                     </div>
-                    <div>
-                      <span style={{ color: '#64748b', fontSize: '12px' }}>Tổng tồn tại kho:</span>
-                      <div style={{ fontSize: '15px', fontWeight: 600, color: '#0f172a' }}>
-                        {addStockItem.warehouse_total_stock.toLocaleString('vi-VN')} {addStockItem.base_unit || 'Cái'}
-                      </div>
+
+                    <div className="wh-modal-footer">
+                      <button
+                        type="button"
+                        className="wh-btn wh-btn-secondary"
+                        onClick={() => {
+                          setIsAddStockModalOpen(false);
+                          setAddStockItem(null);
+                        }}
+                        disabled={isAddStockSubmitting}
+                      >
+                        Hủy bỏ
+                      </button>
+                      <button
+                        type="submit"
+                        className="wh-btn wh-btn-primary"
+                        disabled={isAddStockSubmitting || isAddStockExhausted || enteredQty <= 0 || isExceeded}
+                      >
+                        {isAddStockSubmitting ? 'Đang lưu...' : 'Lưu và Cập nhật tồn'}
+                      </button>
                     </div>
-                  </div>
-                </div>
-
-                <div className="wh-form-group">
-                  <label>
-                    Số lượng hàng cần nhập thêm <span className="wh-required-star">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    required
-                    className="wh-form-input"
-                    placeholder="Nhập số lượng hàng..."
-                    value={addStockQuantity === 0 || addStockQuantity === '' ? '' : addStockQuantity}
-                    onFocus={(e) => e.target.select()}
-                    onChange={(e) => {
-                      const raw = e.target.value;
-                      if (raw === '') {
-                        setAddStockQuantity('');
-                        return;
-                      }
-                      const clean = raw.replace(/^0+(?=\d)/, '');
-                      if (clean === '0') {
-                        setAddStockQuantity('');
-                        return;
-                      }
-                      setAddStockQuantity(Number(clean));
-                    }}
-                  />
-                </div>
-
-                {/* Dự kiến cập nhật */}
-                <div
-                  style={{
-                    background: '#f0fdf4',
-                    border: '1px solid #bbf7d0',
-                    borderRadius: '6px',
-                    padding: '10px 12px',
-                    fontSize: '12.5px',
-                    color: '#166534',
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                    <span>Số lượng tại kệ này sau khi thêm:</span>
-                    <strong>{(addStockItem.quantity + Number(addStockQuantity || 0)).toLocaleString('vi-VN')} {addStockItem.base_unit || 'Cái'}</strong>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span>Tổng tồn tại kho sau khi thêm:</span>
-                    <strong>{(addStockItem.warehouse_total_stock + Number(addStockQuantity || 0)).toLocaleString('vi-VN')} {addStockItem.base_unit || 'Cái'}</strong>
-                  </div>
-                </div>
-              </div>
-
-              <div className="wh-modal-footer">
-                <button
-                  type="button"
-                  className="wh-btn wh-btn-secondary"
-                  onClick={() => {
-                    setIsAddStockModalOpen(false);
-                    setAddStockItem(null);
-                  }}
-                  disabled={isAddStockSubmitting}
-                >
-                  Hủy bỏ
-                </button>
-                <button
-                  type="submit"
-                  className="wh-btn wh-btn-primary"
-                  disabled={isAddStockSubmitting || Number(addStockQuantity) <= 0}
-                >
-                  {isAddStockSubmitting ? 'Đang lưu...' : 'Lưu và Cập nhật tồn'}
-                </button>
-              </div>
+                  </>
+                );
+              })()}
             </form>
           </div>
         </div>
       )}
 
-      {/* ==================================================== */}
-      {/* MODAL 6C: CẢNH BÁO SỨC CHỨA & TẢI TRỌNG / ĐẦY KHO   */}
-      {/* ==================================================== */}
-      {isCapacityWarningModalOpen && capacityWarningData && (
-        <div className="wh-modal-backdrop" style={{ zIndex: 1200 }}>
-          <div className="wh-modal-card" style={{ maxWidth: '500px', borderTop: '4px solid #ef4444' }}>
-            <div className="wh-modal-header" style={{ background: '#fef2f2' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div>
-                  <h3 style={{ margin: 0, color: '#b91c1c', fontSize: '16.5px' }}>
-                    {capacityWarningData.warningType === 'rack'
-                      ? 'Vượt Tải Trọng Kệ! Cảnh Báo Sức Chứa'
-                      : 'Kho Đầy! Cảnh Báo Vượt Sức Chứa'}
-                  </h3>
-                  <span style={{ fontSize: '12px', color: '#7f1d1d' }}>
-                    {capacityWarningData.warningType === 'rack'
-                      ? 'Giới hạn sức chứa và tải trọng tối đa của vị trí kệ'
-                      : 'Giới hạn dung lượng lưu trữ của toàn khu vực'}
-                  </span>
-                </div>
-              </div>
-              <button
-                type="button"
-                className="wh-modal-close-btn"
-                onClick={() => setIsCapacityWarningModalOpen(false)}
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="wh-modal-body" style={{ padding: '20px' }}>
-              <div
-                style={{
-                  background: '#fff1f2',
-                  border: '1px solid #fecdd3',
-                  borderRadius: '8px',
-                  padding: '14px 16px',
-                  marginBottom: '16px',
-                  color: '#9f1239',
-                  fontWeight: 600,
-                  fontSize: '14px',
-                  lineHeight: 1.5,
-                }}
-              >
-                {capacityWarningData.message ||
-                  (capacityWarningData.warningType === 'rack'
-                    ? `Vượt quá sức chứa và tải trọng của kệ! Vị trí ${capacityWarningData.locationCode || ''} chỉ có sức chứa tối đa là ${capacityWarningData.maxCapacity.toLocaleString('vi-VN')} SP. Vui lòng giảm số lượng nhập hoặc xếp sang kệ khác.`
-                    : `Kho đầy! Khu vực ${capacityWarningData.zoneName} đã đạt giới hạn sức chứa tối đa. Vui lòng sắp xếp vị trí khác hoặc mở thêm kho mới.`)}
-              </div>
-
-              <div
-                style={{
-                  background: '#f8fafc',
-                  border: '1px solid #e2e8f0',
-                  borderRadius: '8px',
-                  padding: '12px 14px',
-                  fontSize: '13px',
-                  color: '#334155',
-                }}
-              >
-                {capacityWarningData.locationCode && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                    <span>Vị trí kệ kiểm tra:</span>
-                    <strong style={{ color: '#0f172a' }}>{capacityWarningData.locationCode}</strong>
-                  </div>
-                )}
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                  <span>
-                    {capacityWarningData.warningType === 'rack' ? 'Tồn hiện tại trên kệ:' : 'Tồn hiện tại của Khu vực:'}
-                  </span>
-                  <strong>{capacityWarningData.currentStock.toLocaleString('vi-VN')} SP</strong>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                  <span>Số lượng cần nhập thêm:</span>
-                  <strong style={{ color: '#dc2626' }}>+{capacityWarningData.attemptedAdd.toLocaleString('vi-VN')} SP</strong>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                  <span>
-                    {capacityWarningData.warningType === 'rack' ? 'Sức chứa / Tải trọng tối đa của kệ:' : 'Tổng sức chứa tối đa của Khu:'}
-                  </span>
-                  <strong>{capacityWarningData.maxCapacity.toLocaleString('vi-VN')} SP</strong>
-                </div>
-                {capacityWarningData.availableSpace !== undefined && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', color: '#166534' }}>
-                    <span>Chỗ còn trống có thể nhận:</span>
-                    <strong>{capacityWarningData.availableSpace.toLocaleString('vi-VN')} SP</strong>
-                  </div>
-                )}
-                <div
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    paddingTop: '8px',
-                    borderTop: '1px dashed #cbd5e1',
-                    color: '#b91c1c',
-                    fontWeight: 700,
-                  }}
-                >
-                  <span>Vượt quá giới hạn tải trọng:</span>
-                  <span>
-                    +{(
-                      capacityWarningData.currentStock +
-                      capacityWarningData.attemptedAdd -
-                      capacityWarningData.maxCapacity
-                    ).toLocaleString('vi-VN')}{' '}
-                    SP
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div className="wh-modal-footer" style={{ justifyContent: 'space-between' }}>
-              <button
-                type="button"
-                className="wh-btn wh-btn-secondary"
-                onClick={() => setIsCapacityWarningModalOpen(false)}
-              >
-                Đóng
-              </button>
-              {capacityWarningData.warningType === 'rack' ? (
-                <button
-                  type="button"
-                  className="wh-btn wh-btn-primary"
-                  style={{ background: '#2563eb' }}
-                  onClick={() => {
-                    setIsCapacityWarningModalOpen(false);
-                    setIsAddStockModalOpen(false);
-                    setIsAssignModalOpen(false);
-                    handleOpenAssignProduct();
-                  }}
-                >
-                  Chọn vị trí kệ khác
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  className="wh-btn wh-btn-primary"
-                  style={{ background: '#2563eb' }}
-                  onClick={() => {
-                    setIsCapacityWarningModalOpen(false);
-                    setIsAddStockModalOpen(false);
-                    setIsAssignModalOpen(false);
-                    handleOpenCreateWarehouse();
-                  }}
-                >
-                  Mở thêm kho mới
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* ==================================================== */}
       {/* MODAL 7: THÊM / SỬA KHU VỰC                          */}

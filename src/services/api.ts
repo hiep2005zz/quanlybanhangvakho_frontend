@@ -2692,6 +2692,42 @@ export async function assignProductToLocationApi(
   return data;
 }
 
+export interface ProductAllocationStatusResponse {
+  product_id: number;
+  product_code: string;
+  product_name: string;
+  base_unit: string;
+  warehouse_id: number;
+  warehouse_name: string;
+  warehouse_total_stock: number;
+  total_allocated: number;
+  unallocated_stock: number;
+  shelves: Array<{
+    location_id: number;
+    location_code: string;
+    location_name?: string;
+    zone?: string;
+    quantity: number;
+  }>;
+}
+
+export async function getProductLocationAllocationStatusApi(
+  token: string,
+  warehouseId: number,
+  productId: number
+): Promise<ProductAllocationStatusResponse> {
+  const response = await authenticatedFetch(
+    `${API_BASE_URL}/warehouses/${warehouseId}/products/${productId}/allocation-status`,
+    { method: 'GET' },
+    token
+  );
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi tra cứu phân bổ tồn kho (${response.status})`);
+  }
+  return data;
+}
+
 export async function transferLocationProductApi(
   token: string,
   fromLocationId: number,
@@ -3612,6 +3648,9 @@ export interface StockBookItem {
   min_stock: number;
   is_low_stock: boolean;
   status: 'available' | 'out_of_stock' | 'low_stock' | string;
+  is_batch_managed?: boolean;
+  cost_price?: number;
+  sell_price?: number;
 }
 
 export interface StockBookSummary {
@@ -4137,4 +4176,567 @@ export async function toggleProductBatchTrackingApi(
   }
   return data;
 }
+
+// -----------------------------------------------------------------------------
+// STOCK ADJUSTMENT (PHIẾU ĐIỀU CHỈNH TỒN KHO CÓ PHÊ DUYỆT - FOUR-EYES PRINCIPLE)
+// -----------------------------------------------------------------------------
+
+export interface StockAdjustmentItemInput {
+  product_id: number;
+  product_code?: string;
+  product_name?: string;
+  quantity: number;
+  cost_price?: number;
+  loss_value?: number;
+  estimated_loss_value?: number;
+  batch_number?: string;
+  note?: string;
+}
+
+export interface StockAdjustmentCreatePayload {
+  warehouse_id: string;
+  reason_type: 'damaged' | 'lost' | 'expired' | 'other';
+  reason_note: string;
+  total_loss_value?: number;
+  items: StockAdjustmentItemInput[];
+}
+
+export interface StockAdjustmentItemResponse {
+  id?: number;
+  product_id: number;
+  product_code: string;
+  product_name: string;
+  category?: string;
+  base_unit: string;
+  quantity: number;
+  cost_price: number;
+  loss_value: number;
+  estimated_loss_value?: number;
+  batch_number?: string;
+  note?: string;
+  current_actual_stock?: number;
+}
+
+export interface StockAdjustmentResponse {
+  id: number;
+  code: string;
+  warehouse_id: string;
+  warehouse_name: string;
+  reason_type: string;
+  reason_label: string;
+  reason_note: string;
+  total_loss_value: number;
+  total_items: number;
+  total_quantity: number;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  status_label: string;
+  items: StockAdjustmentItemResponse[];
+  created_by_id?: number;
+  created_by: string;
+  created_by_role?: string;
+  approved_by_id?: number;
+  approved_by?: string;
+  approved_at?: string;
+  rejected_by_id?: number;
+  rejected_by?: string;
+  rejected_at?: string;
+  rejection_reason?: string;
+  can_approve: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface StockAdjustmentListResponse {
+  items: StockAdjustmentResponse[];
+  total: number;
+  pending_count: number;
+  approved_count: number;
+  rejected_count: number;
+  total_loss_value_sum: number;
+}
+
+export interface StockCardItem {
+  id: number;
+  product_id: number;
+  product_code: string;
+  product_name: string;
+  warehouse_id: number;
+  warehouse_name: string;
+  reference_code?: string;
+  transaction_type: string; // RECEIPT, ISSUE, ADJUST
+  quantity: number;
+  previous_stock: number;
+  new_stock: number;
+  batch_number?: string;
+  performed_by?: string;
+  note?: string;
+  created_at: string;
+}
+
+export interface StockCardResponse {
+  items: StockCardItem[];
+  total: number;
+}
+
+export async function createStockAdjustmentApi(
+  token: string,
+  payload: StockAdjustmentCreatePayload
+): Promise<StockAdjustmentResponse> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/stock-adjustments`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  }, token);
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const errorMsg = formatErrorMessage(data.detail, data.message || `Lỗi tạo phiếu điều chỉnh (${response.status})`);
+    throw new Error(errorMsg);
+  }
+  return data;
+}
+
+export async function getStockAdjustmentsApi(
+  token: string,
+  params?: {
+    warehouse_id?: string;
+    status?: string;
+    reason_type?: string;
+    search?: string;
+    limit?: number;
+    offset?: number;
+  }
+): Promise<StockAdjustmentListResponse> {
+  const query = new URLSearchParams();
+  if (params?.warehouse_id && params.warehouse_id !== 'all') {
+    query.set('warehouse_id', params.warehouse_id);
+  }
+  if (params?.status && params.status !== 'all') {
+    query.set('status', params.status);
+  }
+  if (params?.reason_type && params.reason_type !== 'all') {
+    query.set('reason_type', params.reason_type);
+  }
+  if (params?.search && params.search.trim()) {
+    query.set('search', params.search.trim());
+  }
+  if (params?.limit) {
+    query.set('limit', String(params.limit));
+  }
+  if (params?.offset) {
+    query.set('offset', String(params.offset));
+  }
+
+  const url = `${API_BASE_URL}/stock-adjustments${query.toString() ? `?${query.toString()}` : ''}`;
+  const response = await authenticatedFetch(url, {}, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi tải danh sách phiếu điều chỉnh (${response.status})`);
+  }
+  return data;
+}
+
+export async function getStockAdjustmentDetailApi(
+  token: string,
+  id: number
+): Promise<StockAdjustmentResponse> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/stock-adjustments/${id}`, {}, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi tải chi tiết phiếu điều chỉnh (${response.status})`);
+  }
+  return data;
+}
+
+export async function approveStockAdjustmentApi(
+  token: string,
+  id: number,
+  note?: string
+): Promise<StockAdjustmentResponse> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/stock-adjustments/${id}/approve`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ note }),
+  }, token);
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const errorMsg = formatErrorMessage(data.detail, data.message || `Lỗi phê duyệt phiếu (${response.status})`);
+    throw new Error(errorMsg);
+  }
+  return data;
+}
+
+export async function rejectStockAdjustmentApi(
+  token: string,
+  id: number,
+  reason: string
+): Promise<StockAdjustmentResponse> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/stock-adjustments/${id}/reject`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ reason }),
+  }, token);
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const errorMsg = formatErrorMessage(data.detail, data.message || `Lỗi từ chối phiếu (${response.status})`);
+    throw new Error(errorMsg);
+  }
+  return data;
+}
+
+export async function getStockCardLedgersApi(
+  token: string,
+  params?: {
+    product_id?: number;
+    warehouse_id?: string;
+    search?: string;
+    limit?: number;
+    offset?: number;
+  }
+): Promise<StockCardResponse> {
+  const query = new URLSearchParams();
+  if (params?.product_id) {
+    query.set('product_id', String(params.product_id));
+  }
+  if (params?.warehouse_id && params.warehouse_id !== 'all') {
+    query.set('warehouse_id', params.warehouse_id);
+  }
+  if (params?.search && params.search.trim()) {
+    query.set('search', params.search.trim());
+  }
+  if (params?.limit) {
+    query.set('limit', String(params.limit));
+  }
+  if (params?.offset) {
+    query.set('offset', String(params.offset));
+  }
+
+  const url = `${API_BASE_URL}/inventory/stock-card${query.toString() ? `?${query.toString()}` : ''}`;
+  const response = await authenticatedFetch(url, {}, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi tải dữ liệu Thẻ kho (${response.status})`);
+  }
+  return data;
+}
+
+// ============================================================================
+// PHÂN HỆ THU TIỀN THEO TUYẾN & ĐỐI CHIẾU NỘP TIỀN VỀ CÔNG TY (TIÊU CHÍ 1, 2, 3)
+// ============================================================================
+
+export interface PaymentCollectionItem {
+  id: number;
+  code: string;
+  sales_id: number;
+  sales_name: string;
+  dealer_id: number;
+  dealer_name: string;
+  order_id?: number | null;
+  order_code?: string | null;
+  amount: number;
+  payment_method: 'cash' | 'bank_transfer' | string;
+  receipt_image_url: string;
+  collection_date: string;
+  route_name?: string | null;
+  note?: string | null;
+  status: 'PENDING_REMITTANCE' | 'SUBMITTED' | 'CONFIRMED' | 'REJECTED';
+  remitted_at?: string | null;
+  remitted_amount?: number | null;
+  remittance_note?: string | null;
+  confirmed_at?: string | null;
+  confirmed_by_id?: number | null;
+  confirmed_by_name?: string | null;
+  confirmed_amount?: number | null;
+  confirmation_note?: string | null;
+  rejected_at?: string | null;
+  rejected_by_id?: number | null;
+  rejected_by_name?: string | null;
+  rejection_reason?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PaymentCollectionListResponse {
+  items: PaymentCollectionItem[];
+  total: number;
+  page?: number;
+  limit?: number;
+  page_size?: number;
+  total_pages?: number;
+  total_amount?: number;
+  total_pending_remittance?: number;
+  total_submitted?: number;
+  total_confirmed?: number;
+  total_amount_collected?: number;
+  total_amount_pending?: number;
+  total_amount_submitted?: number;
+  total_amount_confirmed?: number;
+}
+
+export interface PaymentCollectionCreatePayload {
+  dealer_id: number;
+  dealer_name?: string;
+  order_id?: number;
+  order_code?: string;
+  amount: number;
+  payment_method?: 'cash' | 'bank_transfer';
+  receipt_image_url: string;
+  collection_date?: string;
+  route_name?: string;
+  note?: string;
+}
+
+export interface DailyReconciliationItem {
+  date: string;
+  sales_id: number;
+  sales_name: string;
+  total_collected: number;
+  total_pending_remittance: number;
+  total_submitted: number;
+  total_confirmed: number;
+  total_rejected: number;
+  collections_count: number;
+  is_balanced: boolean;
+  collections: PaymentCollectionItem[];
+}
+
+export interface DailyReconciliationSummary {
+  grand_total_collected: number;
+  grand_total_pending_remittance: number;
+  grand_total_submitted: number;
+  grand_total_confirmed: number;
+  grand_total_rejected: number;
+  total_days: number;
+  total_sales_staff: number;
+}
+
+export interface DailyReconciliationResponse {
+  items: DailyReconciliationItem[];
+  summary: DailyReconciliationSummary;
+  total?: number;
+  page?: number;
+  page_size?: number;
+  total_pages?: number;
+}
+
+export async function createPaymentCollectionApi(
+  payload: PaymentCollectionCreatePayload,
+  token: string
+): Promise<PaymentCollectionItem> {
+  const url = `${API_BASE_URL}/payment-collections`;
+  const response = await authenticatedFetch(
+    url,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    },
+    token
+  );
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const errorMsg = formatErrorMessage(data.detail, data.message || `Lỗi ghi nhận khoản thu (${response.status})`);
+    throw new Error(errorMsg);
+  }
+  return data;
+}
+
+export async function getPaymentCollectionsApi(
+  params: {
+    status?: string;
+    sales_id?: number;
+    dealer_id?: number;
+    from_date?: string;
+    to_date?: string;
+    route_name?: string;
+    search?: string;
+    page?: number;
+    limit?: number;
+  },
+  token: string
+): Promise<PaymentCollectionListResponse> {
+  const query = new URLSearchParams();
+  if (params.status && params.status !== 'all') query.set('status', params.status);
+  if (params.sales_id) query.set('sales_id', String(params.sales_id));
+  if (params.dealer_id) query.set('dealer_id', String(params.dealer_id));
+  if (params.from_date) query.set('from_date', params.from_date);
+  if (params.to_date) query.set('to_date', params.to_date);
+  if (params.route_name && params.route_name.trim()) query.set('route_name', params.route_name.trim());
+  if (params.search && params.search.trim()) query.set('search', params.search.trim());
+  if (params.page) query.set('page', String(params.page));
+  if (params.limit) query.set('limit', String(params.limit));
+
+  const url = `${API_BASE_URL}/payment-collections${query.toString() ? `?${query.toString()}` : ''}`;
+  const response = await authenticatedFetch(url, {}, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi tải danh sách khoản thu (${response.status})`);
+  }
+  return data;
+}
+
+export async function getPaymentCollectionDetailApi(
+  id: number,
+  token: string
+): Promise<PaymentCollectionItem> {
+  const url = `${API_BASE_URL}/payment-collections/${id}`;
+  const response = await authenticatedFetch(url, {}, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi tải chi tiết khoản thu (${response.status})`);
+  }
+  return data;
+}
+
+export async function submitRemittanceApi(
+  id: number,
+  payload: { remittance_note?: string; remitted_amount?: number },
+  token: string
+): Promise<PaymentCollectionItem> {
+  const url = `${API_BASE_URL}/payment-collections/${id}/submit-remittance`;
+  const response = await authenticatedFetch(
+    url,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    },
+    token
+  );
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const errorMsg = formatErrorMessage(data.detail, data.message || `Lỗi nộp tiền về công ty (${response.status})`);
+    throw new Error(errorMsg);
+  }
+  return data;
+}
+
+export async function bulkSubmitRemittanceApi(
+  payload: { collection_ids: number[]; remittance_note?: string },
+  token: string
+): Promise<{ success: boolean; updated_count: number; total_amount: number; message: string }> {
+  const url = `${API_BASE_URL}/payment-collections/bulk-submit-remittance`;
+  const response = await authenticatedFetch(
+    url,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    },
+    token
+  );
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const errorMsg = formatErrorMessage(data.detail, data.message || `Lỗi nộp tiền theo lô (${response.status})`);
+    throw new Error(errorMsg);
+  }
+  return data;
+}
+
+export async function confirmPaymentCollectionApi(
+  id: number,
+  payload: { confirmation_note?: string; confirmed_amount?: number },
+  token: string
+): Promise<PaymentCollectionItem> {
+  const url = `${API_BASE_URL}/payment-collections/${id}/confirm`;
+  const response = await authenticatedFetch(
+    url,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    },
+    token
+  );
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const errorMsg = formatErrorMessage(data.detail, data.message || `Lỗi xác nhận nhận tiền (${response.status})`);
+    throw new Error(errorMsg);
+  }
+  return data;
+}
+
+export async function bulkConfirmPaymentCollectionApi(
+  payload: { collection_ids: number[]; confirmation_note?: string },
+  token: string
+): Promise<{ success: boolean; updated_count: number; total_amount: number; message: string }> {
+  const url = `${API_BASE_URL}/payment-collections/bulk-confirm`;
+  const response = await authenticatedFetch(
+    url,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    },
+    token
+  );
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const errorMsg = formatErrorMessage(data.detail, data.message || `Lỗi duyệt nhận tiền theo lô (${response.status})`);
+    throw new Error(errorMsg);
+  }
+  return data;
+}
+
+export async function rejectPaymentCollectionApi(
+  id: number,
+  payload: { reason?: string; rejection_reason?: string },
+  token: string
+): Promise<PaymentCollectionItem> {
+  const reasonText = (payload.rejection_reason || payload.reason || '').trim();
+  const url = `${API_BASE_URL}/payment-collections/${id}/reject`;
+  const response = await authenticatedFetch(
+    url,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        rejection_reason: reasonText,
+        reason: reasonText,
+      }),
+    },
+    token
+  );
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const errorMsg = formatErrorMessage(data.detail, data.message || `Lỗi từ chối khoản thu (${response.status})`);
+    throw new Error(errorMsg);
+  }
+  return data;
+}
+
+export async function getDailyReconciliationApi(
+  params: {
+    from_date?: string;
+    to_date?: string;
+    sales_id?: number;
+    search?: string;
+    balanced_only?: boolean;
+    unbalanced_only?: boolean;
+    page?: number;
+    page_size?: number;
+  },
+  token: string
+): Promise<DailyReconciliationResponse> {
+  const query = new URLSearchParams();
+  if (params.from_date) query.set('from_date', params.from_date);
+  if (params.to_date) query.set('to_date', params.to_date);
+  if (params.sales_id) query.set('sales_id', String(params.sales_id));
+  if (params.search && params.search.trim()) query.set('search', params.search.trim());
+  if (params.balanced_only !== undefined) query.set('balanced_only', String(params.balanced_only));
+  if (params.unbalanced_only !== undefined) query.set('unbalanced_only', String(params.unbalanced_only));
+  if (params.page) query.set('page', String(params.page));
+  if (params.page_size) query.set('page_size', String(params.page_size));
+
+  const url = `${API_BASE_URL}/payment-collections/daily-reconciliation${query.toString() ? `?${query.toString()}` : ''}`;
+  const response = await authenticatedFetch(url, {}, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi tải bảng đối chiếu tiền thu (${response.status})`);
+  }
+  return data;
+}
+
 

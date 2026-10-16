@@ -369,65 +369,244 @@
 
 /* ========================================================================== */
 /* MEDIA PRINT - KHI BẤM IN HOẶC XUẤT PDF                                     */
+/* Khắc phục triệt để lỗi trang trắng và gom trọn vẹn trong 1 trang A4 duy nhất */
 /* ========================================================================== */
 @media print {
-  body.has-receipt-print-modal * {
-    visibility: hidden;
+  @page {
+    size: A4 portrait;
+    margin: 8mm 12mm;
   }
 
-  body.has-receipt-print-modal .receipt-print-paper,
-  body.has-receipt-print-modal .receipt-print-paper * {
-    visibility: visible;
+  /* 1. Ẩn hoàn toàn ứng dụng web (#root) và các thành phần khác CHỈ KHI đang mở modal in phiếu thu */
+  body:has(.receipt-print-backdrop) #root,
+  body.has-receipt-print-modal #root,
+  body:has(.receipt-print-backdrop) > :not(.receipt-print-backdrop):not(#root),
+  body.has-receipt-print-modal > :not(.receipt-print-backdrop):not(#root) {
+    display: none !important;
+    visibility: hidden !important;
+    height: 0 !important;
+    max-height: 0 !important;
+    overflow: hidden !important;
   }
 
-  body.has-receipt-print-modal .receipt-print-backdrop {
-    position: absolute !important;
-    left: 0 !important;
-    top: 0 !important;
-    right: 0 !important;
-    bottom: 0 !important;
-    background: transparent !important;
-    padding: 0 !important;
+  html,
+  body {
     margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    height: auto !important;
+    min-height: auto !important;
     overflow: visible !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 
-  body.has-receipt-print-modal .receipt-print-dialog {
-    border: none !important;
+  /* 2. Đặt khung in trực tiếp lên đầu trang 1 */
+  .receipt-print-backdrop {
+    position: static !important;
+    display: block !important;
+    visibility: visible !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    backdrop-filter: none !important;
     box-shadow: none !important;
-    background: transparent !important;
+    overflow: visible !important;
+    inset: auto !important;
+    z-index: auto !important;
+  }
+
+  .receipt-print-dialog {
+    position: static !important;
+    display: block !important;
+    visibility: visible !important;
+    box-shadow: none !important;
+    border: none !important;
+    border-radius: 0 !important;
     max-width: 100% !important;
     width: 100% !important;
-    height: auto !important;
     max-height: none !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
     overflow: visible !important;
+    background: #ffffff !important;
   }
 
-  body.has-receipt-print-modal .receipt-print-toolbar {
+  /* Ẩn thanh công cụ toolbar */
+  .receipt-print-toolbar {
     display: none !important;
   }
 
-  body.has-receipt-print-modal .receipt-print-preview-container {
-    background: transparent !important;
+  .receipt-print-preview-container {
     padding: 0 !important;
     margin: 0 !important;
+    background: transparent !important;
     overflow: visible !important;
+    display: block !important;
+    visibility: visible !important;
+    width: 100% !important;
+    height: auto !important;
   }
 
-  body.has-receipt-print-modal .receipt-print-paper {
+  /* Tờ giấy in phiếu thu A4 */
+  .receipt-print-paper {
     box-shadow: none !important;
+    border: none !important;
     border-radius: 0 !important;
-    padding: 10mm 15mm !important;
+    padding: 2mm 4mm !important;
+    margin: 0 auto !important;
     width: 100% !important;
     max-width: 100% !important;
     min-height: auto !important;
-    background: #ffffff !important;
+    font-size: 11pt !important;
+    line-height: 1.45 !important;
     color: #000000 !important;
-    page-break-after: avoid;
+    background: #ffffff !important;
+    box-sizing: border-box !important;
+    display: block !important;
+    visibility: visible !important;
+    page-break-after: avoid !important;
+    break-after: avoid !important;
   }
 
-  @page {
-    size: A4 portrait;
-    margin: 10mm;
+  .receipt-print-paper * {
+    visibility: visible !important;
+  }
+
+  .receipt-header-row {
+    display: flex !important;
+    flex-direction: row !important;
+    justify-content: space-between !important;
+    align-items: flex-start !important;
+    margin-bottom: 12px !important;
+    padding-bottom: 8px !important;
+    border-bottom: 1.5px solid #0f172a !important;
+  }
+
+  .receipt-company-title {
+    font-size: 11pt !important;
+    color: #0f172a !important;
+  }
+
+  .receipt-company-text {
+    font-size: 9.5pt !important;
+    color: #334155 !important;
+  }
+
+  .receipt-template-info {
+    text-align: right !important;
+  }
+
+  .receipt-code-box {
+    font-size: 10pt !important;
+  }
+
+  .receipt-code-box strong {
+    font-size: 11pt !important;
+    color: #1e40af !important;
+  }
+
+  .receipt-template-desc {
+    font-size: 9pt !important;
+    color: #64748b !important;
+  }
+
+  .receipt-title-section {
+    text-align: center !important;
+    margin: 12px 0 18px 0 !important;
+  }
+
+  .receipt-main-title {
+    font-size: 20pt !important;
+    font-weight: 900 !important;
+    letter-spacing: 2px !important;
+    color: #000000 !important;
+    margin: 0 0 4px 0 !important;
+  }
+
+  .receipt-date-line {
+    font-size: 10pt !important;
+    color: #334155 !important;
+    font-style: italic !important;
+  }
+
+  .receipt-details-list {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+    margin-bottom: 18px !important;
+  }
+
+  .receipt-detail-item {
+    display: flex !important;
+    align-items: baseline !important;
+    gap: 10px !important;
+  }
+
+  .receipt-detail-label {
+    min-width: 175px !important;
+    font-size: 10.5pt !important;
+  }
+
+  .receipt-detail-value {
+    font-size: 10.5pt !important;
+    color: #0f172a !important;
+  }
+
+  .receipt-amount-digits {
+    font-size: 15pt !important;
+    color: #b91c1c !important;
+  }
+
+  .receipt-amount-words {
+    font-size: 10.5pt !important;
+    font-style: italic !important;
+    font-weight: 700 !important;
+    color: #0f172a !important;
+  }
+
+  .receipt-signatures-table {
+    width: 100% !important;
+    margin-top: 18px !important;
+    margin-bottom: 25px !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  .receipt-sig-roles-row th {
+    font-size: 10.5pt !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    color: #000000 !important;
+  }
+
+  .receipt-sig-subs-row td {
+    font-size: 9pt !important;
+    color: #64748b !important;
+    font-style: italic !important;
+  }
+
+  .receipt-sig-spaces-row td {
+    height: 65px !important;
+    min-height: 65px !important;
+  }
+
+  .receipt-sig-names-row td {
+    font-size: 10.5pt !important;
+    font-weight: 700 !important;
+    color: #0f172a !important;
+  }
+
+  .receipt-print-footer {
+    margin-top: auto !important;
+    border-top: 1px dashed #94a3b8 !important;
+    padding-top: 8px !important;
+    font-size: 8.5pt !important;
+    color: #64748b !important;
+    text-align: center !important;
+    font-style: italic !important;
   }
 }

@@ -27,7 +27,9 @@ export type TabType =
   | 'add-product'
   | 'products-import'
   | 'picking'
-  | 'batches';
+  | 'batches'
+  | 'stock-adjustments'
+  | 'payment-collections';
 
 export interface SidebarProps {
   activeTab?: TabType;
@@ -50,6 +52,7 @@ export interface SidebarProps {
   canWriteInventory?: boolean;
   isWarehouseOrAdmin?: boolean;
   isAdmin?: boolean;
+  canAccessPaymentCollections?: boolean;
   onLogout?: () => void;
   isLoggingOut?: boolean;
   isMobileOpen?: boolean;
@@ -87,6 +90,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   canAccessWarehouses = false,
   canWriteInventory: _canWriteInventory = false,
   isWarehouseOrAdmin = false,
+  isAdmin: _isAdmin = false,
+  canAccessPaymentCollections = false,
   onLogout,
   isLoggingOut = false,
 }) => {
@@ -325,20 +330,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
       ),
     },
     {
-      id: 'btn-sidebar-picking',
-      tab: 'picking',
-      path: '/picking',
-      label: 'Phiếu soạn hàng',
-      visible: isWarehouseOrAdmin,
-      icon: (
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
-          <rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
-          <path d="m9 14 2 2 4-4" />
-        </svg>
-      ),
-    },
-    {
       id: 'btn-sidebar-batches',
       tab: 'batches',
       path: '/batches',
@@ -380,6 +371,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </svg>
       ),
     },
+
     {
       id: 'btn-sidebar-product-history',
       tab: 'product-history',
@@ -431,6 +423,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <circle cx="9" cy="7" r="4" />
           <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
           <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+        </svg>
+      ),
+    },
+    {
+      id: 'btn-sidebar-payment-collections',
+      tab: 'payment-collections',
+      path: '/payment-collections',
+      label: 'Thu tiền theo tuyến',
+      visible: !isCustomer && canAccessPaymentCollections,
+      icon: (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="2" y="4" width="20" height="16" rx="2" />
+          <line x1="2" y1="10" x2="22" y2="10" />
+          <line x1="6" y1="15" x2="6.01" y2="15" />
+          <line x1="10" y1="15" x2="14" y2="15" />
         </svg>
       ),
     },
