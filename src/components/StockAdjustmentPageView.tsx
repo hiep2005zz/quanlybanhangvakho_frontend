@@ -835,12 +835,16 @@ export const StockAdjustmentPageView: React.FC<StockAdjustmentPageViewProps> = (
                     const isApproved = adj.status === 'APPROVED';
                     const isRejected = adj.status === 'REJECTED';
 
-                    // Quy tắc Four-Eyes: Người lập phiếu không được tự duyệt, NGOẠI TRỪ Quản trị viên (Admin)
+                    // Quy tắc Four-Eyes: Quản lý kho lập phiếu không được tự duyệt, NGOẠI TRỪ Quản trị viên (Admin)
                     const isCreator = Boolean(
-                      (adj.created_by_id && currentUser?.id && adj.created_by_id === currentUser.id) ||
-                      (adj.created_by && currentUser?.username && adj.created_by.trim().toLowerCase() === currentUser.username.trim().toLowerCase())
+                      (adj.created_by_id && currentUser?.id && String(adj.created_by_id) === String(currentUser.id)) ||
+                      (adj.created_by && currentUser?.username && adj.created_by.trim().toLowerCase() === currentUser.username.trim().toLowerCase()) ||
+                      (adj.created_by && currentUser?.full_name && adj.created_by.trim().toLowerCase() === currentUser.full_name.trim().toLowerCase())
                     );
-                    const isSelfBlocked = isCreator && !isAdmin;
+                    const isSelfBlocked = Boolean(
+                      (isCreator && !isAdmin) ||
+                      (adj.can_approve === false && !isAdmin)
+                    );
 
                     return (
                       <tr

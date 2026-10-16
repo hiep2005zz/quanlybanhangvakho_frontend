@@ -520,35 +520,77 @@ export const StockCardModal: React.FC<StockCardModalProps> = ({
               </div>
 
               {isManagerOrAdmin && (
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  {pendingAdjustments.map((p) => (
-                    <button
-                      key={p.id}
-                      type="button"
-                      onClick={() => handleQuickApprovePending(p)}
-                      disabled={approvingAdjId === p.id}
-                      style={{
-                        padding: '6px 12px',
-                        backgroundColor: '#16a34a',
-                        color: '#ffffff',
-                        border: 'none',
-                        borderRadius: '6px',
-                        fontSize: '12px',
-                        fontWeight: '700',
-                        cursor: approvingAdjId === p.id ? 'not-allowed' : 'pointer',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
-                      }}
-                      title={`Phê duyệt ngay phiếu ${p.code} để cập nhật vào Thẻ kho`}
-                    >
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                        <polyline points="20 6 9 17 4 12" />
-                      </svg>
-                      {approvingAdjId === p.id ? 'Đang duyệt...' : `Duyệt ${p.code}`}
-                    </button>
-                  ))}
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  {pendingAdjustments.map((p) => {
+                    const isCreator = Boolean(
+                      (p.created_by_id && currentUser?.id && String(p.created_by_id) === String(currentUser.id)) ||
+                      (p.created_by && currentUser?.username && p.created_by.trim().toLowerCase() === currentUser.username.trim().toLowerCase()) ||
+                      (p.created_by && currentUser?.full_name && p.created_by.trim().toLowerCase() === currentUser.full_name.trim().toLowerCase())
+                    );
+                    const isAdminUser = userRoles.includes('admin') || userRoles.includes('system_admin');
+                    const isSelfBlocked = Boolean(
+                      (isCreator && !isAdminUser) ||
+                      (p.can_approve === false && !isAdminUser)
+                    );
+
+                    if (isSelfBlocked) {
+                      return (
+                        <span
+                          key={p.id}
+                          title="Quy tắc Four-Eyes: Bạn là Quản lý kho lập phiếu này nên không thể tự phê duyệt. Cần một Quản lý kho khác hoặc Admin duyệt."
+                          style={{
+                            padding: '6px 12px',
+                            backgroundColor: '#f1f5f9',
+                            color: '#94a3b8',
+                            borderRadius: '6px',
+                            fontSize: '12px',
+                            fontWeight: '600',
+                            fontStyle: 'italic',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '5px',
+                            border: '1px solid #e2e8f0',
+                            cursor: 'not-allowed',
+                          }}
+                        >
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                          </svg>
+                          Tự lập: {p.code} (Chờ duyệt)
+                        </span>
+                      );
+                    }
+
+                    return (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => handleQuickApprovePending(p)}
+                        disabled={approvingAdjId === p.id}
+                        style={{
+                          padding: '6px 12px',
+                          backgroundColor: '#16a34a',
+                          color: '#ffffff',
+                          border: 'none',
+                          borderRadius: '6px',
+                          fontSize: '12px',
+                          fontWeight: '700',
+                          cursor: approvingAdjId === p.id ? 'not-allowed' : 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                        }}
+                        title={`Phê duyệt ngay phiếu ${p.code} để cập nhật vào Thẻ kho`}
+                      >
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                        {approvingAdjId === p.id ? 'Đang duyệt...' : `Duyệt ${p.code}`}
+                      </button>
+                    );
+                  })}
                 </div>
               )}
             </div>
