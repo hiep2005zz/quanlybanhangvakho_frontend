@@ -104,19 +104,9 @@ export const AgencyInvoiceDetailPage: React.FC<AgencyInvoiceDetailPageProps> = (
             id="btn-download-pdf"
             onClick={() => handleDownload('pdf')}
             disabled={loading || !detail || downloadingFormat !== null}
-            className="px-3.5 py-1.5 rounded-md text-xs font-semibold bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 shadow-2xs cursor-pointer transition-colors disabled:opacity-50"
-          >
-            {downloadingFormat === 'pdf' ? 'Đang tải PDF...' : 'Tải PDF hóa đơn'}
-          </button>
-
-          <button
-            type="button"
-            id="btn-download-xml"
-            onClick={() => handleDownload('xml')}
-            disabled={loading || !detail || downloadingFormat !== null}
             className="px-3.5 py-1.5 rounded-md text-xs font-semibold bg-emerald-600 text-white hover:bg-emerald-700 shadow-2xs cursor-pointer transition-colors disabled:opacity-50"
           >
-            {downloadingFormat === 'xml' ? 'Đang tải...' : 'Tải XML hóa đơn'}
+            {downloadingFormat === 'pdf' ? 'Đang tải PDF...' : 'Tải PDF hóa đơn'}
           </button>
         </div>
       </div>

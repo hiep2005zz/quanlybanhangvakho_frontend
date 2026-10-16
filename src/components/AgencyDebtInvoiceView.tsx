@@ -9,7 +9,6 @@ import type {
 import {
   getAgencyDebtSummaryApi,
   getAgencyInvoicesApi,
-  downloadAgencyInvoiceApi,
 } from '../services/agencyDebtApi';
 import { AgencyInvoiceDetailPage } from './AgencyInvoiceDetailPage';
 import './agency-debt.css';
@@ -58,7 +57,6 @@ export const AgencyDebtInvoiceView: React.FC<AgencyDebtInvoiceViewProps> = ({
 
   // Modal State
   const [selectedInvoiceCode, setSelectedInvoiceCode] = useState<string | null>(null);
-  const [downloadingCode, setDownloadingCode] = useState<string | null>(null);
 
   // Debounce tìm kiếm 300ms
   useEffect(() => {
@@ -119,25 +117,6 @@ export const AgencyDebtInvoiceView: React.FC<AgencyDebtInvoiceViewProps> = ({
   const handleRefresh = () => {
     loadSummary();
     loadInvoices();
-  };
-
-  const handleDownloadInvoice = async (invoiceCode: string) => {
-    try {
-      setDownloadingCode(invoiceCode);
-      const { blob, filename } = await downloadAgencyInvoiceApi(token, invoiceCode, 'xml');
-      const blobUrl = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = blobUrl;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(blobUrl);
-    } catch (err: any) {
-      alert(`Lỗi khi tải hóa đơn: ${err.message || 'Không thể tải file'}`);
-    } finally {
-      setDownloadingCode(null);
-    }
   };
 
   // Khi chọn xem hóa đơn: Chuyển sang 1 trang riêng biệt (Full Page View) có nút "Quay lại danh sách"
@@ -443,30 +422,16 @@ export const AgencyDebtInvoiceView: React.FC<AgencyDebtInvoiceViewProps> = ({
                           </span>
                         </td>
                         <td className="text-center whitespace-nowrap">
-                          <div className="flex items-center justify-center gap-1.5">
-                            {/* Nút Xem Hóa Đơn (KHÔNG ICON) */}
-                            <button
-                              type="button"
-                              id={`btn-view-invoice-${inv.invoice_code}`}
-                              onClick={() => setSelectedInvoiceCode(inv.invoice_code)}
-                              className="px-2.5 py-1 rounded text-xs font-semibold bg-white border border-gray-300 text-gray-700 hover:bg-gray-100 hover:text-gray-900 transition-colors shadow-2xs cursor-pointer"
-                              title="Xem chi tiết hóa đơn"
-                            >
-                              Xem
-                            </button>
-
-                            {/* Nút Tải Lại Hóa Đơn (KHÔNG ICON) */}
-                            <button
-                              type="button"
-                              id={`btn-download-invoice-${inv.invoice_code}`}
-                              onClick={() => handleDownloadInvoice(inv.invoice_code)}
-                              disabled={downloadingCode === inv.invoice_code}
-                              className="px-2.5 py-1 rounded text-xs font-semibold bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-100 transition-colors shadow-2xs cursor-pointer"
-                              title="Tải file hóa đơn điện tử XML"
-                            >
-                              {downloadingCode === inv.invoice_code ? 'Đang tải...' : 'Tải lại'}
-                            </button>
-                          </div>
+                          {/* Nút Xem Hóa Đơn (KHÔNG ICON) */}
+                          <button
+                            type="button"
+                            id={`btn-view-invoice-${inv.invoice_code}`}
+                            onClick={() => setSelectedInvoiceCode(inv.invoice_code)}
+                            className="px-3 py-1 rounded text-xs font-semibold bg-white border border-gray-300 text-gray-700 hover:bg-gray-100 hover:text-gray-900 transition-colors shadow-2xs cursor-pointer"
+                            title="Xem chi tiết hóa đơn"
+                          >
+                            Xem
+                          </button>
                         </td>
                       </tr>
                     );
