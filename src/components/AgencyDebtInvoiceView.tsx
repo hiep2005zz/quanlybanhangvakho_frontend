@@ -210,15 +210,12 @@ export const AgencyDebtInvoiceView: React.FC<AgencyDebtInvoiceViewProps> = ({
                 <div className="agency-stat-value text-amber-700" id="stat-total-debt">
                   {formatCurrency(summary.total_debt)}
                 </div>
-                <div className="agency-stat-desc">
-                  Tổng số tiền chưa thanh toán của tất cả hóa đơn đã phát hành
-                </div>
               </div>
 
               {/* Card 2: Hạn mức còn lại */}
               <div className="agency-stat-card agency-stat-card-credit-limit">
                 <div className="agency-stat-label">
-                  <span>Hạn mức còn lại (Được lấy thêm)</span>
+                  <span>Hạn mức còn lại</span>
                 </div>
                 <div
                   className={`agency-stat-value ${summary.remaining_credit > 0 ? 'text-emerald-700' : 'text-rose-600'}`}
@@ -226,13 +223,9 @@ export const AgencyDebtInvoiceView: React.FC<AgencyDebtInvoiceViewProps> = ({
                 >
                   {formatCurrency(summary.remaining_credit)}
                 </div>
-                <div className="agency-stat-desc">
-                  Hạn mức cấp ({formatCurrency(summary.credit_limit)}) - Nợ ({formatCurrency(summary.total_debt)})
-                  {summary.pending_orders_amount > 0 && ` - Đơn chờ duyệt (${formatCurrency(summary.pending_orders_amount)})`}
-                </div>
               </div>
 
-              {/* Card 3: Hạn thanh toán còn lại & Cảnh báo quá hạn */}
+              {/* Card 3: Hạn thanh toán & Cảnh báo quá hạn */}
               <div
                 className={`agency-stat-card ${
                   summary.overdue_invoices_count > 0 ? 'agency-stat-card-due-alert' : 'agency-stat-card-due-safe'
@@ -252,19 +245,6 @@ export const AgencyDebtInvoiceView: React.FC<AgencyDebtInvoiceViewProps> = ({
                     </span>
                   ) : (
                     <span className="text-emerald-700 text-base">Không có nợ đến hạn</span>
-                  )}
-                </div>
-                <div className="agency-stat-desc">
-                  {summary.overdue_invoices_count > 0 ? (
-                    <span className="text-rose-700 font-semibold">
-                      Có hóa đơn quá hạn! Vui lòng thanh toán để tránh tạm khóa quyền lên đơn mới.
-                    </span>
-                  ) : summary.nearest_due_invoice_code ? (
-                    <span>
-                      Hóa đơn gần nhất: <strong>{summary.nearest_due_invoice_code}</strong> (Hạn chót: {summary.nearest_due_date})
-                    </span>
-                  ) : (
-                    <span>Tất cả hóa đơn phát hành đang ở trạng thái an toàn</span>
                   )}
                 </div>
               </div>
@@ -377,25 +357,8 @@ export const AgencyDebtInvoiceView: React.FC<AgencyDebtInvoiceViewProps> = ({
                         <td className="text-gray-600 text-xs whitespace-nowrap">
                           {formatDate(inv.issue_date)}
                         </td>
-                        <td className="text-xs whitespace-nowrap">
-                          <div>{formatDate(inv.due_date)}</div>
-                          {inv.status !== 'PAID' && (
-                            <div className="mt-0.5">
-                              {inv.days_until_due > 0 ? (
-                                <span className="text-[11px] font-semibold text-blue-600">
-                                  (Còn {inv.days_until_due} ngày)
-                                </span>
-                              ) : inv.days_until_due === 0 ? (
-                                <span className="text-[11px] font-bold text-amber-600">
-                                  (Hạn hôm nay)
-                                </span>
-                              ) : (
-                                <span className="text-[11px] font-bold text-rose-600">
-                                  (Quá hạn {Math.abs(inv.days_until_due)} ngày)
-                                </span>
-                              )}
-                            </div>
-                          )}
+                        <td className="text-xs whitespace-nowrap text-gray-700">
+                          {formatDate(inv.due_date)}
                         </td>
                         <td className="text-right font-bold text-gray-900 text-xs whitespace-nowrap">
                           {formatCurrency(inv.total_amount)}

@@ -192,7 +192,7 @@ export const AgencyInvoiceDetailModal: React.FC<AgencyInvoiceDetailModalProps> =
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 py-5 border-b border-gray-200 text-xs">
                 <div className="bg-slate-50 p-3.5 rounded-lg border border-slate-200">
                   <p className="font-bold uppercase text-slate-800 tracking-wider mb-1.5">
-                    ĐƠN VỊ BÁN HÀNG (BÊN A)
+                    ĐƠN VỊ BÁN HÀNG
                   </p>
                   <p className="font-bold text-gray-900">{detail.seller.name}</p>
                   <p className="text-gray-600 mt-1">Mã số thuế: {detail.seller.tax_code}</p>
@@ -205,7 +205,7 @@ export const AgencyInvoiceDetailModal: React.FC<AgencyInvoiceDetailModalProps> =
 
                 <div className="bg-emerald-50/50 p-3.5 rounded-lg border border-emerald-200">
                   <p className="font-bold uppercase text-emerald-900 tracking-wider mb-1.5">
-                    ĐẠI LÝ MUA HÀNG (BÊN B)
+                    ĐẠI LÝ MUA HÀNG
                   </p>
                   <p className="font-bold text-gray-900">{detail.dealer.name}</p>
                   <p className="text-gray-600 mt-1">Mã đại lý: {detail.dealer.code}</p>
