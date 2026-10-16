@@ -761,6 +761,18 @@ export default function SalesOrderEntry({
       });
       return;
     }
+    const stockItem = stockMap.get(product.id);
+    const availableStock = stockItem ? stockItem.available_stock : (product.stock ?? 0);
+    const isOutOfStock = availableStock <= 0 || product.status === 'out_of_stock' || product.status === 'inactive';
+    if (isOutOfStock) {
+      emitStatusToast({
+        title: 'Hết hàng',
+        message: `Sản phẩm "${product.name}" hiện đã hết hàng tại kho, không thể chọn đặt hàng!`,
+        type: 'warning',
+      });
+      return;
+    }
+
     const baseUnit = product.base_unit || 'Cái';
 
     // AC1: Tra cứu đơn giá & giá sàn theo Bảng giá hiệu lực (Price Book Lookup)
@@ -1396,12 +1408,34 @@ export default function SalesOrderEntry({
             </label>
             {productQuery.trim() && (
               <div className="sales-order-search-results">
-                {searchResults.length ? searchResults.map((product) => (
-                  <button type="button" key={product.id} onClick={() => addProduct(product)}>
-                    <span><b>{product.code}</b> — {product.name}</span>
-                    <strong>{formatCurrency(product.sell_price)}</strong>
-                  </button>
-                )) : <p>Không tìm thấy sản phẩm phù hợp.</p>}
+                {searchResults.length ? searchResults.map((product) => {
+                  const stockItem = stockMap.get(product.id);
+                  const availableStock = stockItem ? stockItem.available_stock : (product.stock ?? 0);
+                  const isOutOfStock = availableStock <= 0 || product.status === 'out_of_stock' || product.status === 'inactive';
+                  return (
+                    <button
+                      type="button"
+                      key={product.id}
+                      disabled={isOutOfStock}
+                      onClick={() => !isOutOfStock && addProduct(product)}
+                      style={{
+                        opacity: isOutOfStock ? 0.6 : 1,
+                        cursor: isOutOfStock ? 'not-allowed' : 'pointer',
+                        background: isOutOfStock ? '#f8fafc' : undefined,
+                      }}
+                    >
+                      <span>
+                        <b>{product.code}</b> — {product.name}
+                        {isOutOfStock ? (
+                          <span style={{ color: '#dc2626', fontWeight: 700, marginLeft: 6, fontSize: '11px' }}>[Hết hàng]</span>
+                        ) : (
+                          <span style={{ color: '#059669', fontSize: '11px', marginLeft: 6 }}>({availableStock} {product.base_unit || 'Cái'})</span>
+                        )}
+                      </span>
+                      <strong>{formatCurrency(product.sell_price)}</strong>
+                    </button>
+                  );
+                }) : <p>Không tìm thấy sản phẩm phù hợp.</p>}
               </div>
             )}
 

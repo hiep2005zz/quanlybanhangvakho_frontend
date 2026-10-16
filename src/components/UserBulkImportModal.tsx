@@ -8,6 +8,7 @@ import {
   downloadBulkImportErrorsApi
 } from '../services/importApi';
 import { ModalPortal } from './ModalPortal';
+import { emitStatusToast } from './StatusToast';
 
 interface UserBulkImportModalProps {
   token: string;
@@ -36,7 +37,11 @@ export const UserBulkImportModal: React.FC<UserBulkImportModalProps> = ({ token,
       a.remove();
       window.URL.revokeObjectURL(url);
     } catch (err: any) {
-      alert(err.message || 'Lỗi khi tải template.');
+      emitStatusToast({
+        type: 'error',
+        title: 'Tải mẫu Excel',
+        message: err.message || 'Lỗi khi tải template.',
+      });
     }
   };
 
@@ -94,7 +99,11 @@ export const UserBulkImportModal: React.FC<UserBulkImportModalProps> = ({ token,
       a.remove();
       window.URL.revokeObjectURL(url);
     } catch (err: any) {
-      alert(err.message || 'Lỗi khi tải file lỗi.');
+      emitStatusToast({
+        type: 'error',
+        title: 'Tải file lỗi',
+        message: err.message || 'Lỗi khi tải file lỗi.',
+      });
     }
   };
 
