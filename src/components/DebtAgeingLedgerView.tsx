@@ -467,8 +467,9 @@ export const DebtAgeingLedgerView: React.FC<DebtAgeingLedgerViewProps> = ({ toke
               fontWeight: 700,
               padding: '1px 6px',
               borderRadius: '10px',
-              background: '#fef3c7',
+              background: '#ffffff',
               color: '#b45309',
+              border: '1px solid #fed7aa',
             }}>
               Ưu tiên đòi
             </span>
@@ -661,46 +662,44 @@ export const DebtAgeingLedgerView: React.FC<DebtAgeingLedgerViewProps> = ({ toke
           <table className="dealer-table debt-ledger-table-fit" style={{ width: '100%', minWidth: 0, tableLayout: 'fixed' }}>
             <thead>
               <tr>
-                <th style={{ width: '3%', textAlign: 'center', padding: '6px 2px' }}>STT</th>
-                <th style={{ width: '6.5%', padding: '6px 2px' }}>MÃ ĐL</th>
-                <th style={{ width: '16%', padding: '6px 3px' }}>TÊN ĐẠI LÝ</th>
-                <th style={{ width: '7%', padding: '6px 2px' }}>KHU VỰC</th>
-                <th style={{ width: '9%', padding: '6px 2px' }}>PHỤ TRÁCH</th>
-                <th style={{ width: '8.5%', textAlign: 'right', padding: '6px 2px' }}>PHẢI THU</th>
-                <th style={{ width: '8%', textAlign: 'right', padding: '6px 2px' }}>ĐÃ THU</th>
+                <th style={{ width: '3%', textAlign: 'center', padding: '6px 2px', background: '#ffffff' }}>STT</th>
+                <th style={{ width: '6.5%', padding: '6px 2px', background: '#ffffff' }}>MÃ ĐL</th>
+                <th style={{ width: '16%', padding: '6px 3px', background: '#ffffff' }}>TÊN ĐẠI LÝ</th>
+                <th style={{ width: '7%', padding: '6px 2px', background: '#ffffff' }}>KHU VỰC</th>
+                <th style={{ width: '9%', padding: '6px 2px', background: '#ffffff' }}>PHỤ TRÁCH</th>
+                <th style={{ width: '8.5%', textAlign: 'right', padding: '6px 2px', background: '#ffffff' }}>PHẢI THU</th>
+                <th style={{ width: '8%', textAlign: 'right', padding: '6px 2px', background: '#ffffff', color: '#16a34a', fontWeight: 700 }}>ĐÃ THU</th>
                 <th style={{
                   width: '9%',
                   textAlign: 'right',
                   padding: '6px 2px',
-                  background: '#fee2e2',
-                  color: '#991b1b',
+                  background: '#ffffff',
+                  color: '#dc2626',
                   fontWeight: 800,
-                  borderLeft: '1px solid #fecaca',
-                  borderRight: '1px solid #fecaca',
                 }}>
                   CÒN NỢ
                 </th>
                 {/* 4 Cột Tuổi Nợ */}
-                <th style={{ width: '7.5%', textAlign: 'right', padding: '6px 2px', background: '#fef3c7', color: '#92400e' }}>
+                <th style={{ width: '7.5%', textAlign: 'right', padding: '6px 2px', background: '#ffffff', color: '#b45309', fontWeight: 700 }}>
                   0-30 NGÀY
                 </th>
-                <th style={{ width: '7.5%', textAlign: 'right', padding: '6px 2px', background: '#fde68a', color: '#854d0e' }}>
+                <th style={{ width: '7.5%', textAlign: 'right', padding: '6px 2px', background: '#ffffff', color: '#b45309', fontWeight: 700 }}>
                   31-60 NGÀY
                 </th>
-                <th style={{ width: '7.5%', textAlign: 'right', padding: '6px 2px', background: '#fed7aa', color: '#9a3412' }}>
+                <th style={{ width: '7.5%', textAlign: 'right', padding: '6px 2px', background: '#ffffff', color: '#c2410c', fontWeight: 700 }}>
                   61-90 NGÀY
                 </th>
-                <th style={{ width: '7.5%', textAlign: 'right', padding: '6px 2px', background: '#fecaca', color: '#991b1b' }}>
+                <th style={{ width: '7.5%', textAlign: 'right', padding: '6px 2px', background: '#ffffff', color: '#b91c1c', fontWeight: 700 }}>
                   &gt;90 NGÀY
                 </th>
-                <th style={{ width: '7%', textAlign: 'center', padding: '6px 2px' }}>TRẠNG THÁI</th>
+                <th style={{ width: '7%', textAlign: 'center', padding: '6px 2px', background: '#ffffff' }}>TRẠNG THÁI</th>
               </tr>
             </thead>
 
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={13} style={{ textAlign: 'center', padding: '40px 0', color: '#64748b' }}>
+                  <td colSpan={13} style={{ textAlign: 'center', padding: '40px 0', color: '#64748b', background: '#ffffff' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
                       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ animation: 'spin 1s linear infinite', color: '#2563eb' }}>
                         <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
@@ -711,7 +710,7 @@ export const DebtAgeingLedgerView: React.FC<DebtAgeingLedgerViewProps> = ({ toke
                 </tr>
               ) : items.length === 0 ? (
                 <tr>
-                  <td colSpan={13} style={{ textAlign: 'center', padding: '40px 0', color: '#94a3b8' }}>
+                  <td colSpan={13} style={{ textAlign: 'center', padding: '40px 0', color: '#94a3b8', background: '#ffffff' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
                       <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                         <rect x="4" y="2" width="16" height="20" rx="2" />
@@ -729,38 +728,36 @@ export const DebtAgeingLedgerView: React.FC<DebtAgeingLedgerViewProps> = ({ toke
                     <tr
                       key={item.dealer_id}
                       style={{
-                        backgroundColor: item.is_overdue ? '#fff1f2' : undefined,
+                        backgroundColor: '#ffffff',
                       }}
                     >
-                      <td style={{ textAlign: 'center', color: '#64748b', fontSize: '10.5px', padding: '4px 2px' }}>
+                      <td style={{ textAlign: 'center', color: '#64748b', fontSize: '10.5px', padding: '4px 2px', background: '#ffffff' }}>
                         {index + 1}
                       </td>
-                      <td style={{ padding: '4px 2px' }}>
-                        <span className="dealer-code-pill" style={{ fontSize: '10px', padding: '1px 3px' }}>{item.dealer_code}</span>
+                      <td style={{ padding: '4px 2px', background: '#ffffff' }}>
+                        <span className="dealer-code-pill" style={{ fontSize: '10px', padding: '1px 3px', background: '#ffffff', border: '1px solid #e2e8f0' }}>{item.dealer_code}</span>
                       </td>
-                      <td style={{ padding: '4px 3px' }}>
+                      <td style={{ padding: '4px 3px', background: '#ffffff' }}>
                         <div className="dealer-name-title" title={item.dealer_name}>{item.dealer_name}</div>
                         {item.phone && <div className="dealer-phone-sub">{item.phone}</div>}
                       </td>
-                      <td style={{ fontSize: '10.5px', color: '#475569', padding: '4px 2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={item.region || 'Toàn quốc'}>
+                      <td style={{ fontSize: '10.5px', color: '#475569', padding: '4px 2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', background: '#ffffff' }} title={item.region || 'Toàn quốc'}>
                         {item.region || 'Toàn quốc'}
                       </td>
-                      <td style={{ fontSize: '10.5px', color: '#475569', padding: '4px 2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={item.assigned_sale_name || 'Chưa phân công'}>
+                      <td style={{ fontSize: '10.5px', color: '#475569', padding: '4px 2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', background: '#ffffff' }} title={item.assigned_sale_name || 'Chưa phân công'}>
                         {item.assigned_sale_name || 'Chưa phân công'}
                       </td>
-                      <td style={{ textAlign: 'right', fontWeight: 600, color: '#0f172a', padding: '4px 2px', whiteSpace: 'nowrap', fontSize: '10.5px' }}>
+                      <td style={{ textAlign: 'right', fontWeight: 600, color: '#0f172a', padding: '4px 2px', whiteSpace: 'nowrap', fontSize: '10.5px', background: '#ffffff' }}>
                         {formatVND(item.total_receivable)}
                       </td>
-                      <td style={{ textAlign: 'right', fontWeight: 600, color: '#16a34a', padding: '4px 2px', whiteSpace: 'nowrap', fontSize: '10.5px' }}>
+                      <td style={{ textAlign: 'right', fontWeight: 600, color: '#16a34a', padding: '4px 2px', whiteSpace: 'nowrap', fontSize: '10.5px', background: '#ffffff' }}>
                         {formatVND(item.total_paid)}
                       </td>
                       <td style={{
                         textAlign: 'right',
                         fontWeight: 700,
                         color: '#dc2626',
-                        background: '#fef2f2',
-                        borderLeft: '1px solid #fee2e2',
-                        borderRight: '1px solid #fee2e2',
+                        background: '#ffffff',
                         padding: '4px 2px',
                         whiteSpace: 'nowrap',
                         fontSize: '10.5px',
@@ -769,7 +766,15 @@ export const DebtAgeingLedgerView: React.FC<DebtAgeingLedgerViewProps> = ({ toke
                       </td>
 
                       {/* 0 - 30 days */}
-                      <td style={{ textAlign: 'right', fontSize: '10.5px', color: '#475569', background: '#fffbeb', padding: '4px 2px', whiteSpace: 'nowrap' }}>
+                      <td style={{
+                        textAlign: 'right',
+                        fontSize: '10.5px',
+                        fontWeight: item.ageing.bucket_0_30 > 0 ? 600 : 400,
+                        color: item.ageing.bucket_0_30 > 0 ? '#b45309' : '#94a3b8',
+                        background: '#ffffff',
+                        padding: '4px 2px',
+                        whiteSpace: 'nowrap',
+                      }}>
                         {item.ageing.bucket_0_30 > 0 ? formatVND(item.ageing.bucket_0_30) : '-'}
                       </td>
 
@@ -779,7 +784,7 @@ export const DebtAgeingLedgerView: React.FC<DebtAgeingLedgerViewProps> = ({ toke
                         fontSize: '10.5px',
                         fontWeight: item.ageing.bucket_31_60 > 0 ? 700 : 400,
                         color: item.ageing.bucket_31_60 > 0 ? '#b45309' : '#94a3b8',
-                        background: '#fef3c7',
+                        background: '#ffffff',
                         padding: '4px 2px',
                         whiteSpace: 'nowrap',
                       }}>
@@ -792,7 +797,7 @@ export const DebtAgeingLedgerView: React.FC<DebtAgeingLedgerViewProps> = ({ toke
                         fontSize: '10.5px',
                         fontWeight: item.ageing.bucket_61_90 > 0 ? 800 : 400,
                         color: item.ageing.bucket_61_90 > 0 ? '#c2410c' : '#94a3b8',
-                        background: '#ffedd5',
+                        background: '#ffffff',
                         padding: '4px 2px',
                         whiteSpace: 'nowrap',
                       }}>
@@ -805,7 +810,7 @@ export const DebtAgeingLedgerView: React.FC<DebtAgeingLedgerViewProps> = ({ toke
                         fontSize: '10.5px',
                         fontWeight: item.ageing.bucket_over_90 > 0 ? 800 : 400,
                         color: item.ageing.bucket_over_90 > 0 ? '#b91c1c' : '#94a3b8',
-                        background: '#fee2e2',
+                        background: '#ffffff',
                         padding: '4px 2px',
                         whiteSpace: 'nowrap',
                       }}>
@@ -813,7 +818,7 @@ export const DebtAgeingLedgerView: React.FC<DebtAgeingLedgerViewProps> = ({ toke
                       </td>
 
                       {/* Status */}
-                      <td style={{ textAlign: 'center', padding: '4px 2px' }}>
+                      <td style={{ textAlign: 'center', padding: '4px 2px', background: '#ffffff' }}>
                         {item.is_overdue ? (
                           <span style={{
                             display: 'inline-block',
@@ -821,8 +826,9 @@ export const DebtAgeingLedgerView: React.FC<DebtAgeingLedgerViewProps> = ({ toke
                             borderRadius: '10px',
                             fontSize: '9.5px',
                             fontWeight: 700,
-                            background: '#fee2e2',
+                            background: '#ffffff',
                             color: '#b91c1c',
+                            border: '1px solid #fca5a5',
                             whiteSpace: 'nowrap',
                           }}>
                             Quá hạn
@@ -834,8 +840,9 @@ export const DebtAgeingLedgerView: React.FC<DebtAgeingLedgerViewProps> = ({ toke
                             borderRadius: '10px',
                             fontSize: '9.5px',
                             fontWeight: 700,
-                            background: '#dbeafe',
+                            background: '#ffffff',
                             color: '#1d4ed8',
+                            border: '1px solid #93c5fd',
                             whiteSpace: 'nowrap',
                           }}>
                             Trong hạn
@@ -847,8 +854,9 @@ export const DebtAgeingLedgerView: React.FC<DebtAgeingLedgerViewProps> = ({ toke
                             borderRadius: '10px',
                             fontSize: '9.5px',
                             fontWeight: 700,
-                            background: '#dcfce7',
+                            background: '#ffffff',
                             color: '#15803d',
+                            border: '1px solid #86efac',
                             whiteSpace: 'nowrap',
                           }}>
                             Tất toán
@@ -865,46 +873,44 @@ export const DebtAgeingLedgerView: React.FC<DebtAgeingLedgerViewProps> = ({ toke
             {items.length > 0 && (
               <tfoot>
                 <tr style={{
-                  background: '#fef3c7',
+                  background: '#ffffff',
                   borderTop: '2px solid #cbd5e1',
                   borderBottom: '2px solid #cbd5e1',
                   fontWeight: 800,
                   fontSize: '10.5px',
                   color: '#0f172a',
                 }}>
-                  <td colSpan={5} style={{ textAlign: 'center', padding: '6px 2px', textTransform: 'uppercase', fontSize: '10px' }}>
+                  <td colSpan={5} style={{ textAlign: 'center', padding: '6px 2px', textTransform: 'uppercase', fontSize: '10px', background: '#ffffff' }}>
                     TỔNG CỘNG ({summary.total_dealers} ĐL)
                   </td>
-                  <td style={{ textAlign: 'right', padding: '6px 2px', whiteSpace: 'nowrap' }}>
+                  <td style={{ textAlign: 'right', padding: '6px 2px', whiteSpace: 'nowrap', background: '#ffffff', color: '#0f172a' }}>
                     {formatVND(summary.total_receivable)}
                   </td>
-                  <td style={{ textAlign: 'right', padding: '6px 2px', color: '#16a34a', whiteSpace: 'nowrap' }}>
+                  <td style={{ textAlign: 'right', padding: '6px 2px', color: '#16a34a', whiteSpace: 'nowrap', background: '#ffffff' }}>
                     {formatVND(summary.total_paid)}
                   </td>
                   <td style={{
                     textAlign: 'right',
                     padding: '6px 2px',
                     color: '#dc2626',
-                    background: '#fee2e2',
-                    borderLeft: '1px solid #fecaca',
-                    borderRight: '1px solid #fecaca',
+                    background: '#ffffff',
                     whiteSpace: 'nowrap',
                   }}>
                     {formatVND(summary.total_remaining_debt)}
                   </td>
-                  <td style={{ textAlign: 'right', padding: '6px 2px', color: '#92400e', background: '#fde68a', whiteSpace: 'nowrap' }}>
+                  <td style={{ textAlign: 'right', padding: '6px 2px', color: '#b45309', background: '#ffffff', whiteSpace: 'nowrap' }}>
                     {formatVND(summary.total_bucket_0_30)}
                   </td>
-                  <td style={{ textAlign: 'right', padding: '6px 2px', color: '#854d0e', background: '#fcd34d', whiteSpace: 'nowrap' }}>
+                  <td style={{ textAlign: 'right', padding: '6px 2px', color: '#b45309', background: '#ffffff', whiteSpace: 'nowrap' }}>
                     {formatVND(summary.total_bucket_31_60)}
                   </td>
-                  <td style={{ textAlign: 'right', padding: '6px 2px', color: '#9a3412', background: '#fed7aa', whiteSpace: 'nowrap' }}>
+                  <td style={{ textAlign: 'right', padding: '6px 2px', color: '#c2410c', background: '#ffffff', whiteSpace: 'nowrap' }}>
                     {formatVND(summary.total_bucket_61_90)}
                   </td>
-                  <td style={{ textAlign: 'right', padding: '6px 2px', color: '#991b1b', background: '#fecaca', whiteSpace: 'nowrap' }}>
+                  <td style={{ textAlign: 'right', padding: '6px 2px', color: '#b91c1c', background: '#ffffff', whiteSpace: 'nowrap' }}>
                     {formatVND(summary.total_bucket_over_90)}
                   </td>
-                  <td style={{ textAlign: 'center', color: '#64748b', padding: '6px 2px' }}>-</td>
+                  <td style={{ textAlign: 'center', color: '#64748b', padding: '6px 2px', background: '#ffffff' }}>-</td>
                 </tr>
               </tfoot>
             )}
@@ -941,7 +947,7 @@ export const DebtAgeingLedgerView: React.FC<DebtAgeingLedgerViewProps> = ({ toke
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 600 }}>#{idx + 1}</span>
-                      <span className="dealer-code-pill" style={{ fontSize: '11px' }}>{item.dealer_code}</span>
+                      <span className="dealer-code-pill" style={{ fontSize: '11px', background: '#ffffff', border: '1px solid #e2e8f0' }}>{item.dealer_code}</span>
                     </div>
                     <div style={{ fontSize: '14px', fontWeight: 700, color: '#0f172a', marginTop: '3px' }}>
                       {item.dealer_name}
@@ -961,8 +967,9 @@ export const DebtAgeingLedgerView: React.FC<DebtAgeingLedgerViewProps> = ({ toke
                         borderRadius: '12px',
                         fontSize: '11px',
                         fontWeight: 700,
-                        background: '#fee2e2',
+                        background: '#ffffff',
                         color: '#b91c1c',
+                        border: '1px solid #fca5a5',
                       }}>
                         Quá hạn
                       </span>
@@ -972,8 +979,9 @@ export const DebtAgeingLedgerView: React.FC<DebtAgeingLedgerViewProps> = ({ toke
                         borderRadius: '12px',
                         fontSize: '11px',
                         fontWeight: 700,
-                        background: '#dbeafe',
+                        background: '#ffffff',
                         color: '#1d4ed8',
+                        border: '1px solid #93c5fd',
                       }}>
                         Trong hạn
                       </span>
@@ -983,8 +991,9 @@ export const DebtAgeingLedgerView: React.FC<DebtAgeingLedgerViewProps> = ({ toke
                         borderRadius: '12px',
                         fontSize: '11px',
                         fontWeight: 700,
-                        background: '#dcfce7',
+                        background: '#ffffff',
                         color: '#15803d',
+                        border: '1px solid #86efac',
                       }}>
                         Tất toán
                       </span>
@@ -1003,7 +1012,8 @@ export const DebtAgeingLedgerView: React.FC<DebtAgeingLedgerViewProps> = ({ toke
                   display: 'grid',
                   gridTemplateColumns: 'repeat(3, 1fr)',
                   gap: '6px',
-                  background: '#f8fafc',
+                  background: '#ffffff',
+                  border: '1px solid #e2e8f0',
                   padding: '8px',
                   borderRadius: '6px',
                   textAlign: 'center',
@@ -1016,7 +1026,7 @@ export const DebtAgeingLedgerView: React.FC<DebtAgeingLedgerViewProps> = ({ toke
                     <div style={{ fontSize: '10px', color: '#64748b', textTransform: 'uppercase' }}>Đã thu</div>
                     <div style={{ fontSize: '12px', fontWeight: 600, color: '#16a34a' }}>{formatVND(item.total_paid)}</div>
                   </div>
-                  <div style={{ background: '#fee2e2', borderRadius: '4px', padding: '2px' }}>
+                  <div style={{ background: '#ffffff', border: '1px solid #fecaca', borderRadius: '4px', padding: '2px' }}>
                     <div style={{ fontSize: '10px', color: '#991b1b', textTransform: 'uppercase', fontWeight: 700 }}>Còn nợ</div>
                     <div style={{ fontSize: '12px', fontWeight: 800, color: '#dc2626' }}>{formatVND(item.remaining_debt)}</div>
                   </div>
@@ -1028,25 +1038,25 @@ export const DebtAgeingLedgerView: React.FC<DebtAgeingLedgerViewProps> = ({ toke
                     Phân tích tuổi nợ:
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '4px', textAlign: 'center' }}>
-                    <div style={{ background: '#fffbeb', padding: '4px 2px', borderRadius: '4px', border: '1px solid #fef3c7' }}>
+                    <div style={{ background: '#ffffff', padding: '4px 2px', borderRadius: '4px', border: '1px solid #e2e8f0' }}>
                       <div style={{ fontSize: '9px', color: '#92400e', fontWeight: 600 }}>0-30 ngày</div>
                       <div style={{ fontSize: '10.5px', fontWeight: 600, color: '#475569' }}>
                         {item.ageing.bucket_0_30 > 0 ? formatVND(item.ageing.bucket_0_30) : '-'}
                       </div>
                     </div>
-                    <div style={{ background: '#fef3c7', padding: '4px 2px', borderRadius: '4px', border: '1px solid #fde68a' }}>
+                    <div style={{ background: '#ffffff', padding: '4px 2px', borderRadius: '4px', border: '1px solid #e2e8f0' }}>
                       <div style={{ fontSize: '9px', color: '#854d0e', fontWeight: 600 }}>31-60 ngày</div>
                       <div style={{ fontSize: '10.5px', fontWeight: 700, color: item.ageing.bucket_31_60 > 0 ? '#b45309' : '#94a3b8' }}>
                         {item.ageing.bucket_31_60 > 0 ? formatVND(item.ageing.bucket_31_60) : '-'}
                       </div>
                     </div>
-                    <div style={{ background: '#ffedd5', padding: '4px 2px', borderRadius: '4px', border: '1px solid #fed7aa' }}>
+                    <div style={{ background: '#ffffff', padding: '4px 2px', borderRadius: '4px', border: '1px solid #e2e8f0' }}>
                       <div style={{ fontSize: '9px', color: '#9a3412', fontWeight: 600 }}>61-90 ngày</div>
                       <div style={{ fontSize: '10.5px', fontWeight: 700, color: item.ageing.bucket_61_90 > 0 ? '#c2410c' : '#94a3b8' }}>
                         {item.ageing.bucket_61_90 > 0 ? formatVND(item.ageing.bucket_61_90) : '-'}
                       </div>
                     </div>
-                    <div style={{ background: '#fee2e2', padding: '4px 2px', borderRadius: '4px', border: '1px solid #fecaca' }}>
+                    <div style={{ background: '#ffffff', padding: '4px 2px', borderRadius: '4px', border: '1px solid #e2e8f0' }}>
                       <div style={{ fontSize: '9px', color: '#991b1b', fontWeight: 700 }}>&gt; 90 ngày</div>
                       <div style={{ fontSize: '10.5px', fontWeight: 800, color: item.ageing.bucket_over_90 > 0 ? '#b91c1c' : '#94a3b8' }}>
                         {item.ageing.bucket_over_90 > 0 ? formatVND(item.ageing.bucket_over_90) : '-'}
