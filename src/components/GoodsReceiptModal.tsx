@@ -15,6 +15,7 @@ import {
 } from '../services/api';
 import { ModalPortal } from './ModalPortal';
 import { emitStatusToast } from './StatusToast';
+import { ProductSelectDropdown } from './ProductSelectDropdown';
 
 interface GoodsReceiptModalProps {
   isOpen: boolean;
@@ -41,6 +42,7 @@ interface ReceiptItemFormRow {
   batch_number: string;
   expiry_date: string;
   note: string;
+  units?: any[];
 }
 
 export interface StockInDraftItem {
@@ -78,6 +80,7 @@ const createEmptyRow = (): ReceiptItemFormRow => ({
   batch_number: '',
   expiry_date: '',
   note: '',
+  units: [],
 });
 
 // Helper kiểm tra bản nháp có rỗng hoàn toàn không (chưa chọn NCC, chưa điền số HĐ và chưa chọn sản phẩm nào)
@@ -416,14 +419,17 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
   };
 
   // Xử lý thay đổi sản phẩm trong dòng hàng
-  const handleProductChange = (index: number, newProductId: number | '') => {
+  const handleProductChange = (index: number, newProductOrId: number | '' | ProductItem | null) => {
     setFieldErrors((prev) => {
       const copy = { ...prev };
       delete copy[`item_${index}_product`];
+      delete copy[`item_${index}_unit`];
+      delete copy[`item_${index}_batch_number`];
+      delete copy[`item_${index}_expiry_date`];
       return copy;
     });
 
-    if (!newProductId) {
+    if (!newProductOrId) {
       setItems((prev) => {
         const copy = [...prev];
         copy[index] = {
@@ -437,13 +443,18 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
           conversion_rate: 1.0,
           batch_number: '',
           expiry_date: '',
+          units: [],
         };
         return copy;
       });
       return;
     }
 
-    const prod = products.find((p) => p.id === newProductId);
+    const prod: ProductItem | undefined =
+      typeof newProductOrId === 'object' && newProductOrId !== null
+        ? newProductOrId
+        : products.find((p) => p.id === newProductOrId);
+
     if (!prod) return;
 
     setItems((prev) => {
@@ -459,6 +470,7 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
         conversion_rate: 1.0,
         batch_number: '',
         expiry_date: '',
+        units: prod.units || [],
       };
       return copy;
     });
@@ -476,18 +488,17 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
       const copy = [...prev];
       const row = copy[index];
       const prod = products.find((p) => p.id === row.product_id);
+      const unitsList = row.units || prod?.units || [];
       let newRate = 1.0;
 
-      if (prod) {
-        if (newUnitName.toLowerCase() === (prod.base_unit || 'cái').toLowerCase()) {
-          newRate = 1.0;
-        } else {
-          const matched = (prod.units || []).find(
-            (u) => u.unit_name.toLowerCase() === newUnitName.toLowerCase()
-          );
-          if (matched && matched.conversion_rate > 0) {
-            newRate = matched.conversion_rate;
-          }
+      if (newUnitName.toLowerCase() === (row.base_unit || prod?.base_unit || 'cái').toLowerCase()) {
+        newRate = 1.0;
+      } else {
+        const matched = unitsList.find(
+          (u: any) => u.unit_name.toLowerCase() === newUnitName.toLowerCase()
+        );
+        if (matched && matched.conversion_rate > 0) {
+          newRate = matched.conversion_rate;
         }
       }
 
@@ -1197,14 +1208,15 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
                 </div>
               )}
 
-              {/* Close Button */}
+              {/* Close / Back Button */}
               <button
                 type="button"
                 onClick={onClose}
                 disabled={isSubmitting}
                 style={{
-                  width: '34px',
                   height: '34px',
+                  padding: isPage ? '0 12px' : '0',
+                  width: isPage ? 'auto' : '34px',
                   borderRadius: '8px',
                   border: '1px solid #e2e8f0',
                   background: '#f8fafc',
@@ -1213,13 +1225,16 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
+                  gap: '6px',
                   transition: 'all 0.18s ease',
                   boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
+                  fontSize: '13px',
+                  fontWeight: '600',
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.background = '#fee2e2';
-                  e.currentTarget.style.color = '#ef4444';
-                  e.currentTarget.style.borderColor = '#fca5a5';
+                  e.currentTarget.style.background = isPage ? '#f1f5f9' : '#fee2e2';
+                  e.currentTarget.style.color = isPage ? '#0f172a' : '#ef4444';
+                  e.currentTarget.style.borderColor = isPage ? '#cbd5e1' : '#fca5a5';
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.background = '#f8fafc';
@@ -1228,7 +1243,16 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
                 }}
                 title={isPage ? 'Quay lại Quản lý kho hàng' : 'Đóng cửa sổ'}
               >
-                <span style={{ fontSize: '18px', fontWeight: '600', lineHeight: 1 }}>✕</span>
+                {isPage ? (
+                  <>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="m15 18-6-6 6-6" />
+                    </svg>
+                    <span>Quay lại</span>
+                  </>
+                ) : (
+                  <span style={{ fontSize: '18px', fontWeight: '600', lineHeight: 1 }}>✕</span>
+                )}
               </button>
             </div>
           </div>
@@ -2018,7 +2042,7 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
                 style={{
                   border: '1px solid #e2e8f0',
                   borderRadius: '10px',
-                  overflowX: 'auto',
+                  overflow: 'visible',
                   background: '#ffffff',
                 }}
               >
@@ -2034,7 +2058,7 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
                       }}
                     >
                       <th style={{ padding: '10px 12px', width: '30px' }}>#</th>
-                      <th style={{ padding: '10px 12px', minWidth: '220px' }}>Sản phẩm</th>
+                      <th style={{ padding: '10px 12px', minWidth: '280px' }}>Sản phẩm</th>
                       <th style={{ padding: '10px 12px', minWidth: '130px' }}>ĐVT Nhập</th>
                       <th style={{ padding: '10px 12px', width: '110px', textAlign: 'right' }}>Số lượng</th>
                       <th style={{ padding: '10px 12px', minWidth: '130px' }}>Quy đổi cơ sở</th>
@@ -2049,9 +2073,10 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
                   <tbody>
                     {items.map((row, idx) => {
                       const currentProd = products.find((p) => p.id === row.product_id);
+                      const unitsList = row.units || currentProd?.units || [];
                       const availableUnits = [
                         { unit_name: row.base_unit || 'Cái', conversion_rate: 1.0 },
-                        ...(currentProd?.units || []).map((u) => ({
+                        ...unitsList.map((u: any) => ({
                           unit_name: u.unit_name,
                           conversion_rate: u.conversion_rate,
                         })),
@@ -2073,6 +2098,8 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
                           style={{
                             borderBottom: '1px solid #f1f5f9',
                             background: idx % 2 === 0 ? '#ffffff' : '#fcfdfd',
+                            position: 'relative',
+                            zIndex: items.length - idx + 10,
                           }}
                         >
                           <td style={{ padding: '10px 12px', color: '#94a3b8', fontWeight: '600', verticalAlign: 'top' }}>
@@ -2082,41 +2109,29 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
                           </td>
 
                           {/* Chọn sản phẩm */}
-                          <td style={{ padding: '10px 12px', verticalAlign: 'top' }}>
-                            <select
-                              value={row.product_id}
+                          <td style={{ padding: '10px 12px', verticalAlign: 'top', minWidth: '280px', position: 'relative', zIndex: 50 }}>
+                            <ProductSelectDropdown
+                              token={token}
+                              selectedProductId={typeof row.product_id === 'number' ? row.product_id : 0}
                               disabled={isConfirmed}
-                              onChange={(e) => {
-                                if (isConfirmed) return;
-                                handleProductChange(idx, e.target.value ? Number(e.target.value) : '');
+                              compact={true}
+                              autoSelectFirst={false}
+                              onSelectProduct={(p) => {
+                                handleProductChange(idx, p);
                               }}
-                              style={{
-                                width: '100%',
-                                height: '34px',
-                                boxSizing: 'border-box',
-                                padding: '6px 8px',
-                                borderRadius: '6px',
-                                border: isConfirmed
-                                  ? '1px solid #cbd5e1'
-                                  : prodError
-                                  ? '1.5px solid #ef4444'
-                                  : !row.product_id
-                                  ? '1px dashed #94a3b8'
-                                  : '1px solid #cbd5e1',
-                                background: isConfirmed ? '#f1f5f9' : prodError ? '#fef2f2' : '#ffffff',
-                                fontSize: '12.5px',
-                                color: !row.product_id ? '#64748b' : '#0f172a',
-                                cursor: isConfirmed ? 'not-allowed' : 'pointer',
-                                outline: 'none',
-                              }}
-                            >
-                              <option value="">-- Chọn sản phẩm dỡ xe --</option>
-                              {products.map((p) => (
-                                <option key={p.id} value={p.id}>
-                                  [{p.code}] {p.name}{p.is_batch_managed ? ' (Có quản lý lô)' : ''}
-                                </option>
-                              ))}
-                            </select>
+                              placeholder="-- Chọn sản phẩm dỡ xe --"
+                              id={`goods-receipt-item-${idx}-product`}
+                              fallbackProduct={
+                                row.product_code || row.product_name
+                                  ? {
+                                      id: typeof row.product_id === 'number' ? row.product_id : undefined,
+                                      code: row.product_code,
+                                      name: row.product_name,
+                                      is_batch_managed: row.is_batch_managed,
+                                    }
+                                  : null
+                              }
+                            />
 
                             {prodError && (
                               <div style={{ fontSize: '11px', color: '#dc2626', marginTop: '4px', fontWeight: '500' }}>
@@ -2596,12 +2611,39 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
                       e.currentTarget.style.background = '#ffffff';
                     }}
                   >
-                    Đóng
+                    {isPage ? 'Quay lại danh sách' : 'Đóng'}
                   </button>
                 </div>
               </>
             ) : (
               <>
+                {isPage && (
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    disabled={isSubmitting}
+                    style={{
+                      padding: '9px 18px',
+                      borderRadius: '8px',
+                      border: '1px solid #cbd5e1',
+                      background: '#ffffff',
+                      color: '#475569',
+                      fontSize: '13px',
+                      fontWeight: '600',
+                      cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                      transition: 'all 0.15s ease',
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isSubmitting) e.currentTarget.style.background = '#f8fafc';
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isSubmitting) e.currentTarget.style.background = '#ffffff';
+                    }}
+                  >
+                    Quay lại
+                  </button>
+                )}
+
                 {/* Nút Lưu Nháp */}
                 <button
                   type="button"

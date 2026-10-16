@@ -489,12 +489,20 @@ export async function authenticatedFetch(input: string, init: RequestInit = {}, 
             }
           } catch {
             isRefreshingGlobal = false;
+            const waiting = [...refreshSubscribersGlobal];
             refreshSubscribersGlobal = [];
+            waiting.forEach((cb) => {
+              try { cb(''); } catch {}
+            });
           }
         } else {
           // Đang có một tiến trình refresh chạy dở -> chờ token mới rồi retry
           return new Promise<Response>((resolve, reject) => {
             refreshSubscribersGlobal.push(async (newToken: string) => {
+              if (!newToken) {
+                reject(new Error('Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại.'));
+                return;
+              }
               const retryHeaders = new Headers(init.headers || {});
               retryHeaders.set('Authorization', `Bearer ${newToken}`);
               if (init.body && !retryHeaders.has('Content-Type') && !isFormData) {
@@ -948,7 +956,17 @@ export async function createStockReceiptApi(
 
 export async function createStockIssueApi(
   token: string,
-  payload: { product_id: number; quantity: number; destination: string; note?: string; unit_name?: string; conversion_rate?: number }
+  payload: {
+    product_id: number;
+    quantity: number;
+    destination: string;
+    note?: string;
+    unit_name?: string;
+    conversion_rate?: number;
+    batch_number?: string;
+    override_expired?: boolean;
+    override_reason?: string;
+  }
 ): Promise<InventoryResponse> {
   const response = await authenticatedFetch(`${API_BASE_URL}/inventory/issue`, {
     method: 'POST',
@@ -2740,6 +2758,140 @@ export async function getOrderPickingLocationsApi(
 export const getWarehousePickingSummaryApi = getOrderPickingLocationsApi;
 
 // ==========================================================
+// WAVE / BATCH PICKING THEO LỘ TRÌNH KHO (OPTIMIZED PICK PATH)
+// ==========================================================
+
+export interface OrderBreakdownItem {
+  order_code: string;
+  quantity: number;
+  dealer_name?: string;
+  desired_delivery_date?: string;
+}
+
+export interface BatchPickingRouteItem {
+  step_number: number;
+  product_id: number;
+  product_code: string;
+  product_name: string;
+  unit_name: string;
+  total_ordered_quantity: number;
+  available_stock: number;
+  location_id?: number;
+  location_code: string;
+  location_name: string;
+  zone?: string;
+  aisle?: string;
+  rack?: string;
+  bin?: string;
+  pick_path_code: string;
+  order_breakdown: OrderBreakdownItem[];
+}
+
+export interface BatchPickingPreviewResponse {
+  batch_code: string;
+  warehouse_id?: number;
+  warehouse_name?: string;
+  selected_order_codes: string[];
+  total_orders: number;
+  total_unique_items: number;
+  total_pick_units: number;
+  route_items: BatchPickingRouteItem[];
+}
+
+export interface EligiblePickingOrder {
+  order_code: string;
+  dealer_id?: number;
+  dealer_name?: string;
+  status: string;
+  created_at?: string;
+  desired_delivery_date?: string;
+  delivery_point?: string;
+  total_items: number;
+  total_quantity: number;
+  items_summary: string[];
+}
+
+export interface PickingItemExecution {
+  product_id: number;
+  product_code: string;
+  ordered_quantity: number;
+  picked_quantity: number;
+  shortage_reason?: string;
+  location_code?: string;
+}
+
+export interface BatchPickingCompleteRequest {
+  batch_code?: string;
+  order_codes: string[];
+  items: PickingItemExecution[];
+  picker_name?: string;
+  notes?: string;
+}
+
+export interface BatchPickingCompleteResponse {
+  success: boolean;
+  batch_code: string;
+  message: string;
+  total_orders_updated: number;
+  total_items_picked: number;
+  shortage_items_count: number;
+  updated_at: string;
+}
+
+export async function getEligiblePickingOrdersApi(
+  token: string,
+  search?: string,
+  statusFilter?: string
+): Promise<EligiblePickingOrder[]> {
+  const params = new URLSearchParams();
+  if (search) params.set('search', search);
+  if (statusFilter && statusFilter !== 'all') params.set('status_filter', statusFilter);
+
+  const url = `${API_BASE_URL}/warehouses/picking/eligible-orders${params.toString() ? `?${params.toString()}` : ''}`;
+  const response = await authenticatedFetch(url, { method: 'GET' }, token);
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Lỗi tải danh sách đơn hàng sẵn sàng soạn.');
+  }
+  return await response.json();
+}
+
+export async function previewBatchPickingApi(
+  token: string,
+  orderCodes: string[]
+): Promise<BatchPickingPreviewResponse> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/warehouses/picking/batch-preview`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ order_codes: orderCodes }),
+  }, token);
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Lỗi tạo bản xem trước phiếu soạn hàng gộp.');
+  }
+  return await response.json();
+}
+
+export async function completeBatchPickingApi(
+  token: string,
+  data: BatchPickingCompleteRequest
+): Promise<BatchPickingCompleteResponse> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/warehouses/picking/batch-complete`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  }, token);
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Lỗi hoàn tất phiếu soạn hàng.');
+  }
+  return await response.json();
+}
+
+
+// ==========================================================
 // MASTER DATA: KHU VỰC (ZONES) & KỆ / DÃY (RACKS / AISLES)
 // ==========================================================
 
@@ -3859,3 +4011,130 @@ export async function cancelStockTransferApi(token: string, code: string, reason
   }
   return data;
 }
+
+// ==========================================
+// QUẢN LÝ LÔ VÀ HẠN SỬ DỤNG HÀNG HÓA (BATCH & EXPIRY TRACKING)
+// ==========================================
+export interface BatchItem {
+  id: number;
+  product_id: number;
+  product_code: string;
+  product_name: string;
+  base_unit: string;
+  warehouse_id: number;
+  warehouse_name: string;
+  batch_number: string;
+  manufacturing_date: string | null;
+  expiry_date: string | null;
+  remaining_quantity: number;
+  days_until_expiry: number | null;
+  expiry_status: 'EXPIRED' | 'NEAR_EXPIRY' | 'SAFE';
+  warning_threshold_days: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface BatchListResponse {
+  items: BatchItem[];
+  total: number;
+  expired_count: number;
+  near_expiry_count: number;
+  safe_count: number;
+  warning_threshold_days: number;
+  page?: number;
+  page_size?: number;
+  total_pages?: number;
+}
+
+export interface BatchCreatePayload {
+  product_id: number;
+  warehouse_id?: number;
+  batch_number: string;
+  manufacturing_date?: string | null;
+  expiry_date: string;
+  initial_quantity?: number;
+  note?: string;
+}
+
+export interface BatchTrackingTogglePayload {
+  is_batch_managed: boolean;
+  initial_batch_number?: string;
+  initial_manufacturing_date?: string | null;
+  initial_expiry_date?: string | null;
+  reason?: string;
+}
+
+export interface BatchTrackingToggleResponse {
+  product_id: number;
+  product_code: string;
+  product_name: string;
+  is_batch_managed: boolean;
+  message: string;
+  batch_created?: BatchItem | null;
+}
+
+export async function getBatchesApi(
+  token: string,
+  params?: {
+    product_id?: number;
+    warehouse_id?: number;
+    status?: string;
+    warning_days?: number;
+    search?: string;
+    page?: number;
+    page_size?: number;
+  }
+): Promise<BatchListResponse> {
+  const query = new URLSearchParams();
+  if (params?.product_id) query.append('product_id', String(params.product_id));
+  if (params?.warehouse_id) query.append('warehouse_id', String(params.warehouse_id));
+  if (params?.status) query.append('status', params.status);
+  if (params?.warning_days) query.append('warning_days', String(params.warning_days));
+  if (params?.search) query.append('search', params.search);
+  if (params?.page) query.append('page', String(params.page));
+  if (params?.page_size) query.append('page_size', String(params.page_size));
+
+  const url = `${API_BASE_URL}/batches${query.toString() ? `?${query.toString()}` : ''}`;
+  const response = await authenticatedFetch(url, { method: 'GET' }, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi tải danh sách lô hàng (${response.status})`);
+  }
+  return data;
+}
+
+export async function createBatchApi(
+  token: string,
+  payload: BatchCreatePayload
+): Promise<BatchItem> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/batches`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  }, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const errorMsg = formatErrorMessage(data.detail, data.message || `Lỗi tạo lô hàng (${response.status})`);
+    throw new Error(errorMsg);
+  }
+  return data;
+}
+
+export async function toggleProductBatchTrackingApi(
+  token: string,
+  productId: number,
+  payload: BatchTrackingTogglePayload
+): Promise<BatchTrackingToggleResponse> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/batches/product/${productId}/tracking`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  }, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const errorMsg = formatErrorMessage(data.detail, data.message || `Lỗi chuyển đổi cấu hình lô (${response.status})`);
+    throw new Error(errorMsg);
+  }
+  return data;
+}
+
