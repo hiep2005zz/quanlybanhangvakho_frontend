@@ -54,7 +54,7 @@ export const AgencyInvoiceDetailPage: React.FC<AgencyInvoiceDetailPageProps> = (
     };
   }, [token, invoiceCode]);
 
-  const handleDownload = async (format: 'xml' | 'json') => {
+  const handleDownload = async (format: 'xml' | 'json' | 'pdf') => {
     try {
       setDownloadingFormat(format);
       const { blob, filename } = await downloadAgencyInvoiceApi(token, invoiceCode, format);
@@ -71,10 +71,6 @@ export const AgencyInvoiceDetailPage: React.FC<AgencyInvoiceDetailPageProps> = (
     } finally {
       setDownloadingFormat(null);
     }
-  };
-
-  const handlePrint = () => {
-    window.print();
   };
 
   return (
@@ -105,12 +101,12 @@ export const AgencyInvoiceDetailPage: React.FC<AgencyInvoiceDetailPageProps> = (
         <div className="flex items-center gap-2">
           <button
             type="button"
-            id="btn-print-invoice"
-            onClick={handlePrint}
-            disabled={loading || !detail}
+            id="btn-download-pdf"
+            onClick={() => handleDownload('pdf')}
+            disabled={loading || !detail || downloadingFormat !== null}
             className="px-3.5 py-1.5 rounded-md text-xs font-semibold bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 shadow-2xs cursor-pointer transition-colors disabled:opacity-50"
           >
-            In / Xuất PDF
+            {downloadingFormat === 'pdf' ? 'Đang tải PDF...' : 'Tải PDF hóa đơn'}
           </button>
 
           <button
@@ -122,7 +118,6 @@ export const AgencyInvoiceDetailPage: React.FC<AgencyInvoiceDetailPageProps> = (
           >
             {downloadingFormat === 'xml' ? 'Đang tải...' : 'Tải XML hóa đơn'}
           </button>
-
         </div>
       </div>
 
@@ -276,7 +271,7 @@ export const AgencyInvoiceDetailPage: React.FC<AgencyInvoiceDetailPageProps> = (
               <p className="italic">
                 * Ghi chú: {detail.note || 'Thanh toán theo điều khoản tín dụng hợp đồng đại lý.'}
               </p>
-              <div className="agency-invoice-signatures grid grid-cols-2 gap-4 mt-8 pt-4 text-center">
+              <div className="grid grid-cols-2 gap-4 mt-8 pt-4 text-center">
                 <div>
                   <p className="font-bold text-gray-800 uppercase">ĐẠI DIỆN BÊN MUA</p>
                   <p className="text-[11px] text-gray-400 italic">(Ký, ghi rõ họ tên)</p>

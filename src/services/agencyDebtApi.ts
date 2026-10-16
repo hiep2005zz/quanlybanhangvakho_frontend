@@ -71,7 +71,7 @@ export async function getAgencyInvoiceDetailApi(
 export async function downloadAgencyInvoiceApi(
   token: string,
   invoiceCode: string,
-  format: 'xml' | 'json' = 'xml',
+  format: 'xml' | 'json' | 'pdf' = 'pdf',
   dealerId?: number
 ): Promise<{ blob: Blob; filename: string }> {
   const url = new URL(
