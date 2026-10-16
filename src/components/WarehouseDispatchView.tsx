@@ -156,8 +156,15 @@ export const WarehouseDispatchView: React.FC<WarehouseDispatchViewProps> = ({
   };
 
   // Cập nhật số lượng xuất trong trang xuất kho
-  const handleQuantityChange = (productId: number, val: number, maxAllowed: number) => {
-    const safeVal = Math.max(0, Math.min(Number.isNaN(val) ? 0 : val, maxAllowed));
+  const handleQuantityChange = (productId: number, val: number | string, maxAllowed: number) => {
+    let numVal: number;
+    if (typeof val === 'string') {
+      const clean = val.replace(/\D/g, '').replace(/^0+(?=\d)/, '');
+      numVal = clean === '' ? 0 : parseInt(clean, 10);
+    } else {
+      numVal = Number.isNaN(val) ? 0 : val;
+    }
+    const safeVal = Math.max(0, Math.min(numVal, maxAllowed));
     setDispatchQuantities((prev) => ({
       ...prev,
       [String(productId)]: safeVal,
@@ -209,8 +216,15 @@ export const WarehouseDispatchView: React.FC<WarehouseDispatchViewProps> = ({
   };
 
   // Cập nhật số lượng giao bổ sung trong trang bổ sung
-  const handleSuppQuantityChange = (productId: number, val: number, maxAllowed: number) => {
-    const safeVal = Math.max(0, Math.min(Number.isNaN(val) ? 0 : val, maxAllowed));
+  const handleSuppQuantityChange = (productId: number, val: number | string, maxAllowed: number) => {
+    let numVal: number;
+    if (typeof val === 'string') {
+      const clean = val.replace(/\D/g, '').replace(/^0+(?=\d)/, '');
+      numVal = clean === '' ? 0 : parseInt(clean, 10);
+    } else {
+      numVal = Number.isNaN(val) ? 0 : val;
+    }
+    const safeVal = Math.max(0, Math.min(numVal, maxAllowed));
     setSuppQuantities((prev) => ({
       ...prev,
       [String(productId)]: safeVal,
@@ -437,14 +451,14 @@ export const WarehouseDispatchView: React.FC<WarehouseDispatchViewProps> = ({
                   <th style={{ padding: '7px 10px', textAlign: 'center', width: '80px', whiteSpace: 'nowrap' }}>SL đặt</th>
                   <th style={{ padding: '7px 10px', textAlign: 'center', width: '100px', whiteSpace: 'nowrap' }}>Còn phải giao</th>
                   <th style={{ padding: '7px 10px', textAlign: 'center', width: '100px', color: '#0284c7', whiteSpace: 'nowrap' }}>Tồn khả dụng</th>
-                  <th style={{ padding: '7px 10px', textAlign: 'center', width: '130px', whiteSpace: 'nowrap' }}>Thực xuất đợt này</th>
+                  <th style={{ padding: '7px 10px', textAlign: 'center', width: '190px', whiteSpace: 'nowrap' }}>Thực xuất đợt này</th>
                   <th style={{ padding: '7px 10px', textAlign: 'right', width: '140px', whiteSpace: 'nowrap' }}>Còn thiếu sau xuất</th>
                 </tr>
               </thead>
               <tbody>
                 {(selectedOrderForDispatch.items || []).map((it, idx) => {
                   const remaining = it.remaining_quantity !== undefined ? it.remaining_quantity : it.quantity;
-                  const outQty = dispatchQuantities[String(it.product_id)] || 0;
+                  const outQty = dispatchQuantities[String(it.product_id)] !== undefined ? dispatchQuantities[String(it.product_id)] : 0;
                   const shortageAfter = Math.max(0, remaining - outQty);
                   const isOverStock = outQty > (it.available_stock || 0);
 
@@ -460,24 +474,91 @@ export const WarehouseDispatchView: React.FC<WarehouseDispatchViewProps> = ({
                         {it.available_stock || 0}
                       </td>
                       <td style={{ padding: '6px 10px', textAlign: 'center', whiteSpace: 'nowrap' }}>
-                        <input
-                          type="number"
-                          min={0}
-                          max={remaining}
-                          value={outQty}
-                          onChange={(e) => handleQuantityChange(it.product_id, parseInt(e.target.value, 10), remaining)}
-                          style={{
-                            width: '90px',
-                            padding: '4px 8px',
-                            borderRadius: '5px',
-                            border: isOverStock ? '2px solid #dc2626' : '1px solid #cbd5e1',
-                            fontSize: '12.5px',
-                            fontWeight: '700',
-                            textAlign: 'center',
-                            color: '#0f172a',
-                            outline: 'none',
-                          }}
-                        />
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                          <button
+                            type="button"
+                            title="Giảm 1"
+                            onClick={() => handleQuantityChange(it.product_id, Math.max(0, outQty - 1), remaining)}
+                            disabled={outQty <= 0}
+                            style={{
+                              width: '24px',
+                              height: '26px',
+                              background: '#f1f5f9',
+                              border: '1px solid #cbd5e1',
+                              borderRadius: '4px',
+                              fontSize: '13px',
+                              fontWeight: 'bold',
+                              color: '#334155',
+                              cursor: outQty <= 0 ? 'not-allowed' : 'pointer',
+                              opacity: outQty <= 0 ? 0.4 : 1,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                            }}
+                          >
+                            -
+                          </button>
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            value={outQty}
+                            onFocus={(e) => e.target.select()}
+                            onChange={(e) => handleQuantityChange(it.product_id, e.target.value, remaining)}
+                            style={{
+                              width: '56px',
+                              padding: '4px 6px',
+                              borderRadius: '5px',
+                              border: isOverStock ? '2px solid #dc2626' : '1px solid #cbd5e1',
+                              fontSize: '13px',
+                              fontWeight: '700',
+                              textAlign: 'center',
+                              color: '#0f172a',
+                              outline: 'none',
+                              backgroundColor: '#ffffff',
+                            }}
+                          />
+                          <button
+                            type="button"
+                            title="Tăng 1"
+                            onClick={() => handleQuantityChange(it.product_id, Math.min(remaining, outQty + 1), remaining)}
+                            disabled={outQty >= remaining}
+                            style={{
+                              width: '24px',
+                              height: '26px',
+                              background: '#f1f5f9',
+                              border: '1px solid #cbd5e1',
+                              borderRadius: '4px',
+                              fontSize: '13px',
+                              fontWeight: 'bold',
+                              color: '#334155',
+                              cursor: outQty >= remaining ? 'not-allowed' : 'pointer',
+                              opacity: outQty >= remaining ? 0.4 : 1,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                            }}
+                          >
+                            +
+                          </button>
+                          <button
+                            type="button"
+                            title="Xuất tối đa theo tồn khả dụng"
+                            onClick={() => handleQuantityChange(it.product_id, Math.min(remaining, it.available_stock || 0), remaining)}
+                            style={{
+                              padding: '3px 6px',
+                              background: '#e0f2fe',
+                              border: '1px solid #bae6fd',
+                              borderRadius: '4px',
+                              fontSize: '10.5px',
+                              fontWeight: '700',
+                              color: '#0284c7',
+                              cursor: 'pointer',
+                              marginLeft: '2px',
+                            }}
+                          >
+                            Max
+                          </button>
+                        </div>
                       </td>
                       <td style={{ padding: '6px 10px', textAlign: 'right', fontWeight: '700', color: shortageAfter > 0 ? '#d97706' : '#16a34a', whiteSpace: 'nowrap' }}>
                         {shortageAfter > 0 ? `Thiếu ${shortageAfter} ${it.unit || 'Cái'}` : 'Đủ'}
@@ -622,7 +703,7 @@ export const WarehouseDispatchView: React.FC<WarehouseDispatchViewProps> = ({
                   <th style={{ padding: '7px 10px', textAlign: 'center', width: '90px', whiteSpace: 'nowrap' }}>Đã giao lũy kế</th>
                   <th style={{ padding: '7px 10px', textAlign: 'center', width: '90px', color: '#d97706', whiteSpace: 'nowrap' }}>Số lượng nợ</th>
                   <th style={{ padding: '7px 10px', textAlign: 'center', width: '100px', color: '#0284c7', whiteSpace: 'nowrap' }}>Tồn khả dụng</th>
-                  <th style={{ padding: '7px 10px', textAlign: 'center', width: '140px', whiteSpace: 'nowrap' }}>Giao bổ sung đợt này</th>
+                  <th style={{ padding: '7px 10px', textAlign: 'center', width: '190px', whiteSpace: 'nowrap' }}>Giao bổ sung đợt này</th>
                   <th style={{ padding: '7px 10px', textAlign: 'right', width: '130px', whiteSpace: 'nowrap' }}>Nợ lại sau đợt này</th>
                 </tr>
               </thead>
@@ -630,7 +711,7 @@ export const WarehouseDispatchView: React.FC<WarehouseDispatchViewProps> = ({
                 {(selectedOrderForSupp.items || []).map((it, idx) => {
                   const shortage = it.shortage_quantity !== undefined ? it.shortage_quantity : 0;
                   const delivered = it.delivered_quantity || 0;
-                  const suppQty = suppQuantities[String(it.product_id)] || 0;
+                  const suppQty = suppQuantities[String(it.product_id)] !== undefined ? suppQuantities[String(it.product_id)] : 0;
                   const remainingShortage = Math.max(0, shortage - suppQty);
                   const isOverStock = suppQty > (it.available_stock || 0);
 
@@ -646,24 +727,91 @@ export const WarehouseDispatchView: React.FC<WarehouseDispatchViewProps> = ({
                         {it.available_stock || 0}
                       </td>
                       <td style={{ padding: '6px 10px', textAlign: 'center', whiteSpace: 'nowrap' }}>
-                        <input
-                          type="number"
-                          min={0}
-                          max={shortage}
-                          value={suppQty}
-                          onChange={(e) => handleSuppQuantityChange(it.product_id, parseInt(e.target.value, 10), shortage)}
-                          style={{
-                            width: '90px',
-                            padding: '4px 8px',
-                            borderRadius: '5px',
-                            border: isOverStock ? '2px solid #dc2626' : '1px solid #cbd5e1',
-                            fontSize: '12.5px',
-                            fontWeight: '700',
-                            textAlign: 'center',
-                            color: '#0f172a',
-                            outline: 'none',
-                          }}
-                        />
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                          <button
+                            type="button"
+                            title="Giảm 1"
+                            onClick={() => handleSuppQuantityChange(it.product_id, Math.max(0, suppQty - 1), shortage)}
+                            disabled={suppQty <= 0}
+                            style={{
+                              width: '24px',
+                              height: '26px',
+                              background: '#f1f5f9',
+                              border: '1px solid #cbd5e1',
+                              borderRadius: '4px',
+                              fontSize: '13px',
+                              fontWeight: 'bold',
+                              color: '#334155',
+                              cursor: suppQty <= 0 ? 'not-allowed' : 'pointer',
+                              opacity: suppQty <= 0 ? 0.4 : 1,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                            }}
+                          >
+                            -
+                          </button>
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            value={suppQty}
+                            onFocus={(e) => e.target.select()}
+                            onChange={(e) => handleSuppQuantityChange(it.product_id, e.target.value, shortage)}
+                            style={{
+                              width: '56px',
+                              padding: '4px 6px',
+                              borderRadius: '5px',
+                              border: isOverStock ? '2px solid #dc2626' : '1px solid #cbd5e1',
+                              fontSize: '13px',
+                              fontWeight: '700',
+                              textAlign: 'center',
+                              color: '#0f172a',
+                              outline: 'none',
+                              backgroundColor: '#ffffff',
+                            }}
+                          />
+                          <button
+                            type="button"
+                            title="Tăng 1"
+                            onClick={() => handleSuppQuantityChange(it.product_id, Math.min(shortage, suppQty + 1), shortage)}
+                            disabled={suppQty >= shortage}
+                            style={{
+                              width: '24px',
+                              height: '26px',
+                              background: '#f1f5f9',
+                              border: '1px solid #cbd5e1',
+                              borderRadius: '4px',
+                              fontSize: '13px',
+                              fontWeight: 'bold',
+                              color: '#334155',
+                              cursor: suppQty >= shortage ? 'not-allowed' : 'pointer',
+                              opacity: suppQty >= shortage ? 0.4 : 1,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                            }}
+                          >
+                            +
+                          </button>
+                          <button
+                            type="button"
+                            title="Giao tối đa theo tồn khả dụng"
+                            onClick={() => handleSuppQuantityChange(it.product_id, Math.min(shortage, it.available_stock || 0), shortage)}
+                            style={{
+                              padding: '3px 6px',
+                              background: '#e0f2fe',
+                              border: '1px solid #bae6fd',
+                              borderRadius: '4px',
+                              fontSize: '10.5px',
+                              fontWeight: '700',
+                              color: '#0284c7',
+                              cursor: 'pointer',
+                              marginLeft: '2px',
+                            }}
+                          >
+                            Max
+                          </button>
+                        </div>
                       </td>
                       <td style={{ padding: '6px 10px', textAlign: 'right', fontWeight: '700', color: remainingShortage > 0 ? '#dc2626' : '#16a34a', whiteSpace: 'nowrap' }}>
                         {remainingShortage > 0 ? `Còn nợ ${remainingShortage} ${it.unit || 'Cái'}` : 'Đã giao đủ 100%'}

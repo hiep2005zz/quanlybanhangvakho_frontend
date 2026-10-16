@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   User,
   DeliveryTrip,
   DriverOption,
   VehicleOption,
   EligibleDispatch,
+  WarehouseItem,
   listDeliveryTripsApi,
   getDeliveryTripDetailApi,
   createDeliveryTripApi,
@@ -14,8 +15,233 @@ import {
   listEligibleDispatchesApi,
   listDriversApi,
   listVehiclesApi,
+  getWarehousesApi,
 } from '../services/api';
 import { emitStatusToast } from './StatusToast';
+
+// Component Combobox tìm kiếm kết hợp vừa nhập vừa chọn từ database
+interface ComboboxOption {
+  value: string | number;
+  label: string;
+  subLabel?: string;
+  badge?: string;
+  isBusy?: boolean;
+  disabled?: boolean;
+}
+
+interface SearchableComboboxProps {
+  value: string | number;
+  displayValue?: string;
+  options: ComboboxOption[];
+  placeholder?: string;
+  onChange: (val: any, opt?: ComboboxOption) => void;
+  onCustomTextChange?: (text: string) => void;
+  allowCustomText?: boolean;
+  disabled?: boolean;
+}
+
+const SearchableCombobox: React.FC<SearchableComboboxProps> = ({
+  value,
+  displayValue,
+  options,
+  placeholder = 'Chọn hoặc nhập...',
+  onChange,
+  onCustomTextChange,
+  allowCustomText = false,
+  disabled = false,
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchText, setSearchText] = useState('');
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const filtered = options.filter((opt) => {
+    if (!searchText.trim()) return true;
+    const term = searchText.toLowerCase();
+    return (
+      opt.label.toLowerCase().includes(term) ||
+      (opt.subLabel && opt.subLabel.toLowerCase().includes(term)) ||
+      (opt.badge && opt.badge.toLowerCase().includes(term))
+    );
+  });
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const selectedOpt = options.find((o) => String(o.value) === String(value));
+  const textToShow = isOpen
+    ? searchText
+    : (displayValue !== undefined
+        ? displayValue
+        : (selectedOpt
+            ? selectedOpt.label
+            : (allowCustomText ? String(value || '') : '')));
+
+  return (
+    <div ref={containerRef} style={{ position: 'relative', width: '100%' }}>
+      <div style={{ display: 'flex', alignItems: 'center', position: 'relative' }}>
+        <input
+          type="text"
+          value={textToShow}
+          disabled={disabled}
+          placeholder={placeholder}
+          onFocus={() => {
+            setSearchText(selectedOpt ? selectedOpt.label : (allowCustomText ? String(value || '') : ''));
+            setIsOpen(true);
+          }}
+          onChange={(e) => {
+            const val = e.target.value;
+            setSearchText(val);
+            if (!isOpen) setIsOpen(true);
+            if (allowCustomText && onCustomTextChange) {
+              onCustomTextChange(val);
+            }
+          }}
+          style={{
+            width: '100%',
+            padding: '6px 26px 6px 8px',
+            borderRadius: '6px',
+            border: isOpen ? '1.5px solid #0284c7' : '1px solid #cbd5e1',
+            fontSize: '12px',
+            color: '#0f172a',
+            outline: 'none',
+            boxSizing: 'border-box',
+            backgroundColor: disabled ? '#f1f5f9' : '#ffffff',
+          }}
+        />
+        <div style={{ position: 'absolute', right: '6px', display: 'flex', alignItems: 'center', gap: '3px' }}>
+          {value !== '' && value !== undefined && !disabled && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onChange('');
+                setSearchText('');
+                if (allowCustomText && onCustomTextChange) onCustomTextChange('');
+              }}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+                fontSize: '11px',
+                color: '#94a3b8',
+                padding: '0 2px',
+                lineHeight: 1,
+              }}
+              title="Xóa lựa chọn"
+            >
+              ✕
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (!disabled) setIsOpen(!isOpen);
+            }}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              fontSize: '9px',
+              color: '#64748b',
+              padding: '0 2px',
+              lineHeight: 1,
+            }}
+          >
+            ▼
+          </button>
+        </div>
+      </div>
+
+      {isOpen && !disabled && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 'calc(100% + 4px)',
+            left: 0,
+            right: 0,
+            maxHeight: '220px',
+            overflowY: 'auto',
+            background: '#ffffff',
+            border: '1px solid #cbd5e1',
+            borderRadius: '6px',
+            boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -4px rgba(0,0,0,0.1)',
+            zIndex: 100,
+          }}
+        >
+          {filtered.length === 0 ? (
+            <div style={{ padding: '8px 12px', fontSize: '11.5px', color: '#94a3b8', textAlign: 'center' }}>
+              Không tìm thấy kết quả phù hợp
+            </div>
+          ) : (
+            filtered.map((opt) => (
+              <div
+                key={String(opt.value)}
+                onClick={() => {
+                  if (opt.disabled) return;
+                  onChange(opt.value, opt);
+                  setSearchText('');
+                  setIsOpen(false);
+                }}
+                style={{
+                  padding: '7px 10px',
+                  fontSize: '11.5px',
+                  cursor: opt.disabled ? 'not-allowed' : 'pointer',
+                  background: String(opt.value) === String(value) ? '#eff6ff' : '#ffffff',
+                  borderBottom: '1px solid #f1f5f9',
+                  opacity: opt.disabled ? 0.6 : 1,
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                }}
+                onMouseEnter={(e) => {
+                  if (!opt.disabled) e.currentTarget.style.backgroundColor = '#f8fafc';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = String(opt.value) === String(value) ? '#eff6ff' : '#ffffff';
+                }}
+              >
+                <div>
+                  <div style={{ fontWeight: '700', color: opt.disabled ? '#94a3b8' : '#0f172a' }}>
+                    {opt.label}
+                  </div>
+                  {opt.subLabel && (
+                    <div style={{ fontSize: '10.5px', color: '#64748b', marginTop: '1px' }}>
+                      {opt.subLabel}
+                    </div>
+                  )}
+                </div>
+                {opt.badge && (
+                  <span
+                    style={{
+                      fontSize: '10px',
+                      padding: '2px 6px',
+                      borderRadius: '4px',
+                      fontWeight: '700',
+                      background: opt.isBusy ? '#fee2e2' : '#dcfce7',
+                      color: opt.isBusy ? '#b91c1c' : '#15803d',
+                      whiteSpace: 'nowrap',
+                      marginLeft: '6px',
+                    }}
+                  >
+                    {opt.badge}
+                  </span>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
 
 interface DeliveryTripsViewProps {
   token: string;
@@ -43,10 +269,11 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
   const [selectedTrip, setSelectedTrip] = useState<DeliveryTrip | null>(null);
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
 
-  // Dữ liệu cho màn hình Tạo chuyến giao hàng
+  // Dữ liệu cho màn hình Tạo chuyến giao hàng (Tải từ Database)
   const [eligibleDispatches, setEligibleDispatches] = useState<EligibleDispatch[]>([]);
   const [drivers, setDrivers] = useState<DriverOption[]>([]);
   const [vehicles, setVehicles] = useState<VehicleOption[]>([]);
+  const [warehouses, setWarehouses] = useState<WarehouseItem[]>([]);
   const [isLoadingCreateData, setIsLoadingCreateData] = useState(false);
 
   // Form tạo chuyến
@@ -56,7 +283,7 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
   });
   const [createDriverId, setCreateDriverId] = useState<number | ''>('');
   const [createVehicleId, setCreateVehicleId] = useState<number | ''>('');
-  const [createWarehouseName, setCreateWarehouseName] = useState('Kho Tổng Hà Nội');
+  const [createWarehouseName, setCreateWarehouseName] = useState('');
   const [createNote, setCreateNote] = useState('');
   const [selectedDispatchIds, setSelectedDispatchIds] = useState<number[]>([]);
   const [isSubmittingCreate, setIsSubmittingCreate] = useState(false);
@@ -110,7 +337,7 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
     }
   }, [loadTrips, viewMode]);
 
-  // 2. Tải dữ liệu chuẩn bị tạo chuyến mới
+  // 2. Tải dữ liệu chuẩn bị tạo chuyến mới từ Database (Warehouses, Drivers, Vehicles, Dispatches)
   const handleOpenCreatePage = async () => {
     setIsLoadingCreateData(true);
     setViewMode('create');
@@ -121,19 +348,29 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
     setCreateVehicleId('');
 
     try {
-      const [dispatchesRes, driversRes, vehiclesRes] = await Promise.all([
+      const [dispatchesRes, driversRes, vehiclesRes, warehousesRes] = await Promise.all([
         listEligibleDispatchesApi(token),
         listDriversApi(token, createDeliveryDate),
         listVehiclesApi(token, createDeliveryDate),
+        getWarehousesApi(token),
       ]);
       setEligibleDispatches(dispatchesRes);
       setDrivers(driversRes);
       setVehicles(vehiclesRes);
+      setWarehouses(warehousesRes);
+
+      // Lấy kho hoạt động đầu tiên từ database làm giá trị ban đầu nếu có
+      const activeWh = warehousesRes.find((w: any) => w.status === 'ACTIVE' || w.status === 'active') || warehousesRes[0];
+      if (activeWh) {
+        setCreateWarehouseName(activeWh.name);
+      } else {
+        setCreateWarehouseName('');
+      }
     } catch (err: any) {
       emitStatusToast({
         type: 'error',
         title: 'Lỗi nạp dữ liệu',
-        message: err.message || 'Không thể tải phiếu xuất hoặc tài xế.',
+        message: err.message || 'Không thể tải dữ liệu kho, tài xế hoặc phương tiện.',
       });
     } finally {
       setIsLoadingCreateData(false);
@@ -1111,19 +1348,20 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
               <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#475569', marginBottom: '3px' }}>
                 Kho xuất phát
               </label>
-              <input
-                type="text"
+              <SearchableCombobox
                 value={createWarehouseName}
-                onChange={(e) => setCreateWarehouseName(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '6px 8px',
-                  borderRadius: '6px',
-                  border: '1px solid #cbd5e1',
-                  fontSize: '12px',
-                  color: '#0f172a',
-                  boxSizing: 'border-box',
-                }}
+                displayValue={createWarehouseName}
+                options={warehouses.map((w) => ({
+                  value: w.name,
+                  label: w.name,
+                  subLabel: `${w.code} • ${w.address || 'Kho hàng'}`,
+                  badge: (w.status || 'ACTIVE').toUpperCase() === 'ACTIVE' ? 'Hoạt động' : 'Tạm dừng',
+                  disabled: (w.status || 'ACTIVE').toUpperCase() !== 'ACTIVE',
+                }))}
+                placeholder="Nhập hoặc chọn kho từ database..."
+                allowCustomText={true}
+                onChange={(val) => setCreateWarehouseName(val)}
+                onCustomTextChange={(text) => setCreateWarehouseName(text)}
               />
             </div>
 
@@ -1131,52 +1369,40 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
               <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#475569', marginBottom: '3px' }}>
                 Tài xế phụ trách
               </label>
-              <select
+              <SearchableCombobox
                 value={createDriverId}
-                onChange={(e) => setCreateDriverId(e.target.value ? Number(e.target.value) : '')}
-                style={{
-                  width: '100%',
-                  padding: '6px 8px',
-                  borderRadius: '6px',
-                  border: '1px solid #cbd5e1',
-                  fontSize: '12px',
-                  color: '#0f172a',
-                  boxSizing: 'border-box',
-                }}
-              >
-                <option value="">-- Chọn tài xế (hoặc để sau) --</option>
-                {drivers.map((d: any) => (
-                  <option key={d.id} value={d.id} disabled={d.is_busy}>
-                    {d.name} ({d.phone}) {d.is_busy ? `[Đã bận chuyến ${d.current_trip_code}]` : ''}
-                  </option>
-                ))}
-              </select>
+                options={drivers.map((d: any) => ({
+                  value: d.id,
+                  label: `${d.name} (${d.phone})`,
+                  subLabel: `Mã: ${d.code || 'TX'} • GPLX: ${d.license_number || 'N/A'}`,
+                  badge: d.is_busy ? `Bận ${d.current_trip_code}` : 'Sẵn sàng',
+                  isBusy: d.is_busy,
+                  disabled: d.is_busy,
+                }))}
+                placeholder="-- Nhập/chọn tài xế (hoặc để sau) --"
+                allowCustomText={false}
+                onChange={(val) => setCreateDriverId(val ? Number(val) : '')}
+              />
             </div>
 
             <div>
               <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#475569', marginBottom: '3px' }}>
                 Phương tiện / Xe
               </label>
-              <select
+              <SearchableCombobox
                 value={createVehicleId}
-                onChange={(e) => setCreateVehicleId(e.target.value ? Number(e.target.value) : '')}
-                style={{
-                  width: '100%',
-                  padding: '6px 8px',
-                  borderRadius: '6px',
-                  border: '1px solid #cbd5e1',
-                  fontSize: '12px',
-                  color: '#0f172a',
-                  boxSizing: 'border-box',
-                }}
-              >
-                <option value="">-- Chọn phương tiện (hoặc để sau) --</option>
-                {vehicles.map((v: any) => (
-                  <option key={v.id} value={v.id} disabled={v.is_busy}>
-                    {v.plate_number} - {v.vehicle_type} {v.capacity_kg ? `(${v.capacity_kg} kg)` : ''} {v.is_busy ? `[Đã bận chuyến ${v.current_trip_code}]` : ''}
-                  </option>
-                ))}
-              </select>
+                options={vehicles.map((v: any) => ({
+                  value: v.id,
+                  label: `${v.plate_number} - ${v.vehicle_type}`,
+                  subLabel: `Tải trọng: ${v.capacity_kg ? `${v.capacity_kg} kg` : 'N/A'}`,
+                  badge: v.is_busy ? `Bận ${v.current_trip_code}` : 'Sẵn sàng',
+                  isBusy: v.is_busy,
+                  disabled: v.is_busy,
+                }))}
+                placeholder="-- Nhập/chọn phương tiện (hoặc để sau) --"
+                allowCustomText={false}
+                onChange={(val) => setCreateVehicleId(val ? Number(val) : '')}
+              />
             </div>
 
             <div>
