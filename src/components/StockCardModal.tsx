@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   getStockCardLedgersApi,
   StockCardItem,
@@ -21,6 +21,7 @@ interface StockCardModalProps {
     username?: string;
     full_name?: string;
     role?: string;
+    roles?: string[];
   };
 }
 
@@ -43,16 +44,27 @@ export const StockCardModal: React.FC<StockCardModalProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [filterType, setFilterType] = useState<string>('all');
 
+  const userRoles = useMemo(() => {
+    if (!currentUser) return [];
+    const r = currentUser.role ? currentUser.role.toLowerCase() : '';
+    const roles: string[] = [r];
+    if ((currentUser as any).roles && Array.isArray((currentUser as any).roles)) {
+      roles.push(...(currentUser as any).roles.map((x: string) => (x || '').toLowerCase()));
+    }
+    return roles;
+  }, [currentUser]);
+
   const isWarehousePersonnel =
-    currentUser?.role === 'admin' ||
-    currentUser?.role === 'warehouse_manager' ||
-    currentUser?.role === 'warehouse' ||
-    currentUser?.role === 'system_admin';
+    userRoles.includes('admin') ||
+    userRoles.includes('warehouse_manager') ||
+    userRoles.includes('warehouse') ||
+    userRoles.includes('system_admin');
 
   const isManagerOrAdmin =
-    currentUser?.role === 'admin' ||
-    currentUser?.role === 'warehouse_manager' ||
-    currentUser?.role === 'system_admin';
+    userRoles.includes('admin') ||
+    userRoles.includes('warehouse_manager') ||
+    userRoles.includes('warehouse_mgr') ||
+    userRoles.includes('system_admin');
 
   const fetchLedgers = useCallback(async () => {
     if (!isOpen || !productId) return;

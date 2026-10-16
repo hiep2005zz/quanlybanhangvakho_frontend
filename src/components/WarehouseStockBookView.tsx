@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   getStockBookApi,
   StockBookResponse,
@@ -16,6 +16,7 @@ interface WarehouseStockBookViewProps {
     username?: string;
     full_name?: string;
     role?: string;
+    roles?: string[];
   };
 }
 
@@ -50,6 +51,23 @@ export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
     warehouseId?: string | number;
     warehouseName?: string;
   } | null>(null);
+
+  // Quyền truy cập điều chỉnh tồn kho: Hiển thị cho Admin, Quản lý kho và Thủ kho. Ẩn hoàn toàn với các vai trò khác (sales, sales_manager, accountant, etc.)
+  const canAccessAdjustments = useMemo(() => {
+    if (!currentUser) return false;
+    const r = currentUser.role ? currentUser.role.toLowerCase() : '';
+    const roles: string[] = [r];
+    if ((currentUser as any).roles && Array.isArray((currentUser as any).roles)) {
+      roles.push(...(currentUser as any).roles.map((x: string) => (x || '').toLowerCase()));
+    }
+    return (
+      roles.includes('admin') ||
+      roles.includes('system_admin') ||
+      roles.includes('warehouse_manager') ||
+      roles.includes('warehouse_mgr') ||
+      roles.includes('warehouse')
+    );
+  }, [currentUser]);
 
   // Debounce tìm kiếm 300ms để không gọi API và render liên tục theo từng phím gõ
   useEffect(() => {
@@ -149,35 +167,37 @@ export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
           </div>
         </div>
 
-        {/* Nút Chuyển sang Trang Điều chỉnh tồn kho */}
-        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-          <button
-            type="button"
-            onClick={() => {
-              if (onNavigateToAdjustments) {
-                onNavigateToAdjustments();
-              } else {
-                try {
-                  window.history.pushState({}, '', '/stock-adjustments');
-                  window.dispatchEvent(new PopStateEvent('popstate'));
-                } catch { }
-              }
-            }}
-            style={{
-              padding: '8px 16px',
-              backgroundColor: '#0f172a',
-              color: '#ffffff',
-              border: 'none',
-              borderRadius: '6px',
-              fontSize: '13px',
-              fontWeight: '700',
-              cursor: 'pointer',
-              boxShadow: '0 1px 2px rgba(0, 0, 0, 0.1)',
-            }}
-          >
-            Điều chỉnh tồn kho
-          </button>
-        </div>
+        {/* Nút Chuyển sang Trang Điều chỉnh tồn kho: Hiển thị cho Admin, Quản lý kho và Thủ kho */}
+        {canAccessAdjustments && (
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+            <button
+              type="button"
+              onClick={() => {
+                if (onNavigateToAdjustments) {
+                  onNavigateToAdjustments();
+                } else {
+                  try {
+                    window.history.pushState({}, '', '/stock-adjustments');
+                    window.dispatchEvent(new PopStateEvent('popstate'));
+                  } catch { }
+                }
+              }}
+              style={{
+                padding: '8px 16px',
+                backgroundColor: '#0f172a',
+                color: '#ffffff',
+                border: 'none',
+                borderRadius: '6px',
+                fontSize: '13px',
+                fontWeight: '700',
+                cursor: 'pointer',
+                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.1)',
+              }}
+            >
+              Điều chỉnh tồn kho
+            </button>
+          </div>
+        )}
       </div>
 
       {/* 4 Thẻ KPI Tóm tắt nhanh */}

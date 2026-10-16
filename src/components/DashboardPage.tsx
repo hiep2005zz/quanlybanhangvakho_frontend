@@ -213,6 +213,17 @@ export default function DashboardPage({
     officialRoles.includes('warehouse_manager')
   );
 
+  // Quyền truy cập phân hệ Điều chỉnh tồn kho: Admin, Quản lý kho và Thủ kho. Ẩn hoàn toàn với các vai trò khác (sales, sales_manager, accountant, etc.)
+  const canAccessStockAdjustments = Boolean(
+    isAdmin ||
+    user.role === 'warehouse' ||
+    user.role === 'warehouse_manager' ||
+    user.role === 'warehouse_mgr' ||
+    officialRoles.includes('warehouse') ||
+    officialRoles.includes('warehouse_manager') ||
+    officialRoles.includes('warehouse_mgr')
+  );
+
   // 2. Khởi tạo State với Clean URL
   const location = useLocation();
   const currentPath = location.pathname.toLowerCase();
@@ -384,7 +395,7 @@ export default function DashboardPage({
     }
 
     if (isStockAdjustmentsPath || oldTabVal === 'stock-adjustments' || oldTabVal === 'stock-adjustment') {
-      if (isWarehouseOrAdmin) {
+      if (canAccessStockAdjustments) {
         if (pathname !== '/stock-adjustments' || hasOldTabParam) {
           try { window.history.replaceState({}, '', '/stock-adjustments'); } catch { }
         }
@@ -633,7 +644,7 @@ export default function DashboardPage({
     }
 
     if (tab === 'stock-adjustments') {
-      if (!isWarehouseOrAdmin) {
+      if (!canAccessStockAdjustments) {
         setActiveTabState('inventory');
         try { window.history.replaceState({}, '', '/'); } catch { }
         return;
@@ -853,6 +864,7 @@ export default function DashboardPage({
                 : activeTab === 'discounts' ? canAccessDiscounts
                   : activeTab === 'product-history' ? (isAdmin || isSalesManager || canWriteInventory)
                     : activeTab === 'stock-audits' ? canAccessStockAudit
+                      : activeTab === 'stock-adjustments' ? canAccessStockAdjustments
                       : activeTab === 'warehouses' ? canAccessWarehouses
                         : activeTab === 'goods-receipt' ? canWriteInventory
                           : activeTab === 'batches' ? isWarehouseOrAdmin
@@ -1054,7 +1066,7 @@ export default function DashboardPage({
       }
 
       if (isStockAdjustmentsPath || tabParam === 'stock-adjustments' || tabParam === 'stock-adjustment') {
-        if (isWarehouseOrAdmin) {
+        if (canAccessStockAdjustments) {
           if (pathname !== '/stock-adjustments' || tabParam) {
             try { window.history.replaceState({}, '', '/stock-adjustments'); } catch { }
           }
@@ -2414,7 +2426,7 @@ export default function DashboardPage({
             />
           )
         ) : activeTab === 'stock-adjustments' ? (
-          isWarehouseOrAdmin ? (
+          canAccessStockAdjustments ? (
             <StockAdjustmentPageView
               token={token}
               currentUser={user}
