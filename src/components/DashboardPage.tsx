@@ -3566,78 +3566,40 @@ export default function DashboardPage({
                                     )}
 
                                     {canWriteInventory && (
-                                      <>
-                                        <button
-                                          type="button"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            setStockActionState({ isOpen: true, actionType: 'receipt', product: item });
-                                            setOpenProductMenuId(null);
-                                          }}
-                                          style={{
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '8px',
-                                            width: '100%',
-                                            padding: '8px 12px',
-                                            background: 'transparent',
-                                            border: 'none',
-                                            borderRadius: '6px',
-                                            fontSize: '13px',
-                                            fontWeight: '600',
-                                            color: '#065f46',
-                                            cursor: 'pointer',
-                                            boxShadow: 'none',
-                                            margin: 0,
-                                            transition: 'background 0.15s ease',
-                                            textAlign: 'left',
-                                          }}
-                                          onMouseEnter={(e) => (e.currentTarget.style.background = '#ecfdf5')}
-                                          onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-                                          title="Tạo phiếu nhập kho nhanh cho sản phẩm này (cho phép chọn ĐVT quy đổi)"
-                                        >
-                                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                            <line x1="12" y1="5" x2="12" y2="19" />
-                                            <line x1="5" y1="12" x2="19" y2="12" />
-                                          </svg>
-                                          <span>Nhập kho</span>
-                                        </button>
-
-                                        <button
-                                          type="button"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            setStockActionState({ isOpen: true, actionType: 'issue', product: item });
-                                            setOpenProductMenuId(null);
-                                          }}
-                                          style={{
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '8px',
-                                            width: '100%',
-                                            padding: '8px 12px',
-                                            background: 'transparent',
-                                            border: 'none',
-                                            borderRadius: '6px',
-                                            fontSize: '13px',
-                                            fontWeight: '600',
-                                            color: '#9a3412',
-                                            cursor: 'pointer',
-                                            boxShadow: 'none',
-                                            margin: 0,
-                                            transition: 'background 0.15s ease',
-                                            textAlign: 'left',
-                                          }}
-                                          onMouseEnter={(e) => (e.currentTarget.style.background = '#fff7ed')}
-                                          onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-                                          title="Tạo phiếu xuất kho (cho phép chọn ĐVT quy đổi)"
-                                        >
-                                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                            <line x1="5" y1="12" x2="19" y2="12" />
-                                          </svg>
-                                          <span>Xuất kho</span>
-                                        </button>
-                                      </>
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setStockActionState({ isOpen: true, actionType: 'issue', product: item });
+                                          setOpenProductMenuId(null);
+                                        }}
+                                        style={{
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          gap: '8px',
+                                          width: '100%',
+                                          padding: '8px 12px',
+                                          background: 'transparent',
+                                          border: 'none',
+                                          borderRadius: '6px',
+                                          fontSize: '13px',
+                                          fontWeight: '600',
+                                          color: '#9a3412',
+                                          cursor: 'pointer',
+                                          boxShadow: 'none',
+                                          margin: 0,
+                                          transition: 'background 0.15s ease',
+                                          textAlign: 'left',
+                                        }}
+                                        onMouseEnter={(e) => (e.currentTarget.style.background = '#fff7ed')}
+                                        onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                                        title="Tạo phiếu xuất kho (cho phép chọn ĐVT quy đổi)"
+                                      >
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                          <line x1="5" y1="12" x2="19" y2="12" />
+                                        </svg>
+                                        <span>Xuất kho</span>
+                                      </button>
                                     )}
                                   </div>
                                 )}
