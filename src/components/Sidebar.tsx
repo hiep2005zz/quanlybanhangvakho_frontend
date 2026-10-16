@@ -26,7 +26,10 @@ export type TabType =
   | 'goods-receipt'
   | 'add-product'
   | 'products-import'
-  | 'batches';
+  | 'batches'
+  | 'debt-aging'
+  | 'sales-report'
+  | 'executive-dashboard';
 
 export interface SidebarProps {
   activeTab?: TabType;
@@ -46,6 +49,9 @@ export interface SidebarProps {
   canAccessStockAudit?: boolean;
   canAccessStockTransfer?: boolean;
   canAccessWarehouses?: boolean;
+  canAccessDebtAging?: boolean;
+  canAccessSalesReport?: boolean;
+  canAccessExecutiveDashboard?: boolean;
   canWriteInventory?: boolean;
   isAdmin?: boolean;
   onLogout?: () => void;
@@ -83,6 +89,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
   canAccessStockAudit = false,
   canAccessStockTransfer = false,
   canAccessWarehouses = false,
+  canAccessDebtAging = false,
+  canAccessSalesReport = false,
+  canAccessExecutiveDashboard = false,
   canWriteInventory: _canWriteInventory = false,
   onLogout,
   isLoggingOut = false,
@@ -283,6 +292,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
   // Cấu hình danh sách mục menu điều hướng
   const menuItems: MenuItemConfig[] = [
     {
+      id: 'btn-sidebar-executive-dashboard',
+      tab: 'executive-dashboard',
+      path: '/executive-dashboard',
+      label: 'Tổng quan điều hành',
+      visible: !isCustomer && canAccessExecutiveDashboard,
+      icon: (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="3" y="3" width="7" height="9" rx="1" />
+          <rect x="14" y="3" width="7" height="5" rx="1" />
+          <rect x="14" y="12" width="7" height="9" rx="1" />
+          <rect x="3" y="16" width="7" height="5" rx="1" />
+        </svg>
+      ),
+    },
+    {
       id: 'btn-sidebar-inventory',
       tab: 'inventory',
       path: '/',
@@ -421,6 +445,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
       ),
     },
     {
+      id: 'btn-sidebar-debt-aging',
+      tab: 'debt-aging',
+      path: '/debt-aging',
+      label: 'Báo cáo tuổi nợ',
+      visible: !isCustomer && canAccessDebtAging,
+      icon: (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="10" />
+          <polyline points="12 6 12 12 16 14" />
+        </svg>
+      ),
+    },
+    {
       id: 'btn-sidebar-dealers',
       tab: 'dealers',
       path: '/dealers',
@@ -501,6 +538,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <rect x="14" y="3" width="7" height="7" rx="1" />
           <rect x="14" y="14" width="7" height="7" rx="1" />
           <rect x="3" y="14" width="7" height="7" rx="1" />
+        </svg>
+      ),
+    },
+    {
+      id: 'btn-sidebar-sales-report',
+      tab: 'sales-report',
+      path: '/sales-report',
+      label: 'Báo cáo doanh số đa chiều',
+      visible: !isCustomer && Boolean(canAccessSalesReport),
+      icon: (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <line x1="18" y1="20" x2="18" y2="10" />
+          <line x1="12" y1="20" x2="12" y2="4" />
+          <line x1="6" y1="20" x2="6" y2="14" />
         </svg>
       ),
     },

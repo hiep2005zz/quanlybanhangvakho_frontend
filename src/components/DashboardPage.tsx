@@ -56,6 +56,9 @@ import { DashboardHeader } from './DashboardHeader';
 import { CustomerDebtView } from './CustomerDebtView';
 import { CustomerPortalView } from './CustomerPortalView';
 import { BatchManagementView } from './BatchManagementView';
+import { DebtAgingReportView } from './DebtAgingReportView';
+import { ExecutiveDashboardView } from './ExecutiveDashboardView';
+import { MultidimensionalSalesReportView } from './MultidimensionalSalesReportView';
 
 import './dashboard.css';
 import { Sidebar, type TabType } from './Sidebar';
@@ -115,6 +118,10 @@ export default function DashboardPage({
     user.role === 'sales' ||
     officialRoles.some((r) => DEALER_ROLES.includes(r))
   );
+  // Quyền xem Báo cáo tuổi nợ: Quản trị viên (admin), Quản lý kinh doanh (sales_manager), Kế toán công nợ (accountant)
+  const canAccessDebtAging = !isCustomer && Boolean(isAdmin || isSalesManager || isAccountant);
+  const canAccessExecutiveDashboard = !isCustomer && Boolean(isAdmin || isSalesManager);
+  const canAccessSalesReport = !isCustomer && Boolean(isAdmin || isSalesManager || user.role === 'sales' || officialRoles.includes('sales'));
 
   // Quyền quản lý điểm giao hàng: Chỉ hiển thị với 3 vai trò admin, sales, sales_manager
   const DELIVERY_ROLES = ['admin', 'sales_manager', 'sales'];
@@ -234,6 +241,9 @@ export default function DashboardPage({
     const isStockThresholdsPath = pathname === '/stock-thresholds' || pathname.startsWith('/stock-thresholds/');
     const isLowStockAlertsPath = pathname === '/low-stock-alerts' || pathname.startsWith('/low-stock-alerts/');
     const isGoodsReceiptPath = pathname === '/goods-receipt' || pathname.startsWith('/goods-receipt/') || pathname === '/goods-receipts';
+    const isDebtAgingPath = pathname === '/debt-aging' || pathname.startsWith('/debt-aging/');
+    const isExecutiveDashboardPath = pathname === '/executive-dashboard' || pathname.startsWith('/executive-dashboard');
+    const isSalesReportPath = pathname === '/sales-report' || pathname.startsWith('/sales-report');
 
     const params = new URLSearchParams(window.location.search);
     const hasOldTabParam = params.has('tab') || params.has('view');
@@ -370,6 +380,24 @@ export default function DashboardPage({
         try { window.history.replaceState({}, '', '/dealer-profiles'); } catch { }
       }
       return 'dealer-profiles';
+    }
+    if (isDebtAgingPath || oldTabVal === 'debt-aging') {
+      if (hasOldTabParam || pathname !== '/debt-aging') {
+        try { window.history.replaceState({}, '', '/debt-aging'); } catch {}
+      }
+      return 'debt-aging';
+    }
+    if (isExecutiveDashboardPath || oldTabVal === 'executive-dashboard') {
+      if (hasOldTabParam || pathname !== '/executive-dashboard') {
+        try { window.history.replaceState({}, '', '/executive-dashboard'); } catch {}
+      }
+      return 'executive-dashboard';
+    }
+    if (isSalesReportPath || oldTabVal === 'sales-report') {
+      if (hasOldTabParam || pathname !== '/sales-report') {
+        try { window.history.replaceState({}, '', '/sales-report'); } catch {}
+      }
+      return 'sales-report';
     }
     if (isDealersPath || oldTabVal === 'dealers') {
       if (hasOldTabParam || pathname !== '/dealers') {
@@ -581,6 +609,27 @@ export default function DashboardPage({
       } catch {
         // ignore
       }
+    } else if (tab === 'debt-aging') {
+      setActiveTabState('debt-aging');
+      try {
+        window.history.pushState({}, '', '/debt-aging');
+      } catch {
+        // ignore
+      }
+    } else if (tab === 'executive-dashboard') {
+      setActiveTabState('executive-dashboard');
+      try {
+        window.history.pushState({}, '', '/executive-dashboard');
+      } catch {
+        // ignore
+      }
+    } else if (tab === 'sales-report') {
+      setActiveTabState('sales-report');
+      try {
+        window.history.pushState({}, '', '/sales-report');
+      } catch {
+        // ignore
+      }
     } else if (tab === 'products-import') {
       setActiveTabState('products-import');
       try {
@@ -670,6 +719,24 @@ export default function DashboardPage({
       window.history.replaceState({}, '', '/');
     }
     if (activeTab === 'dealer-profiles' && !canManageDealerProfiles) {
+      setActiveTabState('inventory');
+      try {
+        window.history.replaceState({}, '', '/');
+      } catch { }
+    }
+    if (activeTab === 'debt-aging' && !canAccessDebtAging) {
+      setActiveTabState('inventory');
+      try {
+        window.history.replaceState({}, '', '/');
+      } catch { }
+    }
+    if (activeTab === 'executive-dashboard' && !canAccessExecutiveDashboard) {
+      setActiveTabState('inventory');
+      try {
+        window.history.replaceState({}, '', '/');
+      } catch { }
+    }
+    if (activeTab === 'sales-report' && !canAccessSalesReport) {
       setActiveTabState('inventory');
       try {
         window.history.replaceState({}, '', '/');
@@ -899,6 +966,42 @@ export default function DashboardPage({
           } catch { }
         }
         setActiveTabState('dealer-profiles');
+        return;
+      }
+      const isDebtAgingPath = pathname === '/debt-aging' || pathname.startsWith('/debt-aging/');
+      if (isDebtAgingPath || tabParam === 'debt-aging') {
+        if (pathname !== '/debt-aging' || tabParam) {
+          try {
+            window.history.replaceState({}, '', '/debt-aging');
+          } catch {
+            // ignore
+          }
+        }
+        setActiveTabState('debt-aging');
+        return;
+      }
+      const isExecutiveDashboardPath = pathname === '/executive-dashboard' || pathname.startsWith('/executive-dashboard/');
+      if (isExecutiveDashboardPath || tabParam === 'executive-dashboard') {
+        if (pathname !== '/executive-dashboard' || tabParam) {
+          try {
+            window.history.replaceState({}, '', '/executive-dashboard');
+          } catch {
+            // ignore
+          }
+        }
+        setActiveTabState('executive-dashboard');
+        return;
+      }
+      const isSalesReportPath = pathname === '/sales-report' || pathname.startsWith('/sales-report/');
+      if (isSalesReportPath || tabParam === 'sales-report') {
+        if (pathname !== '/sales-report' || tabParam) {
+          try {
+            window.history.replaceState({}, '', '/sales-report');
+          } catch {
+            // ignore
+          }
+        }
+        setActiveTabState('sales-report');
         return;
       }
       const isDealersPath = pathname === '/dealers' || pathname.startsWith('/dealers/');
@@ -1432,7 +1535,7 @@ export default function DashboardPage({
   const isGoodsReceiptPage = activeTab === 'goods-receipt';
   const isProductsImportPage = activeTab === 'products-import';
   const isUsersImportPage = activeTab === 'users-import';
-  const isLockedScrollTab = !isProductFormOpen && !isSalesOrderOpen && !isOrdersCreateSubpage && !isOrderDetailSubpage && !isPriceListsCreateSubpage && !isPriceBookDetailSubpage && !isPriceBookEditSubpage && !isGoodsReceiptPage && !isStockTransferCreateSubpage && !isBatchesCreateSubpage && !isProductsImportPage && !isUsersImportPage && (activeTab === 'inventory' || activeTab === 'dealers' || activeTab === 'dealer-profiles' || activeTab === 'delivery-points' || activeTab === 'suppliers' || activeTab === 'price-books' || activeTab === 'categories' || activeTab === 'orders' || activeTab === 'product-history' || activeTab === 'stock-book' || activeTab === 'stock-audits' || activeTab === 'stock-transfers' || activeTab === 'stock-thresholds' || activeTab === 'low-stock-alerts' || activeTab === 'batches') && !isPendingCustomer;
+  const isLockedScrollTab = !isProductFormOpen && !isSalesOrderOpen && !isOrdersCreateSubpage && !isOrderDetailSubpage && !isPriceListsCreateSubpage && !isPriceBookDetailSubpage && !isPriceBookEditSubpage && !isGoodsReceiptPage && !isStockTransferCreateSubpage && !isBatchesCreateSubpage && !isProductsImportPage && !isUsersImportPage && (activeTab === 'inventory' || activeTab === 'dealers' || activeTab === 'dealer-profiles' || activeTab === 'debt-aging' || activeTab === 'delivery-points' || activeTab === 'suppliers' || activeTab === 'price-books' || activeTab === 'categories' || activeTab === 'orders' || activeTab === 'product-history' || activeTab === 'stock-book' || activeTab === 'stock-audits' || activeTab === 'stock-transfers' || activeTab === 'stock-thresholds' || activeTab === 'low-stock-alerts' || activeTab === 'batches') && !isPendingCustomer;
 
   return (
     <DashboardLayout
@@ -1482,6 +1585,9 @@ export default function DashboardPage({
           canReadOrders={canReadOrders}
           canViewDealers={canViewDealers}
           canManageDealerProfiles={canManageDealerProfiles}
+          canAccessDebtAging={canAccessDebtAging}
+          canAccessSalesReport={canAccessSalesReport}
+          canAccessExecutiveDashboard={canAccessExecutiveDashboard}
           canManageDeliveryPoints={canManageDeliveryPoints}
           canManageSuppliers={canManageSuppliers}
           canAccessPriceBooks={canAccessPriceBooks}
@@ -1843,6 +1949,50 @@ export default function DashboardPage({
             <AccessDeniedView
               currentUser={user}
               requiredPermission="Quản lý hồ sơ đại lý (Kế toán công nợ / Quản lý kinh doanh / Quản trị viên)"
+              onBackToWorkflow={() => setActiveTab('inventory')}
+              onLogout={onLogout}
+            />
+          )
+        ) : activeTab === 'debt-aging' ? (
+          canAccessDebtAging ? (
+            <DebtAgingReportView
+              currentUser={user}
+              token={token}
+              onBackToHome={() => setActiveTab('inventory')}
+            />
+          ) : (
+            <AccessDeniedView
+              currentUser={user}
+              requiredPermission="Báo cáo tuổi nợ (Kế toán công nợ / Quản lý kinh doanh / Quản trị viên)"
+              onBackToWorkflow={() => setActiveTab('inventory')}
+              onLogout={onLogout}
+            />
+          )
+        ) : activeTab === 'executive-dashboard' ? (
+          canAccessExecutiveDashboard ? (
+            <ExecutiveDashboardView
+              currentUser={user}
+              token={token}
+              onNavigateTab={(targetTab) => setActiveTab(targetTab as TabType)}
+            />
+          ) : (
+            <AccessDeniedView
+              currentUser={user}
+              requiredPermission="Dashboard điều hành (Quản lý kinh doanh / Quản trị viên)"
+              onBackToWorkflow={() => setActiveTab('inventory')}
+              onLogout={onLogout}
+            />
+          )
+        ) : activeTab === 'sales-report' ? (
+          canAccessSalesReport ? (
+            <MultidimensionalSalesReportView
+              currentUser={user}
+              token={token}
+            />
+          ) : (
+            <AccessDeniedView
+              currentUser={user}
+              requiredPermission="Báo cáo doanh số đa chiều (Quản lý kinh doanh / Nhân viên kinh doanh / Quản trị viên)"
               onBackToWorkflow={() => setActiveTab('inventory')}
               onLogout={onLogout}
             />

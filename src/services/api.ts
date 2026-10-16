@@ -4004,3 +4004,149 @@ export async function toggleProductBatchTrackingApi(
   return data;
 }
 
+export interface DebtAgingItem {
+  dealer_id: number;
+  dealer_code: string;
+  dealer_name: string;
+  phone?: string | null;
+  address?: string | null;
+  region?: string | null;
+  assigned_sale_id?: number | null;
+  assigned_sale_name?: string | null;
+  credit_limit: number;
+  max_debt_days: number;
+  current_debt: number;
+  remaining_credit: number;
+  max_debt_age: number;
+  max_overdue_days: number;
+  debt_current: number;
+  debt_overdue_1_30: number;
+  debt_overdue_31_60: number;
+  debt_overdue_61_90: number;
+  debt_overdue_over_90: number;
+  total_overdue: number;
+  overdue_invoices_count: number;
+  total_invoices_count: number;
+  risk_level: string;
+  risk_level_label: string;
+  risk_score: number;
+}
+
+export interface HighestRiskDealer {
+  dealer_id: number;
+  dealer_code: string;
+  dealer_name: string;
+  phone?: string | null;
+  assigned_sale_name?: string | null;
+  credit_limit: number;
+  current_debt: number;
+  total_overdue: number;
+  max_overdue_days: number;
+  max_debt_age: number;
+  debt_overdue_over_90: number;
+  risk_level_label: string;
+  reason: string;
+}
+
+export interface DebtAgingSummary {
+  total_debt: number;
+  total_overdue: number;
+  total_current: number;
+  total_overdue_1_30: number;
+  total_overdue_31_60: number;
+  total_overdue_61_90: number;
+  total_overdue_over_90: number;
+  total_dealers_count: number;
+  overdue_dealers_count: number;
+  highest_risk_dealer?: HighestRiskDealer | null;
+}
+
+export interface DebtAgingReportParams {
+  assigned_sale_id?: number | string;
+  risk_level?: string;
+  search?: string;
+}
+
+export interface DebtAgingReportResponse {
+  summary: DebtAgingSummary;
+  items: DebtAgingItem[];
+  sales_list: { id: number; name: string }[];
+}
+
+export async function getDebtAgingReportApi(
+  token: string,
+  params?: DebtAgingReportParams
+): Promise<DebtAgingReportResponse> {
+  const query = new URLSearchParams();
+  if (params?.assigned_sale_id && params.assigned_sale_id !== 'all') {
+    query.set('assigned_sale_id', String(params.assigned_sale_id));
+  }
+  if (params?.risk_level && params.risk_level !== 'all') {
+    query.set('risk_level', params.risk_level);
+  }
+  if (params?.search && params.search.trim()) {
+    query.set('search', params.search.trim());
+  }
+
+  const url = `${API_BASE_URL}/dealers/debt-aging-report${query.toString() ? `?${query.toString()}` : ''}`;
+  const response = await authenticatedFetch(url, { method: 'GET' }, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi tải báo cáo tuổi nợ (${response.status})`);
+  }
+  return data;
+}
+
+export interface ExecutiveKpiMetrics {
+  revenue_today: number;
+  revenue_today_growth: number;
+  revenue_this_month: number;
+  revenue_this_month_growth: number;
+  pending_approval_orders_count: number;
+  pending_export_orders_count: number;
+  total_overdue_debt: number;
+  low_stock_skus_count: number;
+}
+
+export interface ExecutiveDailyRevenueItem {
+  day: number;
+  date: string;
+  revenue: number;
+  is_today: boolean;
+}
+
+export interface ExecutiveRegionRevenueItem {
+  region: string;
+  revenue: number;
+  percentage: number;
+}
+
+export interface ExecutiveOverdueDealerItem {
+  dealer_id: number;
+  dealer_code: string;
+  dealer_name: string;
+  phone: string;
+  overdue_days: number;
+  overdue_amount: number;
+  total_debt: number;
+  credit_limit: number;
+}
+
+export interface ExecutiveDashboardResponse {
+  kpis: ExecutiveKpiMetrics;
+  daily_revenue: ExecutiveDailyRevenueItem[];
+  revenue_by_region: ExecutiveRegionRevenueItem[];
+  top_overdue_dealers: ExecutiveOverdueDealerItem[];
+  updated_at: string;
+}
+
+export async function getExecutiveMetricsApi(token: string): Promise<ExecutiveDashboardResponse> {
+  const url = `${API_BASE_URL}/dashboard/executive-metrics`;
+  const response = await authenticatedFetch(url, { method: 'GET' }, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi tải dữ liệu Dashboard điều hành (${response.status})`);
+  }
+  return data;
+}
+
