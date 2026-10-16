@@ -277,6 +277,45 @@
   text-align: right;
 }
 
+/* Responsive visibility helpers */
+.order-print-mobile-only {
+  display: none !important;
+}
+
+.order-print-desktop-only {
+  display: inline !important;
+}
+
+/* Picking Table Columns (Desktop default & Print) */
+.order-print-picking-table .order-print-col-stt {
+  width: 32px;
+  text-align: center;
+}
+.order-print-picking-table .order-print-col-loc {
+  width: 145px;
+}
+.order-print-picking-table .order-print-col-sku {
+  width: 85px;
+}
+.order-print-picking-table .order-print-col-product {
+  width: auto;
+}
+.order-print-picking-table .order-print-col-breakdown {
+  width: 135px;
+}
+.order-print-picking-table .order-print-col-qty {
+  width: 55px;
+  text-align: center;
+}
+.order-print-picking-table .order-print-col-picked {
+  width: 60px;
+  text-align: center;
+}
+.order-print-picking-table .order-print-col-note {
+  width: 85px;
+  text-align: center;
+}
+
 /* Totals Summary */
 .order-print-summary-box {
   display: flex;
@@ -387,6 +426,289 @@
 }
 
 /* =========================================================
+   MOBILE RESPONSIVE STYLES (@media screen and (max-width: 768px))
+   Tối ưu hiển thị phiếu xem trước trên điện thoại di động
+   - Chống vỡ layout, chống tràn barcode
+   - Tránh việc co ép tên công ty thành 1 chữ/dòng
+   - Cho phép vuốt ngang bảng sản phẩm để hiển thị đầy đủ các cột
+   ========================================================= */
+@media screen and (max-width: 768px) {
+  /* Hiển thị các phần tử dành riêng cho điện thoại */
+  .order-print-mobile-only {
+    display: inline !important;
+  }
+
+  .order-print-desktop-only {
+    display: none !important;
+  }
+
+  .order-print-backdrop {
+    padding: 6px;
+  }
+
+  .order-print-dialog {
+    width: 100%;
+    max-width: 100%;
+    height: 98vh;
+    max-height: 98vh;
+    border-radius: 8px;
+  }
+
+  /* Khắc phục triệt để lỗi toolbar che chữ & tạo vùng cuộn tách biệt an toàn */
+  .order-print-toolbar {
+    padding: 10px 14px;
+    gap: 8px;
+    background-color: #1e293b;
+    border-bottom: 2px solid #334155;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+    z-index: 10;
+    position: relative;
+  }
+
+  .order-print-toolbar-title {
+    font-size: 13.5px;
+    width: 100%;
+  }
+
+  .order-print-toolbar-actions {
+    flex-wrap: nowrap;
+    gap: 6px;
+  }
+
+  .order-print-actions-left {
+    gap: 6px;
+  }
+
+  .order-print-btn {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+
+  .order-print-preview-container {
+    padding: 14px 8px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scroll-padding-top: 16px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .order-print-paper {
+    padding: 16px 10px;
+    width: 100%;
+    max-width: 100%;
+    font-size: 11.5px;
+    box-shadow: none;
+    border: 1px solid #cbd5e1;
+    margin: 0 auto;
+    box-sizing: border-box;
+  }
+
+  /* Header trên điện thoại xếp dọc ở giữa, tên công ty và barcode không bị ép co rút */
+  .order-print-header {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 12px;
+    margin-bottom: 14px;
+    padding-bottom: 12px;
+  }
+
+  .order-print-company {
+    max-width: 100%;
+    text-align: center;
+  }
+
+  .order-print-company-name {
+    font-size: 14px;
+    margin-bottom: 4px;
+    line-height: 1.35;
+    text-align: center;
+  }
+
+  .order-print-company-sub {
+    font-size: 11px;
+    text-align: center;
+    line-height: 1.35;
+  }
+
+  .order-print-barcode-box {
+    align-items: center;
+    text-align: center;
+    width: 100%;
+    max-width: 100%;
+    overflow: hidden;
+  }
+
+  .order-print-barcode-badge {
+    font-size: 10px;
+  }
+
+  .barcode-container {
+    max-width: 100%;
+    overflow: hidden;
+  }
+
+  .barcode-container svg {
+    max-width: 100% !important;
+    height: auto !important;
+  }
+
+  .order-print-title-section {
+    margin-bottom: 14px;
+  }
+
+  .order-print-doc-title {
+    font-size: 16px;
+    letter-spacing: 0.5px;
+  }
+
+  .order-print-doc-subtitle {
+    font-size: 11.5px;
+  }
+
+  /* Khung thông tin phiếu xếp 1 cột trên điện thoại */
+  .order-print-info-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    padding: 10px 12px;
+    margin-bottom: 14px;
+  }
+
+  .order-print-info-row {
+    font-size: 11.5px;
+    margin-bottom: 3px;
+  }
+
+  .order-print-info-label {
+    width: 110px;
+  }
+
+  /* Bảng sản phẩm chung */
+  .order-print-table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    width: 100%;
+    margin-bottom: 14px;
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+  }
+
+  .order-print-table {
+    min-width: 580px;
+    font-size: 11.5px;
+  }
+
+  .order-print-table th,
+  .order-print-table td {
+    padding: 6px 8px;
+  }
+
+  /* BẢNG PHIẾU SOẠN HÀNG TRÊN ĐIỆN THOẠI: Vừa vặn 100% màn hình, không tràn mép, triệt tiêu lỗi che chữ */
+  .order-print-paper .order-print-table-wrap:has(.order-print-picking-table) {
+    overflow-x: hidden !important;
+    border-radius: 6px;
+  }
+
+  .order-print-picking-table {
+    width: 100% !important;
+    min-width: 0 !important;
+    table-layout: fixed !important;
+    font-size: 11px !important;
+  }
+
+  .order-print-picking-table th,
+  .order-print-picking-table td {
+    padding: 6px 3px !important;
+    word-break: break-word;
+    overflow-wrap: break-word;
+    vertical-align: middle;
+  }
+
+  /* Ẩn cột SKU riêng và cột Ký trên điện thoại để 6 cột cốt lõi hiển thị trọn vẹn không bị cắt mép */
+  .order-print-picking-table .order-print-col-sku,
+  .order-print-picking-table .order-print-col-note {
+    display: none !important;
+  }
+
+  /* Tỷ lệ cột trên điện thoại: Tinh chỉnh khớp từng pixel */
+  .order-print-picking-table .order-print-col-stt {
+    width: 24px !important;
+    text-align: center;
+  }
+
+  .order-print-picking-table .order-print-col-loc {
+    width: 78px !important;
+  }
+
+  .order-print-picking-table .order-print-col-product {
+    width: auto !important;
+  }
+
+  .order-print-picking-table .order-print-col-breakdown {
+    width: 82px !important;
+  }
+
+  .order-print-picking-table .order-print-col-qty {
+    width: 36px !important;
+    text-align: center;
+  }
+
+  .order-print-picking-table .order-print-col-picked {
+    width: 42px !important;
+    text-align: center;
+  }
+
+  .order-print-mobile-sku {
+    display: inline-block !important;
+    font-size: 9.5px;
+    color: #475569;
+    background: #f1f5f9;
+    padding: 1px 3px;
+    border-radius: 2px;
+    margin-top: 2px;
+    font-family: monospace;
+  }
+
+  .order-print-breakdown-row {
+    font-size: 10px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .order-print-summary-box {
+    justify-content: stretch;
+    width: 100%;
+    margin-bottom: 14px;
+  }
+
+  .order-print-totals-table {
+    width: 100%;
+    font-size: 12px;
+  }
+
+  .order-print-signatures {
+    gap: 16px;
+    margin-top: 16px;
+  }
+
+  .order-print-sign-space {
+    height: 45px;
+  }
+
+  .order-print-sign-name {
+    min-width: 120px;
+    font-size: 11.5px;
+  }
+
+  .order-print-footer-note {
+    margin-top: 16px;
+    font-size: 10px;
+    line-height: 1.3;
+  }
+}
+
+/* =========================================================
    PRINT MEDIA STYLES (@media print)
    Khắc phục triệt để lỗi trang trắng và gom trọn vẹn trong 1 trang A4 duy nhất
    ========================================================= */
@@ -396,9 +718,10 @@
     margin: 6mm 10mm;
   }
 
-  /* 1. Ẩn hoàn toàn toàn bộ ứng dụng web (#root) và các modal khác để không chiếm chiều cao trang */
-  #root,
-  body > :not(.order-print-backdrop) {
+  /* 1. Ẩn hoàn toàn ứng dụng web (#root) và các thành phần khác khi đang mở modal in để không chiếm chiều cao trang */
+  body:has(.order-print-backdrop) #root,
+  body.has-print-modal #root,
+  body > :not(.order-print-backdrop):not(#root) {
     display: none !important;
     visibility: hidden !important;
     height: 0 !important;
@@ -475,18 +798,36 @@
   }
 
   .order-print-header {
+    display: flex !important;
+    flex-direction: row !important;
+    justify-content: space-between !important;
+    align-items: flex-start !important;
     margin-bottom: 8px !important;
     padding-bottom: 6px !important;
     border-bottom: 1.5px solid #000000 !important;
   }
 
+  .order-print-company {
+    max-width: 440px !important;
+    text-align: left !important;
+  }
+
   .order-print-company-name {
     font-size: 13pt !important;
+    text-align: left !important;
   }
 
   .order-print-company-sub {
     font-size: 8.5pt !important;
     line-height: 1.3 !important;
+    text-align: left !important;
+  }
+
+  .order-print-barcode-box {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-end !important;
+    text-align: right !important;
   }
 
   .order-print-title-section {
@@ -500,6 +841,8 @@
   }
 
   .order-print-info-grid {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
     margin-bottom: 8px !important;
     padding: 6px 10px !important;
     gap: 10px !important;
@@ -538,6 +881,20 @@
     print-color-adjust: exact;
   }
 
+  /* Khôi phục 100% cấu trúc 8 cột chuẩn A4 cho phiếu soạn hàng khi in thật hoặc xuất PDF */
+  .order-print-mobile-only {
+    display: none !important;
+  }
+
+  .order-print-desktop-only {
+    display: inline !important;
+  }
+
+  .order-print-picking-table .order-print-col-sku,
+  .order-print-picking-table .order-print-col-note {
+    display: table-cell !important;
+  }
+
   .order-print-summary-box {
     margin-bottom: 6px !important;
   }
@@ -569,7 +926,10 @@
     margin-bottom: 10px !important;
   }
 
-  .order-print-signatures {
+  .order-print-signatures,
+  .order-print-picking-signatures {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr 1fr !important;
     margin-top: 10px !important;
     gap: 16px !important;
     page-break-inside: avoid !important;

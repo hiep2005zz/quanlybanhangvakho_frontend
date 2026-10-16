@@ -10,6 +10,7 @@ export interface ProductSelectDropdownProps {
   id?: string;
   compact?: boolean;
   autoSelectFirst?: boolean;
+  dropdownMaxHeight?: string;
   fallbackProduct?: {
     id?: number;
     code?: string;
@@ -27,6 +28,7 @@ export const ProductSelectDropdown: React.FC<ProductSelectDropdownProps> = ({
   id = 'product-select-infinite-dropdown',
   compact = false,
   autoSelectFirst = false,
+  dropdownMaxHeight,
   fallbackProduct = null,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -223,12 +225,19 @@ export const ProductSelectDropdown: React.FC<ProductSelectDropdownProps> = ({
     };
   }, []);
 
-  // Tự động focus ô tìm kiếm khi mở dropdown
+  // Tự động focus ô tìm kiếm & đảm bảo danh sách cuộn lên đầu khi mở dropdown
   useEffect(() => {
     if (isOpen) {
-      setTimeout(() => {
-        searchInputRef.current?.focus();
+      if (listContainerRef.current) {
+        listContainerRef.current.scrollTop = 0;
+      }
+      const timer = setTimeout(() => {
+        searchInputRef.current?.focus({ preventScroll: true });
+        if (listContainerRef.current) {
+          listContainerRef.current.scrollTop = 0;
+        }
       }, 50);
+      return () => clearTimeout(timer);
     }
   }, [isOpen]);
 
@@ -300,14 +309,15 @@ export const ProductSelectDropdown: React.FC<ProductSelectDropdownProps> = ({
       {/* Menu Dropdown đổ xuống có thanh tìm kiếm & Infinite Scroll */}
       {isOpen && (
         <div
+          onWheel={(e) => e.stopPropagation()}
           className="absolute top-full left-0 right-0 w-full mt-1.5 z-50 bg-white rounded-xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col"
           style={{
-            maxHeight: '380px',
+            maxHeight: dropdownMaxHeight ? `calc(${dropdownMaxHeight} + 65px)` : '380px',
             zIndex: 9999,
           }}
         >
           {/* Hộp tìm kiếm sản phẩm phía trên */}
-          <div className="p-2.5 bg-slate-50 border-b border-slate-200 space-y-2 shrink-0">
+          <div className="p-2.5 bg-slate-50/90 backdrop-blur-xs border-b border-slate-200 space-y-2 shrink-0">
             <div className="relative flex items-center">
               <svg
                 width="15"
@@ -364,8 +374,11 @@ export const ProductSelectDropdown: React.FC<ProductSelectDropdownProps> = ({
           <div
             ref={listContainerRef}
             onScroll={handleScroll}
-            className="overflow-y-auto max-h-[260px] divide-y divide-slate-100"
-            style={{ overscrollBehavior: 'contain' }}
+            className="overflow-y-auto divide-y divide-slate-100"
+            style={{
+              overscrollBehavior: 'contain',
+              maxHeight: dropdownMaxHeight || '260px',
+            }}
           >
             {isLoading && products.length === 0 ? (
               <div className="p-6 text-center text-xs font-semibold text-emerald-700 flex items-center justify-center gap-2">
