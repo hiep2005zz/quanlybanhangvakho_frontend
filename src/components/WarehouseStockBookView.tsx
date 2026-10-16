@@ -9,6 +9,7 @@ import { StockCardModal } from './StockCardModal';
 interface WarehouseStockBookViewProps {
   token: string;
   onBackToHome?: () => void;
+  onOpenTurnoverReport?: () => void;
   onNavigateToAdjustments?: () => void;
   currentUser?: {
     id?: number;
@@ -21,6 +22,7 @@ interface WarehouseStockBookViewProps {
 export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
   token,
   onBackToHome: _onBackToHome,
+  onOpenTurnoverReport: _onOpenTurnoverReport,
   onNavigateToAdjustments,
   currentUser,
 }) => {

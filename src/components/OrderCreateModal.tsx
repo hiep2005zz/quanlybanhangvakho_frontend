@@ -438,6 +438,18 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
     // Reset Dropdown ngay lập tức để người dùng có thể tiếp tục chọn sản phẩm khác
     e.target.value = '';
 
+    const stockItem = stockMap.get(pId);
+    const availableStock = stockItem ? stockItem.available_stock : (prod.stock ?? 0);
+    const isOutOfStock = availableStock <= 0 || prod.status === 'out_of_stock' || prod.status === 'inactive';
+    if (isOutOfStock) {
+      emitStatusToast({
+        title: 'Hết hàng',
+        message: `Sản phẩm "${prod.name}" hiện đã hết hàng tại kho, không thể chọn đặt hàng!`,
+        type: 'warning',
+      });
+      return;
+    }
+
     // Kiểm tra xem sản phẩm đã có trong danh sách hay chưa
     const existingIndex = orderItems.findIndex((item) => item.productId === pId);
     if (existingIndex >= 0) {
@@ -1275,9 +1287,12 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
               <option value="">-- Bấm vào đây để chọn và thêm sản phẩm vào danh sách --</option>
               {products.map((p) => {
                 const isAdded = orderItems.some((item) => item.productId === p.id);
+                const stockItem = stockMap.get(p.id);
+                const availableStock = stockItem ? stockItem.available_stock : (p.stock ?? 0);
+                const isOutOfStock = availableStock <= 0 || p.status === 'out_of_stock' || p.status === 'inactive';
                 return (
-                  <option key={p.id} value={p.id}>
-                    {p.code} - {p.name} (Tồn: {p.stock} {p.base_unit || 'Cái'}){isAdded ? ' [Đã có trong đơn]' : ''}
+                  <option key={p.id} value={p.id} disabled={isOutOfStock}>
+                    {p.code} - {p.name} {isOutOfStock ? '[HẾT HÀNG]' : `(Tồn: ${availableStock} ${p.base_unit || 'Cái'})`}{isAdded ? ' [Đã có trong đơn]' : ''}
                   </option>
                 );
               })}
