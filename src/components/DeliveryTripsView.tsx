@@ -166,7 +166,9 @@ const SearchableCombobox: React.FC<SearchableComboboxProps> = ({
             position: 'absolute',
             top: 'calc(100% + 4px)',
             left: 0,
-            right: 0,
+            minWidth: '100%',
+            width: 'max-content',
+            maxWidth: '380px',
             maxHeight: '220px',
             overflowY: 'auto',
             background: '#ffffff',
@@ -225,8 +227,8 @@ const SearchableCombobox: React.FC<SearchableComboboxProps> = ({
                       padding: '2px 6px',
                       borderRadius: '4px',
                       fontWeight: '700',
-                      background: opt.isBusy ? '#fee2e2' : '#dcfce7',
-                      color: opt.isBusy ? '#b91c1c' : '#15803d',
+                      background: opt.isBusy || opt.badge === 'Tạm dừng' ? '#fee2e2' : '#dcfce7',
+                      color: opt.isBusy || opt.badge === 'Tạm dừng' ? '#b91c1c' : '#15803d',
                       whiteSpace: 'nowrap',
                       marginLeft: '6px',
                     }}
@@ -360,7 +362,11 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
       setWarehouses(warehousesRes);
 
       // Lấy kho hoạt động đầu tiên từ database làm giá trị ban đầu nếu có
-      const activeWh = warehousesRes.find((w: any) => w.status === 'ACTIVE' || w.status === 'active') || warehousesRes[0];
+      const activeWh =
+        warehousesRes.find((w: any) => {
+          const s = String(w.status || '').toLowerCase().trim();
+          return !s || s === 'active' || s === 'hoạt động' || s === 'đang hoạt động' || Boolean(w.is_active);
+        }) || warehousesRes[0];
       if (activeWh) {
         setCreateWarehouseName(activeWh.name);
       } else {
@@ -1319,7 +1325,7 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: '135px 165px 1.2fr 1.2fr 1.8fr',
+              gridTemplateColumns: '135px 220px 1.2fr 1.2fr 1.8fr',
               gap: '10px',
               alignItems: 'end',
             }}
@@ -1351,13 +1357,17 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
               <SearchableCombobox
                 value={createWarehouseName}
                 displayValue={createWarehouseName}
-                options={warehouses.map((w) => ({
-                  value: w.name,
-                  label: w.name,
-                  subLabel: `${w.code} • ${w.address || 'Kho hàng'}`,
-                  badge: (w.status || 'ACTIVE').toUpperCase() === 'ACTIVE' ? 'Hoạt động' : 'Tạm dừng',
-                  disabled: (w.status || 'ACTIVE').toUpperCase() !== 'ACTIVE',
-                }))}
+                options={warehouses.map((w) => {
+                  const s = String(w.status || '').toLowerCase().trim();
+                  const isActive = !s || s === 'active' || s === 'hoạt động' || s === 'đang hoạt động' || Boolean(w.is_active);
+                  return {
+                    value: w.name,
+                    label: w.name,
+                    subLabel: `${w.code || ''} • ${w.address || 'Kho hàng'}`,
+                    badge: isActive ? 'Hoạt động' : 'Tạm dừng',
+                    disabled: false,
+                  };
+                })}
                 placeholder="Nhập hoặc chọn kho từ database..."
                 allowCustomText={true}
                 onChange={(val) => setCreateWarehouseName(val)}
@@ -1758,64 +1768,102 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
             padding: '8px 14px',
             borderBottom: '1px solid #f1f5f9',
             display: 'flex',
-            gap: '10px',
+            gap: '12px',
             flexWrap: 'nowrap',
             alignItems: 'center',
             background: '#f8fafc',
             flexShrink: 0,
           }}
         >
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Tìm theo mã chuyến, tài xế, biển số..."
-            style={{
-              flex: 1,
-              padding: '6px 12px',
-              borderRadius: '6px',
-              border: '1px solid #cbd5e1',
-              fontSize: '12px',
-              color: '#0f172a',
-              boxSizing: 'border-box',
-            }}
-          />
+          <div style={{ position: 'relative', width: '300px', flexShrink: 0 }}>
+            <span
+              style={{
+                position: 'absolute',
+                left: '10px',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                color: '#94a3b8',
+                display: 'flex',
+                alignItems: 'center',
+                pointerEvents: 'none',
+              }}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="11" cy="11" r="8" />
+                <path d="m21 21-4.3-4.3" />
+              </svg>
+            </span>
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Tìm theo mã chuyến, tài xế, biển số..."
+              style={{
+                width: '100%',
+                padding: '6px 12px 6px 30px',
+                borderRadius: '6px',
+                border: '1px solid #cbd5e1',
+                fontSize: '12px',
+                color: '#0f172a',
+                background: '#ffffff',
+                boxSizing: 'border-box',
+                outline: 'none',
+              }}
+            />
+          </div>
 
-          <input
-            type="date"
-            value={dateFilter}
-            onChange={(e) => setDateFilter(e.target.value)}
-            style={{
-              padding: '5px 10px',
-              borderRadius: '6px',
-              border: '1px solid #cbd5e1',
-              fontSize: '12px',
-              color: '#0f172a',
-              whiteSpace: 'nowrap',
-            }}
-          />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+            <span style={{ fontSize: '11.5px', color: '#64748b', fontWeight: '600', whiteSpace: 'nowrap' }}>
+              Ngày giao:
+            </span>
+            <input
+              type="date"
+              value={dateFilter}
+              onChange={(e) => setDateFilter(e.target.value)}
+              style={{
+                width: '135px',
+                flexShrink: 0,
+                padding: '5px 8px',
+                borderRadius: '6px',
+                border: '1px solid #cbd5e1',
+                fontSize: '12px',
+                color: '#0f172a',
+                background: '#ffffff',
+                boxSizing: 'border-box',
+                outline: 'none',
+              }}
+            />
+          </div>
 
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            style={{
-              padding: '5px 10px',
-              borderRadius: '6px',
-              border: '1px solid #cbd5e1',
-              fontSize: '12px',
-              color: '#0f172a',
-              background: '#ffffff',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            <option value="ALL">Tất cả trạng thái</option>
-            <option value="DRAFT">Nháp</option>
-            <option value="ASSIGNED">Đã phân công</option>
-            <option value="IN_PROGRESS">Đang giao hàng</option>
-            <option value="COMPLETED">Hoàn thành</option>
-            <option value="PARTIALLY_FAILED">Có điểm thất bại</option>
-            <option value="CANCELLED">Đã hủy</option>
-          </select>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+            <span style={{ fontSize: '11.5px', color: '#64748b', fontWeight: '600', whiteSpace: 'nowrap' }}>
+              Trạng thái:
+            </span>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              style={{
+                width: '150px',
+                flexShrink: 0,
+                padding: '5px 8px',
+                borderRadius: '6px',
+                border: '1px solid #cbd5e1',
+                fontSize: '12px',
+                color: '#0f172a',
+                background: '#ffffff',
+                boxSizing: 'border-box',
+                outline: 'none',
+              }}
+            >
+              <option value="ALL">Tất cả trạng thái</option>
+              <option value="DRAFT">Nháp</option>
+              <option value="ASSIGNED">Đã phân công</option>
+              <option value="IN_PROGRESS">Đang giao hàng</option>
+              <option value="COMPLETED">Hoàn thành</option>
+              <option value="PARTIALLY_FAILED">Có điểm thất bại</option>
+              <option value="CANCELLED">Đã hủy</option>
+            </select>
+          </div>
 
           {(searchTerm || dateFilter || statusFilter !== 'ALL') && (
             <button
@@ -1828,15 +1876,17 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
               style={{
                 padding: '5px 10px',
                 background: '#ffffff',
-                border: '1px solid #cbd5e1',
+                border: '1px solid #fca5a5',
                 borderRadius: '6px',
                 fontSize: '11.5px',
-                color: '#475569',
+                fontWeight: '600',
+                color: '#dc2626',
                 cursor: 'pointer',
                 whiteSpace: 'nowrap',
+                flexShrink: 0,
               }}
             >
-              Xóa bộ lọc
+              ✕ Xóa lọc
             </button>
           )}
         </div>
