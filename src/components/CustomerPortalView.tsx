@@ -106,6 +106,9 @@ export const CustomerPortalView: React.FC<CustomerPortalViewProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submittedOrder, setSubmittedOrder] = useState<any | null>(null);
 
+  // State modal xác nhận xóa toàn bộ giỏ hàng (thay thế hoàn toàn window.confirm / localhost:5173 cho biết)
+  const [showClearCartConfirm, setShowClearCartConfirm] = useState<boolean>(false);
+
   // Search & Filter
   const [searchKeyword, setSearchKeyword] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -296,9 +299,10 @@ export const CustomerPortalView: React.FC<CustomerPortalViewProps> = ({
       return [...prev, { product, quantity: qty }];
     });
     emitStatusToast({
-      type: 'info',
-      title: 'Giỏ hàng',
-      message: `Đã thêm "${product.name}" vào giỏ hàng.`,
+      actionType: 'create',
+      type: 'success',
+      title: 'Thêm vào giỏ hàng',
+      message: `Đã thêm "${product.name}" vào giỏ hàng thành công.`,
     });
   };
 
@@ -388,24 +392,35 @@ export const CustomerPortalView: React.FC<CustomerPortalViewProps> = ({
   };
 
   // Xóa khỏi giỏ
-  const handleRemoveFromCart = (productId: number) => {
+  const handleRemoveFromCart = (productId: number, productName?: string) => {
     setCart((prev) => prev.filter((item) => item.product.id !== productId));
+    emitStatusToast({
+      actionType: 'delete',
+      type: 'success',
+      title: 'Xóa sản phẩm',
+      message: `Đã xóa sản phẩm ${productName ? `"${productName}"` : ''} khỏi giỏ hàng.`,
+    });
   };
 
-  // Làm trống toàn bộ giỏ hàng
+  // Mở modal xác nhận làm trống toàn bộ giỏ hàng (thay thế hoàn toàn window.confirm / localhost:5173)
   const handleClearCart = () => {
     if (cart.length === 0) return;
-    if (window.confirm('Bạn có chắc chắn muốn xóa toàn bộ sản phẩm trong giỏ hàng không?')) {
-      setCart([]);
-      try {
-        localStorage.removeItem(CART_STORAGE_KEY);
-      } catch {}
-      emitStatusToast({
-        type: 'info',
-        title: 'Giỏ hàng',
-        message: 'Đã làm trống giỏ hàng.',
-      });
-    }
+    setShowClearCartConfirm(true);
+  };
+
+  // Thực hiện xóa sạch giỏ hàng khi người dùng bấm xác nhận trên Modal
+  const handleConfirmClearCart = () => {
+    setCart([]);
+    try {
+      localStorage.removeItem(CART_STORAGE_KEY);
+    } catch {}
+    setShowClearCartConfirm(false);
+    emitStatusToast({
+      actionType: 'delete',
+      type: 'success',
+      title: 'Xóa giỏ hàng',
+      message: 'Đã xóa toàn bộ sản phẩm trong giỏ hàng thành công.',
+    });
   };
 
   // Tính tổng tiền giỏ hàng
@@ -507,6 +522,7 @@ export const CustomerPortalView: React.FC<CustomerPortalViewProps> = ({
       } catch {}
       setOrderNote('');
       emitStatusToast({
+        actionType: 'create',
         type: 'success',
         title: 'Đặt hàng thành công',
         message: `Đơn hàng ${result.order_code || ''} đã gửi thành công! Đang chờ Nhân viên phụ trách duyệt.`,
@@ -1268,7 +1284,7 @@ export const CustomerPortalView: React.FC<CustomerPortalViewProps> = ({
                             {/* Nút xóa */}
                             <button
                               type="button"
-                              onClick={() => handleRemoveFromCart(item.product.id)}
+                              onClick={() => handleRemoveFromCart(item.product.id, item.product.name)}
                               className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
                               title="Xóa khỏi giỏ"
                             >
@@ -1524,6 +1540,114 @@ export const CustomerPortalView: React.FC<CustomerPortalViewProps> = ({
                   Xem đơn hàng của tôi
                 </button>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Xác Nhận Xóa Sạch Giỏ Hàng (Thay cho window.confirm / popup localhost:5173 cho biết) */}
+      {showClearCartConfirm && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(15, 23, 42, 0.45)',
+            backdropFilter: 'blur(5px)',
+            WebkitBackdropFilter: 'blur(5px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 99999,
+            padding: '20px',
+            boxSizing: 'border-box',
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowClearCartConfirm(false);
+          }}
+        >
+          <div
+            style={{
+              background: '#ffffff',
+              border: '1px solid #fee2e2',
+              borderRadius: '20px',
+              width: '100%',
+              maxWidth: '440px',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+              overflow: 'hidden',
+              color: '#0f172a',
+              textAlign: 'center',
+              padding: '28px 24px',
+              animation: 'fadeInCard 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+            }}
+          >
+            {/* Red Warning/Trash Icon */}
+            <div
+              style={{
+                width: '60px',
+                height: '60px',
+                borderRadius: '50%',
+                background: '#fee2e2',
+                border: '2px solid #fecaca',
+                color: '#dc2626',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: '0 auto 16px',
+              }}
+            >
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                <line x1="10" y1="11" x2="10" y2="17" />
+                <line x1="14" y1="11" x2="14" y2="17" />
+              </svg>
+            </div>
+
+            <h3 style={{ fontSize: '18px', fontWeight: 800, margin: '0 0 8px', color: '#0f172a' }}>
+              Xóa Sạch Giỏ Hàng?
+            </h3>
+
+            <p style={{ fontSize: '14px', color: '#475569', lineHeight: 1.6, margin: '0 0 20px' }}>
+              Bạn có chắc chắn muốn xóa toàn bộ <strong style={{ color: '#dc2626' }}>{totalCartCount} sản phẩm</strong> trong giỏ hàng không? Thao tác này không thể hoàn tác.
+            </p>
+
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '12px' }}>
+              <button
+                type="button"
+                onClick={() => setShowClearCartConfirm(false)}
+                style={{
+                  flex: 1,
+                  padding: '10px 18px',
+                  borderRadius: '12px',
+                  border: '1px solid #cbd5e1',
+                  background: '#ffffff',
+                  color: '#475569',
+                  fontWeight: 600,
+                  fontSize: '14px',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                }}
+              >
+                Huỷ bỏ
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmClearCart}
+                style={{
+                  flex: 1,
+                  padding: '10px 18px',
+                  borderRadius: '12px',
+                  border: 'none',
+                  background: '#dc2626',
+                  color: '#ffffff',
+                  fontWeight: 700,
+                  fontSize: '14px',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 12px rgba(220, 38, 38, 0.35)',
+                  transition: 'all 0.2s',
+                }}
+              >
+                Xóa sạch giỏ hàng
+              </button>
             </div>
           </div>
         </div>

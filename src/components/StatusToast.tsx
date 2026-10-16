@@ -71,66 +71,99 @@ export const StatusToastHost: React.FC = () => {
       const lowerTitle = rawTitle.toLowerCase();
       const lowerMsg = cleanedMsg.toLowerCase();
 
-      // Nhận diện hành động Thêm mới, Chỉnh sửa, hoặc Xóa
-      let detectedAction: 'create' | 'update' | 'delete' | null = d.actionType && d.actionType !== 'export' ? d.actionType : null;
+      // Nhận diện hành động Thao tác:
+      let detectedAction: 'create' | 'update' | 'delete' | null =
+        d.actionType && d.actionType !== 'export' ? d.actionType : null;
+
       if (!detectedAction) {
-        if (lowerTitle.includes('xóa') || lowerMsg.includes('đã xóa') || lowerMsg.includes('xóa thành công')) {
+        if (
+          lowerTitle.includes('xóa') ||
+          lowerTitle.includes('hủy') ||
+          lowerTitle.includes('làm trống') ||
+          lowerTitle.includes('delete') ||
+          lowerTitle.includes('remove') ||
+          lowerMsg.includes('đã xóa') ||
+          lowerMsg.includes('xóa thành công') ||
+          lowerMsg.includes('xóa khỏi') ||
+          lowerMsg.includes('đã hủy') ||
+          lowerMsg.includes('hủy thành công') ||
+          lowerMsg.includes('đã làm trống') ||
+          lowerMsg.includes('làm trống giỏ')
+        ) {
           detectedAction = 'delete';
-        } else if (lowerTitle.includes('thêm') || lowerTitle.includes('tạo') || lowerMsg.includes('thêm mới') || lowerMsg.includes('đã tạo')) {
+        } else if (
+          lowerTitle.includes('thêm') ||
+          lowerTitle.includes('tạo') ||
+          lowerTitle.includes('đặt hàng') ||
+          lowerTitle.includes('create') ||
+          lowerTitle.includes('add') ||
+          lowerMsg.includes('thêm mới') ||
+          lowerMsg.includes('đã thêm') ||
+          lowerMsg.includes('thêm vào giỏ') ||
+          lowerMsg.includes('đã tạo') ||
+          lowerMsg.includes('gửi thành công') ||
+          lowerMsg.includes('đặt hàng thành công') ||
+          lowerMsg.includes('tạo thành công')
+        ) {
           detectedAction = 'create';
-        } else if (lowerTitle.includes('sửa') || lowerTitle.includes('cập nhật') || lowerMsg.includes('đã cập nhật') || lowerMsg.includes('cập nhật')) {
+        } else if (
+          lowerTitle.includes('sửa') ||
+          lowerTitle.includes('cập nhật') ||
+          lowerTitle.includes('điều chỉnh') ||
+          lowerTitle.includes('thay đổi') ||
+          lowerTitle.includes('update') ||
+          lowerMsg.includes('đã cập nhật') ||
+          lowerMsg.includes('cập nhật thành công') ||
+          lowerMsg.includes('đã điều chỉnh') ||
+          lowerMsg.includes('điều chỉnh thành')
+        ) {
           detectedAction = 'update';
         }
       }
 
-      // Kiểm tra xem có phải là thông báo thành công hay không
-      const isExplicitSuccess =
-        (lowerTitle.includes('thành công') ||
-          lowerTitle.includes('success') ||
-          lowerTitle.includes('hoàn tất') ||
-          lowerTitle.includes('đã tạo') ||
-          lowerTitle.includes('đã thêm') ||
-          lowerTitle.includes('đã lưu') ||
-          lowerTitle.includes('đã cập nhật') ||
-          lowerTitle.includes('đã xóa') ||
-          lowerMsg.includes('thành công') ||
-          lowerMsg.includes('đã thêm mới')) &&
-        !lowerTitle.includes('không thành công') &&
-        !lowerMsg.includes('không thành công');
-
-      // Tự động nhận diện loại thông báo nếu chưa truyền hoặc có dấu hiệu lỗi / cảnh báo
+      // Nhận diện lỗi hoặc cảnh báo
       let determinedType = d.type;
 
-      if (isExplicitSuccess) {
+      const isErrorKeyword =
+        lowerTitle.includes('lỗi') ||
+        lowerTitle.includes('thất bại') ||
+        lowerTitle.includes('từ chối') ||
+        lowerTitle.includes('error') ||
+        lowerTitle.includes('fail') ||
+        lowerTitle.includes('hỏng') ||
+        lowerTitle.includes('không thể') ||
+        lowerTitle.includes('chặn') ||
+        lowerMsg.includes('thất bại') ||
+        (lowerMsg.includes('lỗi') &&
+          !lowerMsg.includes('0 lỗi') &&
+          !lowerMsg.includes('không có lỗi') &&
+          !lowerMsg.includes('bỏ qua lỗi'));
+
+      const isWarningKeyword =
+        lowerTitle.includes('cảnh báo') ||
+        lowerTitle.includes('chú ý') ||
+        lowerTitle.includes('warning') ||
+        lowerTitle.includes('hết hàng') ||
+        lowerTitle.includes('vượt quá') ||
+        lowerTitle.includes('tồn kho giới hạn') ||
+        lowerMsg.includes('vượt quá tồn kho') ||
+        lowerMsg.includes('đã hết hàng') ||
+        lowerMsg.includes('vui lòng chọn') ||
+        lowerMsg.includes('chưa chọn') ||
+        lowerMsg.includes('giỏ hàng đang trống');
+
+      if (determinedType === 'error' || isErrorKeyword) {
+        determinedType = 'error';
+      } else if (determinedType === 'warning' || isWarningKeyword) {
+        determinedType = 'warning';
+      } else if (detectedAction === 'delete') {
         determinedType = 'success';
+      } else if (detectedAction === 'create') {
+        determinedType = 'success';
+      } else if (detectedAction === 'update') {
+        determinedType = 'info';
       } else if (!determinedType) {
-        if (
-          lowerTitle.includes('lỗi') ||
-          lowerTitle.includes('thất bại') ||
-          lowerTitle.includes('từ chối') ||
-          lowerTitle.includes('error') ||
-          lowerTitle.includes('fail') ||
-          lowerTitle.includes('hỏng') ||
-          lowerTitle.includes('không thể') ||
-          lowerTitle.includes('chặn') ||
-          lowerMsg.includes('thất bại') ||
-          (lowerMsg.includes('lỗi') &&
-            !lowerMsg.includes('0 lỗi') &&
-            !lowerMsg.includes('không có lỗi') &&
-            !lowerMsg.includes('bỏ qua lỗi'))
-        ) {
-          determinedType = 'error';
-        } else if (
-          lowerTitle.includes('cảnh báo') ||
-          lowerTitle.includes('chú ý') ||
-          lowerTitle.includes('warning')
-        ) {
-          determinedType = 'warning';
-        } else if (lowerTitle.includes('thông tin') || lowerTitle.includes('info')) {
-          determinedType = 'info';
-        } else {
-          determinedType = 'success';
-        }
+        determinedType = 'success';
       }
 
       setMessage(cleanedMsg);
@@ -164,63 +197,49 @@ export const StatusToastHost: React.FC = () => {
 
   if (!message || typeof document === 'undefined') return null;
 
-  const isWarning = toastType === 'warning';
-  const isError = toastType === 'error';
-  const isInfo = toastType === 'info';
+  // Phân bổ màu sắc trực quan đúng theo thao tác:
+  // - XÓA / LỖI (Delete / Error): Đỏ thắm (#dc2626)
+  // - CẢNH BÁO (Warning): Vàng cam (#f59e0b)
+  // - CHỈNH SỬA / CẬP NHẬT (Update): Xanh dương (#2563eb)
+  // - THÊM MỚI / THÀNH CÔNG (Create / Success): Xanh lá cây (#16a34a)
+  const isDeleteTheme = toastType === 'error' || actionCategory === 'delete';
+  const isWarningTheme = !isDeleteTheme && toastType === 'warning';
+  const isUpdateTheme = !isDeleteTheme && !isWarningTheme && (actionCategory === 'update' || toastType === 'info');
+  const isCreateSuccessTheme = !isDeleteTheme && !isWarningTheme && !isUpdateTheme;
 
-  // Phân bổ màu sắc trực quan theo quy định:
-  // - THÊM MỚI (Create / Success): Xanh lá cây (#16a34a, #dcfce7, #f0fdf4)
-  // - CHỈNH SỬA / CẬP NHẬT (Update): Xanh dương tươi (#2563eb, #dbeafe, #eff6ff)
-  // - XÓA / NGUY HIỂM (Delete / Error): Đỏ thắm (#dc2626, #fee2e2, #fef2f2)
-  // - CẢNH BÁO (Warning): Vàng cam / Hổ phách (#d97706, #fef3c7, #fffbeb)
   let borderColor = '#86efac';
   let borderLeftColor = '#16a34a';
   let titleColor = '#15803d';
   let textColor = '#14532d';
   let bgColor = '#f0fdf4';
   let closeColor = '#16a34a';
+  let progressBg = 'linear-gradient(90deg, #4ade80, #16a34a)';
 
-  if (isError || actionCategory === 'delete') {
+  if (isDeleteTheme) {
     borderColor = '#fca5a5';
     borderLeftColor = '#dc2626';
     titleColor = '#dc2626';
     textColor = '#991b1b';
     bgColor = '#fef2f2';
     closeColor = '#dc2626';
-  } else if (isWarning) {
+    progressBg = 'linear-gradient(90deg, #f87171, #dc2626)';
+  } else if (isWarningTheme) {
     borderColor = '#fed7aa';
     borderLeftColor = '#f59e0b';
-    titleColor = '#c2410c';
-    textColor = '#9a3412';
+    titleColor = '#b45309';
+    textColor = '#92400e';
     bgColor = '#fffbeb';
-    closeColor = '#c2410c';
-  } else if (actionCategory === 'update' || isInfo) {
-    borderColor = '#93c5fd';
+    closeColor = '#d97706';
+    progressBg = 'linear-gradient(90deg, #fcd34d, #f59e0b)';
+  } else if (isUpdateTheme) {
+    borderColor = '#bfdbfe';
     borderLeftColor = '#2563eb';
     titleColor = '#1d4ed8';
     textColor = '#1e40af';
     bgColor = '#eff6ff';
     closeColor = '#2563eb';
-  } else {
-    // actionCategory === 'create' hoặc success chung
-    borderColor = '#86efac';
-    borderLeftColor = '#16a34a';
-    titleColor = '#15803d';
-    textColor = '#14532d';
-    bgColor = '#f0fdf4';
-    closeColor = '#16a34a';
+    progressBg = 'linear-gradient(90deg, #60a5fa, #2563eb)';
   }
-
-  const isDeleteTheme = isError || actionCategory === 'delete';
-  const isUpdateTheme = !isError && actionCategory === 'update';
-
-  const progressBg = isDeleteTheme
-    ? 'linear-gradient(90deg, #f87171, #dc2626)'
-    : isWarning
-    ? 'linear-gradient(90deg, #fcd34d, #f59e0b)'
-    : isUpdateTheme
-    ? 'linear-gradient(90deg, #60a5fa, #2563eb)'
-    : 'linear-gradient(90deg, #34d399, #16a34a)';
 
   return createPortal(
     <div
@@ -247,7 +266,7 @@ export const StatusToastHost: React.FC = () => {
         color: textColor,
         boxShadow: isDeleteTheme
           ? '0 10px 25px rgba(220, 38, 38, 0.18), 0 4px 10px rgba(0, 0, 0, 0.05)'
-          : isWarning
+          : isWarningTheme
           ? '0 10px 25px rgba(245, 158, 11, 0.18), 0 4px 10px rgba(0, 0, 0, 0.05)'
           : isUpdateTheme
           ? '0 10px 25px rgba(37, 99, 235, 0.18), 0 4px 10px rgba(0, 0, 0, 0.05)'
@@ -258,7 +277,7 @@ export const StatusToastHost: React.FC = () => {
           : 'accountStatusToastEnter 620ms cubic-bezier(0.22, 1, 0.36, 1) both',
       }}
     >
-      {/* Icon trạng thái */}
+      {/* Icon trạng thái chính xác theo thao tác */}
       <div style={{ flexShrink: 0, marginTop: '1px' }}>
         {isDeleteTheme && (
           <div
@@ -273,17 +292,38 @@ export const StatusToastHost: React.FC = () => {
               justifyContent: 'center',
             }}
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-            </svg>
+            {actionCategory === 'delete' ? (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+              </svg>
+            ) : (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="15" y1="9" x2="9" y2="15" />
+                <line x1="9" y1="9" x2="15" y2="15" />
+              </svg>
+            )}
           </div>
         )}
-        {isWarning && (
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
-            <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
-            <line x1="12" y1="9" x2="12" y2="13" />
-            <line x1="12" y1="17" x2="12.01" y2="17" />
-          </svg>
+        {isWarningTheme && (
+          <div
+            style={{
+              width: '24px',
+              height: '24px',
+              borderRadius: '50%',
+              background: '#fef3c7',
+              border: '1px solid #fde68a',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
+              <line x1="12" y1="9" x2="12" y2="13" />
+              <line x1="12" y1="17" x2="12.01" y2="17" />
+            </svg>
+          </div>
         )}
         {isUpdateTheme && (
           <div
@@ -298,12 +338,20 @@ export const StatusToastHost: React.FC = () => {
               justifyContent: 'center',
             }}
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
-            </svg>
+            {actionCategory === 'update' ? (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+              </svg>
+            ) : (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="16" x2="12" y2="12" />
+                <line x1="12" y1="8" x2="12.01" y2="8" />
+              </svg>
+            )}
           </div>
         )}
-        {!isDeleteTheme && !isWarning && !isUpdateTheme && (
+        {isCreateSuccessTheme && (
           <div
             style={{
               width: '24px',
@@ -320,13 +368,6 @@ export const StatusToastHost: React.FC = () => {
               <polyline points="20 6 9 17 4 12" />
             </svg>
           </div>
-        )}
-        {isInfo && (
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="10" />
-            <line x1="12" y1="16" x2="12" y2="12" />
-            <line x1="12" y1="8" x2="12.01" y2="8" />
-          </svg>
         )}
       </div>
 

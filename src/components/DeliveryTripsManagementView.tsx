@@ -142,7 +142,11 @@ export const DeliveryTripsManagementView: React.FC<DeliveryTripsManagementViewPr
       });
       loadData();
     } catch (err: any) {
-      alert(formatErrorMessage(err?.message || err, 'Lỗi khi cập nhật trạng thái điểm giao'));
+      emitStatusToast({
+        type: 'error',
+        title: 'Cập nhật điểm giao',
+        message: formatErrorMessage(err?.message || err, 'Lỗi khi cập nhật trạng thái điểm giao'),
+      });
     }
   };
 
@@ -151,7 +155,11 @@ export const DeliveryTripsManagementView: React.FC<DeliveryTripsManagementViewPr
     e.preventDefault();
     if (!failModalStop) return;
     if (!failReason.trim()) {
-      alert('Vui lòng nhập lý do chưa giao được hàng.');
+      emitStatusToast({
+        type: 'warning',
+        title: 'Chưa giao được',
+        message: 'Vui lòng nhập lý do chưa giao được hàng.',
+      });
       return;
     }
     setIsSubmittingFail(true);
@@ -165,7 +173,11 @@ export const DeliveryTripsManagementView: React.FC<DeliveryTripsManagementViewPr
       setFailReason('');
       loadData();
     } catch (err: any) {
-      alert(formatErrorMessage(err?.message || err, 'Lỗi khi ghi nhận'));
+      emitStatusToast({
+        type: 'error',
+        title: 'Ghi nhận thất bại',
+        message: formatErrorMessage(err?.message || err, 'Lỗi khi ghi nhận'),
+      });
     } finally {
       setIsSubmittingFail(false);
     }
@@ -186,7 +198,11 @@ export const DeliveryTripsManagementView: React.FC<DeliveryTripsManagementViewPr
       setReturnNote('');
       loadData();
     } catch (err: any) {
-      alert(formatErrorMessage(err?.message || err, 'Lỗi khi hoàn nhập kho'));
+      emitStatusToast({
+        type: 'error',
+        title: 'Hoàn nhập kho',
+        message: formatErrorMessage(err?.message || err, 'Lỗi khi hoàn nhập kho'),
+      });
     } finally {
       setIsSubmittingReturn(false);
     }
@@ -946,7 +962,11 @@ export const DeliveryTripsManagementView: React.FC<DeliveryTripsManagementViewPr
                 onSubmit={async (e) => {
                   e.preventDefault();
                   if (!newTripDriverName.trim() || !newTripLicensePlate.trim()) {
-                    alert('Vui lòng điền tên tài xế và biển số xe.');
+                    emitStatusToast({
+                      type: 'warning',
+                      title: 'Thiếu thông tin',
+                      message: 'Vui lòng điền tên tài xế và biển số xe.',
+                    });
                     return;
                   }
                   setIsSubmittingCreate(true);
@@ -990,7 +1010,11 @@ export const DeliveryTripsManagementView: React.FC<DeliveryTripsManagementViewPr
                     setNewTripLicensePlate('');
                     loadData();
                   } catch (err: any) {
-                    alert(formatErrorMessage(err?.message || err, 'Lỗi khi tạo chuyến giao'));
+                    emitStatusToast({
+                      type: 'error',
+                      title: 'Tạo chuyến giao',
+                      message: formatErrorMessage(err?.message || err, 'Lỗi khi tạo chuyến giao'),
+                    });
                   } finally {
                     setIsSubmittingCreate(false);
                   }
