@@ -106,13 +106,15 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
         </span>
       </div>
 
-      {/* Khối bên phải: Avatar Người dùng + Tên + Nút mở Menu */}
-      <div ref={userMenuRef} className="relative z-50 shrink-0">
-        <button
-          onClick={() => setIsUserMenuOpen((prev) => !prev)}
-          className={`flex items-center gap-1.5 sm:gap-2 p-0.5 sm:py-1 sm:px-2.5 rounded-full border border-white/25 cursor-pointer transition-all ${
-            isUserMenuOpen ? 'bg-white/25' : 'bg-white/10 hover:bg-white/15'
-          }`}
+      {/* Khối bên phải: Nút Giỏ Hàng + Avatar Người dùng */}
+      <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
+
+        <div ref={userMenuRef} className="relative z-50 shrink-0">
+          <button
+            onClick={() => setIsUserMenuOpen((prev) => !prev)}
+            className={`flex items-center gap-1.5 sm:gap-2 p-0.5 sm:py-1 sm:px-2.5 rounded-full border border-white/25 cursor-pointer transition-all ${
+              isUserMenuOpen ? 'bg-white/25' : 'bg-white/10 hover:bg-white/15'
+            }`}
           title={`${user.full_name || user.username} (${roleLabelMap[primaryRole] || primaryRole}) - Nhấp để mở menu`}
           aria-label="Tài khoản người dùng"
         >
@@ -584,6 +586,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
             </div>
           </div>
         )}
+        </div>
       </div>
     </header>
   );
