@@ -22,6 +22,7 @@ import { searchDealers } from '../services/dealerSearchApi';
 import { emitStatusToast } from './StatusToast';
 import type { DeliveryPoint } from '../types/deliveryPoint';
 import { Link, useNavigate } from '../hooks/useLocation';
+import { ProductInfiniteSelect } from './ProductInfiniteSelect';
 
 export interface SelectedOrderItem {
   productId: number;
@@ -128,6 +129,27 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({
   const [dealers, setDealers] = useState<any[]>(FALLBACK_DEALERS);
   const [dealerId, setDealerId] = useState<number>(initialDealerId);
   const [loadingDealers, setLoadingDealers] = useState(false);
+
+  // Cache các sản phẩm đã tải để luôn tra cứu được thông tin khi thêm từ lịch sử / clone
+  const [loadedProductsMap, setLoadedProductsMap] = useState<Map<number, ProductItem>>(() => {
+    const map = new Map<number, ProductItem>();
+    if (products && Array.isArray(products)) {
+      for (const p of products) map.set(p.id, p);
+    }
+    return map;
+  });
+
+  useEffect(() => {
+    if (products && products.length > 0) {
+      setLoadedProductsMap((prev) => {
+        const next = new Map(prev);
+        for (const p of products) {
+          if (!next.has(p.id)) next.set(p.id, p);
+        }
+        return next;
+      });
+    }
+  }, [products]);
 
   // 2. Danh sách sản phẩm trong giỏ hàng đặt hàng
   const [orderItems, setOrderItems] = useState<SelectedOrderItem[]>(() => {
@@ -522,18 +544,30 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dealerId]);
 
-  // Thêm sản phẩm từ Dropdown
-  const handleSelectProduct = async (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const val = e.target.value;
-    if (!val) return;
-
-    const pId = parseInt(val, 10);
-    const prod = products.find((p) => p.id === pId);
+  // Thêm sản phẩm từ Dropdown phân trang (nhận ProductItem trực tiếp)
+  const handleSelectProductItem = async (prod: ProductItem) => {
     if (!prod) return;
 
-    e.target.value = '';
+    const stockItem = stockMap.get(prod.id);
+    const availableStock = stockItem ? stockItem.available_stock : (prod.stock ?? 0);
+    const isOutOfStock = availableStock <= 0 || prod.status === 'out_of_stock' || prod.status === 'inactive';
+    if (isOutOfStock) {
+      emitStatusToast({
+        title: 'Hết hàng',
+        message: `Sản phẩm "${prod.name}" hiện đã hết hàng tại kho, không thể chọn đặt hàng!`,
+        type: 'warning',
+      });
+      return;
+    }
 
-    const existingIndex = orderItems.findIndex((item) => item.productId === pId);
+    // Lưu vào cache để các phần khác luôn tra cứu được thông tin sản phẩm
+    setLoadedProductsMap((prev) => {
+      const next = new Map(prev);
+      next.set(prod.id, prod);
+      return next;
+    });
+
+    const existingIndex = orderItems.findIndex((item) => item.productId === prod.id);
     if (existingIndex >= 0) {
       setOrderItems((prev) =>
         prev.map((item, idx) => {
@@ -545,6 +579,10 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({
           };
         })
       );
+      emitStatusToast({
+        title: 'Đã tăng số lượng',
+        message: `Đã tăng thêm 1 cho "${prod.name}".`,
+      });
       return;
     }
 
@@ -594,11 +632,15 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({
     };
 
     setOrderItems((prev) => [...prev, newItem]);
+    emitStatusToast({
+      title: 'Đã thêm sản phẩm',
+      message: `Đã thêm "${prod.name}" vào đơn hàng.`,
+    });
   };
 
   // Thêm nhanh một mặt hàng từ lịch sử
   const handleAddHistoryItem = async (item: PurchaseHistoryItem) => {
-    const prod = products.find((p) => p.id === item.product_id);
+    const prod = products.find((p) => p.id === item.product_id) || loadedProductsMap.get(item.product_id);
     const qtyToAdd = Math.max(1, Math.round(item.last_order_quantity || item.avg_quantity || 1));
     const baseUnit = prod?.base_unit || item.unit || 'Cái';
     const itemUnit = item.unit || baseUnit;
@@ -696,7 +738,7 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({
     const updated = [...orderItems];
 
     for (const item of itemsToAdd) {
-      const prod = products.find((p) => p.id === item.product_id);
+      const prod = products.find((p) => p.id === item.product_id) || loadedProductsMap.get(item.product_id);
       const qtyToAdd = Math.max(1, Math.round(item.quantity || 1));
       const baseUnit = prod?.base_unit || item.unit || 'Cái';
       const itemUnit = item.unit || baseUnit;
@@ -848,14 +890,14 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({
   }, [policies, orderItems, selectedDealer, totalQuantity, subtotalAmount]);
 
   useEffect(() => {
-    if (!isManualDiscount) {
+    if (isCustomer || !isManualDiscount) {
       if (discountEvaluation.isQualified) {
         setDiscountPercent(String(discountEvaluation.discountPercent));
       } else {
         setDiscountPercent('0');
       }
     }
-  }, [discountEvaluation, isManualDiscount]);
+  }, [discountEvaluation, isManualDiscount, isCustomer]);
 
   const parsedDiscount = Number(discountPercent);
   const safeDiscount = Number.isFinite(parsedDiscount) ? Math.min(100, Math.max(0, parsedDiscount)) : 0;
@@ -1297,24 +1339,12 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({
                 <label htmlFor="select-order-product" className="block text-xs sm:text-sm font-bold text-slate-800">
                   Chọn sản phẩm để thêm vào đơn <span className="text-red-500">*</span>
                 </label>
-                <div className="relative">
-                  <select
-                    id="select-order-product"
-                    defaultValue=""
-                    onChange={handleSelectProduct}
-                    className="w-full px-4 py-3 rounded-xl border-2 border-emerald-500/80 bg-emerald-50/20 text-slate-900 text-sm font-semibold focus:outline-none focus:ring-4 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all cursor-pointer shadow-xs"
-                  >
-                    <option value="">Bấm vào đây để tìm và chọn sản phẩm thêm vào đơn hàng...</option>
-                    {products.map((p) => {
-                      const isAdded = orderItems.some((item) => item.productId === p.id);
-                      return (
-                        <option key={p.id} value={p.id}>
-                          {p.code} — {p.name} (Tồn kho: {p.stock} {p.base_unit || 'Cái'}){isAdded ? ' [Đã có trong giỏ]' : ''}
-                        </option>
-                      );
-                    })}
-                  </select>
-                </div>
+                <ProductInfiniteSelect
+                  id="select-order-product"
+                  token={token}
+                  orderItems={orderItems}
+                  onSelectProduct={handleSelectProductItem}
+                />
                 <p className="text-[11.5px] text-slate-500 italic">
                   * Sau khi chọn, sản phẩm sẽ tự động thêm vào danh sách bên dưới và ô chọn sẽ được làm mới sẵn sàng cho mặt hàng tiếp theo.
                 </p>
@@ -1683,8 +1713,13 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({
                 <div className="flex items-center justify-between">
                   <label htmlFor="input-order-discount-percent" className="text-xs font-bold text-slate-700">
                     Chiết khấu (%)
+                    {isCustomer && (
+                      <span className="text-[11px] font-normal text-slate-500 ml-1.5">
+                        (Cố định theo chính sách)
+                      </span>
+                    )}
                   </label>
-                  {isManualDiscount && discountEvaluation.isQualified && (
+                  {!isCustomer && isManualDiscount && discountEvaluation.isQualified && (
                     <button
                       type="button"
                       onClick={() => {
@@ -1707,11 +1742,17 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({
                       max="100"
                       step="0.1"
                       value={discountPercent}
+                      disabled={isCustomer}
+                      readOnly={isCustomer}
+                      title={isCustomer ? "Đại lý không có quyền tự điều chỉnh chiết khấu" : undefined}
                       onChange={(e) => {
+                        if (isCustomer) return;
                         setIsManualDiscount(true);
                         setDiscountPercent(e.target.value);
                       }}
-                      className="w-full h-10 px-3 rounded-lg border border-slate-300 text-sm font-bold text-slate-800 text-right focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 bg-white"
+                      className={`w-full h-10 px-3 rounded-lg border border-slate-300 text-sm font-bold text-right focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 ${
+                        isCustomer ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : 'bg-white text-slate-800'
+                      }`}
                     />
                   </div>
                   <div>
@@ -1721,7 +1762,7 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({
                   </div>
                 </div>
 
-                {isManualDiscount && safeDiscount > discountEvaluation.discountPercent && (
+                {!isCustomer && isManualDiscount && safeDiscount > discountEvaluation.discountPercent && (
                   <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800 leading-relaxed">
                     ⚠️ Mức chiết khấu ({safeDiscount}%) cao hơn định mức ({discountEvaluation.discountPercent}%). Đơn hàng sẽ cần Quản lý bán hàng phê duyệt.
                   </div>

@@ -35,6 +35,7 @@ interface OrderCreateModalProps {
   initialOrderItems?: SelectedOrderItem[];
   initialNote?: string;
   initialDeliveryPointId?: number | null;
+  isPageMode?: boolean;
 }
 
 export interface SelectedOrderItem {
@@ -70,6 +71,7 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
   initialOrderItems,
   initialNote,
   initialDeliveryPointId,
+  isPageMode = false,
 }) => {
   if (!isOpen) return null;
 
@@ -436,6 +438,18 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
     // Reset Dropdown ngay lập tức để người dùng có thể tiếp tục chọn sản phẩm khác
     e.target.value = '';
 
+    const stockItem = stockMap.get(pId);
+    const availableStock = stockItem ? stockItem.available_stock : (prod.stock ?? 0);
+    const isOutOfStock = availableStock <= 0 || prod.status === 'out_of_stock' || prod.status === 'inactive';
+    if (isOutOfStock) {
+      emitStatusToast({
+        title: 'Hết hàng',
+        message: `Sản phẩm "${prod.name}" hiện đã hết hàng tại kho, không thể chọn đặt hàng!`,
+        type: 'warning',
+      });
+      return;
+    }
+
     // Kiểm tra xem sản phẩm đã có trong danh sách hay chưa
     const existingIndex = orderItems.findIndex((item) => item.productId === pId);
     if (existingIndex >= 0) {
@@ -746,14 +760,14 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
 
   // Tự động điền giá trị % vào ô "Chiết khấu (%)" khi số lượng thỏa mãn các bậc
   useEffect(() => {
-    if (!isManualDiscount) {
+    if (isCustomer || !isManualDiscount) {
       if (discountEvaluation.isQualified) {
         setDiscountPercent(String(discountEvaluation.discountPercent));
       } else {
         setDiscountPercent('0');
       }
     }
-  }, [discountEvaluation, isManualDiscount]);
+  }, [discountEvaluation, isManualDiscount, isCustomer]);
 
   const parsedDiscount = Number(discountPercent);
   const safeDiscount = Number.isFinite(parsedDiscount) ? Math.min(100, Math.max(0, parsedDiscount)) : 0;
@@ -913,121 +927,28 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
     }
   };
 
-  return createPortal(
-    <div
+  const formContent = (
+    <form
+      onSubmit={handleSubmit}
       style={{
-        position: 'fixed',
-        inset: 0,
-        backgroundColor: 'rgba(15, 23, 42, 0.65)',
-        backdropFilter: 'blur(4px)',
         display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 99999,
-        padding: '16px',
-        boxSizing: 'border-box',
-      }}
-      onClick={(e) => {
-        if (e.target === e.currentTarget && !isSubmitting) onClose();
+        flexDirection: 'column',
+        flex: 1,
+        minHeight: 0,
+        overflow: isPageMode ? 'visible' : 'hidden',
       }}
     >
+      {/* Vùng nội dung cuộn mượt mà */}
       <div
         style={{
-          backgroundColor: '#ffffff',
-          borderRadius: '16px',
-          maxWidth: '840px',
-          width: '100%',
-          maxHeight: 'calc(100vh - 32px)',
-          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-          border: '1px solid #e2e8f0',
-          boxSizing: 'border-box',
-          position: 'relative',
+          flex: isPageMode ? 'none' : 1,
+          overflowY: isPageMode ? 'visible' : 'auto',
+          padding: isPageMode ? '24px 28px' : '20px 24px',
           display: 'flex',
           flexDirection: 'column',
-          overflow: 'hidden',
+          gap: '16px',
         }}
-        onClick={(e) => e.stopPropagation()}
       >
-        {/* Header Modal (Cố định ở trên) */}
-        <div
-          style={{
-            padding: '20px 24px 16px 24px',
-            borderBottom: '1px solid #f1f5f9',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'flex-start',
-            flexShrink: 0,
-            background: '#ffffff',
-          }}
-        >
-          <div>
-            <h3 style={{ margin: 0, fontSize: '19px', fontWeight: '800', color: '#0f172a' }}>
-              Tạo Đơn Hàng Mới
-            </h3>
-            {currentUser && (
-              <div style={{ marginTop: '6px' }}>
-                <div
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    background: '#f8fafc',
-                    border: '1px solid #e2e8f0',
-                    padding: '2px 8px',
-                    borderRadius: '999px',
-                    fontSize: '12px',
-                    color: '#334155',
-                  }}
-                >
-                  <span>
-                    Người tạo: <strong>{currentUser.full_name || currentUser.username}</strong>
-                  </span>
-                </div>
-              </div>
-            )}
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              fontSize: '22px',
-              color: '#94a3b8',
-              cursor: 'pointer',
-              padding: '4px',
-              lineHeight: 1,
-              borderRadius: '6px',
-              flexShrink: 0,
-            }}
-            title="Đóng"
-          >
-            ✕
-          </button>
-        </div>
-
-        {/* Form Body: Container flex column để phần giữa cuộn, Footer cố định */}
-        <form
-          onSubmit={handleSubmit}
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            flex: 1,
-            minHeight: 0,
-            overflow: 'hidden',
-          }}
-        >
-          {/* Vùng nội dung cuộn mượt mà */}
-          <div
-            style={{
-              flex: 1,
-              overflowY: 'auto',
-              padding: '20px 24px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '16px',
-            }}
-          >
             {errorMsg && (
               <div
                 style={{
@@ -1366,9 +1287,12 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
               <option value="">-- Bấm vào đây để chọn và thêm sản phẩm vào danh sách --</option>
               {products.map((p) => {
                 const isAdded = orderItems.some((item) => item.productId === p.id);
+                const stockItem = stockMap.get(p.id);
+                const availableStock = stockItem ? stockItem.available_stock : (p.stock ?? 0);
+                const isOutOfStock = availableStock <= 0 || p.status === 'out_of_stock' || p.status === 'inactive';
                 return (
-                  <option key={p.id} value={p.id}>
-                    {p.code} - {p.name} (Tồn: {p.stock} {p.base_unit || 'Cái'}){isAdded ? ' [Đã có trong đơn]' : ''}
+                  <option key={p.id} value={p.id} disabled={isOutOfStock}>
+                    {p.code} - {p.name} {isOutOfStock ? '[HẾT HÀNG]' : `(Tồn: ${availableStock} ${p.base_unit || 'Cái'})`}{isAdded ? ' [Đã có trong đơn]' : ''}
                   </option>
                 );
               })}
@@ -1701,8 +1625,13 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                   <label style={{ fontSize: '13px', fontWeight: '700', color: '#334155' }}>
                     Chiết khấu (%)
+                    {isCustomer && (
+                      <span style={{ fontSize: '11px', fontWeight: '500', color: '#64748b', marginLeft: '6px' }}>
+                        (Cố định theo chính sách)
+                      </span>
+                    )}
                   </label>
-                  {isManualDiscount && discountEvaluation.isQualified && (
+                  {!isCustomer && isManualDiscount && discountEvaluation.isQualified && (
                     <button
                       type="button"
                       onClick={() => {
@@ -1731,7 +1660,11 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
                   max="100"
                   step="0.1"
                   value={discountPercent}
+                  disabled={isCustomer}
+                  readOnly={isCustomer}
+                  title={isCustomer ? "Đại lý không có quyền tự điều chỉnh chiết khấu" : undefined}
                   onChange={(e) => {
+                    if (isCustomer) return;
                     setIsManualDiscount(true);
                     setDiscountPercent(e.target.value);
                   }}
@@ -1745,7 +1678,9 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
                     textAlign: 'right',
                     boxSizing: 'border-box',
                     fontWeight: '700',
-                    background: '#ffffff',
+                    background: isCustomer ? '#f1f5f9' : '#ffffff',
+                    color: isCustomer ? '#64748b' : '#0f172a',
+                    cursor: isCustomer ? 'not-allowed' : 'text',
                   }}
                 />
               </div>
@@ -2020,6 +1955,191 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
             </button>
           </div>
         </form>
+  );
+
+  if (isPageMode) {
+    return (
+      <div
+        style={{
+          width: '100%',
+          maxWidth: '1280px',
+          margin: '0 auto',
+          padding: '8px 16px 40px 16px',
+          boxSizing: 'border-box',
+        }}
+      >
+        {/* Header trang tạo đơn */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginBottom: '18px',
+            flexWrap: 'wrap',
+            gap: '12px',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={isSubmitting}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '8px 16px',
+                borderRadius: '8px',
+                border: '1px solid #cbd5e1',
+                background: '#ffffff',
+                color: '#334155',
+                fontSize: '13px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
+                transition: 'all 0.15s ease',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f8fafc')}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#ffffff')}
+            >
+              ← Quay lại danh sách đơn hàng
+            </button>
+            <h2 style={{ margin: 0, fontSize: '22px', fontWeight: '800', color: '#0f172a', letterSpacing: '-0.02em' }}>
+              Tạo Đơn Hàng Mới
+            </h2>
+          </div>
+
+          {currentUser && (
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                background: '#f1f5f9',
+                border: '1px solid #e2e8f0',
+                padding: '6px 14px',
+                borderRadius: '999px',
+                fontSize: '12.5px',
+                color: '#334155',
+              }}
+            >
+              <span>
+                Người tạo: <strong>{currentUser.full_name || currentUser.username}</strong>
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Khung form chính */}
+        <div
+          style={{
+            backgroundColor: '#ffffff',
+            borderRadius: '16px',
+            border: '1px solid #e2e8f0',
+            boxShadow: '0 4px 16px rgba(15, 23, 42, 0.06)',
+            overflow: 'hidden',
+          }}
+        >
+          {formContent}
+        </div>
+      </div>
+    );
+  }
+
+  return createPortal(
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        backgroundColor: 'rgba(15, 23, 42, 0.65)',
+        backdropFilter: 'blur(4px)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 99999,
+        padding: '16px',
+        boxSizing: 'border-box',
+      }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget && !isSubmitting) onClose();
+      }}
+    >
+      <div
+        style={{
+          backgroundColor: '#ffffff',
+          borderRadius: '16px',
+          maxWidth: '840px',
+          width: '100%',
+          maxHeight: 'calc(100vh - 32px)',
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+          border: '1px solid #e2e8f0',
+          boxSizing: 'border-box',
+          position: 'relative',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header Modal (Cố định ở trên) */}
+        <div
+          style={{
+            padding: '20px 24px 16px 24px',
+            borderBottom: '1px solid #f1f5f9',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'flex-start',
+            flexShrink: 0,
+            background: '#ffffff',
+          }}
+        >
+          <div>
+            <h3 style={{ margin: 0, fontSize: '19px', fontWeight: '800', color: '#0f172a' }}>
+              Tạo Đơn Hàng Mới
+            </h3>
+            {currentUser && (
+              <div style={{ marginTop: '6px' }}>
+                <div
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    background: '#f8fafc',
+                    border: '1px solid #e2e8f0',
+                    padding: '2px 8px',
+                    borderRadius: '999px',
+                    fontSize: '12px',
+                    color: '#334155',
+                  }}
+                >
+                  <span>
+                    Người tạo: <strong>{currentUser.full_name || currentUser.username}</strong>
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              fontSize: '22px',
+              color: '#94a3b8',
+              cursor: 'pointer',
+              padding: '4px',
+              lineHeight: 1,
+              borderRadius: '6px',
+              flexShrink: 0,
+            }}
+            title="Đóng"
+          >
+            ✕
+          </button>
+        </div>
+
+        {formContent}
       </div>
     </div>,
     document.body

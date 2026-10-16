@@ -8,6 +8,13 @@ export interface OrderLifecycleTimelineProps {
   approvalReason?: string | null;
   approvedBy?: string | null;
   approvedAt?: string | null;
+  createdAt?: string | null;
+  pickingAt?: string | null;
+  exportedAt?: string | null;
+  shippedAt?: string | null;
+  deliveredAt?: string | null;
+  desiredDeliveryDate?: string | null;
+  embedded?: boolean;
 }
 
 interface StepDefinition {
@@ -17,14 +24,12 @@ interface StepDefinition {
   aliases: string[];
 }
 
-const LIFECYCLE_STEPS: StepDefinition[] = [
-  { id: 'DRAFT', label: 'Nháp', description: 'Đang tạo đơn', aliases: ['DRAFT'] },
-  { id: 'PENDING_APPROVAL', label: 'Chờ duyệt', description: 'Chờ quản lý xét duyệt', aliases: ['PENDING_APPROVAL', 'PENDING'] },
+const DELIVERY_STEPS: StepDefinition[] = [
   { id: 'CONFIRMED', label: 'Đã duyệt', description: 'Đã phê duyệt / xác nhận', aliases: ['CONFIRMED', 'APPROVED'] },
-  { id: 'PICKING', label: 'Đang soạn hàng', description: 'Kho đang lấy & đóng gói', aliases: ['PICKING', 'PREPARING', 'PACKING'] },
-  { id: 'EXPORTED', label: 'Đã xuất', description: 'Đã xuất kho vận chuyển', aliases: ['EXPORTED', 'DISPATCHED', 'SHIPPED'] },
-  { id: 'DELIVERED', label: 'Đã giao', description: 'Đã giao tới đại lý', aliases: ['DELIVERED'] },
-  { id: 'CLOSED', label: 'Đóng', description: 'Hoàn tất đơn hàng', aliases: ['CLOSED', 'COMPLETED'] },
+  { id: 'PICKING', label: 'Đang soạn', description: 'Kho đang lấy & đóng gói', aliases: ['PICKING', 'PREPARING', 'PACKING'] },
+  { id: 'EXPORTED', label: 'Đã xuất', description: 'Đã xuất kho', aliases: ['EXPORTED'] },
+  { id: 'SHIPPED', label: 'Đang giao', description: 'Xe đang vận chuyển tới đại lý', aliases: ['SHIPPED', 'DISPATCHED', 'DELIVERING', 'IN_TRANSIT'] },
+  { id: 'DELIVERED', label: 'Đã giao', description: 'Đã giao tới đại lý', aliases: ['DELIVERED', 'CLOSED', 'COMPLETED'] },
 ];
 
 const formatDate = (val?: string | null) => {
@@ -41,35 +46,87 @@ export const OrderLifecycleTimeline: React.FC<OrderLifecycleTimelineProps> = ({
   approvalReason,
   approvedBy,
   approvedAt,
+  createdAt,
+  pickingAt,
+  exportedAt,
+  shippedAt,
+  deliveredAt,
+  desiredDeliveryDate,
+  embedded = false,
 }) => {
   const normalizedStatus = (status || '').toUpperCase().trim();
   const isCancelled = normalizedStatus === 'CANCELLED';
   const isRejected = normalizedStatus === 'REJECTED';
   const isInterrupted = isCancelled || isRejected;
 
-  // Xác định bước hiện tại trong 7 bước
+  // Xác định bước hiện tại trong 5 mốc theo dõi giao hàng
   let currentStepIndex = -1;
-  LIFECYCLE_STEPS.forEach((step, idx) => {
+  DELIVERY_STEPS.forEach((step, idx) => {
     if (step.aliases.includes(normalizedStatus)) {
       currentStepIndex = idx;
     }
   });
 
-  // Nếu là đơn mới tạo CONFIRMED thì đã qua DRAFT (0) và PENDING_APPROVAL (1), hiện tại là CONFIRMED (2)
   if (currentStepIndex === -1 && !isInterrupted) {
-    currentStepIndex = 2; // mặc định đã duyệt nếu không khớp
+    if (['PENDING_APPROVAL', 'PENDING', 'DRAFT'].includes(normalizedStatus)) {
+      currentStepIndex = -1;
+    } else {
+      currentStepIndex = 0;
+    }
   }
+
+  const getStepTimestamp = (idx: number): string => {
+    if (isInterrupted) return '—';
+    if (idx === 0) {
+      if (currentStepIndex >= 0) {
+        return formatDate(approvedAt || createdAt);
+      }
+      return 'Chờ duyệt';
+    }
+    if (idx === 1) {
+      if (currentStepIndex >= 1) {
+        return formatDate(pickingAt || approvedAt || createdAt);
+      }
+      return '—';
+    }
+    if (idx === 2) {
+      if (currentStepIndex >= 2) {
+        return formatDate(exportedAt || approvedAt || createdAt);
+      }
+      return '—';
+    }
+    if (idx === 3) {
+      if (currentStepIndex >= 3) {
+        return formatDate(shippedAt || desiredDeliveryDate || exportedAt);
+      }
+      if (desiredDeliveryDate) {
+        return `Dự kiến: ${formatDate(desiredDeliveryDate)}`;
+      }
+      return '—';
+    }
+    if (idx === 4) {
+      if (currentStepIndex >= 4) {
+        return formatDate(deliveredAt || desiredDeliveryDate);
+      }
+      return '—';
+    }
+    return '—';
+  };
 
   return (
     <div
-      style={{
-        background: '#ffffff',
-        border: '1px solid #e2e8f0',
-        borderRadius: '12px',
-        padding: '20px 24px',
-        marginBottom: '20px',
-        boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
-      }}
+      style={
+        embedded
+          ? { background: 'transparent', padding: 0, margin: 0, border: 'none', boxShadow: 'none' }
+          : {
+              background: '#ffffff',
+              border: '1px solid #e2e8f0',
+              borderRadius: '12px',
+              padding: '20px 24px',
+              marginBottom: '20px',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+            }
+      }
     >
       <div
         style={{
@@ -93,7 +150,7 @@ export const OrderLifecycleTimeline: React.FC<OrderLifecycleTimelineProps> = ({
               marginBottom: '2px',
             }}
           >
-            TIẾN ĐỘ ĐƠN HÀNG
+            TIẾN ĐỘ GIAO HÀNG
           </span>
           <h4
             style={{
@@ -103,11 +160,11 @@ export const OrderLifecycleTimeline: React.FC<OrderLifecycleTimelineProps> = ({
               color: '#0f172a',
             }}
           >
-            Vòng đời xử lý đơn hàng
+            Theo dõi trạng thái giao hàng
           </h4>
         </div>
 
-        {/* Badge trạng thái chính */}
+        {/* Badge trạng thái chính (Không dùng icon) */}
         <div>
           {isCancelled ? (
             <span
@@ -139,6 +196,21 @@ export const OrderLifecycleTimeline: React.FC<OrderLifecycleTimelineProps> = ({
             >
               Trạng thái: TỪ CHỐI
             </span>
+          ) : currentStepIndex === -1 ? (
+            <span
+              style={{
+                display: 'inline-block',
+                background: '#fef3c7',
+                color: '#92400e',
+                border: '1px solid #fde68a',
+                borderRadius: '999px',
+                padding: '4px 14px',
+                fontSize: '12px',
+                fontWeight: 700,
+              }}
+            >
+              Trạng thái: CHỜ DUYỆT
+            </span>
           ) : (
             <span
               style={{
@@ -152,14 +224,14 @@ export const OrderLifecycleTimeline: React.FC<OrderLifecycleTimelineProps> = ({
                 fontWeight: 700,
               }}
             >
-              Bước {Math.min(currentStepIndex + 1, LIFECYCLE_STEPS.length)} / {LIFECYCLE_STEPS.length}:{' '}
-              {LIFECYCLE_STEPS[currentStepIndex]?.label || normalizedStatus}
+              Bước {currentStepIndex + 1} / {DELIVERY_STEPS.length}:{' '}
+              {DELIVERY_STEPS[currentStepIndex]?.label || normalizedStatus}
             </span>
           )}
         </div>
       </div>
 
-      {/* Stepper ngang (HOÀN TOÀN BỎ CÁC ICON, CHỈ DÙNG SỐ VÀ CHỮ THEO YÊU CẦU) */}
+      {/* Stepper ngang 5 mốc giao hàng (Hoàn toàn không dùng icon) */}
       <div
         style={{
           display: 'flex',
@@ -171,10 +243,10 @@ export const OrderLifecycleTimeline: React.FC<OrderLifecycleTimelineProps> = ({
           paddingBottom: '8px',
         }}
       >
-        {LIFECYCLE_STEPS.map((step, idx) => {
-          const isPassed = !isInterrupted && idx < currentStepIndex;
-          const isCurrent = !isInterrupted && idx === currentStepIndex;
-          const isInterruptedStep = isInterrupted && idx >= 2;
+        {DELIVERY_STEPS.map((step, idx) => {
+          const isPassed = !isInterrupted && currentStepIndex > idx;
+          const isCurrent = !isInterrupted && currentStepIndex === idx;
+          const isInterruptedStep = isInterrupted && idx >= 1;
 
           let circleBg = '#f1f5f9';
           let circleColor = '#64748b';
@@ -230,7 +302,7 @@ export const OrderLifecycleTimeline: React.FC<OrderLifecycleTimelineProps> = ({
                 />
               )}
 
-              {/* Vòng tròn số thứ tự bước (KHÔNG DÙNG ICON) */}
+              {/* Vòng tròn số thứ tự bước (Dùng số, không dùng icon) */}
               <div
                 style={{
                   width: '32px',
@@ -266,6 +338,19 @@ export const OrderLifecycleTimeline: React.FC<OrderLifecycleTimelineProps> = ({
                 {step.label}
               </span>
 
+              {/* Mốc thời gian */}
+              <span
+                style={{
+                  fontSize: '11px',
+                  color: isCurrent ? '#1e40af' : isPassed ? '#15803d' : '#64748b',
+                  fontWeight: isCurrent || isPassed ? 600 : 400,
+                  marginBottom: '2px',
+                  lineHeight: '1.25',
+                }}
+              >
+                {getStepTimestamp(idx)}
+              </span>
+
               {/* Trạng thái bước */}
               <span
                 style={{
@@ -281,7 +366,7 @@ export const OrderLifecycleTimeline: React.FC<OrderLifecycleTimelineProps> = ({
         })}
       </div>
 
-      {/* Nhánh Huỷ: Hiển thị nổi bật chi tiết lý do hủy & người thực hiện */}
+      {/* Nhánh Huỷ: Hiển thị chi tiết lý do hủy & người thực hiện (Không icon) */}
       {isCancelled && (
         <div
           style={{
@@ -329,7 +414,7 @@ export const OrderLifecycleTimeline: React.FC<OrderLifecycleTimelineProps> = ({
         </div>
       )}
 
-      {/* Trường hợp bị từ chối */}
+      {/* Trường hợp bị từ chối (Không icon) */}
       {isRejected && (
         <div
           style={{
@@ -350,7 +435,7 @@ export const OrderLifecycleTimeline: React.FC<OrderLifecycleTimelineProps> = ({
         </div>
       )}
 
-      {/* Thông tin phê duyệt nếu đơn đã qua duyệt */}
+      {/* Thông tin phê duyệt nếu đơn đã qua duyệt (Không icon) */}
       {!isCancelled && approvedBy && (
         <div
           style={{
@@ -369,8 +454,8 @@ export const OrderLifecycleTimeline: React.FC<OrderLifecycleTimelineProps> = ({
         </div>
       )}
 
-      {/* Thông báo nghiệp vụ khi đơn đã xuất kho trở lên (bước 5, 6, 7) */}
-      {currentStepIndex >= 4 && !isInterrupted && (
+      {/* Thông báo nghiệp vụ khi đơn đã xuất kho trở lên (Không icon) */}
+      {currentStepIndex >= 2 && !isInterrupted && (
         <div
           style={{
             marginTop: '14px',
@@ -380,16 +465,8 @@ export const OrderLifecycleTimeline: React.FC<OrderLifecycleTimelineProps> = ({
             padding: '10px 16px',
             borderRadius: '8px',
             border: '1.5px solid #fde68a',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
           }}
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="10" />
-            <line x1="12" y1="8" x2="12" y2="12" />
-            <line x1="12" y1="16" x2="12.01" y2="16" />
-          </svg>
           <span>
             <strong>Quy tắc nghiệp vụ:</strong> Đơn đã xuất kho thì không huỷ được, phải đi đường trả hàng.
           </span>

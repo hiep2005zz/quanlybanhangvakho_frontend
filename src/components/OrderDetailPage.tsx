@@ -6,13 +6,12 @@ import {
   reorderOrderApi,
   getCloneOrderDataApi,
   OrderPickingSummary,
-  OrderPickingItem,
-  ProductPickingLocationItem,
   User,
 } from '../services/api';
 import { useParams, useNavigate } from '../hooks/useLocation';
 import { OrderLifecycleTimeline } from './OrderLifecycleTimeline';
 import OrderPrintModal from './OrderPrintModal';
+import { OrderApprovalHistory } from './OrderApprovalHistory';
 import { emitStatusToast } from './StatusToast';
 
 interface OrderDetailPageProps {
@@ -289,7 +288,7 @@ export const OrderDetailPage: React.FC<OrderDetailPageProps> = ({
   const cleanModalReason = getCleanApprovalReason(order);
 
   // Shortage calculation
-  const isCompletedDelivery = ['DELIVERED', 'CLOSED', 'COMPLETED', 'SHIPPED', 'EXPORTED'].includes(order.status);
+  const isCompletedDelivery = ['DELIVERED', 'CLOSED', 'COMPLETED', 'SHIPPED', 'DISPATCHED', 'DELIVERING', 'IN_TRANSIT', 'EXPORTED'].includes((order?.status || '').toUpperCase());
   const shortageItems = (order.items || []).filter((it: any) => {
     const qty = Number(it.quantity) || 0;
     if (it.shortage_quantity !== undefined && it.shortage_quantity !== null) {
@@ -386,125 +385,139 @@ export const OrderDetailPage: React.FC<OrderDetailPageProps> = ({
         </div>
       </div>
 
-      {/* Main Content Container */}
-      <div className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-        {/* Stepper / Timeline Vòng đời đơn hàng */}
-        <div className="bg-white rounded-2xl border border-slate-200/80 p-5 sm:p-6 shadow-xs">
-          <OrderLifecycleTimeline
-            status={order.status}
-            cancelReason={order.cancel_reason}
-            cancelledBy={order.cancelled_by}
-            cancelledAt={order.cancelled_at}
-            approvalReason={order.approval_reason}
-            approvedBy={order.approved_by}
-          />
-        </div>
-
-        {/* Cảnh báo công nợ nếu đại lý bị khóa */}
-        {isCustomerLocked && (
-          <div className="bg-rose-50 border-1.5 border-rose-500 rounded-2xl p-4 sm:p-5 text-rose-900 shadow-xs">
-            <strong className="block text-rose-800 font-bold mb-1">
-              CẢNH BÁO CÔNG NỢ: Đại lý &apos;{order.dealer_name}&apos; hiện đang bị KHÓA giao dịch
-              {order.dealer_lock_reason ? ` (Lý do: ${order.dealer_lock_reason})` : ''}.
-            </strong>
-            <p className="text-sm text-rose-700">
-              Đơn dở dang này vẫn được phép xử lý nhưng vui lòng kiểm tra kỹ công nợ trước khi xuất hàng!
-            </p>
+      {/* Main Content Container: Hợp nhất thành 1 khung bảng duy nhất liền mạch */}
+      <div className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden divide-y divide-slate-200">
+          {/* Khối 1: Tiến độ giao hàng */}
+          <div className="p-5 sm:p-6 bg-white">
+            <OrderLifecycleTimeline
+              embedded
+              status={order.status}
+              cancelReason={order.cancel_reason}
+              cancelledBy={order.cancelled_by}
+              cancelledAt={order.cancelled_at}
+              approvalReason={order.approval_reason}
+              approvedBy={order.approved_by}
+              approvedAt={order.approved_at}
+              createdAt={order.created_at}
+              pickingAt={order.picking_at}
+              exportedAt={order.exported_at}
+              shippedAt={order.shipped_at}
+              deliveredAt={order.delivered_at}
+              desiredDeliveryDate={order.desired_delivery_date}
+            />
           </div>
-        )}
 
-        {/* Thông tin kho xuất hàng */}
-        {pickingSummary && (
-          <div className="bg-sky-50 border border-sky-200 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
-            <div>
-              <div className="text-xs font-bold text-sky-700 uppercase tracking-wider">
-                Kho xuất hàng mặc định (Đại lý {order.dealer_name})
-              </div>
-              <div className="text-base font-extrabold text-sky-950 mt-0.5">
-                {pickingSummary.warehouse_name} ({pickingSummary.warehouse_code})
-              </div>
-            </div>
-            {pickingSummary.warehouse_address && (
-              <div className="text-xs sm:text-sm text-sky-800 bg-sky-100/80 px-3.5 py-1.5 rounded-lg border border-sky-200 font-medium self-start sm:self-auto">
-                Địa chỉ: {pickingSummary.warehouse_address}
-              </div>
-            )}
-          </div>
-        )}
+          {/* Các thông báo nghiệp vụ (Nếu có) */}
+          {(isCustomerLocked || pickingSummary || cleanModalReason || (isCompletedDelivery && shortageItems.length > 0)) && (
+            <div className="p-4 sm:p-5 bg-slate-50/60 space-y-3">
+              {/* Cảnh báo công nợ nếu đại lý bị khóa */}
+              {isCustomerLocked && (
+                <div className="bg-rose-50 border border-rose-300 rounded-xl p-3.5 sm:p-4 text-rose-900 shadow-2xs">
+                  <strong className="block text-rose-800 font-bold mb-1">
+                    CẢNH BÁO CÔNG NỢ: Đại lý &apos;{order.dealer_name}&apos; hiện đang bị KHÓA giao dịch
+                    {order.dealer_lock_reason ? ` (Lý do: ${order.dealer_lock_reason})` : ''}.
+                  </strong>
+                  <p className="text-sm text-rose-700 m-0">
+                    Đơn dở dang này vẫn được phép xử lý nhưng vui lòng kiểm tra kỹ công nợ trước khi xuất hàng!
+                  </p>
+                </div>
+              )}
 
-        {/* Lý do yêu cầu phê duyệt */}
-        {cleanModalReason && (
-          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 sm:p-5 text-amber-900 text-sm shadow-xs">
-            <strong className="font-bold text-amber-900">Lý do yêu cầu phê duyệt:</strong> {cleanModalReason}
-          </div>
-        )}
+              {/* Thông tin kho xuất hàng */}
+              {pickingSummary && (
+                <div className="bg-sky-50 border border-sky-200 rounded-xl p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+                  <div>
+                    <div className="text-xs font-bold text-sky-700 uppercase tracking-wider">
+                      Kho xuất hàng mặc định (Đại lý {order.dealer_name})
+                    </div>
+                    <div className="text-sm font-extrabold text-sky-950 mt-0.5">
+                      {pickingSummary.warehouse_name} ({pickingSummary.warehouse_code})
+                    </div>
+                  </div>
+                  {pickingSummary.warehouse_address && (
+                    <div className="text-xs sm:text-sm text-sky-800 bg-sky-100/80 px-3 py-1 rounded-lg border border-sky-200 font-medium self-start sm:self-auto">
+                      Địa chỉ: {pickingSummary.warehouse_address}
+                    </div>
+                  )}
+                </div>
+              )}
 
-        {/* Thông tin giao hàng & người lên đơn */}
-        <div className="bg-white border border-slate-200/80 rounded-2xl p-5 sm:p-6 shadow-xs">
-          <h2 className="text-sm font-bold uppercase tracking-wider text-slate-400 mb-4">Thông tin vận chuyển & tạo đơn</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 text-sm">
-            <div className="bg-slate-50/70 p-3.5 rounded-xl border border-slate-100">
-              <span className="text-xs text-slate-500 font-medium block">Điểm giao hàng</span>
-              <div className="font-semibold text-slate-900 mt-1">
-                {order.delivery_point || 'Địa chỉ đại lý'}
-              </div>
-            </div>
-            <div className="bg-slate-50/70 p-3.5 rounded-xl border border-slate-100">
-              <span className="text-xs text-slate-500 font-medium block">Ngày giao mong muốn</span>
-              <div className="font-semibold text-slate-900 mt-1">
-                {order.desired_delivery_date
-                  ? new Date(order.desired_delivery_date).toLocaleDateString('vi-VN')
-                  : 'Tiêu chuẩn'}
-              </div>
-            </div>
-            <div className="bg-slate-50/70 p-3.5 rounded-xl border border-slate-100">
-              <span className="text-xs text-slate-500 font-medium block">Người lên đơn</span>
-              <div className="font-semibold text-slate-900 mt-1">
-                {order.created_by || order.assigned_sale_name || '—'}
-              </div>
-            </div>
-            <div className="bg-slate-50/70 p-3.5 rounded-xl border border-slate-100">
-              <span className="text-xs text-slate-500 font-medium block">Thời gian tạo</span>
-              <div className="font-semibold text-slate-900 mt-1">
-                {order.created_at ? new Date(order.created_at).toLocaleString('vi-VN') : '—'}
-              </div>
-            </div>
-          </div>
-          {order.note && (
-            <div className="mt-4 pt-3.5 border-t border-dashed border-slate-200 text-sm text-slate-700 bg-amber-50/50 p-3 rounded-xl">
-              <span className="font-semibold text-slate-900">Ghi chú đơn hàng:</span> <em>{order.note}</em>
+              {/* Lý do yêu cầu phê duyệt */}
+              {cleanModalReason && (
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-3.5 sm:p-4 text-amber-900 text-sm shadow-2xs">
+                  <strong className="font-bold text-amber-900">Lý do yêu cầu phê duyệt:</strong> {cleanModalReason}
+                </div>
+              )}
+
+              {/* Banner Cảnh báo Giao thiếu */}
+              {isCompletedDelivery && shortageItems.length > 0 && (
+                <div className="bg-rose-50 border border-rose-300 rounded-xl p-3.5 sm:p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-2xs">
+                  <div className="text-sm text-rose-950">
+                    <strong className="block text-rose-900 font-bold text-base mb-1">
+                      CẢNH BÁO: ĐƠN HÀNG GIAO THIẾU ({shortageItems.length} mặt hàng)
+                    </strong>
+                    Đơn hàng có {shortageItems.length} sản phẩm thực nhận ít hơn số lượng đặt. Quý khách vui lòng kiểm tra cột <strong>SL Thực giao</strong> và số lượng thiếu tương ứng trên từng dòng sản phẩm bên dưới.
+                  </div>
+                  {!isCustomer && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSupplementaryOrder(order);
+                        setSupplementaryNote('Giao bổ sung đợt 2 - hoàn tất đơn hàng');
+                        setSupplementaryError(null);
+                      }}
+                      className="px-4 py-2 bg-rose-700 hover:bg-rose-800 text-white font-bold text-xs sm:text-sm rounded-lg shadow-2xs transition-colors shrink-0 cursor-pointer"
+                      title="Tạo đợt xuất giao phần hàng còn thiếu"
+                    >
+                      Giao bổ sung ngay
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           )}
-        </div>
 
-        {/* Banner Cảnh báo Giao thiếu */}
-        {isCompletedDelivery && shortageItems.length > 0 && (
-          <div className="bg-rose-50 border-1.5 border-rose-400 rounded-2xl p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-xs">
-            <div className="text-sm text-rose-950">
-              <strong className="block text-rose-900 font-bold text-base mb-1">
-                CẢNH BÁO: ĐƠN HÀNG GIAO THIẾU ({shortageItems.length} mặt hàng)
-              </strong>
-              Đơn hàng có {shortageItems.length} sản phẩm thực nhận ít hơn số lượng đặt. Quý khách vui lòng kiểm tra cột <strong>SL Thực giao</strong> và số lượng thiếu tương ứng trên từng dòng sản phẩm bên dưới.
+          {/* Khối 2: Thông tin vận chuyển & tạo đơn */}
+          <div className="p-5 sm:p-6 bg-slate-50/40">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3.5">Thông tin vận chuyển & tạo đơn</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+              <div className="bg-white p-3.5 rounded-xl border border-slate-200/80 shadow-2xs">
+                <span className="text-xs text-slate-500 font-medium block">Điểm giao hàng</span>
+                <div className="font-semibold text-slate-900 mt-1">
+                  {order.delivery_point || 'Địa chỉ đại lý'}
+                </div>
+              </div>
+              <div className="bg-white p-3.5 rounded-xl border border-slate-200/80 shadow-2xs">
+                <span className="text-xs text-slate-500 font-medium block">Ngày giao mong muốn</span>
+                <div className="font-semibold text-slate-900 mt-1">
+                  {order.desired_delivery_date
+                    ? new Date(order.desired_delivery_date).toLocaleDateString('vi-VN')
+                    : 'Tiêu chuẩn'}
+                </div>
+              </div>
+              <div className="bg-white p-3.5 rounded-xl border border-slate-200/80 shadow-2xs">
+                <span className="text-xs text-slate-500 font-medium block">Người lên đơn</span>
+                <div className="font-semibold text-slate-900 mt-1">
+                  {order.created_by || order.assigned_sale_name || '—'}
+                </div>
+              </div>
+              <div className="bg-white p-3.5 rounded-xl border border-slate-200/80 shadow-2xs">
+                <span className="text-xs text-slate-500 font-medium block">Thời gian tạo</span>
+                <div className="font-semibold text-slate-900 mt-1">
+                  {order.created_at ? new Date(order.created_at).toLocaleString('vi-VN') : '—'}
+                </div>
+              </div>
             </div>
-            {!isCustomer && (
-              <button
-                type="button"
-                onClick={() => {
-                  setSupplementaryOrder(order);
-                  setSupplementaryNote('Giao bổ sung đợt 2 - hoàn tất đơn hàng');
-                  setSupplementaryError(null);
-                }}
-                className="px-4 py-2.5 bg-rose-700 hover:bg-rose-800 text-white font-bold text-xs sm:text-sm rounded-xl shadow-xs transition-colors shrink-0 cursor-pointer"
-                title="Tạo đợt xuất giao phần hàng còn thiếu"
-              >
-                Giao bổ sung ngay
-              </button>
+            {order.note && (
+              <div className="mt-3.5 pt-3 border-t border-dashed border-slate-200 text-sm text-slate-700 bg-amber-50/50 p-3 rounded-xl border border-amber-200/60">
+                <span className="font-semibold text-slate-900">Ghi chú đơn hàng:</span> <em>{order.note}</em>
+              </div>
             )}
           </div>
-        )}
 
-        {/* Danh sách sản phẩm chi tiết */}
-        <div className="bg-white border border-slate-200/80 rounded-2xl shadow-xs overflow-hidden">
+          {/* Khối 3: Danh sách sản phẩm chi tiết */}
+          <div>
           <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between">
             <h2 className="text-base font-bold text-slate-900">
               Danh sách sản phẩm trong đơn ({order.items?.length || 0} sản phẩm)
@@ -519,16 +532,14 @@ export const OrderDetailPage: React.FC<OrderDetailPageProps> = ({
                   <th className="py-3 px-3 text-center">ĐVT</th>
                   <th className="py-3 px-4 text-right">SL Đặt</th>
                   <th className="py-3 px-4 text-right">SL Thực giao</th>
-                  <th className="py-3 px-4">Vị trí kệ & Khả dụng</th>
                   <th className="py-3 px-4 text-right">Đơn giá</th>
                   <th className="py-3 px-4 text-right">Thành tiền</th>
-                  <th className="py-3 px-4 text-center">Thao tác</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {(!order.items || order.items.length === 0) ? (
                   <tr>
-                    <td colSpan={8} className="py-8 text-center text-slate-400">
+                    <td colSpan={6} className="py-8 text-center text-slate-400">
                       Chưa có thông tin danh sách sản phẩm.
                     </td>
                   </tr>
@@ -538,14 +549,8 @@ export const OrderDetailPage: React.FC<OrderDetailPageProps> = ({
                     const qty = Number(item.quantity) || 1;
                     const deliveredQty = isCompletedDelivery
                       ? (item.delivered_quantity !== undefined && item.delivered_quantity !== null ? Number(item.delivered_quantity) : qty)
-                      : null;
+                      : (item.delivered_quantity !== undefined && item.delivered_quantity !== null ? Number(item.delivered_quantity) : null);
                     const shortage = isCompletedDelivery && deliveredQty !== null ? Math.max(0, qty - deliveredQty) : 0;
-                    const pickingItem = pickingSummary?.items.find((p: OrderPickingItem) => p.product_id === item.product_id);
-                    const totalAvailable = (pickingItem?.locations || []).reduce(
-                      (acc: number, l: ProductPickingLocationItem) => acc + (l.available_quantity || 0),
-                      0
-                    );
-                    const isSufficient = totalAvailable >= qty;
                     const price = item.price || 0;
                     const lineTotal = qty * price;
 
@@ -579,33 +584,13 @@ export const OrderDetailPage: React.FC<OrderDetailPageProps> = ({
                                   Thiếu {shortage}
                                 </span>
                               ) : (
-                                <span className="text-emerald-600 text-xs font-semibold">Đủ</span>
-                              )}
-                            </div>
-                          ) : (
-                            <span className="text-slate-300">—</span>
-                          )}
-                        </td>
-                        <td className="py-3.5 px-4">
-                          {pickingItem && pickingItem.locations.length > 0 ? (
-                            <div className="flex flex-col gap-1">
-                              {pickingItem.locations.map((loc: ProductPickingLocationItem) => (
-                                <div
-                                  key={loc.location_id}
-                                  className="inline-flex items-center gap-1.5 bg-slate-100 border border-slate-200 rounded-md px-2 py-0.5 text-xs"
-                                >
-                                  <span className="font-bold text-slate-800">{loc.location_code}</span>
-                                  <span className="text-slate-500 text-[11px]">(Khả dụng: {loc.available_quantity})</span>
-                                </div>
-                              ))}
-                              {!isSufficient && (
-                                <span className="text-rose-600 text-xs font-medium mt-0.5">
-                                  Thiếu hàng khả dụng (Cần: {qty}, Có: {totalAvailable})
+                                <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 rounded px-1.5 py-0.5 text-[11px] font-bold">
+                                  Đủ
                                 </span>
                               )}
                             </div>
                           ) : (
-                            <span className="text-slate-400 italic text-xs">Chưa phân bổ vị trí</span>
+                            <span className="text-slate-400 text-xs font-normal">Chờ xuất</span>
                           )}
                         </td>
                         <td className="py-3.5 px-4 text-right text-slate-700">
@@ -613,17 +598,6 @@ export const OrderDetailPage: React.FC<OrderDetailPageProps> = ({
                         </td>
                         <td className="py-3.5 px-4 text-right font-bold text-slate-900">
                           {lineTotal.toLocaleString('vi-VN')} đ
-                        </td>
-                        <td className="py-3.5 px-4 text-center">
-                          <button
-                            type="button"
-                            title="Đặt lại riêng sản phẩm này theo giá hiện hành"
-                            disabled={reorderLoading || isCustomerLocked}
-                            onClick={() => handleReorderOrder(order.order_code, item.product_id)}
-                            className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-emerald-800 rounded-lg text-xs font-semibold transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            Đặt lại
-                          </button>
                         </td>
                       </tr>
                     );
@@ -655,7 +629,13 @@ export const OrderDetailPage: React.FC<OrderDetailPageProps> = ({
             </div>
           </div>
         </div>
+
+        {/* Lịch sử phê duyệt đơn hàng */}
+        <div className="mt-4 sm:mt-6">
+          <OrderApprovalHistory orderCode={order.order_code} token={token} />
+        </div>
       </div>
+    </div>
 
       {/* Sticky Bottom Actions Bar */}
       <div className="sticky bottom-0 z-20 bg-white/95 backdrop-blur-md border-t border-slate-200 px-4 sm:px-6 lg:px-8 py-3.5 shadow-md w-full mt-auto">
@@ -676,15 +656,6 @@ export const OrderDetailPage: React.FC<OrderDetailPageProps> = ({
               title="Đặt lại toàn bộ đơn hàng này theo giá hiện hành"
             >
               {reorderLoading ? 'Đang kiểm tra...' : 'Đặt lại đơn'}
-            </button>
-
-            {/* Nút Quay lại */}
-            <button
-              type="button"
-              onClick={handleBack}
-              className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-sm rounded-xl transition-all cursor-pointer"
-            >
-              Quay lại
             </button>
           </div>
         </div>

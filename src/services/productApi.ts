@@ -70,7 +70,8 @@ export async function uploadProductBulkPreviewApi(
   file: File,
   page: number = 1,
   pageSize: number = 20,
-  statusFilter: string = 'ALL'
+  statusFilter: string = 'ALL',
+  search?: string
 ): Promise<ProductBulkPreviewResponse> {
   const formData = new FormData();
   formData.append('file', file);
@@ -80,6 +81,9 @@ export async function uploadProductBulkPreviewApi(
     page_size: String(pageSize),
     status_filter: statusFilter,
   });
+  if (search && search.trim()) {
+    queryParams.set('search', search.trim());
+  }
 
   const response = await authenticatedFetch(
     `${API_BASE_URL}/products/bulk-preview?${queryParams.toString()}`,
@@ -99,20 +103,24 @@ export async function uploadProductBulkPreviewApi(
 }
 
 /**
- * Tải trang tiếp theo từ Backend khi người dùng bấm sang trang 2, 3...
+ * Tải trang tiếp theo từ Backend khi người dùng bấm sang trang 2, 3... hoặc tìm kiếm sản phẩm
  */
 export async function getProductBulkPreviewPageApi(
   token: string,
   fileId: string,
   page: number = 1,
   pageSize: number = 20,
-  statusFilter: string = 'ALL'
+  statusFilter: string = 'ALL',
+  search?: string
 ): Promise<ProductBulkPreviewResponse> {
   const queryParams = new URLSearchParams({
     page: String(page),
     page_size: String(pageSize),
     status_filter: statusFilter,
   });
+  if (search && search.trim()) {
+    queryParams.set('search', search.trim());
+  }
 
   const response = await authenticatedFetch(
     `${API_BASE_URL}/products/bulk-preview/${encodeURIComponent(fileId)}?${queryParams.toString()}`,

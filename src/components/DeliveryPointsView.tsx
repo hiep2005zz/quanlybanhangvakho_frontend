@@ -48,8 +48,9 @@ export default function DeliveryPointsView({
   const [loadingPoints, setLoadingPoints] = useState(false);
   const [pointsError, setPointsError] = useState('');
 
-  // Modal: All Delivery Points Overview
-  const [isAllPointsModalOpen, setIsAllPointsModalOpen] = useState(false);
+  // Trang: Xem toàn bộ Danh sách Điểm Giao Hàng (Full Page View)
+  const [isAllPointsPageOpen, setIsAllPointsPageOpen] = useState(false);
+  const [cameFromAllPointsPage, setCameFromAllPointsPage] = useState(false);
   const [allPoints, setAllPoints] = useState<AllDeliveryPointItem[]>([]);
   const [loadingAllPoints, setLoadingAllPoints] = useState(false);
   const [allPointsSearch, setAllPointsSearch] = useState('');
@@ -62,6 +63,7 @@ export default function DeliveryPointsView({
 
   // Modal: create/edit
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isCreatePageOpen, setIsCreatePageOpen] = useState(false);
   const [editingPoint, setEditingPoint] = useState<DeliveryPoint | null>(null);
   const [formDealerId, setFormDealerId] = useState<number | null>(null);
   const [form, setForm] = useState<DeliveryPointInput>(EMPTY_FORM);
@@ -135,10 +137,18 @@ export default function DeliveryPointsView({
     }
   }, [token]);
 
-  const handleOpenAllPointsModal = () => {
-    setIsAllPointsModalOpen(true);
+  // Điều hướng mở / đóng Trang Danh Sách Điểm Giao Hàng (Full Page View)
+  const handleOpenAllPointsPage = () => {
+    setIsAllPointsPageOpen(true);
     loadAllPoints();
   };
+
+  const handleCloseAllPointsPage = () => {
+    setIsAllPointsPageOpen(false);
+    loadPoints();
+  };
+
+  
 
   // Selected dealer object
   const selectedDealer = useMemo(() => {
@@ -286,10 +296,21 @@ export default function DeliveryPointsView({
     }
   };
 
-  // Open modal for Create
-  const handleOpenCreateModal = (customDealerId?: number) => {
+  // Đóng trang tạo điểm giao mới
+  const handleCloseCreatePage = () => {
+    setIsCreatePageOpen(false);
+    setForm(EMPTY_FORM);
+    setFormError('');
+    if (cameFromAllPointsPage) {
+      setIsAllPointsPageOpen(true);
+      setCameFromAllPointsPage(false);
+    }
+  };
+
+  // Mở trang tạo điểm giao mới (Full-page form view)
+  const handleOpenCreatePage = (customDealerId?: number) => {
     const targetDealerId = customDealerId || selectedDealerId || (dealers.length > 0 ? dealers[0].id : null);
-    if (!targetDealerId) {
+    if (!targetDealerId && dealers.length === 0) {
       emitStatusToast({
         title: 'Chưa có đại lý',
         message: 'Hệ thống chưa có đại lý nào để tạo điểm giao.',
@@ -297,28 +318,32 @@ export default function DeliveryPointsView({
       });
       return;
     }
-    const targetDealer = dealers.find((d) => d.id === targetDealerId);
+    setIsAllPointsPageOpen(false);
+    setIsSelectPointModalOpen(false);
+    setIsModalOpen(false);
     setIsEditingMaster(false);
-    setFormDealerId(targetDealerId);
     setEditingPoint(null);
+    setFormDealerId(targetDealerId);
     setForm({
       ...EMPTY_FORM,
-      receiver_name: targetDealer?.name || '',
-      receiver_phone: targetDealer?.phone || '',
+      receiver_name: '',
+      receiver_phone: '',
       address: '',
       is_default: false,
     });
     setFormError('');
-    setIsModalOpen(true);
+    setIsCreatePageOpen(true);
   };
 
-  // Open modal for Create in Master Catalog
+  // Open page for Create (dành cho đại lý)
+  const handleOpenCreateModal = (customDealerId?: number) => {
+    handleOpenCreatePage(customDealerId);
+  };
+
+  // Open page for Create in Master Catalog (dành cho nút "Thêm điểm giao mới" ở hình 1)
   const handleOpenCreateMasterModal = () => {
-    setIsEditingMaster(true);
-    setEditingPoint(null);
-    setForm(EMPTY_FORM);
-    setFormError('');
-    setIsModalOpen(true);
+    setCameFromAllPointsPage(true);
+    handleOpenCreatePage();
   };
 
   // Open modal for Edit Dealer Point
@@ -444,11 +469,16 @@ export default function DeliveryPointsView({
         }
       }
       setIsModalOpen(false);
+      setIsCreatePageOpen(false);
       setEditingPoint(null);
       setIsEditingMaster(false);
       setForm(EMPTY_FORM);
       await loadPoints();
       await loadAllPoints();
+      if (cameFromAllPointsPage) {
+        setIsAllPointsPageOpen(true);
+        setCameFromAllPointsPage(false);
+      }
     } catch (err: unknown) {
       let msg = 'Có lỗi xảy ra khi lưu';
       if (err instanceof Error) {
@@ -527,7 +557,7 @@ export default function DeliveryPointsView({
         type: 'success',
       });
       await loadPoints();
-      if (isAllPointsModalOpen) {
+      if (isAllPointsPageOpen) {
         await loadAllPoints();
       }
     } catch (err: unknown) {
@@ -535,6 +565,405 @@ export default function DeliveryPointsView({
       emitStatusToast({ title: 'Lỗi', message: msg, type: 'error' });
     }
   };
+
+  // NẾU ĐANG Ở CHẾ ĐỘ TRANG TẠO ĐIỂM GIAO HÀNG MỚI (FULL PAGE VIEW)
+  if (isCreatePageOpen) {
+    return (
+      <div
+        style={{
+          width: '100%',
+          maxWidth: '1680px',
+          margin: '0 auto',
+          padding: '16px 20px',
+          height: '100%',
+          display: 'flex',
+          flexDirection: 'column',
+          overflowY: 'auto',
+          boxSizing: 'border-box',
+          fontFamily: 'inherit',
+        }}
+      >
+        {/* Header Breadcrumb & Nút Quay lại */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '16px',
+            marginBottom: '20px',
+            flexShrink: 0,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <button
+              type="button"
+              onClick={handleCloseCreatePage}
+              style={{
+                padding: '7px 18px',
+                fontSize: '13px',
+                fontWeight: '600',
+                color: '#334155',
+                backgroundColor: '#ffffff',
+                border: '1px solid #cbd5e1',
+                borderRadius: '9999px',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+                transition: 'all 0.15s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#f8fafc';
+                e.currentTarget.style.borderColor = '#94a3b8';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = '#ffffff';
+                e.currentTarget.style.borderColor = '#cbd5e1';
+              }}
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M19 12H5M12 19l-7-7 7-7" />
+              </svg>
+              <span>Quay lại</span>
+            </button>
+            <span style={{ color: '#cbd5e1', fontSize: '16px' }}>/</span>
+            <div>
+              <h2 style={{ fontSize: '22px', fontWeight: '800', color: '#0f172a', margin: 0, letterSpacing: '-0.02em' }}>
+                Thêm điểm giao hàng mới
+              </h2>
+            </div>
+          </div>
+        </div>
+
+        {/* Khối Card Form Thông Tin (Mở rộng toàn màn hình, kích thước lớn và thoáng) */}
+        <div
+          style={{
+            width: '100%',
+            maxWidth: '100%',
+            background: '#ffffff',
+            borderRadius: '18px',
+            border: '1px solid #e2e8f0',
+            boxShadow: '0 4px 20px -2px rgba(15, 23, 42, 0.06)',
+            padding: '36px 44px',
+            boxSizing: 'border-box',
+          }}
+        >
+          {/* Header Card */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '16px',
+              marginBottom: '28px',
+              paddingBottom: '22px',
+              borderBottom: '1px solid #f1f5f9',
+            }}
+          >
+            <div
+              style={{
+                width: '48px',
+                height: '48px',
+                borderRadius: '12px',
+                background: '#ecfdf5',
+                color: '#0fad89',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}
+            >
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+                <circle cx="12" cy="10" r="3" />
+              </svg>
+            </div>
+            <div>
+              <h3 style={{ margin: 0, fontSize: '19px', fontWeight: '800', color: '#0f172a' }}>
+                Thông tin điểm nhận hàng
+              </h3>
+            </div>
+          </div>
+
+          <form onSubmit={handleSubmitForm} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            {formError && (
+              <div
+                style={{
+                  padding: '14px 18px',
+                  borderRadius: '10px',
+                  background: '#fef2f2',
+                  border: '1px solid #fecaca',
+                  color: '#dc2626',
+                  fontSize: '14px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                }}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="8" x2="12" y2="12" />
+                  <line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
+                <span>{formError}</span>
+              </div>
+            )}
+
+            {/* Hàng 1: Đại lý & Tên điểm giao */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '24px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '13.5px', fontWeight: '700', color: '#334155', marginBottom: '8px' }}>
+                  Thuộc Đại lý <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+                <select
+                  value={formDealerId || ''}
+                  onChange={(e) => {
+                    setFormDealerId(Number(e.target.value));
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '12px 16px',
+                    borderRadius: '10px',
+                    border: '1px solid #cbd5e1',
+                    fontSize: '14.5px',
+                    outline: 'none',
+                    background: '#ffffff',
+                    cursor: 'pointer',
+                    boxSizing: 'border-box',
+                  }}
+                >
+                  {dealers.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.code ? `[${d.code}] ` : ''}{d.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '13.5px', fontWeight: '700', color: '#334155', marginBottom: '8px' }}>
+                  Tên điểm giao <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="VD: Kho tổng, Chi nhánh 1, Kho miền Bắc..."
+                  value={form.label}
+                  onChange={(e) => setForm({ ...form, label: e.target.value })}
+                  required
+                  style={{
+                    width: '100%',
+                    padding: '12px 16px',
+                    borderRadius: '10px',
+                    border: '1px solid #cbd5e1',
+                    fontSize: '14.5px',
+                    outline: 'none',
+                    boxSizing: 'border-box',
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Hàng 2: Địa chỉ nhận hàng chi tiết */}
+            <div>
+              <label style={{ display: 'block', fontSize: '13.5px', fontWeight: '700', color: '#334155', marginBottom: '8px' }}>
+                Địa chỉ nhận hàng chi tiết <span style={{ color: '#ef4444' }}>*</span>
+              </label>
+              <input
+                type="text"
+                placeholder="VD: Số 123 Đường ABC, Phường X, Quận Y, TP. HCM"
+                value={form.address}
+                onChange={(e) => setForm({ ...form, address: e.target.value })}
+                required
+                style={{
+                  width: '100%',
+                  padding: '12px 16px',
+                  borderRadius: '10px',
+                  border: '1px solid #cbd5e1',
+                  fontSize: '14.5px',
+                  outline: 'none',
+                  boxSizing: 'border-box',
+                }}
+              />
+            </div>
+
+            {/* Hàng 3: Người nhận & Số điện thoại */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '24px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '13.5px', fontWeight: '700', color: '#334155', marginBottom: '8px' }}>
+                  Người nhận hàng
+                </label>
+                <input
+                  type="text"
+                  placeholder="VD: Anh Minh"
+                  value={form.receiver_name || ''}
+                  onChange={(e) => setForm({ ...form, receiver_name: e.target.value })}
+                  style={{
+                    width: '100%',
+                    padding: '12px 16px',
+                    borderRadius: '10px',
+                    border: '1px solid #cbd5e1',
+                    fontSize: '14.5px',
+                    outline: 'none',
+                    boxSizing: 'border-box',
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '13.5px', fontWeight: '700', color: '#334155', marginBottom: '8px' }}>
+                  Số điện thoại nhận <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+                <input
+                  type="tel"
+                  placeholder="VD: 0912345678"
+                  maxLength={10}
+                  required
+                  value={form.receiver_phone || ''}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, '').slice(0, 10);
+                    setForm({ ...form, receiver_phone: val });
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '12px 16px',
+                    borderRadius: '10px',
+                    border: '1px solid #cbd5e1',
+                    fontSize: '14.5px',
+                    outline: 'none',
+                    boxSizing: 'border-box',
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Hàng 4: Ghi chú lộ trình */}
+            <div>
+              <label style={{ display: 'block', fontSize: '13.5px', fontWeight: '700', color: '#334155', marginBottom: '8px' }}>
+                Ghi chú lộ trình / giao hàng (tuỳ chọn)
+              </label>
+              <input
+                type="text"
+                placeholder="VD: Xe tải vào được, giao giờ hành chính, gọi trước 30 phút..."
+                value={form.route_note || ''}
+                onChange={(e) => setForm({ ...form, route_note: e.target.value })}
+                style={{
+                  width: '100%',
+                  padding: '12px 16px',
+                  borderRadius: '10px',
+                  border: '1px solid #cbd5e1',
+                  fontSize: '14.5px',
+                  outline: 'none',
+                  boxSizing: 'border-box',
+                }}
+              />
+            </div>
+
+            {/* Hàng 5: Checkbox Mặc định */}
+            <div>
+              <label
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  cursor: 'pointer',
+                  padding: '12px 18px',
+                  borderRadius: '10px',
+                  background: '#f8fafc',
+                  border: '1px solid #e2e8f0',
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={form.is_default}
+                  onChange={(e) => setForm({ ...form, is_default: e.target.checked })}
+                  style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: '#0fad89' }}
+                />
+                <span style={{ fontSize: '14px', fontWeight: '600', color: '#334155' }}>
+                  Đặt làm điểm giao hàng mặc định cho đại lý này
+                </span>
+              </label>
+            </div>
+
+            {/* Action Buttons */}
+            <div
+              style={{
+                marginTop: '16px',
+                paddingTop: '24px',
+                borderTop: '1px solid #f1f5f9',
+                display: 'flex',
+                justifyContent: 'flex-end',
+                alignItems: 'center',
+                gap: '14px',
+              }}
+            >
+              <button
+                type="button"
+                onClick={handleCloseCreatePage}
+                disabled={formSubmitting}
+                style={{
+                  padding: '12px 26px',
+                  borderRadius: '10px',
+                  border: '1px solid #cbd5e1',
+                  background: '#ffffff',
+                  color: '#475569',
+                  fontSize: '14.5px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f8fafc')}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#ffffff')}
+              >
+                Hủy bỏ
+              </button>
+
+              <button
+                type="submit"
+                disabled={formSubmitting}
+                style={{
+                  padding: '12px 32px',
+                  borderRadius: '10px',
+                  border: 'none',
+                  background: 'linear-gradient(135deg, #0fba90 0%, #0fad89 100%)',
+                  color: '#ffffff',
+                  fontSize: '14.5px',
+                  fontWeight: '700',
+                  cursor: formSubmitting ? 'not-allowed' : 'pointer',
+                  boxShadow: '0 3px 10px rgba(15, 186, 144, 0.25)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  opacity: formSubmitting ? 0.7 : 1,
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                {formSubmitting ? (
+                  <>
+                    <svg
+                      style={{ animation: 'spin 1s linear infinite' }}
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                    >
+                      <circle cx="12" cy="12" r="10" strokeOpacity="0.25" />
+                      <path d="M12 2a10 10 0 0 1 10 10" />
+                    </svg>
+                    <span>Đang lưu...</span>
+                  </>
+                ) : (
+                  <span>Thêm mới</span>
+                )}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -550,7 +979,462 @@ export default function DeliveryPointsView({
         fontFamily: 'inherit',
       }}
     >
-      {/* 1. Header Bar */}
+            {isAllPointsPageOpen ? (
+        /* ========================================================================= */
+        /* TRANG XEM DANH SÁCH TẤT CẢ CÁC ĐIỂM GIAO HÀNG (FULL PAGE VIEW - THAY MODAL) */
+        /* ========================================================================= */
+        <div
+          style={{
+            width: '100%',
+            maxWidth: '1680px',
+            margin: '0 auto',
+            padding: '16px 20px',
+            height: '100%',
+            display: 'flex',
+            flexDirection: 'column',
+            overflowY: 'auto',
+            boxSizing: 'border-box',
+            fontFamily: 'inherit',
+          }}
+        >
+          {/* Header Breadcrumb & Actions */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '16px',
+              marginBottom: '20px',
+              flexShrink: 0,
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <button
+                type="button"
+                onClick={handleCloseAllPointsPage}
+                style={{
+                  padding: '7px 18px',
+                  fontSize: '13px',
+                  fontWeight: '600',
+                  color: '#334155',
+                  backgroundColor: '#ffffff',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: '9999px',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+                  transition: 'all 0.15s ease',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#f8fafc';
+                  e.currentTarget.style.borderColor = '#94a3b8';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = '#ffffff';
+                  e.currentTarget.style.borderColor = '#cbd5e1';
+                }}
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M19 12H5M12 19l-7-7 7-7" />
+                </svg>
+                <span>Quay lại</span>
+              </button>
+              <span style={{ color: '#cbd5e1', fontSize: '16px' }}>/</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <h2 style={{ fontSize: '22px', fontWeight: '800', color: '#0f172a', margin: 0, letterSpacing: '-0.02em' }}>
+                  Danh sách các điểm giao đang có
+                </h2>
+                <span
+                  style={{
+                    background: '#e0e7ff',
+                    color: '#4338ca',
+                    fontSize: '12.5px',
+                    fontWeight: '700',
+                    padding: '3px 10px',
+                    borderRadius: '999px',
+                  }}
+                >
+                  {allPoints.length} điểm giao
+                </span>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <button
+                type="button"
+                onClick={loadAllPoints}
+                style={{
+                  padding: '8px 14px',
+                  borderRadius: '10px',
+                  border: '1px solid #cbd5e1',
+                  background: '#ffffff',
+                  color: '#475569',
+                  fontSize: '13px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+                }}
+                title="Tải lại danh sách điểm giao"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2" />
+                </svg>
+                <span>Làm mới</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleOpenCreateMasterModal}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '10px',
+                  background: 'linear-gradient(135deg, #0fba90 0%, #0fad89 100%)',
+                  color: '#ffffff',
+                  border: 'none',
+                  fontSize: '13.5px',
+                  fontWeight: '700',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  boxShadow: '0 2px 8px rgba(15, 186, 144, 0.25)',
+                  whiteSpace: 'nowrap',
+                  transition: 'all 0.15s ease',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.transform = 'translateY(-1px)')}
+                onMouseLeave={(e) => (e.currentTarget.style.transform = 'translateY(0)')}
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <line x1="12" y1="5" x2="12" y2="19" />
+                  <line x1="5" y1="12" x2="19" y2="12" />
+                </svg>
+                <span>Thêm điểm giao mới</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Card Bảng Dữ Liệu Toàn Màn Hình */}
+          <div
+            style={{
+              background: '#ffffff',
+              borderRadius: '16px',
+              border: '1px solid #e2e8f0',
+              boxShadow: '0 4px 20px -2px rgba(15, 23, 42, 0.06)',
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden',
+              flex: 1,
+              minHeight: '400px',
+            }}
+          >
+            {/* Filter Bar */}
+            <div
+              style={{
+                padding: '16px 20px',
+                borderBottom: '1px solid #f1f5f9',
+                display: 'flex',
+                gap: '12px',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                background: '#ffffff',
+              }}
+            >
+              <div style={{ flex: 1, minWidth: '280px', maxWidth: '540px', position: 'relative' }}>
+                <input
+                  type="text"
+                  placeholder="Tìm theo tên điểm giao, địa chỉ, người nhận, SĐT..."
+                  value={allPointsSearch}
+                  onChange={(e) => setAllPointsSearch(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '9px 12px 9px 36px',
+                    borderRadius: '9px',
+                    border: '1px solid #cbd5e1',
+                    fontSize: '13.5px',
+                    outline: 'none',
+                    boxSizing: 'border-box',
+                    backgroundColor: '#f8fafc',
+                  }}
+                  onFocus={(e) => {
+                    e.currentTarget.style.backgroundColor = '#ffffff';
+                    e.currentTarget.style.borderColor = '#0fad89';
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.backgroundColor = '#f8fafc';
+                    e.currentTarget.style.borderColor = '#cbd5e1';
+                  }}
+                />
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="#94a3b8"
+                  strokeWidth="2.2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  style={{ position: 'absolute', left: '11px', top: '11px' }}
+                >
+                  <circle cx="11" cy="11" r="8" />
+                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                </svg>
+              </div>
+
+              {allPointsSearch && (
+                <button
+                  type="button"
+                  onClick={() => setAllPointsSearch('')}
+                  style={{
+                    padding: '6px 12px',
+                    borderRadius: '7px',
+                    border: '1px solid #cbd5e1',
+                    background: '#ffffff',
+                    color: '#64748b',
+                    fontSize: '12.5px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Xóa tìm kiếm
+                </button>
+              )}
+
+              <div style={{ marginLeft: 'auto', fontSize: '13px', color: '#64748b' }}>
+                Tìm thấy <strong>{filteredAllPoints.length}</strong> / <strong>{allPoints.length}</strong> điểm giao
+              </div>
+            </div>
+
+            {/* Table Container */}
+            <div style={{ flex: 1, overflowY: 'auto' }}>
+              {loadingAllPoints ? (
+                <div style={{ padding: '80px 20px', textAlign: 'center', color: '#94a3b8' }}>
+                  <div style={{ display: 'inline-block', width: '28px', height: '28px', border: '3px solid #cbd5e1', borderTopColor: '#0fad89', borderRadius: '50%', animation: 'spin 0.8s linear infinite', marginBottom: '12px' }} />
+                  <div>Đang tải danh sách điểm giao hàng...</div>
+                </div>
+              ) : filteredAllPoints.length === 0 ? (
+                <div
+                  style={{
+                    padding: '60px 20px',
+                    textAlign: 'center',
+                    color: '#64748b',
+                    fontSize: '14px',
+                  }}
+                >
+                  <div style={{ fontSize: '36px', marginBottom: '12px' }}>📍</div>
+                  <div style={{ fontWeight: '600', color: '#1e293b', marginBottom: '4px' }}>
+                    Không tìm thấy điểm giao hàng nào
+                  </div>
+                  <div style={{ color: '#94a3b8', fontSize: '13px' }}>
+                    {allPointsSearch ? 'Thử tìm kiếm với từ khóa khác' : 'Chưa có điểm giao hàng nào trong hệ thống'}
+                  </div>
+                </div>
+              ) : (
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13.5px' }}>
+                  <thead>
+                    <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0', color: '#475569', fontWeight: '700' }}>
+                      <th style={{ padding: '12px 16px', width: '60px', textAlign: 'center' }}>STT</th>
+                      <th style={{ padding: '12px 16px', width: '25%' }}>Tên điểm giao</th>
+                      <th style={{ padding: '12px 16px', width: '35%' }}>Địa chỉ nhận</th>
+                      <th style={{ padding: '12px 16px', width: '22%' }}>Người nhận / SĐT</th>
+                      <th style={{ padding: '12px 16px', width: '150px', textAlign: 'center' }}>Thao tác</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredAllPoints.map((item, idx) => {
+                      const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(item.address)}`;
+                      return (
+                        <tr
+                          key={item.id}
+                          style={{
+                            borderBottom: '1px solid #f1f5f9',
+                            transition: 'background 0.1s ease',
+                          }}
+                          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f8fafc')}
+                          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                        >
+                          {/* STT */}
+                          <td style={{ padding: '14px 16px', verticalAlign: 'top', textAlign: 'center', color: '#94a3b8', fontWeight: '500' }}>
+                            {idx + 1}
+                          </td>
+
+                          {/* Tên điểm giao */}
+                          <td style={{ padding: '14px 16px', verticalAlign: 'top' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <strong style={{ color: '#0f172a', fontSize: '14.5px' }}>{item.label}</strong>
+                              {item.is_default && (
+                                <span
+                                  style={{
+                                    background: '#e0e7ff',
+                                    color: '#4338ca',
+                                    fontSize: '11px',
+                                    fontWeight: '700',
+                                    padding: '2px 7px',
+                                    borderRadius: '999px',
+                                  }}
+                                >
+                                  ★ Mặc định
+                                </span>
+                              )}
+                            </div>
+                            {item.route_note && (
+                              <div style={{ fontSize: '12px', color: '#64748b', fontStyle: 'italic', marginTop: '3px' }}>
+                                {item.route_note}
+                              </div>
+                            )}
+                          </td>
+
+                          {/* Địa chỉ */}
+                          <td style={{ padding: '14px 16px', verticalAlign: 'top' }}>
+                            <div style={{ color: '#334155', lineHeight: 1.4 }}>{item.address}</div>
+                            <a
+                              href={mapUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                fontSize: '12px',
+                                fontWeight: '600',
+                                color: '#2563eb',
+                                textDecoration: 'none',
+                                marginTop: '4px',
+                              }}
+                            >
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+                                <circle cx="12" cy="10" r="3" />
+                              </svg>
+                              <span>Mở bản đồ chỉ đường</span>
+                            </a>
+                          </td>
+
+                          {/* Người nhận & SĐT */}
+                          <td style={{ padding: '14px 16px', verticalAlign: 'top' }}>
+                            {item.receiver_name && <div style={{ color: '#0f172a', fontWeight: '500' }}>{item.receiver_name}</div>}
+                            {item.receiver_phone && (
+                              <div style={{ marginTop: '2px' }}>
+                                <a
+                                  href={`tel:${item.receiver_phone}`}
+                                  style={{ color: '#0284c7', textDecoration: 'none', fontWeight: '600' }}
+                                >
+                                  {item.receiver_phone}
+                                </a>
+                              </div>
+                            )}
+                            {!item.receiver_name && !item.receiver_phone && (
+                              <span style={{ color: '#94a3b8' }}>-</span>
+                            )}
+                          </td>
+
+                          {/* Thao tác */}
+                          <td style={{ padding: '14px 16px', verticalAlign: 'top', textAlign: 'center' }}>
+                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                              <button
+                                type="button"
+                                onClick={() => handleOpenEditMasterModal(item)}
+                                style={{
+                                  padding: '5px 12px',
+                                  borderRadius: '7px',
+                                  background: '#f8fafc',
+                                  border: '1px solid #cbd5e1',
+                                  color: '#1e293b',
+                                  fontSize: '12.5px',
+                                  fontWeight: '600',
+                                  cursor: 'pointer',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                }}
+                                title="Chỉnh sửa thông tin điểm giao trong danh sách chung"
+                              >
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                  <path d="M12 20h9" />
+                                  <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                                </svg>
+                                <span>Sửa</span>
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => setDeletingMasterPoint(item)}
+                                style={{
+                                  padding: '5px 12px',
+                                  borderRadius: '7px',
+                                  background: '#fff1f2',
+                                  border: '1px solid #fecdd3',
+                                  color: '#e11d48',
+                                  fontSize: '12.5px',
+                                  fontWeight: '600',
+                                  cursor: 'pointer',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                }}
+                                title="Xóa khỏi danh sách điểm giao chung"
+                              >
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                  <polyline points="3 6 5 6 21 6" />
+                                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                </svg>
+                                <span>Xóa</span>
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </div>
+
+            {/* Table Footer */}
+            <div
+              style={{
+                padding: '12px 20px',
+                borderTop: '1px solid #f1f5f9',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                background: '#f8fafc',
+                flexShrink: 0,
+              }}
+            >
+              <span style={{ fontSize: '13px', color: '#64748b' }}>
+                Hiển thị <strong>{filteredAllPoints.length}</strong> / <strong>{allPoints.length}</strong> điểm giao hàng
+              </span>
+
+              <button
+                type="button"
+                onClick={handleCloseAllPointsPage}
+                style={{
+                  padding: '7px 16px',
+                  borderRadius: '8px',
+                  border: '1px solid #cbd5e1',
+                  background: '#ffffff',
+                  color: '#475569',
+                  fontSize: '13px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                }}
+              >
+                Đóng / Quay lại
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : (
+        /* ========================================================================= */
+        /* TRANG CHÍNH: QUẢN LÝ ĐIỂM GIAO HÀNG THEO ĐẠI LÝ (MÀN HÌNH CHÍNH)          */
+        /* ========================================================================= */
+        <>
+{/* 1. Header Bar */}
       <div
         style={{
           display: 'flex',
@@ -601,7 +1485,7 @@ export default function DeliveryPointsView({
           {/* Nút Xem Danh sách điểm giao hệ thống */}
           <button
             type="button"
-            onClick={handleOpenAllPointsModal}
+            onClick={handleOpenAllPointsPage}
             style={{
               padding: '9px 16px',
               borderRadius: '10px',
@@ -1268,413 +2152,7 @@ export default function DeliveryPointsView({
         </div>
       </div>
 
-      {/* 3. MODAL: Danh sách TẤT CẢ các điểm giao hàng đang có trong hệ thống */}
-      {isAllPointsModalOpen && (
-        <ModalPortal>
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            backgroundColor: 'rgba(15, 23, 42, 0.65)',
-            backdropFilter: 'blur(4px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 99999,
-            padding: '16px',
-            boxSizing: 'border-box',
-          }}
-          onClick={() => setIsAllPointsModalOpen(false)}
-        >
-          <div
-            style={{
-              backgroundColor: '#ffffff',
-              borderRadius: '20px',
-              maxWidth: '860px',
-              width: '100%',
-              maxHeight: 'calc(100vh - 32px)',
-              display: 'flex',
-              flexDirection: 'column',
-              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-              border: '1px solid #e2e8f0',
-              overflow: 'hidden',
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Modal Header */}
-            <div
-              style={{
-                padding: '20px 24px',
-                borderBottom: '1px solid #f1f5f9',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                background: '#f8fafc',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div
-                  style={{
-                    width: '40px',
-                    height: '40px',
-                    borderRadius: '10px',
-                    background: '#e0e7ff',
-                    color: '#4338ca',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                    <line x1="8" y1="6" x2="21" y2="6" />
-                    <line x1="8" y1="12" x2="21" y2="12" />
-                    <line x1="8" y1="18" x2="21" y2="18" />
-                    <line x1="3" y1="6" x2="3.01" y2="6" />
-                    <line x1="3" y1="12" x2="3.01" y2="12" />
-                    <line x1="3" y1="18" x2="3.01" y2="18" />
-                  </svg>
-                </div>
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <h3 style={{ margin: 0, fontSize: '19px', fontWeight: '800', color: '#0f172a' }}>
-                      Danh sách các điểm giao đang có
-                    </h3>
-                    <span
-                      style={{
-                        background: '#e0e7ff',
-                        color: '#4338ca',
-                        fontSize: '12px',
-                        fontWeight: '700',
-                        padding: '2px 8px',
-                        borderRadius: '999px',
-                      }}
-                    >
-                      {allPoints.length} điểm giao
-                    </span>
-                  </div>
-                  <p style={{ margin: '3px 0 0 0', fontSize: '13px', color: '#64748b' }}>
-                    Tổng hợp toàn bộ các điểm giao hàng của tất cả đại lý trong hệ thống
-                  </p>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setIsAllPointsModalOpen(false)}
-                style={{
-                  border: 'none',
-                  background: '#f1f5f9',
-                  borderRadius: '8px',
-                  width: '32px',
-                  height: '32px',
-                  fontSize: '16px',
-                  color: '#64748b',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                ✕
-              </button>
-            </div>
-
-            {/* Filter and Action Bar */}
-            <div
-              style={{
-                padding: '16px 24px',
-                borderBottom: '1px solid #f1f5f9',
-                display: 'flex',
-                gap: '12px',
-                alignItems: 'center',
-                flexWrap: 'wrap',
-                background: '#ffffff',
-              }}
-            >
-              {/* Search input */}
-              <div style={{ flex: 1, minWidth: '240px', position: 'relative' }}>
-                <input
-                  type="text"
-                  placeholder="Tìm theo tên điểm giao, địa chỉ, người nhận, SĐT..."
-                  value={allPointsSearch}
-                  onChange={(e) => setAllPointsSearch(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '9px 12px 9px 34px',
-                    borderRadius: '9px',
-                    border: '1px solid #cbd5e1',
-                    fontSize: '13.5px',
-                    outline: 'none',
-                    boxSizing: 'border-box',
-                  }}
-                />
-                <svg
-                  width="15"
-                  height="15"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="#94a3b8"
-                  strokeWidth="2.2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  style={{ position: 'absolute', left: '11px', top: '11px' }}
-                >
-                  <circle cx="11" cy="11" r="8" />
-                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                </svg>
-              </div>
-
-              <button
-                type="button"
-                onClick={loadAllPoints}
-                style={{
-                  padding: '9px 14px',
-                  borderRadius: '9px',
-                  border: '1px solid #cbd5e1',
-                  background: '#f8fafc',
-                  color: '#475569',
-                  fontSize: '13px',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                }}
-              >
-                Làm mới
-              </button>
-
-              {/* Nút + Thêm điểm giao mới trực tiếp từ modal này */}
-              <button
-                type="button"
-                onClick={() => handleOpenCreateMasterModal()}
-                style={{
-                  padding: '9px 16px',
-                  borderRadius: '9px',
-                  background: 'linear-gradient(135deg, #0fba90 0%, #0fad89 100%)',
-                  color: '#ffffff',
-                  border: 'none',
-                  fontSize: '13.5px',
-                  fontWeight: '700',
-                  cursor: 'pointer',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  boxShadow: '0 2px 8px rgba(15, 186, 144, 0.25)',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <line x1="12" y1="5" x2="12" y2="19" />
-                  <line x1="5" y1="12" x2="19" y2="12" />
-                </svg>
-                <span>Thêm điểm giao mới</span>
-              </button>
-            </div>
-
-            {/* Modal Body: Table / List */}
-            <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px' }}>
-              {loadingAllPoints ? (
-                <div style={{ padding: '60px 20px', textAlign: 'center', color: '#94a3b8' }}>
-                  Đang tải danh sách điểm giao hàng toàn hệ thống...
-                </div>
-              ) : filteredAllPoints.length === 0 ? (
-                <div
-                  style={{
-                    padding: '48px 20px',
-                    textAlign: 'center',
-                    background: '#f8fafc',
-                    borderRadius: '12px',
-                    border: '1px dashed #cbd5e1',
-                    color: '#64748b',
-                    fontSize: '14px',
-                  }}
-                >
-                  Không tìm thấy điểm giao hàng nào phù hợp với bộ lọc tìm kiếm.
-                </div>
-              ) : (
-                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13.5px' }}>
-                  <thead>
-                    <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0', color: '#475569', fontWeight: '700' }}>
-                      <th style={{ padding: '12px 14px', width: '28%' }}>Tên điểm giao</th>
-                      <th style={{ padding: '12px 14px', width: '38%' }}>Địa chỉ nhận</th>
-                      <th style={{ padding: '12px 14px', width: '24%' }}>Người nhận / SĐT</th>
-                      <th style={{ padding: '12px 14px', width: '10%', textAlign: 'center' }}>Thao tác</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredAllPoints.map((item) => {
-                      const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(item.address)}`;
-                      return (
-                        <tr
-                          key={item.id}
-                          style={{
-                            borderBottom: '1px solid #f1f5f9',
-                            transition: 'background 0.1s ease',
-                          }}
-                          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f8fafc')}
-                          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
-                        >
-                          {/* Tên điểm giao */}
-                          <td style={{ padding: '14px', verticalAlign: 'top', width: '30%' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                              <strong style={{ color: '#0f172a', fontSize: '14.5px' }}>{item.label}</strong>
-                              {item.is_default && (
-                                <span
-                                  style={{
-                                    background: '#e0e7ff',
-                                    color: '#4338ca',
-                                    fontSize: '11px',
-                                    fontWeight: '700',
-                                    padding: '2px 7px',
-                                    borderRadius: '999px',
-                                  }}
-                                >
-                                  ★ Mặc định
-                                </span>
-                              )}
-                            </div>
-                            {item.route_note && (
-                              <div style={{ fontSize: '12px', color: '#64748b', fontStyle: 'italic', marginTop: '3px' }}>
-                                {item.route_note}
-                              </div>
-                            )}
-                          </td>
-
-                          {/* Địa chỉ */}
-                          <td style={{ padding: '14px', verticalAlign: 'top', width: '40%' }}>
-                            <div style={{ color: '#334155', lineHeight: 1.4 }}>{item.address}</div>
-                            <a
-                              href={mapUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '4px',
-                                fontSize: '12px',
-                                fontWeight: '600',
-                                color: '#2563eb',
-                                textDecoration: 'none',
-                                marginTop: '4px',
-                              }}
-                            >
-                              Mở bản đồ chỉ đường
-                            </a>
-                          </td>
-
-                          {/* Người nhận & SĐT */}
-                          <td style={{ padding: '14px', verticalAlign: 'top', width: '24%' }}>
-                            {item.receiver_name && <div style={{ color: '#0f172a', fontWeight: '500' }}>{item.receiver_name}</div>}
-                            {item.receiver_phone && (
-                              <div style={{ marginTop: '2px' }}>
-                                <a
-                                  href={`tel:${item.receiver_phone}`}
-                                  style={{ color: '#0284c7', textDecoration: 'none', fontWeight: '600' }}
-                                >
-                                  {item.receiver_phone}
-                                </a>
-                              </div>
-                            )}
-                            {!item.receiver_name && !item.receiver_phone && (
-                              <span style={{ color: '#94a3b8' }}>-</span>
-                            )}
-                          </td>
-
-                          {/* Thao tác: Sửa / Xóa trong danh sách chung */}
-                          <td style={{ padding: '14px', verticalAlign: 'top', textAlign: 'center', width: '14%' }}>
-                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                              <button
-                                type="button"
-                                onClick={() => handleOpenEditMasterModal(item)}
-                                style={{
-                                  padding: '5px 10px',
-                                  borderRadius: '7px',
-                                  background: '#f8fafc',
-                                  border: '1px solid #cbd5e1',
-                                  color: '#1e293b',
-                                  fontSize: '12px',
-                                  fontWeight: '600',
-                                  cursor: 'pointer',
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '4px',
-                                }}
-                                title="Chỉnh sửa thông tin điểm giao trong danh sách chung"
-                              >
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                  <path d="M12 20h9" />
-                                  <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
-                                </svg>
-                                <span>Sửa</span>
-                              </button>
-
-                              <button
-                                type="button"
-                                onClick={() => setDeletingMasterPoint(item)}
-                                style={{
-                                  padding: '5px 10px',
-                                  borderRadius: '7px',
-                                  background: '#fff1f2',
-                                  border: '1px solid #fecdd3',
-                                  color: '#e11d48',
-                                  fontSize: '12px',
-                                  fontWeight: '600',
-                                  cursor: 'pointer',
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '4px',
-                                }}
-                                title="Xóa khỏi danh sách điểm giao chung"
-                              >
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                  <polyline points="3 6 5 6 21 6" />
-                                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                                </svg>
-                                <span>Xóa</span>
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              )}
-            </div>
-
-            {/* Modal Footer */}
-            <div
-              style={{
-                padding: '14px 24px',
-                borderTop: '1px solid #f1f5f9',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                background: '#f8fafc',
-              }}
-            >
-              <span style={{ fontSize: '13px', color: '#64748b' }}>
-                Hiển thị <strong>{filteredAllPoints.length}</strong> / <strong>{allPoints.length}</strong> điểm giao hàng
-              </span>
-
-              <button
-                type="button"
-                onClick={() => setIsAllPointsModalOpen(false)}
-                style={{
-                  padding: '8px 16px',
-                  borderRadius: '9px',
-                  border: '1px solid #cbd5e1',
-                  background: '#ffffff',
-                  color: '#475569',
-                  fontSize: '13.5px',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                }}
-              >
-                Đóng
-              </button>
-            </div>
-          </div>
-        </div>
-        </ModalPortal>
+              </>
       )}
 
       {/* MODAL: Chọn điểm giao từ danh sách có sẵn cho đại lý */}
@@ -1824,35 +2302,6 @@ export default function DeliveryPointsView({
                   }}
                 />
               </div>
-
-              {/* Shortcut to create new if not existing */}
-              <button
-                type="button"
-                onClick={() => {
-                  handleOpenCreateModal(selectedDealerId || undefined);
-                }}
-                style={{
-                  padding: '9px 15px',
-                  borderRadius: '9px',
-                  background: '#f1f5f9',
-                  color: '#334155',
-                  border: '1px solid #cbd5e1',
-                  fontSize: '13px',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  whiteSpace: 'nowrap',
-                }}
-                title="Tạo điểm giao mới hoàn toàn cho đại lý này"
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <line x1="12" y1="5" x2="12" y2="19" />
-                  <line x1="5" y1="12" x2="19" y2="12" />
-                </svg>
-                <span>Tạo điểm giao mới</span>
-              </button>
             </div>
 
             {/* Modal Body: Available points list */}
@@ -2108,8 +2557,8 @@ export default function DeliveryPointsView({
         </ModalPortal>
       )}
 
-      {/* 4. Modal: Thêm / Sửa điểm giao hàng (Thiết kế compact, không bị tràn màn hình) */}
-      {isModalOpen && (
+      {/* 4. Modal: Chỉnh sửa điểm giao hàng (Khi tạo mới đã chuyển sang Full-Page View) */}
+      {isModalOpen && Boolean(editingPoint) && (
         <ModalPortal>
         <div
           style={{

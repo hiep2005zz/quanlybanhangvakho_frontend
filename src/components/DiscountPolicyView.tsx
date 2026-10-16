@@ -40,7 +40,7 @@ interface DiscountPolicyViewProps {
   onBackToHome?: () => void;
 }
 
-export default function DiscountPolicyView({ token, user }: DiscountPolicyViewProps) {
+export default function DiscountPolicyView({ token, user, onBackToHome: _onBackToHome }: DiscountPolicyViewProps) {
   const canManageDiscounts = Boolean(
     user?.role === 'admin' ||
     user?.role === 'sales_manager' ||
@@ -456,10 +456,10 @@ export default function DiscountPolicyView({ token, user }: DiscountPolicyViewPr
   };
 
   return (
-    <div style={{ padding: '8px', maxWidth: '1200px', margin: '0 auto' }}>
+    <div style={{ padding: '0', width: '100%', boxSizing: 'border-box' }}>
       {isModalOpen ? (
-        /* TRANG RIÊNG: KHAI BÁO / CHỈNH SỬA CHÍNH SÁCH (THIẾT KẾ GỌN GÀNG HIỆN ĐỦ 100% TRÊN 1 MÀN HÌNH) */
-        <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+        /* TRANG RIÊNG: KHAI BÁO / CHỈNH SỬA CHÍNH SÁCH (TỐI ƯU TOÀN DIỆN CHO CẢ DESKTOP & ĐIỆN THOẠI) */
+        <div style={{ width: '100%' }}>
           <div
             style={{
               background: '#ffffff',
@@ -473,7 +473,7 @@ export default function DiscountPolicyView({ token, user }: DiscountPolicyViewPr
               {/* Header thanh công cụ trên cùng: Nút quay lại + Tiêu đề + Nút Lưu */}
               <div
                 style={{
-                  padding: '12px 20px',
+                  padding: '12px 16px',
                   borderBottom: '1px solid #e2e8f0',
                   background: '#f8fafc',
                   display: 'flex',
@@ -483,7 +483,7 @@ export default function DiscountPolicyView({ token, user }: DiscountPolicyViewPr
                   gap: '12px',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
                   <button
                     type="button"
                     onClick={() => {
@@ -528,23 +528,23 @@ export default function DiscountPolicyView({ token, user }: DiscountPolicyViewPr
 
               </div>
 
-              {/* Thân trang: Bố cục 2 cột gọn gàng để hiển thị trọn vẹn ở zoom 100% */}
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))',
-                  gap: '20px',
-                  padding: '16px 20px',
-                }}
-              >
-                {/* Cột 1: Thông tin cơ bản chính sách */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  {/* 1. Phạm vi áp dụng */}
+              {/* Thân form: Liền 1 khung thống nhất, cân đối 100%, không bị lệch, tối ưu desktop & mobile */}
+              <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+
+                {/* PHẦN 1: THÔNG TIN CHUNG CHÍNH SÁCH */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                  {/* Tiêu đề mục 1 */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#0f172a', fontSize: '14px', fontWeight: '750' }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '22px', height: '22px', borderRadius: '50%', background: '#ecfdf5', color: '#059669', fontSize: '12px', fontWeight: '800' }}>1</span>
+                    <span>Thông tin chính sách & Phạm vi áp dụng</span>
+                  </div>
+
+                  {/* 1. Phạm vi áp dụng: 3 nút chọn phạm vi */}
                   <div>
                     <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', marginBottom: '6px', color: '#1e293b' }}>
-                      Phạm vi áp dụng chính sách *
+                      Phạm vi áp dụng chính sách <b style={{ color: '#dc2626' }}>*</b>
                     </label>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '10px', maxWidth: '480px' }}>
                       <button
                         type="button"
                         onClick={() => {
@@ -556,22 +556,22 @@ export default function DiscountPolicyView({ token, user }: DiscountPolicyViewPr
                           });
                         }}
                         style={{
-                          padding: '7px 8px',
-                          borderRadius: '7px',
+                          padding: '8px 12px',
+                          borderRadius: '8px',
                           border: applyScope === 'all' ? '2px solid #0fba90' : '1px solid #cbd5e1',
                           background: applyScope === 'all' ? '#ecfdf5' : '#ffffff',
                           color: applyScope === 'all' ? '#065f46' : '#475569',
                           fontWeight: applyScope === 'all' ? '700' : '500',
                           cursor: 'pointer',
-                          fontSize: '12px',
+                          fontSize: '13px',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          gap: '4px',
+                          gap: '6px',
                           transition: 'all 0.15s ease',
                         }}
                       >
-                         Tất cả SP
+                        ✓ Tất cả SP
                       </button>
 
                       <button
@@ -586,22 +586,22 @@ export default function DiscountPolicyView({ token, user }: DiscountPolicyViewPr
                           });
                         }}
                         style={{
-                          padding: '7px 8px',
-                          borderRadius: '7px',
+                          padding: '8px 12px',
+                          borderRadius: '8px',
                           border: applyScope === 'category' ? '2px solid #0fba90' : '1px solid #cbd5e1',
                           background: applyScope === 'category' ? '#ecfdf5' : '#ffffff',
                           color: applyScope === 'category' ? '#065f46' : '#475569',
                           fontWeight: applyScope === 'category' ? '700' : '500',
                           cursor: 'pointer',
-                          fontSize: '12px',
+                          fontSize: '13px',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          gap: '4px',
+                          gap: '6px',
                           transition: 'all 0.15s ease',
                         }}
                       >
-                         1 Nhóm hàng
+                        📦 1 Nhóm hàng
                       </button>
 
                       <button
@@ -616,33 +616,33 @@ export default function DiscountPolicyView({ token, user }: DiscountPolicyViewPr
                           });
                         }}
                         style={{
-                          padding: '7px 8px',
-                          borderRadius: '7px',
+                          padding: '8px 12px',
+                          borderRadius: '8px',
                           border: applyScope === 'product' ? '2px solid #0fba90' : '1px solid #cbd5e1',
                           background: applyScope === 'product' ? '#ecfdf5' : '#ffffff',
                           color: applyScope === 'product' ? '#065f46' : '#475569',
                           fontWeight: applyScope === 'product' ? '700' : '500',
                           cursor: 'pointer',
-                          fontSize: '12px',
+                          fontSize: '13px',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          gap: '4px',
+                          gap: '6px',
                           transition: 'all 0.15s ease',
                         }}
                       >
-                         1 SP lẻ
+                        🏷️ 1 SP lẻ
                       </button>
                     </div>
                   </div>
 
-                  {/* 2. Chi tiết phạm vi & Mã chính sách */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '10px' }}>
+                  {/* 2. Hàng 3 cột cân đối: [Phạm vi chi tiết] | [Mã chính sách] | [Tên chính sách] */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))', gap: '14px' }}>
                     <div>
                       {applyScope === 'category' ? (
                         <>
-                          <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '4px', color: '#1e293b' }}>
-                            Chọn nhóm hàng *
+                          <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', marginBottom: '5px', color: '#1e293b' }}>
+                            Chọn nhóm hàng <b style={{ color: '#dc2626' }}>*</b>
                           </label>
                           <select
                             required
@@ -655,7 +655,7 @@ export default function DiscountPolicyView({ token, user }: DiscountPolicyViewPr
                                 title: `Nhóm hàng: ${cat}`,
                               });
                             }}
-                            style={{ width: '100%', padding: '7px 10px', borderRadius: '7px', border: '1px solid #cbd5e1', backgroundColor: 'white', fontSize: '13px', boxSizing: 'border-box' }}
+                            style={{ width: '100%', height: '38px', padding: '0 12px', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: '#ffffff', fontSize: '13px', boxSizing: 'border-box' }}
                           >
                             <option value="">-- Chọn nhóm hàng --</option>
                             {categories.map((c) => (
@@ -665,8 +665,8 @@ export default function DiscountPolicyView({ token, user }: DiscountPolicyViewPr
                         </>
                       ) : applyScope === 'product' ? (
                         <>
-                          <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '4px', color: '#1e293b' }}>
-                            Chọn sản phẩm *
+                          <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', marginBottom: '5px', color: '#1e293b' }}>
+                            Chọn sản phẩm <b style={{ color: '#dc2626' }}>*</b>
                           </label>
                           <select
                             required
@@ -680,7 +680,7 @@ export default function DiscountPolicyView({ token, user }: DiscountPolicyViewPr
                                 category: selectedProd?.category || 'ALL',
                               });
                             }}
-                            style={{ width: '100%', padding: '7px 10px', borderRadius: '7px', border: '1px solid #cbd5e1', backgroundColor: 'white', fontSize: '13px', boxSizing: 'border-box' }}
+                            style={{ width: '100%', height: '38px', padding: '0 12px', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: '#ffffff', fontSize: '13px', boxSizing: 'border-box' }}
                           >
                             <option value="">-- Chọn sản phẩm --</option>
                             {products.map(p => (
@@ -690,22 +690,22 @@ export default function DiscountPolicyView({ token, user }: DiscountPolicyViewPr
                         </>
                       ) : (
                         <>
-                          <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '4px', color: '#1e293b' }}>
+                          <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', marginBottom: '5px', color: '#1e293b' }}>
                             Phạm vi áp dụng
                           </label>
                           <input
                             type="text"
                             disabled
                             value="Toàn bộ sản phẩm trong hệ thống"
-                            style={{ width: '100%', padding: '7px 10px', borderRadius: '7px', border: '1px solid #e2e8f0', backgroundColor: '#f8fafc', color: '#64748b', fontSize: '13px', boxSizing: 'border-box' }}
+                            style={{ width: '100%', height: '38px', padding: '0 12px', borderRadius: '8px', border: '1px solid #e2e8f0', backgroundColor: '#f8fafc', color: '#64748b', fontSize: '13px', boxSizing: 'border-box' }}
                           />
                         </>
                       )}
                     </div>
 
                     <div>
-                      <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '4px', color: '#1e293b' }}>
-                        Mã chính sách *
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', marginBottom: '5px', color: '#1e293b' }}>
+                        Mã chính sách <b style={{ color: '#dc2626' }}>*</b>
                       </label>
                       <input
                         type="text"
@@ -713,69 +713,70 @@ export default function DiscountPolicyView({ token, user }: DiscountPolicyViewPr
                         value={formData.code}
                         onChange={(e) => setFormData({ ...formData, code: e.target.value })}
                         placeholder="VD: CK-2026..."
-                        style={{ width: '100%', padding: '7px 10px', borderRadius: '7px', border: '1px solid #cbd5e1', fontSize: '13px', boxSizing: 'border-box' }}
+                        style={{ width: '100%', height: '38px', padding: '0 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', boxSizing: 'border-box' }}
+                      />
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', marginBottom: '5px', color: '#1e293b' }}>
+                        Tên chính sách chiết khấu <b style={{ color: '#dc2626' }}>*</b>
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="Ví dụ: Chiết khấu nhóm Thời trang, Chiết khấu Đại lý Cấp 1..."
+                        value={formData.title}
+                        onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                        style={{ width: '100%', height: '38px', padding: '0 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', boxSizing: 'border-box' }}
                       />
                     </div>
                   </div>
 
-                  {/* 3. Tên chính sách */}
-                  <div>
-                    <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '4px', color: '#1e293b' }}>
-                      Tên chính sách chiết khấu *
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="Ví dụ: Chiết khấu nhóm Thời trang, Chiết khấu Đại lý Cấp 1..."
-                      value={formData.title}
-                      onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                      style={{ width: '100%', padding: '7px 10px', borderRadius: '7px', border: '1px solid #cbd5e1', fontSize: '13px', boxSizing: 'border-box' }}
-                    />
-                  </div>
-
-                  {/* 4. Đối tượng & Thời gian hiệu lực */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
+                  {/* 3. Hàng 3 cột cân đối: [Đối tượng] | [Từ ngày] | [Đến ngày] */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))', gap: '14px' }}>
                     <div>
-                      <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '4px' }}>
-                        Đối tượng
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', marginBottom: '5px', color: '#1e293b' }}>
+                        Đối tượng áp dụng
                       </label>
                       <select
                         value={formData.target_group}
                         onChange={(e) => setFormData({ ...formData, target_group: e.target.value as any })}
-                        style={{ width: '100%', padding: '7px 10px', borderRadius: '7px', border: '1px solid #cbd5e1', fontSize: '13px', boxSizing: 'border-box' }}
+                        style={{ width: '100%', height: '38px', padding: '0 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', boxSizing: 'border-box' }}
                       >
                         <option value="all">Tất cả Đại lý</option>
                         <option value="agent_tier_1">Đại lý Cấp 1</option>
                         <option value="agent_tier_2">Đại lý Cấp 2</option>
                       </select>
                     </div>
+
                     <div>
-                      <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '4px' }}>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', marginBottom: '5px', color: '#1e293b' }}>
                         Từ ngày
                       </label>
                       <input
                         type="date"
                         value={formData.start_date}
                         onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
-                        style={{ width: '100%', padding: '7px 8px', borderRadius: '7px', border: '1px solid #cbd5e1', fontSize: '13px', boxSizing: 'border-box' }}
+                        style={{ width: '100%', height: '38px', padding: '0 10px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', boxSizing: 'border-box' }}
                       />
                     </div>
+
                     <div>
-                      <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '4px' }}>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', marginBottom: '5px', color: '#1e293b' }}>
                         Đến ngày
                       </label>
                       <input
                         type="date"
                         value={formData.end_date}
                         onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
-                        style={{ width: '100%', padding: '7px 8px', borderRadius: '7px', border: '1px solid #cbd5e1', fontSize: '13px', boxSizing: 'border-box' }}
+                        style={{ width: '100%', height: '38px', padding: '0 10px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', boxSizing: 'border-box' }}
                       />
                     </div>
                   </div>
 
-                  {/* 5. Ghi chú */}
+                  {/* 4. Ghi chú / Diễn giải */}
                   <div>
-                    <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '4px', color: '#1e293b' }}>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', marginBottom: '5px', color: '#1e293b' }}>
                       Ghi chú / Diễn giải
                     </label>
                     <input
@@ -783,63 +784,59 @@ export default function DiscountPolicyView({ token, user }: DiscountPolicyViewPr
                       value={formData.note || ''}
                       placeholder="Ghi chú điều kiện áp dụng nếu có..."
                       onChange={(e) => setFormData({ ...formData, note: e.target.value })}
-                      style={{ width: '100%', padding: '7px 10px', borderRadius: '7px', border: '1px solid #cbd5e1', fontSize: '13px', boxSizing: 'border-box' }}
+                      style={{ width: '100%', height: '38px', padding: '0 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', boxSizing: 'border-box' }}
                     />
                   </div>
                 </div>
 
-                {/* Cột 2: Cấu hình mốc sản lượng & Chiết khấu (%) */}
-                <div
-                  style={{
-                    background: '#f8fafc',
-                    borderRadius: '10px',
-                    border: '1px solid #e2e8f0',
-                    padding: '14px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                {/* ĐƯỜNG PHÂN CÁCH MẢNH GIỮA 2 PHẦN */}
+                <div style={{ borderTop: '1px solid #e2e8f0', margin: '4px 0' }} />
+
+                {/* PHẦN 2: CẤU HÌNH MỐC SẢN LƯỢNG & CHIẾT KHẤU (%) */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                  {/* Header phần 2 */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
                     <div>
-                      <label style={{ fontSize: '13px', fontWeight: '700', color: '#1e293b' }}>
-                        Cấu hình mốc sản lượng & Chiết khấu (%) *
-                      </label>
-                      <p style={{ margin: '2px 0 0 0', fontSize: '11.5px', color: '#64748b' }}>
-                        Chiết khấu tự động áp dụng theo số lượng đặt hàng
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#0f172a', fontSize: '14px', fontWeight: '750' }}>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '22px', height: '22px', borderRadius: '50%', background: '#ecfdf5', color: '#059669', fontSize: '12px', fontWeight: '800' }}>2</span>
+                        <span>Cấu hình mốc sản lượng & Chiết khấu (%) <b style={{ color: '#dc2626' }}>*</b></span>
+                      </div>
+                      <p style={{ margin: '3px 0 0 30px', fontSize: '12px', color: '#64748b' }}>
+                        Hệ thống tự động áp dụng % chiết khấu tương ứng khi đơn hàng đạt ngưỡng sản lượng
                       </p>
                     </div>
+
                     <button
                       type="button"
                       onClick={handleAddTier}
                       style={{
                         background: '#ffffff',
-                        border: '1px solid #cbd5e1',
-                        color: '#0f172a',
-                        padding: '5px 12px',
-                        borderRadius: '6px',
-                        fontSize: '12px',
-                        fontWeight: '600',
+                        border: '1.5px solid #0fba90',
+                        color: '#065f46',
+                        padding: '6px 14px',
+                        borderRadius: '8px',
+                        fontSize: '12.5px',
+                        fontWeight: '700',
                         cursor: 'pointer',
-                        display: 'flex',
+                        display: 'inline-flex',
                         alignItems: 'center',
-                        gap: '4px',
+                        gap: '6px',
                         boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                        transition: 'all 0.15s ease',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = '#ecfdf5';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = '#ffffff';
                       }}
                     >
-                      + Thêm mốc
+                      <span style={{ fontSize: '15px', fontWeight: '800' }}>+</span> Thêm mốc sản lượng
                     </button>
                   </div>
 
-                  <div
-                    style={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '8px',
-                      maxHeight: '260px',
-                      overflowY: 'auto',
-                      paddingRight: '2px',
-                    }}
-                  >
+                  {/* Danh sách các mốc sản lượng: hiển thị dạng card mốc rõ ràng, thẳng hàng tuyệt đối */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                     {formData.tiers.map((tier, index) => {
                       const prevTier = index > 0 ? formData.tiers[index - 1] : null;
                       const isOverlapping = prevTier !== null && (
@@ -853,18 +850,24 @@ export default function DiscountPolicyView({ token, user }: DiscountPolicyViewPr
                         <div
                           key={tier.id}
                           style={{
-                            background: isOverlapping || isInvalidMax ? '#fef2f2' : '#ffffff',
-                            padding: '8px 10px',
-                            borderRadius: '7px',
-                            border: isOverlapping || isInvalidMax ? '1px solid #fca5a5' : '1px solid #cbd5e1',
+                            background: isOverlapping || isInvalidMax ? '#fef2f2' : '#f8fafc',
+                            padding: '10px 14px',
+                            borderRadius: '8px',
+                            border: isOverlapping || isInvalidMax ? '1.5px solid #fca5a5' : '1px solid #e2e8f0',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            flexWrap: 'wrap',
+                            gap: '12px',
                           }}
                         >
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                            <span style={{ fontSize: '12px', fontWeight: '600', color: '#475569', minWidth: '48px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                            <span style={{ fontSize: '13px', fontWeight: '800', color: '#0f172a', minWidth: '60px' }}>
                               Mốc {index + 1}:
                             </span>
-                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                              <span style={{ fontSize: '12px', color: '#64748b' }}>Từ</span>
+
+                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                              <span style={{ fontSize: '12.5px', color: '#475569', fontWeight: '600' }}>Từ</span>
                               <input
                                 type="number"
                                 min="0"
@@ -872,17 +875,22 @@ export default function DiscountPolicyView({ token, user }: DiscountPolicyViewPr
                                 value={tier.min_quantity ?? ''}
                                 onChange={(e) => handleTierChange(tier.id, 'min_quantity', e.target.value)}
                                 style={{
-                                  width: '75px',
-                                  padding: '4px 6px',
+                                  width: '80px',
+                                  height: '34px',
+                                  padding: '0 8px',
                                   borderRadius: '6px',
                                   border: isOverlapping ? '1.5px solid #ef4444' : '1px solid #cbd5e1',
                                   backgroundColor: '#ffffff',
-                                  fontSize: '12.5px',
+                                  fontSize: '13px',
+                                  fontWeight: '600',
+                                  boxSizing: 'border-box',
                                 }}
                               />
+                              <span style={{ fontSize: '12.5px', color: '#64748b' }}>sản phẩm</span>
                             </div>
-                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                              <span style={{ fontSize: '12px', color: '#64748b' }}>đến</span>
+
+                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                              <span style={{ fontSize: '12.5px', color: '#475569', fontWeight: '600' }}>đến</span>
                               <input
                                 type="number"
                                 min="0"
@@ -890,18 +898,22 @@ export default function DiscountPolicyView({ token, user }: DiscountPolicyViewPr
                                 value={tier.max_quantity ?? ''}
                                 onChange={(e) => handleTierChange(tier.id, 'max_quantity', e.target.value)}
                                 style={{
-                                  width: '80px',
-                                  padding: '4px 6px',
+                                  width: '90px',
+                                  height: '34px',
+                                  padding: '0 8px',
                                   borderRadius: '6px',
                                   border: isInvalidMax ? '1.5px solid #ef4444' : '1px solid #cbd5e1',
                                   backgroundColor: '#ffffff',
-                                  fontSize: '12.5px',
+                                  fontSize: '13px',
+                                  fontWeight: '600',
+                                  boxSizing: 'border-box',
                                 }}
                               />
-                              <span style={{ fontSize: '12px', color: '#64748b' }}>sp</span>
+                              <span style={{ fontSize: '12.5px', color: '#64748b' }}>sản phẩm</span>
                             </div>
-                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                              <span style={{ fontSize: '12px', color: '#64748b' }}>➔ Giảm</span>
+
+                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                              <span style={{ fontSize: '12.5px', color: '#047857', fontWeight: '700' }}>➔ Giảm</span>
                               <input
                                 type="number"
                                 min="0"
@@ -911,69 +923,90 @@ export default function DiscountPolicyView({ token, user }: DiscountPolicyViewPr
                                 value={tier.discount_percent ?? ''}
                                 onChange={(e) => handleTierChange(tier.id, 'discount_percent', e.target.value)}
                                 style={{
-                                  width: '65px',
-                                  padding: '4px 6px',
+                                  width: '75px',
+                                  height: '34px',
+                                  padding: '0 8px',
                                   borderRadius: '6px',
-                                  border: '1px solid #cbd5e1',
-                                  fontWeight: '700',
-                                  fontSize: '13px',
-                                  color: '#0f766e',
+                                  border: '1.5px solid #10b981',
+                                  fontWeight: '800',
+                                  fontSize: '14px',
+                                  color: '#065f46',
+                                  backgroundColor: '#ffffff',
+                                  boxSizing: 'border-box',
                                 }}
                               />
-                              <span style={{ fontSize: '13px', fontWeight: '700', color: '#0f766e' }}>%</span>
+                              <span style={{ fontSize: '14px', fontWeight: '800', color: '#047857' }}>%</span>
                             </div>
-
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveTier(tier.id)}
-                              style={{
-                                marginLeft: 'auto',
-                                background: '#fef2f2',
-                                color: '#ef4444',
-                                border: '1px solid #fecaca',
-                                borderRadius: '6px',
-                                padding: '4px 8px',
-                                cursor: 'pointer',
-                                fontSize: '11px',
-                                fontWeight: '600',
-                              }}
-                            >
-                              Xóa
-                            </button>
                           </div>
 
-                          {isOverlapping && (
-                            <div style={{ color: '#dc2626', fontSize: '11.5px', fontWeight: '600', marginTop: '6px' }}>
-                              Bị chồng số lượng: Mốc này phải từ {prevTier?.max_quantity ? Number(prevTier.max_quantity) + 1 : Number(prevTier?.min_quantity || 0) + 1} sp trở lên!
-                            </div>
-                          )}
-                          {isInvalidMax && (
-                            <div style={{ color: '#dc2626', fontSize: '11.5px', fontWeight: '600', marginTop: '6px' }}>
-                              Số lượng tối đa phải lớn hơn hoặc bằng số lượng tối thiểu!
-                            </div>
-                          )}
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveTier(tier.id)}
+                            style={{
+                              background: '#fee2e2',
+                              color: '#dc2626',
+                              border: '1px solid #fca5a5',
+                              borderRadius: '6px',
+                              padding: '6px 12px',
+                              cursor: 'pointer',
+                              fontSize: '12px',
+                              fontWeight: '700',
+                              transition: 'all 0.15s ease',
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.background = '#fecaca';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.background = '#fee2e2';
+                            }}
+                          >
+                            ✕ Xóa mốc
+                          </button>
                         </div>
                       );
                     })}
                   </div>
+
+                  {/* Tip hướng dẫn cơ chế bậc thang */}
+                  <div
+                    style={{
+                      padding: '12px 14px',
+                      background: '#f0fdf4',
+                      borderRadius: '8px',
+                      border: '1px solid #bbf7d0',
+                      fontSize: '12.5px',
+                      color: '#166534',
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: '10px',
+                      lineHeight: '1.55',
+                    }}
+                  >
+                    <span style={{ fontSize: '16px', flexShrink: 0 }}>💡</span>
+                    <div>
+                      <strong style={{ color: '#14532d' }}>Cơ chế chiết khấu bậc thang:</strong> Khi khách hàng đặt số lượng sản phẩm đạt mốc sản lượng nào, hệ thống sẽ tự động chiết khấu theo tỷ lệ % ưu đãi của mốc đó. Bạn có thể bấm <strong>+ Thêm mốc sản lượng</strong> để thiết lập các mức sản lượng ưu đãi lũy tiến (VD: 100 - 499 sp: giảm 5%, 500 - 999 sp: giảm 8%, từ 1000 sp trở lên: giảm 10%).
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              {/* Thanh thao tác dưới cùng */}
+              {/* Thanh thao tác dưới cùng: Tối ưu responsive cả trên Mobile */}
               <div
                 style={{
-                  padding: '10px 20px',
+                  padding: '12px 16px',
                   borderTop: '1px solid #e2e8f0',
                   background: '#f8fafc',
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
+                  flexWrap: 'wrap',
+                  gap: '10px',
                 }}
               >
                 <span style={{ fontSize: '12px', color: '#64748b' }}>
                   * Vui lòng kiểm tra kỹ tỷ lệ chiết khấu trước khi lưu áp dụng
                 </span>
-                <div style={{ display: 'flex', gap: '10px' }}>
+                <div style={{ display: 'flex', gap: '10px', width: 'auto', flexWrap: 'wrap' }}>
                   <button
                     type="button"
                     onClick={() => {
@@ -1020,7 +1053,7 @@ export default function DiscountPolicyView({ token, user }: DiscountPolicyViewPr
         /* TRANG DANH SÁCH CHÍNH SÁCH */
         <>
           {/* Header View */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
             <div>
               <h2 style={{ margin: 0, fontSize: '22px', color: '#0f172a', fontWeight: '700' }}>
                 Quản Lý Chính Sách Chiết Khấu Sản Lượng
@@ -1105,7 +1138,7 @@ export default function DiscountPolicyView({ token, user }: DiscountPolicyViewPr
                     borderBottom: index < policies.length - 1 ? '1px solid #e2e8f0' : 'none',
                   }}
                 >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px', flexWrap: 'wrap', gap: '10px' }}>
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
                       <h3 style={{ margin: 0, fontSize: '17px', fontWeight: '700', color: '#1e293b' }}>

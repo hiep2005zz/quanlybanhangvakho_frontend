@@ -52,7 +52,8 @@ export const StockThresholdModal: React.FC<StockThresholdModalProps> = ({
     setError(null);
     try {
       const whIdParam = selectedWarehouseId === 'ALL' ? undefined : selectedWarehouseId;
-      const data = await getWarehouseThresholdsApi(token, whIdParam);
+      const res = await getWarehouseThresholdsApi(token, whIdParam);
+      const data = Array.isArray(res) ? res : res.items;
       setItems(data);
       const initialEdits: { [key: string]: number } = {};
       data.forEach((it) => {

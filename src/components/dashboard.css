@@ -311,6 +311,10 @@
   transition: background 0.15s ease;
 }
 
+.inventory-row td {
+  vertical-align: middle;
+}
+
 .inventory-row:hover {
   background: #f8fafc !important;
 }
@@ -419,7 +423,15 @@
 
 @media (max-width: 768px) {
   .dashboard-main-container {
-    padding: 14px;
+    padding: 10px 8px;
+    height: auto !important;
+    max-height: none !important;
+    min-height: 100% !important;
+    overflow-y: visible !important;
+    overflow-x: hidden !important;
+    display: flex !important;
+    flex-direction: column !important;
+    flex: 1 1 auto !important;
   }
 
   .dashboard-header-bar {
