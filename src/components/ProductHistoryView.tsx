@@ -5,6 +5,7 @@ import {
   getAvatarUrl,
   ProductItem,
   User,
+  getProductsApi,
 } from '../services/api';
 import { AuditDetailModal } from './AuditDetailModal';
 import { formatLocalDateTime } from '../utils/dateUtils';
@@ -29,18 +30,44 @@ export const ProductHistoryView: React.FC<ProductHistoryViewProps> = ({
   // 1. Quản lý sản phẩm đang chọn
   const [selectedProductCode, setSelectedProductCode] = useState<string>(() => {
     if (initialProductCode) return initialProductCode;
-    const params = new URLSearchParams(window.location.search);
-    const codeParam = params.get('code') || params.get('productCode');
-    if (codeParam) return codeParam;
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const codeParam = params.get('code') || params.get('productCode');
+      if (codeParam) return codeParam;
+      const lastCode = sessionStorage.getItem('last_product_history_code');
+      if (lastCode) return lastCode;
+    } catch { }
     return products.length > 0 ? products[0].code : '';
   });
 
+  // Danh sách sản phẩm toàn diện (đồng bộ toàn bộ hệ thống, không bị giới hạn trong trang phân trang của kho)
+  const [allProducts, setAllProducts] = useState<ProductItem[]>(products || []);
+
+  const loadAllProducts = () => {
+    getProductsApi(token, { page: 1, page_size: 500 })
+      .then((data) => {
+        if (data && Array.isArray(data.items) && data.items.length > 0) {
+          setAllProducts(data.items);
+        }
+      })
+      .catch(() => {});
+  };
+
+  useEffect(() => {
+    loadAllProducts();
+  }, [token]);
+
+  const effectiveProducts = useMemo(() => {
+    if (allProducts.length > 0) return allProducts;
+    return products;
+  }, [allProducts, products]);
+
   // Tìm thông tin sản phẩm đầy đủ trong danh mục
   const selectedProduct = useMemo(() => {
-    return products.find(
+    return effectiveProducts.find(
       (p) => p.code.toLowerCase() === (selectedProductCode || '').toLowerCase()
     );
-  }, [products, selectedProductCode]);
+  }, [effectiveProducts, selectedProductCode]);
 
   // Bộ tìm kiếm sản phẩm trong dropdown
   const [productSearchTerm, setProductSearchTerm] = useState('');
@@ -97,12 +124,13 @@ export const ProductHistoryView: React.FC<ProductHistoryViewProps> = ({
   // 4. Modal chi tiết Diff
   const [selectedDetailLog, setSelectedDetailLog] = useState<AuditLogItem | null>(null);
 
-  // Đồng bộ URL parameter khi thay đổi sản phẩm
+  // Đồng bộ URL parameter và sessionStorage khi thay đổi sản phẩm
   const handleSelectProduct = (code: string) => {
     setSelectedProductCode(code);
     setIsProductPickerOpen(false);
     setProductSearchTerm('');
     try {
+      sessionStorage.setItem('last_product_history_code', code);
       const url = new URL(window.location.href);
       url.searchParams.set('code', code);
       window.history.replaceState({}, '', url.toString());
@@ -136,6 +164,20 @@ export const ProductHistoryView: React.FC<ProductHistoryViewProps> = ({
     }
   }, [selectedProductCode, token]);
 
+  // Lắng nghe sự kiện cập nhật tồn kho để tự động tải lại thông tin sản phẩm và nhật ký
+  useEffect(() => {
+    const handleStockUpdate = () => {
+      loadAllProducts();
+      if (selectedProductCode) {
+        fetchLogs(selectedProductCode);
+      }
+    };
+    window.addEventListener('INVENTORY_STOCK_UPDATED', handleStockUpdate);
+    return () => {
+      window.removeEventListener('INVENTORY_STOCK_UPDATED', handleStockUpdate);
+    };
+  }, [selectedProductCode]);
+
   // Cập nhật selectedProductCode khi initialProductCode thay đổi từ bên ngoài
   useEffect(() => {
     if (initialProductCode && initialProductCode !== selectedProductCode) {
@@ -152,8 +194,8 @@ export const ProductHistoryView: React.FC<ProductHistoryViewProps> = ({
 
   // Cập nhật selectedProductCode nếu ban đầu trống nhưng products được nạp
   useEffect(() => {
-    if (!selectedProductCode && products.length > 0) {
-      const firstCode = initialProductCode || products[0].code;
+    if (!selectedProductCode && effectiveProducts.length > 0) {
+      const firstCode = initialProductCode || effectiveProducts[0].code;
       setSelectedProductCode(firstCode);
       try {
         const url = new URL(window.location.href);
@@ -163,7 +205,7 @@ export const ProductHistoryView: React.FC<ProductHistoryViewProps> = ({
         // ignore
       }
     }
-  }, [products, selectedProductCode, initialProductCode]);
+  }, [effectiveProducts, selectedProductCode, initialProductCode]);
 
   // Helper parse JSON an toàn
   const parseJSON = (str?: string | null): any => {
@@ -181,17 +223,22 @@ export const ProductHistoryView: React.FC<ProductHistoryViewProps> = ({
   }, [logs]);
 
   const inventoryLogsCount = useMemo(() => {
-    return logs.filter((l) => l.action_type === 'INVENTORY_ADJUST' || l.action_type === 'STOCK_RECEIPT').length;
+    return logs.filter((l) =>
+      l.action_type === 'INVENTORY_ADJUST' ||
+      l.action_type === 'STOCK_RECEIPT' ||
+      l.action_type === 'STOCK_ISSUE' ||
+      l.action_type === 'OVERRIDE_EXPIRED_BATCH_ISSUE'
+    ).length;
   }, [logs]);
 
-  // Lọc danh sách sản phẩm trong dropdown
+  // Lọc danh sách sản phẩm trong dropdown từ danh mục đầy đủ
   const filteredProductOptions = useMemo(() => {
     const q = productSearchTerm.trim().toLowerCase();
-    if (!q) return products;
-    return products.filter(
+    if (!q) return effectiveProducts;
+    return effectiveProducts.filter(
       (p) => p.code.toLowerCase().includes(q) || p.name.toLowerCase().includes(q)
     );
-  }, [products, productSearchTerm]);
+  }, [effectiveProducts, productSearchTerm]);
 
   // Lọc logs theo tab, từ khóa tìm kiếm và khoảng ngày
   const filteredLogs = useMemo(() => {
@@ -199,7 +246,12 @@ export const ProductHistoryView: React.FC<ProductHistoryViewProps> = ({
       // 1. Lọc theo loại thao tác
       if (filterType !== 'ALL') {
         if (filterType === 'INVENTORY_ADJUST') {
-          if (log.action_type !== 'INVENTORY_ADJUST' && log.action_type !== 'STOCK_RECEIPT') return false;
+          if (
+            log.action_type !== 'INVENTORY_ADJUST' &&
+            log.action_type !== 'STOCK_RECEIPT' &&
+            log.action_type !== 'STOCK_ISSUE' &&
+            log.action_type !== 'OVERRIDE_EXPIRED_BATCH_ISSUE'
+          ) return false;
         } else if (log.action_type !== filterType) {
           return false;
         }
@@ -1062,14 +1114,60 @@ export const ProductHistoryView: React.FC<ProductHistoryViewProps> = ({
                   ? newCostPrice - oldCostPrice
                   : null;
 
-              const isStockReceipt = log.action_type === 'STOCK_RECEIPT';
-              const isInventoryAdjust = log.action_type === 'INVENTORY_ADJUST' || isStockReceipt;
               const oldStock = oldObj?.stock;
               const newStock = newObj?.stock;
               const diffStock =
                 typeof newStock === 'number' && typeof oldStock === 'number'
                   ? newStock - oldStock
                   : null;
+
+              // Bóc tách thông tin số lô nếu có
+              const batchNumber =
+                newObj?.batch_number ||
+                oldObj?.batch_number ||
+                (log.reason || '').match(/\[Lô:\s*([^\]]+)\]/i)?.[1] ||
+                (log.reason || '').match(/lô\s+([A-Za-z0-9_\-]+)/i)?.[1] ||
+                (log.entity_type === 'ProductBatch' && log.entity_id?.includes('-')
+                  ? log.entity_id.split('-').slice(1).join('-')
+                  : undefined);
+
+              const isStockReceipt = log.action_type === 'STOCK_RECEIPT';
+              const isStockIssue =
+                log.action_type === 'STOCK_ISSUE' ||
+                log.action_type === 'OVERRIDE_EXPIRED_BATCH_ISSUE' ||
+                (log.action_type === 'INVENTORY_ADJUST' && (
+                  (diffStock !== null && diffStock < 0) ||
+                  (newObj?.base_quantity !== undefined && Number(newObj.base_quantity) < 0) ||
+                  (log.reason || '').toLowerCase().startsWith('xuất kho')
+                ));
+              const isInventoryAdjust =
+                log.action_type === 'INVENTORY_ADJUST' ||
+                isStockReceipt ||
+                isStockIssue ||
+                log.action_type === 'OVERRIDE_EXPIRED_BATCH_ISSUE';
+
+              const getBadgeInfo = () => {
+                if (isPriceChange) {
+                  return { label: 'Thay đổi giá', bg: '#fef3c7', color: '#b45309' };
+                }
+                if (log.action_type === 'OVERRIDE_EXPIRED_BATCH_ISSUE') {
+                  return { label: 'Xuất kho lô (Ghi đè)', bg: '#fef2f2', color: '#b91c1c' };
+                }
+                if (isStockReceipt) {
+                  return { label: batchNumber ? 'Nhập kho lô' : 'Nhập kho NCC', bg: '#ecfdf5', color: '#047857' };
+                }
+                if (isStockIssue) {
+                  return { label: batchNumber ? 'Xuất kho lô' : 'Xuất kho', bg: '#fff7ed', color: '#c2410c' };
+                }
+                if (log.action_type === 'PRODUCT_UPDATE') {
+                  return { label: 'Cập nhật thông tin', bg: '#f3e8ff', color: '#7e22ce' };
+                }
+                if (isInventoryAdjust) {
+                  return { label: 'Điều chỉnh kho', bg: '#dbeafe', color: '#1d4ed8' };
+                }
+                return { label: log.action_type, bg: '#f1f5f9', color: '#475569' };
+              };
+              const badgeInfo = getBadgeInfo();
 
               return (
                 <div
@@ -1094,42 +1192,44 @@ export const ProductHistoryView: React.FC<ProductHistoryViewProps> = ({
                       gap: '8px',
                     }}
                   >
-                    <span
-                      style={{
-                        padding: '4px 10px',
-                        borderRadius: '6px',
-                        fontSize: '12px',
-                        fontWeight: '700',
-                        background: isPriceChange
-                          ? '#fef3c7'
-                          : isStockReceipt
-                          ? '#ecfdf5'
-                          : isInventoryAdjust
-                          ? '#dbeafe'
-                          : log.action_type === 'PRODUCT_UPDATE'
-                          ? '#f3e8ff'
-                          : '#f1f5f9',
-                        color: isPriceChange
-                          ? '#b45309'
-                          : isStockReceipt
-                          ? '#047857'
-                          : isInventoryAdjust
-                          ? '#1d4ed8'
-                          : log.action_type === 'PRODUCT_UPDATE'
-                          ? '#7e22ce'
-                          : '#475569',
-                      }}
-                    >
-                      {isPriceChange
-                        ? 'Thay đổi giá'
-                        : isStockReceipt
-                        ? 'Nhập kho NCC'
-                        : isInventoryAdjust
-                        ? 'Điều chỉnh kho'
-                        : log.action_type === 'PRODUCT_UPDATE'
-                        ? 'Cập nhật thông tin'
-                        : log.action_type}
-                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                      <span
+                        style={{
+                          padding: '4px 10px',
+                          borderRadius: '6px',
+                          fontSize: '12px',
+                          fontWeight: '700',
+                          background: badgeInfo.bg,
+                          color: badgeInfo.color,
+                        }}
+                      >
+                        {badgeInfo.label}
+                      </span>
+
+                      {batchNumber && (
+                        <span
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            padding: '3px 8px',
+                            borderRadius: '6px',
+                            fontSize: '11.5px',
+                            fontWeight: '700',
+                            background: '#fef3c7',
+                            color: '#92400e',
+                            border: '1px solid #fde68a',
+                            fontFamily: 'monospace',
+                          }}
+                          title="Lô hàng liên kết"
+                        >
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+                          </svg>
+                          <span>Lô: {batchNumber}</span>
+                        </span>
+                      )}
+                    </div>
 
                     <span style={{ fontSize: '13px', color: '#64748b', fontWeight: '500' }}>
                       Thời điểm: <strong>{formatLocalDateTime(log.created_at)}</strong>
