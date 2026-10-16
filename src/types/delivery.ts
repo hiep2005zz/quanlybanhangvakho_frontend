@@ -10,6 +10,14 @@ export interface InTransitSummaryResponse {
   overdue_trips_count: number;
 }
 
+export interface DeliveryStopItemDetail {
+  product_code?: string;
+  product_name?: string;
+  quantity?: number;
+  delivered_quantity?: number;
+  unit?: string;
+}
+
 export interface DeliveryStopResponse {
   id: number;
   trip_id: number;
@@ -27,6 +35,13 @@ export interface DeliveryStopResponse {
   delivered_at?: string | null;
   failed_reason?: string | null;
   note?: string | null;
+  // SCRUM-85: Bằng chứng giao hàng POD & Trạng thái hoàn kho
+  actual_delivery_time?: string | null;
+  pod_image_url?: string | null;
+  delivery_status?: 'Pending' | 'Delivered' | 'Failed' | string | null;
+  failure_reason?: string | null;
+  return_status?: string | null;
+  items_detail?: DeliveryStopItemDetail[] | null;
 }
 
 export interface DeliveryTripResponse {
@@ -56,10 +71,33 @@ export interface DeliveryTripResponse {
 export type DeliveryTripDetail = DeliveryTripResponse;
 export type DeliveryStopDetail = DeliveryStopResponse;
 
+export interface DeliveryStopConfirmRequest {
+  receiver_name: string;
+  actual_delivery_time?: string | null;
+  pod_image_url?: string | null;
+  items_detail?: DeliveryStopItemDetail[] | null;
+  note?: string | null;
+}
+
+export interface DeliveryStopFailureRequest {
+  failure_reason: string;
+  note?: string | null;
+}
+
+export interface PodUploadResponse {
+  url: string;
+  filename: string;
+  message: string;
+}
+
 export interface DeliveryStopStatusUpdate {
   status: DeliveryStopStatus | string;
   failed_reason?: string | null;
   note?: string | null;
+  receiver_name?: string | null;
+  actual_delivery_time?: string | null;
+  pod_image_url?: string | null;
+  failure_reason?: string | null;
 }
 
 export interface DeliveryTripStatusUpdate {

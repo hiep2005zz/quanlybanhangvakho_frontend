@@ -284,12 +284,21 @@ export const ProductInfiniteSelect: React.FC<ProductInfiniteSelectProps> = ({
                     ? addedItem.quantity
                     : parseFloat(addedItem.quantity) || 1
                   : 0;
+                const isOutOfStock = (p.stock ?? 0) <= 0 || p.status === 'out_of_stock' || p.status === 'inactive';
 
                 return (
                   <div
                     key={p.id}
-                    onClick={() => handleSelectItem(p)}
-                    className="p-3 hover:bg-emerald-50/80 cursor-pointer transition-colors flex items-center justify-between group"
+                    onClick={() => {
+                      if (!isOutOfStock) {
+                        handleSelectItem(p);
+                      }
+                    }}
+                    className={`p-3 transition-colors flex items-center justify-between group ${
+                      isOutOfStock
+                        ? 'bg-slate-50/80 opacity-70 cursor-not-allowed'
+                        : 'hover:bg-emerald-50/80 cursor-pointer'
+                    }`}
                   >
                     <div className="flex-1 min-w-0 pr-3">
                       <div className="flex items-center gap-2 mb-1 flex-wrap">
@@ -299,10 +308,23 @@ export const ProductInfiniteSelect: React.FC<ProductInfiniteSelectProps> = ({
                         <span className="font-bold text-slate-900 text-sm truncate">
                           {p.name}
                         </span>
+                        {isOutOfStock && (
+                          <span className="px-1.5 py-0.5 rounded text-[10.5px] font-bold bg-rose-100 text-rose-700 border border-rose-300">
+                            Hết hàng
+                          </span>
+                        )}
                       </div>
                       <div className="flex items-center gap-2 text-xs text-slate-500 flex-wrap">
                         <span>
-                          Tồn kho: <strong className={p.stock > 0 ? 'text-emerald-700 font-bold' : 'text-red-600 font-bold'}>{p.stock}</strong> {p.base_unit || 'Cái'}
+                          Tồn kho:{' '}
+                          {isOutOfStock ? (
+                            <strong className="text-red-600 font-bold bg-red-50 border border-red-200 px-1 py-0.5 rounded text-[11px]">
+                              Hết hàng (0)
+                            </strong>
+                          ) : (
+                            <strong className="text-emerald-700 font-bold">{p.stock}</strong>
+                          )}{' '}
+                          {p.base_unit || 'Cái'}
                         </span>
                         {p.sell_price > 0 && (
                           <>
@@ -327,12 +349,18 @@ export const ProductInfiniteSelect: React.FC<ProductInfiniteSelectProps> = ({
                           Đã chọn ({itemQty})
                         </span>
                       )}
-                      <button
-                        type="button"
-                        className="px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 group-hover:bg-emerald-600 group-hover:text-white transition-all cursor-pointer shadow-2xs"
-                      >
-                        + Thêm
-                      </button>
+                      {isOutOfStock ? (
+                        <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-gray-100 text-gray-400 border border-gray-300 cursor-not-allowed select-none">
+                          Hết hàng
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          className="px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 group-hover:bg-emerald-600 group-hover:text-white transition-all cursor-pointer shadow-2xs"
+                        >
+                          + Thêm
+                        </button>
+                      )}
                     </div>
                   </div>
                 );
