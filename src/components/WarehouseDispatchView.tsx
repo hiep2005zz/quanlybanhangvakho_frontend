@@ -1190,19 +1190,19 @@ export const WarehouseDispatchView: React.FC<WarehouseDispatchViewProps> = ({
           </div>
         </div>
 
-        {/* BẢNG TAB 1: CHỜ XÁC NHẬN XUẤT KHO - ĐÃ XÓA NÚT LỊCH SỬ Ở CỘT THAO TÁC, KHÔNG XUỐNG DÒNG */}
+        {/* BẢNG TAB 1: CHỜ XÁC NHẬN XUẤT KHO - ĐÃ CĂN CHỈNH TIÊU ĐỀ THẲNG HÀNG & CÂN ĐỐI */}
         {activeTab === 'dispatch' && (
           <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '12px', tableLayout: 'fixed' }}>
               <thead style={{ position: 'sticky', top: 0, zIndex: 10, background: '#f8fafc' }}>
                 <tr style={{ background: '#f8fafc', color: '#475569', borderBottom: '1px solid #cbd5e1' }}>
-                  <th style={{ padding: '7px 8px', fontWeight: '700', whiteSpace: 'nowrap', width: '13%' }}>Mã đơn hàng</th>
-                  <th style={{ padding: '7px 8px', fontWeight: '700', whiteSpace: 'nowrap', width: '27%' }}>Khách hàng / Đại lý</th>
-                  <th style={{ padding: '7px 8px', fontWeight: '700', whiteSpace: 'nowrap', width: '16%' }}>Kho phụ trách</th>
-                  <th style={{ padding: '7px 8px', fontWeight: '700', whiteSpace: 'nowrap', width: '11%' }}>Ngày đặt</th>
-                  <th style={{ padding: '7px 8px', fontWeight: '700', whiteSpace: 'nowrap', width: '8%', textAlign: 'center' }}>Số loại SP</th>
-                  <th style={{ padding: '7px 8px', fontWeight: '700', whiteSpace: 'nowrap', width: '10%' }}>Trạng thái</th>
-                  <th style={{ padding: '7px 8px', fontWeight: '700', whiteSpace: 'nowrap', width: '15%', textAlign: 'right' }}>Thao tác</th>
+                  <th style={{ padding: '9px 12px 9px 16px', fontWeight: '700', whiteSpace: 'nowrap', width: '16%' }}>Mã đơn hàng</th>
+                  <th style={{ padding: '9px 12px', fontWeight: '700', whiteSpace: 'nowrap', width: '23%' }}>Khách hàng / Đại lý</th>
+                  <th style={{ padding: '9px 12px', fontWeight: '700', whiteSpace: 'nowrap', width: '16%' }}>Kho phụ trách</th>
+                  <th style={{ padding: '9px 10px', fontWeight: '700', whiteSpace: 'nowrap', width: '11%', textAlign: 'center' }}>Ngày đặt</th>
+                  <th style={{ padding: '9px 10px', fontWeight: '700', whiteSpace: 'nowrap', width: '10%', textAlign: 'center' }}>Số loại SP</th>
+                  <th style={{ padding: '9px 10px', fontWeight: '700', whiteSpace: 'nowrap', width: '11%', textAlign: 'center' }}>Trạng thái</th>
+                  <th style={{ padding: '9px 16px 9px 10px', fontWeight: '700', whiteSpace: 'nowrap', width: '13%', textAlign: 'center' }}>Thao tác</th>
                 </tr>
               </thead>
               <tbody>
@@ -1215,37 +1215,37 @@ export const WarehouseDispatchView: React.FC<WarehouseDispatchViewProps> = ({
                   </tr>
                 ) : (
                   filteredDispatchOrders.map((ord) => (
-                    <tr key={ord.order_code} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                      <td style={{ padding: '6px 8px', fontWeight: '700', color: '#0284c7', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    <tr key={ord.order_code} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background 0.15s ease' }}>
+                      <td style={{ padding: '8px 12px 8px 16px', fontWeight: '700', color: '#0284c7', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {ord.order_code}
                       </td>
-                      <td title={ord.dealer_name} style={{ padding: '6px 8px', fontWeight: '600', color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <td title={ord.dealer_name} style={{ padding: '8px 12px', fontWeight: '600', color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {ord.dealer_name}
                       </td>
-                      <td title={ord.warehouse_name || 'Kho Tổng Hà Nội'} style={{ padding: '6px 8px', color: '#475569', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <td title={ord.warehouse_name || 'Kho Tổng Hà Nội'} style={{ padding: '8px 12px', color: '#475569', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {ord.warehouse_name || 'Kho Tổng Hà Nội'}
                       </td>
-                      <td style={{ padding: '6px 8px', color: '#64748b', whiteSpace: 'nowrap' }}>
+                      <td style={{ padding: '8px 10px', textAlign: 'center', color: '#64748b', whiteSpace: 'nowrap' }}>
                         {ord.created_at ? new Date(ord.created_at).toLocaleDateString('vi-VN') : '—'}
                       </td>
-                      <td style={{ padding: '6px 8px', textAlign: 'center', fontWeight: '700', color: '#334155', whiteSpace: 'nowrap' }}>
+                      <td style={{ padding: '8px 10px', textAlign: 'center', fontWeight: '700', color: '#334155', whiteSpace: 'nowrap' }}>
                         {ord.items?.length || 0}
                       </td>
-                      <td style={{ padding: '6px 8px', whiteSpace: 'nowrap' }}>
-                        <span style={{ padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: '700', background: '#dcfce7', color: '#166534', whiteSpace: 'nowrap' }}>
+                      <td style={{ padding: '8px 10px', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                        <span style={{ display: 'inline-block', padding: '2.5px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: '700', background: '#dcfce7', color: '#166534', whiteSpace: 'nowrap' }}>
                           ĐÃ DUYỆT
                         </span>
                       </td>
-                      <td style={{ padding: '6px 8px', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                      <td style={{ padding: '8px 16px 8px 10px', textAlign: 'center', whiteSpace: 'nowrap' }}>
                         <button
                           type="button"
                           onClick={() => handleOpenDispatchPage(ord)}
                           style={{
-                            padding: '4px 10px',
+                            padding: '5px 12px',
                             background: '#0284c7',
                             border: 'none',
                             borderRadius: '5px',
-                            fontSize: '11px',
+                            fontSize: '11.5px',
                             fontWeight: '700',
                             color: '#ffffff',
                             cursor: 'pointer',
@@ -1264,20 +1264,20 @@ export const WarehouseDispatchView: React.FC<WarehouseDispatchViewProps> = ({
           </div>
         )}
 
-        {/* BẢNG TAB 2: CHỜ GIAO BỔ SUNG - ĐÃ XÓA NÚT LỊCH SỬ Ở CỘT THAO TÁC, KHÔNG XUỐNG DÒNG */}
+        {/* BẢNG TAB 2: CHỜ GIAO BỔ SUNG - ĐÃ CĂN CHỈNH TIÊU ĐỀ THẲNG HÀNG & CÂN ĐỐI */}
         {activeTab === 'supplementary' && (
           <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '12px', tableLayout: 'fixed' }}>
               <thead style={{ position: 'sticky', top: 0, zIndex: 10, background: '#f8fafc' }}>
                 <tr style={{ background: '#f8fafc', color: '#475569', borderBottom: '1px solid #cbd5e1' }}>
-                  <th style={{ padding: '7px 8px', fontWeight: '700', whiteSpace: 'nowrap', width: '13%' }}>Mã đơn hàng</th>
-                  <th style={{ padding: '7px 8px', fontWeight: '700', whiteSpace: 'nowrap', width: '24%' }}>Khách hàng / Đại lý</th>
-                  <th style={{ padding: '7px 8px', fontWeight: '700', whiteSpace: 'nowrap', width: '15%' }}>Kho phụ trách</th>
-                  <th style={{ padding: '7px 8px', fontWeight: '700', whiteSpace: 'nowrap', width: '9%', textAlign: 'center' }}>SP còn thiếu</th>
-                  <th style={{ padding: '7px 8px', fontWeight: '700', whiteSpace: 'nowrap', width: '9%', textAlign: 'center' }}>Tổng SL thiếu</th>
-                  <th style={{ padding: '7px 8px', fontWeight: '700', whiteSpace: 'nowrap', width: '11%' }}>Lần xuất trước</th>
-                  <th style={{ padding: '7px 8px', fontWeight: '700', whiteSpace: 'nowrap', width: '9%' }}>Trạng thái</th>
-                  <th style={{ padding: '7px 8px', fontWeight: '700', whiteSpace: 'nowrap', width: '10%', textAlign: 'right' }}>Thao tác</th>
+                  <th style={{ padding: '9px 12px 9px 16px', fontWeight: '700', whiteSpace: 'nowrap', width: '15%' }}>Mã đơn hàng</th>
+                  <th style={{ padding: '9px 12px', fontWeight: '700', whiteSpace: 'nowrap', width: '21%' }}>Khách hàng / Đại lý</th>
+                  <th style={{ padding: '9px 12px', fontWeight: '700', whiteSpace: 'nowrap', width: '15%' }}>Kho phụ trách</th>
+                  <th style={{ padding: '9px 8px', fontWeight: '700', whiteSpace: 'nowrap', width: '9%', textAlign: 'center' }}>SP còn thiếu</th>
+                  <th style={{ padding: '9px 8px', fontWeight: '700', whiteSpace: 'nowrap', width: '9%', textAlign: 'center' }}>Tổng SL thiếu</th>
+                  <th style={{ padding: '9px 8px', fontWeight: '700', whiteSpace: 'nowrap', width: '10%', textAlign: 'center' }}>Lần xuất trước</th>
+                  <th style={{ padding: '9px 8px', fontWeight: '700', whiteSpace: 'nowrap', width: '10%', textAlign: 'center' }}>Trạng thái</th>
+                  <th style={{ padding: '9px 16px 9px 8px', fontWeight: '700', whiteSpace: 'nowrap', width: '11%', textAlign: 'center' }}>Thao tác</th>
                 </tr>
               </thead>
               <tbody>
@@ -1290,40 +1290,40 @@ export const WarehouseDispatchView: React.FC<WarehouseDispatchViewProps> = ({
                   </tr>
                 ) : (
                   filteredSuppOrders.map((ord) => (
-                    <tr key={ord.order_code} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                      <td style={{ padding: '6px 8px', fontWeight: '700', color: '#d97706', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    <tr key={ord.order_code} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background 0.15s ease' }}>
+                      <td style={{ padding: '8px 12px 8px 16px', fontWeight: '700', color: '#d97706', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {ord.order_code}
                       </td>
-                      <td title={ord.dealer_name} style={{ padding: '6px 8px', fontWeight: '600', color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <td title={ord.dealer_name} style={{ padding: '8px 12px', fontWeight: '600', color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {ord.dealer_name}
                       </td>
-                      <td title={ord.warehouse_name || 'Kho Tổng Hà Nội'} style={{ padding: '6px 8px', color: '#475569', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <td title={ord.warehouse_name || 'Kho Tổng Hà Nội'} style={{ padding: '8px 12px', color: '#475569', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {ord.warehouse_name || 'Kho Tổng Hà Nội'}
                       </td>
-                      <td style={{ padding: '6px 8px', textAlign: 'center', fontWeight: '700', color: '#b45309', whiteSpace: 'nowrap' }}>
+                      <td style={{ padding: '8px 8px', textAlign: 'center', fontWeight: '700', color: '#b45309', whiteSpace: 'nowrap' }}>
                         {ord.shortage_items_count || ord.items?.length || 0} loại
                       </td>
-                      <td style={{ padding: '6px 8px', textAlign: 'center', fontWeight: '800', color: '#dc2626', whiteSpace: 'nowrap' }}>
+                      <td style={{ padding: '8px 8px', textAlign: 'center', fontWeight: '800', color: '#dc2626', whiteSpace: 'nowrap' }}>
                         {ord.total_shortage_quantity || 0}
                       </td>
-                      <td style={{ padding: '6px 8px', color: '#64748b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <td style={{ padding: '8px 8px', textAlign: 'center', color: '#64748b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {ord.last_dispatch_date ? new Date(ord.last_dispatch_date).toLocaleDateString('vi-VN') : '—'}
                       </td>
-                      <td style={{ padding: '6px 8px', whiteSpace: 'nowrap' }}>
-                        <span style={{ padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: '700', background: '#fef3c7', color: '#b45309', whiteSpace: 'nowrap' }}>
+                      <td style={{ padding: '8px 8px', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                        <span style={{ display: 'inline-block', padding: '2.5px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: '700', background: '#fef3c7', color: '#b45309', whiteSpace: 'nowrap' }}>
                           Thiếu đợt {ord.dispatch_count || 1}
                         </span>
                       </td>
-                      <td style={{ padding: '6px 8px', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                      <td style={{ padding: '8px 16px 8px 8px', textAlign: 'center', whiteSpace: 'nowrap' }}>
                         <button
                           type="button"
                           onClick={() => handleOpenSupplementaryPage(ord)}
                           style={{
-                            padding: '4px 8px',
+                            padding: '5px 10px',
                             background: '#d97706',
                             border: 'none',
                             borderRadius: '5px',
-                            fontSize: '11px',
+                            fontSize: '11.5px',
                             fontWeight: '700',
                             color: '#ffffff',
                             cursor: 'pointer',
@@ -1342,22 +1342,22 @@ export const WarehouseDispatchView: React.FC<WarehouseDispatchViewProps> = ({
           </div>
         )}
 
-        {/* BẢNG TAB 3: LỊCH SỬ PHIẾU XUẤT KHO - KHÔNG XUỐNG DÒNG */}
+        {/* BẢNG TAB 3: LỊCH SỬ PHIẾU XUẤT KHO - ĐÃ CĂN CHỈNH TIÊU ĐỀ THẲNG HÀNG & CÂN ĐỐI */}
         {activeTab === 'history' && (
           <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '12px', tableLayout: 'fixed' }}>
               <thead style={{ position: 'sticky', top: 0, zIndex: 10, background: '#f8fafc' }}>
                 <tr style={{ background: '#f8fafc', color: '#475569', borderBottom: '1px solid #cbd5e1' }}>
-                  <th style={{ padding: '7px 8px', fontWeight: '700', whiteSpace: 'nowrap', width: '13%' }}>Mã phiếu xuất</th>
-                  <th style={{ padding: '7px 8px', fontWeight: '700', whiteSpace: 'nowrap', width: '10%' }}>Mã đơn hàng</th>
-                  <th style={{ padding: '7px 8px', fontWeight: '700', whiteSpace: 'nowrap', width: '18%' }}>Khách hàng / Đại lý</th>
-                  <th style={{ padding: '7px 8px', fontWeight: '700', whiteSpace: 'nowrap', width: '12%' }}>Kho xuất</th>
-                  <th style={{ padding: '7px 8px', fontWeight: '700', whiteSpace: 'nowrap', width: '7%', textAlign: 'center' }}>Đợt xuất</th>
-                  <th style={{ padding: '7px 8px', fontWeight: '700', whiteSpace: 'nowrap', width: '6%', textAlign: 'center' }}>SL xuất</th>
-                  <th style={{ padding: '7px 8px', fontWeight: '700', whiteSpace: 'nowrap', width: '10%' }}>Người thực hiện</th>
-                  <th style={{ padding: '7px 8px', fontWeight: '700', whiteSpace: 'nowrap', width: '11%' }}>Thời gian</th>
-                  <th style={{ padding: '7px 8px', fontWeight: '700', whiteSpace: 'nowrap', width: '7%', textAlign: 'center' }}>Trạng thái</th>
-                  <th style={{ padding: '7px 8px', fontWeight: '700', whiteSpace: 'nowrap', width: '6%', textAlign: 'right' }}>Thao tác</th>
+                  <th style={{ padding: '9px 10px 9px 16px', fontWeight: '700', whiteSpace: 'nowrap', width: '14%' }}>Mã phiếu xuất</th>
+                  <th style={{ padding: '9px 10px', fontWeight: '700', whiteSpace: 'nowrap', width: '11%' }}>Mã đơn hàng</th>
+                  <th style={{ padding: '9px 10px', fontWeight: '700', whiteSpace: 'nowrap', width: '17%' }}>Khách hàng / Đại lý</th>
+                  <th style={{ padding: '9px 10px', fontWeight: '700', whiteSpace: 'nowrap', width: '12%' }}>Kho xuất</th>
+                  <th style={{ padding: '9px 8px', fontWeight: '700', whiteSpace: 'nowrap', width: '8%', textAlign: 'center' }}>Đợt xuất</th>
+                  <th style={{ padding: '9px 8px', fontWeight: '700', whiteSpace: 'nowrap', width: '7%', textAlign: 'center' }}>SL xuất</th>
+                  <th style={{ padding: '9px 10px', fontWeight: '700', whiteSpace: 'nowrap', width: '10%' }}>Người thực hiện</th>
+                  <th style={{ padding: '9px 8px', fontWeight: '700', whiteSpace: 'nowrap', width: '11%', textAlign: 'center' }}>Thời gian</th>
+                  <th style={{ padding: '9px 8px', fontWeight: '700', whiteSpace: 'nowrap', width: '8%', textAlign: 'center' }}>Trạng thái</th>
+                  <th style={{ padding: '9px 16px 9px 8px', fontWeight: '700', whiteSpace: 'nowrap', width: '7%', textAlign: 'center' }}>Thao tác</th>
                 </tr>
               </thead>
               <tbody>
@@ -1370,23 +1370,24 @@ export const WarehouseDispatchView: React.FC<WarehouseDispatchViewProps> = ({
                   </tr>
                 ) : (
                   filteredAllDispatches.map((dp) => (
-                    <tr key={dp.dispatch_code || dp.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                      <td style={{ padding: '6px 8px', fontWeight: '700', color: '#0284c7', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    <tr key={dp.dispatch_code || dp.id} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background 0.15s ease' }}>
+                      <td style={{ padding: '8px 10px 8px 16px', fontWeight: '700', color: '#0284c7', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {dp.dispatch_code}
                       </td>
-                      <td style={{ padding: '6px 8px', fontWeight: '700', color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <td style={{ padding: '8px 10px', fontWeight: '700', color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {dp.order_code}
                       </td>
-                      <td title={dp.dealer_name} style={{ padding: '6px 8px', fontWeight: '600', color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <td title={dp.dealer_name} style={{ padding: '8px 10px', fontWeight: '600', color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {dp.dealer_name || 'Khách Mua Hàng'}
                       </td>
-                      <td title={dp.warehouse_name || 'Kho Tổng'} style={{ padding: '6px 8px', color: '#475569', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <td title={dp.warehouse_name || 'Kho Tổng'} style={{ padding: '8px 10px', color: '#475569', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {dp.warehouse_name || 'Kho Tổng'}
                       </td>
-                      <td style={{ padding: '6px 8px', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                      <td style={{ padding: '8px 8px', textAlign: 'center', whiteSpace: 'nowrap' }}>
                         <span
                           style={{
-                            padding: '2px 6px',
+                            display: 'inline-block',
+                            padding: '2.5px 6px',
                             borderRadius: '4px',
                             fontSize: '11px',
                             fontWeight: '700',
@@ -1398,19 +1399,20 @@ export const WarehouseDispatchView: React.FC<WarehouseDispatchViewProps> = ({
                           {dp.round_number === 1 ? 'Lần đầu' : `Đợt ${dp.round_number}`}
                         </span>
                       </td>
-                      <td style={{ padding: '6px 8px', textAlign: 'center', fontWeight: '700', color: '#16a34a', whiteSpace: 'nowrap' }}>
+                      <td style={{ padding: '8px 8px', textAlign: 'center', fontWeight: '700', color: '#16a34a', whiteSpace: 'nowrap' }}>
                         +{dp.total_dispatched_qty} sp
                       </td>
-                      <td title={dp.performed_by} style={{ padding: '6px 8px', color: '#334155', fontWeight: '600', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <td title={dp.performed_by} style={{ padding: '8px 10px', color: '#334155', fontWeight: '600', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {dp.performed_by}
                       </td>
-                      <td style={{ padding: '6px 8px', color: '#64748b', fontSize: '11px', whiteSpace: 'nowrap' }}>
+                      <td style={{ padding: '8px 8px', textAlign: 'center', color: '#64748b', fontSize: '11px', whiteSpace: 'nowrap' }}>
                         {dp.created_at ? new Date(dp.created_at).toLocaleDateString('vi-VN') + ' ' + new Date(dp.created_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '—'}
                       </td>
-                      <td style={{ padding: '6px 8px', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                      <td style={{ padding: '8px 8px', textAlign: 'center', whiteSpace: 'nowrap' }}>
                         <span
                           style={{
-                            padding: '2px 6px',
+                            display: 'inline-block',
+                            padding: '2.5px 6px',
                             borderRadius: '4px',
                             fontSize: '10.5px',
                             fontWeight: '700',
@@ -1422,7 +1424,7 @@ export const WarehouseDispatchView: React.FC<WarehouseDispatchViewProps> = ({
                           {dp.order_status === 'DELIVERED' ? 'HOÀN THÀNH' : dp.order_status === 'PARTIALLY_DELIVERED' ? 'GIAO THIẾU' : (dp.order_status || 'ĐÃ XUẤT')}
                         </span>
                       </td>
-                      <td style={{ padding: '6px 8px', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                      <td style={{ padding: '8px 16px 8px 8px', textAlign: 'center', whiteSpace: 'nowrap' }}>
                         <button
                           type="button"
                           onClick={() => handleViewDispatchHistoryPage(dp.order_code)}
