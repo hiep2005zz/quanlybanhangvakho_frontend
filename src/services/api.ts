@@ -4138,3 +4138,212 @@ export async function toggleProductBatchTrackingApi(
   return data;
 }
 
+// ==========================================
+// BÁO CÁO TỒN KHO & VÒNG QUAY HÀNG HÓA (INVENTORY TURNOVER & AGING STOCK)
+// ==========================================
+export interface WarehouseBreakdown {
+  warehouse_id: string;
+  warehouse_name: string;
+  total_value: number;
+  total_stock: number;
+  sku_count: number;
+  percentage: number;
+}
+
+export interface CategoryBreakdown {
+  category: string;
+  total_value: number;
+  total_stock: number;
+  sku_count: number;
+  percentage: number;
+}
+
+export interface TurnoverReportItem {
+  product_id: number;
+  product_code: string;
+  product_name: string;
+  category: string;
+  base_unit: string;
+  warehouse_id?: string;
+  warehouse_name?: string;
+  current_stock: number;
+  cost_price: number;
+  inventory_value: number;
+  sold_quantity: number;
+  cogs: number;
+  turnover_rate: number;
+  dsi: number | null;
+  last_sale_date: string | null;
+  days_without_sale: number | null;
+  status: 'stagnant' | 'slow' | 'normal' | 'fast' | 'out_of_stock' | string;
+  status_label: string;
+  status_severity: 'danger' | 'warning' | 'info' | 'success' | 'neutral';
+  warning_note?: string;
+}
+
+export interface TurnoverReportSummary {
+  total_inventory_value: number;
+  slow_stagnant_value: number;
+  slow_stagnant_skus: number;
+  total_skus: number;
+  avg_turnover_rate: number;
+  avg_dsi: number | null;
+  total_cogs: number;
+  period_days: number;
+}
+
+export interface TurnoverSummaryResponse {
+  summary: TurnoverReportSummary;
+  warehouse_breakdown: WarehouseBreakdown[];
+  category_breakdown: CategoryBreakdown[];
+  warehouses: WarehouseInfo[];
+  categories: string[];
+}
+
+export interface TurnoverReportResponse {
+  summary?: TurnoverReportSummary;
+  warehouse_breakdown?: WarehouseBreakdown[];
+  category_breakdown?: CategoryBreakdown[];
+  items: TurnoverReportItem[];
+  warehouses?: WarehouseInfo[];
+  categories?: string[];
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+}
+
+export interface TurnoverReportFilterParams {
+  warehouse_id?: string;
+  warehouse_code?: string;
+  category?: string;
+  days?: number;
+  search?: string;
+  status?: string;
+  page?: number;
+  page_size?: number;
+  include_summary?: boolean;
+}
+
+export async function getTurnoverSummaryApi(
+  token: string,
+  params?: { warehouse_id?: string; category?: string; days?: number; status?: string }
+): Promise<TurnoverSummaryResponse> {
+  const query = new URLSearchParams();
+  if (params?.warehouse_id && params.warehouse_id !== 'all') {
+    query.set('warehouse_id', params.warehouse_id);
+  }
+  if (params?.category && params.category !== 'all') {
+    query.set('category', params.category);
+  }
+  if (params?.days) {
+    query.set('days', String(params.days));
+  }
+  if (params?.status && params.status !== 'all') {
+    query.set('status', params.status);
+  }
+
+  const url = `${API_BASE_URL}/inventory/turnover-report/summary${query.toString() ? `?${query.toString()}` : ''}`;
+  const response = await authenticatedFetch(url, { method: 'GET' }, token);
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Lỗi tải thống kê báo cáo tồn kho');
+  }
+  return response.json();
+}
+
+export async function getTurnoverReportApi(
+  token: string,
+  params?: TurnoverReportFilterParams
+): Promise<TurnoverReportResponse> {
+  const query = new URLSearchParams();
+  if (params?.warehouse_id && params.warehouse_id !== 'all') {
+    query.set('warehouse_id', params.warehouse_id);
+  }
+  if (params?.category && params.category !== 'all') {
+    query.set('category', params.category);
+  }
+  if (params?.days) {
+    query.set('days', String(params.days));
+  }
+  if (params?.search && params.search.trim()) {
+    query.set('search', params.search.trim());
+  }
+  if (params?.status && params.status !== 'all') {
+    query.set('status', params.status);
+  }
+  if (params?.page) {
+    query.set('page', String(params.page));
+  }
+  if (params?.page_size) {
+    query.set('page_size', String(params.page_size));
+  }
+  if (params?.include_summary !== undefined) {
+    query.set('include_summary', String(params.include_summary));
+  }
+
+  const url = `${API_BASE_URL}/inventory/turnover-report${query.toString() ? `?${query.toString()}` : ''}`;
+  const response = await authenticatedFetch(url, { method: 'GET' }, token);
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Lỗi tải dữ liệu báo cáo vòng quay tồn kho');
+  }
+  return response.json();
+}
+
+export async function exportTurnoverReportExcelApi(
+  token: string,
+  params?: TurnoverReportFilterParams
+): Promise<void> {
+  const query = new URLSearchParams();
+  const wh = params?.warehouse_id || params?.warehouse_code;
+  if (wh && wh !== 'all') {
+    query.set('warehouse_id', wh);
+    query.set('warehouse_code', wh);
+  }
+  if (params?.category && params.category !== 'all') {
+    query.set('category', params.category);
+  }
+  if (params?.days) {
+    query.set('days', String(params.days));
+  }
+  if (params?.search && params.search.trim()) {
+    query.set('search', params.search.trim());
+  }
+  if (params?.status && params.status !== 'all') {
+    query.set('status', params.status);
+  }
+
+  const url = `${API_BASE_URL}/inventory/turnover-report/export${query.toString() ? `?${query.toString()}` : ''}`;
+  const response = await authenticatedFetch(url, { method: 'GET' }, token);
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Lỗi xuất file Excel báo cáo tồn kho');
+  }
+
+  const blob = await response.blob();
+  const downloadUrl = window.URL.createObjectURL(blob);
+  try {
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    const contentDisposition = response.headers.get('content-disposition');
+    const todayStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    let defaultSlug = 'Tat_Ca';
+    if (wh && wh !== 'all') {
+      defaultSlug = wh.replace(/[^a-zA-Z0-9]/g, '');
+    }
+    let filename = `Bao_Cao_Ton_Kho_Vong_Quay_${defaultSlug}_${todayStr}.xlsx`;
+    if (contentDisposition) {
+      const match = contentDisposition.match(/filename\*?=(?:UTF-8'')?"?([^";]+)"?/i);
+      if (match && match[1]) {
+        filename = decodeURIComponent(match[1]);
+      }
+    }
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  } finally {
+    window.URL.revokeObjectURL(downloadUrl);
+  }
+}

@@ -49,6 +49,7 @@ import { ProductHistoryView } from './ProductHistoryView';
 import { ProductFormView } from './ProductFormView';
 import WarehouseManagementView from './WarehouseManagementView';
 import { WarehouseStockBookView } from './WarehouseStockBookView';
+import { InventoryTurnoverReportView } from './InventoryTurnoverReportView';
 import { StockAuditManagementView } from './StockAuditManagementView';
 import { StockTransferManagementView } from './StockTransferManagementView';
 import { ModalPortal } from './ModalPortal';
@@ -238,6 +239,7 @@ export default function DashboardPage({
     const isProductHistoryPath = pathname === '/product-history' || pathname.startsWith('/product-history/');
     const isWarehousesPath = pathname === '/warehouses' || pathname.startsWith('/warehouses/');
     const isStockBookPath = pathname === '/stock-book' || pathname.startsWith('/stock-book/');
+    const isInventoryTurnoverPath = pathname === '/inventory-turnover' || pathname.startsWith('/inventory-turnover/');
     const isStockAuditsPath = pathname === '/stock-audits' || pathname.startsWith('/stock-audits/');
     const isStockTransfersPath = pathname === '/stock-transfers' || pathname.startsWith('/stock-transfers/');
     const isBatchesPath = pathname === '/batches' || pathname.startsWith('/batches/');
@@ -312,6 +314,13 @@ export default function DashboardPage({
         try { window.history.replaceState({}, '', '/stock-book'); } catch { }
       }
       return 'stock-book';
+    }
+
+    if (isInventoryTurnoverPath || oldTabVal === 'inventory-turnover') {
+      if (hasOldTabParam || pathname !== '/inventory-turnover') {
+        try { window.history.replaceState({}, '', '/inventory-turnover'); } catch { }
+      }
+      return 'inventory-turnover';
     }
 
     if (isStockTransfersPath || oldTabVal === 'stock-transfers' || oldTabVal === 'stock-transfer') {
@@ -584,6 +593,16 @@ export default function DashboardPage({
       return;
     }
 
+    if (tab === 'inventory-turnover') {
+      setActiveTabState('inventory-turnover');
+      try {
+        window.history.pushState({}, '', '/inventory-turnover');
+      } catch {
+        // ignore
+      }
+      return;
+    }
+
     if (tab === 'orders') {
       setActiveTabState('orders');
       try {
@@ -811,6 +830,15 @@ export default function DashboardPage({
           try { window.history.replaceState({}, '', '/stock-book'); } catch { }
         }
         setActiveTabState('stock-book');
+        return;
+      }
+
+      const isInventoryTurnoverPath = pathname === '/inventory-turnover' || pathname.startsWith('/inventory-turnover/');
+      if (isInventoryTurnoverPath || tabParam === 'inventory-turnover') {
+        if (pathname !== '/inventory-turnover' || tabParam) {
+          try { window.history.replaceState({}, '', '/inventory-turnover'); } catch { }
+        }
+        setActiveTabState('inventory-turnover');
         return;
       }
 
@@ -1491,7 +1519,7 @@ export default function DashboardPage({
   const isGoodsReceiptPage = activeTab === 'goods-receipt';
   const isProductsImportPage = activeTab === 'products-import';
   const isUsersImportPage = activeTab === 'users-import';
-  const isLockedScrollTab = !isProductFormOpen && !isSalesOrderOpen && !isOrdersCreateSubpage && !isOrderDetailSubpage && !isPriceListsCreateSubpage && !isPriceBookDetailSubpage && !isPriceBookEditSubpage && !isGoodsReceiptPage && !isStockTransferCreateSubpage && !isBatchesCreateSubpage && !isProductsImportPage && !isUsersImportPage && (activeTab === 'inventory' || activeTab === 'dealers' || activeTab === 'dealer-profiles' || activeTab === 'delivery-points' || activeTab === 'suppliers' || activeTab === 'price-books' || activeTab === 'categories' || activeTab === 'orders' || activeTab === 'product-history' || activeTab === 'stock-book' || activeTab === 'stock-audits' || activeTab === 'stock-transfers' || activeTab === 'stock-thresholds' || activeTab === 'low-stock-alerts' || activeTab === 'batches' || activeTab === 'picking') && !isPendingCustomer;
+  const isLockedScrollTab = !isProductFormOpen && !isSalesOrderOpen && !isOrdersCreateSubpage && !isOrderDetailSubpage && !isPriceListsCreateSubpage && !isPriceBookDetailSubpage && !isPriceBookEditSubpage && !isGoodsReceiptPage && !isStockTransferCreateSubpage && !isBatchesCreateSubpage && !isProductsImportPage && !isUsersImportPage && (activeTab === 'inventory' || activeTab === 'dealers' || activeTab === 'dealer-profiles' || activeTab === 'delivery-points' || activeTab === 'suppliers' || activeTab === 'price-books' || activeTab === 'categories' || activeTab === 'orders' || activeTab === 'product-history' || activeTab === 'stock-book' || activeTab === 'inventory-turnover' || activeTab === 'stock-audits' || activeTab === 'stock-transfers' || activeTab === 'stock-thresholds' || activeTab === 'low-stock-alerts' || activeTab === 'batches' || activeTab === 'picking') && !isPendingCustomer;
 
   return (
     <DashboardLayout
@@ -2039,6 +2067,12 @@ export default function DashboardPage({
           />
         ) : activeTab === 'stock-book' ? (
           <WarehouseStockBookView
+            token={token}
+            onBackToHome={() => setActiveTab('inventory')}
+            onOpenTurnoverReport={() => setActiveTab('inventory-turnover')}
+          />
+        ) : activeTab === 'inventory-turnover' ? (
+          <InventoryTurnoverReportView
             token={token}
             onBackToHome={() => setActiveTab('inventory')}
           />

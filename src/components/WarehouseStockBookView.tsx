@@ -8,11 +8,13 @@ import {
 interface WarehouseStockBookViewProps {
   token: string;
   onBackToHome?: () => void;
+  onOpenTurnoverReport?: () => void;
 }
 
 export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
   token,
   onBackToHome: _onBackToHome,
+  onOpenTurnoverReport: _onOpenTurnoverReport,
 }) => {
   const [data, setData] = useState<StockBookResponse | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -107,7 +109,7 @@ export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
         width: '100%',
       }}
     >
-      {/* Tiêu đề & Điều hướng */}
+      {/* Tiêu đề */}
       <div style={{ marginBottom: '14px', flexShrink: 0 }}>
         <h1 style={{ fontSize: '22px', fontWeight: '800', color: '#0f172a', margin: 0, letterSpacing: '-0.02em' }}>
           Hàng Tồn Kho Theo Kho & SKU

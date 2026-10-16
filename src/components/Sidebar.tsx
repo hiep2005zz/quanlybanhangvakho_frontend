@@ -5,6 +5,7 @@ export type TabType =
   | 'inventory'
   | 'warehouses'
   | 'stock-book'
+  | 'inventory-turnover'
   | 'stock-audits'
   | 'stock-transfers'
   | 'orders'
@@ -321,6 +322,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
           <line x1="9" y1="7" x2="15" y2="7" />
           <line x1="9" y1="11" x2="15" y2="11" />
+        </svg>
+      ),
+    },
+    {
+      id: 'btn-sidebar-inventory-turnover',
+      tab: 'inventory-turnover',
+      path: '/inventory-turnover',
+      label: 'Vòng quay & Tuổi tồn',
+      visible: !isCustomer,
+      icon: (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
+          <path d="M12 7v5l3 3" />
         </svg>
       ),
     },
