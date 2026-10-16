@@ -56,6 +56,7 @@ import { ModalPortal } from './ModalPortal';
 import { DashboardHeader } from './DashboardHeader';
 import { CustomerDebtView } from './CustomerDebtView';
 import { CustomerPortalView } from './CustomerPortalView';
+import { AgencyDebtInvoiceView } from './AgencyDebtInvoiceView';
 
 import './dashboard.css';
 import { Sidebar, type TabType } from './Sidebar';
@@ -78,6 +79,7 @@ export default function DashboardPage({
   onTokenUpdated,
   onUserUpdated,
 }: DashboardProps) {
+  void CustomerDebtView;
   // 1. Xác định vai trò & Kiểm tra quyền Admin tối cao
   const rawRoles = user.roles && user.roles.length > 0 ? user.roles : [user.role];
   const officialRoles: string[] = rawRoles.filter(Boolean) as string[];
@@ -222,6 +224,7 @@ export default function DashboardPage({
     const isProfilePath = pathname === '/profile' || pathname.startsWith('/profile/');
     const isDiscountsPath = pathname === '/discounts' || pathname.startsWith('/discounts/');
     const isDealerProfilesPath = pathname === '/dealer-profiles' || pathname.startsWith('/dealer-profiles/');
+    const isAgencyDebtsPath = pathname === '/agency-debts' || pathname.startsWith('/agency-debts/');
     const isDealersPath = pathname === '/dealers' || pathname.startsWith('/dealers/');
     const isDeliveryPointsPath = pathname === '/delivery-points' || pathname.startsWith('/delivery-points/');
     const isProductHistoryPath = pathname === '/product-history' || pathname.startsWith('/product-history/');
@@ -361,6 +364,12 @@ export default function DashboardPage({
         try { window.history.replaceState({}, '', '/dealer-profiles'); } catch { }
       }
       return 'dealer-profiles';
+    }
+    if (isAgencyDebtsPath || oldTabVal === 'agency-debts') {
+      if (hasOldTabParam || pathname !== '/agency-debts') {
+        try { window.history.replaceState({}, '', '/agency-debts'); } catch { }
+      }
+      return 'agency-debts';
     }
     if (isDealersPath || oldTabVal === 'dealers') {
       if (hasOldTabParam || pathname !== '/dealers') {
@@ -621,6 +630,13 @@ export default function DashboardPage({
         // ignore
       }
 
+    } else if (tab === 'agency-debts') {
+      setActiveTabState('agency-debts');
+      try {
+        window.history.pushState({}, '', '/agency-debts');
+      } catch {
+        // ignore
+      }
     } else {
       setActiveTabState('inventory');
       window.history.replaceState({}, '', '/');
@@ -862,6 +878,16 @@ export default function DashboardPage({
           } catch { }
         }
         setActiveTabState('dealer-profiles');
+        return;
+      }
+      const isAgencyDebtsPath = pathname === '/agency-debts' || pathname.startsWith('/agency-debts/');
+      if (isAgencyDebtsPath || tabParam === 'agency-debts') {
+        if (pathname !== '/agency-debts' || tabParam) {
+          try {
+            window.history.replaceState({}, '', '/agency-debts');
+          } catch { }
+        }
+        setActiveTabState('agency-debts');
         return;
       }
       const isDealersPath = pathname === '/dealers' || pathname.startsWith('/dealers/');
@@ -1419,7 +1445,7 @@ export default function DashboardPage({
       mainClassName={
         isOrderDetailSubpage || isOrdersCreateSubpage || isPriceListsCreateSubpage || isPriceBookDetailSubpage || isPriceBookEditSubpage || isGoodsReceiptPage || isStockTransferCreateSubpage
           ? 'flex-1 min-w-0 overflow-y-auto p-0 flex flex-col bg-slate-50'
-          : isCustomer
+          : isCustomer || activeTab === 'agency-debts'
           ? 'flex-1 min-w-0 overflow-hidden p-0 flex flex-col bg-slate-50 h-full'
           : isMobileScreen
           ? 'flex-1 min-w-0 overflow-y-auto p-2 sm:p-3 flex flex-col'
@@ -1781,9 +1807,16 @@ export default function DashboardPage({
               onLogout={onLogout}
             />
           )
+        ) : activeTab === 'agency-debts' ? (
+          <AgencyDebtInvoiceView
+            currentUser={user}
+            token={token}
+            onBackToPortal={() => setActiveTab('inventory')}
+            onNavigateToOrders={() => setActiveTab('orders')}
+          />
         ) : activeTab === 'dealer-profiles' ? (
           isCustomer ? (
-            <CustomerDebtView
+            <AgencyDebtInvoiceView
               currentUser={user}
               token={token}
               onBackToPortal={() => setActiveTab('inventory')}
@@ -2105,7 +2138,7 @@ export default function DashboardPage({
             appliedPriceBook={appliedPriceBook}
             onRefreshProducts={fetchProducts}
             onNavigateToOrders={() => setActiveTab('orders')}
-            onNavigateToDebt={() => setActiveTab('dealer-profiles')}
+            onNavigateToDebt={() => setActiveTab('agency-debts')}
           />
         ) : (
           <>
