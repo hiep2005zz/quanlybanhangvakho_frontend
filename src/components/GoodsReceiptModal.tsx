@@ -24,6 +24,7 @@ interface GoodsReceiptModalProps {
   products: ProductItem[];
   currentUserWarehouse?: string;
   initialTab?: 'form' | 'list';
+  initialSearchCode?: string;
   onSuccess: () => void;
   onRequestAdjust?: (product: ProductItem | null, receiptCode: string) => void;
   isPage?: boolean;
@@ -147,19 +148,25 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
   products,
   currentUserWarehouse,
   initialTab = 'form',
+  initialSearchCode,
   onSuccess,
   onRequestAdjust,
   isPage = false,
 }) => {
   // Tab điều hướng chính: 'form' (Lập / Xem chi tiết phiếu) hoặc 'list' (Danh sách phiếu)
-  const [activeTab, setActiveTab] = useState<'form' | 'list'>(initialTab);
-  const [listSearchQuery, setListSearchQuery] = useState('');
+  const [activeTab, setActiveTab] = useState<'form' | 'list'>(initialSearchCode ? 'list' : initialTab);
+  const [listSearchQuery, setListSearchQuery] = useState(initialSearchCode || '');
 
   useEffect(() => {
     if (isOpen) {
-      setActiveTab(initialTab);
+      if (initialSearchCode) {
+        setActiveTab('list');
+        setListSearchQuery(initialSearchCode);
+      } else {
+        setActiveTab(initialTab);
+      }
     }
-  }, [isOpen, initialTab]);
+  }, [isOpen, initialTab, initialSearchCode]);
 
   // Metadata dropdowns
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);

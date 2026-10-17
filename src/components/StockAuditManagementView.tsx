@@ -21,9 +21,10 @@ interface StockAuditManagementViewProps {
   token: string;
   currentUser?: User | null;
   initialSearchCode?: string;
+  initialSearchProduct?: string;
 }
 
-export function StockAuditManagementView({ token, currentUser, initialSearchCode }: StockAuditManagementViewProps) {
+export function StockAuditManagementView({ token, currentUser, initialSearchCode, initialSearchProduct }: StockAuditManagementViewProps) {
   // Xác định vai trò
   const userRoles = useMemo(() => {
     if (currentUser?.roles && currentUser.roles.length > 0) {
@@ -57,6 +58,7 @@ export function StockAuditManagementView({ token, currentUser, initialSearchCode
   const [filterWarehouse, setFilterWarehouse] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [filterScope, setFilterScope] = useState('');
+  const autoOpenedCodeRef = useRef<string | null>(null);
 
   // Tự động đồng bộ khi initialSearchCode được truyền vào (từ Thẻ kho)
   useEffect(() => {
@@ -299,9 +301,12 @@ export function StockAuditManagementView({ token, currentUser, initialSearchCode
   }, [audits, totalCount]);
 
   // Mở trang chi tiết phiếu kiểm kê
-  const handleOpenDetail = async (auditId: number) => {
+  const handleOpenDetail = async (auditId: number, filterProduct?: string) => {
     setDetailLoading(true);
     setViewMode('detail');
+    if (filterProduct !== undefined) {
+      setDetailSearchProduct(filterProduct);
+    }
     try {
       const detail = await getStockAuditDetailApi(token, auditId);
       setSelectedAudit(detail);
@@ -318,6 +323,21 @@ export function StockAuditManagementView({ token, currentUser, initialSearchCode
       setDetailLoading(false);
     }
   };
+
+  // Tự động mở thẳng màn hình chi tiết phiếu kiểm kê và lọc sản phẩm tương ứng khi truy nguyên từ Thẻ kho
+  useEffect(() => {
+    if (!initialSearchCode || audits.length === 0) return;
+    if (autoOpenedCodeRef.current === initialSearchCode) return;
+
+    const matchedAudit = audits.find(
+      (a) => a.code.trim().toUpperCase() === initialSearchCode.trim().toUpperCase()
+    );
+
+    if (matchedAudit) {
+      autoOpenedCodeRef.current = initialSearchCode;
+      handleOpenDetail(matchedAudit.id, initialSearchProduct || '');
+    }
+  }, [audits, initialSearchCode, initialSearchProduct]);
 
   // Cập nhật giá trị nhập thực tế trong bảng kiểm đếm
   const handleItemActualStockChange = (productId: number, valStr: string) => {

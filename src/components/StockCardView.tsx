@@ -15,7 +15,7 @@ interface StockCardViewProps {
   productCode?: string;
   token: string;
   onBack: () => void;
-  onNavigateToTab?: (tab: string, queryParam?: string) => void;
+  onNavigateToTab?: (tab: string, queryParam?: string, productCode?: string) => void;
 }
 
 export const StockCardView: React.FC<StockCardViewProps> = ({
@@ -229,15 +229,16 @@ export const StockCardView: React.FC<StockCardViewProps> = ({
   const handleNavigateVoucher = () => {
     if (!activeVoucher) return;
     const { code, type } = activeVoucher;
+    const currentCode = data?.summary?.product_code || initialProductCode || '';
     if (onNavigateToTab) {
       if (type === 'grn' || code.startsWith('GRN-') || code.startsWith('PNK-')) {
-        onNavigateToTab('goods-receipt', code);
+        onNavigateToTab('goods-receipt', code, currentCode);
       } else if (type === 'order' || code.startsWith('ORD') || code.startsWith('DH')) {
-        onNavigateToTab('orders', code);
+        onNavigateToTab('orders', code, currentCode);
       } else if (type === 'transfer' || code.startsWith('CK-')) {
-        onNavigateToTab('stock-transfers', code);
+        onNavigateToTab('stock-transfers', code, currentCode);
       } else if (type === 'audit' || code.startsWith('PKK-')) {
-        onNavigateToTab('stock-audits', code);
+        onNavigateToTab('stock-audits', code, currentCode);
       }
     }
   };
@@ -1115,8 +1116,9 @@ export const StockCardView: React.FC<StockCardViewProps> = ({
               </button>
             </div>
 
-            <div style={{ backgroundColor: '#f8fafc', padding: '14px 16px', borderRadius: '8px', marginBottom: '18px', border: '1px solid #e2e8f0' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+            <div style={{ backgroundColor: '#f8fafc', padding: '16px', borderRadius: '8px', marginBottom: '18px', border: '1px solid #e2e8f0' }}>
+              {/* Thông tin số hiệu chứng từ */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                 <div>
                   <div style={{ fontSize: '11px', textTransform: 'uppercase', color: '#64748b', fontWeight: '700', letterSpacing: '0.5px' }}>
                     Số hiệu chứng từ gốc
@@ -1131,33 +1133,79 @@ export const StockCardView: React.FC<StockCardViewProps> = ({
                     borderRadius: '9999px',
                     fontSize: '12px',
                     fontWeight: '700',
-                    backgroundColor: activeVoucher.code.startsWith('PKK-') ? '#f3e8ff' : '#e0f2fe',
-                    color: activeVoucher.code.startsWith('PKK-') ? '#7e22ce' : '#0369a1',
-                    border: activeVoucher.code.startsWith('PKK-') ? '1px solid #d8b4fe' : '1px solid #bae6fd',
+                    backgroundColor: activeVoucher.code.startsWith('PKK-')
+                      ? '#f3e8ff'
+                      : activeVoucher.code.startsWith('ORD') || activeVoucher.code.startsWith('DH')
+                      ? '#fef2f2'
+                      : activeVoucher.code.startsWith('CK-')
+                      ? '#fef9c3'
+                      : '#e0f2fe',
+                    color: activeVoucher.code.startsWith('PKK-')
+                      ? '#7e22ce'
+                      : activeVoucher.code.startsWith('ORD') || activeVoucher.code.startsWith('DH')
+                      ? '#b91c1c'
+                      : activeVoucher.code.startsWith('CK-')
+                      ? '#854d0e'
+                      : '#0369a1',
+                    border: activeVoucher.code.startsWith('PKK-')
+                      ? '1px solid #d8b4fe'
+                      : activeVoucher.code.startsWith('ORD') || activeVoucher.code.startsWith('DH')
+                      ? '1px solid #fecaca'
+                      : activeVoucher.code.startsWith('CK-')
+                      ? '1px solid #fde047'
+                      : '1px solid #bae6fd',
                   }}
                 >
                   {activeVoucher.code.startsWith('GRN-') || activeVoucher.code.startsWith('PNK-')
-                    ? 'Phiếu nhập kho'
+                    ? '1. Nghiệp vụ Nhập kho'
                     : activeVoucher.code.startsWith('ORD') || activeVoucher.code.startsWith('DH')
-                    ? 'Đơn xuất bán'
+                    ? '2. Nghiệp vụ Xuất bán'
                     : activeVoucher.code.startsWith('CK-')
-                    ? 'Phiếu chuyển kho'
+                    ? '3. Nghiệp vụ Chuyển kho'
                     : activeVoucher.code.startsWith('PKK-')
-                    ? 'Phiếu kiểm kê điều chỉnh tồn'
+                    ? '4. Nghiệp vụ Kiểm kê kho'
                     : activeVoucher.code.startsWith('DK-')
                     ? 'Số dư ban đầu'
-                    : 'Phiếu điều chỉnh'}
+                    : 'Phiếu điều chỉnh tồn'}
                 </span>
               </div>
 
+              {/* Thông tin sản phẩm đối chiếu */}
+              <div style={{ backgroundColor: '#ffffff', padding: '10px 12px', borderRadius: '6px', border: '1px solid #e2e8f0', marginBottom: '12px' }}>
+                <div style={{ fontSize: '11px', textTransform: 'uppercase', color: '#64748b', fontWeight: '700', letterSpacing: '0.5px', marginBottom: '4px' }}>
+                  Sản phẩm truy nguyên trong chứng từ này
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <div style={{ fontSize: '14px', fontWeight: '800', color: '#0f172a' }}>
+                      {data?.summary?.product_name || initialProductName || 'Sản phẩm'}
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>
+                      Mã SKU: <span style={{ fontFamily: 'monospace', fontWeight: '700', color: '#0284c7' }}>{data?.summary?.product_code || initialProductCode}</span>
+                    </div>
+                  </div>
+                  <span style={{ fontSize: '12px', padding: '3px 8px', borderRadius: '6px', backgroundColor: '#f1f5f9', color: '#475569', fontWeight: '700' }}>
+                    ĐVT: {displayUnit}
+                  </span>
+                </div>
+              </div>
+
               {activeVoucher.entry && (
-                <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px dashed #cbd5e1', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   {/* Biến động tồn kho của phiếu */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#ffffff', padding: '8px 12px', borderRadius: '6px', border: '1px solid #f1f5f9' }}>
-                    <span style={{ fontSize: '13px', color: '#475569' }}>Biến động tồn kho do phiếu này:</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#ffffff', padding: '10px 12px', borderRadius: '6px', border: '1px solid #f1f5f9' }}>
+                    <span style={{ fontSize: '13px', color: '#475569', fontWeight: '600' }}>
+                      {activeVoucher.code.startsWith('PKK-')
+                        ? 'Chênh lệch kiểm kê (Thực tế - Sổ sách):'
+                        : activeVoucher.code.startsWith('GRN-') || activeVoucher.code.startsWith('PNK-')
+                        ? 'Số lượng nhập kho:'
+                        : activeVoucher.code.startsWith('ORD') || activeVoucher.code.startsWith('DH')
+                        ? 'Số lượng xuất bán:'
+                        : 'Biến động tồn do phiếu này:'}
+                    </span>
                     <span
                       style={{
-                        fontSize: '14px',
+                        fontSize: '15px',
                         fontWeight: '800',
                         color:
                           activeVoucher.entry.quantity > 0 || activeVoucher.entry.receipt_quantity > 0
@@ -1182,15 +1230,19 @@ export const StockCardView: React.FC<StockCardViewProps> = ({
 
                   {/* Tồn trước và tồn sau phát sinh */}
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                    <div style={{ backgroundColor: '#ffffff', padding: '6px 10px', borderRadius: '6px', border: '1px solid #f1f5f9' }}>
-                      <div style={{ fontSize: '11px', color: '#64748b' }}>Tồn trước phát sinh</div>
-                      <div style={{ fontSize: '13px', fontWeight: '700', color: '#334155' }}>
+                    <div style={{ backgroundColor: '#ffffff', padding: '8px 12px', borderRadius: '6px', border: '1px solid #f1f5f9' }}>
+                      <div style={{ fontSize: '11px', color: '#64748b' }}>
+                        {activeVoucher.code.startsWith('PKK-') ? 'Tồn sổ sách trước kiểm kê' : 'Tồn trước phát sinh'}
+                      </div>
+                      <div style={{ fontSize: '13px', fontWeight: '700', color: '#334155', marginTop: '2px' }}>
                         {activeVoucher.entry.previous_stock?.toLocaleString('vi-VN')} {displayUnit}
                       </div>
                     </div>
-                    <div style={{ backgroundColor: '#ffffff', padding: '6px 10px', borderRadius: '6px', border: '1px solid #f1f5f9' }}>
-                      <div style={{ fontSize: '11px', color: '#64748b' }}>Tồn sau phát sinh</div>
-                      <div style={{ fontSize: '13px', fontWeight: '800', color: '#0284c7' }}>
+                    <div style={{ backgroundColor: '#ffffff', padding: '8px 12px', borderRadius: '6px', border: '1px solid #f1f5f9' }}>
+                      <div style={{ fontSize: '11px', color: '#64748b' }}>
+                        {activeVoucher.code.startsWith('PKK-') ? 'Tồn thực đếm ghi nhận' : 'Tồn sau phát sinh'}
+                      </div>
+                      <div style={{ fontSize: '13px', fontWeight: '800', color: '#0284c7', marginTop: '2px' }}>
                         {activeVoucher.entry.balance_stock?.toLocaleString('vi-VN')} {displayUnit}
                       </div>
                     </div>
@@ -1210,7 +1262,7 @@ export const StockCardView: React.FC<StockCardViewProps> = ({
                   {activeVoucher.entry.note && (
                     <div style={{ backgroundColor: '#fffbeb', border: '1px solid #fef3c7', padding: '8px 10px', borderRadius: '6px', marginTop: '2px' }}>
                       <div style={{ fontSize: '11px', fontWeight: '700', color: '#b45309', marginBottom: '2px' }}>
-                        Lý do / Diễn giải sai lệch:
+                        {activeVoucher.code.startsWith('PKK-') ? 'Lý do chênh lệch kiểm kê:' : 'Lý do / Diễn giải nghiệp vụ:'}
                       </div>
                       <div style={{ fontSize: '12.5px', color: '#92400e' }}>
                         {activeVoucher.entry.note}
@@ -1246,14 +1298,46 @@ export const StockCardView: React.FC<StockCardViewProps> = ({
                     padding: '8px 16px',
                     borderRadius: '6px',
                     border: 'none',
-                    backgroundColor: '#2563eb',
+                    backgroundColor: activeVoucher.code.startsWith('PKK-') ? '#7e22ce' : '#2563eb',
                     color: '#ffffff',
                     fontSize: '13px',
-                    fontWeight: '600',
+                    fontWeight: '700',
                     cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
                   }}
+                  title={
+                    activeVoucher.code.startsWith('PKK-')
+                      ? 'Mở chi tiết phiếu kiểm kê và tự động tìm sản phẩm này'
+                      : activeVoucher.code.startsWith('ORD') || activeVoucher.code.startsWith('DH')
+                      ? 'Mở chi tiết đơn hàng xuất bán'
+                      : 'Mở chứng từ gốc'
+                  }
                 >
-                  Mở phiếu chứng từ
+                  {activeVoucher.code.startsWith('PKK-') ? (
+                    <>
+                      <svg style={{ width: '15px', height: '15px' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                      </svg>
+                      <span>Xem chi tiết phiếu kiểm kê & sản phẩm</span>
+                    </>
+                  ) : activeVoucher.code.startsWith('ORD') || activeVoucher.code.startsWith('DH') ? (
+                    <>
+                      <svg style={{ width: '15px', height: '15px' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                      </svg>
+                      <span>Xem chi tiết đơn hàng xuất</span>
+                    </>
+                  ) : (
+                    <>
+                      <svg style={{ width: '15px', height: '15px' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                      </svg>
+                      <span>Mở chứng từ gốc</span>
+                    </>
+                  )}
                 </button>
               )}
             </div>

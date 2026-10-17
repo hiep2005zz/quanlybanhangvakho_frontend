@@ -1417,10 +1417,13 @@ export default function DashboardPage({
     product: ProductItem | null;
     initialReason?: string;
   }>({ isOpen: false, actionType: 'receipt', product: null });
-  const [goodsReceiptInitialTab] = useState<'form' | 'list'>('form');
+  const [goodsReceiptInitialTab, setGoodsReceiptInitialTab] = useState<'form' | 'list'>('form');
   const [selectedProductForStockCard, setSelectedProductForStockCard] = useState<{ id: number; name: string; code: string } | null>(null);
   const [stockCardReturnTab, setStockCardReturnTab] = useState<TabType>('stock-book');
   const [stockAuditSearchCode, setStockAuditSearchCode] = useState<string>('');
+  const [stockAuditSearchProduct, setStockAuditSearchProduct] = useState<string>('');
+  const [goodsReceiptInitialCode, setGoodsReceiptInitialCode] = useState<string>('');
+  const [stockTransferInitialCode, setStockTransferInitialCode] = useState<string>('');
   const [isSalesOrderEntryOpen, setIsSalesOrderEntryOpen] = useState(false);
   const [cloneOrderData, setCloneOrderData] = useState<any>(() => {
     try {
@@ -2033,6 +2036,7 @@ export default function DashboardPage({
               products={products}
               currentUserWarehouse={user.branch || user.warehouse_name || undefined}
               initialTab={goodsReceiptInitialTab}
+              initialSearchCode={goodsReceiptInitialCode}
               onBackToInventory={() => setActiveTab('inventory')}
               onSuccess={() => {
                 fetchProducts();
@@ -2347,6 +2351,7 @@ export default function DashboardPage({
               token={token}
               currentUser={user}
               onBackToHome={() => setActiveTab('inventory')}
+              initialSearchCode={stockTransferInitialCode}
             />
           ) : (
             <AccessDeniedView
@@ -2409,9 +2414,18 @@ export default function DashboardPage({
                 setActiveTab(stockCardReturnTab || 'stock-book');
                 setSelectedProductForStockCard(null);
               }}
-              onNavigateToTab={(tab, queryParam) => {
+              onNavigateToTab={(tab, queryParam, productCode) => {
                 if (tab === 'stock-audits' && queryParam) {
                   setStockAuditSearchCode(queryParam);
+                  if (productCode) setStockAuditSearchProduct(productCode);
+                } else if (tab === 'orders' && queryParam) {
+                  window.history.pushState({}, '', `/orders/${queryParam}`);
+                  window.dispatchEvent(new Event('popstate'));
+                } else if (tab === 'goods-receipt' && queryParam) {
+                  setGoodsReceiptInitialCode(queryParam);
+                  setGoodsReceiptInitialTab('list');
+                } else if (tab === 'stock-transfers' && queryParam) {
+                  setStockTransferInitialCode(queryParam);
                 }
                 setActiveTab(tab as TabType);
                 setSelectedProductForStockCard(null);
@@ -2489,6 +2503,7 @@ export default function DashboardPage({
               token={token}
               currentUser={user}
               initialSearchCode={stockAuditSearchCode}
+              initialSearchProduct={stockAuditSearchProduct}
             />
           ) : (
             <AccessDeniedView
