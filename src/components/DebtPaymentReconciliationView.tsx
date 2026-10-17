@@ -91,6 +91,9 @@ export const DebtPaymentReconciliationView: React.FC<DebtPaymentReconciliationVi
   const [adjustingSubmitting, setAdjustingSubmitting] = useState<boolean>(false);
   const [adjustmentError, setAdjustmentError] = useState<string | null>(null);
 
+  // Detail Modal state for viewed receipt (Hoá đơn đã trừ)
+  const [viewingReceiptDetail, setViewingReceiptDetail] = useState<PaymentReceipt | null>(null);
+
   // Load all dealers initially
   const loadDealers = useCallback(async () => {
     setLoadingDealers(true);
@@ -1091,13 +1094,51 @@ export const DebtPaymentReconciliationView: React.FC<DebtPaymentReconciliationVi
                         </span>
                       </td>
                       <td>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                          {r.allocations.map((a) => (
-                            <span key={a.id} style={{ fontSize: '12px', color: '#1e293b' }}>
-                              • {a.invoice_code || `HĐ #${a.invoice_id}`}: <strong>{formatVND(a.allocated_amount)}</strong>
+                        {r.allocations && r.allocations.length > 0 ? (
+                          <button
+                            type="button"
+                            onClick={() => setViewingReceiptDetail(r)}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              padding: '5px 10px',
+                              borderRadius: '6px',
+                              border: '1px solid #bfdbfe',
+                              background: '#eff6ff',
+                              color: '#1d4ed8',
+                              fontSize: '12px',
+                              fontWeight: '600',
+                              cursor: 'pointer',
+                              transition: 'all 0.15s ease',
+                              whiteSpace: 'nowrap',
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.background = '#dbeafe';
+                              e.currentTarget.style.borderColor = '#93c5fd';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.background = '#eff6ff';
+                              e.currentTarget.style.borderColor = '#bfdbfe';
+                            }}
+                            title="Bấm để xem chi tiết danh sách hoá đơn đối trừ"
+                          >
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                              <polyline points="14 2 14 8 20 8"></polyline>
+                              <line x1="16" y1="13" x2="8" y2="13"></line>
+                              <line x1="16" y1="17" x2="8" y2="17"></line>
+                            </svg>
+                            <span>{r.allocations.length} HĐ</span>
+                            <span style={{ fontSize: '11px', color: '#2563eb', textDecoration: 'underline' }}>
+                              Chi tiết
                             </span>
-                          ))}
-                        </div>
+                          </button>
+                        ) : (
+                          <span style={{ fontSize: '12px', color: '#94a3b8', fontStyle: 'italic' }}>
+                            Chưa đối trừ
+                          </span>
+                        )}
                       </td>
                       <td style={{ textAlign: 'center' }}>
                         <span className={`badge ${r.status === 'CONFIRMED' ? 'badge-confirmed' : 'badge-adjusted'}`}>
@@ -1330,6 +1371,188 @@ export const DebtPaymentReconciliationView: React.FC<DebtPaymentReconciliationVi
                   style={{ background: '#d97706' }}
                 >
                   {adjustingSubmitting ? 'Đang thực hiện...' : 'Xác nhận lập bút toán điều chỉnh'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </ModalPortal>
+      )}
+
+      {/* MODAL CHI TIẾT HOÁ ĐƠN ĐÃ ĐỐI TRỪ */}
+      {viewingReceiptDetail && (
+        <ModalPortal>
+          <div className="debt-modal-backdrop" onClick={() => setViewingReceiptDetail(null)}>
+            <div
+              className="debt-modal-panel"
+              style={{ maxWidth: '640px', width: '95%' }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="debt-modal-header">
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '17px', fontWeight: '700', color: '#0f172a' }}>
+                    Chi Tiết Hoá Đơn Đã Đối Trừ
+                  </h3>
+                  <span style={{ fontSize: '12.5px', color: '#64748b' }}>
+                    Phiếu thu: <strong style={{ color: '#0f172a' }}>{viewingReceiptDetail.receipt_code}</strong> • Đại lý: <strong style={{ color: '#0f172a' }}>{viewingReceiptDetail.dealer_name}</strong> {viewingReceiptDetail.dealer_code && `(${viewingReceiptDetail.dealer_code})`}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setViewingReceiptDetail(null)}
+                  style={{
+                    background: '#f1f5f9',
+                    border: 'none',
+                    width: '30px',
+                    height: '30px',
+                    borderRadius: '50%',
+                    fontSize: '16px',
+                    cursor: 'pointer',
+                    color: '#64748b',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                  title="Đóng"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="debt-modal-body" style={{ padding: '16px 20px' }}>
+                {/* Thông tin tóm tắt phiếu thu */}
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
+                    gap: '12px',
+                    padding: '12px 14px',
+                    background: '#f8fafc',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '8px',
+                    marginBottom: '16px',
+                    fontSize: '12.5px',
+                  }}
+                >
+                  <div>
+                    <div style={{ color: '#64748b', fontSize: '11.5px', marginBottom: '2px' }}>Số tiền thu:</div>
+                    <strong style={{ color: '#059669', fontSize: '14.5px' }}>
+                      {formatVND(viewingReceiptDetail.amount)}
+                    </strong>
+                  </div>
+                  <div>
+                    <div style={{ color: '#64748b', fontSize: '11.5px', marginBottom: '2px' }}>Hình thức:</div>
+                    <strong style={{ color: '#1e293b' }}>{viewingReceiptDetail.payment_method}</strong>
+                  </div>
+                  <div>
+                    <div style={{ color: '#64748b', fontSize: '11.5px', marginBottom: '2px' }}>Phương thức:</div>
+                    <strong style={{ color: '#1e293b' }}>
+                      {viewingReceiptDetail.allocation_mode === 'AUTO_FIFO' ? 'FIFO (Tự động)' : 'Thủ công'}
+                    </strong>
+                  </div>
+                  <div>
+                    <div style={{ color: '#64748b', fontSize: '11.5px', marginBottom: '2px' }}>Ngày thu:</div>
+                    <strong style={{ color: '#1e293b' }}>{formatDate(viewingReceiptDetail.payment_date)}</strong>
+                  </div>
+                  <div>
+                    <div style={{ color: '#64748b', fontSize: '11.5px', marginBottom: '2px' }}>Người thu:</div>
+                    <strong style={{ color: '#1e293b' }}>{viewingReceiptDetail.collector_name}</strong>
+                  </div>
+                </div>
+
+                {viewingReceiptDetail.note && (
+                  <div
+                    style={{
+                      padding: '8px 12px',
+                      background: '#fffbeb',
+                      border: '1px solid #fef3c7',
+                      borderRadius: '6px',
+                      fontSize: '12px',
+                      color: '#92400e',
+                      marginBottom: '16px',
+                    }}
+                  >
+                    <strong>Ghi chú:</strong> {viewingReceiptDetail.note}
+                  </div>
+                )}
+
+                {/* Bảng danh sách hoá đơn */}
+                <div style={{ marginBottom: '8px' }}>
+                  <div style={{ fontSize: '13px', fontWeight: '700', color: '#334155', marginBottom: '8px' }}>
+                    Danh sách hoá đơn đã được bù trừ ({viewingReceiptDetail.allocations?.length || 0} hoá đơn):
+                  </div>
+                  <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12.5px' }}>
+                      <thead>
+                        <tr style={{ background: '#f1f5f9', color: '#475569', textAlign: 'left', borderBottom: '1px solid #cbd5e1' }}>
+                          <th style={{ padding: '8px 12px', width: '45px', textAlign: 'center' }}>STT</th>
+                          <th style={{ padding: '8px 12px' }}>Mã số hoá đơn</th>
+                          <th style={{ padding: '8px 12px', textAlign: 'right' }}>Số tiền đối trừ</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {viewingReceiptDetail.allocations && viewingReceiptDetail.allocations.length > 0 ? (
+                          viewingReceiptDetail.allocations.map((a, idx) => (
+                            <tr key={a.id || idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                              <td style={{ padding: '9px 12px', textAlign: 'center', color: '#64748b' }}>
+                                {idx + 1}
+                              </td>
+                              <td style={{ padding: '9px 12px' }}>
+                                <strong style={{ color: '#0f172a' }}>
+                                  {a.invoice_code || `HĐ #${a.invoice_id}`}
+                                </strong>
+                              </td>
+                              <td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: '700', color: '#059669', fontSize: '13px' }}>
+                                {formatVND(a.allocated_amount)}
+                              </td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td colSpan={3} style={{ padding: '16px', textAlign: 'center', color: '#94a3b8' }}>
+                              Không có hoá đơn nào được ghi nhận.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                      {viewingReceiptDetail.allocations && viewingReceiptDetail.allocations.length > 0 && (
+                        <tfoot>
+                          <tr style={{ background: '#f8fafc', fontWeight: '700', borderTop: '1px solid #cbd5e1' }}>
+                            <td colSpan={2} style={{ padding: '10px 12px', textAlign: 'right', color: '#334155' }}>
+                              Tổng số tiền đã đối trừ:
+                            </td>
+                            <td style={{ padding: '10px 12px', textAlign: 'right', color: '#059669', fontSize: '14px' }}>
+                              {formatVND(
+                                viewingReceiptDetail.allocations.reduce(
+                                  (sum, item) => sum + (item.allocated_amount || 0),
+                                  0
+                                )
+                              )}
+                            </td>
+                          </tr>
+                        </tfoot>
+                      )}
+                    </table>
+                  </div>
+                </div>
+              </div>
+
+              <div
+                className="debt-modal-footer"
+                style={{
+                  display: 'flex',
+                  justifyContent: 'flex-end',
+                  padding: '12px 20px',
+                  borderTop: '1px solid #e2e8f0',
+                  background: '#f8fafc',
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => setViewingReceiptDetail(null)}
+                  className="btn-outline"
+                  style={{ padding: '7px 18px', fontSize: '13px' }}
+                >
+                  Đóng
                 </button>
               </div>
             </div>
