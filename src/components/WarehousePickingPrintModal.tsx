@@ -7,7 +7,7 @@ import './order-print.css';
 interface WarehousePickingPrintModalProps {
   batch: BatchPickingPreviewResponse;
   currentUser?: User | null;
-  itemsState?: Record<number, { picked_quantity: number; shortage_reason: string; is_done: boolean }>;
+  itemsState?: Record<number, { picked_quantity: number | string; shortage_reason: string; is_done: boolean }>;
   onClose: () => void;
 }
 
@@ -222,6 +222,7 @@ export const WarehousePickingPrintModal: React.FC<WarehousePickingPrintModalProp
 
                     const itemState = itemsState ? itemsState[item.product_id] : undefined;
                     const pickedQty = itemState ? itemState.picked_quantity : undefined;
+                    const numPickedQty = pickedQty !== undefined ? (typeof pickedQty === 'number' ? pickedQty : (parseInt(String(pickedQty), 10) || 0)) : undefined;
                     const shortageReason = itemState ? itemState.shortage_reason : undefined;
 
                     return (
@@ -278,11 +279,11 @@ export const WarehousePickingPrintModal: React.FC<WarehousePickingPrintModalProp
                               borderRadius: '3px',
                               fontWeight: 700,
                               fontSize: '12px',
-                              color: pickedQty !== undefined && pickedQty < item.total_ordered_quantity ? '#dc2626' : '#047857',
+                              color: numPickedQty !== undefined && numPickedQty < item.total_ordered_quantity ? '#dc2626' : '#047857',
                               backgroundColor: '#ffffff',
                             }}
                           >
-                            {pickedQty !== undefined && pickedQty > 0 ? pickedQty : ''}
+                            {numPickedQty !== undefined && numPickedQty > 0 ? numPickedQty : ''}
                           </div>
                         </td>
                         <td className="order-print-col-note" style={{ fontSize: '10px', color: '#64748b', textAlign: 'center' }}>

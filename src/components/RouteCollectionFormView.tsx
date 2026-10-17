@@ -4,9 +4,9 @@ import {
   PaymentCollectionItem,
   PaymentCollectionCreatePayload,
   createPaymentCollectionApi,
-  getDealersApi,
   User,
 } from '../services/api';
+import { DealerInfiniteSelect } from './DealerInfiniteSelect';
 import { convertNumberToVietnameseWords } from '../utils/numberToWords';
 import { emitStatusToast } from './StatusToast';
 import { ModalPortal } from './ModalPortal';
@@ -32,19 +32,19 @@ export const RouteCollectionFormView: React.FC<RouteCollectionFormViewProps> = (
   initialOrderCode,
   initialAmount,
 }) => {
-  const [dealers, setDealers] = useState<DealerItem[]>([]);
-  const [loadingDealers, setLoadingDealers] = useState(false);
-  const [dealerSearch, setDealerSearch] = useState('');
   const [selectedDealer, setSelectedDealer] = useState<DealerItem | null>(initialDealer || null);
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   const [amountStr, setAmountStr] = useState<string>(
     initialAmount && initialAmount > 0 ? String(initialAmount) : ''
   );
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'bank_transfer'>('cash');
-  const [collectionDate, setCollectionDate] = useState<string>(
-    new Date().toISOString().split('T')[0]
-  );
+  const [collectionDate, setCollectionDate] = useState<string>(() => {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  });
   const [routeName, setRouteName] = useState<string>('');
   const [orderCode, setOrderCode] = useState<string>(initialOrderCode || '');
   const [note, setNote] = useState<string>('');
@@ -59,41 +59,16 @@ export const RouteCollectionFormView: React.FC<RouteCollectionFormViewProps> = (
   const [formError, setFormError] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Load danh sách đại lý
+  // Load danh sách đại lý ban đầu nếu có truyền từ prop
   useEffect(() => {
     if (initialDealer) {
       setSelectedDealer(initialDealer);
-      setDealerSearch(`${initialDealer.name} (${initialDealer.code})`);
-      if (initialDealer.region) {
+      if (initialDealer.region && !routeName) {
         setRouteName(`Tuyến ${initialDealer.region}`);
       }
     }
-
-    if (dealers.length === 0 && token) {
-      setLoadingDealers(true);
-      getDealersApi(token)
-        .then((items) => {
-          setDealers(items);
-        })
-        .catch((err) => {
-          console.error('Lỗi tải danh sách đại lý:', err);
-        })
-        .finally(() => setLoadingDealers(false));
-    }
-  }, [initialDealer, token]);
-
-  // Click outside listener for dealer dropdown
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setIsDropdownOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  }, [initialDealer]);
 
   const numAmount = parseFloat(amountStr.replace(/,/g, '')) || 0;
   const words = numAmount > 0 ? convertNumberToVietnameseWords(numAmount) : '';
@@ -157,11 +132,9 @@ export const RouteCollectionFormView: React.FC<RouteCollectionFormViewProps> = (
 
   const handleSelectDealer = (dealer: DealerItem) => {
     setSelectedDealer(dealer);
-    setDealerSearch(`${dealer.name} (${dealer.code})`);
     if (dealer.region && !routeName) {
       setRouteName(`Tuyến ${dealer.region}`);
     }
-    setIsDropdownOpen(false);
   };
 
   const handleAddQuickAmount = (extra: number) => {
@@ -225,16 +198,6 @@ export const RouteCollectionFormView: React.FC<RouteCollectionFormViewProps> = (
     }
   };
 
-  const filteredDealers = dealers.filter((d) => {
-    const query = dealerSearch.toLowerCase();
-    return (
-      (d.name && d.name.toLowerCase().includes(query)) ||
-      (d.code && d.code.toLowerCase().includes(query)) ||
-      (d.phone && d.phone.toLowerCase().includes(query)) ||
-      (d.address && d.address.toLowerCase().includes(query))
-    );
-  });
-
   return (
     <div
       style={{
@@ -260,27 +223,38 @@ export const RouteCollectionFormView: React.FC<RouteCollectionFormViewProps> = (
         }}
       >
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
             <button
               type="button"
               onClick={onBack}
               style={{
-                background: 'none',
-                border: 'none',
-                color: '#2563eb',
-                fontSize: '13px',
-                fontWeight: 600,
-                cursor: 'pointer',
-                padding: '4px 0',
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: '4px',
+                gap: '6px',
+                padding: '7px 14px',
+                backgroundColor: '#ffffff',
+                color: '#1e293b',
+                border: '1px solid #cbd5e1',
+                borderRadius: '8px',
+                fontSize: '13px',
+                fontWeight: 700,
+                cursor: 'pointer',
+                boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+                transition: 'all 0.15s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#f8fafc';
+                e.currentTarget.style.borderColor = '#94a3b8';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = '#ffffff';
+                e.currentTarget.style.borderColor = '#cbd5e1';
               }}
             >
               &larr; Quay lại danh sách khoản thu
             </button>
-            <span style={{ color: '#cbd5e1' }}>/</span>
-            <span style={{ fontSize: '13px', color: '#64748b' }}>Ghi nhận khoản thu mới</span>
+            <span style={{ color: '#cbd5e1', margin: '0 4px' }}>/</span>
+            <span style={{ fontSize: '13px', color: '#64748b', fontWeight: 500 }}>Ghi nhận khoản thu mới</span>
           </div>
           <h1
             style={{
@@ -394,8 +368,8 @@ export const RouteCollectionFormView: React.FC<RouteCollectionFormViewProps> = (
                   1. Thông Tin Cửa Hàng & Tuyến Bán Hàng
                 </div>
 
-                {/* Đại lý picker */}
-                <div ref={dropdownRef} style={{ position: 'relative', marginBottom: '16px' }}>
+                {/* Đại lý picker - Tải 10 đại lý ban đầu & Tìm kiếm & Cuộn vô tận tải tiếp 10 đại lý */}
+                <div style={{ position: 'relative', marginBottom: '16px' }}>
                   <label
                     style={{
                       display: 'block',
@@ -407,92 +381,13 @@ export const RouteCollectionFormView: React.FC<RouteCollectionFormViewProps> = (
                   >
                     Cửa hàng / Đại lý nộp tiền <span style={{ color: '#ef4444' }}>*</span>
                   </label>
-                  <input
-                    type="text"
+                  <DealerInfiniteSelect
+                    token={token}
+                    selectedDealer={selectedDealer}
+                    onSelectDealer={handleSelectDealer}
+                    onClearDealer={() => setSelectedDealer(null)}
                     placeholder="Gõ tên, mã đại lý hoặc số điện thoại..."
-                    value={dealerSearch}
-                    onChange={(e) => {
-                      setDealerSearch(e.target.value);
-                      setIsDropdownOpen(true);
-                    }}
-                    onFocus={() => setIsDropdownOpen(true)}
-                    style={{
-                      width: '100%',
-                      padding: '10px 14px',
-                      borderRadius: '8px',
-                      border: '1px solid #cbd5e1',
-                      fontSize: '14px',
-                      color: '#0f172a',
-                      boxSizing: 'border-box',
-                      backgroundColor: selectedDealer ? '#f8fafc' : '#ffffff',
-                    }}
                   />
-
-                  {isDropdownOpen && (
-                    <div
-                      style={{
-                        position: 'absolute',
-                        top: '100%',
-                        left: 0,
-                        right: 0,
-                        backgroundColor: '#ffffff',
-                        border: '1px solid #cbd5e1',
-                        borderRadius: '8px',
-                        boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)',
-                        maxHeight: '260px',
-                        overflowY: 'auto',
-                        zIndex: 1000,
-                        marginTop: '4px',
-                      }}
-                    >
-                      {loadingDealers ? (
-                        <div style={{ padding: '12px', textAlign: 'center', color: '#64748b', fontSize: '13px' }}>
-                          Đang tải danh sách đại lý...
-                        </div>
-                      ) : filteredDealers.length === 0 ? (
-                        <div style={{ padding: '12px', textAlign: 'center', color: '#94a3b8', fontSize: '13px' }}>
-                          Không tìm thấy đại lý nào phù hợp.
-                        </div>
-                      ) : (
-                        filteredDealers.map((d) => (
-                          <div
-                            key={d.id}
-                            onClick={() => handleSelectDealer(d)}
-                            style={{
-                              padding: '10px 14px',
-                              cursor: 'pointer',
-                              borderBottom: '1px solid #f1f5f9',
-                              backgroundColor: selectedDealer?.id === d.id ? '#eff6ff' : '#ffffff',
-                            }}
-                          >
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                              <strong style={{ fontSize: '13.5px', color: '#0f172a' }}>{d.name}</strong>
-                              <span
-                                style={{
-                                  fontSize: '11px',
-                                  fontWeight: 600,
-                                  padding: '2px 8px',
-                                  borderRadius: '4px',
-                                  backgroundColor: '#f1f5f9',
-                                  color: '#475569',
-                                }}
-                              >
-                                {d.code}
-                              </span>
-                            </div>
-                            <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>
-                              {d.phone ? `SĐT: ${d.phone}` : ''} {d.region ? `| Khu vực: ${d.region}` : ''}
-                            </div>
-                            {d.address && (
-                              <div style={{ fontSize: '11.5px', color: '#94a3b8', marginTop: '2px' }}>
-                                {d.address}
-                              </div>
-                            )}
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  )}
 
                   {selectedDealer && (
                     <div

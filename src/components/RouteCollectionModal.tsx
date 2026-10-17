@@ -41,9 +41,13 @@ export const RouteCollectionModal: React.FC<RouteCollectionModalProps> = ({
     initialAmount && initialAmount > 0 ? String(initialAmount) : ''
   );
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'bank_transfer'>('cash');
-  const [collectionDate, setCollectionDate] = useState<string>(
-    new Date().toISOString().split('T')[0]
-  );
+  const [collectionDate, setCollectionDate] = useState<string>(() => {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  });
   const [routeName, setRouteName] = useState<string>('');
   const [orderCode, setOrderCode] = useState<string>(initialOrderCode || '');
   const [note, setNote] = useState<string>('');
