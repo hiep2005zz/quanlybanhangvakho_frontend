@@ -941,8 +941,8 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
       quantity: existingQtyOnLoc > 0 ? existingQtyOnLoc : unassigned,
     });
     setAssignProductSearch('');
-    setAssignProductDisplayLimit(20);
-    setIsAssignModalOpen(true);
+    setIsAssignFormPageActive(true);
+    setIsAssignModalOpen(false);
     if (selectedWarehouse) {
       fetchAllocationStatus(selectedWarehouse.id, targetProdId);
     }
