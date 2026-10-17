@@ -352,6 +352,7 @@ export default function DealerSearchView({
         setPaymentNote(`Thanh toán công nợ đơn hàng cho đại lý ${dealer.name}`);
         setIsPaymentModalOpen(true);
     };
+    void handleOpenPaymentModal;
 
     const handleSubmitPayment = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -1521,20 +1522,6 @@ export default function DealerSearchView({
                                                                     onClick={(e) => { e.stopPropagation(); handleOpenCreditModal(dealer); setOpenDropdownId(null); }}
                                                                 >
                                                                     Cập nhật hạn mức
-                                                                </button>
-                                                            )}
-                                                            {(isAccountant || isAdmin) && (
-                                                                <button
-                                                                    type="button"
-                                                                    className="dealer-dropdown-item"
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        handleOpenPaymentModal(dealer);
-                                                                        setOpenDropdownId(null);
-                                                                    }}
-                                                                    style={{ color: '#0d9488', fontWeight: 600 }}
-                                                                >
-                                                                    Thu tiền / Đối trừ (S7-02)
                                                                 </button>
                                                             )}
                                                             {canManageStatus && (
