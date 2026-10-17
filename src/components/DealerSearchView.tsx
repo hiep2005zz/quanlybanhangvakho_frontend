@@ -59,6 +59,74 @@ const getUniqueFormattedGroups = (groups: string[]): string[] => {
     });
 };
 
+const getDealerCreditStatusInfo = (dealer: DealerSearchItem) => {
+    const isOverLimit = Boolean(
+        dealer.is_over_credit_limit ||
+        ((dealer.current_debt ?? 0) > (dealer.credit_limit ?? 0) && (dealer.credit_limit ?? 0) > 0) ||
+        dealer.debt_status?.includes('Vượt')
+    );
+    const isOverdue = Boolean(
+        dealer.is_overdue ||
+        dealer.debt_status?.includes('Quá hạn')
+    );
+    const isWarning = Boolean(
+        dealer.credit_warning_flag ||
+        isOverLimit ||
+        isOverdue ||
+        (dealer.debt_status && dealer.debt_status !== 'Trong hạn mức' && dealer.debt_status !== 'Bình thường')
+    );
+
+    if (!isWarning) {
+        return {
+            isWarning: false,
+            label: 'Trong hạn mức',
+            tooltip: 'Dư nợ trong hạn mức cho phép',
+            className: 'dealer-group-tag success',
+            style: {
+                background: '#dcfce7',
+                color: '#16a34a',
+                borderColor: '#86efac',
+                fontWeight: 700,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                whiteSpace: 'nowrap'
+            }
+        };
+    }
+
+    let label = 'Cảnh báo công nợ';
+    if (isOverLimit && isOverdue) {
+        label = 'Vượt hạn mức & Quá hạn';
+    } else if (isOverLimit) {
+        label = 'Vượt hạn mức tiền';
+    } else if (isOverdue) {
+        label = 'Quá hạn thanh toán';
+    }
+
+    const tooltip = [
+        dealer.credit_flag_reason || (isOverLimit ? `Vượt hạn mức công nợ (${(dealer.current_debt ?? 0).toLocaleString('vi-VN')} đ > ${(dealer.credit_limit ?? 0).toLocaleString('vi-VN')} đ)` : isOverdue ? 'Quá hạn thanh toán công nợ' : 'Đang bị gắn cờ cảnh báo công nợ'),
+        dealer.last_credit_evaluated_at ? `ĐG: ${new Date(dealer.last_credit_evaluated_at).toLocaleDateString('vi-VN')}` : ''
+    ].filter(Boolean).join(' • ');
+
+    return {
+        isWarning: true,
+        label,
+        tooltip,
+        className: 'dealer-group-tag danger',
+        style: {
+            background: '#fee2e2',
+            color: '#dc2626',
+            borderColor: '#fca5a5',
+            fontWeight: 700,
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '4px',
+            whiteSpace: 'nowrap'
+        }
+    };
+};
+
 const DEFAULT_STATUSES = [
     'Đang hoạt động',
     'Tạm ngừng',
@@ -1150,15 +1218,19 @@ export default function DealerSearchView({
                                                     {' / Hạn mức: '}
                                                     <span style={{ color: '#64748b' }}>{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(dealer.credit_limit ?? 50000000)}</span>
                                                 </span>
-                                                {dealer.debt_status && (
-                                                    <span style={{
-                                                        fontSize: '0.8rem',
-                                                        marginTop: '4px',
-                                                        color: dealer.debt_status.includes('Vượt') || dealer.debt_status.includes('Quá hạn') ? '#dc2626' : '#16a34a',
-                                                    }}>
-                                                        Trạng thái: {dealer.debt_status}
-                                                    </span>
-                                                )}
+                                                {(() => {
+                                                    const creditInfo = getDealerCreditStatusInfo(dealer);
+                                                    return (
+                                                        <span style={{
+                                                            fontSize: '0.8rem',
+                                                            marginTop: '4px',
+                                                            color: creditInfo.isWarning ? '#dc2626' : '#16a34a',
+                                                            fontWeight: 600,
+                                                        }}>
+                                                            Trạng thái: {creditInfo.label}
+                                                        </span>
+                                                    );
+                                                })()}
                                             </div>
                                         </div>
                                         {dealer.assigned_sale_name && (
@@ -1373,49 +1445,18 @@ export default function DealerSearchView({
                                                 </div>
                                             </td>
                                             <td>
-                                                {dealer.credit_warning_flag || dealer.is_over_credit_limit || dealer.is_overdue || ((dealer.current_debt ?? 0) > (dealer.credit_limit ?? 0) && (dealer.credit_limit ?? 0) > 0) || (dealer.debt_status && dealer.debt_status !== 'Trong hạn mức' && dealer.debt_status !== 'Bình thường') ? (
-                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                                                {(() => {
+                                                    const creditInfo = getDealerCreditStatusInfo(dealer);
+                                                    return (
                                                         <span
-                                                            className="dealer-group-tag danger"
-                                                            style={{
-                                                                background: '#fee2e2',
-                                                                color: '#dc2626',
-                                                                borderColor: '#fca5a5',
-                                                                fontWeight: 700,
-                                                                display: 'inline-flex',
-                                                                alignItems: 'center',
-                                                                gap: '4px',
-                                                                whiteSpace: 'nowrap'
-                                                            }}
-                                                            title={dealer.credit_flag_reason || ((dealer.current_debt ?? 0) > (dealer.credit_limit ?? 0) ? `Vượt hạn mức công nợ (${(dealer.current_debt ?? 0).toLocaleString('vi-VN')} đ > ${(dealer.credit_limit ?? 0).toLocaleString('vi-VN')} đ)` : 'Đang bị gắn cờ cảnh báo công nợ')}
+                                                            className={creditInfo.className}
+                                                            style={creditInfo.style}
+                                                            title={creditInfo.tooltip}
                                                         >
-                                                            Cảnh báo công nợ
+                                                            {creditInfo.label}
                                                         </span>
-                                                        {(dealer.is_over_credit_limit || ((dealer.current_debt ?? 0) > (dealer.credit_limit ?? 0) && (dealer.credit_limit ?? 0) > 0)) && (
-                                                            <span style={{ fontSize: '11px', color: '#b91c1c', fontWeight: 600 }}>
-                                                                Vượt hạn mức tiền
-                                                            </span>
-                                                        )}
-                                                        {dealer.is_overdue && (
-                                                            <span style={{ fontSize: '11px', color: '#b91c1c', fontWeight: 600 }}>
-                                                                Quá hạn thanh toán
-                                                            </span>
-                                                        )}
-                                                        {dealer.last_credit_evaluated_at && (
-                                                            <span style={{ fontSize: '10.5px', color: '#64748b' }} title="Thời điểm đánh giá tự động gần nhất">
-                                                                ĐG: {new Date(dealer.last_credit_evaluated_at).toLocaleDateString('vi-VN')}
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                ) : (
-                                                    <span className="dealer-group-tag success" style={{
-                                                        background: '#dcfce7',
-                                                        color: '#16a34a',
-                                                        borderColor: '#86efac'
-                                                    }}>
-                                                        Trong hạn mức
-                                                    </span>
-                                                )}
+                                                    );
+                                                })()}
                                             </td>
                                             <td>
                                                 {dealer.assigned_sale_name ? (
@@ -1677,15 +1718,19 @@ export default function DealerSearchView({
                                                     {' / '}
                                                     <span style={{ color: '#64748b' }}>{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(dealer.credit_limit ?? 50000000)}</span>
                                                 </span>
-                                                {dealer.debt_status && (
-                                                    <span style={{
-                                                        fontSize: '0.8rem',
-                                                        marginTop: '4px',
-                                                        color: dealer.debt_status.includes('Vượt') || dealer.debt_status.includes('Quá hạn') ? '#dc2626' : '#16a34a',
-                                                    }}>
-                                                        Trạng thái: {dealer.debt_status}
-                                                    </span>
-                                                )}
+                                                {(() => {
+                                                    const creditInfo = getDealerCreditStatusInfo(dealer);
+                                                    return (
+                                                        <span style={{
+                                                            fontSize: '0.8rem',
+                                                            marginTop: '4px',
+                                                            color: creditInfo.isWarning ? '#dc2626' : '#16a34a',
+                                                            fontWeight: 600,
+                                                        }}>
+                                                            Trạng thái: {creditInfo.label}
+                                                        </span>
+                                                    );
+                                                })()}
                                             </div>
                                         </div>
                                     </div>
