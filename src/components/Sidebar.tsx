@@ -30,6 +30,7 @@ export type TabType =
   | 'batches'
   | 'debt-aging'
   | 'sales-report'
+  | 'sales-targets'
   | 'executive-dashboard';
 
 export interface SidebarProps {
@@ -52,6 +53,7 @@ export interface SidebarProps {
   canAccessWarehouses?: boolean;
   canAccessDebtAging?: boolean;
   canAccessSalesReport?: boolean;
+  canAccessSalesTargets?: boolean;
   canAccessExecutiveDashboard?: boolean;
   canWriteInventory?: boolean;
   isWarehouseOrAdmin?: boolean;
@@ -93,6 +95,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   canAccessWarehouses = false,
   canAccessDebtAging = false,
   canAccessSalesReport = false,
+  canAccessSalesTargets = false,
   canAccessExecutiveDashboard = false,
   canWriteInventory: _canWriteInventory = false,
   isWarehouseOrAdmin = false,
@@ -566,6 +569,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <line x1="18" y1="20" x2="18" y2="10" />
           <line x1="12" y1="20" x2="12" y2="4" />
           <line x1="6" y1="20" x2="6" y2="14" />
+        </svg>
+      ),
+    },
+    {
+      id: 'btn-sidebar-sales-targets',
+      tab: 'sales-targets',
+      path: '/sales-targets',
+      label: 'Chỉ tiêu doanh số',
+      visible: !isCustomer && Boolean(canAccessSalesTargets),
+      icon: (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="10" />
+          <circle cx="12" cy="12" r="6" />
+          <circle cx="12" cy="12" r="2" />
         </svg>
       ),
     },

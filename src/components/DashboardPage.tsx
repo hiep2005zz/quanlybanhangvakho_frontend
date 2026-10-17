@@ -59,6 +59,7 @@ import { BatchManagementView } from './BatchManagementView';
 import { DebtAgingReportView } from './DebtAgingReportView';
 import { ExecutiveDashboardView } from './ExecutiveDashboardView';
 import { MultidimensionalSalesReportView } from './MultidimensionalSalesReportView';
+import { SalesTargetManagementView } from './SalesTargetManagementView';
 import WarehousePickingView from './WarehousePickingView';
 
 import './dashboard.css';
@@ -123,6 +124,7 @@ export default function DashboardPage({
   const canAccessDebtAging = !isCustomer && Boolean(isAdmin || isSalesManager || isAccountant);
   const canAccessExecutiveDashboard = !isCustomer && Boolean(isAdmin || isSalesManager);
   const canAccessSalesReport = !isCustomer && Boolean(isAdmin || isSalesManager || user.role === 'sales' || officialRoles.includes('sales'));
+  const canAccessSalesTargets = !isCustomer && Boolean(isAdmin || isSalesManager || user.role === 'sales' || officialRoles.includes('sales'));
 
   // Quyền quản lý điểm giao hàng: Chỉ hiển thị với 3 vai trò admin, sales, sales_manager
   const DELIVERY_ROLES = ['admin', 'sales_manager', 'sales'];
@@ -255,6 +257,7 @@ export default function DashboardPage({
     const isDebtAgingPath = pathname === '/debt-aging' || pathname.startsWith('/debt-aging/');
     const isExecutiveDashboardPath = pathname === '/executive-dashboard' || pathname.startsWith('/executive-dashboard');
     const isSalesReportPath = pathname === '/sales-report' || pathname.startsWith('/sales-report');
+    const isSalesTargetsPath = pathname === '/sales-targets' || pathname.startsWith('/sales-targets');
 
     const params = new URLSearchParams(window.location.search);
     const hasOldTabParam = params.has('tab') || params.has('view');
@@ -416,6 +419,12 @@ export default function DashboardPage({
         try { window.history.replaceState({}, '', '/sales-report'); } catch {}
       }
       return 'sales-report';
+    }
+    if (isSalesTargetsPath || oldTabVal === 'sales-targets' || oldTabVal === 'sales_targets') {
+      if (hasOldTabParam || pathname !== '/sales-targets') {
+        try { window.history.replaceState({}, '', '/sales-targets'); } catch {}
+      }
+      return 'sales-targets';
     }
     if (isDealersPath || oldTabVal === 'dealers') {
       if (hasOldTabParam || pathname !== '/dealers') {
@@ -661,6 +670,14 @@ export default function DashboardPage({
       } catch {
         // ignore
       }
+    } else if (tab === 'sales-targets') {
+      setActiveTabState('sales-targets');
+      try {
+        window.history.pushState({}, '', '/sales-targets');
+      } catch {
+        // ignore
+      }
+      return;
     } else if (tab === 'products-import') {
       setActiveTabState('products-import');
       try {
@@ -769,6 +786,12 @@ export default function DashboardPage({
       } catch { }
     }
     if (activeTab === 'sales-report' && !canAccessSalesReport) {
+      setActiveTabState('inventory');
+      try {
+        window.history.replaceState({}, '', '/');
+      } catch { }
+    }
+    if (activeTab === 'sales-targets' && !canAccessSalesTargets) {
       setActiveTabState('inventory');
       try {
         window.history.replaceState({}, '', '/');
@@ -1051,6 +1074,23 @@ export default function DashboardPage({
         setActiveTabState('sales-report');
         return;
       }
+      const isSalesTargetsPath = pathname === '/sales-targets' || pathname.startsWith('/sales-targets/');
+      if (isSalesTargetsPath || tabParam === 'sales-targets' || tabParam === 'sales_targets') {
+        if (canAccessSalesTargets) {
+          if (pathname !== '/sales-targets' || tabParam) {
+            try {
+              window.history.replaceState({}, '', '/sales-targets');
+            } catch {
+              // ignore
+            }
+          }
+          setActiveTabState('sales-targets');
+        } else {
+          setActiveTabState('inventory');
+          try { window.history.replaceState({}, '', '/'); } catch { }
+        }
+        return;
+      }
       const isDealersPath = pathname === '/dealers' || pathname.startsWith('/dealers/');
       if (isDealersPath || tabParam === 'dealers') {
         if (pathname !== '/dealers' || tabParam) {
@@ -1124,7 +1164,7 @@ export default function DashboardPage({
 
     window.addEventListener('popstate', syncFromUrl);
     return () => window.removeEventListener('popstate', syncFromUrl);
-  }, [canManageCategories, canManageSuppliers, canReadOrders, isAdmin, canAccessDiscounts, canAccessWarehouses, isCustomer]);
+  }, [canManageCategories, canManageSuppliers, canReadOrders, isAdmin, canAccessDiscounts, canAccessWarehouses, canAccessSalesTargets, isCustomer]);
   const [products, setProducts] = useState<ProductItem[]>([]);
   const [appliedPriceBook, setAppliedPriceBook] = useState<string | null>(null);
   const [serverTotalCount, setServerTotalCount] = useState<number>(0);
@@ -1646,6 +1686,7 @@ export default function DashboardPage({
           canManageDealerProfiles={canManageDealerProfiles}
           canAccessDebtAging={canAccessDebtAging}
           canAccessSalesReport={canAccessSalesReport}
+          canAccessSalesTargets={canAccessSalesTargets}
           canAccessExecutiveDashboard={canAccessExecutiveDashboard}
           canManageDeliveryPoints={canManageDeliveryPoints}
           canManageSuppliers={canManageSuppliers}
@@ -2053,6 +2094,20 @@ export default function DashboardPage({
             <AccessDeniedView
               currentUser={user}
               requiredPermission="Báo cáo doanh số đa chiều (Quản lý kinh doanh / Nhân viên kinh doanh / Quản trị viên)"
+              onBackToWorkflow={() => setActiveTab('inventory')}
+              onLogout={onLogout}
+            />
+          )
+        ) : activeTab === 'sales-targets' ? (
+          canAccessSalesTargets ? (
+            <SalesTargetManagementView
+              currentUser={user}
+              token={token}
+            />
+          ) : (
+            <AccessDeniedView
+              currentUser={user}
+              requiredPermission="Chỉ tiêu doanh số (Quản lý kinh doanh / Nhân viên kinh doanh / Quản trị viên)"
               onBackToWorkflow={() => setActiveTab('inventory')}
               onLogout={onLogout}
             />
