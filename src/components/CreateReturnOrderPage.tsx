@@ -360,46 +360,7 @@ export const CreateReturnOrderPage: React.FC<CreateReturnOrderPageProps> = ({
           </h1>
         </div>
 
-        {/* Top Action Buttons */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <button
-            type="button"
-            onClick={onBack}
-            disabled={isSubmitting}
-            style={{
-              padding: '7px 14px',
-              borderRadius: '6px',
-              border: '1px solid #cbd5e1',
-              backgroundColor: '#ffffff',
-              color: '#475569',
-              fontSize: '13px',
-              fontWeight: '600',
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            Hủy bỏ
-          </button>
 
-          <button
-            type="button"
-            onClick={handleSubmit}
-            disabled={isSubmitting || selectedRows.length === 0}
-            style={{
-              padding: '7px 18px',
-              borderRadius: '6px',
-              border: 'none',
-              backgroundColor: isSubmitting || selectedRows.length === 0 ? '#94a3b8' : '#2563eb',
-              color: '#ffffff',
-              fontSize: '13px',
-              fontWeight: '700',
-              cursor: isSubmitting || selectedRows.length === 0 ? 'not-allowed' : 'pointer',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {isSubmitting ? 'Đang lưu phiếu...' : 'Lưu Phiếu Trả Hàng'}
-          </button>
-        </div>
       </div>
 
       {/* Main Page Scrollable Body */}

@@ -18,7 +18,7 @@ interface ReturnOrdersManagementViewProps {
 export const ReturnOrdersManagementView: React.FC<ReturnOrdersManagementViewProps> = ({
   currentUser,
   token,
-  onBackToHome,
+  onBackToHome: _onBackToHome,
 }) => {
   const [returnOrders, setReturnOrders] = useState<ReturnOrderData[]>([]);
   const [totalCount, setTotalCount] = useState<number>(0);
@@ -155,30 +155,9 @@ export const ReturnOrdersManagementView: React.FC<ReturnOrdersManagementViewProp
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          {onBackToHome && (
-            <button
-              type="button"
-              onClick={onBackToHome}
-              style={{
-                background: '#f1f5f9',
-                border: '1px solid #cbd5e1',
-                borderRadius: '8px',
-                padding: '6px 12px',
-                cursor: 'pointer',
-                fontSize: '12.5px',
-                color: '#475569',
-              }}
-              title="Quay lại danh sách hàng hóa"
-            >
-              Về Kho
-            </button>
-          )}
-
-          <div>
-            <h1 style={{ margin: 0, fontSize: '18px', fontWeight: '800', color: '#0f172a' }}>
-              Quản Lý Phiếu Trả Hàng & Nhập Lại Kho
-            </h1>
-          </div>
+          <h1 style={{ margin: 0, fontSize: '18px', fontWeight: '800', color: '#0f172a' }}>
+            Quản Lý Phiếu Trả Hàng & Nhập Lại Kho
+          </h1>
         </div>
 
         <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
