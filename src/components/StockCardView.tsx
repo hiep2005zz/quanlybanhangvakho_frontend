@@ -1290,7 +1290,7 @@ export const StockCardView: React.FC<StockCardViewProps> = ({
               >
                 Đóng
               </button>
-              {onNavigateToTab && !activeVoucher.code.startsWith('DK-') && !activeVoucher.code.startsWith('TX-') && (
+              {onNavigateToTab && !activeVoucher.code.startsWith('DK-') && !activeVoucher.code.startsWith('TX-') && !activeVoucher.code.startsWith('PKK-') && (
                 <button
                   type="button"
                   onClick={handleNavigateVoucher}
@@ -1298,7 +1298,7 @@ export const StockCardView: React.FC<StockCardViewProps> = ({
                     padding: '8px 16px',
                     borderRadius: '6px',
                     border: 'none',
-                    backgroundColor: activeVoucher.code.startsWith('PKK-') ? '#7e22ce' : '#2563eb',
+                    backgroundColor: '#2563eb',
                     color: '#ffffff',
                     fontSize: '13px',
                     fontWeight: '700',
@@ -1308,22 +1308,12 @@ export const StockCardView: React.FC<StockCardViewProps> = ({
                     gap: '6px',
                   }}
                   title={
-                    activeVoucher.code.startsWith('PKK-')
-                      ? 'Mở chi tiết phiếu kiểm kê và tự động tìm sản phẩm này'
-                      : activeVoucher.code.startsWith('ORD') || activeVoucher.code.startsWith('DH')
+                    activeVoucher.code.startsWith('ORD') || activeVoucher.code.startsWith('DH')
                       ? 'Mở chi tiết đơn hàng xuất bán'
                       : 'Mở chứng từ gốc'
                   }
                 >
-                  {activeVoucher.code.startsWith('PKK-') ? (
-                    <>
-                      <svg style={{ width: '15px', height: '15px' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                      </svg>
-                      <span>Xem chi tiết phiếu kiểm kê & sản phẩm</span>
-                    </>
-                  ) : activeVoucher.code.startsWith('ORD') || activeVoucher.code.startsWith('DH') || activeVoucher.code.startsWith('PXK') || activeVoucher.type === 'order' || activeVoucher.type === 'issue' ? (
+                  {activeVoucher.code.startsWith('ORD') || activeVoucher.code.startsWith('DH') || activeVoucher.code.startsWith('PXK') || activeVoucher.type === 'order' || activeVoucher.type === 'issue' ? (
                     <>
                       <svg style={{ width: '15px', height: '15px' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
