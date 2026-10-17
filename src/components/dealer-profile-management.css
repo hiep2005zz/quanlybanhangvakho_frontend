@@ -470,7 +470,7 @@
   max-height: none;
   width: 100%;
   overflow-y: auto;
-  overflow-x: hidden;
+  overflow-x: auto;
   -webkit-overflow-scrolling: touch;
   position: relative;
   box-sizing: border-box;

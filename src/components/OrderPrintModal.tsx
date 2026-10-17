@@ -230,11 +230,13 @@ export const OrderPrintModal: React.FC<OrderPrintModalProps> = ({
     }
   }, [order]);
 
-  // Đảm bảo class has-print-modal được gắn vào body
+  // Đảm bảo class has-print-modal và has-order-print-modal được gắn vào body
   useEffect(() => {
     document.body.classList.add('has-print-modal');
+    document.body.classList.add('has-order-print-modal');
     return () => {
       document.body.classList.remove('has-print-modal');
+      document.body.classList.remove('has-order-print-modal');
     };
   }, []);
 
