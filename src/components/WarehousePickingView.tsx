@@ -335,7 +335,11 @@ export const WarehousePickingView: React.FC<WarehousePickingViewProps> = ({
       });
 
       try {
+        const timestamp = Date.now().toString();
+        localStorage.setItem('inventory_last_updated', timestamp);
+        localStorage.setItem('orders_last_updated', timestamp);
         window.dispatchEvent(new CustomEvent('INVENTORY_STOCK_UPDATED'));
+        window.dispatchEvent(new CustomEvent('ORDERS_UPDATED'));
       } catch { }
 
       // Reset phiếu đang mở và tải lại danh sách đơn

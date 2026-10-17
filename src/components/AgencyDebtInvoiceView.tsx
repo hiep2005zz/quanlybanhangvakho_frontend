@@ -11,6 +11,7 @@ import {
   getAgencyInvoicesApi,
 } from '../services/agencyDebtApi';
 import { AgencyInvoiceDetailPage } from './AgencyInvoiceDetailPage';
+import { CustomerDebtReconciliationTab } from './CustomerDebtReconciliationTab';
 import './agency-debt.css';
 
 interface AgencyDebtInvoiceViewProps {
@@ -36,8 +37,8 @@ const formatDate = (dateStr?: string) => {
 export const AgencyDebtInvoiceView: React.FC<AgencyDebtInvoiceViewProps> = ({
   currentUser,
   token,
-  onBackToPortal,
-  onNavigateToOrders,
+  onBackToPortal: _onBackToPortal,
+  onNavigateToOrders: _onNavigateToOrders,
 }) => {
   const [summary, setSummary] = useState<AgencyDebtSummary | null>(null);
   const [loadingSummary, setLoadingSummary] = useState<boolean>(true);
@@ -48,7 +49,7 @@ export const AgencyDebtInvoiceView: React.FC<AgencyDebtInvoiceViewProps> = ({
   const [totalInvoices, setTotalInvoices] = useState<number>(0);
   const [totalPages, setTotalPages] = useState<number>(1);
   const [currentPage, setCurrentPage] = useState<number>(1);
-  const [pageSize, setPageSize] = useState<number>(10);
+  const [pageSize, setPageSize] = useState<number>(20);
   const [statusFilter, setStatusFilter] = useState<InvoiceStatusType>('ALL');
   const [searchKeyword, setSearchKeyword] = useState<string>('');
   const [debouncedSearch, setDebouncedSearch] = useState<string>('');
@@ -57,6 +58,7 @@ export const AgencyDebtInvoiceView: React.FC<AgencyDebtInvoiceViewProps> = ({
 
   // Modal State
   const [selectedInvoiceCode, setSelectedInvoiceCode] = useState<string | null>(null);
+  const [activeSubTab, setActiveSubTab] = useState<'invoices' | 'reconciliations'>('invoices');
 
   // Debounce tìm kiếm 300ms
   useEffect(() => {
@@ -106,6 +108,9 @@ export const AgencyDebtInvoiceView: React.FC<AgencyDebtInvoiceViewProps> = ({
     }
   }, [token, statusFilter, debouncedSearch, currentPage, pageSize]);
 
+  // Reconciliation Tab Refresh Key
+  const [reconciliationRefreshKey, setReconciliationRefreshKey] = useState<number>(0);
+
   useEffect(() => {
     loadSummary();
   }, [loadSummary]);
@@ -117,7 +122,41 @@ export const AgencyDebtInvoiceView: React.FC<AgencyDebtInvoiceViewProps> = ({
   const handleRefresh = () => {
     loadSummary();
     loadInvoices();
+    setReconciliationRefreshKey((prev) => prev + 1);
   };
+
+  // Tự động làm mới dữ liệu khi người dùng chuyển tab trình duyệt hoặc khi có sự kiện cập nhật từ kế toán
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'debt_reconciliation_last_updated') {
+        loadSummary();
+        loadInvoices();
+        setReconciliationRefreshKey((prev) => prev + 1);
+      }
+    };
+    const handleCustomEvent = () => {
+      loadSummary();
+      loadInvoices();
+      setReconciliationRefreshKey((prev) => prev + 1);
+    };
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        loadSummary();
+        loadInvoices();
+        setReconciliationRefreshKey((prev) => prev + 1);
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('debt-reconciliation-updated', handleCustomEvent);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('debt-reconciliation-updated', handleCustomEvent);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [loadSummary, loadInvoices]);
 
   // Khi chọn xem hóa đơn: Chuyển sang 1 trang riêng biệt (Full Page View) có nút "Quay lại danh sách"
   if (selectedInvoiceCode) {
@@ -166,28 +205,6 @@ export const AgencyDebtInvoiceView: React.FC<AgencyDebtInvoiceViewProps> = ({
               >
                 Làm mới
               </button>
-
-              {onBackToPortal && (
-                <button
-                  type="button"
-                  id="btn-back-to-products"
-                  onClick={onBackToPortal}
-                  className="px-3 py-1.5 rounded-md text-xs font-semibold bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-2xs cursor-pointer"
-                >
-                  Đặt hàng sản phẩm
-                </button>
-              )}
-
-              {onNavigateToOrders && (
-                <button
-                  type="button"
-                  id="btn-goto-orders"
-                  onClick={onNavigateToOrders}
-                  className="px-3 py-1.5 rounded-md text-xs font-semibold bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors shadow-2xs cursor-pointer"
-                >
-                  Đơn hàng của tôi
-                </button>
-              )}
             </div>
           </div>
 
@@ -252,7 +269,59 @@ export const AgencyDebtInvoiceView: React.FC<AgencyDebtInvoiceViewProps> = ({
           ) : null}
         </div>
 
-        {/* 2. KHỐI BẢNG DỮ LIỆU LƯỚT ĐƯỢC (SCROLLABLE TABLE SECTION) */}
+        {/* THANH CHUYỂN TAB DÀNH CHO ĐẠI LÝ */}
+        <div style={{ display: 'flex', gap: '8px', marginBottom: '14px' }}>
+          <button
+            type="button"
+            id="btn-subtab-invoices"
+            onClick={() => setActiveSubTab('invoices')}
+            style={{
+              padding: '7px 15px',
+              borderRadius: '6px',
+              fontSize: '12.5px',
+              fontWeight: '700',
+              border: activeSubTab === 'invoices' ? '2px solid #059669' : '1px solid #d1d5db',
+              backgroundColor: activeSubTab === 'invoices' ? '#ecfdf5' : '#ffffff',
+              color: activeSubTab === 'invoices' ? '#065f46' : '#374151',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+            }}
+          >
+            Danh sách Hóa đơn &amp; Công nợ
+          </button>
+          <button
+            type="button"
+            id="btn-subtab-reconciliations"
+            onClick={() => {
+              setActiveSubTab('reconciliations');
+              setReconciliationRefreshKey((prev) => prev + 1);
+            }}
+            style={{
+              padding: '7px 15px',
+              borderRadius: '6px',
+              fontSize: '12.5px',
+              fontWeight: '700',
+              border: activeSubTab === 'reconciliations' ? '2px solid #059669' : '1px solid #d1d5db',
+              backgroundColor: activeSubTab === 'reconciliations' ? '#ecfdf5' : '#ffffff',
+              color: activeSubTab === 'reconciliations' ? '#065f46' : '#374151',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+            }}
+          >
+            Biên bản đối chiếu công nợ
+          </button>
+        </div>
+
+        {activeSubTab === 'reconciliations' ? (
+          <CustomerDebtReconciliationTab
+            token={token}
+            currentUser={currentUser}
+            refreshTrigger={reconciliationRefreshKey}
+          />
+        ) : (
+        /* 2. KHỐI BẢNG DỮ LIỆU LƯỚT ĐƯỢC (SCROLLABLE TABLE SECTION) */
         <div className="agency-table-card">
           {/* Thanh công cụ tìm kiếm và lọc (KHÔNG ICON, KHÔNG ĐÈ CHỮ) */}
           <div className="agency-table-toolbar">
@@ -416,34 +485,92 @@ export const AgencyDebtInvoiceView: React.FC<AgencyDebtInvoiceViewProps> = ({
                 <strong>{totalInvoices}</strong> hóa đơn
               </div>
 
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  id="btn-prev-page"
-                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                  disabled={currentPage <= 1}
-                  className="px-2.5 py-1 rounded border border-gray-300 bg-white hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed font-medium text-xs"
-                >
-                  Trước
-                </button>
+              {/* Phân trang kiểu nút số liền viền chuẩn Hình 2 */}
+              <div
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'stretch',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '5px',
+                  overflow: 'hidden',
+                  background: '#ffffff',
+                  boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
+                  height: '24px',
+                }}
+              >
+                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                  .filter((p) => p === 1 || p === totalPages || Math.abs(p - Math.min(Math.max(1, currentPage), totalPages)) <= 1)
+                  .reduce<(number | string)[]>((acc, p, idx, arr) => {
+                    if (idx > 0 && typeof arr[idx - 1] === 'number' && (p as number) - (arr[idx - 1] as number) > 1) {
+                      acc.push('...');
+                    }
+                    acc.push(p);
+                    return acc;
+                  }, [])
+                  .map((p, idx, arr) => {
+                    const isLastItem = idx === arr.length - 1;
+                    const safeCurrentPage = Math.min(Math.max(1, currentPage), totalPages);
+                    if (typeof p === 'string') {
+                      return (
+                        <span
+                          key={`ellipsis-${idx}`}
+                          style={{
+                            minWidth: '22px',
+                            height: '100%',
+                            padding: '0 4px',
+                            borderRight: isLastItem ? 'none' : '1px solid #e5e7eb',
+                            background: '#ffffff',
+                            color: '#6b7280',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '11px',
+                            userSelect: 'none',
+                          }}
+                        >
+                          ...
+                        </span>
+                      );
+                    }
 
-                <div className="px-2 py-1 font-semibold text-gray-800 text-xs">
-                  Trang {currentPage} / {totalPages}
-                </div>
-
-                <button
-                  type="button"
-                  id="btn-next-page"
-                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                  disabled={currentPage >= totalPages}
-                  className="px-2.5 py-1 rounded border border-gray-300 bg-white hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed font-medium text-xs"
-                >
-                  Sau
-                </button>
+                    const isActive = p === safeCurrentPage;
+                    return (
+                      <button
+                        key={p}
+                        type="button"
+                        onClick={() => setCurrentPage(p)}
+                        style={{
+                          minWidth: '24px',
+                          height: '100%',
+                          padding: '0 7px',
+                          border: 'none',
+                          borderRight: isLastItem ? 'none' : '1px solid #e5e7eb',
+                          background: isActive ? '#2ba1f4' : '#ffffff',
+                          color: isActive ? '#ffffff' : '#374151',
+                          cursor: isActive ? 'default' : 'pointer',
+                          fontSize: '11.5px',
+                          fontWeight: isActive ? '700' : '500',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          transition: 'background-color 0.15s ease',
+                        }}
+                        onMouseEnter={(e) => {
+                          if (!isActive) e.currentTarget.style.backgroundColor = '#f9fafb';
+                        }}
+                        onMouseLeave={(e) => {
+                          if (!isActive) e.currentTarget.style.backgroundColor = '#ffffff';
+                        }}
+                      >
+                        {p}
+                      </button>
+                    );
+                  })}
               </div>
             </div>
           )}
         </div>
+        )}
       </div>
     </div>
   );

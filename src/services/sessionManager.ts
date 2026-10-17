@@ -67,12 +67,12 @@ class SessionManager {
   public handleUserInteraction() {
     this.lastActivityTime = Date.now();
 
-    // Nếu người dùng chủ động thao tác khi thời gian còn dưới 10 phút (<= 600s):
-    // Tự động kích hoạt Silent Refresh ngầm để bảo toàn phiên và dữ liệu liên tục
+    // Nếu người dùng chủ động thao tác khi thời gian còn dưới 5 phút (<= 300s):
+    // Tự động kích hoạt Silent Refresh ngầm để bảo toàn phiên, tối đa 30s một lần
     const state = this.getSessionState();
-    if (state.remainingSeconds > 0 && state.remainingSeconds <= 600) {
+    if (state.remainingSeconds > 0 && state.remainingSeconds <= 300) {
       const now = Date.now();
-      if (now - this.lastSilentRefreshTrigger > 5000 && !this.isRefreshing) {
+      if (now - this.lastSilentRefreshTrigger > 30000 && !this.isRefreshing) {
         this.lastSilentRefreshTrigger = now;
         this.performSilentRefresh();
       }
@@ -231,7 +231,7 @@ class SessionManager {
     }
 
     if (!this.isInitialized) {
-      window.addEventListener('mousemove', this.handleUserInteraction);
+      window.addEventListener('mousemove', this.handleMouseMove);
       window.addEventListener('mousedown', this.handleUserInteraction);
       window.addEventListener('keydown', this.handleUserInteraction);
       window.addEventListener('click', this.handleUserInteraction);
@@ -299,7 +299,7 @@ class SessionManager {
     }
 
     if (this.isInitialized) {
-      window.removeEventListener('mousemove', this.handleUserInteraction);
+      window.removeEventListener('mousemove', this.handleMouseMove);
       window.removeEventListener('mousedown', this.handleUserInteraction);
       window.removeEventListener('keydown', this.handleUserInteraction);
       window.removeEventListener('click', this.handleUserInteraction);
