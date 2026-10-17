@@ -130,6 +130,73 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({
   const [dealerId, setDealerId] = useState<number>(initialDealerId);
   const [loadingDealers, setLoadingDealers] = useState(false);
 
+  // Dropdown đại lý chuẩn Giao diện Ảnh 2 (Lazy load 10 đại lý mỗi lần, tìm kiếm real-time)
+  const [isDealerDropdownOpen, setIsDealerDropdownOpen] = useState(false);
+  const [dealerSearchQuery, setDealerSearchQuery] = useState('');
+  const [visibleDealerCount, setVisibleDealerCount] = useState(10);
+  const dealerDropdownRef = React.useRef<HTMLDivElement>(null);
+  const dealerSearchInputRef = React.useRef<HTMLInputElement>(null);
+
+  // Đóng dropdown khi click bên ngoài
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dealerDropdownRef.current && !dealerDropdownRef.current.contains(e.target as Node)) {
+        setIsDealerDropdownOpen(false);
+      }
+    };
+    if (isDealerDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isDealerDropdownOpen]);
+
+  // Focus ô tìm kiếm khi mở dropdown và reset số lượng về 10
+  useEffect(() => {
+    if (isDealerDropdownOpen) {
+      setVisibleDealerCount(10);
+      setTimeout(() => {
+        dealerSearchInputRef.current?.focus();
+      }, 50);
+    } else {
+      setDealerSearchQuery('');
+    }
+  }, [isDealerDropdownOpen]);
+
+  // Reset về 10 đại lý khi từ khóa tìm kiếm thay đổi
+  useEffect(() => {
+    setVisibleDealerCount(10);
+  }, [dealerSearchQuery]);
+
+  // Lọc đại lý theo từ khóa (Mã, Tên, Số điện thoại)
+  const filteredDealersList = useMemo(() => {
+    if (!dealerSearchQuery.trim()) return dealers;
+    const q = dealerSearchQuery.toLowerCase().trim();
+    return dealers.filter((d) => {
+      const code = (d.code || d.dealer_code || '').toLowerCase();
+      const name = (d.name || d.dealer_name || '').toLowerCase();
+      const phone = (d.phone || '').toLowerCase();
+      return code.includes(q) || name.includes(q) || phone.includes(q);
+    });
+  }, [dealers, dealerSearchQuery]);
+
+  // Cắt danh sách đại lý theo số lượng đang hiển thị (10 đại lý mỗi lần)
+  const displayedDealersList = useMemo(() => {
+    return filteredDealersList.slice(0, visibleDealerCount);
+  }, [filteredDealersList, visibleDealerCount]);
+
+  const hasMoreDealers = visibleDealerCount < filteredDealersList.length;
+
+  const handleDealerListScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+    if (scrollTop + clientHeight >= scrollHeight - 15) {
+      if (hasMoreDealers) {
+        setVisibleDealerCount((prev) => Math.min(prev + 10, filteredDealersList.length));
+      }
+    }
+  };
+
   // Cache các sản phẩm đã tải để luôn tra cứu được thông tin khi thêm từ lịch sử / clone
   const [loadedProductsMap, setLoadedProductsMap] = useState<Map<number, ProductItem>>(() => {
     const map = new Map<number, ProductItem>();
@@ -1132,27 +1199,207 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({
                 <label htmlFor="select-dealer-customer" className="block text-xs sm:text-sm font-bold text-slate-700 mb-1.5">
                   Khách Hàng / Đại Lý <span className="text-red-500">*</span>
                 </label>
-                <select
-                  id="select-dealer-customer"
-                  value={dealerId}
-                  onChange={(e) => setDealerId(parseInt(e.target.value, 10))}
-                  disabled={loadingDealers || dealers.length === 0 || isCustomer || dealers.length === 1}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm font-medium text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all disabled:bg-slate-100 disabled:cursor-not-allowed"
-                >
-                  {dealers.map((d) => {
-                    const dGroup = getCustomerGroupDisplay(d.customer_group);
-                    const isLocked = Boolean(
-                      d.status &&
-                      (d.status.toLowerCase().includes('khóa') ||
-                        d.status.toLowerCase().includes('lock'))
-                    );
-                    return (
-                      <option key={d.id} value={d.id} disabled={isLocked}>
-                        {d.code ? `[${d.code}] ` : ''}{d.name} ({dGroup.label}){isLocked ? ' [Đã khóa]' : ''}
-                      </option>
-                    );
-                  })}
-                </select>
+                {/* DROPDOWN CHỌN ĐẠI LÝ CHUẨN GIAO DIỆN ẢNH 2 (TÌM KIẾM + LAZY LOAD 10 ITEM/LẦN CUỘN) */}
+                <div ref={dealerDropdownRef} className="relative w-full">
+                  {/* Nút bấm hiển thị đại lý đã chọn */}
+                  <button
+                    id="select-dealer-customer"
+                    type="button"
+                    disabled={loadingDealers || dealers.length === 0 || isCustomer || dealers.length === 1}
+                    onClick={() => setIsDealerDropdownOpen((prev) => !prev)}
+                    className={`w-full min-h-[42px] px-3.5 py-2 rounded-xl border text-left font-medium transition-all flex items-center justify-between shadow-2xs ${
+                      isDealerDropdownOpen
+                        ? 'border-emerald-600 ring-2 ring-emerald-500/20 bg-white text-slate-900'
+                        : 'border-slate-300 bg-white text-slate-800 hover:border-slate-400'
+                    } ${(loadingDealers || dealers.length === 0 || isCustomer || dealers.length === 1) ? 'opacity-70 cursor-not-allowed bg-slate-50' : 'cursor-pointer'}`}
+                  >
+                    <span className="flex items-center gap-2 min-w-0 flex-1 pr-2">
+                      {selectedDealer ? (
+                        <>
+                          <span className="font-mono text-xs font-bold text-slate-900 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200 shrink-0">
+                            [{selectedDealer.code || selectedDealer.dealer_code}]
+                          </span>
+                          <span className="text-sm font-semibold text-slate-900 truncate">
+                            {selectedDealer.name || selectedDealer.dealer_name}
+                          </span>
+                          {selectedDealer.customer_group && (
+                            <span className="text-xs text-slate-500 font-normal shrink-0 hidden sm:inline">
+                              ({selectedDealer.customer_group})
+                            </span>
+                          )}
+                          {isLockedDealer && (
+                            <span className="text-xs font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded border border-rose-200 shrink-0">
+                              [Đã khóa]
+                            </span>
+                          )}
+                        </>
+                      ) : (
+                        <span className="text-slate-400 text-sm">
+                          {loadingDealers ? 'Đang tải danh sách đại lý...' : 'Chọn đại lý / khách hàng...'}
+                        </span>
+                      )}
+                    </span>
+
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className={`text-slate-400 transition-transform duration-200 shrink-0 ${
+                        isDealerDropdownOpen ? 'rotate-180 text-emerald-600' : ''
+                      }`}
+                    >
+                      <polyline points="6 9 12 15 18 9" />
+                    </svg>
+                  </button>
+
+                  {/* Menu Dropdown đổ xuống có thanh tìm kiếm & Danh sách 10 đại lý / lần cuộn */}
+                  {isDealerDropdownOpen && (
+                    <div
+                      onWheel={(e) => e.stopPropagation()}
+                      className="absolute top-full left-0 w-full mt-1.5 z-[9999] bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-150"
+                      style={{ maxHeight: '320px' }}
+                    >
+                      {/* Hộp tìm kiếm đại lý phía trên (Chuẩn Ảnh 2) */}
+                      <div className="p-2.5 bg-slate-50 border-b border-slate-200 shrink-0">
+                        <div className="relative flex items-center w-full">
+                          <svg
+                            width="14"
+                            height="14"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="#94a3b8"
+                            strokeWidth="2.5"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
+                          >
+                            <circle cx="11" cy="11" r="8" />
+                            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                          </svg>
+                          <input
+                            ref={dealerSearchInputRef}
+                            type="text"
+                            value={dealerSearchQuery}
+                            onChange={(e) => setDealerSearchQuery(e.target.value)}
+                            placeholder="Tìm kiếm theo mã đại lý, tên hoặc số điện thoại..."
+                            className="w-full pl-9 pr-7 py-2 text-xs rounded-xl bg-white border border-emerald-500 text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 font-medium"
+                          />
+                          {dealerSearchQuery && (
+                            <button
+                              type="button"
+                              onClick={() => setDealerSearchQuery('')}
+                              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1"
+                              title="Xóa tìm kiếm"
+                            >
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <line x1="18" y1="6" x2="6" y2="18" />
+                                <line x1="6" y1="6" x2="18" y2="18" />
+                              </svg>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Danh sách đại lý cuộn (Loading 10 sản phẩm/đại lý 1 lần, cuộn mượt mà kể cả 1.000 đại lý) */}
+                      <div
+                        onScroll={handleDealerListScroll}
+                        className="overflow-y-auto divide-y divide-slate-100"
+                        style={{
+                          overscrollBehavior: 'contain',
+                          maxHeight: '250px',
+                        }}
+                      >
+                        {loadingDealers ? (
+                          <div className="p-5 text-center text-xs text-emerald-600 font-semibold flex items-center justify-center gap-2">
+                            <svg className="animate-spin h-4 w-4 text-emerald-600" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                            </svg>
+                            <span>Đang tải danh sách đại lý...</span>
+                          </div>
+                        ) : displayedDealersList.length === 0 ? (
+                          <div className="p-5 text-center text-xs text-slate-500">
+                            {dealerSearchQuery
+                              ? `Không tìm thấy đại lý nào phù hợp với từ khoá "${dealerSearchQuery}".`
+                              : 'Không tìm thấy đại lý nào trong hệ thống.'}
+                          </div>
+                        ) : (
+                          displayedDealersList.map((d) => {
+                            const isSelected = (selectedDealer?.id === d.id);
+                            const dGroup = getCustomerGroupDisplay(d.customer_group);
+                            const isLocked = Boolean(
+                              d.status &&
+                              (d.status.toLowerCase().includes('khóa') ||
+                                d.status.toLowerCase().includes('lock'))
+                            );
+
+                            return (
+                              <div
+                                key={d.id}
+                                onClick={() => {
+                                  if (isLocked) return;
+                                  setDealerId(d.id);
+                                  setIsDealerDropdownOpen(false);
+                                }}
+                                className={`p-3 transition-colors flex items-center justify-between gap-3 ${
+                                  isLocked
+                                    ? 'opacity-50 cursor-not-allowed bg-slate-50'
+                                    : 'cursor-pointer hover:bg-emerald-50/70'
+                                } ${isSelected ? 'bg-emerald-50/90 font-semibold text-emerald-950' : 'text-slate-800'}`}
+                              >
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-mono text-xs font-bold text-slate-800 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200 shrink-0">
+                                      {d.code || d.dealer_code}
+                                    </span>
+                                    <span className="text-xs sm:text-sm font-semibold text-slate-900 truncate">
+                                      {d.name || d.dealer_name}
+                                    </span>
+                                    {isLocked && (
+                                      <span className="text-[10px] font-bold text-rose-600 bg-rose-50 px-1.5 py-0.2 rounded border border-rose-200 shrink-0">
+                                        Đã khóa
+                                      </span>
+                                    )}
+                                  </div>
+
+                                  <div className="flex items-center gap-2 text-xs text-slate-500 mt-1 flex-wrap">
+                                    <span>Nhóm: <strong className="text-slate-700">{dGroup.label}</strong></span>
+                                    {d.phone && (
+                                      <>
+                                        <span>•</span>
+                                        <span>SĐT: <strong className="text-slate-700">{d.phone}</strong></span>
+                                      </>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {isSelected && (
+                                  <div className="shrink-0 text-emerald-600">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                                      <polyline points="20 6 9 17 4 12" />
+                                    </svg>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })
+                        )}
+
+                        {/* Thông báo tải tiếp 10 đại lý mỗi lần cuộn xuống */}
+                        {hasMoreDealers && (
+                          <div className="py-2 px-3 text-center text-xs text-slate-400 bg-slate-50/80 font-medium border-t border-slate-100">
+                            Cuộn xuống để tải thêm 10 đại lý tiếp theo ({displayedDealersList.length} / {filteredDealersList.length})
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
 
                 {isCustomer && (
                   <div className="mt-2.5 p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-xs sm:text-[13px] text-emerald-800 flex items-center gap-2">
