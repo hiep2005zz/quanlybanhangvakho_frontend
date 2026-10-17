@@ -52,15 +52,19 @@ import { ProductHistoryView } from './ProductHistoryView';
 import { ProductFormView } from './ProductFormView';
 import WarehouseManagementView from './WarehouseManagementView';
 import { WarehouseStockBookView } from './WarehouseStockBookView';
+import { InventoryTurnoverReportView } from './InventoryTurnoverReportView';
 import { StockAuditManagementView } from './StockAuditManagementView';
 import { StockTransferManagementView } from './StockTransferManagementView';
 import { ModalPortal } from './ModalPortal';
 import { DashboardHeader } from './DashboardHeader';
 import { CustomerDebtView } from './CustomerDebtView';
 import { CustomerPortalView } from './CustomerPortalView';
+import { AgencyDebtInvoiceView } from './AgencyDebtInvoiceView';
 import { DebtAgeingLedgerView } from './DebtAgeingLedgerView';
 import { BatchManagementView } from './BatchManagementView';
 import WarehousePickingView from './WarehousePickingView';
+import { StockAdjustmentPageView } from './StockAdjustmentPageView';
+import { PaymentCollectionView } from './PaymentCollectionView';
 
 import './dashboard.css';
 import { Sidebar, type TabType } from './Sidebar';
@@ -83,6 +87,7 @@ export default function DashboardPage({
   onTokenUpdated,
   onUserUpdated,
 }: DashboardProps) {
+  void CustomerDebtView;
   // 1. Xác định vai trò & Kiểm tra quyền Admin tối cao
   const rawRoles = user.roles && user.roles.length > 0 ? user.roles : [user.role];
   const officialRoles: string[] = rawRoles.filter(Boolean) as string[];
@@ -142,6 +147,15 @@ export default function DashboardPage({
     isSalesManager
   );
 
+  // Quyền thu tiền theo tuyến & đối chiếu quỹ: admin, accountant, sales_manager, sales
+  const canAccessPaymentCollections = !isCustomer && Boolean(
+    isAdmin ||
+    isAccountant ||
+    isSalesManager ||
+    user.role === 'sales' ||
+    officialRoles.includes('sales')
+  );
+
   // Quyền thao tác kho (Nhập/xuất/sửa kho: Admin, Quản lý kho, Thủ kho)
   const canWriteInventory = user.can_write_inventory ?? (isAdmin || officialRoles.some((r) => ['admin', 'warehouse', 'warehouse_manager'].includes(r)));
 
@@ -199,12 +213,24 @@ export default function DashboardPage({
     officialRoles.includes('warehouse_manager')
   );
 
+  // Quyền truy cập phân hệ Điều chỉnh tồn kho: Admin, Quản lý kho và Thủ kho. Ẩn hoàn toàn với các vai trò khác (sales, sales_manager, accountant, etc.)
+  const canAccessStockAdjustments = Boolean(
+    isAdmin ||
+    user.role === 'warehouse' ||
+    user.role === 'warehouse_manager' ||
+    user.role === 'warehouse_mgr' ||
+    officialRoles.includes('warehouse') ||
+    officialRoles.includes('warehouse_manager') ||
+    officialRoles.includes('warehouse_mgr')
+  );
+
   // 2. Khởi tạo State với Clean URL
   const location = useLocation();
   const currentPath = location.pathname.toLowerCase();
   const isOrdersCreateSubpage = currentPath === '/orders/create' || currentPath.startsWith('/orders/create');
   const isStockTransferCreateSubpage = currentPath === '/stock-transfers/create' || currentPath.startsWith('/stock-transfers/create');
   const isBatchesCreateSubpage = currentPath === '/batches/create' || currentPath.startsWith('/batches/create');
+  const isPaymentCollectionsSubpage = currentPath.startsWith('/payment-collections/') && currentPath !== '/payment-collections';
   const isOrderDetailSubpage =
     currentPath.startsWith('/orders/') &&
     !isOrdersCreateSubpage &&
@@ -256,6 +282,7 @@ export default function DashboardPage({
     const isProfilePath = pathname === '/profile' || pathname.startsWith('/profile/');
     const isDiscountsPath = pathname === '/discounts' || pathname.startsWith('/discounts/');
     const isDealerProfilesPath = pathname === '/dealer-profiles' || pathname.startsWith('/dealer-profiles/');
+    const isAgencyDebtsPath = pathname === '/agency-debts' || pathname.startsWith('/agency-debts/');
     const isDebtLedgerPath = pathname === '/debt-ledger' || pathname.startsWith('/debt-ledger/');
     const isDealersPath = pathname === '/dealers' || pathname.startsWith('/dealers/');
     const isDeliveryPointsPath = pathname === '/delivery-points' || pathname.startsWith('/delivery-points/');
@@ -263,6 +290,7 @@ export default function DashboardPage({
     const isProductHistoryPath = pathname === '/product-history' || pathname.startsWith('/product-history/');
     const isWarehousesPath = pathname === '/warehouses' || pathname.startsWith('/warehouses/');
     const isStockBookPath = pathname === '/stock-book' || pathname.startsWith('/stock-book/');
+    const isInventoryTurnoverPath = pathname === '/inventory-turnover' || pathname.startsWith('/inventory-turnover/');
     const isStockAuditsPath = pathname === '/stock-audits' || pathname.startsWith('/stock-audits/');
     const isStockTransfersPath = pathname === '/stock-transfers' || pathname.startsWith('/stock-transfers/');
     const isBatchesPath = pathname === '/batches' || pathname.startsWith('/batches/');
@@ -270,6 +298,8 @@ export default function DashboardPage({
     const isStockThresholdsPath = pathname === '/stock-thresholds' || pathname.startsWith('/stock-thresholds/');
     const isLowStockAlertsPath = pathname === '/low-stock-alerts' || pathname.startsWith('/low-stock-alerts/');
     const isGoodsReceiptPath = pathname === '/goods-receipt' || pathname.startsWith('/goods-receipt/') || pathname === '/goods-receipts';
+    const isStockAdjustmentsPath = pathname === '/stock-adjustments' || pathname.startsWith('/stock-adjustments/');
+    const isPaymentCollectionsPath = pathname === '/payment-collections' || pathname.startsWith('/payment-collections/');
 
     const params = new URLSearchParams(window.location.search);
     const hasOldTabParam = params.has('tab') || params.has('view');
@@ -339,6 +369,13 @@ export default function DashboardPage({
       return 'stock-book';
     }
 
+    if (isInventoryTurnoverPath || oldTabVal === 'inventory-turnover') {
+      if (hasOldTabParam || pathname !== '/inventory-turnover') {
+        try { window.history.replaceState({}, '', '/inventory-turnover'); } catch { }
+      }
+      return 'inventory-turnover';
+    }
+
     if (isStockTransfersPath || oldTabVal === 'stock-transfers' || oldTabVal === 'stock-transfer') {
       if (hasOldTabParam || (pathname !== '/stock-transfers' && !pathname.startsWith('/stock-transfers/create'))) {
         try { window.history.replaceState({}, '', '/stock-transfers'); } catch { }
@@ -352,6 +389,28 @@ export default function DashboardPage({
           try { window.history.replaceState({}, '', '/stock-audits'); } catch { }
         }
         return 'stock-audits';
+      }
+      try { window.history.replaceState({}, '', '/'); } catch { }
+      return 'inventory';
+    }
+
+    if (isStockAdjustmentsPath || oldTabVal === 'stock-adjustments' || oldTabVal === 'stock-adjustment') {
+      if (canAccessStockAdjustments) {
+        if (pathname !== '/stock-adjustments' || hasOldTabParam) {
+          try { window.history.replaceState({}, '', '/stock-adjustments'); } catch { }
+        }
+        return 'stock-adjustments';
+      }
+      try { window.history.replaceState({}, '', '/'); } catch { }
+      return 'inventory';
+    }
+
+    if (isPaymentCollectionsPath || oldTabVal === 'payment-collections') {
+      if (canAccessPaymentCollections) {
+        if (!pathname.startsWith('/payment-collections') || hasOldTabParam) {
+          try { window.history.replaceState({}, '', '/payment-collections'); } catch { }
+        }
+        return 'payment-collections';
       }
       try { window.history.replaceState({}, '', '/'); } catch { }
       return 'inventory';
@@ -419,7 +478,7 @@ export default function DashboardPage({
         }
         return 'delivery-tracking';
       }
-      try { window.history.replaceState({}, '', '/'); } catch {}
+      try { window.history.replaceState({}, '', '/'); } catch { }
       return 'inventory';
     }
     if (isDealerProfilesPath || oldTabVal === 'dealer-profiles') {
@@ -427,6 +486,12 @@ export default function DashboardPage({
         try { window.history.replaceState({}, '', '/dealer-profiles'); } catch { }
       }
       return 'dealer-profiles';
+    }
+    if (isAgencyDebtsPath || oldTabVal === 'agency-debts') {
+      if (hasOldTabParam || pathname !== '/agency-debts') {
+        try { window.history.replaceState({}, '', '/agency-debts'); } catch { }
+      }
+      return 'agency-debts';
     }
     if (isDebtLedgerPath || oldTabVal === 'debt-ledger') {
       if (hasOldTabParam || pathname !== '/debt-ledger') {
@@ -578,6 +643,32 @@ export default function DashboardPage({
       return;
     }
 
+    if (tab === 'stock-adjustments') {
+      if (!canAccessStockAdjustments) {
+        setActiveTabState('inventory');
+        try { window.history.replaceState({}, '', '/'); } catch { }
+        return;
+      }
+      setActiveTabState('stock-adjustments');
+      try {
+        window.history.pushState({}, '', '/stock-adjustments');
+      } catch { }
+      return;
+    }
+
+    if (tab === 'payment-collections') {
+      if (!canAccessPaymentCollections) {
+        setActiveTabState('inventory');
+        try { window.history.replaceState({}, '', '/'); } catch { }
+        return;
+      }
+      setActiveTabState('payment-collections');
+      try {
+        window.history.pushState({}, '', '/payment-collections');
+      } catch { }
+      return;
+    }
+
     if (tab === 'stock-thresholds') {
       setActiveTabState('stock-thresholds');
       try {
@@ -629,6 +720,16 @@ export default function DashboardPage({
       return;
     }
 
+    if (tab === 'inventory-turnover') {
+      setActiveTabState('inventory-turnover');
+      try {
+        window.history.pushState({}, '', '/inventory-turnover');
+      } catch {
+        // ignore
+      }
+      return;
+    }
+
     if (tab === 'orders') {
       setActiveTabState('orders');
       try {
@@ -653,7 +754,7 @@ export default function DashboardPage({
     } else if (tab === 'delivery-tracking') {
       if (!canAccessDeliveryTracking) {
         setActiveTabState('inventory');
-        try { window.history.replaceState({}, '', '/'); } catch {}
+        try { window.history.replaceState({}, '', '/'); } catch { }
         return;
       }
       setActiveTabState('delivery-tracking');
@@ -738,6 +839,13 @@ export default function DashboardPage({
         // ignore
       }
 
+    } else if (tab === 'agency-debts') {
+      setActiveTabState('agency-debts');
+      try {
+        window.history.pushState({}, '', '/agency-debts');
+      } catch {
+        // ignore
+      }
     } else {
       setActiveTabState('inventory');
       window.history.replaceState({}, '', '/');
@@ -756,12 +864,14 @@ export default function DashboardPage({
                 : activeTab === 'discounts' ? canAccessDiscounts
                   : activeTab === 'product-history' ? (isAdmin || isSalesManager || canWriteInventory)
                     : activeTab === 'stock-audits' ? canAccessStockAudit
+                      : activeTab === 'stock-adjustments' ? canAccessStockAdjustments
                       : activeTab === 'warehouses' ? canAccessWarehouses
-                      : activeTab === 'goods-receipt' ? canWriteInventory
-                        : activeTab === 'batches' ? isWarehouseOrAdmin
-                          : activeTab === 'picking' ? isWarehouseOrAdmin
-                            : activeTab === 'delivery-tracking' ? canAccessDeliveryTracking
-                              : true;
+                        : activeTab === 'goods-receipt' ? canWriteInventory
+                          : activeTab === 'batches' ? isWarehouseOrAdmin
+                            : activeTab === 'picking' ? isWarehouseOrAdmin
+                              : activeTab === 'delivery-tracking' ? canAccessDeliveryTracking
+                              : activeTab === 'payment-collections' ? canAccessPaymentCollections
+                                : true;
     if (!isAllowed) {
       setActiveTabState('inventory');
       window.history.replaceState({}, '', '/');
@@ -887,6 +997,15 @@ export default function DashboardPage({
         return;
       }
 
+      const isInventoryTurnoverPath = pathname === '/inventory-turnover' || pathname.startsWith('/inventory-turnover/');
+      if (isInventoryTurnoverPath || tabParam === 'inventory-turnover') {
+        if (pathname !== '/inventory-turnover' || tabParam) {
+          try { window.history.replaceState({}, '', '/inventory-turnover'); } catch { }
+        }
+        setActiveTabState('inventory-turnover');
+        return;
+      }
+
       if (isStockTransfersPath || tabParam === 'stock-transfers' || tabParam === 'stock-transfer') {
         if ((pathname !== '/stock-transfers' && !pathname.startsWith('/stock-transfers/create')) || tabParam) {
           try { window.history.replaceState({}, '', pathname.startsWith('/stock-transfers/create') ? '/stock-transfers/create' : '/stock-transfers'); } catch { }
@@ -922,6 +1041,7 @@ export default function DashboardPage({
       }
 
       const isStockAuditsPath = pathname === '/stock-audits' || pathname.startsWith('/stock-audits/');
+      const isStockAdjustmentsPath = pathname === '/stock-adjustments' || pathname.startsWith('/stock-adjustments/');
       const isCreateOrderPath = pathname === '/create-order' || pathname.startsWith('/create-order/');
 
       if (isCreateOrderPath || tabParam === 'create-order') {
@@ -942,7 +1062,19 @@ export default function DashboardPage({
           setActiveTabState('inventory');
           try { window.history.replaceState({}, '', '/'); } catch { }
         }
-        setActiveTabState('stock-audits');
+        return;
+      }
+
+      if (isStockAdjustmentsPath || tabParam === 'stock-adjustments' || tabParam === 'stock-adjustment') {
+        if (canAccessStockAdjustments) {
+          if (pathname !== '/stock-adjustments' || tabParam) {
+            try { window.history.replaceState({}, '', '/stock-adjustments'); } catch { }
+          }
+          setActiveTabState('stock-adjustments');
+        } else {
+          setActiveTabState('inventory');
+          try { window.history.replaceState({}, '', '/'); } catch { }
+        }
         return;
       }
 
@@ -1024,7 +1156,7 @@ export default function DashboardPage({
           setActiveTabState('delivery-tracking');
         } else {
           setActiveTabState('inventory');
-          try { window.history.replaceState({}, '', '/'); } catch {}
+          try { window.history.replaceState({}, '', '/'); } catch { }
         }
         return;
       }
@@ -1037,6 +1169,16 @@ export default function DashboardPage({
           } catch { }
         }
         setActiveTabState('dealer-profiles');
+        return;
+      }
+      const isAgencyDebtsPath = pathname === '/agency-debts' || pathname.startsWith('/agency-debts/');
+      if (isAgencyDebtsPath || tabParam === 'agency-debts') {
+        if (pathname !== '/agency-debts' || tabParam) {
+          try {
+            window.history.replaceState({}, '', '/agency-debts');
+          } catch { }
+        }
+        setActiveTabState('agency-debts');
         return;
       }
 
@@ -1113,6 +1255,18 @@ export default function DashboardPage({
           setActiveTabState('inventory');
           try { window.history.replaceState({}, '', '/'); } catch { }
         }
+      } else if (pathname === '/payment-collections' || pathname.startsWith('/payment-collections/') || tabParam === 'payment-collections') {
+        if (canAccessPaymentCollections) {
+          if (!pathname.startsWith('/payment-collections') || tabParam) {
+            try {
+              window.history.replaceState({}, '', pathname.startsWith('/payment-collections') ? pathname : '/payment-collections');
+            } catch { }
+          }
+          setActiveTabState('payment-collections');
+        } else {
+          setActiveTabState('inventory');
+          try { window.history.replaceState({}, '', '/'); } catch { }
+        }
       } else if (pathname === '/categories') {
         setActiveTabState('categories');
       } else {
@@ -1123,7 +1277,7 @@ export default function DashboardPage({
 
     window.addEventListener('popstate', syncFromUrl);
     return () => window.removeEventListener('popstate', syncFromUrl);
-  }, [canManageCategories, canManageSuppliers, canReadOrders, isAdmin, canAccessDiscounts, canAccessWarehouses, isCustomer]);
+  }, [canManageCategories, canManageSuppliers, canReadOrders, isAdmin, canAccessDiscounts, canAccessWarehouses, canAccessPaymentCollections, isCustomer]);
   const [products, setProducts] = useState<ProductItem[]>([]);
   const [appliedPriceBook, setAppliedPriceBook] = useState<string | null>(null);
   const [serverTotalCount, setServerTotalCount] = useState<number>(0);
@@ -1181,6 +1335,7 @@ export default function DashboardPage({
   const [isSecurityModalOpen, setIsSecurityModalOpen] = useState(false);
   const [isCreateAccountModalOpen, setIsCreateAccountModalOpen] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [stockAdjustmentInitialMode, setStockAdjustmentInitialMode] = useState<'LIST' | 'CREATE'>('CREATE');
   const [isMobileScreen, setIsMobileScreen] = useState<boolean>(() =>
     typeof window !== 'undefined' ? window.innerWidth <= 768 : false
   );
@@ -1593,9 +1748,9 @@ export default function DashboardPage({
   const isGoodsReceiptPage = activeTab === 'goods-receipt';
   const isProductsImportPage = activeTab === 'products-import';
   const isUsersImportPage = activeTab === 'users-import';
-  const isDeliveryTrackingPage = activeTab === 'delivery-tracking' || currentPath === '/delivery-tracking' || currentPath.startsWith('/delivery-tracking/');
-  const isLockedScrollTab = !isProductFormOpen && !isSalesOrderOpen && !isOrdersCreateSubpage && !isOrderDetailSubpage && !isPriceListsCreateSubpage && !isPriceBookDetailSubpage && !isPriceBookEditSubpage && !isGoodsReceiptPage && !isStockTransferCreateSubpage && !isBatchesCreateSubpage && !isProductsImportPage && !isUsersImportPage && !isDeliveryTrackingPage && (activeTab === 'inventory' || activeTab === 'cart' || activeTab === 'dealers' || activeTab === 'dealer-profiles' || activeTab === 'delivery-points' || activeTab === 'suppliers' || activeTab === 'price-books' || activeTab === 'categories' || activeTab === 'orders' || activeTab === 'product-history' || activeTab === 'stock-book' || activeTab === 'stock-audits' || activeTab === 'stock-transfers' || activeTab === 'stock-thresholds' || activeTab === 'low-stock-alerts' || activeTab === 'batches' || activeTab === 'picking') && !isPendingCustomer;
-
+  const isPaymentCollectionsPage = activeTab === 'payment-collections';
+  const isDeliveryTrackingPage = activeTab === 'delivery-tracking' || currentPath.startsWith('/delivery-tracking');
+  const isLockedScrollTab = !isProductFormOpen && !isSalesOrderOpen && !isOrdersCreateSubpage && !isOrderDetailSubpage && !isPriceListsCreateSubpage && !isPriceBookDetailSubpage && !isPriceBookEditSubpage && !isGoodsReceiptPage && !isStockTransferCreateSubpage && !isBatchesCreateSubpage && !isProductsImportPage && !isUsersImportPage && !isPaymentCollectionsSubpage && !isPaymentCollectionsPage && !isDeliveryTrackingPage && (activeTab === 'inventory' || activeTab === 'dealers' || activeTab === 'dealer-profiles' || activeTab === 'delivery-points' || activeTab === 'suppliers' || activeTab === 'price-books' || activeTab === 'categories' || activeTab === 'orders' || activeTab === 'product-history' || activeTab === 'stock-book' || activeTab === 'inventory-turnover' || activeTab === 'stock-audits' || activeTab === 'stock-adjustments' || activeTab === 'stock-transfers' || activeTab === 'stock-thresholds' || activeTab === 'low-stock-alerts' || activeTab === 'batches' || activeTab === 'picking') && !isPendingCustomer;
   return (
     <DashboardLayout
       header={
@@ -1623,17 +1778,25 @@ export default function DashboardPage({
       }
       noScroll={!isMobileScreen && isLockedScrollTab}
       mainClassName={
-        isOrderDetailSubpage || isOrdersCreateSubpage || isPriceListsCreateSubpage || isPriceBookDetailSubpage || isPriceBookEditSubpage || isGoodsReceiptPage || isStockTransferCreateSubpage || isBatchesCreateSubpage || isProductsImportPage || isUsersImportPage || isDeliveryTrackingPage
-          ? 'flex-1 h-full min-h-0 overflow-y-auto p-0 flex flex-col bg-slate-50'
-          : isCustomer
-          ? 'flex-1 min-w-0 overflow-hidden p-0 flex flex-col bg-slate-50 h-full'
-          : isMobileScreen
-            ? 'flex-1 h-full min-h-0 overflow-y-auto p-2 sm:p-3 flex flex-col'
-            : undefined
+        isOrderDetailSubpage || isOrdersCreateSubpage || isPriceListsCreateSubpage || isPriceBookDetailSubpage || isPriceBookEditSubpage || isGoodsReceiptPage || isStockTransferCreateSubpage || isBatchesCreateSubpage || isProductsImportPage || isUsersImportPage || isPaymentCollectionsSubpage || isPaymentCollectionsPage || isDeliveryTrackingPage
+          ? 'flex-1 min-w-0 overflow-y-auto p-0 flex flex-col bg-slate-50'
+          : isCustomer || activeTab === 'agency-debts'
+            ? 'flex-1 min-w-0 overflow-hidden p-0 flex flex-col bg-slate-50 h-full'
+            : isMobileScreen
+              ? 'flex-1 h-full min-h-0 overflow-y-auto p-2 sm:p-3 flex flex-col'
+              : undefined
       }
       sidebar={
         <Sidebar
-          activeTab={activeTab === 'users-import' ? 'users' : activeTab === 'products-import' ? 'inventory' : activeTab}
+          activeTab={
+            activeTab === 'users-import'
+              ? 'users'
+              : activeTab === 'products-import'
+              ? 'inventory'
+              : activeTab === 'stock-adjustments'
+              ? 'stock-book'
+              : activeTab
+          }
           onSelectTab={(tab) => {
             setActiveTab(tab);
             setIsMobileSidebarOpen(false);
@@ -1658,6 +1821,7 @@ export default function DashboardPage({
           canWriteInventory={canWriteInventory}
           isWarehouseOrAdmin={isWarehouseOrAdmin}
           isAdmin={isAdmin}
+          canAccessPaymentCollections={canAccessPaymentCollections}
           onLogout={() => {
             if (isLoggingOut) return;
             setShowLogoutConfirm(true);
@@ -1670,7 +1834,7 @@ export default function DashboardPage({
     >
       <div
         className="dashboard-main-container"
-        style={isCustomer || isOrdersCreateSubpage || isPriceListsCreateSubpage || isPriceBookDetailSubpage || isPriceBookEditSubpage || isOrderDetailSubpage || isGoodsReceiptPage || isStockTransferCreateSubpage || isBatchesCreateSubpage || isProductsImportPage || isUsersImportPage || isDeliveryTrackingPage || isMobileScreen ? {
+        style={isCustomer || isOrdersCreateSubpage || isPriceListsCreateSubpage || isPriceBookDetailSubpage || isPriceBookEditSubpage || isOrderDetailSubpage || isGoodsReceiptPage || isStockTransferCreateSubpage || isBatchesCreateSubpage || isProductsImportPage || isUsersImportPage || isDeliveryTrackingPage || activeTab === 'payment-collections' || isMobileScreen ? {
           width: '100%',
           display: 'flex',
           flexDirection: 'column',
@@ -1990,9 +2154,16 @@ export default function DashboardPage({
               onLogout={onLogout}
             />
           )
+        ) : activeTab === 'agency-debts' ? (
+          <AgencyDebtInvoiceView
+            currentUser={user}
+            token={token}
+            onBackToPortal={() => setActiveTab('inventory')}
+            onNavigateToOrders={() => setActiveTab('orders')}
+          />
         ) : activeTab === 'dealer-profiles' ? (
           isCustomer ? (
-            <CustomerDebtView
+            <AgencyDebtInvoiceView
               currentUser={user}
               token={token}
               onBackToPortal={() => setActiveTab('inventory')}
@@ -2196,6 +2367,17 @@ export default function DashboardPage({
         ) : activeTab === 'stock-book' ? (
           <WarehouseStockBookView
             token={token}
+            currentUser={user}
+            onBackToHome={() => setActiveTab('inventory')}
+            onOpenTurnoverReport={() => setActiveTab('inventory-turnover')}
+            onNavigateToAdjustments={() => {
+              setStockAdjustmentInitialMode('CREATE');
+              setActiveTab('stock-adjustments');
+            }}
+          />
+        ) : activeTab === 'inventory-turnover' ? (
+          <InventoryTurnoverReportView
+            token={token}
             onBackToHome={() => setActiveTab('inventory')}
           />
         ) : activeTab === 'batches' ? (
@@ -2239,6 +2421,36 @@ export default function DashboardPage({
             <AccessDeniedView
               currentUser={user}
               requiredPermission="Quản lý kiểm kê kho (Quản trị hệ thống / Quản lý kho / Thủ kho)"
+              onBackToWorkflow={() => setActiveTab('inventory')}
+              onLogout={onLogout}
+            />
+          )
+        ) : activeTab === 'stock-adjustments' ? (
+          canAccessStockAdjustments ? (
+            <StockAdjustmentPageView
+              token={token}
+              currentUser={user}
+              initialMode={stockAdjustmentInitialMode}
+              onBackToHome={() => setActiveTab('stock-book')}
+            />
+          ) : (
+            <AccessDeniedView
+              currentUser={user}
+              requiredPermission="Điều chỉnh tồn kho có phê duyệt (Quản trị hệ thống / Quản lý kho / Thủ kho)"
+              onBackToWorkflow={() => setActiveTab('inventory')}
+              onLogout={onLogout}
+            />
+          )
+        ) : activeTab === 'payment-collections' ? (
+          canAccessPaymentCollections ? (
+            <PaymentCollectionView
+              currentUser={user}
+              token={token}
+            />
+          ) : (
+            <AccessDeniedView
+              currentUser={user}
+              requiredPermission="Thu tiền theo tuyến & Đối chiếu quỹ (Nhân viên kinh doanh / Kế toán / Quản trị hệ thống)"
               onBackToWorkflow={() => setActiveTab('inventory')}
               onLogout={onLogout}
             />
@@ -2398,7 +2610,7 @@ export default function DashboardPage({
             onViewChange={(view) => setActiveTab(view === 'cart' ? 'cart' : 'inventory')}
             onRefreshProducts={fetchProducts}
             onNavigateToOrders={() => setActiveTab('orders')}
-            onNavigateToDebt={() => setActiveTab('dealer-profiles')}
+            onNavigateToDebt={() => setActiveTab('agency-debts')}
           />
         ) : (
           <>
@@ -3590,78 +3802,40 @@ export default function DashboardPage({
                                     )}
 
                                     {canWriteInventory && (
-                                      <>
-                                        <button
-                                          type="button"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            setStockActionState({ isOpen: true, actionType: 'receipt', product: item });
-                                            setOpenProductMenuId(null);
-                                          }}
-                                          style={{
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '8px',
-                                            width: '100%',
-                                            padding: '8px 12px',
-                                            background: 'transparent',
-                                            border: 'none',
-                                            borderRadius: '6px',
-                                            fontSize: '13px',
-                                            fontWeight: '600',
-                                            color: '#065f46',
-                                            cursor: 'pointer',
-                                            boxShadow: 'none',
-                                            margin: 0,
-                                            transition: 'background 0.15s ease',
-                                            textAlign: 'left',
-                                          }}
-                                          onMouseEnter={(e) => (e.currentTarget.style.background = '#ecfdf5')}
-                                          onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-                                          title="Tạo phiếu nhập kho nhanh cho sản phẩm này (cho phép chọn ĐVT quy đổi)"
-                                        >
-                                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                            <line x1="12" y1="5" x2="12" y2="19" />
-                                            <line x1="5" y1="12" x2="19" y2="12" />
-                                          </svg>
-                                          <span>Nhập kho</span>
-                                        </button>
-
-                                        <button
-                                          type="button"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            setStockActionState({ isOpen: true, actionType: 'issue', product: item });
-                                            setOpenProductMenuId(null);
-                                          }}
-                                          style={{
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '8px',
-                                            width: '100%',
-                                            padding: '8px 12px',
-                                            background: 'transparent',
-                                            border: 'none',
-                                            borderRadius: '6px',
-                                            fontSize: '13px',
-                                            fontWeight: '600',
-                                            color: '#9a3412',
-                                            cursor: 'pointer',
-                                            boxShadow: 'none',
-                                            margin: 0,
-                                            transition: 'background 0.15s ease',
-                                            textAlign: 'left',
-                                          }}
-                                          onMouseEnter={(e) => (e.currentTarget.style.background = '#fff7ed')}
-                                          onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-                                          title="Tạo phiếu xuất kho (cho phép chọn ĐVT quy đổi)"
-                                        >
-                                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                            <line x1="5" y1="12" x2="19" y2="12" />
-                                          </svg>
-                                          <span>Xuất kho</span>
-                                        </button>
-                                      </>
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setStockActionState({ isOpen: true, actionType: 'issue', product: item });
+                                          setOpenProductMenuId(null);
+                                        }}
+                                        style={{
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          gap: '8px',
+                                          width: '100%',
+                                          padding: '8px 12px',
+                                          background: 'transparent',
+                                          border: 'none',
+                                          borderRadius: '6px',
+                                          fontSize: '13px',
+                                          fontWeight: '600',
+                                          color: '#9a3412',
+                                          cursor: 'pointer',
+                                          boxShadow: 'none',
+                                          margin: 0,
+                                          transition: 'background 0.15s ease',
+                                          textAlign: 'left',
+                                        }}
+                                        onMouseEnter={(e) => (e.currentTarget.style.background = '#fff7ed')}
+                                        onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                                        title="Tạo phiếu xuất kho (cho phép chọn ĐVT quy đổi)"
+                                      >
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                          <line x1="5" y1="12" x2="19" y2="12" />
+                                        </svg>
+                                        <span>Xuất kho</span>
+                                      </button>
                                     )}
                                   </div>
                                 )}
