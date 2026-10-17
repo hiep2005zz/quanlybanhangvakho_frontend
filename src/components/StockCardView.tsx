@@ -233,7 +233,7 @@ export const StockCardView: React.FC<StockCardViewProps> = ({
     if (onNavigateToTab) {
       if (type === 'grn' || code.startsWith('GRN-') || code.startsWith('PNK-')) {
         onNavigateToTab('goods-receipt', code, currentCode);
-      } else if (type === 'order' || code.startsWith('ORD') || code.startsWith('DH')) {
+      } else if (type === 'order' || type === 'issue' || code.startsWith('ORD') || code.startsWith('DH') || code.startsWith('PXK')) {
         onNavigateToTab('orders', code, currentCode);
       } else if (type === 'transfer' || code.startsWith('CK-')) {
         onNavigateToTab('stock-transfers', code, currentCode);
@@ -1323,12 +1323,12 @@ export const StockCardView: React.FC<StockCardViewProps> = ({
                       </svg>
                       <span>Xem chi tiết phiếu kiểm kê & sản phẩm</span>
                     </>
-                  ) : activeVoucher.code.startsWith('ORD') || activeVoucher.code.startsWith('DH') ? (
+                  ) : activeVoucher.code.startsWith('ORD') || activeVoucher.code.startsWith('DH') || activeVoucher.code.startsWith('PXK') || activeVoucher.type === 'order' || activeVoucher.type === 'issue' ? (
                     <>
                       <svg style={{ width: '15px', height: '15px' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                       </svg>
-                      <span>Xem chi tiết đơn hàng xuất</span>
+                      <span>Xem chi tiết đơn hàng xuất ({activeVoucher.code})</span>
                     </>
                   ) : (
                     <>

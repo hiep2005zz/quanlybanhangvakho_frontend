@@ -755,6 +755,8 @@ export default function DashboardPage({
     }
 
     if (tab === 'orders') {
+      setSelectedOrderCodeForDetail(null);
+      setOrderSearchCode('');
       setActiveTabState('orders');
       try {
         window.history.pushState({}, '', '/orders');
@@ -1424,6 +1426,9 @@ export default function DashboardPage({
   const [stockAuditSearchProduct, setStockAuditSearchProduct] = useState<string>('');
   const [goodsReceiptInitialCode, setGoodsReceiptInitialCode] = useState<string>('');
   const [stockTransferInitialCode, setStockTransferInitialCode] = useState<string>('');
+  const [selectedOrderCodeForDetail, setSelectedOrderCodeForDetail] = useState<string | null>(null);
+  const [orderSearchCode, setOrderSearchCode] = useState<string>('');
+  const isOrderDetailEffective = isOrderDetailSubpage || Boolean(selectedOrderCodeForDetail);
   const [isSalesOrderEntryOpen, setIsSalesOrderEntryOpen] = useState(false);
   const [cloneOrderData, setCloneOrderData] = useState<any>(() => {
     try {
@@ -1787,7 +1792,7 @@ export default function DashboardPage({
   const isUsersImportPage = activeTab === 'users-import';
   const isPaymentCollectionsPage = activeTab === 'payment-collections';
   const isDeliveryTrackingPage = activeTab === 'delivery-tracking' || currentPath.startsWith('/delivery-tracking');
-  const isLockedScrollTab = !isProductFormOpen && !isSalesOrderOpen && !isOrdersCreateSubpage && !isOrderDetailSubpage && !isPriceListsCreateSubpage && !isPriceBookDetailSubpage && !isPriceBookEditSubpage && !isGoodsReceiptPage && !isStockTransferCreateSubpage && !isBatchesCreateSubpage && !isProductsImportPage && !isUsersImportPage && !isPaymentCollectionsSubpage && !isPaymentCollectionsPage && !isDeliveryTrackingPage && (activeTab === 'inventory' || activeTab === 'dealers' || activeTab === 'dealer-profiles' || activeTab === 'delivery-points' || activeTab === 'suppliers' || activeTab === 'price-books' || activeTab === 'categories' || activeTab === 'orders' || activeTab === 'product-history' || activeTab === 'stock-book' || activeTab === 'stock-card' || activeTab === 'inventory-turnover' || activeTab === 'stock-audits' || activeTab === 'stock-adjustments' || activeTab === 'stock-transfers' || activeTab === 'stock-thresholds' || activeTab === 'low-stock-alerts' || activeTab === 'batches' || activeTab === 'picking') && !isPendingCustomer;
+  const isLockedScrollTab = !isProductFormOpen && !isSalesOrderOpen && !isOrdersCreateSubpage && !isOrderDetailEffective && !isPriceListsCreateSubpage && !isPriceBookDetailSubpage && !isPriceBookEditSubpage && !isGoodsReceiptPage && !isStockTransferCreateSubpage && !isBatchesCreateSubpage && !isProductsImportPage && !isUsersImportPage && !isPaymentCollectionsSubpage && !isPaymentCollectionsPage && !isDeliveryTrackingPage && (activeTab === 'inventory' || activeTab === 'dealers' || activeTab === 'dealer-profiles' || activeTab === 'delivery-points' || activeTab === 'suppliers' || activeTab === 'price-books' || activeTab === 'categories' || activeTab === 'orders' || activeTab === 'product-history' || activeTab === 'stock-book' || activeTab === 'stock-card' || activeTab === 'inventory-turnover' || activeTab === 'stock-audits' || activeTab === 'stock-adjustments' || activeTab === 'stock-transfers' || activeTab === 'stock-thresholds' || activeTab === 'low-stock-alerts' || activeTab === 'batches' || activeTab === 'picking') && !isPendingCustomer;
   return (
     <DashboardLayout
       header={
@@ -1815,7 +1820,7 @@ export default function DashboardPage({
       }
       noScroll={!isMobileScreen && isLockedScrollTab}
       mainClassName={
-        isOrderDetailSubpage || isOrdersCreateSubpage || isPriceListsCreateSubpage || isPriceBookDetailSubpage || isPriceBookEditSubpage || isGoodsReceiptPage || isStockTransferCreateSubpage || isBatchesCreateSubpage || isProductsImportPage || isUsersImportPage || isPaymentCollectionsSubpage || isPaymentCollectionsPage || isDeliveryTrackingPage
+        isOrderDetailEffective || isOrdersCreateSubpage || isPriceListsCreateSubpage || isPriceBookDetailSubpage || isPriceBookEditSubpage || isGoodsReceiptPage || isStockTransferCreateSubpage || isBatchesCreateSubpage || isProductsImportPage || isUsersImportPage || isPaymentCollectionsSubpage || isPaymentCollectionsPage || isDeliveryTrackingPage
           ? 'flex-1 min-w-0 overflow-y-auto p-0 flex flex-col bg-slate-50'
           : isCustomer || activeTab === 'agency-debts'
             ? 'flex-1 min-w-0 overflow-hidden p-0 flex flex-col bg-slate-50 h-full'
@@ -1871,7 +1876,7 @@ export default function DashboardPage({
     >
       <div
         className="dashboard-main-container"
-        style={isCustomer || isOrdersCreateSubpage || isPriceListsCreateSubpage || isPriceBookDetailSubpage || isPriceBookEditSubpage || isOrderDetailSubpage || isGoodsReceiptPage || isStockTransferCreateSubpage || isBatchesCreateSubpage || isProductsImportPage || isUsersImportPage || isDeliveryTrackingPage || activeTab === 'payment-collections' || isMobileScreen ? {
+        style={isCustomer || isOrdersCreateSubpage || isPriceListsCreateSubpage || isPriceBookDetailSubpage || isPriceBookEditSubpage || isOrderDetailEffective || isGoodsReceiptPage || isStockTransferCreateSubpage || isBatchesCreateSubpage || isProductsImportPage || isUsersImportPage || isDeliveryTrackingPage || activeTab === 'payment-collections' || isMobileScreen ? {
           width: '100%',
           display: 'flex',
           flexDirection: 'column',
@@ -1988,12 +1993,16 @@ export default function DashboardPage({
                   fetchProducts();
                 }}
               />
-            ) : isOrderDetailSubpage ? (
+            ) : isOrderDetailEffective ? (
               <OrderDetailPage
                 currentUser={user}
                 token={token}
+                orderId={selectedOrderCodeForDetail || undefined}
                 onBack={() => {
+                  setSelectedOrderCodeForDetail(null);
+                  setOrderSearchCode('');
                   window.history.pushState({}, '', '/orders');
+                  window.dispatchEvent(new Event('popstate'));
                 }}
                 onCloneOrder={(data) => {
                   try {
@@ -2001,6 +2010,7 @@ export default function DashboardPage({
                   } catch { }
                   setCloneOrderData(data);
                   window.history.pushState({}, '', '/orders/create');
+                  window.dispatchEvent(new Event('popstate'));
                 }}
                 onRefreshProducts={fetchProducts}
               />
@@ -2009,6 +2019,7 @@ export default function DashboardPage({
                 currentUser={user}
                 token={token}
                 products={products}
+                initialSearchTerm={orderSearchCode}
                 onBackToHome={() => setActiveTab('inventory')}
                 onRefreshProducts={fetchProducts}
                 onNavigateToPriceBooks={canAccessPriceBooks ? () => setActiveTab('price-books') : undefined}
@@ -2018,6 +2029,7 @@ export default function DashboardPage({
                   } catch { }
                   setCloneOrderData(data);
                   window.history.pushState({}, '', '/orders/create');
+                  window.dispatchEvent(new Event('popstate'));
                 }}
               />
             )
@@ -2418,16 +2430,28 @@ export default function DashboardPage({
                 if (tab === 'stock-audits' && queryParam) {
                   setStockAuditSearchCode(queryParam);
                   if (productCode) setStockAuditSearchProduct(productCode);
+                  setActiveTabState('stock-audits');
+                  try { window.history.pushState({}, '', '/stock-audits'); } catch { }
                 } else if (tab === 'orders' && queryParam) {
-                  window.history.pushState({}, '', `/orders/${queryParam}`);
-                  window.dispatchEvent(new Event('popstate'));
+                  setSelectedOrderCodeForDetail(queryParam);
+                  setOrderSearchCode(queryParam);
+                  setActiveTabState('orders');
+                  try {
+                    window.history.pushState({}, '', `/orders/${queryParam}`);
+                    window.dispatchEvent(new Event('popstate'));
+                  } catch { }
                 } else if (tab === 'goods-receipt' && queryParam) {
                   setGoodsReceiptInitialCode(queryParam);
                   setGoodsReceiptInitialTab('list');
+                  setActiveTabState('goods-receipt');
+                  try { window.history.pushState({}, '', '/goods-receipt'); } catch { }
                 } else if (tab === 'stock-transfers' && queryParam) {
                   setStockTransferInitialCode(queryParam);
+                  setActiveTabState('stock-transfers');
+                  try { window.history.pushState({}, '', '/stock-transfers'); } catch { }
+                } else {
+                  setActiveTab(tab as TabType);
                 }
-                setActiveTab(tab as TabType);
                 setSelectedProductForStockCard(null);
               }}
             />
