@@ -512,18 +512,18 @@ export const DebtPaymentReconciliationView: React.FC<DebtPaymentReconciliationVi
           {/* DEALER SELECTOR & SUMMARY CARDS */}
           <div className="debt-panel" style={{ padding: '12px 16px', marginBottom: '12px' }}>
             <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: '1', minWidth: '300px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <label htmlFor="dealer-select" style={{ fontSize: '13px', fontWeight: '700', color: '#1e293b', whiteSpace: 'nowrap' }}>
                   Đại lý / Khách hàng:
                 </label>
-                <div style={{ display: 'flex', gap: '8px', flex: '1' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <input
                     type="text"
-                    placeholder="Tìm đại lý..."
+                    placeholder="Tìm nhanh..."
                     value={dealerSearchQuery}
                     onChange={(e) => setDealerSearchQuery(e.target.value)}
                     style={{
-                      width: '120px',
+                      width: '100px',
                       padding: '6px 10px',
                       height: '36px',
                       borderRadius: '8px',
@@ -537,9 +537,10 @@ export const DebtPaymentReconciliationView: React.FC<DebtPaymentReconciliationVi
                     onChange={(e) => setSelectedDealerId(Number(e.target.value))}
                     disabled={loadingDealers}
                     style={{
-                      flex: '1',
+                      width: '260px',
+                      maxWidth: '280px',
                       height: '36px',
-                      padding: '6px 12px',
+                      padding: '6px 10px',
                       borderRadius: '8px',
                       border: '1.5px solid #cbd5e1',
                       fontSize: '13px',
