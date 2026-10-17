@@ -1372,7 +1372,7 @@ export default function DealerSearchView({
                                                 </div>
                                             </td>
                                             <td>
-                                                {dealer.credit_warning_flag || dealer.is_over_credit_limit || dealer.is_overdue ? (
+                                                {dealer.credit_warning_flag || dealer.is_over_credit_limit || dealer.is_overdue || ((dealer.current_debt ?? 0) > (dealer.credit_limit ?? 0) && (dealer.credit_limit ?? 0) > 0) || (dealer.debt_status && dealer.debt_status !== 'Trong hạn mức' && dealer.debt_status !== 'Bình thường') ? (
                                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
                                                         <span
                                                             className="dealer-group-tag danger"
@@ -1386,11 +1386,11 @@ export default function DealerSearchView({
                                                                 gap: '4px',
                                                                 whiteSpace: 'nowrap'
                                                             }}
-                                                            title={dealer.credit_flag_reason || 'Đang bị gắn cờ cảnh báo công nợ'}
+                                                            title={dealer.credit_flag_reason || ((dealer.current_debt ?? 0) > (dealer.credit_limit ?? 0) ? `Vượt hạn mức công nợ (${(dealer.current_debt ?? 0).toLocaleString('vi-VN')} đ > ${(dealer.credit_limit ?? 0).toLocaleString('vi-VN')} đ)` : 'Đang bị gắn cờ cảnh báo công nợ')}
                                                         >
                                                             Cảnh báo công nợ
                                                         </span>
-                                                        {dealer.is_over_credit_limit && (
+                                                        {(dealer.is_over_credit_limit || ((dealer.current_debt ?? 0) > (dealer.credit_limit ?? 0) && (dealer.credit_limit ?? 0) > 0)) && (
                                                             <span style={{ fontSize: '11px', color: '#b91c1c', fontWeight: 600 }}>
                                                                 Vượt hạn mức tiền
                                                             </span>
