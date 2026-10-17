@@ -655,37 +655,51 @@ export const CreateReturnOrderPage: React.FC<CreateReturnOrderPageProps> = ({
                 Đơn hàng này không có dòng hàng nào.
               </div>
             ) : (
-              <div style={{ overflowX: 'auto', width: '100%' }}>
+              <div style={{ width: '100%', overflow: 'hidden' }}>
                 <table
                   style={{
                     width: '100%',
                     borderCollapse: 'collapse',
-                    fontSize: '13px',
+                    fontSize: '12.5px',
                     textAlign: 'left',
+                    tableLayout: 'fixed',
                   }}
                 >
+                  <colgroup>
+                    <col style={{ width: '38px' }} />
+                    <col style={{ width: '22%' }} />
+                    <col style={{ width: '10%' }} />
+                    <col style={{ width: '6%' }} />
+                    <col style={{ width: '6%' }} />
+                    <col style={{ width: '7%' }} />
+                    <col style={{ width: '7%' }} />
+                    <col style={{ width: '17%' }} />
+                    <col style={{ width: '9%' }} />
+                    <col style={{ width: '10%' }} />
+                    <col style={{ width: '6%' }} />
+                  </colgroup>
                   <thead>
                     <tr
                       style={{
                         backgroundColor: '#f8fafc',
                         borderBottom: '1px solid #e2e8f0',
                         color: '#475569',
-                        fontSize: '12px',
+                        fontSize: '11.5px',
                         textTransform: 'uppercase',
                         whiteSpace: 'nowrap',
                       }}
                     >
-                      <th style={{ padding: '10px 12px', width: '40px', textAlign: 'center' }}>CHỌN</th>
-                      <th style={{ padding: '10px 12px', minWidth: '220px' }}>SẢN PHẨM</th>
-                      <th style={{ padding: '10px 12px', minWidth: '105px', textAlign: 'right' }}>ĐƠN GIÁ</th>
-                      <th style={{ padding: '10px 10px', width: '70px', textAlign: 'center' }}>ĐÃ MUA</th>
-                      <th style={{ padding: '10px 10px', width: '70px', textAlign: 'center' }}>ĐÃ TRẢ</th>
-                      <th style={{ padding: '10px 10px', minWidth: '95px', textAlign: 'center' }}>CÒN ĐƯỢC TRẢ</th>
-                      <th style={{ padding: '10px 12px', width: '90px' }}>SL TRẢ</th>
-                      <th style={{ padding: '10px 12px', minWidth: '170px' }}>LÝ DO TRẢ</th>
-                      <th style={{ padding: '10px 12px', minWidth: '130px' }}>MÃ LÔ</th>
-                      <th style={{ padding: '10px 12px', minWidth: '115px', textAlign: 'right' }}>THÀNH TIỀN</th>
-                      <th style={{ padding: '10px 12px', minWidth: '110px' }}>KHO NHẬP</th>
+                      <th style={{ padding: '8px 4px', textAlign: 'center' }}>CHỌN</th>
+                      <th style={{ padding: '8px 6px' }}>SẢN PHẨM</th>
+                      <th style={{ padding: '8px 6px', textAlign: 'right' }}>ĐƠN GIÁ</th>
+                      <th style={{ padding: '8px 4px', textAlign: 'center' }}>ĐÃ MUA</th>
+                      <th style={{ padding: '8px 4px', textAlign: 'center' }}>ĐÃ TRẢ</th>
+                      <th style={{ padding: '8px 4px', textAlign: 'center' }}>CÒN LẠI</th>
+                      <th style={{ padding: '8px 4px', textAlign: 'center' }}>SL TRẢ</th>
+                      <th style={{ padding: '8px 6px' }}>LÝ DO TRẢ</th>
+                      <th style={{ padding: '8px 4px', textAlign: 'center' }}>MÃ LÔ</th>
+                      <th style={{ padding: '8px 6px', textAlign: 'right' }}>THÀNH TIỀN</th>
+                      <th style={{ padding: '8px 4px', textAlign: 'center' }}>KHO NHẬP</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -705,7 +719,7 @@ export const CreateReturnOrderPage: React.FC<CreateReturnOrderPageProps> = ({
                           }}
                         >
                           {/* Checkbox */}
-                          <td style={{ padding: '10px 12px', textAlign: 'center', verticalAlign: 'middle' }}>
+                          <td style={{ padding: '8px 4px', textAlign: 'center', verticalAlign: 'middle' }}>
                             <input
                               type="checkbox"
                               checked={row.is_selected}
@@ -715,12 +729,9 @@ export const CreateReturnOrderPage: React.FC<CreateReturnOrderPageProps> = ({
                             />
                           </td>
 
-                          {/* Sản phẩm trên 1 dòng */}
-                          <td style={{ padding: '10px 12px', verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
+                          {/* Sản phẩm (Chỉ tên sản phẩm, không có mã hay đơn vị trong ngoặc) */}
+                          <td style={{ padding: '8px 6px', verticalAlign: 'middle', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={row.product_name}>
                             <span style={{ fontWeight: '700', color: '#0f172a' }}>{row.product_name}</span>
-                            <span style={{ fontSize: '12px', color: '#64748b', marginLeft: '6px' }}>
-                              ({row.product_code || '---'} - {row.unit_name})
-                            </span>
                             {row.is_batch_managed && (
                               <span
                                 style={{
@@ -739,29 +750,29 @@ export const CreateReturnOrderPage: React.FC<CreateReturnOrderPageProps> = ({
                             )}
                           </td>
 
-                          {/* Đơn giá trên 1 dòng */}
-                          <td style={{ padding: '10px 12px', textAlign: 'right', verticalAlign: 'middle', whiteSpace: 'nowrap', color: '#334155', fontVariantNumeric: 'tabular-nums' }}>
+                          {/* Đơn giá */}
+                          <td style={{ padding: '8px 6px', textAlign: 'right', verticalAlign: 'middle', whiteSpace: 'nowrap', color: '#334155', fontVariantNumeric: 'tabular-nums' }}>
                             {row.unit_price.toLocaleString('vi-VN')} đ
                           </td>
 
-                          {/* Đã mua */}
-                          <td style={{ padding: '10px', textAlign: 'center', verticalAlign: 'middle', fontWeight: '600', color: '#0f172a' }}>
+                          {/* ĐÃ MUA */}
+                          <td style={{ padding: '8px 4px', textAlign: 'center', verticalAlign: 'middle', fontWeight: '600', color: '#0f172a' }}>
                             {row.original_quantity}
                           </td>
 
-                          {/* Đã trả */}
-                          <td style={{ padding: '10px', textAlign: 'center', verticalAlign: 'middle', color: row.already_returned > 0 ? '#ea580c' : '#64748b' }}>
+                          {/* ĐÃ TRẢ */}
+                          <td style={{ padding: '8px 4px', textAlign: 'center', verticalAlign: 'middle', color: row.already_returned > 0 ? '#ea580c' : '#64748b' }}>
                             {row.already_returned}
                           </td>
 
-                          {/* Còn được trả */}
-                          <td style={{ padding: '10px', textAlign: 'center', verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
+                          {/* CÒN LẠI */}
+                          <td style={{ padding: '8px 4px', textAlign: 'center', verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
                             <span
                               style={{
                                 display: 'inline-block',
-                                padding: '2px 8px',
-                                borderRadius: '10px',
-                                fontSize: '12px',
+                                padding: '1px 6px',
+                                borderRadius: '8px',
+                                fontSize: '11.5px',
                                 fontWeight: '700',
                                 backgroundColor: isReturnable ? '#dcfce7' : '#fee2e2',
                                 color: isReturnable ? '#15803d' : '#b91c1c',
@@ -771,8 +782,8 @@ export const CreateReturnOrderPage: React.FC<CreateReturnOrderPageProps> = ({
                             </span>
                           </td>
 
-                          {/* Số lượng trả */}
-                          <td style={{ padding: '10px 12px', verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
+                          {/* SL TRẢ */}
+                          <td style={{ padding: '8px 4px', textAlign: 'center', verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
                             <input
                               type="number"
                               min={1}
@@ -781,9 +792,9 @@ export const CreateReturnOrderPage: React.FC<CreateReturnOrderPageProps> = ({
                               value={row.return_quantity}
                               onChange={(e) => handleQuantityChange(idx, Number(e.target.value))}
                               style={{
-                                width: '70px',
-                                padding: '5px 6px',
-                                borderRadius: '5px',
+                                width: '46px',
+                                padding: '3px 4px',
+                                borderRadius: '4px',
                                 border: isQtyExceeded ? '2px solid #ef4444' : '1px solid #cbd5e1',
                                 textAlign: 'center',
                                 fontWeight: '700',
@@ -794,18 +805,18 @@ export const CreateReturnOrderPage: React.FC<CreateReturnOrderPageProps> = ({
                             />
                           </td>
 
-                          {/* Lý do trả hàng */}
-                          <td style={{ padding: '10px 12px', verticalAlign: 'middle' }}>
+                          {/* LÝ DO TRẢ */}
+                          <td style={{ padding: '8px 6px', verticalAlign: 'middle' }}>
                             <select
                               disabled={!row.is_selected || !isReturnable || isSubmitting}
                               value={row.return_reason}
                               onChange={(e) => handleReasonChange(idx, e.target.value)}
                               style={{
                                 width: '100%',
-                                padding: '5px 6px',
-                                borderRadius: '5px',
+                                padding: '4px 4px',
+                                borderRadius: '4px',
                                 border: '1px solid #cbd5e1',
-                                fontSize: '12.5px',
+                                fontSize: '12px',
                                 color: '#0f172a',
                                 backgroundColor: !row.is_selected ? '#f1f5f9' : '#ffffff',
                                 outline: 'none',
@@ -825,12 +836,12 @@ export const CreateReturnOrderPage: React.FC<CreateReturnOrderPageProps> = ({
                                 value={row.custom_reason}
                                 onChange={(e) => handleCustomReasonChange(idx, e.target.value)}
                                 style={{
-                                  marginTop: '4px',
+                                  marginTop: '3px',
                                   width: '100%',
-                                  padding: '4px 6px',
+                                  padding: '3px 4px',
                                   borderRadius: '4px',
                                   border: '1px solid #cbd5e1',
-                                  fontSize: '12px',
+                                  fontSize: '11.5px',
                                   boxSizing: 'border-box',
                                   outline: 'none',
                                 }}
@@ -838,8 +849,8 @@ export const CreateReturnOrderPage: React.FC<CreateReturnOrderPageProps> = ({
                             )}
                           </td>
 
-                          {/* Mã Lô */}
-                          <td style={{ padding: '10px 12px', verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
+                          {/* MÃ LÔ */}
+                          <td style={{ padding: '8px 4px', textAlign: 'center', verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
                             {row.is_batch_managed ? (
                               row.available_batches.length > 0 ? (
                                 <select
@@ -851,14 +862,14 @@ export const CreateReturnOrderPage: React.FC<CreateReturnOrderPageProps> = ({
                                   }}
                                   style={{
                                     width: '100%',
-                                    padding: '5px 6px',
-                                    borderRadius: '5px',
+                                    padding: '4px 2px',
+                                    borderRadius: '4px',
                                     border: !row.batch_number && row.is_selected ? '1.5px solid #f59e0b' : '1px solid #cbd5e1',
-                                    fontSize: '12px',
+                                    fontSize: '11.5px',
                                     backgroundColor: !row.is_selected ? '#f1f5f9' : '#ffffff',
                                   }}
                                 >
-                                  <option value="">-- Chọn Lô --</option>
+                                  <option value="">Lô</option>
                                   {row.available_batches.map((b) => (
                                     <option key={b.id || b.batch_number} value={b.batch_number}>
                                       {b.batch_number}
@@ -868,45 +879,43 @@ export const CreateReturnOrderPage: React.FC<CreateReturnOrderPageProps> = ({
                               ) : (
                                 <input
                                   type="text"
-                                  placeholder="Nhập mã lô *"
+                                  placeholder="Mã lô *"
                                   value={row.batch_number}
                                   disabled={!row.is_selected || !isReturnable || isSubmitting}
                                   onChange={(e) => handleBatchChange(idx, e.target.value)}
                                   style={{
                                     width: '100%',
-                                    padding: '5px 6px',
-                                    borderRadius: '5px',
+                                    padding: '4px 4px',
+                                    borderRadius: '4px',
                                     border: !row.batch_number && row.is_selected ? '1.5px solid #f59e0b' : '1px solid #cbd5e1',
-                                    fontSize: '12px',
+                                    fontSize: '11.5px',
                                     boxSizing: 'border-box',
                                   }}
                                 />
                               )
                             ) : (
-                              <span style={{ fontSize: '12px', color: '#94a3b8' }}>
-                                Không có
-                              </span>
+                              <span style={{ fontSize: '12px', color: '#cbd5e1' }}>—</span>
                             )}
                           </td>
 
-                          {/* Thành tiền trên 1 dòng */}
-                          <td style={{ padding: '10px 12px', textAlign: 'right', verticalAlign: 'middle', whiteSpace: 'nowrap', fontWeight: '700', color: row.is_selected ? '#059669' : '#94a3b8', fontVariantNumeric: 'tabular-nums' }}>
+                          {/* THÀNH TIỀN */}
+                          <td style={{ padding: '8px 6px', textAlign: 'right', verticalAlign: 'middle', whiteSpace: 'nowrap', fontWeight: '700', color: row.is_selected ? '#059669' : '#94a3b8', fontVariantNumeric: 'tabular-nums' }}>
                             {row.is_selected ? `${lineRefund.toLocaleString('vi-VN')} đ` : '0 đ'}
                           </td>
 
-                          {/* Kho nhập lại trên 1 dòng, không icon, không tiếng Anh */}
-                          <td style={{ padding: '10px 12px', verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
+                          {/* KHO NHẬP */}
+                          <td style={{ padding: '8px 4px', textAlign: 'center', verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
                             {row.is_selected ? (
                               isDamaged ? (
                                 <span
                                   style={{
                                     whiteSpace: 'nowrap',
                                     display: 'inline-block',
-                                    padding: '3px 8px',
-                                    borderRadius: '5px',
+                                    padding: '2px 6px',
+                                    borderRadius: '4px',
                                     backgroundColor: '#fee2e2',
                                     color: '#b91c1c',
-                                    fontSize: '12px',
+                                    fontSize: '11.5px',
                                     fontWeight: '700',
                                     border: '1px solid #fca5a5',
                                   }}
@@ -918,11 +927,11 @@ export const CreateReturnOrderPage: React.FC<CreateReturnOrderPageProps> = ({
                                   style={{
                                     whiteSpace: 'nowrap',
                                     display: 'inline-block',
-                                    padding: '3px 8px',
-                                    borderRadius: '5px',
+                                    padding: '2px 6px',
+                                    borderRadius: '4px',
                                     backgroundColor: '#eff6ff',
                                     color: '#1d4ed8',
-                                    fontSize: '12px',
+                                    fontSize: '11.5px',
                                     fontWeight: '700',
                                     border: '1px solid #bfdbfe',
                                   }}
@@ -931,7 +940,7 @@ export const CreateReturnOrderPage: React.FC<CreateReturnOrderPageProps> = ({
                                 </span>
                               )
                             ) : (
-                              <span style={{ fontSize: '12px', color: '#cbd5e1' }}>---</span>
+                              <span style={{ fontSize: '12px', color: '#cbd5e1' }}>—</span>
                             )}
                           </td>
                         </tr>
