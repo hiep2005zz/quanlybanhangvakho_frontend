@@ -24,7 +24,7 @@ export const StockCardView: React.FC<StockCardViewProps> = ({
   productCode: initialProductCode,
   token,
   onBack,
-  onNavigateToTab,
+  onNavigateToTab: _onNavigateToTab,
 }) => {
   const [selectedProductId, setSelectedProductId] = useState<number>(initialProductId);
   const [productsList, setProductsList] = useState<ProductItem[]>([]);
@@ -224,23 +224,6 @@ export const StockCardView: React.FC<StockCardViewProps> = ({
       url: voucherInfo?.url,
       entry: entry || null,
     });
-  };
-
-  const handleNavigateVoucher = () => {
-    if (!activeVoucher) return;
-    const { code, type } = activeVoucher;
-    const currentCode = data?.summary?.product_code || initialProductCode || '';
-    if (onNavigateToTab) {
-      if (type === 'grn' || code.startsWith('GRN-') || code.startsWith('PNK-')) {
-        onNavigateToTab('goods-receipt', code, currentCode);
-      } else if (type === 'order' || type === 'issue' || code.startsWith('ORD') || code.startsWith('DH') || code.startsWith('PXK')) {
-        onNavigateToTab('orders', code, currentCode);
-      } else if (type === 'transfer' || code.startsWith('CK-')) {
-        onNavigateToTab('stock-transfers', code, currentCode);
-      } else if (type === 'audit' || code.startsWith('PKK-')) {
-        onNavigateToTab('stock-audits', code, currentCode);
-      }
-    }
   };
 
   const handleResetFilters = () => {
@@ -1290,46 +1273,6 @@ export const StockCardView: React.FC<StockCardViewProps> = ({
               >
                 Đóng
               </button>
-              {onNavigateToTab && !activeVoucher.code.startsWith('DK-') && !activeVoucher.code.startsWith('TX-') && !activeVoucher.code.startsWith('PKK-') && (
-                <button
-                  type="button"
-                  onClick={handleNavigateVoucher}
-                  style={{
-                    padding: '8px 16px',
-                    borderRadius: '6px',
-                    border: 'none',
-                    backgroundColor: '#2563eb',
-                    color: '#ffffff',
-                    fontSize: '13px',
-                    fontWeight: '700',
-                    cursor: 'pointer',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                  }}
-                  title={
-                    activeVoucher.code.startsWith('ORD') || activeVoucher.code.startsWith('DH')
-                      ? 'Mở chi tiết đơn hàng xuất bán'
-                      : 'Mở chứng từ gốc'
-                  }
-                >
-                  {activeVoucher.code.startsWith('ORD') || activeVoucher.code.startsWith('DH') || activeVoucher.code.startsWith('PXK') || activeVoucher.type === 'order' || activeVoucher.type === 'issue' ? (
-                    <>
-                      <svg style={{ width: '15px', height: '15px' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                      </svg>
-                      <span>Xem chi tiết đơn hàng xuất ({activeVoucher.code})</span>
-                    </>
-                  ) : (
-                    <>
-                      <svg style={{ width: '15px', height: '15px' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                      </svg>
-                      <span>Mở chứng từ gốc</span>
-                    </>
-                  )}
-                </button>
-              )}
             </div>
           </div>
         </div>
