@@ -2161,6 +2161,51 @@ export async function getDealersApi(token: string): Promise<DealerItem[]> {
   return Array.isArray(data) ? data : (data.items || []);
 }
 
+export interface DealerPaginationResponse {
+  items: DealerItem[];
+  total: number;
+  page: number;
+  page_size: number;
+  has_more?: boolean;
+}
+
+export async function getDealersPaginatedApi(
+  token: string,
+  params?: { page?: number; page_size?: number; search?: string }
+): Promise<DealerPaginationResponse> {
+  const query = new URLSearchParams();
+  if (params?.page) query.append('page', String(params.page));
+  if (params?.page_size) query.append('page_size', String(params.page_size));
+  if (params?.search && params.search.trim()) query.append('search', params.search.trim());
+
+  const qs = query.toString();
+  const url = `${API_BASE_URL}/dealers${qs ? `?${qs}` : ''}`;
+  const response = await authenticatedFetch(url, {
+    method: 'GET',
+  }, token);
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi tải danh sách đại lý (Mã lỗi ${response.status})`);
+  }
+  if (Array.isArray(data)) {
+    return {
+      items: data,
+      total: data.length,
+      page: 1,
+      page_size: data.length,
+      has_more: false,
+    };
+  }
+  return {
+    items: data.items || data.dealers || [],
+    total: data.total || 0,
+    page: data.page || 1,
+    page_size: data.page_size || 10,
+    has_more: data.has_more !== undefined ? data.has_more : ((data.page || 1) * (data.page_size || 10) < (data.total || 0)),
+  };
+}
+
 export interface PriceBookItem {
   id?: number;
   price_book_id?: number;

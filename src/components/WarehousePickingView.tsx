@@ -41,7 +41,7 @@ export const WarehousePickingView: React.FC<WarehousePickingViewProps> = ({
 
   // State các dòng soạn thực tế: map từ product_id -> { picked_quantity, shortage_reason, is_done }
   interface ItemState {
-    picked_quantity: number;
+    picked_quantity: number | string;
     shortage_reason: string;
     is_done: boolean;
   }
@@ -140,17 +140,27 @@ export const WarehousePickingView: React.FC<WarehousePickingViewProps> = ({
   };
 
   // Thao tác trên từng dòng soạn (chặn số âm và chặn soạn vượt quá số lượng đơn yêu cầu)
-  const handleSetPickedQty = (productId: number, qty: number, totalOrdered: number) => {
-    const safeQty = Math.min(Math.max(0, qty), totalOrdered);
+  const handleSetPickedQty = (productId: number, qty: number | string, totalOrdered: number) => {
+    let safeQty: number | string = qty;
+    if (typeof qty === 'number') {
+      safeQty = Math.min(Math.max(0, qty), totalOrdered);
+    } else if (qty === '') {
+      safeQty = '';
+    } else {
+      const parsed = parseInt(String(qty), 10);
+      safeQty = isNaN(parsed) ? '' : Math.min(Math.max(0, parsed), totalOrdered);
+    }
+
     setItemsState((prev) => {
       const cur = prev[productId] || { picked_quantity: totalOrdered, shortage_reason: '', is_done: false };
+      const numericQty = typeof safeQty === 'number' ? safeQty : (parseInt(String(safeQty), 10) || 0);
       return {
         ...prev,
         [productId]: {
           ...cur,
           picked_quantity: safeQty,
           // Nếu đã nhặt đủ thì có thể xóa lý do thiếu
-          shortage_reason: safeQty >= totalOrdered ? '' : cur.shortage_reason,
+          shortage_reason: numericQty >= totalOrdered ? '' : cur.shortage_reason,
         },
       };
     });
@@ -173,15 +183,17 @@ export const WarehousePickingView: React.FC<WarehousePickingViewProps> = ({
       const nextDone = !cur.is_done;
       // Khi đánh dấu hoàn tất, nếu số lượng đang bằng 0 thì tự động gán đủ số lượng cần soạn
       let nextQty = cur.picked_quantity;
-      if (nextDone && nextQty === 0) {
+      const numQty = typeof nextQty === 'number' ? nextQty : (parseInt(String(nextQty), 10) || 0);
+      if (nextDone && numQty === 0) {
         nextQty = totalOrdered;
       }
+      const finalNum = typeof nextQty === 'number' ? nextQty : (parseInt(String(nextQty), 10) || 0);
       return {
         ...prev,
         [productId]: {
           ...cur,
           picked_quantity: nextQty,
-          shortage_reason: nextQty >= totalOrdered ? '' : cur.shortage_reason,
+          shortage_reason: finalNum >= totalOrdered ? '' : cur.shortage_reason,
           is_done: nextDone,
         },
       };
@@ -217,7 +229,7 @@ export const WarehousePickingView: React.FC<WarehousePickingViewProps> = ({
     items.forEach((it) => {
       totalUnits += it.total_ordered_quantity;
       const st = itemsState[it.product_id];
-      const pQty = st ? st.picked_quantity : 0;
+      const pQty = st ? (typeof st.picked_quantity === 'number' ? st.picked_quantity : (parseInt(String(st.picked_quantity), 10) || 0)) : 0;
       pickedUnits += pQty;
       if (st && st.is_done) {
         completed += 1;
@@ -243,7 +255,7 @@ export const WarehousePickingView: React.FC<WarehousePickingViewProps> = ({
     if (!activeBatch) return [];
     return activeBatch.route_items.filter((it) => {
       const st = itemsState[it.product_id];
-      const pQty = st ? st.picked_quantity : 0;
+      const pQty = st ? (typeof st.picked_quantity === 'number' ? st.picked_quantity : (parseInt(String(st.picked_quantity), 10) || 0)) : 0;
       const isShortage = pQty < it.total_ordered_quantity;
       const isDone = st ? st.is_done : false;
 
@@ -276,7 +288,7 @@ export const WarehousePickingView: React.FC<WarehousePickingViewProps> = ({
         shortage_reason: '',
         is_done: false,
       };
-      const pQty = st.picked_quantity;
+      const pQty = typeof st.picked_quantity === 'number' ? st.picked_quantity : (parseInt(String(st.picked_quantity), 10) || 0);
       if (pQty < it.total_ordered_quantity) {
         if (!st.shortage_reason || st.shortage_reason.trim().length < 3) {
           missingReasonItems.push(it);
@@ -294,8 +306,9 @@ export const WarehousePickingView: React.FC<WarehousePickingViewProps> = ({
 
     if (missingReasonItems.length > 0) {
       const first = missingReasonItems[0];
+      const firstQty = typeof itemsState[first.product_id]?.picked_quantity === 'number' ? itemsState[first.product_id]?.picked_quantity : (parseInt(String(itemsState[first.product_id]?.picked_quantity), 10) || 0);
       emitStatusToast({
-        message: `Sản phẩm ${first.product_code} (${first.product_name}) soạn thiếu (${itemsState[first.product_id]?.picked_quantity || 0}/${first.total_ordered_quantity})! BẮT BUỘC PHẢI NHẬP LÝ DO THIẾU HÀNG.`,
+        message: `Sản phẩm ${first.product_code} (${first.product_name}) soạn thiếu (${firstQty}/${first.total_ordered_quantity})! BẮT BUỘC PHẢI NHẬP LÝ DO THIẾU HÀNG.`,
         type: 'error',
         title: 'Soạn thiếu chưa có lý do',
       });
@@ -478,8 +491,54 @@ export const WarehousePickingView: React.FC<WarehousePickingViewProps> = ({
             </div>
 
             {/* PHẦN 2: TABLE TOOLBAR (TÍCH HỢP TRỰC TIẾP TRÊN ĐỈNH BẢNG - KHÔNG TÁCH RỜI) */}
-            <div className="p-2.5 sm:p-3 bg-gray-50/75 border-b border-gray-200 flex flex-col sm:flex-row gap-2.5 justify-between items-stretch sm:items-center">
-              {/* Filter buttons dạng cuộn ngang chạm mượt */}
+            <div className="p-2.5 sm:p-3 bg-gray-50/75 border-b border-gray-200 flex flex-col sm:flex-row gap-2.5 sm:gap-3 justify-start items-stretch sm:items-center">
+              {/* Quick Search - Đưa lên đầu toolbar */}
+              <div className="relative w-full sm:w-auto sm:min-w-[280px]">
+                <div
+                  style={{
+                    position: 'absolute',
+                    left: '11px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    pointerEvents: 'none',
+                    display: 'flex',
+                    alignItems: 'center',
+                    zIndex: 2,
+                  }}
+                >
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="11" cy="11" r="8" />
+                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                  </svg>
+                </div>
+                <input
+                  type="text"
+                  placeholder="Tìm mã SP, tên, vị trí kệ..."
+                  value={routeSearch}
+                  onChange={(e) => setRouteSearch(e.target.value)}
+                  style={{ paddingLeft: '34px', paddingRight: routeSearch ? '32px' : '12px' }}
+                  className="w-full py-1.5 text-xs sm:text-sm border border-gray-300 rounded-lg text-gray-900 bg-white focus:outline-hidden focus:ring-2 focus:ring-emerald-600 shadow-2xs"
+                />
+                {routeSearch && (
+                  <button
+                    type="button"
+                    onClick={() => setRouteSearch('')}
+                    style={{
+                      position: 'absolute',
+                      right: '10px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      zIndex: 2,
+                    }}
+                    className="flex items-center text-gray-400 hover:text-gray-600 border-0 bg-transparent cursor-pointer p-0.5"
+                    title="Xóa tìm kiếm"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+
+              {/* Filter buttons dạng cuộn ngang nằm cạnh nút tìm kiếm */}
               <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto pb-1 sm:pb-0 scrollbar-none snap-x pr-2">
                 <button
                   type="button"
@@ -526,17 +585,6 @@ export const WarehousePickingView: React.FC<WarehousePickingViewProps> = ({
                   Soạn thiếu: {stats.shortages}
                 </button>
               </div>
-
-              {/* Quick Search */}
-              <div className="relative w-full sm:w-auto sm:min-w-[240px]">
-                <input
-                  type="text"
-                  placeholder="Tìm mã SP, tên, vị trí kệ..."
-                  value={routeSearch}
-                  onChange={(e) => setRouteSearch(e.target.value)}
-                  className="w-full px-3 py-1.5 text-xs sm:text-sm border border-gray-300 rounded-lg text-gray-900 bg-white focus:outline-hidden focus:ring-2 focus:ring-emerald-600 shadow-2xs"
-                />
-              </div>
             </div>
 
             {/* PHẦN 3: BẢNG DỮ LIỆU DÒNG HÀNG (LIỀN MẠCH, KHÔNG TÁCH RỜI) */}
@@ -575,7 +623,9 @@ export const WarehousePickingView: React.FC<WarehousePickingViewProps> = ({
                         shortage_reason: '',
                         is_done: false,
                       };
-                      const pQty = curState.picked_quantity;
+                      const pQty = typeof curState.picked_quantity === 'number'
+                        ? curState.picked_quantity
+                        : (parseInt(String(curState.picked_quantity), 10) || 0);
                       const isShortage = pQty < item.total_ordered_quantity;
                       const isDone = curState.is_done;
                       const isExpanded = !!expandedBreakdown[item.product_id];
@@ -657,24 +707,51 @@ export const WarehousePickingView: React.FC<WarehousePickingViewProps> = ({
                                   <button
                                     type="button"
                                     disabled={pQty <= 0}
-                                    onClick={() => handleSetPickedQty(item.product_id, pQty - 1, item.total_ordered_quantity)}
+                                    onClick={() => handleSetPickedQty(item.product_id, Math.max(0, pQty - 1), item.total_ordered_quantity)}
                                     className="w-8 h-8 flex items-center justify-center text-base font-bold text-gray-700 hover:bg-gray-100 active:bg-gray-200 border-0 bg-transparent cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed touch-manipulation select-none"
                                     title="Giảm 1"
                                   >
                                     -
                                   </button>
                                   <input
-                                    type="number"
-                                    min="0"
-                                    max={item.total_ordered_quantity}
-                                    value={pQty}
-                                    onChange={(e) => handleSetPickedQty(item.product_id, parseInt(e.target.value) || 0, item.total_ordered_quantity)}
+                                    type="text"
+                                    inputMode="numeric"
+                                    pattern="[0-9]*"
+                                    value={curState.picked_quantity !== undefined ? curState.picked_quantity : item.total_ordered_quantity}
+                                    onFocus={(e) => e.target.select()}
+                                    onClick={(e) => (e.target as HTMLInputElement).select()}
+                                    onKeyDown={(e) => {
+                                      if (
+                                        !/^[0-9]$/.test(e.key) &&
+                                        !['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter'].includes(e.key) &&
+                                        !e.ctrlKey &&
+                                        !e.metaKey
+                                      ) {
+                                        e.preventDefault();
+                                      }
+                                    }}
+                                    onChange={(e) => {
+                                      const clean = e.target.value.replace(/[^0-9]/g, '');
+                                      if (clean === '') {
+                                        handleSetPickedQty(item.product_id, '', item.total_ordered_quantity);
+                                        return;
+                                      }
+                                      const stripped = clean.replace(/^0+(?=\d)/, '');
+                                      const num = parseInt(stripped || '0', 10);
+                                      const safe = Math.min(num, item.total_ordered_quantity);
+                                      handleSetPickedQty(item.product_id, safe, item.total_ordered_quantity);
+                                    }}
+                                    onBlur={() => {
+                                      if (curState.picked_quantity === '' || isNaN(Number(curState.picked_quantity))) {
+                                        handleSetPickedQty(item.product_id, 0, item.total_ordered_quantity);
+                                      }
+                                    }}
                                     className="w-12 h-8 text-center font-bold text-sm text-gray-900 border-0 focus:outline-hidden"
                                   />
                                   <button
                                     type="button"
                                     disabled={pQty >= item.total_ordered_quantity}
-                                    onClick={() => handleSetPickedQty(item.product_id, pQty + 1, item.total_ordered_quantity)}
+                                    onClick={() => handleSetPickedQty(item.product_id, Math.min(item.total_ordered_quantity, pQty + 1), item.total_ordered_quantity)}
                                     className="w-8 h-8 flex items-center justify-center text-base font-bold text-gray-700 hover:bg-gray-100 active:bg-gray-200 border-0 bg-transparent cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed touch-manipulation select-none"
                                     title="Tăng 1"
                                   >
