@@ -34,7 +34,8 @@ export type TabType =
   | 'batches'
   | 'delivery-tracking'
   | 'stock-adjustments'
-  | 'payment-collections';
+  | 'payment-collections'
+  | 'debt-payments';
 
 export interface SidebarProps {
   activeTab?: TabType;
@@ -60,6 +61,7 @@ export interface SidebarProps {
   isWarehouseOrAdmin?: boolean;
   isAdmin?: boolean;
   canAccessPaymentCollections?: boolean;
+  canAccessDebtPayments?: boolean;
   onLogout?: () => void;
   isLoggingOut?: boolean;
   isMobileOpen?: boolean;
@@ -101,6 +103,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isWarehouseOrAdmin = false,
   isAdmin: _isAdmin = false,
   canAccessPaymentCollections = false,
+  canAccessDebtPayments = false,
   onLogout,
   isLoggingOut = false,
 }) => {
@@ -492,6 +495,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
           <path d="M8 7h6M8 11h6" />
+        </svg>
+      ),
+    },
+    {
+      id: 'btn-sidebar-debt-payments',
+      tab: 'debt-payments',
+      path: '/debt-payments',
+      label: 'Thu tiền & Đối trừ công nợ',
+      visible: Boolean(canAccessDebtPayments),
+      icon: (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="2" y="4" width="20" height="16" rx="2" />
+          <line x1="2" y1="10" x2="22" y2="10" />
+          <path d="M6 15h2M12 15h6" />
         </svg>
       ),
     },
