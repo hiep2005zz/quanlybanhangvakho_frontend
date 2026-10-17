@@ -910,32 +910,6 @@ export default function DealerSearchView({
                                     <span>{onlyMyDealers ? 'Đang lọc: Tuyến của tôi' : 'Xem tuyến của tôi'}</span>
                                 </button>
                             )}
-                            {canManageStatus && (
-                                <button
-                                    type="button"
-                                    onClick={handleOpenPolicyModal}
-                                    className="dealer-btn-config"
-                                    style={{
-                                        fontFamily: 'inherit',
-                                        fontSize: '13.5px',
-                                        fontWeight: 600,
-                                        height: '38px',
-                                        padding: '0 14px',
-                                        borderRadius: '8px',
-                                        border: '1.5px solid #0284c7',
-                                        background: '#f0f9ff',
-                                        color: '#0369a1',
-                                        cursor: 'pointer',
-                                        display: 'inline-flex',
-                                        alignItems: 'center',
-                                        gap: '6px',
-                                        whiteSpace: 'nowrap',
-                                    }}
-                                    title="Cấu hình quy tắc cảnh báo và chặn / chuyển duyệt khi đại lý vi phạm công nợ"
-                                >
-                                    <span>Cấu hình cảnh báo & khoá bán (S7-04)</span>
-                                </button>
-                            )}
                             <button
                                 type="button"
                                 onClick={handleOpenAddModal}
