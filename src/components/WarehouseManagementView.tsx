@@ -129,6 +129,7 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
   const [isLocFormPageActive, setIsLocFormPageActive] = useState<boolean>(false);
   const [isZoneFormPageActive, setIsZoneFormPageActive] = useState<boolean>(false);
   const [isRackFormPageActive, setIsRackFormPageActive] = useState<boolean>(false);
+  const [isAssignFormPageActive, setIsAssignFormPageActive] = useState<boolean>(false);
 
   // Modal Kho
   const [isWhModalOpen, setIsWhModalOpen] = useState<boolean>(false);
@@ -233,6 +234,8 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
     quantity: 10,
   });
   const [isAssignSubmitting, setIsAssignSubmitting] = useState<boolean>(false);
+  const [assignProductSearch, setAssignProductSearch] = useState<string>('');
+  const [assignProductDisplayLimit, setAssignProductDisplayLimit] = useState<number>(20);
 
   // Modal Chuyển sản phẩm giữa các vị trí
   const [isTransferModalOpen, setIsTransferModalOpen] = useState<boolean>(false);
@@ -897,28 +900,39 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
       return;
     }
 
+    if (selectedWarehouse) {
+      fetchLocationProducts(selectedWarehouse.id);
+    }
+
     const initialLocationId = locations[0]?.id || 0;
 
     // Tìm sản phẩm đầu tiên còn tồn chưa gán hoặc có thể gán cho vị trí này
     const candidateProd = allProducts.find((p) => {
-      const assignedOther = locationProducts
-        .filter((lp) => lp.product_id === p.id && lp.location_id !== initialLocationId)
+      const assignedAll = locationProducts
+        .filter((lp) => lp.product_id === p.id)
         .reduce((sum, lp) => sum + (Number(lp.quantity) || 0), 0);
-      return Math.max(0, (p.stock || 0) - assignedOther) > 0;
+      return (p.stock || 0) - assignedAll > 0;
     }) || allProducts[0];
 
     const targetProdId = candidateProd?.id || 1;
+    const curLocItem = locationProducts.find(
+      (lp) => lp.location_id === initialLocationId && lp.product_id === targetProdId
+    );
+    const existingQtyOnLoc = curLocItem ? Number(curLocItem.quantity) || 0 : 0;
     const assignedOther = locationProducts
       .filter((lp) => lp.product_id === targetProdId && lp.location_id !== initialLocationId)
       .reduce((sum, lp) => sum + (Number(lp.quantity) || 0), 0);
-    const maxCanAssign = candidateProd ? Math.max(0, (candidateProd.stock || 0) - assignedOther) : 0;
+    const unassigned = Math.max(0, (candidateProd?.stock || 0) - assignedOther - existingQtyOnLoc);
 
     setAssignFormData({
       location_id: initialLocationId,
       product_id: targetProdId,
-      quantity: Math.min(10, maxCanAssign),
+      quantity: existingQtyOnLoc > 0 ? existingQtyOnLoc : unassigned,
     });
-    setIsAssignModalOpen(true);
+    setAssignProductSearch('');
+    setAssignProductDisplayLimit(20);
+    setIsAssignFormPageActive(true);
+    setIsAssignModalOpen(false);
   };
 
   // --- KIỂM TRA SỨC CHỨA VỊ TRÍ KỆ (RACK LEVEL) ---
@@ -1082,6 +1096,7 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
       );
       setSuccessMsg(res.message || 'Đã gán sản phẩm vào vị trí thành công.');
       setIsAssignModalOpen(false);
+      setIsAssignFormPageActive(false);
       await Promise.all([
         fetchLocationProducts(selectedWarehouse.id),
         fetchLocations(selectedWarehouse.id),
@@ -1949,6 +1964,487 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
               <button type="submit" className="wh-btn wh-btn-primary" disabled={isRackSubmitting}>
                 {isRackSubmitting ? 'Đang lưu...' : editingRack ? 'Cập nhật dãy kệ' : 'Tạo dãy kệ'}
               </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  // 5. TRANG GÁN SẢN PHẨM VÀO VỊ TRÍ KỆ (FULL PAGE VIEW SANG TRANG MỚI)
+  if (isAssignFormPageActive && selectedWarehouse) {
+    const currentSelectedProd = allProducts.find((p) => p.id === assignFormData.product_id);
+    const curUnit = currentSelectedProd?.base_unit || 'Cái';
+    const curTotalStock = currentSelectedProd?.stock || 0;
+    const curAssignedAll = locationProducts
+      .filter((lp) => lp.product_id === assignFormData.product_id)
+      .reduce((sum, lp) => sum + (Number(lp.quantity) || 0), 0);
+    const curLocItem = locationProducts.find(
+      (lp) => lp.location_id === assignFormData.location_id && lp.product_id === assignFormData.product_id
+    );
+    const curQtyAtThisLoc = curLocItem ? Number(curLocItem.quantity) || 0 : 0;
+    const curAssignedOther = curAssignedAll - curQtyAtThisLoc;
+    const curMaxAllowed = Math.max(0, curTotalStock - curAssignedOther);
+    const curUnassigned = Math.max(0, curTotalStock - curAssignedAll);
+    const isOverAssigned = Number(assignFormData.quantity) > curMaxAllowed;
+
+    const filteredList = allProducts.filter((p) => {
+      if (!assignProductSearch.trim()) return true;
+      const q = assignProductSearch.trim().toLowerCase();
+      return (
+        (p.name || '').toLowerCase().includes(q) ||
+        (p.code || '').toLowerCase().includes(q)
+      );
+    });
+    const displayedList = filteredList.slice(0, assignProductDisplayLimit);
+
+    return (
+      <div className="wh-container wh-form-fullscreen-wrap">
+        <div className="wh-form-master-frame" style={{ maxWidth: '1200px', margin: '0 auto', width: '100%' }}>
+          <div className="wh-form-page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+              <button
+                type="button"
+                className="wh-btn wh-btn-secondary"
+                onClick={() => setIsAssignFormPageActive(false)}
+                style={{ padding: '7px 16px', fontWeight: '600' }}
+              >
+                Quay lại
+              </button>
+              <div>
+                <h2 style={{ margin: 0, fontSize: '18px', fontWeight: '800', color: '#0f172a' }}>
+                  Gán Sản Phẩm Vào Vị Trí Kệ
+                </h2>
+                <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>
+                  Kho: <strong style={{ color: '#0f172a' }}>{selectedWarehouse.name}</strong> ({selectedWarehouse.code})
+                </div>
+              </div>
+            </div>
+
+            <div style={{ fontSize: '12px', color: '#64748b' }}>
+              Phân bổ hàng hóa từ tồn tổng vào từng vị trí kệ lưu trữ cụ thể
+            </div>
+          </div>
+
+          <form onSubmit={handleSaveAssignProduct}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1.1fr 1fr', gap: '14px', alignItems: 'start' }}>
+              {/* CỘT 1 (BÊN TRÁI): CHỌN SẢN PHẨM */}
+              <div
+                style={{
+                  background: '#ffffff',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '10px',
+                  padding: '18px',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '12px',
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <h3 style={{ margin: 0, fontSize: '14.5px', fontWeight: '700', color: '#0f172a' }}>
+                    Chọn sản phẩm cần gán vào kệ <span style={{ color: '#ef4444' }}>*</span>
+                  </h3>
+                  <span style={{ fontSize: '11.5px', color: '#64748b' }}>
+                    Hiện 20 SP/lượt (cuộn để xem thêm)
+                  </span>
+                </div>
+
+                {/* Thanh tìm kiếm sản phẩm - Không dùng icon */}
+                <div style={{ position: 'relative' }}>
+                  <input
+                    type="text"
+                    placeholder="Tìm theo tên hoặc mã sản phẩm (SP001, Polo...)..."
+                    value={assignProductSearch}
+                    onChange={(e) => {
+                      setAssignProductSearch(e.target.value);
+                      setAssignProductDisplayLimit(20);
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '8px 30px 8px 12px',
+                      fontSize: '13px',
+                      borderRadius: '6px',
+                      border: '1px solid #cbd5e1',
+                      outline: 'none',
+                      color: '#0f172a',
+                      background: '#ffffff',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                  {assignProductSearch && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAssignProductSearch('');
+                        setAssignProductDisplayLimit(20);
+                      }}
+                      style={{
+                        position: 'absolute',
+                        right: '8px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        background: 'transparent',
+                        border: 'none',
+                        cursor: 'pointer',
+                        color: '#94a3b8',
+                        fontSize: '11px',
+                        padding: '2px',
+                        lineHeight: 1,
+                      }}
+                      title="Xóa tìm kiếm"
+                    >
+                      X
+                    </button>
+                  )}
+                </div>
+
+                {/* Danh sách thẻ sản phẩm - Không icon */}
+                <div
+                  style={{
+                    maxHeight: '440px',
+                    overflowY: 'auto',
+                    border: '1px solid #cbd5e1',
+                    borderRadius: '8px',
+                    background: '#ffffff',
+                    padding: '6px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '5px',
+                  }}
+                  onScroll={(e) => {
+                    const target = e.currentTarget;
+                    if (target.scrollHeight - target.scrollTop <= target.clientHeight + 40) {
+                      if (assignProductDisplayLimit < filteredList.length) {
+                        setAssignProductDisplayLimit((prev) => Math.min(prev + 20, filteredList.length));
+                      }
+                    }
+                  }}
+                >
+                  {displayedList.length === 0 ? (
+                    <div style={{ padding: '24px', textAlign: 'center', color: '#94a3b8', fontSize: '13px' }}>
+                      Không tìm thấy sản phẩm nào phù hợp với &quot;{assignProductSearch}&quot;
+                    </div>
+                  ) : (
+                    displayedList.map((p) => {
+                      const pAssignedTotal = locationProducts
+                        .filter((lp) => lp.product_id === p.id)
+                        .reduce((sum, lp) => sum + (Number(lp.quantity) || 0), 0);
+                      const pAtThisLoc =
+                        locationProducts.find(
+                          (lp) => lp.location_id === assignFormData.location_id && lp.product_id === p.id
+                        )?.quantity || 0;
+                      const pAssignedOther = pAssignedTotal - pAtThisLoc;
+                      const pAvailableForLoc = Math.max(0, (p.stock || 0) - pAssignedOther);
+                      const isExhausted = pAvailableForLoc <= 0 && pAtThisLoc === 0;
+                      const isSelected = assignFormData.product_id === p.id;
+
+                      return (
+                        <div
+                          key={p.id}
+                          onClick={() => {
+                            if (isExhausted) return;
+                            const otherAssigned = locationProducts
+                              .filter((lp) => lp.product_id === p.id && lp.location_id !== assignFormData.location_id)
+                              .reduce((sum, lp) => sum + (Number(lp.quantity) || 0), 0);
+                            const locQty = locationProducts.find(
+                              (lp) => lp.location_id === assignFormData.location_id && lp.product_id === p.id
+                            )?.quantity || 0;
+                            const unassigned = Math.max(0, (p.stock || 0) - otherAssigned - locQty);
+                            setAssignFormData({
+                              ...assignFormData,
+                              product_id: p.id,
+                              quantity: locQty > 0 ? locQty : unassigned,
+                            });
+                          }}
+                          style={{
+                            padding: '9px 12px',
+                            borderRadius: '6px',
+                            border: isSelected ? '1.5px solid #0284c7' : '1px solid #e2e8f0',
+                            background: isSelected ? '#f0f9ff' : isExhausted ? '#f8fafc' : '#ffffff',
+                            cursor: isExhausted ? 'not-allowed' : 'pointer',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            transition: 'all 0.1s ease',
+                            opacity: isExhausted ? 0.6 : 1,
+                          }}
+                          onMouseEnter={(e) => {
+                            if (!isExhausted && !isSelected) {
+                              e.currentTarget.style.backgroundColor = '#f1f5f9';
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            if (!isExhausted && !isSelected) {
+                              e.currentTarget.style.backgroundColor = '#ffffff';
+                            }
+                          }}
+                        >
+                          <div style={{ minWidth: 0, flex: 1, paddingRight: '12px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <span style={{ fontWeight: '700', color: isSelected ? '#0284c7' : '#0f172a', fontSize: '13px' }}>
+                                [{p.code}] {p.name}
+                              </span>
+                              {isSelected && (
+                                <span style={{ fontSize: '11px', color: '#0284c7', fontWeight: '800' }}>
+                                  Đang chọn
+                                </span>
+                              )}
+                            </div>
+                            <div style={{ fontSize: '11.5px', color: '#64748b', marginTop: '3px' }}>
+                              Tồn tổng: <strong style={{ color: '#0f172a' }}>{p.stock}</strong> | Chưa gán:{' '}
+                              <strong style={{ color: isExhausted ? '#dc2626' : '#16a34a' }}>
+                                {Math.max(0, (p.stock || 0) - pAssignedTotal)} {p.base_unit || 'Cái'}
+                              </strong>
+                              {isExhausted && (
+                                <span style={{ color: '#dc2626', fontWeight: '600', marginLeft: '6px' }}>
+                                  (Đã gán hết vào kệ)
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          <div style={{ flexShrink: 0 }}>
+                            <input
+                              type="radio"
+                              name="fullscreen_selected_assign_product"
+                              checked={isSelected}
+                              disabled={isExhausted}
+                              readOnly
+                              style={{ cursor: isExhausted ? 'not-allowed' : 'pointer' }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+
+                  {assignProductDisplayLimit < filteredList.length && (
+                    <div style={{ padding: '8px', textAlign: 'center' }}>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setAssignProductDisplayLimit((prev) => Math.min(prev + 20, filteredList.length))
+                        }
+                        style={{
+                          background: '#f8fafc',
+                          border: '1px dashed #cbd5e1',
+                          borderRadius: '5px',
+                          padding: '6px 14px',
+                          fontSize: '12px',
+                          color: '#0284c7',
+                          fontWeight: '600',
+                          cursor: 'pointer',
+                          width: '100%',
+                        }}
+                      >
+                        Tải thêm 20 sản phẩm tiếp theo (Còn {filteredList.length - assignProductDisplayLimit} SP)...
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* CỘT 2 (BÊN PHẢI): VỊ TRÍ KỆ & SỐ LƯỢNG GÁN */}
+              <div
+                style={{
+                  background: '#ffffff',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '10px',
+                  padding: '18px',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '16px',
+                }}
+              >
+                <h3 style={{ margin: 0, fontSize: '14.5px', fontWeight: '700', color: '#0f172a' }}>
+                  Thông tin phân bổ & Vị trí kệ
+                </h3>
+
+                {/* Khung 4 ô tóm tắt tồn kho sát gần nhau */}
+                {currentSelectedProd && (
+                  <div
+                    style={{
+                      background: '#f8fafc',
+                      border: '1px solid #e2e8f0',
+                      borderRadius: '8px',
+                      padding: '8px 8px',
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(4, 1fr)',
+                      gap: '6px',
+                      textAlign: 'center',
+                    }}
+                  >
+                    <div style={{ background: '#ffffff', padding: '6px 4px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+                      <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600' }}>Tồn kho tổng</div>
+                      <div style={{ fontSize: '14.5px', fontWeight: '800', color: '#0f172a', marginTop: '2px' }}>
+                        {curTotalStock} <span style={{ fontSize: '11px', fontWeight: '500' }}>{curUnit}</span>
+                      </div>
+                    </div>
+
+                    <div style={{ background: '#ffffff', padding: '6px 4px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+                      <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600' }}>Đã gán ở kệ khác</div>
+                      <div style={{ fontSize: '14.5px', fontWeight: '800', color: '#64748b', marginTop: '2px' }}>
+                        {curAssignedOther} <span style={{ fontSize: '11px', fontWeight: '500' }}>{curUnit}</span>
+                      </div>
+                    </div>
+
+                    <div style={{ background: '#ffffff', padding: '6px 4px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+                      <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600' }}>Hiện tại kệ này</div>
+                      <div style={{ fontSize: '14.5px', fontWeight: '800', color: '#0284c7', marginTop: '2px' }}>
+                        {curQtyAtThisLoc} <span style={{ fontSize: '11px', fontWeight: '500' }}>{curUnit}</span>
+                      </div>
+                    </div>
+
+                    <div style={{ background: curUnassigned > 0 ? '#f0fdf4' : '#f8fafc', padding: '6px 4px', borderRadius: '6px', border: curUnassigned > 0 ? '1px solid #bbf7d0' : '1px solid #e2e8f0' }}>
+                      <div style={{ fontSize: '11px', color: curUnassigned > 0 ? '#166534' : '#64748b', fontWeight: '700' }}>
+                        Tồn chưa gán
+                      </div>
+                      <div style={{ fontSize: '14.5px', fontWeight: '800', color: curUnassigned > 0 ? '#16a34a' : '#64748b', marginTop: '2px' }}>
+                        {curUnassigned} <span style={{ fontSize: '11px', fontWeight: '500' }}>{curUnit}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="wh-form-group">
+                  <label style={{ fontWeight: '700', fontSize: '13px', color: '#1e293b', marginBottom: '6px', display: 'block' }}>
+                    Chọn vị trí kệ lưu trữ <span className="wh-required-star">*</span>
+                  </label>
+                  <select
+                    className="wh-form-select"
+                    style={{
+                      width: '100%',
+                      padding: '9px 12px',
+                      fontSize: '13px',
+                      borderRadius: '6px',
+                      border: '1px solid #cbd5e1',
+                      color: '#0f172a',
+                      backgroundColor: '#ffffff'
+                    }}
+                    value={assignFormData.location_id}
+                    onChange={(e) => {
+                      const newLocId = Number(e.target.value);
+                      const locQty = locationProducts.find(
+                        (lp) => lp.location_id === newLocId && lp.product_id === assignFormData.product_id
+                      )?.quantity || 0;
+                      setAssignFormData({ ...assignFormData, location_id: newLocId, quantity: locQty });
+                    }}
+                  >
+                    {locations.map((l) => (
+                      <option key={l.id} value={l.id}>
+                        {l.location_code} — {l.location_name || l.zone || 'Kệ'} (Hiện có: {l.total_quantity} SP / Sức chứa: {l.max_capacity || 500} SP)
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="wh-form-group">
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                    <label style={{ fontWeight: '700', fontSize: '13px', color: '#1e293b', margin: 0 }}>
+                      Số lượng gán tại vị trí này <span className="wh-required-star">*</span>
+                    </label>
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      <button
+                        type="button"
+                        onClick={() => setAssignFormData({ ...assignFormData, quantity: curMaxAllowed })}
+                        style={{
+                          background: '#e0f2fe',
+                          color: '#0284c7',
+                          border: '1px solid #bae6fd',
+                          borderRadius: '4px',
+                          padding: '3px 8px',
+                          fontSize: '11.5px',
+                          fontWeight: '700',
+                          cursor: 'pointer',
+                        }}
+                        title={`Gán tối đa có thể cho kệ này (${curQtyAtThisLoc} hiện có + ${curUnassigned} chưa gán)`}
+                      >
+                        Gán tối đa ({curMaxAllowed})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setAssignFormData({ ...assignFormData, quantity: 0 })}
+                        style={{
+                          background: '#f1f5f9',
+                          color: '#475569',
+                          border: '1px solid #cbd5e1',
+                          borderRadius: '4px',
+                          padding: '3px 8px',
+                          fontSize: '11.5px',
+                          fontWeight: '600',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        0 (Gỡ khỏi kệ)
+                      </button>
+                    </div>
+                  </div>
+
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type="number"
+                      min={0}
+                      className="wh-form-input"
+                      style={{
+                        width: '100%',
+                        padding: '9px 40px 9px 12px',
+                        fontSize: '13.5px',
+                        fontWeight: '700',
+                        borderRadius: '6px',
+                        border: isOverAssigned ? '1.5px solid #dc2626' : '1px solid #cbd5e1',
+                        color: isOverAssigned ? '#dc2626' : '#0f172a',
+                        boxSizing: 'border-box',
+                      }}
+                      value={assignFormData.quantity}
+                      onChange={(e) => {
+                        const val = e.target.value === '' ? '' : Math.max(0, Number(e.target.value));
+                        setAssignFormData({ ...assignFormData, quantity: val });
+                      }}
+                    />
+                    <span
+                      style={{
+                        position: 'absolute',
+                        right: '12px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        color: '#64748b',
+                        fontSize: '12.5px',
+                        fontWeight: '600',
+                      }}
+                    >
+                      {curUnit}
+                    </span>
+                  </div>
+
+                  {isOverAssigned && (
+                    <div style={{ color: '#dc2626', fontSize: '12px', marginTop: '5px', fontWeight: '600' }}>
+                      Số lượng vượt quá mức cho phép tối đa ({curMaxAllowed} {curUnit}).
+                    </div>
+                  )}
+                </div>
+
+                <div style={{ marginTop: 'auto', paddingTop: '16px', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                  <button
+                    type="button"
+                    className="wh-btn wh-btn-secondary"
+                    onClick={() => setIsAssignFormPageActive(false)}
+                    disabled={isAssignSubmitting}
+                    style={{ padding: '8px 18px', fontWeight: '600' }}
+                  >
+                    Hủy bỏ
+                  </button>
+                  <button
+                    type="submit"
+                    className="wh-btn wh-btn-primary"
+                    disabled={isAssignSubmitting || isOverAssigned || Number(assignFormData.quantity) < 0}
+                    style={{ padding: '8px 24px', fontWeight: '700' }}
+                  >
+                    {isAssignSubmitting ? 'Đang lưu...' : 'Lưu phân bổ vào kệ'}
+                  </button>
+                </div>
+              </div>
             </div>
           </form>
         </div>
@@ -3521,101 +4017,263 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
               <form onSubmit={handleSaveAssignProduct}>
                 <div className="wh-modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '14px', padding: '16px 20px' }}>
                   <div className="wh-form-group">
-                    <label style={{ fontWeight: '700', fontSize: '13px', color: '#1e293b', marginBottom: '6px' }}>
-                      Chọn sản phẩm <span className="wh-required-star">*</span>
-                    </label>
-                    <select
-                      className="wh-form-select"
-                      style={{
-                        width: '100%',
-                        padding: '8px 12px',
-                        fontSize: '13px',
-                        borderRadius: '6px',
-                        border: '1px solid #cbd5e1',
-                        color: '#0f172a',
-                        backgroundColor: '#ffffff'
-                      }}
-                      value={assignFormData.product_id}
-                      onChange={(e) => {
-                        const newProdId = Number(e.target.value);
-                        const prodObj = allProducts.find((p) => p.id === newProdId);
-                        const otherAssigned = locationProducts
-                          .filter((lp) => lp.product_id === newProdId && lp.location_id !== assignFormData.location_id)
-                          .reduce((sum, lp) => sum + (Number(lp.quantity) || 0), 0);
-                        const maxCan = prodObj ? Math.max(0, (prodObj.stock || 0) - otherAssigned) : 0;
-                        setAssignFormData({
-                          ...assignFormData,
-                          product_id: newProdId,
-                          quantity: Math.min(Number(assignFormData.quantity) || 10, maxCan),
-                        });
-                      }}
-                    >
-                      {allProducts.map((p) => {
-                        const pAssignedTotal = locationProducts
-                          .filter((lp) => lp.product_id === p.id)
-                          .reduce((sum, lp) => sum + (Number(lp.quantity) || 0), 0);
-                        const pAtThisLoc = locationProducts.find(
-                          (lp) => lp.location_id === assignFormData.location_id && lp.product_id === p.id
-                        )?.quantity || 0;
-                        const pAssignedOther = pAssignedTotal - pAtThisLoc;
-                        const pAvailableForLoc = Math.max(0, (p.stock || 0) - pAssignedOther);
-                        const isExhausted = pAvailableForLoc <= 0 && pAtThisLoc === 0;
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                      <label style={{ fontWeight: '700', fontSize: '13px', color: '#1e293b', margin: 0 }}>
+                        Chọn sản phẩm <span className="wh-required-star">*</span>
+                      </label>
+                      <span style={{ fontSize: '11px', color: '#64748b' }}>
+                        Hiển thị 20 SP/lượt (cuộn xuống để xem thêm)
+                      </span>
+                    </div>
 
+                    {/* Thanh tìm kiếm sản phẩm trong modal gán vị trí */}
+                    <div style={{ position: 'relative', marginBottom: '8px' }}>
+                      <input
+                        type="text"
+                        placeholder="Tìm theo tên hoặc mã sản phẩm (SP001, Áo khoác...)..."
+                        value={assignProductSearch}
+                        onChange={(e) => {
+                          setAssignProductSearch(e.target.value);
+                          setAssignProductDisplayLimit(20);
+                        }}
+                        style={{
+                          width: '100%',
+                          padding: '7px 30px 7px 10px',
+                          fontSize: '12.5px',
+                          borderRadius: '6px',
+                          border: '1px solid #cbd5e1',
+                          outline: 'none',
+                          color: '#0f172a',
+                          background: '#ffffff',
+                          boxSizing: 'border-box',
+                        }}
+                      />
+                      {assignProductSearch && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAssignProductSearch('');
+                            setAssignProductDisplayLimit(20);
+                          }}
+                          style={{
+                            position: 'absolute',
+                            right: '8px',
+                            top: '50%',
+                            transform: 'translateY(-50%)',
+                            background: 'transparent',
+                            border: 'none',
+                            cursor: 'pointer',
+                            color: '#94a3b8',
+                            fontSize: '11px',
+                            padding: '2px',
+                            lineHeight: 1,
+                          }}
+                          title="Xóa tìm kiếm"
+                        >
+                          X
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Danh sách sản phẩm dạng thẻ cuộn mượt mà có tải thêm 20 sản phẩm/lần */}
+                    {(() => {
+                      const filteredList = allProducts.filter((p) => {
+                        if (!assignProductSearch.trim()) return true;
+                        const q = assignProductSearch.trim().toLowerCase();
                         return (
-                          <option
-                            key={p.id}
-                            value={p.id}
-                            disabled={isExhausted}
-                            style={{ color: isExhausted ? '#94a3b8' : '#0f172a' }}
-                          >
-                            [{p.code}] {p.name} (Tồn tổng: {p.stock} | Chưa gán: {Math.max(0, (p.stock || 0) - pAssignedTotal)} {p.base_unit || 'Cái'}{isExhausted ? ' — ❌ ĐÃ GÁN HẾT VÀO KỆ' : ''})
-                          </option>
+                          (p.name || '').toLowerCase().includes(q) ||
+                          (p.code || '').toLowerCase().includes(q)
                         );
-                      })}
-                    </select>
+                      });
+                      const displayedList = filteredList.slice(0, assignProductDisplayLimit);
+
+                      return (
+                        <div
+                          style={{
+                            maxHeight: '210px',
+                            overflowY: 'auto',
+                            border: '1px solid #cbd5e1',
+                            borderRadius: '6px',
+                            background: '#ffffff',
+                            padding: '4px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '3px',
+                          }}
+                          onScroll={(e) => {
+                            const target = e.currentTarget;
+                            if (target.scrollHeight - target.scrollTop <= target.clientHeight + 30) {
+                              if (assignProductDisplayLimit < filteredList.length) {
+                                setAssignProductDisplayLimit((prev) => Math.min(prev + 20, filteredList.length));
+                              }
+                            }
+                          }}
+                        >
+                          {displayedList.length === 0 ? (
+                            <div style={{ padding: '16px', textAlign: 'center', color: '#94a3b8', fontSize: '12px' }}>
+                              Không tìm thấy sản phẩm nào phù hợp với &quot;{assignProductSearch}&quot;
+                            </div>
+                          ) : (
+                            displayedList.map((p) => {
+                              const pAssignedTotal = locationProducts
+                                .filter((lp) => lp.product_id === p.id)
+                                .reduce((sum, lp) => sum + (Number(lp.quantity) || 0), 0);
+                              const pAtThisLoc =
+                                locationProducts.find(
+                                  (lp) => lp.location_id === assignFormData.location_id && lp.product_id === p.id
+                                )?.quantity || 0;
+                              const pAssignedOther = pAssignedTotal - pAtThisLoc;
+                              const pAvailableForLoc = Math.max(0, (p.stock || 0) - pAssignedOther);
+                              const isExhausted = pAvailableForLoc <= 0 && pAtThisLoc === 0;
+                              const isSelected = assignFormData.product_id === p.id;
+
+                              return (
+                                <div
+                                  key={p.id}
+                                  onClick={() => {
+                                    if (isExhausted) return;
+                                    const otherAssigned = locationProducts
+                                      .filter((lp) => lp.product_id === p.id && lp.location_id !== assignFormData.location_id)
+                                      .reduce((sum, lp) => sum + (Number(lp.quantity) || 0), 0);
+                                    const maxCan = Math.max(0, (p.stock || 0) - otherAssigned);
+                                    setAssignFormData({
+                                      ...assignFormData,
+                                      product_id: p.id,
+                                      quantity: Math.min(Number(assignFormData.quantity) || 10, maxCan),
+                                    });
+                                  }}
+                                  style={{
+                                    padding: '7px 10px',
+                                    borderRadius: '5px',
+                                    border: isSelected ? '1.5px solid #0284c7' : '1px solid #e2e8f0',
+                                    background: isSelected ? '#f0f9ff' : isExhausted ? '#f8fafc' : '#ffffff',
+                                    cursor: isExhausted ? 'not-allowed' : 'pointer',
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    alignItems: 'center',
+                                    transition: 'all 0.1s ease',
+                                    opacity: isExhausted ? 0.6 : 1,
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    if (!isExhausted && !isSelected) {
+                                      e.currentTarget.style.backgroundColor = '#f1f5f9';
+                                    }
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    if (!isExhausted && !isSelected) {
+                                      e.currentTarget.style.backgroundColor = '#ffffff';
+                                    }
+                                  }}
+                                >
+                                  <div style={{ minWidth: 0, flex: 1, paddingRight: '8px' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                      <span style={{ fontWeight: '700', color: isSelected ? '#0284c7' : '#0f172a', fontSize: '12px' }}>
+                                        [{p.code}] {p.name}
+                                      </span>
+                                      {isSelected && (
+                                        <span style={{ fontSize: '11px', color: '#0284c7', fontWeight: '800' }}>
+                                          Đang chọn
+                                        </span>
+                                      )}
+                                    </div>
+                                    <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
+                                      Tồn tổng: <strong style={{ color: '#0f172a' }}>{p.stock}</strong> | Chưa gán:{' '}
+                                      <strong style={{ color: isExhausted ? '#dc2626' : '#16a34a' }}>
+                                        {Math.max(0, (p.stock || 0) - pAssignedTotal)} {p.base_unit || 'Cái'}
+                                      </strong>
+                                      {isExhausted && (
+                                        <span style={{ color: '#dc2626', fontWeight: '600', marginLeft: '6px' }}>
+                                          (Đã gán hết vào kệ)
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  <div style={{ flexShrink: 0 }}>
+                                    <input
+                                      type="radio"
+                                      name="selected_assign_product"
+                                      checked={isSelected}
+                                      disabled={isExhausted}
+                                      readOnly
+                                      style={{ cursor: isExhausted ? 'not-allowed' : 'pointer' }}
+                                    />
+                                  </div>
+                                </div>
+                              );
+                            })
+                          )}
+
+                          {/* Dòng tải thêm nếu còn sản phẩm */}
+                          {assignProductDisplayLimit < filteredList.length && (
+                            <div style={{ padding: '6px', textAlign: 'center' }}>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setAssignProductDisplayLimit((prev) => Math.min(prev + 20, filteredList.length))
+                                }
+                                style={{
+                                  background: '#f8fafc',
+                                  border: '1px dashed #cbd5e1',
+                                  borderRadius: '4px',
+                                  padding: '4px 12px',
+                                  fontSize: '11.5px',
+                                  color: '#0284c7',
+                                  fontWeight: '600',
+                                  cursor: 'pointer',
+                                  width: '100%',
+                                }}
+                              >
+                                Tải thêm 20 sản phẩm tiếp theo (Còn {filteredList.length - assignProductDisplayLimit} SP)...
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
 
-                  {/* Bảng tóm tắt trạng thái phân bổ tồn kho của sản phẩm */}
+                  {/* Bảng tóm tắt trạng thái phân bổ tồn kho của sản phẩm sát gần nhau */}
                   {currentSelectedProd && (
                     <div
                       style={{
                         background: '#f8fafc',
                         border: '1px solid #e2e8f0',
                         borderRadius: '8px',
-                        padding: '12px 14px',
+                        padding: '8px 8px',
                         display: 'grid',
                         gridTemplateColumns: 'repeat(4, 1fr)',
-                        gap: '10px',
+                        gap: '6px',
                         textAlign: 'center',
                       }}
                     >
-                      <div style={{ background: '#ffffff', padding: '8px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+                      <div style={{ background: '#ffffff', padding: '6px 4px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
                         <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600' }}>Tồn kho tổng</div>
-                        <div style={{ fontSize: '15px', fontWeight: '800', color: '#0f172a', marginTop: '2px' }}>
+                        <div style={{ fontSize: '14.5px', fontWeight: '800', color: '#0f172a', marginTop: '2px' }}>
                           {curTotalStock} <span style={{ fontSize: '11px', fontWeight: '500' }}>{curUnit}</span>
                         </div>
                       </div>
 
-                      <div style={{ background: '#ffffff', padding: '8px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+                      <div style={{ background: '#ffffff', padding: '6px 4px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
                         <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600' }}>Đã gán ở kệ khác</div>
-                        <div style={{ fontSize: '15px', fontWeight: '800', color: '#64748b', marginTop: '2px' }}>
+                        <div style={{ fontSize: '14.5px', fontWeight: '800', color: '#64748b', marginTop: '2px' }}>
                           {curAssignedOther} <span style={{ fontSize: '11px', fontWeight: '500' }}>{curUnit}</span>
                         </div>
                       </div>
 
-                      <div style={{ background: '#ffffff', padding: '8px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+                      <div style={{ background: '#ffffff', padding: '6px 4px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
                         <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600' }}>Hiện tại kệ này</div>
-                        <div style={{ fontSize: '15px', fontWeight: '800', color: '#0284c7', marginTop: '2px' }}>
+                        <div style={{ fontSize: '14.5px', fontWeight: '800', color: '#0284c7', marginTop: '2px' }}>
                           {curQtyAtThisLoc} <span style={{ fontSize: '11px', fontWeight: '500' }}>{curUnit}</span>
                         </div>
                       </div>
 
-                      <div style={{ background: curMaxAllowed > 0 ? '#f0fdf4' : '#fef2f2', padding: '8px', borderRadius: '6px', border: curMaxAllowed > 0 ? '1px solid #bbf7d0' : '1px solid #fecaca' }}>
-                        <div style={{ fontSize: '11px', color: curMaxAllowed > 0 ? '#166534' : '#991b1b', fontWeight: '700' }}>
-                          Tối đa có thể gán
+                      <div style={{ background: (curTotalStock - curAssignedAll) > 0 ? '#f0fdf4' : '#f8fafc', padding: '6px 4px', borderRadius: '6px', border: (curTotalStock - curAssignedAll) > 0 ? '1px solid #bbf7d0' : '1px solid #e2e8f0' }}>
+                        <div style={{ fontSize: '11px', color: (curTotalStock - curAssignedAll) > 0 ? '#166534' : '#64748b', fontWeight: '700' }}>
+                          Tồn chưa gán
                         </div>
-                        <div style={{ fontSize: '15px', fontWeight: '800', color: curMaxAllowed > 0 ? '#16a34a' : '#dc2626', marginTop: '2px' }}>
-                          {curMaxAllowed} <span style={{ fontSize: '11px', fontWeight: '500' }}>{curUnit}</span>
+                        <div style={{ fontSize: '14.5px', fontWeight: '800', color: (curTotalStock - curAssignedAll) > 0 ? '#16a34a' : '#64748b', marginTop: '2px' }}>
+                          {Math.max(0, curTotalStock - curAssignedAll)} <span style={{ fontSize: '11px', fontWeight: '500' }}>{curUnit}</span>
                         </div>
                       </div>
                     </div>
@@ -3639,7 +4297,10 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                       value={assignFormData.location_id}
                       onChange={(e) => {
                         const newLocId = Number(e.target.value);
-                        setAssignFormData({ ...assignFormData, location_id: newLocId });
+                        const locQty = locationProducts.find(
+                          (lp) => lp.location_id === newLocId && lp.product_id === assignFormData.product_id
+                        )?.quantity || 0;
+                        setAssignFormData({ ...assignFormData, location_id: newLocId, quantity: locQty });
                       }}
                     >
                       {locations.map((l) => (
@@ -3669,8 +4330,9 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                             color: '#0284c7',
                             cursor: 'pointer',
                           }}
+                          title={`Gán tối đa có thể cho kệ này (${curQtyAtThisLoc} hiện có + ${Math.max(0, curTotalStock - curAssignedAll)} chưa gán)`}
                         >
-                          Gán tất cả ({curMaxAllowed})
+                          Gán tối đa ({curMaxAllowed})
                         </button>
                         <button
                           type="button"

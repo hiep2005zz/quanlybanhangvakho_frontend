@@ -582,18 +582,30 @@ export async function loginApi(username: string, password: string): Promise<Logi
     body: JSON.stringify({ username, password }),
   });
 
-  const data = await response.json();
+  let data: any = null;
+  try {
+    data = await response.json();
+  } catch {
+    data = null;
+  }
 
   if (!response.ok) {
-    const errorDetail = typeof data.detail === 'object' ? data.detail : { message: data.detail };
+    const errorDetail = data && typeof data.detail === 'object' ? data.detail : { message: data?.detail };
     throw {
       status: response.status,
-      message: errorDetail.message || 'Lỗi đăng nhập',
-      lock_remaining_seconds: errorDetail.lock_remaining_seconds,
-      remaining_attempts: errorDetail.remaining_attempts,
+      message: errorDetail?.message || (response.status >= 500 ? 'Máy chủ đang bảo trì hoặc chưa sẵn sàng. Vui lòng thử lại sau.' : 'Lỗi đăng nhập'),
+      lock_remaining_seconds: errorDetail?.lock_remaining_seconds,
+      remaining_attempts: errorDetail?.remaining_attempts,
     };
   }
 
+  if (!data || !data.access_token) {
+    throw {
+      status: response.status,
+      message: 'Phản hồi từ máy chủ không hợp lệ.',
+    };
+  }
+
   saveClientSession(data.user, data.access_token, data.expires_in || 900);
   return data;
 }

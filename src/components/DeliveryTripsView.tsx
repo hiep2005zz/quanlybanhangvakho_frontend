@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   User,
   DeliveryTrip,
@@ -288,6 +288,7 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
   const [createWarehouseName, setCreateWarehouseName] = useState('');
   const [createNote, setCreateNote] = useState('');
   const [selectedDispatchIds, setSelectedDispatchIds] = useState<number[]>([]);
+  const [createDispatchSearch, setCreateDispatchSearch] = useState('');
   const [isSubmittingCreate, setIsSubmittingCreate] = useState(false);
 
   // Danh sách điểm dừng được gom tạm thời khi tạo chuyến
@@ -408,14 +409,38 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
     rebuildStagedStops(nextIds, eligibleDispatches);
   };
 
+  // Lọc danh sách phiếu xuất kho theo từ khóa tìm kiếm
+  const filteredEligibleDispatches = useMemo(() => {
+    if (!createDispatchSearch.trim()) return eligibleDispatches;
+    const q = createDispatchSearch.trim().toLowerCase();
+    return eligibleDispatches.filter((disp: any) =>
+      (disp.dispatch_code || '').toLowerCase().includes(q) ||
+      (disp.order_code || '').toLowerCase().includes(q) ||
+      (disp.receiver_name || '').toLowerCase().includes(q) ||
+      (disp.dealer_name || '').toLowerCase().includes(q) ||
+      (disp.receiver_phone || '').toLowerCase().includes(q) ||
+      (disp.address || '').toLowerCase().includes(q) ||
+      (disp.items_summary || '').toLowerCase().includes(q)
+    );
+  }, [eligibleDispatches, createDispatchSearch]);
+
   const handleSelectAllDispatches = () => {
-    if (selectedDispatchIds.length === eligibleDispatches.length) {
+    const targetList = createDispatchSearch.trim() ? filteredEligibleDispatches : eligibleDispatches;
+    const idsToAdd = targetList.map((d) => d.dispatch_id);
+    const unionIds = Array.from(new Set([...selectedDispatchIds, ...idsToAdd]));
+    setSelectedDispatchIds(unionIds);
+    rebuildStagedStops(unionIds, eligibleDispatches);
+  };
+
+  const handleDeselectAllDispatches = () => {
+    if (!createDispatchSearch.trim()) {
       setSelectedDispatchIds([]);
       setStagedStops([]);
     } else {
-      const allIds = eligibleDispatches.map((d) => d.dispatch_id);
-      setSelectedDispatchIds(allIds);
-      rebuildStagedStops(allIds, eligibleDispatches);
+      const idsToRemove = new Set(filteredEligibleDispatches.map((d) => d.dispatch_id));
+      const nextIds = selectedDispatchIds.filter((id) => !idsToRemove.has(id));
+      setSelectedDispatchIds(nextIds);
+      rebuildStagedStops(nextIds, eligibleDispatches);
     }
   };
 
@@ -478,6 +503,33 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
 
   // Gửi tạo chuyến giao hàng
   const handleSubmitCreateTrip = async () => {
+    if (!createWarehouseName || !createWarehouseName.trim()) {
+      emitStatusToast({
+        type: 'error',
+        title: 'Chưa chọn kho xuất phát',
+        message: 'Vui lòng chọn hoặc nhập Kho xuất phát cho chuyến giao hàng.',
+      });
+      return;
+    }
+
+    if (!createDriverId) {
+      emitStatusToast({
+        type: 'error',
+        title: 'Chưa chọn tài xế',
+        message: 'Vui lòng chọn Tài xế phụ trách cho chuyến giao hàng.',
+      });
+      return;
+    }
+
+    if (!createVehicleId) {
+      emitStatusToast({
+        type: 'error',
+        title: 'Chưa chọn phương tiện',
+        message: 'Vui lòng chọn Phương tiện / Xe cho chuyến giao hàng.',
+      });
+      return;
+    }
+
     if (selectedDispatchIds.length === 0) {
       emitStatusToast({
         type: 'error',
@@ -503,8 +555,8 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
 
       const res = await createDeliveryTripApi(token, {
         delivery_date: createDeliveryDate,
-        driver_id: createDriverId !== '' ? Number(createDriverId) : undefined,
-        vehicle_id: createVehicleId !== '' ? Number(createVehicleId) : undefined,
+        driver_id: Number(createDriverId),
+        vehicle_id: Number(createVehicleId),
         warehouse_name: createWarehouseName,
         note: createNote.trim() || undefined,
         stops: payloadStops,
@@ -729,10 +781,13 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
                 fontWeight: '700',
                 color: '#ffffff',
                 cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
                 boxShadow: '0 2px 4px rgba(2,132,199,0.3)',
               }}
+              title="In trực tiếp hoặc Lưu dưới dạng file PDF (Save as PDF)"
             >
-              In phiếu ngay (A4)
+              In phiếu / Xuất PDF
             </button>
           </div>
         </div>
@@ -1290,25 +1345,46 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
             >
               Hủy bỏ
             </button>
-            <button
-              type="button"
-              onClick={handleSubmitCreateTrip}
-              disabled={isSubmittingCreate || selectedDispatchIds.length === 0}
-              style={{
-                padding: '6px 18px',
-                background: '#0284c7',
-                border: 'none',
-                borderRadius: '6px',
-                fontSize: '12px',
-                fontWeight: '700',
-                color: '#ffffff',
-                cursor: isSubmittingCreate || selectedDispatchIds.length === 0 ? 'not-allowed' : 'pointer',
-                opacity: isSubmittingCreate || selectedDispatchIds.length === 0 ? 0.6 : 1,
-                boxShadow: '0 1px 2px rgba(2, 132, 199, 0.2)',
-              }}
-            >
-              {isSubmittingCreate ? 'Đang tạo...' : `Xác nhận tạo chuyến (${selectedDispatchIds.length} phiếu)`}
-            </button>
+            {(() => {
+              const isCreateTripFormValid =
+                selectedDispatchIds.length > 0 &&
+                Boolean(createWarehouseName && createWarehouseName.trim()) &&
+                Boolean(createDriverId) &&
+                Boolean(createVehicleId);
+
+              return (
+                <button
+                  type="button"
+                  onClick={handleSubmitCreateTrip}
+                  disabled={isSubmittingCreate || !isCreateTripFormValid}
+                  style={{
+                    padding: '6px 18px',
+                    background: '#0284c7',
+                    border: 'none',
+                    borderRadius: '6px',
+                    fontSize: '12px',
+                    fontWeight: '700',
+                    color: '#ffffff',
+                    cursor: isSubmittingCreate || !isCreateTripFormValid ? 'not-allowed' : 'pointer',
+                    opacity: isSubmittingCreate || !isCreateTripFormValid ? 0.6 : 1,
+                    boxShadow: '0 1px 2px rgba(2, 132, 199, 0.2)',
+                  }}
+                  title={
+                    !createWarehouseName?.trim()
+                      ? 'Vui lòng chọn Kho xuất phát'
+                      : !createDriverId
+                      ? 'Vui lòng chọn Tài xế phụ trách'
+                      : !createVehicleId
+                      ? 'Vui lòng chọn Phương tiện / Xe'
+                      : selectedDispatchIds.length === 0
+                      ? 'Vui lòng chọn ít nhất 1 phiếu xuất kho'
+                      : 'Bấm để tạo chuyến giao hàng'
+                  }
+                >
+                  {isSubmittingCreate ? 'Đang tạo...' : `Xác nhận tạo chuyến (${selectedDispatchIds.length} phiếu)`}
+                </button>
+              );
+            })()}
           </div>
         </div>
 
@@ -1332,7 +1408,7 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
           >
             <div>
               <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#475569', marginBottom: '3px' }}>
-                Ngày giao hàng *
+                Ngày giao hàng <span style={{ color: '#ef4444' }}>*</span>
               </label>
               <input
                 type="date"
@@ -1352,7 +1428,7 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
 
             <div>
               <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#475569', marginBottom: '3px' }}>
-                Kho xuất phát
+                Kho xuất phát <span style={{ color: '#ef4444' }}>*</span>
               </label>
               <SearchableCombobox
                 value={createWarehouseName}
@@ -1368,7 +1444,7 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
                     disabled: false,
                   };
                 })}
-                placeholder="Nhập hoặc chọn kho từ database..."
+                placeholder="-- Chọn kho xuất phát * --"
                 allowCustomText={true}
                 onChange={(val) => setCreateWarehouseName(val)}
                 onCustomTextChange={(text) => setCreateWarehouseName(text)}
@@ -1377,7 +1453,7 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
 
             <div>
               <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#475569', marginBottom: '3px' }}>
-                Tài xế phụ trách
+                Tài xế phụ trách <span style={{ color: '#ef4444' }}>*</span>
               </label>
               <SearchableCombobox
                 value={createDriverId}
@@ -1389,7 +1465,7 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
                   isBusy: d.is_busy,
                   disabled: d.is_busy,
                 }))}
-                placeholder="-- Nhập/chọn tài xế (hoặc để sau) --"
+                placeholder="-- Chọn tài xế phụ trách * --"
                 allowCustomText={false}
                 onChange={(val) => setCreateDriverId(val ? Number(val) : '')}
               />
@@ -1397,7 +1473,7 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
 
             <div>
               <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#475569', marginBottom: '3px' }}>
-                Phương tiện / Xe
+                Phương tiện / Xe <span style={{ color: '#ef4444' }}>*</span>
               </label>
               <SearchableCombobox
                 value={createVehicleId}
@@ -1409,7 +1485,7 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
                   isBusy: v.is_busy,
                   disabled: v.is_busy,
                 }))}
-                placeholder="-- Nhập/chọn phương tiện (hoặc để sau) --"
+                placeholder="-- Chọn phương tiện / xe * --"
                 allowCustomText={false}
                 onChange={(val) => setCreateVehicleId(val ? Number(val) : '')}
               />
@@ -1453,10 +1529,14 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
         >
           <div
             style={{
+              padding: '8px 12px',
+              background: '#ffffff',
+              borderBottom: '1px solid #e2e8f0',
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
-              marginBottom: '8px',
+              flexWrap: 'wrap',
+              gap: '10px',
               flexShrink: 0,
             }}
           >
@@ -1469,22 +1549,94 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
               </span>
             </div>
 
-            <button
-              type="button"
-              onClick={handleSelectAllDispatches}
-              style={{
-                padding: '4px 10px',
-                background: '#f1f5f9',
-                border: '1px solid #cbd5e1',
-                borderRadius: '5px',
-                fontSize: '11px',
-                fontWeight: '600',
-                color: '#334155',
-                cursor: 'pointer',
-              }}
-            >
-              {selectedDispatchIds.length === eligibleDispatches.length && eligibleDispatches.length > 0 ? 'Bỏ chọn tất cả' : 'Chọn tất cả'}
-            </button>
+            {/* Cụm thanh tìm kiếm & Các nút Thao tác chọn/xóa tất cả */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              {/* Thanh tìm kiếm phiếu xuất */}
+              <div style={{ position: 'relative', width: '270px' }}>
+                <input
+                  type="text"
+                  placeholder="Tìm mã PXK, đơn hàng, khách..."
+                  value={createDispatchSearch}
+                  onChange={(e) => setCreateDispatchSearch(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '5px 28px 5px 10px',
+                    fontSize: '12px',
+                    borderRadius: '5px',
+                    border: '1px solid #cbd5e1',
+                    outline: 'none',
+                    color: '#0f172a',
+                    background: '#ffffff',
+                    boxSizing: 'border-box',
+                  }}
+                />
+                {createDispatchSearch && (
+                  <button
+                    type="button"
+                    onClick={() => setCreateDispatchSearch('')}
+                    style={{
+                      position: 'absolute',
+                      right: '7px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      background: 'transparent',
+                      border: 'none',
+                      cursor: 'pointer',
+                      color: '#94a3b8',
+                      fontSize: '11px',
+                      padding: 0,
+                      lineHeight: 1,
+                    }}
+                    title="Xóa tìm kiếm"
+                  >
+                    X
+                  </button>
+                )}
+              </div>
+
+              {/* Nút Thêm tất cả */}
+              <button
+                type="button"
+                onClick={handleSelectAllDispatches}
+                disabled={filteredEligibleDispatches.length === 0}
+                style={{
+                  padding: '5px 12px',
+                  background: '#0284c7',
+                  border: 'none',
+                  borderRadius: '5px',
+                  fontSize: '11.5px',
+                  fontWeight: '700',
+                  color: '#ffffff',
+                  cursor: filteredEligibleDispatches.length === 0 ? 'not-allowed' : 'pointer',
+                  opacity: filteredEligibleDispatches.length === 0 ? 0.6 : 1,
+                  whiteSpace: 'nowrap',
+                }}
+                title={createDispatchSearch.trim() ? 'Chọn tất cả các phiếu đang hiển thị' : 'Chọn tất cả phiếu xuất'}
+              >
+                Thêm tất cả {createDispatchSearch.trim() && `(${filteredEligibleDispatches.length})`}
+              </button>
+
+              {/* Nút Xóa tất cả */}
+              <button
+                type="button"
+                onClick={handleDeselectAllDispatches}
+                disabled={selectedDispatchIds.length === 0}
+                style={{
+                  padding: '5px 12px',
+                  background: '#f1f5f9',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: '5px',
+                  fontSize: '11.5px',
+                  fontWeight: '600',
+                  color: selectedDispatchIds.length === 0 ? '#94a3b8' : '#dc2626',
+                  cursor: selectedDispatchIds.length === 0 ? 'not-allowed' : 'pointer',
+                  whiteSpace: 'nowrap',
+                }}
+                title="Bỏ chọn các phiếu xuất đã chọn"
+              >
+                Xóa tất cả
+              </button>
+            </div>
           </div>
 
           {isLoadingCreateData ? (
@@ -1492,6 +1644,26 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
           ) : eligibleDispatches.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '20px', color: '#64748b', fontSize: '12px' }}>
               Hiện không có phiếu xuất kho nào sẵn sàng giao. Vui lòng xác nhận xuất kho trước tại mục <strong>Xuất kho & Giao thiếu</strong>.
+            </div>
+          ) : filteredEligibleDispatches.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '24px', color: '#64748b', fontSize: '12.5px' }}>
+              Không tìm thấy phiếu xuất kho nào phù hợp với &quot;<strong>{createDispatchSearch}</strong>&quot;.
+              <button
+                type="button"
+                onClick={() => setCreateDispatchSearch('')}
+                style={{
+                  marginLeft: '8px',
+                  background: 'none',
+                  border: 'none',
+                  color: '#0284c7',
+                  fontWeight: '700',
+                  cursor: 'pointer',
+                  textDecoration: 'underline',
+                  fontSize: '12px',
+                }}
+              >
+                Xóa bộ lọc tìm kiếm
+              </button>
             </div>
           ) : (
             <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', border: '1px solid #e2e8f0', borderRadius: '6px' }}>
@@ -1508,7 +1680,7 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
                   </tr>
                 </thead>
                 <tbody>
-                  {eligibleDispatches.map((disp: any) => {
+                  {filteredEligibleDispatches.map((disp: any) => {
                     const isChecked = selectedDispatchIds.includes(disp.dispatch_id);
                     return (
                       <tr

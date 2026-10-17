@@ -907,32 +907,42 @@ export const WarehouseDispatchView: React.FC<WarehouseDispatchViewProps> = ({
               background: '#ffffff',
             }}
           >
-            <div>
-              <h1 style={{ margin: 0, fontSize: '15.5px', fontWeight: '800', color: '#0f172a', whiteSpace: 'nowrap' }}>
-                Lịch Sử Phiếu Xuất Kho Đơn Hàng {historyOrderCode}
-              </h1>
-              <span style={{ fontSize: '11px', color: '#64748b', whiteSpace: 'nowrap' }}>
-                Phiếu xuất kho đã xác nhận là chứng từ bất biến, không thể sửa hoặc xóa.
-              </span>
-            </div>
-            <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
               <button
                 type="button"
                 onClick={() => setViewMode('list')}
                 style={{
-                  padding: '5px 14px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  padding: '6px 16px',
                   background: '#f8fafc',
                   border: '1px solid #cbd5e1',
                   borderRadius: '6px',
-                  fontSize: '12px',
+                  fontSize: '12.5px',
                   fontWeight: '600',
                   color: '#334155',
                   cursor: 'pointer',
                   whiteSpace: 'nowrap',
+                  transition: 'all 0.15s ease',
                 }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = '#e2e8f0';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = '#f8fafc';
+                }}
+                title="Đóng và quay lại danh sách"
               >
                 Đóng
               </button>
+              <div>
+                <h1 style={{ margin: 0, fontSize: '15.5px', fontWeight: '800', color: '#0f172a', whiteSpace: 'nowrap' }}>
+                  Lịch Sử Phiếu Xuất Kho Đơn Hàng {historyOrderCode}
+                </h1>
+                <span style={{ fontSize: '11px', color: '#64748b', whiteSpace: 'nowrap' }}>
+                  Phiếu xuất kho đã xác nhận là chứng từ bất biến, không thể sửa hoặc xóa.
+                </span>
+              </div>
             </div>
 
             <span style={{ padding: '4px 10px', background: '#dcfce7', color: '#15803d', borderRadius: '4px', fontSize: '11.5px', fontWeight: '700', whiteSpace: 'nowrap' }}>
