@@ -1123,7 +1123,7 @@ export const StockCardView: React.FC<StockCardViewProps> = ({
                   <div style={{ fontSize: '11px', textTransform: 'uppercase', color: '#64748b', fontWeight: '700', letterSpacing: '0.5px' }}>
                     Số hiệu chứng từ gốc
                   </div>
-                  <div style={{ fontSize: '18px', fontWeight: '800', color: '#0284c7' }}>
+                  <div style={{ fontSize: '18px', fontWeight: '800', color: '#0f172a' }}>
                     {activeVoucher.code}
                   </div>
                 </div>
@@ -1181,7 +1181,7 @@ export const StockCardView: React.FC<StockCardViewProps> = ({
                       {data?.summary?.product_name || initialProductName || 'Sản phẩm'}
                     </div>
                     <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>
-                      Mã SKU: <span style={{ fontFamily: 'monospace', fontWeight: '700', color: '#0284c7' }}>{data?.summary?.product_code || initialProductCode}</span>
+                      Mã SKU: <span style={{ fontFamily: 'monospace', fontWeight: '700', color: '#0f172a' }}>{data?.summary?.product_code || initialProductCode}</span>
                     </div>
                   </div>
                   <span style={{ fontSize: '12px', padding: '3px 8px', borderRadius: '6px', backgroundColor: '#f1f5f9', color: '#475569', fontWeight: '700' }}>
@@ -1242,7 +1242,7 @@ export const StockCardView: React.FC<StockCardViewProps> = ({
                       <div style={{ fontSize: '11px', color: '#64748b' }}>
                         {activeVoucher.code.startsWith('PKK-') ? 'Tồn thực đếm ghi nhận' : 'Tồn sau phát sinh'}
                       </div>
-                      <div style={{ fontSize: '13px', fontWeight: '800', color: '#0284c7', marginTop: '2px' }}>
+                      <div style={{ fontSize: '13px', fontWeight: '800', color: '#0f172a', marginTop: '2px' }}>
                         {activeVoucher.entry.balance_stock?.toLocaleString('vi-VN')} {displayUnit}
                       </div>
                     </div>
