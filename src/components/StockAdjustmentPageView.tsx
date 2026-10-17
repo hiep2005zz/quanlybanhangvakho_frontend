@@ -90,7 +90,8 @@ export const StockAdjustmentPageView: React.FC<StockAdjustmentPageViewProps> = (
   // Form Lập phiếu mới (Chế độ CREATE)
   const [createWarehouse, setCreateWarehouse] = useState<string>('KHO_HN');
   const [warehousesList, setWarehousesList] = useState<{ id: string; name: string }[]>([]);
-  const [createReasonType, setCreateReasonType] = useState<'damaged' | 'lost' | 'expired'>('damaged');
+  const [createReasonType, setCreateReasonType] = useState<'damaged' | 'lost' | 'expired' | 'other'>('damaged');
+  const [customReasonName, setCustomReasonName] = useState<string>('');
   const [createReasonNote, setCreateReasonNote] = useState<string>('');
   const [formItems, setFormItems] = useState<StockAdjustmentItemInput[]>([]);
   const [isSubmittingCreate, setIsSubmittingCreate] = useState<boolean>(false);
@@ -364,8 +365,18 @@ export const StockAdjustmentPageView: React.FC<StockAdjustmentPageViewProps> = (
       return;
     }
 
-    if (!createReasonNote.trim()) {
-      showToast('Bắt buộc phải nhập chi tiết nguyên nhân / biên bản sự việc tổn thất.', 'error');
+    const finalReasonNote = createReasonType === 'other'
+      ? (customReasonName.trim()
+          ? `${customReasonName.trim()}${createReasonNote.trim() ? ' - ' + createReasonNote.trim() : ''}`
+          : createReasonNote.trim())
+      : createReasonNote.trim();
+
+    if (!finalReasonNote || finalReasonNote.length < 2) {
+      if (createReasonType === 'other') {
+        showToast('Vui lòng nhập lý do khác cụ thể hoặc chi tiết biên bản tổn thất (tối thiểu 2 ký tự).', 'error');
+      } else {
+        showToast('Bắt buộc phải nhập chi tiết nguyên nhân / biên bản sự việc tổn thất.', 'error');
+      }
       return;
     }
 
@@ -375,7 +386,7 @@ export const StockAdjustmentPageView: React.FC<StockAdjustmentPageViewProps> = (
       const payload: StockAdjustmentCreatePayload = {
         warehouse_id: createWarehouse,
         reason_type: createReasonType,
-        reason_note: createReasonNote.trim(),
+        reason_note: finalReasonNote,
         items: formItems.map((it) => ({
           product_id: it.product_id,
           product_code: it.product_code,
@@ -404,6 +415,8 @@ export const StockAdjustmentPageView: React.FC<StockAdjustmentPageViewProps> = (
       // Reset form
       setFormItems([]);
       setCreateReasonNote('');
+      setCustomReasonName('');
+      setCreateReasonType('damaged');
       setViewMode('LIST');
       loadAdjustments();
       setTimeout(() => setSuccessMsg(null), 5000);
@@ -779,6 +792,7 @@ export const StockAdjustmentPageView: React.FC<StockAdjustmentPageViewProps> = (
               <option value="damaged">Hàng hỏng</option>
               <option value="lost">Hàng mất</option>
               <option value="expired">Hàng hết hạn</option>
+              <option value="other">Lý do khác</option>
             </select>
 
             {/* Nút Làm mới */}
@@ -882,13 +896,17 @@ export const StockAdjustmentPageView: React.FC<StockAdjustmentPageViewProps> = (
                                   ? '#fee2e2'
                                   : adj.reason_type === 'lost'
                                   ? '#fef3c7'
-                                  : '#f3e8ff',
+                                  : adj.reason_type === 'expired'
+                                  ? '#f3e8ff'
+                                  : '#e0e7ff',
                               color:
                                 adj.reason_type === 'damaged'
                                   ? '#991b1b'
                                   : adj.reason_type === 'lost'
                                   ? '#92400e'
-                                  : '#6b21a8',
+                                  : adj.reason_type === 'expired'
+                                  ? '#6b21a8'
+                                  : '#3730a3',
                             }}
                           >
                             {adj.reason_label}
@@ -1221,17 +1239,73 @@ export const StockAdjustmentPageView: React.FC<StockAdjustmentPageViewProps> = (
                 <option value="damaged">Hàng hỏng (Rách vỡ bao bì, biến dạng, ẩm mốc)</option>
                 <option value="lost">Hàng mất (Hao hụt thất thoát kiểm đếm kho)</option>
                 <option value="expired">Hàng hết hạn (Hết hạn sử dụng phải tiêu hủy)</option>
+                <option value="other">📝 Lý do khác (Tự điền lý do cụ thể)</option>
               </select>
+
+              {createReasonType === 'other' && (
+                <div style={{ marginTop: '8px' }}>
+                  <input
+                    type="text"
+                    placeholder="Điền lý do khác cụ thể (VD: Hàng mẫu, Chuyển công năng...)"
+                    value={customReasonName}
+                    onChange={(e) => setCustomReasonName(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      borderRadius: '6px',
+                      border: '1.5px solid #059669',
+                      fontSize: '13px',
+                      outline: 'none',
+                      boxSizing: 'border-box',
+                      backgroundColor: '#f0fdf4',
+                      color: '#0f172a',
+                    }}
+                  />
+                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '6px' }}>
+                    {['Hàng mẫu', 'Hao hụt kỹ thuật', 'Sai lệch kiểm kê', 'Chuyển mục đích', 'Hàng khuyến mãi'].map((tag) => (
+                      <button
+                        key={tag}
+                        type="button"
+                        onClick={() => setCustomReasonName(tag)}
+                        style={{
+                          fontSize: '11px',
+                          padding: '2px 7px',
+                          borderRadius: '4px',
+                          border: '1px solid #cbd5e1',
+                          backgroundColor: '#ffffff',
+                          color: '#475569',
+                          cursor: 'pointer',
+                          transition: 'all 0.15s ease',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.borderColor = '#059669';
+                          e.currentTarget.style.color = '#059669';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.borderColor = '#cbd5e1';
+                          e.currentTarget.style.color = '#475569';
+                        }}
+                      >
+                        + {tag}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Cột 3: Chi tiết nguyên nhân / Biên bản */}
             <div>
               <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>
-                Biên bản / Nguyên nhân cụ thể <span style={{ color: '#dc2626' }}>*</span>
+                {createReasonType === 'other' ? 'Biên bản / Chi tiết sự việc' : 'Biên bản / Nguyên nhân cụ thể'} <span style={{ color: '#dc2626' }}>*</span>
               </label>
               <input
                 type="text"
-                placeholder="Ví dụ: Rơi vỡ khi bốc dỡ ca sáng; Hao hụt đối chiếu kiểm đếm..."
+                placeholder={
+                  createReasonType === 'other'
+                    ? 'Ví dụ: Theo biên bản kiểm nghiệm số 08/BB, Quyết định số 15/QĐ...'
+                    : 'Ví dụ: Rơi vỡ khi bốc dỡ ca sáng; Hao hụt đối chiếu kiểm đếm...'
+                }
                 value={createReasonNote}
                 onChange={(e) => setCreateReasonNote(e.target.value)}
                 style={{

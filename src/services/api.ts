@@ -2548,6 +2548,20 @@ export interface WarehouseItem {
   total_stock_quantity: number;
 }
 
+export interface WarehouseKeeperItem {
+  id: number;
+  username: string;
+  full_name: string;
+  role: string;
+  roles?: string[];
+  role_title: string;
+  phone?: string | null;
+  email?: string | null;
+  branch?: string | null;
+  badge_color?: string | null;
+  is_active?: boolean;
+}
+
 export interface WarehouseLocationItem {
   id: number;
   warehouse_id: number;
@@ -2653,6 +2667,25 @@ export async function getWarehousesApi(
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
     throw new Error(errorData.detail || 'Lỗi tải danh sách kho hàng');
+  }
+  return response.json();
+}
+
+export async function getWarehouseKeepersApi(
+  token: string,
+  search?: string
+): Promise<WarehouseKeeperItem[]> {
+  const params = new URLSearchParams();
+  if (search && search.trim()) params.set('search', search.trim());
+  const qs = params.toString() ? `?${params.toString()}` : '';
+
+  const response = await authenticatedFetch(`${API_BASE_URL}/warehouses/keepers${qs}`, {
+    method: 'GET',
+  }, token);
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Lỗi tải danh sách nhân sự thủ kho');
   }
   return response.json();
 }
