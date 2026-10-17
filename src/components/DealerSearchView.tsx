@@ -19,7 +19,6 @@ import {
     getCreditPolicyConfigApi,
     updateCreditPolicyConfigApi,
     evaluateCreditPolicyApi,
-    evaluateSingleDealerCreditPolicyApi,
     recordDealerPaymentApi,
     CreditPolicyConfig,
 } from '../services/api';
@@ -342,23 +341,6 @@ export default function DealerSearchView({
             emitStatusToast({ title: 'Lỗi', message: err instanceof Error ? err.message : 'Lỗi đánh giá công nợ', type: 'error' });
         } finally {
             setEvaluatingPolicy(false);
-        }
-    };
-
-    const handleEvaluateSingleDealer = async (dealer: DealerSearchItem) => {
-        try {
-            const res = await evaluateSingleDealerCreditPolicyApi(dealer.id, token);
-            const flagMsg = res.result?.credit_warning_flag
-                ? `Cảnh báo: ${res.result.credit_flag_reason || 'Đang vi phạm công nợ'}`
-                : 'An toàn: Đại lý không có vi phạm công nợ.';
-            emitStatusToast({
-                title: `Đánh giá đại lý: ${dealer.name}`,
-                message: flagMsg,
-                type: res.result?.credit_warning_flag ? 'warning' : 'success',
-            });
-            handleSearch();
-        } catch (err) {
-            emitStatusToast({ title: 'Lỗi', message: err instanceof Error ? err.message : 'Không thể đánh giá đại lý', type: 'error' });
         }
     };
 
@@ -1587,11 +1569,11 @@ export default function DealerSearchView({
                                                                     className="dealer-dropdown-item"
                                                                     onClick={(e) => {
                                                                         e.stopPropagation();
-                                                                        handleEvaluateSingleDealer(dealer);
+                                                                        handleOpenPolicyModal();
                                                                         setOpenDropdownId(null);
                                                                     }}
                                                                 >
-                                                                    Đánh giá lại công nợ
+                                                                    Cấu hình cảnh báo
                                                                 </button>
                                                             )}
                                                             {canAssignDealer && (
