@@ -2,6 +2,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { ModalPortal } from './ModalPortal';
 import { emitStatusToast } from './StatusToast';
+import { SalespersonSelectDropdown } from './SalespersonSelectDropdown';
+import { RegionSelectDropdown } from './RegionSelectDropdown';
 import {
   fetchSalesTargets,
   fetchMySalesProgress,
@@ -622,27 +624,26 @@ export const SalesTargetManagementView: React.FC<SalesTargetManagementViewProps>
           <table className="w-full table-fixed text-left border-collapse">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200 text-xs font-bold text-slate-600 uppercase tracking-wider">
-                <th className={`py-3 px-3.5 ${canManage ? 'w-[18%]' : 'w-[20%]'}`}>Đối tượng</th>
-                <th className={`py-3 px-2 text-center ${canManage ? 'w-[9%]' : 'w-[10%]'}`}>Phân loại</th>
-                <th className={`py-3 px-3 text-right ${canManage ? 'w-[11%]' : 'w-[12%]'}`}>Chỉ tiêu (VNĐ)</th>
-                <th className={`py-3 px-3 text-right ${canManage ? 'w-[11%]' : 'w-[12%]'}`}>Thực tế đạt</th>
-                <th className={`py-3 px-3 text-right ${canManage ? 'w-[10%]' : 'w-[11%]'}`}>Còn thiếu</th>
-                <th className={`py-3 px-3 ${canManage ? 'w-[14%]' : 'w-[15%]'}`}>Tiến độ</th>
-                <th className={`py-3 px-3 text-right ${canManage ? 'w-[11%]' : 'w-[12%]'}`}>Dự báo cuối</th>
-                <th className={`py-3 px-2 text-center ${canManage ? 'w-[8%]' : 'w-[8%]'}`}>Trạng thái</th>
-                {canManage && <th className="py-3 px-2 text-center w-[8%]">Thao tác</th>}
+                <th className={`py-3 px-3.5 ${canManage ? 'w-[22%]' : 'w-[24%]'}`}>Đối tượng</th>
+                <th className={`py-3 px-2 text-center ${canManage ? 'w-[10%]' : 'w-[11%]'}`}>Phân loại</th>
+                <th className={`py-3 px-3 text-right ${canManage ? 'w-[13%]' : 'w-[14%]'}`}>Chỉ tiêu (VNĐ)</th>
+                <th className={`py-3 px-3 text-right ${canManage ? 'w-[13%]' : 'w-[14%]'}`}>Thực tế đạt</th>
+                <th className={`py-3 px-3 text-right ${canManage ? 'w-[12%]' : 'w-[13%]'}`}>Còn thiếu</th>
+                <th className={`py-3 px-3 ${canManage ? 'w-[16%]' : 'w-[16%]'}`}>Tiến độ</th>
+                <th className={`py-3 px-2 text-center ${canManage ? 'w-[7%]' : 'w-[8%]'}`}>Trạng thái</th>
+                {canManage && <th className="py-3 px-2 text-center w-[7%]">Thao tác</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-sm">
               {loading && items.length === 0 ? (
                 <tr>
-                  <td colSpan={canManage ? 9 : 8} className="py-8 text-center text-slate-400 text-sm">
+                  <td colSpan={canManage ? 8 : 7} className="py-8 text-center text-slate-400 text-sm">
                     Đang tải dữ liệu chỉ tiêu...
                   </td>
                 </tr>
               ) : filteredItems.length === 0 ? (
                 <tr>
-                  <td colSpan={canManage ? 9 : 8} className="py-8 text-center text-slate-400 text-sm">
+                  <td colSpan={canManage ? 8 : 7} className="py-8 text-center text-slate-400 text-sm">
                     {searchTerm.trim()
                       ? `Không tìm thấy chỉ tiêu nào phù hợp với từ khóa "${searchTerm}".`
                       : 'Không có chỉ tiêu nào trong kỳ tháng đã chọn.'}
@@ -754,10 +755,6 @@ export const SalesTargetManagementView: React.FC<SalesTargetManagementViewProps>
                         </div>
                       </td>
 
-                      {/* Dự báo cuối tháng */}
-                      <td className="py-3 px-3 text-right text-sm font-medium text-slate-700 whitespace-nowrap">
-                        {item.projected_amount ? formatCurrency(item.projected_amount) : '—'}
-                      </td>
 
                       {/* Trạng thái */}
                       <td className="py-3 px-2 text-center">
@@ -820,8 +817,8 @@ export const SalesTargetManagementView: React.FC<SalesTargetManagementViewProps>
       {isCreateModalOpen && (
         <ModalPortal>
           <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-md p-4">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-fadeIn">
-              <div className="px-6 py-4 border-b border-slate-100">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md animate-fadeIn">
+              <div className="px-6 py-4 border-b border-slate-100 rounded-t-2xl">
                 <h3 className="font-bold text-slate-900 text-base">Thiết lập chỉ tiêu doanh số mới</h3>
               </div>
 
@@ -847,44 +844,30 @@ export const SalesTargetManagementView: React.FC<SalesTargetManagementViewProps>
                   <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
                     Nhân viên kinh doanh (Đồng bộ người dùng hệ thống)
                   </label>
-                  <select
-                    value={createForm.employee_id || (availableSalespersons[0]?.id ?? 3)}
-                    onChange={(e) => {
-                      const id = Number(e.target.value);
-                      const found = availableSalespersons.find((u) => u.id === id);
+                  <SalespersonSelectDropdown
+                    options={availableSalespersons}
+                    selectedId={createForm.employee_id || (availableSalespersons[0]?.id ?? 3)}
+                    onSelect={(sp) => {
                       setCreateForm({
                         ...createForm,
-                        employee_id: id,
-                        employee_name: found ? found.full_name : 'Nhân viên',
+                        employee_id: sp.id,
+                        employee_name: sp.full_name,
                       });
                     }}
-                    className="w-full h-9 px-3 text-sm border border-slate-300 rounded-lg bg-white"
-                  >
-                    {availableSalespersons.map((sp) => (
-                      <option key={sp.id} value={sp.id}>
-                        {sp.full_name} ({sp.role_label})
-                      </option>
-                    ))}
-                  </select>
+                  />
                 </div>
               ) : (
                 <div>
                   <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
                     Tên khu vực (Đồng bộ từ danh bạ đại lý)
                   </label>
-                  <select
-                    value={createForm.region || (availableRegions[0] ?? 'Hà Nội')}
-                    onChange={(e) => {
-                      setCreateForm({ ...createForm, region: e.target.value });
+                  <RegionSelectDropdown
+                    regions={availableRegions}
+                    selectedRegion={createForm.region || (availableRegions[0] ?? 'Hà Nội')}
+                    onSelect={(reg) => {
+                      setCreateForm({ ...createForm, region: reg });
                     }}
-                    className="w-full h-9 px-3 text-sm border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer"
-                  >
-                    {availableRegions.map((r) => (
-                      <option key={r} value={r}>
-                        {r}
-                      </option>
-                    ))}
-                  </select>
+                  />
                   <p className="text-[11px] text-slate-400 mt-1">
                     Khu vực có sẵn trong hệ thống: {availableRegions.join(', ')}
                   </p>
