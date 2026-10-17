@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import {
   ProductItem,
+  ProductBatchInfo,
   createStockReceiptApi,
   createStockIssueApi,
   adjustStockApi,
+  getBatchSuggestionsApi,
   Supplier,
   getSuppliersApi,
   formatErrorMessage,
@@ -102,6 +104,13 @@ export const StockActionModal: React.FC<StockActionModalProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  // SCRUM-81: Quản lý lô xuất theo FEFO
+  const [suggestedBatch, setSuggestedBatch] = useState<ProductBatchInfo | null>(null);
+  const [availableBatches, setAvailableBatches] = useState<ProductBatchInfo[]>([]);
+  const [selectedBatchId, setSelectedBatchId] = useState<number | null>(null);
+  const [batchChangeReason, setBatchChangeReason] = useState<string>('');
+  const [isLoadingBatches, setIsLoadingBatches] = useState(false);
+
   React.useEffect(() => {
     if (isOpen && initialReason) {
       setNoteOrReason(initialReason);
@@ -113,6 +122,47 @@ export const StockActionModal: React.FC<StockActionModalProps> = ({
       setSelectedUnitName(currentProduct.base_unit || 'Cái');
     }
   }, [currentProduct?.id]);
+
+  React.useEffect(() => {
+    if (isOpen && actionType === 'issue' && currentProduct?.id && token) {
+      setIsLoadingBatches(true);
+      const curNum = typeof inputQuantity === 'string' ? parseFloat(inputQuantity) || 1 : inputQuantity;
+      const curRate = currentUnit?.conversion_rate || 1.0;
+      getBatchSuggestionsApi(token, {
+        product_id: currentProduct.id,
+        warehouse_id: 'WH01',
+        quantity: curNum,
+        conversion_rate: curRate,
+      })
+        .then((res) => {
+          setSuggestedBatch(res.suggested_batch);
+          setAvailableBatches(res.available_batches || []);
+          if (res.suggested_batch) {
+            setSelectedBatchId(res.suggested_batch.id);
+            setSelectedBatchNumber(res.suggested_batch.batch_number);
+          } else if (res.available_batches && res.available_batches.length > 0) {
+            setSelectedBatchId(res.available_batches[0].id);
+            setSelectedBatchNumber(res.available_batches[0].batch_number);
+          } else {
+            setSelectedBatchId(null);
+            setSelectedBatchNumber('');
+          }
+          setBatchChangeReason('');
+        })
+        .catch(() => {
+          // ignore or fallback
+        })
+        .finally(() => {
+          setIsLoadingBatches(false);
+        });
+    } else {
+      setSuggestedBatch(null);
+      setAvailableBatches([]);
+      setSelectedBatchId(null);
+      setSelectedBatchNumber('');
+      setBatchChangeReason('');
+    }
+  }, [isOpen, actionType, currentProduct?.id, token, inputQuantity, selectedUnitName]);
 
   React.useEffect(() => {
     if (isOpen && actionType === 'receipt' && token) {
@@ -247,7 +297,7 @@ export const StockActionModal: React.FC<StockActionModalProps> = ({
     const selectedBatch = batchesList.find((b) => b.batch_number === selectedBatchNumber);
 
     if (actionType === 'issue' && currentProduct.is_batch_managed) {
-      if (!selectedBatchNumber) {
+      if (!selectedBatchNumber && !selectedBatchId) {
         setErrorMsg('Sản phẩm có bật quản lý lô. Bắt buộc phải chọn số lô để xuất.');
         return;
       }
@@ -277,6 +327,15 @@ export const StockActionModal: React.FC<StockActionModalProps> = ({
       }
     }
 
+    // SCRUM-81 Tiêu chí 2: Bắt buộc nhập lý do nếu chọn lô khác với lô gợi ý
+    const isDifferentBatch = suggestedBatch && selectedBatchId && selectedBatchId !== suggestedBatch.id;
+    if (actionType === 'issue' && isDifferentBatch) {
+      if (!batchChangeReason.trim()) {
+        setErrorMsg('Vui lòng nhập lý do khi chọn lô khác với lô hệ thống gợi ý.');
+        return;
+      }
+    }
+
     setIsSubmitting(true);
     try {
       if (actionType === 'receipt') {
@@ -300,7 +359,11 @@ export const StockActionModal: React.FC<StockActionModalProps> = ({
           note: noteOrReason.trim() || undefined,
           unit_name: currentUnit.unit_name,
           conversion_rate: currentUnit.conversion_rate,
-          batch_number: currentProduct.is_batch_managed ? selectedBatchNumber : undefined,
+          warehouse_id: 'WH01',
+          selected_batch_id: selectedBatchId,
+          suggested_batch_id: suggestedBatch?.id || null,
+          batch_change_reason: isDifferentBatch ? batchChangeReason.trim() : undefined,
+          batch_number: currentProduct.is_batch_managed ? (selectedBatchNumber || availableBatches.find((b) => b.id === selectedBatchId)?.batch_number) : undefined,
           override_expired: currentProduct.is_batch_managed ? overrideExpired : undefined,
           override_reason: currentProduct.is_batch_managed && overrideExpired ? overrideReason.trim() : undefined,
         });
@@ -562,93 +625,6 @@ export const StockActionModal: React.FC<StockActionModalProps> = ({
               </div>
             ) : null}
 
-            {/* Lô hàng xuất kho (nếu sản phẩm có bật quản lý lô) */}
-            {actionType === 'issue' && currentProduct?.is_batch_managed && (
-              <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '6px' }}>
-                  Chọn Lô hàng xuất kho <span style={{ color: '#dc2626' }}>* (SKU quản lý theo lô)</span>
-                </label>
-                {batchesList.length === 0 ? (
-                  <div style={{ padding: '10px 12px', borderRadius: '8px', background: '#fef2f2', border: '1px solid #fecaca', color: '#dc2626', fontSize: '13px' }}>
-                    Chưa có lô hàng nào còn tồn kho cho sản phẩm này.
-                  </div>
-                ) : (
-                  <select
-                    value={selectedBatchNumber}
-                    onChange={(e) => {
-                      setSelectedBatchNumber(e.target.value);
-                      setOverrideExpired(false);
-                      setOverrideReason('');
-                    }}
-                    style={{
-                      width: '100%',
-                      padding: '9px 12px',
-                      borderRadius: '8px',
-                      border: '1px solid #cbd5e1',
-                      fontSize: '13.5px',
-                      background: '#ffffff',
-                      outline: 'none',
-                      color: '#0f172a',
-                    }}
-                  >
-                    {batchesList.map((b) => {
-                      const expLabel = b.expiry_status === 'EXPIRED' ? '⛔ QUÁ HẠN' : b.expiry_status === 'NEAR_EXPIRY' ? `⚠️ CẬN HẠN (${b.days_until_expiry} ngày)` : `✅ Còn ${b.days_until_expiry} ngày`;
-                      return (
-                        <option key={b.id} value={b.batch_number}>
-                          [Lô: {b.batch_number}] — Tồn: {b.remaining_quantity} {baseUnit} — HSD: {b.expiry_date ? new Date(b.expiry_date).toLocaleDateString('vi-VN') : 'N/A'} — {expLabel}
-                        </option>
-                      );
-                    })}
-                  </select>
-                )}
-
-                {/* Cảnh báo lô quá hạn & Ghi đè Quản lý kho */}
-                {(() => {
-                  const selBatch = batchesList.find((b) => b.batch_number === selectedBatchNumber);
-                  if (!selBatch || selBatch.expiry_status !== 'EXPIRED') return null;
-                  const uRoles = user?.roles || (user?.role ? [user.role] : []);
-                  const canOverride = uRoles.includes('admin') || uRoles.includes('warehouse_manager');
-
-                  return (
-                    <div style={{ marginTop: '10px', padding: '12px', borderRadius: '8px', background: '#fef2f2', border: '1px solid #fecaca' }}>
-                      <div style={{ fontSize: '13px', fontWeight: '700', color: '#b91c1c', marginBottom: '4px' }}>
-                        ⛔ Lô {selBatch.batch_number} đã quá hạn sử dụng!
-                      </div>
-                      <div style={{ fontSize: '12px', color: '#7f1d1d', marginBottom: '8px' }}>
-                        Theo quy định, hệ thống mặc định chặn xuất hàng quá hạn cho đại lý.
-                      </div>
-                      {canOverride ? (
-                        <div>
-                          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12.5px', fontWeight: '700', color: '#991b1b', cursor: 'pointer', marginBottom: '6px' }}>
-                            <input
-                              type="checkbox"
-                              checked={overrideExpired}
-                              onChange={(e) => setOverrideExpired(e.target.checked)}
-                              style={{ width: '16px', height: '16px', accentColor: '#dc2626' }}
-                            />
-                            Quản lý kho xác nhận GHI ĐÈ xuất lô quá hạn
-                          </label>
-                          {overrideExpired && (
-                            <input
-                              type="text"
-                              required
-                              value={overrideReason}
-                              onChange={(e) => setOverrideReason(e.target.value)}
-                              placeholder="Nhập lý do xác nhận ghi đè (tối thiểu 5 ký tự)..."
-                              style={{ width: '100%', padding: '7px 10px', borderRadius: '6px', border: '1px solid #fca5a5', fontSize: '12.5px', boxSizing: 'border-box' }}
-                            />
-                          )}
-                        </div>
-                      ) : (
-                        <div style={{ fontSize: '12px', color: '#b91c1c', fontWeight: '600' }}>
-                          🚫 Bạn không có quyền Quản lý kho để ghi đè lô quá hạn này.
-                        </div>
-                      )}
-                    </div>
-                  );
-                })()}
-              </div>
-            )}
 
             {/* Tiêu chí 2: Chọn đơn vị tính quy đổi & Nhập số lượng */}
             <div style={{ marginBottom: '16px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
@@ -754,8 +730,195 @@ export const StockActionModal: React.FC<StockActionModalProps> = ({
                 </span>
               </div>
             </div>
+            {/* SCRUM-81 & SCRUM-76: Gợi ý và lựa chọn Lô xuất hàng theo FEFO */}
+            {actionType === 'issue' && (currentProduct?.is_batch_managed || availableBatches.length > 0 || batchesList.length > 0) && (
+              <div
+                style={{
+                  marginBottom: '16px',
+                  padding: '14px',
+                  borderRadius: '10px',
+                  background: '#f8fafc',
+                  border: (suggestedBatch && selectedBatchId && selectedBatchId !== suggestedBatch.id && !batchChangeReason.trim()) ? '1.5px solid #f59e0b' : '1px solid #e2e8f0',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                  <label style={{ fontSize: '13px', fontWeight: '700', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span>Lô hàng xuất kho</span>
+                    {currentProduct?.is_batch_managed && (
+                      <span style={{ color: '#dc2626', fontSize: '12px' }}>* (SKU quản lý theo lô)</span>
+                    )}
+                  </label>
+                  {isLoadingBatches && <span style={{ fontSize: '11px', color: '#64748b' }}>Đang tìm lô FEFO...</span>}
+                </div>
 
-            {/* Lý do / Ghi chú */}
+                {availableBatches.length > 0 ? (
+                  <>
+                    <select
+                      value={selectedBatchId || ''}
+                      onChange={(e) => {
+                        const val = e.target.value ? Number(e.target.value) : null;
+                        setSelectedBatchId(val);
+                        const match = availableBatches.find((b) => b.id === val);
+                        if (match) {
+                          setSelectedBatchNumber(match.batch_number);
+                        }
+                        if (suggestedBatch && val === suggestedBatch.id) {
+                          setBatchChangeReason('');
+                        }
+                        setOverrideExpired(false);
+                        setOverrideReason('');
+                      }}
+                      style={{
+                        width: '100%',
+                        padding: '9px 12px',
+                        borderRadius: '8px',
+                        border: '1px solid #cbd5e1',
+                        fontSize: '13px',
+                        background: '#ffffff',
+                        outline: 'none',
+                        cursor: 'pointer',
+                        boxSizing: 'border-box',
+                        marginBottom: '8px',
+                        color: '#0f172a',
+                        fontWeight: '500',
+                      }}
+                    >
+                      {availableBatches.map((b) => {
+                        return (
+                          <option key={b.id} value={b.id}>
+                            Lô: {b.batch_number} — HSD: {b.expiry_date || 'N/A'} — Khả dụng: {b.available_quantity} {baseUnit}
+                          </option>
+                        );
+                      })}
+                    </select>
+
+                    {/* Hiển thị chi tiết lô đã chọn */}
+                    {selectedBatchId && (
+                      <div
+                        style={{
+                          fontSize: '12px',
+                          color: '#475569',
+                          background: '#ffffff',
+                          padding: '10px 14px',
+                          borderRadius: '8px',
+                          border: '1px solid #e2e8f0',
+                          marginBottom: '8px',
+                        }}
+                      >
+                        {(() => {
+                          const curBatch = availableBatches.find((b) => b.id === selectedBatchId);
+                          if (!curBatch) return null;
+                          const isSugg = suggestedBatch && curBatch.id === suggestedBatch.id;
+                          return (
+                            <div>
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '14px', alignItems: 'center', marginBottom: '6px' }}>
+                                <span>Số lô: <strong style={{ color: '#0f172a' }}>{curBatch.batch_number}</strong></span>
+                                <span>HSD: <strong style={{ color: '#0f172a' }}>{curBatch.expiry_date || 'N/A'}</strong></span>
+                                <span>Tồn khả dụng: <strong style={{ color: curBatch.available_quantity >= baseQuantity ? '#16a34a' : '#ea580c' }}>{curBatch.available_quantity} {baseUnit}</strong> (Cần xuất: {baseQuantity} {baseUnit})</span>
+                              </div>
+                              <div>
+                                {isSugg ? (
+                                  <span style={{ color: '#15803d', background: '#dcfce7', padding: '3px 8px', borderRadius: '6px', fontWeight: 600, fontSize: '11.5px', border: '1px solid #bbf7d0', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                    Đang chọn đúng lô hệ thống gợi ý theo FEFO (Hàng cũ ra trước, giảm hàng huỷ)
+                                  </span>
+                                ) : (
+                                  <span style={{ color: '#b45309', background: '#fef3c7', padding: '3px 8px', borderRadius: '6px', fontWeight: 600, fontSize: '11.5px', border: '1px solid #fde68a', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                    Thủ kho đã chọn lô khác với lô hệ thống gợi ý
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    )}
+
+                    {/* Tiêu chí 2: Hiển thị ô bắt buộc nhập lý do nếu chọn lô khác lô gợi ý */}
+                    {suggestedBatch && selectedBatchId && selectedBatchId !== suggestedBatch.id && (
+                      <div style={{ marginTop: '8px', animation: 'fadeInCard 0.15s ease-out' }}>
+                        <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '700', color: '#b45309', marginBottom: '4px' }}>
+                          Lý do đổi lô <span style={{ color: '#dc2626' }}>*</span>
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={batchChangeReason}
+                          onChange={(e) => setBatchChangeReason(e.target.value)}
+                          placeholder="Nhập lý do đổi lô (VD: Khách hàng yêu cầu date mới trên 6 tháng, bao bì lô cũ lỗi...)"
+                          style={{
+                            width: '100%',
+                            padding: '8px 12px',
+                            borderRadius: '8px',
+                            border: !batchChangeReason.trim() ? '1.5px solid #ef4444' : '1.5px solid #f59e0b',
+                            background: !batchChangeReason.trim() ? '#fff1f2' : '#fffbeb',
+                            fontSize: '13px',
+                            outline: 'none',
+                            boxSizing: 'border-box',
+                            color: '#0f172a',
+                          }}
+                        />
+                        {!batchChangeReason.trim() && (
+                          <div style={{ fontSize: '11.5px', color: '#dc2626', marginTop: '4px', fontWeight: '500' }}>
+                            Bắt buộc nhập lý do đổi lô để hệ thống cho phép xuất kho
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* SCRUM-76: Cảnh báo lô quá hạn & Ghi đè Quản lý kho nếu người dùng chọn lô quá hạn */}
+                    {(() => {
+                      const selBatch = batchesList.find((b) => b.batch_number === selectedBatchNumber);
+                      if (!selBatch || selBatch.expiry_status !== 'EXPIRED') return null;
+                      const uRoles = user?.roles || (user?.role ? [user.role] : []);
+                      const canOverride = uRoles.includes('admin') || uRoles.includes('warehouse_manager');
+
+                      return (
+                        <div style={{ marginTop: '10px', padding: '12px', borderRadius: '8px', background: '#fef2f2', border: '1px solid #fecaca' }}>
+                          <div style={{ fontSize: '13px', fontWeight: '700', color: '#b91c1c', marginBottom: '4px' }}>
+                            Lô {selBatch.batch_number} đã quá hạn sử dụng!
+                          </div>
+                          <div style={{ fontSize: '12px', color: '#7f1d1d', marginBottom: '8px' }}>
+                            Theo quy định, hệ thống mặc định chặn xuất hàng quá hạn cho đại lý.
+                          </div>
+                          {canOverride ? (
+                            <div>
+                              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12.5px', fontWeight: '700', color: '#991b1b', cursor: 'pointer', marginBottom: '6px' }}>
+                                <input
+                                  type="checkbox"
+                                  checked={overrideExpired}
+                                  onChange={(e) => setOverrideExpired(e.target.checked)}
+                                  style={{ width: '16px', height: '16px', accentColor: '#dc2626' }}
+                                />
+                                Quản lý kho xác nhận GHI ĐÈ xuất lô quá hạn
+                              </label>
+                              {overrideExpired && (
+                                <input
+                                  type="text"
+                                  required
+                                  value={overrideReason}
+                                  onChange={(e) => setOverrideReason(e.target.value)}
+                                  placeholder="Nhập lý do xác nhận ghi đè (tối thiểu 5 ký tự)..."
+                                  style={{ width: '100%', padding: '7px 10px', borderRadius: '6px', border: '1px solid #fca5a5', fontSize: '12.5px', boxSizing: 'border-box' }}
+                                />
+                              )}
+                            </div>
+                          ) : (
+                            <div style={{ fontSize: '12px', color: '#b91c1c', fontWeight: '600' }}>
+                              Bạn không có quyền Quản lý kho để ghi đè lô quá hạn này.
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
+                  </>
+                ) : (
+                  <div style={{ fontSize: '12px', color: currentProduct?.is_batch_managed ? '#dc2626' : '#64748b', fontStyle: 'italic', padding: '8px 12px', background: currentProduct?.is_batch_managed ? '#fef2f2' : '#ffffff', borderRadius: '6px', border: currentProduct?.is_batch_managed ? '1px solid #fecaca' : '1px solid #e2e8f0' }}>
+                    {isLoadingBatches ? 'Đang kiểm tra dữ liệu lô hàng...' : currentProduct?.is_batch_managed ? 'Sản phẩm quản lý theo lô nhưng hiện tại không có lô hàng nào còn hạn và còn đủ tồn để xuất!' : 'Sản phẩm này hiện chưa có lô hàng chi tiết tại kho.'}
+                  </div>
+                )}
+              </div>
+            )}
+
             <div style={{ marginBottom: '20px' }}>
               <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '6px' }}>
                 {actionType === 'adjust' ? 'Lý do điều chỉnh (*)' : 'Ghi chú phiếu kho'}

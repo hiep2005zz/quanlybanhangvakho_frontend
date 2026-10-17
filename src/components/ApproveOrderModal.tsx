@@ -20,10 +20,13 @@ export const ApproveOrderModal: React.FC<ApproveOrderModalProps> = ({
 }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const isSubmittingRef = React.useRef(false);
 
   if (!isOpen || !order) return null;
 
   const handleConfirm = async () => {
+    if (isSubmitting || isSubmittingRef.current) return;
+    isSubmittingRef.current = true;
     setIsSubmitting(true);
     setErrorMsg(null);
 
@@ -36,9 +39,21 @@ export const ApproveOrderModal: React.FC<ApproveOrderModalProps> = ({
       onSuccess();
       onClose();
     } catch (err: any) {
-      setErrorMsg(err.message || 'Lỗi khi phê duyệt đơn hàng.');
+      const msg = err.message || '';
+      // Nếu đơn hàng đã ở trạng thái CONFIRMED hoặc APPROVED (do đã duyệt thành công hoặc do thao tác kép)
+      if (msg.includes('CONFIRMED') || msg.includes('APPROVED') || msg.includes('Đã xác nhận')) {
+        emitStatusToast({
+          title: 'Đơn hàng đã được duyệt',
+          message: `Đơn hàng ${order.order_code} đã ở trạng thái Đã xác nhận.`,
+        });
+        onSuccess();
+        onClose();
+        return;
+      }
+      setErrorMsg(msg || 'Lỗi khi phê duyệt đơn hàng.');
     } finally {
       setIsSubmitting(false);
+      isSubmittingRef.current = false;
     }
   };
 

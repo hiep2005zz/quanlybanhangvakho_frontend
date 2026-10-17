@@ -995,21 +995,23 @@
   align-items: center;
   justify-content: center;
   z-index: 9999;
-  padding: 16px;
+  padding: 24px 16px;
+  overflow-y: auto;
   animation: whFadeIn 0.15s ease-out;
 }
 
 .wh-modal-card {
   background: #ffffff;
-  border-radius: 12px;
+  border-radius: 16px;
   width: 100%;
   max-width: 580px;
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
   border: 1px solid var(--wh-slate-200);
   display: flex;
   flex-direction: column;
-  max-height: 90vh;
+  max-height: calc(100vh - 96px);
   overflow: hidden;
+  margin: auto;
 }
 
 .wh-modal-card-lg {
@@ -1023,6 +1025,8 @@
   padding: 18px 24px;
   border-bottom: 1px solid var(--wh-slate-200);
   background: #ffffff;
+  border-top-left-radius: 16px;
+  border-top-right-radius: 16px;
 }
 
 .wh-modal-header h3 {
@@ -1066,6 +1070,8 @@
   padding: 16px 24px;
   border-top: 1px solid var(--wh-slate-200);
   background: var(--wh-slate-50);
+  border-bottom-left-radius: 16px;
+  border-bottom-right-radius: 16px;
 }
 
 /* Form Controls */
