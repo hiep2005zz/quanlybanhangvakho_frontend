@@ -62,10 +62,15 @@ import { CustomerPortalView } from './CustomerPortalView';
 import { AgencyDebtInvoiceView } from './AgencyDebtInvoiceView';
 import { DebtAgeingLedgerView } from './DebtAgeingLedgerView';
 import { BatchManagementView } from './BatchManagementView';
+import { DebtAgingReportView } from './DebtAgingReportView';
+import { ExecutiveDashboardView } from './ExecutiveDashboardView';
+import { MultidimensionalSalesReportView } from './MultidimensionalSalesReportView';
+import { SalesTargetManagementView } from './SalesTargetManagementView';
 import WarehousePickingView from './WarehousePickingView';
 import { StockAdjustmentPageView } from './StockAdjustmentPageView';
 import { PaymentCollectionView } from './PaymentCollectionView';
 import { DebtPaymentReconciliationView } from './DebtPaymentReconciliationView';
+import { DebtReconciliationView } from './DebtReconciliationView';
 
 import './dashboard.css';
 import { Sidebar, type TabType } from './Sidebar';
@@ -126,6 +131,12 @@ export default function DashboardPage({
     user.role === 'sales' ||
     officialRoles.some((r) => DEALER_ROLES.includes(r))
   );
+  // Quyền xem Báo cáo tuổi nợ: Quản trị viên (admin), Quản lý kinh doanh (sales_manager), Kế toán công nợ (accountant)
+  const canAccessDebtAging = !isCustomer && Boolean(isAdmin || isSalesManager || isAccountant);
+  const canAccessExecutiveDashboard = !isCustomer && Boolean(isAdmin || isSalesManager);
+  const canAccessSalesReport = !isCustomer && Boolean(isAdmin || isSalesManager || user.role === 'sales' || officialRoles.includes('sales'));
+  const canAccessSalesTargets = !isCustomer && Boolean(isAdmin || isSalesManager || user.role === 'sales' || officialRoles.includes('sales'));
+  const canAccessDebtReconciliation = !isCustomer && Boolean(isAdmin || isSalesManager || isAccountant);
 
   // Quyền quản lý điểm giao hàng: Chỉ hiển thị với 3 vai trò admin, sales, sales_manager
   const DELIVERY_ROLES = ['admin', 'sales_manager', 'sales'];
@@ -306,9 +317,14 @@ export default function DashboardPage({
     const isStockThresholdsPath = pathname === '/stock-thresholds' || pathname.startsWith('/stock-thresholds/');
     const isLowStockAlertsPath = pathname === '/low-stock-alerts' || pathname.startsWith('/low-stock-alerts/');
     const isGoodsReceiptPath = pathname === '/goods-receipt' || pathname.startsWith('/goods-receipt/') || pathname === '/goods-receipts';
+    const isDebtAgingPath = pathname === '/debt-aging' || pathname.startsWith('/debt-aging/');
+    const isExecutiveDashboardPath = pathname === '/executive-dashboard' || pathname.startsWith('/executive-dashboard');
+    const isSalesReportPath = pathname === '/sales-report' || pathname.startsWith('/sales-report');
+    const isSalesTargetsPath = pathname === '/sales-targets' || pathname.startsWith('/sales-targets');
     const isStockAdjustmentsPath = pathname === '/stock-adjustments' || pathname.startsWith('/stock-adjustments/');
     const isPaymentCollectionsPath = pathname === '/payment-collections' || pathname.startsWith('/payment-collections/');
     const isDebtPaymentsPath = pathname === '/debt-payments' || pathname.startsWith('/debt-payments/');
+    const isDebtReconciliationPath = pathname === '/debt-reconciliation' || pathname.startsWith('/debt-reconciliation');
 
     const params = new URLSearchParams(window.location.search);
     const hasOldTabParam = params.has('tab') || params.has('view');
@@ -496,6 +512,28 @@ export default function DashboardPage({
       }
       return 'dealer-profiles';
     }
+    if (isDebtAgingPath || oldTabVal === 'debt-aging') {
+      try { window.history.replaceState({}, '', '/debt-ledger'); } catch {}
+      return 'debt-ledger';
+    }
+    if (isExecutiveDashboardPath || oldTabVal === 'executive-dashboard') {
+      if (hasOldTabParam || pathname !== '/executive-dashboard') {
+        try { window.history.replaceState({}, '', '/executive-dashboard'); } catch {}
+      }
+      return 'executive-dashboard';
+    }
+    if (isSalesReportPath || oldTabVal === 'sales-report') {
+      if (hasOldTabParam || pathname !== '/sales-report') {
+        try { window.history.replaceState({}, '', '/sales-report'); } catch {}
+      }
+      return 'sales-report';
+    }
+    if (isSalesTargetsPath || oldTabVal === 'sales-targets' || oldTabVal === 'sales_targets') {
+      if (hasOldTabParam || pathname !== '/sales-targets') {
+        try { window.history.replaceState({}, '', '/sales-targets'); } catch {}
+      }
+      return 'sales-targets';
+    }
     if (isAgencyDebtsPath || oldTabVal === 'agency-debts') {
       if (hasOldTabParam || pathname !== '/agency-debts') {
         try { window.history.replaceState({}, '', '/agency-debts'); } catch { }
@@ -513,6 +551,16 @@ export default function DashboardPage({
         try { window.history.replaceState({}, '', '/debt-payments'); } catch { }
       }
       return 'debt-payments';
+    }
+    if (isDebtReconciliationPath || oldTabVal === 'debt-reconciliation') {
+      if (canAccessDebtReconciliation) {
+        if (hasOldTabParam || pathname !== '/debt-reconciliation') {
+          try { window.history.replaceState({}, '', '/debt-reconciliation'); } catch { }
+        }
+        return 'debt-reconciliation';
+      }
+      try { window.history.replaceState({}, '', '/'); } catch { }
+      return 'inventory';
     }
     if (isDealersPath || oldTabVal === 'dealers') {
       if (hasOldTabParam || pathname !== '/dealers') {
@@ -684,6 +732,19 @@ export default function DashboardPage({
       return;
     }
 
+    if (tab === 'debt-reconciliation') {
+      if (!canAccessDebtReconciliation) {
+        setActiveTabState('inventory');
+        try { window.history.replaceState({}, '', '/'); } catch { }
+        return;
+      }
+      setActiveTabState('debt-reconciliation');
+      try {
+        window.history.pushState({}, '', '/debt-reconciliation');
+      } catch { }
+      return;
+    }
+
     if (tab === 'stock-thresholds') {
       setActiveTabState('stock-thresholds');
       try {
@@ -785,6 +846,35 @@ export default function DashboardPage({
       } catch {
         // ignore
       }
+    } else if (tab === 'debt-aging') {
+      setActiveTabState('debt-ledger');
+      try {
+        window.history.pushState({}, '', '/debt-ledger');
+      } catch {
+        // ignore
+      }
+    } else if (tab === 'executive-dashboard') {
+      setActiveTabState('executive-dashboard');
+      try {
+        window.history.pushState({}, '', '/executive-dashboard');
+      } catch {
+        // ignore
+      }
+    } else if (tab === 'sales-report') {
+      setActiveTabState('sales-report');
+      try {
+        window.history.pushState({}, '', '/sales-report');
+      } catch {
+        // ignore
+      }
+    } else if (tab === 'sales-targets') {
+      setActiveTabState('sales-targets');
+      try {
+        window.history.pushState({}, '', '/sales-targets');
+      } catch {
+        // ignore
+      }
+      return;
     } else if (tab === 'debt-ledger') {
       setActiveTabState('debt-ledger');
       try {
@@ -907,6 +997,36 @@ export default function DashboardPage({
       } catch { }
     }
     if (activeTab === 'dealer-profiles' && !canManageDealerProfiles) {
+      setActiveTabState('inventory');
+      try {
+        window.history.replaceState({}, '', '/');
+      } catch { }
+    }
+    if (activeTab === 'debt-aging' && !canAccessDebtAging) {
+      setActiveTabState('inventory');
+      try {
+        window.history.replaceState({}, '', '/');
+      } catch { }
+    }
+    if (activeTab === 'executive-dashboard' && !canAccessExecutiveDashboard) {
+      setActiveTabState('inventory');
+      try {
+        window.history.replaceState({}, '', '/');
+      } catch { }
+    }
+    if (activeTab === 'sales-report' && !canAccessSalesReport) {
+      setActiveTabState('inventory');
+      try {
+        window.history.replaceState({}, '', '/');
+      } catch { }
+    }
+    if (activeTab === 'sales-targets' && !canAccessSalesTargets) {
+      setActiveTabState('inventory');
+      try {
+        window.history.replaceState({}, '', '/');
+      } catch { }
+    }
+    if (activeTab === 'debt-reconciliation' && !canAccessDebtReconciliation) {
       setActiveTabState('inventory');
       try {
         window.history.replaceState({}, '', '/');
@@ -1201,6 +1321,57 @@ export default function DashboardPage({
         setActiveTabState('dealer-profiles');
         return;
       }
+      const isDebtAgingPath = pathname === '/debt-aging' || pathname.startsWith('/debt-aging/');
+      if (isDebtAgingPath || tabParam === 'debt-aging') {
+        try {
+          window.history.replaceState({}, '', '/debt-ledger');
+        } catch {
+          // ignore
+        }
+        setActiveTabState('debt-ledger');
+        return;
+      }
+      const isExecutiveDashboardPath = pathname === '/executive-dashboard' || pathname.startsWith('/executive-dashboard/');
+      if (isExecutiveDashboardPath || tabParam === 'executive-dashboard') {
+        if (pathname !== '/executive-dashboard' || tabParam) {
+          try {
+            window.history.replaceState({}, '', '/executive-dashboard');
+          } catch {
+            // ignore
+          }
+        }
+        setActiveTabState('executive-dashboard');
+        return;
+      }
+      const isSalesReportPath = pathname === '/sales-report' || pathname.startsWith('/sales-report/');
+      if (isSalesReportPath || tabParam === 'sales-report') {
+        if (pathname !== '/sales-report' || tabParam) {
+          try {
+            window.history.replaceState({}, '', '/sales-report');
+          } catch {
+            // ignore
+          }
+        }
+        setActiveTabState('sales-report');
+        return;
+      }
+      const isSalesTargetsPath = pathname === '/sales-targets' || pathname.startsWith('/sales-targets/');
+      if (isSalesTargetsPath || tabParam === 'sales-targets' || tabParam === 'sales_targets') {
+        if (canAccessSalesTargets) {
+          if (pathname !== '/sales-targets' || tabParam) {
+            try {
+              window.history.replaceState({}, '', '/sales-targets');
+            } catch {
+              // ignore
+            }
+          }
+          setActiveTabState('sales-targets');
+        } else {
+          setActiveTabState('inventory');
+          try { window.history.replaceState({}, '', '/'); } catch { }
+        }
+        return;
+      }
       const isAgencyDebtsPath = pathname === '/agency-debts' || pathname.startsWith('/agency-debts/');
       if (isAgencyDebtsPath || tabParam === 'agency-debts') {
         if (pathname !== '/agency-debts' || tabParam) {
@@ -1222,7 +1393,6 @@ export default function DashboardPage({
         setActiveTabState('debt-ledger');
         return;
       }
-
       const isDebtPaymentsPath = pathname === '/debt-payments' || pathname.startsWith('/debt-payments/');
       if (isDebtPaymentsPath || tabParam === 'debt-payments') {
         if (canAccessDebtPayments) {
@@ -1230,6 +1400,22 @@ export default function DashboardPage({
             try { window.history.replaceState({}, '', '/debt-payments'); } catch { }
           }
           setActiveTabState('debt-payments');
+        } else {
+          setActiveTabState('inventory');
+          try { window.history.replaceState({}, '', '/'); } catch { }
+        }
+        return;
+      }
+
+      const isDebtReconciliationPath = pathname === '/debt-reconciliation' || pathname.startsWith('/debt-reconciliation/');
+      if (isDebtReconciliationPath || tabParam === 'debt-reconciliation') {
+        if (canAccessDebtReconciliation) {
+          if (pathname !== '/debt-reconciliation' || tabParam) {
+            try {
+              window.history.replaceState({}, '', '/debt-reconciliation');
+            } catch { }
+          }
+          setActiveTabState('debt-reconciliation');
         } else {
           setActiveTabState('inventory');
           try { window.history.replaceState({}, '', '/'); } catch { }
@@ -1321,7 +1507,7 @@ export default function DashboardPage({
 
     window.addEventListener('popstate', syncFromUrl);
     return () => window.removeEventListener('popstate', syncFromUrl);
-  }, [canManageCategories, canManageSuppliers, canReadOrders, isAdmin, canAccessDiscounts, canAccessWarehouses, canAccessPaymentCollections, canAccessDebtPayments, isCustomer]);
+  }, [canManageCategories, canManageSuppliers, canReadOrders, isAdmin, canAccessDiscounts, canAccessWarehouses, canAccessSalesTargets, canAccessDebtReconciliation, canAccessDebtPayments, canAccessPaymentCollections, isCustomer]);
   const [products, setProducts] = useState<ProductItem[]>([]);
   const [appliedPriceBook, setAppliedPriceBook] = useState<string | null>(null);
   const [serverTotalCount, setServerTotalCount] = useState<number>(0);
@@ -1794,7 +1980,7 @@ export default function DashboardPage({
   const isUsersImportPage = activeTab === 'users-import';
   const isPaymentCollectionsPage = activeTab === 'payment-collections';
   const isDeliveryTrackingPage = activeTab === 'delivery-tracking' || currentPath.startsWith('/delivery-tracking');
-  const isLockedScrollTab = !isProductFormOpen && !isSalesOrderOpen && !isOrdersCreateSubpage && !isOrderDetailSubpage && !isPriceListsCreateSubpage && !isPriceBookDetailSubpage && !isPriceBookEditSubpage && !isGoodsReceiptPage && !isStockTransferCreateSubpage && !isBatchesCreateSubpage && !isProductsImportPage && !isUsersImportPage && !isPaymentCollectionsSubpage && !isPaymentCollectionsPage && !isDeliveryTrackingPage && (activeTab === 'inventory' || activeTab === 'dealers' || activeTab === 'dealer-profiles' || activeTab === 'delivery-points' || activeTab === 'suppliers' || activeTab === 'price-books' || activeTab === 'categories' || activeTab === 'orders' || activeTab === 'product-history' || activeTab === 'stock-book' || activeTab === 'inventory-turnover' || activeTab === 'stock-audits' || activeTab === 'stock-adjustments' || activeTab === 'stock-transfers' || activeTab === 'stock-thresholds' || activeTab === 'low-stock-alerts' || activeTab === 'batches' || activeTab === 'picking') && !isPendingCustomer;
+  const isLockedScrollTab = !isProductFormOpen && !isSalesOrderOpen && !isOrdersCreateSubpage && !isOrderDetailSubpage && !isPriceListsCreateSubpage && !isPriceBookDetailSubpage && !isPriceBookEditSubpage && !isGoodsReceiptPage && !isStockTransferCreateSubpage && !isBatchesCreateSubpage && !isProductsImportPage && !isUsersImportPage && !isPaymentCollectionsSubpage && !isPaymentCollectionsPage && !isDeliveryTrackingPage && (activeTab === 'inventory' || activeTab === 'dealers' || activeTab === 'dealer-profiles' || activeTab === 'debt-aging' || activeTab === 'debt-reconciliation' || activeTab === 'delivery-points' || activeTab === 'suppliers' || activeTab === 'price-books' || activeTab === 'categories' || activeTab === 'orders' || activeTab === 'product-history' || activeTab === 'stock-book' || activeTab === 'inventory-turnover' || activeTab === 'stock-audits' || activeTab === 'stock-adjustments' || activeTab === 'stock-transfers' || activeTab === 'stock-thresholds' || activeTab === 'low-stock-alerts' || activeTab === 'batches' || activeTab === 'picking') && !isPendingCustomer;
   return (
     <DashboardLayout
       header={
@@ -1853,6 +2039,10 @@ export default function DashboardPage({
           canReadOrders={canReadOrders}
           canViewDealers={canViewDealers}
           canManageDealerProfiles={canManageDealerProfiles}
+          canAccessDebtAging={canAccessDebtAging}
+          canAccessSalesReport={canAccessSalesReport}
+          canAccessSalesTargets={canAccessSalesTargets}
+          canAccessExecutiveDashboard={canAccessExecutiveDashboard}
           canAccessDebtLedger={isAccountant || isSalesManager || isAdmin}
           canAccessDebtPayments={canAccessDebtPayments}
           canManageDeliveryPoints={canManageDeliveryPoints}
@@ -1869,6 +2059,7 @@ export default function DashboardPage({
           isWarehouseOrAdmin={isWarehouseOrAdmin}
           isAdmin={isAdmin}
           canAccessPaymentCollections={canAccessPaymentCollections}
+          canAccessDebtReconciliation={canAccessDebtReconciliation}
           onLogout={() => {
             if (isLoggingOut) return;
             setShowLogoutConfirm(true);
@@ -2245,13 +2436,89 @@ export default function DashboardPage({
               onLogout={onLogout}
             />
           )
+        ) : activeTab === 'debt-aging' ? (
+          canAccessDebtAging ? (
+            <DebtAgingReportView
+              currentUser={user}
+              token={token}
+              onBackToHome={() => setActiveTab('inventory')}
+            />
+          ) : (
+            <AccessDeniedView
+              currentUser={user}
+              requiredPermission="Báo cáo tuổi nợ (Kế toán công nợ / Quản lý kinh doanh / Quản trị viên)"
+              onBackToWorkflow={() => setActiveTab('inventory')}
+              onLogout={onLogout}
+            />
+          )
+        ) : activeTab === 'executive-dashboard' ? (
+          canAccessExecutiveDashboard ? (
+            <ExecutiveDashboardView
+              currentUser={user}
+              token={token}
+              onNavigateTab={(targetTab) => setActiveTab(targetTab as TabType)}
+            />
+          ) : (
+            <AccessDeniedView
+              currentUser={user}
+              requiredPermission="Dashboard điều hành (Quản lý kinh doanh / Quản trị viên)"
+              onBackToWorkflow={() => setActiveTab('inventory')}
+              onLogout={onLogout}
+            />
+          )
+        ) : activeTab === 'sales-report' ? (
+          canAccessSalesReport ? (
+            <MultidimensionalSalesReportView
+              currentUser={user}
+              token={token}
+            />
+          ) : (
+            <AccessDeniedView
+              currentUser={user}
+              requiredPermission="Báo cáo doanh số đa chiều (Quản lý kinh doanh / Nhân viên kinh doanh / Quản trị viên)"
+              onBackToWorkflow={() => setActiveTab('inventory')}
+              onLogout={onLogout}
+            />
+          )
+        ) : activeTab === 'sales-targets' ? (
+          canAccessSalesTargets ? (
+            <SalesTargetManagementView
+              currentUser={user}
+              token={token}
+            />
+          ) : (
+            <AccessDeniedView
+              currentUser={user}
+              requiredPermission="Chỉ tiêu doanh số (Quản lý kinh doanh / Nhân viên kinh doanh / Quản trị viên)"
+              onBackToWorkflow={() => setActiveTab('inventory')}
+              onLogout={onLogout}
+            />
+          )
         ) : activeTab === 'debt-ledger' ? (
           (isAccountant || isSalesManager || isAdmin) ? (
-            <DebtAgeingLedgerView token={token} />
+            <DebtAgeingLedgerView
+              token={token}
+              onNavigateReconciliation={() => setActiveTab('debt-reconciliation')}
+            />
           ) : (
             <AccessDeniedView
               currentUser={user}
               requiredPermission="Sổ công nợ theo đại lý & Phân tích tuổi nợ (Kế toán công nợ / Quản lý kinh doanh / Quản trị viên)"
+              onBackToWorkflow={() => setActiveTab('inventory')}
+              onLogout={onLogout}
+            />
+          )
+        ) : activeTab === 'debt-reconciliation' ? (
+          canAccessDebtReconciliation ? (
+            <DebtReconciliationView
+              token={token}
+              currentUser={user}
+              onBackToHome={() => setActiveTab('inventory')}
+            />
+          ) : (
+            <AccessDeniedView
+              currentUser={user}
+              requiredPermission="Đối chiếu công nợ (Kế toán công nợ / Quản lý kinh doanh / Quản trị viên)"
               onBackToWorkflow={() => setActiveTab('inventory')}
               onLogout={onLogout}
             />
