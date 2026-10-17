@@ -118,14 +118,9 @@ export const PaymentCollectionView: React.FC<PaymentCollectionViewProps> = ({
   // Bulk selection
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
 
-  // Filter state
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [fromDate, setFromDate] = useState<string>(() => {
-    const d = new Date();
-    d.setDate(d.getDate() - 7);
-    return d.toISOString().split('T')[0];
-  });
-  const [toDate, setToDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
+  const [fromDate, setFromDate] = useState<string>('');
+  const [toDate, setToDate] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
   const [balancedOnly, setBalancedOnly] = useState<boolean | undefined>(undefined);
 
@@ -1020,41 +1015,41 @@ export const PaymentCollectionView: React.FC<PaymentCollectionViewProps> = ({
             )}
           </div>
 
-          {/* Sub-Header Bảng: Tóm tắt 4 chỉ số ngắn gọn trên 1 thanh duy nhất của bảng */}
+          {/* Sub-Header Bảng: Tóm tắt 4 chỉ số trên 1 hàng ngang thẳng tắp, không ngắt dòng */}
           <div
             style={{
               padding: '12px 20px',
               backgroundColor: '#f8fafc',
               borderBottom: '1px solid #e2e8f0',
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-              gap: '12px',
+              display: 'flex',
               alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '12px 32px',
             }}
           >
-            <div>
-              <span style={{ fontSize: '11px', fontWeight: 600, color: '#64748b', textTransform: 'uppercase' }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}>
+              <span style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
                 Tổng thu đợt này:
-              </span>{' '}
+              </span>
               <strong style={{ fontSize: '15px', color: '#0f172a' }}>{formatMoney(selectedBatch.total_collected)}</strong>
-              <span style={{ fontSize: '11px', color: '#64748b', marginLeft: '6px' }}>({selectedBatch.collections_count} khoản)</span>
+              <span style={{ fontSize: '11px', color: '#64748b', whiteSpace: 'nowrap' }}>({selectedBatch.collections_count} khoản)</span>
             </div>
-            <div>
-              <span style={{ fontSize: '11px', fontWeight: 600, color: '#b45309', textTransform: 'uppercase' }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}>
+              <span style={{ fontSize: '11px', fontWeight: 700, color: '#b45309', textTransform: 'uppercase' }}>
                 Chờ nộp về Cty:
-              </span>{' '}
+              </span>
               <strong style={{ fontSize: '15px', color: '#b45309' }}>{formatMoney(selectedBatch.total_pending_remittance)}</strong>
             </div>
-            <div>
-              <span style={{ fontSize: '11px', fontWeight: 600, color: '#0369a1', textTransform: 'uppercase' }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}>
+              <span style={{ fontSize: '11px', fontWeight: 700, color: '#0369a1', textTransform: 'uppercase' }}>
                 Đã nộp (Chờ duyệt):
-              </span>{' '}
+              </span>
               <strong style={{ fontSize: '15px', color: '#0284c7' }}>{formatMoney(selectedBatch.total_submitted)}</strong>
             </div>
-            <div>
-              <span style={{ fontSize: '11px', fontWeight: 600, color: '#15803d', textTransform: 'uppercase' }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}>
+              <span style={{ fontSize: '11px', fontWeight: 700, color: '#15803d', textTransform: 'uppercase' }}>
                 Đã khớp quỹ Cty:
-              </span>{' '}
+              </span>
               <strong style={{ fontSize: '15px', color: '#15803d' }}>{formatMoney(selectedBatch.total_confirmed)}</strong>
             </div>
           </div>
@@ -1651,6 +1646,41 @@ export const PaymentCollectionView: React.FC<PaymentCollectionViewProps> = ({
               <option value="balanced">Đã khớp 100% không lệch</option>
             </select>
           </div>
+
+          {/* NÚT XÓA BỘ LỌC KHI ĐANG CÓ LỌC */}
+          {(fromDate || toDate || searchQuery || statusFilter !== 'all' || balancedOnly !== undefined) && (
+            <div style={{ display: 'flex', alignItems: 'flex-end', height: '100%', alignSelf: 'flex-end' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setFromDate('');
+                  setToDate('');
+                  setSearchQuery('');
+                  setStatusFilter('all');
+                  setBalancedOnly(undefined);
+                  setReconPage(1);
+                  setCollectionsPage(1);
+                }}
+                style={{
+                  padding: '5px 12px',
+                  borderRadius: '6px',
+                  border: '1px solid #cbd5e1',
+                  backgroundColor: '#f1f5f9',
+                  fontSize: '12px',
+                  color: '#475569',
+                  cursor: 'pointer',
+                  height: '32px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  fontWeight: 600,
+                }}
+                title="Đặt lại bộ lọc để xem toàn bộ ngày"
+              >
+                ✕ Xóa lọc
+              </button>
+            </div>
+          )}
         </div>
       )}
 
