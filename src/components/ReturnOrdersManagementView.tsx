@@ -7,6 +7,7 @@ import {
 } from '../services/api';
 import { CreateReturnOrderPage } from './CreateReturnOrderPage';
 import { ReturnOrderDetailModal } from './ReturnOrderDetailModal';
+import { ModalPortal } from './ModalPortal';
 import { emitStatusToast } from './StatusToast';
 
 interface ReturnOrdersManagementViewProps {
@@ -24,6 +25,11 @@ export const ReturnOrdersManagementView: React.FC<ReturnOrdersManagementViewProp
   const [totalCount, setTotalCount] = useState<number>(0);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  // Modal xác nhận nhập kho trực tiếp trên giao diện web (không dùng window.confirm/alert hệ thống)
+  const [confirmingOrder, setConfirmingOrder] = useState<ReturnOrderData | null>(null);
+  const [isSubmittingConfirm, setIsSubmittingConfirm] = useState<boolean>(false);
+  const [confirmError, setConfirmError] = useState<string | null>(null);
 
   // View mode: 'list' | 'create'
   const isCreateUrl = typeof window !== 'undefined' && window.location.pathname.startsWith('/return-orders/create');
@@ -88,20 +94,36 @@ export const ReturnOrdersManagementView: React.FC<ReturnOrdersManagementViewProp
     fetchReturnOrders();
   }, [fetchReturnOrders]);
 
-  // Xác nhận nhập kho trực tiếp từ bảng
-  const handleQuickConfirm = async (ro: ReturnOrderData) => {
-    if (!window.confirm(`Bạn có chắc chắn muốn xác nhận nhận hàng và cộng tồn kho cho phiếu ${ro.code}?`)) {
-      return;
-    }
+  // Mở popup xác nhận nhập kho trực tiếp trên trang web
+  const handleQuickConfirm = (ro: ReturnOrderData) => {
+    setConfirmingOrder(ro);
+    setConfirmError(null);
+  };
+
+  // Thực hiện xác nhận nhận hàng và cập nhật tồn kho
+  const handleExecuteQuickConfirm = async () => {
+    if (!confirmingOrder) return;
+    setIsSubmittingConfirm(true);
+    setConfirmError(null);
     try {
-      const updated = await confirmReturnReceiptApi(token, ro.id);
+      const updated = await confirmReturnReceiptApi(token, confirmingOrder.id);
       emitStatusToast({
+        type: 'success',
         title: 'Nhập kho thành công',
         message: `Phiếu trả hàng ${updated.code} đã hoàn tất và đã cộng tồn kho!`,
       });
+      setConfirmingOrder(null);
       fetchReturnOrders();
     } catch (err: any) {
-      alert(err.message || 'Lỗi khi xác nhận nhận hàng.');
+      const msg = err.message || 'Lỗi khi xác nhận nhận hàng.';
+      setConfirmError(msg);
+      emitStatusToast({
+        type: 'error',
+        title: 'Lỗi xác nhận nhận hàng',
+        message: msg,
+      });
+    } finally {
+      setIsSubmittingConfirm(false);
     }
   };
 
@@ -344,7 +366,7 @@ export const ReturnOrdersManagementView: React.FC<ReturnOrdersManagementViewProp
         </div>
 
         {/* Search Input */}
-        <div style={{ position: 'relative', width: '280px' }}>
+        <div style={{ position: 'relative', width: '260px' }}>
           <input
             type="text"
             placeholder="Tìm mã phiếu, mã đơn, đại lý..."
@@ -355,28 +377,15 @@ export const ReturnOrdersManagementView: React.FC<ReturnOrdersManagementViewProp
             }}
             style={{
               width: '100%',
-              padding: '8px 12px 8px 34px',
+              padding: '8px 12px',
               borderRadius: '8px',
               border: '1px solid #cbd5e1',
               fontSize: '13px',
               background: '#ffffff',
               outline: 'none',
+              boxSizing: 'border-box',
             }}
           />
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="#94a3b8"
-            strokeWidth="2.2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            style={{ position: 'absolute', left: '10px', top: '10px' }}
-          >
-            <circle cx="11" cy="11" r="8" />
-            <line x1="21" y1="21" x2="16.65" y2="16.65" />
-          </svg>
         </div>
       </div>
 
@@ -540,7 +549,7 @@ export const ReturnOrdersManagementView: React.FC<ReturnOrdersManagementViewProp
                             type="button"
                             onClick={() => handleQuickConfirm(ro)}
                             style={{
-                              padding: '5px 10px',
+                              padding: '5px 12px',
                               borderRadius: '6px',
                               border: 'none',
                               background: '#16a34a',
@@ -550,13 +559,9 @@ export const ReturnOrdersManagementView: React.FC<ReturnOrdersManagementViewProp
                               cursor: 'pointer',
                               display: 'inline-flex',
                               alignItems: 'center',
-                              gap: '4px',
                             }}
                             title="Xác nhận nhận hàng & cộng tồn kho"
                           >
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                              <polyline points="20 6 9 17 4 12" />
-                            </svg>
                             Nhập kho
                           </button>
                         )}
@@ -641,6 +646,145 @@ export const ReturnOrdersManagementView: React.FC<ReturnOrdersManagementViewProp
           fetchReturnOrders();
         }}
       />
+
+      {/* Modal Xác nhận Nhập kho trực tiếp trên giao diện web */}
+      {confirmingOrder && (
+        <ModalPortal>
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              backgroundColor: 'rgba(15, 23, 42, 0.55)',
+              backdropFilter: 'blur(3px)',
+              zIndex: 9999,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '16px',
+            }}
+            onClick={(e) => {
+              if (e.target === e.currentTarget && !isSubmittingConfirm) {
+                setConfirmingOrder(null);
+              }
+            }}
+          >
+            <div
+              style={{
+                backgroundColor: '#ffffff',
+                borderRadius: '12px',
+                width: '100%',
+                maxWidth: '460px',
+                boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+                border: '1px solid #e2e8f0',
+                overflow: 'hidden',
+              }}
+            >
+              <div style={{ padding: '20px 24px', borderBottom: '1px solid #f1f5f9' }}>
+                <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '700', color: '#0f172a' }}>
+                  Xác nhận nhận hàng & Nhập kho
+                </h3>
+                <p style={{ margin: '8px 0 0 0', fontSize: '13.5px', color: '#475569', lineHeight: '1.5' }}>
+                  Bạn có chắc chắn muốn xác nhận nhận hàng và cộng tồn kho cho phiếu <strong>{confirmingOrder.code}</strong>?
+                </p>
+              </div>
+
+              <div
+                style={{
+                  padding: '16px 24px',
+                  backgroundColor: '#f8fafc',
+                  fontSize: '13px',
+                  color: '#334155',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '8px',
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#64748b' }}>Đơn hàng gốc:</span>
+                  <strong>{confirmingOrder.order_code || `ORD#${confirmingOrder.order_id}`}</strong>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#64748b' }}>Đại lý:</span>
+                  <span>{confirmingOrder.dealer_name || 'Đại lý'}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#64748b' }}>Số lượng sản phẩm trả:</span>
+                  <span>{confirmingOrder.total_quantity || confirmingOrder.items?.length || 0}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#64748b' }}>Tổng tiền hoàn trả:</span>
+                  <strong style={{ color: '#059669' }}>
+                    {(confirmingOrder.total_refund_amount || 0).toLocaleString('vi-VN')} đ
+                  </strong>
+                </div>
+
+                {confirmError && (
+                  <div
+                    style={{
+                      marginTop: '8px',
+                      padding: '10px 12px',
+                      borderRadius: '6px',
+                      backgroundColor: '#fee2e2',
+                      border: '1px solid #fca5a5',
+                      color: '#b91c1c',
+                      fontSize: '12.5px',
+                      fontWeight: '600',
+                    }}
+                  >
+                    {confirmError}
+                  </div>
+                )}
+              </div>
+
+              <div
+                style={{
+                  padding: '14px 24px',
+                  display: 'flex',
+                  justifyContent: 'flex-end',
+                  gap: '10px',
+                  backgroundColor: '#ffffff',
+                  borderTop: '1px solid #f1f5f9',
+                }}
+              >
+                <button
+                  type="button"
+                  disabled={isSubmittingConfirm}
+                  onClick={() => setConfirmingOrder(null)}
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: '6px',
+                    border: '1px solid #cbd5e1',
+                    backgroundColor: '#ffffff',
+                    color: '#475569',
+                    fontSize: '13px',
+                    fontWeight: '600',
+                    cursor: isSubmittingConfirm ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  Hủy
+                </button>
+                <button
+                  type="button"
+                  disabled={isSubmittingConfirm}
+                  onClick={handleExecuteQuickConfirm}
+                  style={{
+                    padding: '8px 20px',
+                    borderRadius: '6px',
+                    border: 'none',
+                    backgroundColor: isSubmittingConfirm ? '#94a3b8' : '#15803d',
+                    color: '#ffffff',
+                    fontSize: '13px',
+                    fontWeight: '700',
+                    cursor: isSubmittingConfirm ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  {isSubmittingConfirm ? 'Đang cập nhật tồn kho...' : 'Xác nhận nhập kho'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </ModalPortal>
+      )}
     </div>
   );
 };

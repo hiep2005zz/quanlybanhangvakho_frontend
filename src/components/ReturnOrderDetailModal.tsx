@@ -256,16 +256,13 @@ export const ReturnOrderDetailModal: React.FC<ReturnOrderDetailModalProps> = ({
                   boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
+                <div style={{ marginBottom: '8px' }}>
                   <h4 style={{ margin: 0, fontSize: '15px', fontWeight: '700', color: '#166534' }}>
-                    Xác nhận nhận hàng & Nhập lại kho (Quy tắc 4)
+                    Xác nhận nhận hàng & Nhập kho
                   </h4>
                 </div>
                 <p style={{ margin: '0 0 12px 0', fontSize: '12.5px', color: '#14532d', lineHeight: '1.5' }}>
-                  Hệ thống sẽ thực hiện Database Transaction để chuyển trạng thái sang <strong>COMPLETED</strong>, đồng thời cộng tồn kho vật lý vào đúng kho (Kho thường / Kho lỗi) và đúng Mã Lô.
+                  Hệ thống sẽ chuyển trạng thái phiếu sang <strong>Đã nhập kho</strong>, đồng thời cộng tồn kho vật lý vào đúng kho và đúng mã lô.
                 </p>
                 <div style={{ marginBottom: '12px' }}>
                   <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#166534', marginBottom: '4px' }}>
@@ -548,13 +545,9 @@ export const ReturnOrderDetailModal: React.FC<ReturnOrderDetailModalProps> = ({
                     cursor: 'pointer',
                     display: 'inline-flex',
                     alignItems: 'center',
-                    gap: '6px',
                     boxShadow: '0 2px 4px rgba(22, 163, 74, 0.25)',
                   }}
                 >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
                   Xác nhận nhận hàng & Nhập kho
                 </button>
               )}
