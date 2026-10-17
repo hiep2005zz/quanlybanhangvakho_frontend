@@ -1,5 +1,4 @@
-// frontend/src/components/DebtPaymentReconciliationView.tsx
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import type { User } from '../services/api';
 import type {
   DealerDebtSummary,
@@ -13,6 +12,7 @@ import {
   getDealerInvoicesForAllocationApi,
   createPaymentReceiptApi,
   getPaymentReceiptsApi,
+  getPaymentReceiptDetailApi,
   createPaymentAdjustmentApi,
 } from '../services/debtPaymentApi';
 import { convertNumberToVietnameseWords } from '../utils/numberToWords';
@@ -40,6 +40,14 @@ const formatDate = (dateStr?: string | null): string => {
   return Number.isNaN(d.getTime()) ? dateStr : d.toLocaleDateString('vi-VN');
 };
 
+const formatDateTime = (dateStr?: string | null): string => {
+  if (!dateStr) return '—';
+  const d = new Date(dateStr);
+  return Number.isNaN(d.getTime())
+    ? dateStr
+    : `${d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })} ${d.toLocaleDateString('vi-VN')}`;
+};
+
 export const DebtPaymentReconciliationView: React.FC<DebtPaymentReconciliationViewProps> = ({
   currentUser,
   token,
@@ -53,6 +61,11 @@ export const DebtPaymentReconciliationView: React.FC<DebtPaymentReconciliationVi
   const [selectedDealerId, setSelectedDealerId] = useState<number | null>(initialDealerId || null);
   const [dealerSearchQuery, setDealerSearchQuery] = useState<string>('');
   const [loadingDealers, setLoadingDealers] = useState<boolean>(true);
+
+  // Dealer custom dropdown state (theo phong cách Ảnh 1)
+  const [isDealerDropdownOpen, setIsDealerDropdownOpen] = useState<boolean>(false);
+  const dealerDropdownRef = useRef<HTMLDivElement>(null);
+  const dealerSearchInputRef = useRef<HTMLInputElement>(null);
 
   // Selected dealer summary & invoices
   const [dealerSummary, setDealerSummary] = useState<DealerDebtSummary | null>(null);
@@ -146,6 +159,48 @@ export const DebtPaymentReconciliationView: React.FC<DebtPaymentReconciliationVi
       setInvoices([]);
     }
   }, [selectedDealerId, loadDealerDetails]);
+
+  const selectedDealer = useMemo(() => {
+    return dealers.find((d) => d.dealer_id === selectedDealerId) || null;
+  }, [dealers, selectedDealerId]);
+
+  // Đóng dropdown khi click bên ngoài
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dealerDropdownRef.current && !dealerDropdownRef.current.contains(event.target as Node)) {
+        setIsDealerDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Đóng dropdown khi nhấn Escape
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isDealerDropdownOpen) {
+        setIsDealerDropdownOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isDealerDropdownOpen]);
+
+  // Tự động focus vào ô tìm kiếm khi mở dropdown
+  useEffect(() => {
+    if (isDealerDropdownOpen && dealerSearchInputRef.current) {
+      setTimeout(() => {
+        dealerSearchInputRef.current?.focus();
+      }, 50);
+    }
+  }, [isDealerDropdownOpen]);
+
+  // Xóa từ khóa tìm kiếm khi đóng dropdown
+  useEffect(() => {
+    if (!isDealerDropdownOpen) {
+      setDealerSearchQuery('');
+    }
+  }, [isDealerDropdownOpen]);
 
   // Load receipts history
   const loadReceipts = useCallback(async () => {
@@ -282,9 +337,9 @@ export const DebtPaymentReconciliationView: React.FC<DebtPaymentReconciliationVi
       const allocationsPayload =
         allocationMode === 'MANUAL'
           ? Object.entries(manualAllocations).map(([invId, amt]) => ({
-              invoice_id: Number(invId),
-              allocated_amount: amt,
-            }))
+            invoice_id: Number(invId),
+            allocated_amount: amt,
+          }))
           : undefined;
 
       const receipt = await createPaymentReceiptApi(token, {
@@ -337,6 +392,19 @@ export const DebtPaymentReconciliationView: React.FC<DebtPaymentReconciliationVi
     }
   };
 
+  // Mở Modal xem chi tiết phiếu thu & nạp lại thông tin mới nhất từ máy chủ
+  const handleOpenReceiptDetail = async (r: PaymentReceipt) => {
+    setViewingReceiptDetail(r);
+    try {
+      const fresh = await getPaymentReceiptDetailApi(token, r.id);
+      if (fresh) {
+        setViewingReceiptDetail(fresh);
+      }
+    } catch (e) {
+      console.warn('Lỗi tải chi tiết phiếu thu từ server:', e);
+    }
+  };
+
   // Mở Modal Lập Bút Toán Điều Chỉnh Phiếu Thu (Điền sẵn mặc định toàn bộ số tiền đã đối trừ)
   const openAdjustmentModal = (r: PaymentReceipt) => {
     setAdjustingReceipt(r);
@@ -356,15 +424,19 @@ export const DebtPaymentReconciliationView: React.FC<DebtPaymentReconciliationVi
     if (!adjustmentReason.trim()) return false;
     if (adjustingReceipt.allocations.length === 0) return true;
 
+    let anyReduction = false;
     for (const a of adjustingReceipt.allocations) {
       const curAllocated = a.current_allocated_amount !== undefined ? a.current_allocated_amount : a.allocated_amount;
       const strVal = adjustmentAmounts[a.id] ?? String(curAllocated);
-      const numVal = parseFloat(strVal);
-      if (isNaN(numVal) || numVal < 1 || numVal > curAllocated) {
+      const newTarget = parseFloat(strVal);
+      if (isNaN(newTarget) || newTarget < 0 || newTarget > curAllocated) {
         return false;
       }
+      if (curAllocated - newTarget > 0.001) {
+        anyReduction = true;
+      }
     }
-    return true;
+    return anyReduction;
   }, [adjustingReceipt, adjustmentReason, adjustmentAmounts]);
 
   // Handle confirm adjustment voucher (Tiêu chí 5)
@@ -377,31 +449,39 @@ export const DebtPaymentReconciliationView: React.FC<DebtPaymentReconciliationVi
       return;
     }
 
-    // Kiểm tra và lấy đúng "Số tiền điều chỉnh" mà Kế toán đã nhập
+    // Tính toán số tiền giảm (reduction) = số tiền đang đối trừ - số tiền đối trừ mới
     const invoiceAdjustments: { invoice_id: number; amount: number }[] = [];
     let totalAdjustAmount = 0;
 
     for (const a of adjustingReceipt.allocations) {
       const curAllocated = a.current_allocated_amount !== undefined ? a.current_allocated_amount : a.allocated_amount;
       const strVal = adjustmentAmounts[a.id] ?? String(curAllocated);
-      const numVal = parseFloat(strVal);
+      const newTarget = parseFloat(strVal);
 
-      if (isNaN(numVal) || numVal < 1) {
-        setAdjustmentError(`Số tiền điều chỉnh giảm trên hoá đơn ${a.invoice_code || '#' + a.invoice_id} phải từ 1 đ trở lên.`);
+      if (isNaN(newTarget) || newTarget < 0) {
+        setAdjustmentError(`Số tiền đối trừ mới trên hoá đơn ${a.invoice_code || '#' + a.invoice_id} không hợp lệ.`);
         return;
       }
-      if (numVal > curAllocated) {
+      if (newTarget > curAllocated) {
         setAdjustmentError(
-          `Số tiền điều chỉnh giảm trên hoá đơn ${a.invoice_code || '#' + a.invoice_id} (${numVal.toLocaleString('vi-VN')} đ) không được vượt quá số tiền đã đối trừ (${curAllocated.toLocaleString('vi-VN')} đ).`
+          `Số tiền đối trừ mới trên hoá đơn ${a.invoice_code || '#' + a.invoice_id} (${newTarget.toLocaleString('vi-VN')} đ) không được lớn hơn số tiền đang đối trừ hiện tại (${curAllocated.toLocaleString('vi-VN')} đ).`
         );
         return;
       }
 
-      invoiceAdjustments.push({
-        invoice_id: a.invoice_id,
-        amount: numVal,
-      });
-      totalAdjustAmount += numVal;
+      const reduceAmount = Math.max(0, curAllocated - newTarget);
+      if (reduceAmount > 0) {
+        invoiceAdjustments.push({
+          invoice_id: a.invoice_id,
+          amount: reduceAmount,
+        });
+        totalAdjustAmount += reduceAmount;
+      }
+    }
+
+    if (totalAdjustAmount <= 0) {
+      setAdjustmentError('Vui lòng giảm số tiền đối trừ ít nhất 1 đ để lập bút toán điều chỉnh.');
+      return;
     }
 
     setAdjustingSubmitting(true);
@@ -427,9 +507,9 @@ export const DebtPaymentReconciliationView: React.FC<DebtPaymentReconciliationVi
       });
 
       // Refresh data
-      loadReceipts();
+      await loadReceipts();
       if (selectedDealerId) {
-        loadDealerDetails(selectedDealerId);
+        await loadDealerDetails(selectedDealerId, true);
       }
       loadDealers();
     } catch (err: any) {
@@ -515,50 +595,386 @@ export const DebtPaymentReconciliationView: React.FC<DebtPaymentReconciliationVi
           {/* DEALER SELECTOR & SUMMARY CARDS */}
           <div className="debt-panel" style={{ padding: '12px 16px', marginBottom: '12px' }}>
             <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <label htmlFor="dealer-select" style={{ fontSize: '13px', fontWeight: '700', color: '#1e293b', whiteSpace: 'nowrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: '1 1 380px', maxWidth: '520px' }}>
+                <label
+                  htmlFor="dealer-dropdown-trigger"
+                  style={{ fontSize: '13px', fontWeight: '700', color: '#1e293b', whiteSpace: 'nowrap' }}
+                >
                   Đại lý / Khách hàng:
                 </label>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <input
-                    type="text"
-                    placeholder="Tìm nhanh..."
-                    value={dealerSearchQuery}
-                    onChange={(e) => setDealerSearchQuery(e.target.value)}
-                    style={{
-                      width: '100px',
-                      padding: '6px 10px',
-                      height: '36px',
-                      borderRadius: '8px',
-                      border: '1px solid #cbd5e1',
-                      fontSize: '12.5px',
-                    }}
-                  />
-                  <select
-                    id="dealer-select"
-                    value={selectedDealerId || ''}
-                    onChange={(e) => setSelectedDealerId(Number(e.target.value))}
+
+                {/* DROPDOWN CHỌN ĐẠI LÝ CHUẨN GIAO DIỆN ẢNH 1 */}
+                <div ref={dealerDropdownRef} style={{ position: 'relative', flex: 1, minWidth: '280px' }}>
+                  {/* Nút bấm hiển thị đại lý đã chọn */}
+                  <button
+                    id="dealer-dropdown-trigger"
+                    type="button"
                     disabled={loadingDealers}
+                    onClick={() => setIsDealerDropdownOpen((prev) => !prev)}
                     style={{
-                      width: '260px',
-                      maxWidth: '280px',
-                      height: '36px',
-                      padding: '6px 10px',
+                      width: '100%',
+                      minHeight: '38px',
+                      padding: '6px 12px',
                       borderRadius: '8px',
-                      border: '1.5px solid #cbd5e1',
-                      fontSize: '13px',
-                      fontWeight: '600',
-                      color: '#0f172a',
+                      border: isDealerDropdownOpen ? '1.5px solid #059669' : '1.5px solid #cbd5e1',
                       background: '#ffffff',
+                      boxShadow: isDealerDropdownOpen
+                        ? '0 0 0 3px rgba(16, 185, 129, 0.15)'
+                        : '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      cursor: loadingDealers ? 'not-allowed' : 'pointer',
                       outline: 'none',
+                      transition: 'all 0.15s ease',
+                      textAlign: 'left',
                     }}
                   >
-                    {filteredDealers.map((d) => (
-                  <option key={d.dealer_id} value={d.dealer_id}>
-                    [{d.dealer_code}] {d.dealer_name} — Nợ: {formatVND(d.total_remaining_debt)}
-                  </option>
-                ))}
-                  </select>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flex: 1, paddingRight: '6px' }}>
+                      {selectedDealer ? (
+                        <>
+                          <span
+                            style={{
+                              fontFamily: 'monospace',
+                              fontSize: '12px',
+                              fontWeight: 700,
+                              color: '#0f172a',
+                              background: '#f1f5f9',
+                              padding: '2px 6px',
+                              borderRadius: '4px',
+                              border: '1px solid #e2e8f0',
+                              flexShrink: 0,
+                            }}
+                          >
+                            [{selectedDealer.dealer_code}]
+                          </span>
+                          <span
+                            style={{
+                              fontSize: '13px',
+                              fontWeight: 600,
+                              color: '#0f172a',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            {selectedDealer.dealer_name}
+                          </span>
+                          {selectedDealer.total_remaining_debt > 0 ? (
+                            <span
+                              style={{
+                                fontSize: '11px',
+                                fontWeight: 700,
+                                color: '#b91c1c',
+                                background: '#fef2f2',
+                                border: '1px solid #fecaca',
+                                padding: '1.5px 7px',
+                                borderRadius: '10px',
+                                marginLeft: 'auto',
+                                whiteSpace: 'nowrap',
+                                flexShrink: 0,
+                              }}
+                            >
+                              Nợ: {formatVND(selectedDealer.total_remaining_debt)}
+                            </span>
+                          ) : (
+                            <span
+                              style={{
+                                fontSize: '11px',
+                                fontWeight: 500,
+                                color: '#64748b',
+                                background: '#f8fafc',
+                                border: '1px solid #e2e8f0',
+                                padding: '1.5px 7px',
+                                borderRadius: '10px',
+                                marginLeft: 'auto',
+                                whiteSpace: 'nowrap',
+                                flexShrink: 0,
+                              }}
+                            >
+                              Nợ: 0 đ
+                            </span>
+                          )}
+                        </>
+                      ) : (
+                        <span style={{ fontSize: '13px', color: '#94a3b8' }}>
+                          {loadingDealers ? 'Đang tải danh sách đại lý...' : 'Chọn đại lý / khách hàng...'}
+                        </span>
+                      )}
+                    </span>
+
+                    {/* Chevron Icon đổi chiều khi mở */}
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      style={{
+                        color: isDealerDropdownOpen ? '#059669' : '#94a3b8',
+                        transform: isDealerDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                        transition: 'transform 0.2s ease, color 0.2s ease',
+                        flexShrink: 0,
+                      }}
+                    >
+                      <polyline points="6 9 12 15 18 9" />
+                    </svg>
+                  </button>
+
+                  {/* Menu Dropdown đổ xuống có thanh tìm kiếm & danh sách đại lý giống Ảnh 1 */}
+                  {isDealerDropdownOpen && (
+                    <div
+                      onWheel={(e) => e.stopPropagation()}
+                      style={{
+                        position: 'absolute',
+                        top: 'calc(100% + 4px)',
+                        left: 0,
+                        width: '100%',
+                        minWidth: '380px',
+                        maxWidth: '520px',
+                        zIndex: 9999,
+                        background: '#ffffff',
+                        borderRadius: '12px',
+                        boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+                        border: '1px solid #cbd5e1',
+                        overflow: 'hidden',
+                        display: 'flex',
+                        flexDirection: 'column',
+                      }}
+                    >
+                      {/* Hộp tìm kiếm đại lý phía trên (giống Ảnh 1) */}
+                      <div
+                        style={{
+                          padding: '8px 10px',
+                          background: '#f8fafc',
+                          borderBottom: '1px solid #e2e8f0',
+                          flexShrink: 0,
+                          position: 'relative',
+                        }}
+                      >
+                        <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                          <svg
+                            width="14"
+                            height="14"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2.5"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            style={{
+                              position: 'absolute',
+                              left: '10px',
+                              top: '50%',
+                              transform: 'translateY(-50%)',
+                              color: '#94a3b8',
+                              pointerEvents: 'none',
+                            }}
+                          >
+                            <circle cx="11" cy="11" r="8" />
+                            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                          </svg>
+
+                          <input
+                            ref={dealerSearchInputRef}
+                            type="text"
+                            value={dealerSearchQuery}
+                            onChange={(e) => setDealerSearchQuery(e.target.value)}
+                            placeholder="Tìm kiếm theo mã đại lý, tên hoặc số điện thoại..."
+                            style={{
+                              width: '100%',
+                              padding: '6px 28px 6px 32px',
+                              borderRadius: '8px',
+                              fontSize: '12.5px',
+                              background: '#ffffff',
+                              border: '1.5px solid #10b981',
+                              color: '#0f172a',
+                              outline: 'none',
+                              boxShadow: '0 0 0 3px rgba(16, 185, 129, 0.15)',
+                              fontWeight: 500,
+                            }}
+                          />
+
+                          {dealerSearchQuery && (
+                            <button
+                              type="button"
+                              onClick={() => setDealerSearchQuery('')}
+                              style={{
+                                position: 'absolute',
+                                right: '6px',
+                                top: '50%',
+                                transform: 'translateY(-50%)',
+                                background: 'transparent',
+                                border: 'none',
+                                color: '#94a3b8',
+                                padding: '4px',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                              }}
+                              title="Xóa tìm kiếm"
+                            >
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <line x1="18" y1="6" x2="6" y2="18" />
+                                <line x1="6" y1="6" x2="18" y2="18" />
+                              </svg>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Danh sách đại lý cuộn (giống Ảnh 1) */}
+                      <div
+                        style={{
+                          overflowY: 'auto',
+                          maxHeight: '230px',
+                          overscrollBehavior: 'contain',
+                        }}
+                      >
+                        {loadingDealers ? (
+                          <div style={{ padding: '20px', textAlign: 'center', fontSize: '12.5px', color: '#059669', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ animation: 'spin 1s linear infinite' }}>
+                              <circle cx="12" cy="12" r="10" stroke="#cbd5e1" strokeWidth="3" />
+                              <path d="M4 12a8 8 0 018-8" stroke="#059669" strokeWidth="3" strokeLinecap="round" />
+                            </svg>
+                            <span>Đang tải danh sách đại lý...</span>
+                          </div>
+                        ) : filteredDealers.length === 0 ? (
+                          <div style={{ padding: '20px', textAlign: 'center', fontSize: '12.5px', color: '#64748b' }}>
+                            {dealerSearchQuery
+                              ? `Không tìm thấy đại lý nào phù hợp với từ khoá "${dealerSearchQuery}".`
+                              : 'Không tìm thấy đại lý nào trong hệ thống.'}
+                          </div>
+                        ) : (
+                          filteredDealers.map((d) => {
+                            const isSelected = selectedDealerId === d.dealer_id;
+                            return (
+                              <div
+                                key={d.dealer_id}
+                                onClick={() => {
+                                  setSelectedDealerId(d.dealer_id);
+                                  setIsDealerDropdownOpen(false);
+                                }}
+                                style={{
+                                  padding: '8px 12px',
+                                  cursor: 'pointer',
+                                  transition: 'background-color 0.15s ease',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'space-between',
+                                  gap: '12px',
+                                  minHeight: '46px',
+                                  borderBottom: '1px solid #f1f5f9',
+                                  background: isSelected ? 'rgba(236, 253, 245, 0.7)' : '#ffffff',
+                                }}
+                                onMouseEnter={(e) => {
+                                  if (!isSelected) e.currentTarget.style.backgroundColor = 'rgba(236, 253, 245, 0.4)';
+                                }}
+                                onMouseLeave={(e) => {
+                                  if (!isSelected) e.currentTarget.style.backgroundColor = '#ffffff';
+                                }}
+                              >
+                                <div style={{ minWidth: 0, flex: 1 }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <span
+                                      style={{
+                                        fontFamily: 'monospace',
+                                        fontSize: '11px',
+                                        fontWeight: 700,
+                                        color: '#0f172a',
+                                        background: '#f1f5f9',
+                                        padding: '1.5px 5px',
+                                        borderRadius: '4px',
+                                        border: '1px solid #cbd5e1',
+                                        flexShrink: 0,
+                                      }}
+                                    >
+                                      {d.dealer_code}
+                                    </span>
+                                    <span
+                                      style={{
+                                        fontSize: '13px',
+                                        fontWeight: isSelected ? 700 : 600,
+                                        color: isSelected ? '#065f46' : '#0f172a',
+                                        overflow: 'hidden',
+                                        textOverflow: 'ellipsis',
+                                        whiteSpace: 'nowrap',
+                                      }}
+                                    >
+                                      {d.dealer_name}
+                                    </span>
+                                  </div>
+
+                                  <div
+                                    style={{
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      gap: '8px',
+                                      fontSize: '11.5px',
+                                      color: '#64748b',
+                                      marginTop: '3px',
+                                      flexWrap: 'wrap',
+                                    }}
+                                  >
+                                    <span>
+                                      Công nợ: <strong style={{ color: d.total_remaining_debt > 0 ? '#dc2626' : '#059669' }}>{formatVND(d.total_remaining_debt)}</strong>
+                                    </span>
+                                    <span>•</span>
+                                    <span>
+                                      {d.open_invoices_count > 0 ? (
+                                        <strong style={{ color: '#475569' }}>{d.open_invoices_count} HĐ nợ</strong>
+                                      ) : (
+                                        '0 HĐ nợ'
+                                      )}
+                                    </span>
+                                    {d.phone && (
+                                      <>
+                                        <span>•</span>
+                                        <span>SĐT: <strong style={{ color: '#334155' }}>{d.phone}</strong></span>
+                                      </>
+                                    )}
+                                    {d.is_overdue && (
+                                      <>
+                                        <span>•</span>
+                                        <span style={{ color: '#dc2626', fontWeight: 600 }}>Quá hạn</span>
+                                      </>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {isSelected && (
+                                  <div style={{ flexShrink: 0, color: '#059669' }}>
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                                      <polyline points="20 6 9 17 4 12" />
+                                    </svg>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })
+                        )}
+
+                        {!loadingDealers && filteredDealers.length > 0 && (
+                          <div
+                            style={{
+                              padding: '6px 12px',
+                              textAlign: 'center',
+                              fontSize: '11px',
+                              color: '#94a3b8',
+                              background: '#f8fafc',
+                              borderTop: '1px solid #f1f5f9',
+                            }}
+                          >
+                            Đã hiển thị toàn bộ {filteredDealers.length} / {dealers.length} đại lý
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -895,15 +1311,14 @@ export const DebtPaymentReconciliationView: React.FC<DebtPaymentReconciliationVi
                               </td>
                               <td style={{ textAlign: 'center' }}>
                                 <span
-                                  className={`badge ${
-                                    inv.status === 'PAID'
-                                      ? 'badge-paid'
-                                      : inv.status === 'PARTIALLY_PAID' || inv.status === 'PARTIAL'
+                                  className={`badge ${inv.status === 'PAID'
+                                    ? 'badge-paid'
+                                    : inv.status === 'PARTIALLY_PAID' || inv.status === 'PARTIAL'
                                       ? 'badge-partial'
                                       : inv.status === 'OVERDUE'
-                                      ? 'badge-overdue'
-                                      : 'badge-unpaid'
-                                  }`}
+                                        ? 'badge-overdue'
+                                        : 'badge-unpaid'
+                                    }`}
                                 >
                                   {inv.status_label}
                                 </span>
@@ -1004,10 +1419,10 @@ export const DebtPaymentReconciliationView: React.FC<DebtPaymentReconciliationVi
                   {isOverRemainingDebt
                     ? 'Số tiền thu vượt quá tổng công nợ còn lại'
                     : numAmount <= 0
-                    ? ''
-                    : allocationMode === 'MANUAL' && !isManualAllocationMatched
-                    ? 'Tổng tiền phân bổ chưa khớp số tiền thu'
-                    : `Sẵn sàng đối trừ ${formatVND(numAmount)}`}
+                      ? ''
+                      : allocationMode === 'MANUAL' && !isManualAllocationMatched
+                        ? 'Tổng tiền phân bổ chưa khớp số tiền thu'
+                        : `Sẵn sàng đối trừ ${formatVND(numAmount)}`}
                 </span>
 
                 <button
@@ -1017,12 +1432,12 @@ export const DebtPaymentReconciliationView: React.FC<DebtPaymentReconciliationVi
                   style={
                     isOverRemainingDebt
                       ? {
-                          backgroundColor: '#ef4444',
-                          borderColor: '#dc2626',
-                          color: '#ffffff',
-                          cursor: 'not-allowed',
-                          opacity: 0.95,
-                        }
+                        backgroundColor: '#ef4444',
+                        borderColor: '#dc2626',
+                        color: '#ffffff',
+                        cursor: 'not-allowed',
+                        opacity: 0.95,
+                      }
                       : undefined
                   }
                   title={isOverRemainingDebt ? 'Số tiền thu vượt quá tổng công nợ còn lại' : undefined}
@@ -1082,8 +1497,31 @@ export const DebtPaymentReconciliationView: React.FC<DebtPaymentReconciliationVi
                         <strong>{r.dealer_name}</strong>
                         {r.dealer_code && <div style={{ fontSize: '11px', color: '#64748b' }}>{r.dealer_code}</div>}
                       </td>
-                      <td style={{ textAlign: 'right', fontWeight: '700', color: '#059669', fontSize: '14.5px' }}>
-                        {formatVND(r.amount)}
+                      <td style={{ textAlign: 'right' }}>
+                        {r.status === 'ADJUSTED' ? (
+                          <div>
+                            <div style={{ fontWeight: '700', color: '#059669', fontSize: '14.5px' }}>
+                              {formatVND(
+                                (r.allocations || []).reduce(
+                                  (sum, a) => sum + (a.current_allocated_amount !== undefined ? a.current_allocated_amount : a.allocated_amount),
+                                  0
+                                )
+                              )}
+                            </div>
+                            <div style={{ fontSize: '11px', color: '#64748b' }}>
+                              Gốc: <span style={{ textDecoration: 'line-through' }}>{formatVND(r.amount)}</span>
+                            </div>
+                            {(r.adjustments || []).length > 0 && (
+                              <div style={{ fontSize: '11px', color: '#d97706', fontWeight: '500' }}>
+                                (-{formatVND((r.adjustments || []).reduce((s, adj) => s + (adj.adjustment_amount || 0), 0))})
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <span style={{ fontWeight: '700', color: '#059669', fontSize: '14.5px' }}>
+                            {formatVND(r.amount)}
+                          </span>
+                        )}
                       </td>
                       <td>{r.payment_method}</td>
                       <td>{formatDate(r.payment_date)}</td>
@@ -1097,7 +1535,7 @@ export const DebtPaymentReconciliationView: React.FC<DebtPaymentReconciliationVi
                         {r.allocations && r.allocations.length > 0 ? (
                           <button
                             type="button"
-                            onClick={() => setViewingReceiptDetail(r)}
+                            onClick={() => handleOpenReceiptDetail(r)}
                             style={{
                               display: 'inline-flex',
                               alignItems: 'center',
@@ -1230,17 +1668,18 @@ export const DebtPaymentReconciliationView: React.FC<DebtPaymentReconciliationVi
                       {adjustingReceipt.allocations.map((a) => {
                         const curAllocated = a.current_allocated_amount !== undefined ? a.current_allocated_amount : a.allocated_amount;
                         const enteredStr = adjustmentAmounts[a.id] ?? String(curAllocated);
-                        const enteredNum = parseFloat(enteredStr) || 0;
-                        const isOver = enteredNum > curAllocated;
-                        const isUnder = enteredStr.trim() !== '' && enteredNum < 1;
-                        const remainingAfter = Math.max(0, curAllocated - enteredNum);
+                        const enteredNum = parseFloat(enteredStr);
+                        const isInvalid = isNaN(enteredNum) || enteredNum < 0 || enteredNum > curAllocated;
+                        const isOver = !isNaN(enteredNum) && enteredNum > curAllocated;
+                        const isUnder = !isNaN(enteredNum) && enteredNum < 0;
+                        const reductionAmount = !isNaN(enteredNum) ? Math.max(0, curAllocated - enteredNum) : 0;
 
                         return (
                           <div
                             key={a.id}
                             style={{
                               background: '#ffffff',
-                              border: isOver || isUnder ? '1px solid #f87171' : '1px solid #cbd5e1',
+                              border: isInvalid ? '1px solid #f87171' : '1px solid #cbd5e1',
                               borderRadius: '8px',
                               padding: '12px 14px',
                             }}
@@ -1250,30 +1689,30 @@ export const DebtPaymentReconciliationView: React.FC<DebtPaymentReconciliationVi
                                 Hoá đơn: <strong style={{ color: '#0f172a' }}>{a.invoice_code || `HĐ #${a.invoice_id}`}</strong>
                               </span>
                               <span style={{ fontSize: '12.5px', color: '#475569' }}>
-                                Số tiền đã đối trừ: <strong style={{ color: '#059669' }}>{formatVND(curAllocated)}</strong>
+                                Đang đối trừ hiện tại: <strong style={{ color: '#059669' }}>{formatVND(curAllocated)}</strong>
                               </span>
                             </div>
 
                             <div className="form-field" style={{ marginBottom: '6px' }}>
-                              <label
-                                htmlFor={`adjust-amount-${a.id}`}
-                                style={{ fontWeight: '600', fontSize: '12.5px', color: '#334155', display: 'flex', justifyContent: 'space-between' }}
-                              >
-                                <span>
-                                  Số tiền điều chỉnh giảm (VNĐ) <span style={{ color: '#ef4444' }}>*</span>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                                <label
+                                  htmlFor={`adjust-amount-${a.id}`}
+                                  style={{ fontWeight: '600', fontSize: '12.5px', color: '#334155' }}
+                                >
+                                  Số tiền đối trừ mới (sau điều chỉnh) <span style={{ color: '#ef4444' }}>*</span>
+                                </label>
+                                <span style={{ fontSize: '11.5px', color: '#64748b' }}>
+                                  (Từ 0 đ đến tối đa {formatVND(curAllocated)})
                                 </span>
-                                <span style={{ fontSize: '11.5px', color: '#64748b', fontWeight: 'normal' }}>
-                                  (Từ 1 đ đến tối đa {formatVND(curAllocated)})
-                                </span>
-                              </label>
+                              </div>
                               <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                                 <input
                                   id={`adjust-amount-${a.id}`}
                                   type="number"
-                                  min="1"
+                                  min="0"
                                   max={curAllocated}
                                   step="any"
-                                  placeholder="Nhập số tiền điều chỉnh giảm..."
+                                  placeholder="Nhập số tiền đối trừ mới (VD: 480000)..."
                                   value={adjustmentAmounts[a.id] ?? String(curAllocated)}
                                   onChange={(e) => {
                                     const val = e.target.value;
@@ -1283,7 +1722,7 @@ export const DebtPaymentReconciliationView: React.FC<DebtPaymentReconciliationVi
                                     flex: 1,
                                     padding: '7px 10px',
                                     borderRadius: '6px',
-                                    border: isOver || isUnder ? '1px solid #ef4444' : '1px solid #cbd5e1',
+                                    border: isInvalid ? '1px solid #ef4444' : '1px solid #cbd5e1',
                                     fontSize: '13.5px',
                                     fontWeight: '600',
                                     outline: 'none',
@@ -1292,41 +1731,62 @@ export const DebtPaymentReconciliationView: React.FC<DebtPaymentReconciliationVi
                                 />
                                 <button
                                   type="button"
+                                  onClick={() => setAdjustmentAmounts((prev) => ({ ...prev, [a.id]: '0' }))}
+                                  className="btn-outline"
+                                  style={{ padding: '6px 10px', fontSize: '12px', whiteSpace: 'nowrap', color: '#dc2626', borderColor: '#fca5a5' }}
+                                  title="Huỷ đối trừ hoàn toàn hoá đơn này (đưa số tiền đối trừ về 0 đ)"
+                                >
+                                  Huỷ về 0 đ
+                                </button>
+                                <button
+                                  type="button"
                                   onClick={() => setAdjustmentAmounts((prev) => ({ ...prev, [a.id]: String(curAllocated) }))}
                                   className="btn-outline"
                                   style={{ padding: '6px 10px', fontSize: '12px', whiteSpace: 'nowrap' }}
-                                  title="Điền sẵn toàn bộ số tiền đã đối trừ để huỷ/đảo phiếu thu"
+                                  title="Giữ nguyên số tiền đối trừ hiện tại"
                                 >
-                                  Huỷ
+                                  Giữ nguyên
                                 </button>
                               </div>
                             </div>
 
-                            {/* CẢNH BÁO LỖI HOẶC DÒNG XEM TRƯỚC */}
+                            {/* CẢNH BÁO HOẶC DÒNG XEM TRƯỚC */}
                             {isOver ? (
                               <div style={{ fontSize: '12px', color: '#dc2626', marginTop: '4px', fontWeight: '500' }}>
-                                Số tiền điều chỉnh giảm không được vượt quá số tiền đã đối trừ ({formatVND(curAllocated)}).
+                                Số tiền đối trừ mới không được vượt quá số tiền đang đối trừ hiện tại ({formatVND(curAllocated)}).
                               </div>
-                            ) : isUnder || enteredStr.trim() === '' ? (
+                            ) : isUnder ? (
                               <div style={{ fontSize: '12px', color: '#dc2626', marginTop: '4px', fontWeight: '500' }}>
-                                Số tiền điều chỉnh giảm phải từ 1 đ trở lên.
+                                Số tiền đối trừ mới không được nhỏ hơn 0 đ.
                               </div>
                             ) : (
                               <div
                                 style={{
                                   marginTop: '6px',
                                   padding: '7px 10px',
-                                  background: '#f0fdf4',
-                                  border: '1px solid #bbf7d0',
+                                  background: reductionAmount > 0 ? '#fffbeb' : '#f8fafc',
+                                  border: reductionAmount > 0 ? '1px solid #fde68a' : '1px solid #e2e8f0',
                                   borderRadius: '6px',
                                   fontSize: '12px',
-                                  color: '#166534',
+                                  color: reductionAmount > 0 ? '#92400e' : '#64748b',
                                   lineHeight: '1.4',
                                 }}
                               >
-                                Số tiền thực thu còn lại sau điều chỉnh:{' '}
-                                <strong style={{ color: '#0f172a' }}>{remainingAfter.toLocaleString('vi-VN')} đ</strong> | Dư nợ hoá đơn sẽ cộng hoàn lại:{' '}
-                                <strong style={{ color: '#059669' }}>+{enteredNum.toLocaleString('vi-VN')} đ</strong>
+                                {reductionAmount > 0 ? (
+                                  <>
+                                    <span>
+                                      Số tiền điều chỉnh giảm (hoàn lại vào nợ):{' '}
+                                      <strong style={{ color: '#d97706' }}>-{formatVND(reductionAmount)}</strong>
+                                    </span>
+                                    {' • '}
+                                    <span>
+                                      Sau điều chỉnh còn đối trừ:{' '}
+                                      <strong style={{ color: '#059669' }}>{formatVND(enteredNum)}</strong>
+                                    </span>
+                                  </>
+                                ) : (
+                                  <span>Không có điều chỉnh giảm trên hoá đơn này (giữ nguyên {formatVND(curAllocated)}).</span>
+                                )}
                               </div>
                             )}
                           </div>
@@ -1379,186 +1839,328 @@ export const DebtPaymentReconciliationView: React.FC<DebtPaymentReconciliationVi
       )}
 
       {/* MODAL CHI TIẾT HOÁ ĐƠN ĐÃ ĐỐI TRỪ */}
-      {viewingReceiptDetail && (
-        <ModalPortal>
-          <div className="debt-modal-backdrop" onClick={() => setViewingReceiptDetail(null)}>
-            <div
-              className="debt-modal-panel"
-              style={{ maxWidth: '640px', width: '95%' }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="debt-modal-header">
-                <div>
-                  <h3 style={{ margin: 0, fontSize: '17px', fontWeight: '700', color: '#0f172a' }}>
-                    Chi Tiết Hoá Đơn Đã Đối Trừ
-                  </h3>
-                  <span style={{ fontSize: '12.5px', color: '#64748b' }}>
-                    Phiếu thu: <strong style={{ color: '#0f172a' }}>{viewingReceiptDetail.receipt_code}</strong> • Đại lý: <strong style={{ color: '#0f172a' }}>{viewingReceiptDetail.dealer_name}</strong> {viewingReceiptDetail.dealer_code && `(${viewingReceiptDetail.dealer_code})`}
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setViewingReceiptDetail(null)}
-                  style={{
-                    background: '#f1f5f9',
-                    border: 'none',
-                    width: '30px',
-                    height: '30px',
-                    borderRadius: '50%',
-                    fontSize: '16px',
-                    cursor: 'pointer',
-                    color: '#64748b',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                  title="Đóng"
-                >
-                  ✕
-                </button>
-              </div>
+      {viewingReceiptDetail && (() => {
+        const isAdjusted =
+          viewingReceiptDetail.status === 'ADJUSTED' ||
+          Boolean(viewingReceiptDetail.adjustments && viewingReceiptDetail.adjustments.length > 0);
 
-              <div className="debt-modal-body" style={{ padding: '16px 20px' }}>
-                {/* Thông tin tóm tắt phiếu thu */}
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
-                    gap: '12px',
-                    padding: '12px 14px',
-                    background: '#f8fafc',
-                    border: '1px solid #e2e8f0',
-                    borderRadius: '8px',
-                    marginBottom: '16px',
-                    fontSize: '12.5px',
-                  }}
-                >
+        const totalOrigAllocated = (viewingReceiptDetail.allocations || []).reduce(
+          (sum, a) => sum + (a.allocated_amount || 0),
+          0
+        );
+
+        const totalCurAllocated = (viewingReceiptDetail.allocations || []).reduce(
+          (sum, a) =>
+            sum +
+            (a.current_allocated_amount !== undefined ? a.current_allocated_amount : a.allocated_amount || 0),
+          0
+        );
+
+        const totalAdjustedAmount =
+          (viewingReceiptDetail.adjustments || []).reduce(
+            (sum, adj) => sum + (adj.adjustment_amount || 0),
+            0
+          ) || Math.max(0, totalOrigAllocated - totalCurAllocated);
+
+        return (
+          <ModalPortal>
+            <div className="debt-modal-backdrop" onClick={() => setViewingReceiptDetail(null)}>
+              <div
+                className="debt-modal-panel"
+                style={{ maxWidth: '720px', width: '95%' }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="debt-modal-header">
                   <div>
-                    <div style={{ color: '#64748b', fontSize: '11.5px', marginBottom: '2px' }}>Số tiền thu:</div>
-                    <strong style={{ color: '#059669', fontSize: '14.5px' }}>
-                      {formatVND(viewingReceiptDetail.amount)}
-                    </strong>
+                    <h3 style={{ margin: 0, fontSize: '17px', fontWeight: '700', color: '#0f172a' }}>
+                      Chi Tiết Hoá Đơn Đã Đối Trừ
+                    </h3>
+                    <span style={{ fontSize: '12.5px', color: '#64748b' }}>
+                      Phiếu thu: <strong style={{ color: '#0f172a' }}>{viewingReceiptDetail.receipt_code}</strong> • Đại lý: <strong style={{ color: '#0f172a' }}>{viewingReceiptDetail.dealer_name}</strong> {viewingReceiptDetail.dealer_code && `(${viewingReceiptDetail.dealer_code})`}
+                    </span>
                   </div>
-                  <div>
-                    <div style={{ color: '#64748b', fontSize: '11.5px', marginBottom: '2px' }}>Hình thức:</div>
-                    <strong style={{ color: '#1e293b' }}>{viewingReceiptDetail.payment_method}</strong>
-                  </div>
-                  <div>
-                    <div style={{ color: '#64748b', fontSize: '11.5px', marginBottom: '2px' }}>Phương thức:</div>
-                    <strong style={{ color: '#1e293b' }}>
-                      {viewingReceiptDetail.allocation_mode === 'AUTO_FIFO' ? 'FIFO (Tự động)' : 'Thủ công'}
-                    </strong>
-                  </div>
-                  <div>
-                    <div style={{ color: '#64748b', fontSize: '11.5px', marginBottom: '2px' }}>Ngày thu:</div>
-                    <strong style={{ color: '#1e293b' }}>{formatDate(viewingReceiptDetail.payment_date)}</strong>
-                  </div>
-                  <div>
-                    <div style={{ color: '#64748b', fontSize: '11.5px', marginBottom: '2px' }}>Người thu:</div>
-                    <strong style={{ color: '#1e293b' }}>{viewingReceiptDetail.collector_name}</strong>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setViewingReceiptDetail(null)}
+                    style={{
+                      background: '#f1f5f9',
+                      border: 'none',
+                      width: '30px',
+                      height: '30px',
+                      borderRadius: '50%',
+                      fontSize: '16px',
+                      cursor: 'pointer',
+                      color: '#64748b',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                    title="Đóng"
+                  >
+                    ✕
+                  </button>
                 </div>
 
-                {viewingReceiptDetail.note && (
+                <div className="debt-modal-body" style={{ padding: '16px 20px', maxHeight: '75vh', overflowY: 'auto' }}>
+                  {/* Thông tin tóm tắt phiếu thu */}
                   <div
                     style={{
-                      padding: '8px 12px',
-                      background: '#fffbeb',
-                      border: '1px solid #fef3c7',
-                      borderRadius: '6px',
-                      fontSize: '12px',
-                      color: '#92400e',
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
+                      gap: '12px',
+                      padding: '12px 14px',
+                      background: '#f8fafc',
+                      border: '1px solid #e2e8f0',
+                      borderRadius: '8px',
                       marginBottom: '16px',
+                      fontSize: '12.5px',
                     }}
                   >
-                    <strong>Ghi chú:</strong> {viewingReceiptDetail.note}
-                  </div>
-                )}
+                    <div>
+                      <div style={{ color: '#64748b', fontSize: '11.5px', marginBottom: '2px' }}>
+                        {isAdjusted ? 'Số tiền đối trừ hiện tại:' : 'Số tiền thu:'}
+                      </div>
+                      <strong style={{ color: '#059669', fontSize: '15px' }}>
+                        {formatVND(totalCurAllocated)}
+                      </strong>
+                      {isAdjusted && (
+                        <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
+                          Gốc ban đầu: <span style={{ textDecoration: 'line-through' }}>{formatVND(viewingReceiptDetail.amount)}</span>
+                        </div>
+                      )}
+                    </div>
 
-                {/* Bảng danh sách hoá đơn */}
-                <div style={{ marginBottom: '8px' }}>
-                  <div style={{ fontSize: '13px', fontWeight: '700', color: '#334155', marginBottom: '8px' }}>
-                    Danh sách hoá đơn đã được bù trừ ({viewingReceiptDetail.allocations?.length || 0} hoá đơn):
+                    {isAdjusted && (
+                      <div>
+                        <div style={{ color: '#64748b', fontSize: '11.5px', marginBottom: '2px' }}>Đã điều chỉnh giảm:</div>
+                        <strong style={{ color: '#d97706', fontSize: '14px' }}>
+                          -{formatVND(totalAdjustedAmount)}
+                        </strong>
+                        <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
+                          (Đã hoàn nợ vào HĐ)
+                        </div>
+                      </div>
+                    )}
+
+                    <div>
+                      <div style={{ color: '#64748b', fontSize: '11.5px', marginBottom: '2px' }}>Trạng thái:</div>
+                      <span className={`badge ${viewingReceiptDetail.status === 'CONFIRMED' ? 'badge-confirmed' : 'badge-adjusted'}`}>
+                        {viewingReceiptDetail.status === 'CONFIRMED' ? 'Đã ghi nhận' : 'Đã điều chỉnh'}
+                      </span>
+                    </div>
+
+                    <div>
+                      <div style={{ color: '#64748b', fontSize: '11.5px', marginBottom: '2px' }}>Hình thức:</div>
+                      <strong style={{ color: '#1e293b' }}>{viewingReceiptDetail.payment_method}</strong>
+                    </div>
+
+                    <div>
+                      <div style={{ color: '#64748b', fontSize: '11.5px', marginBottom: '2px' }}>Phương thức:</div>
+                      <strong style={{ color: '#1e293b' }}>
+                        {viewingReceiptDetail.allocation_mode === 'AUTO_FIFO' ? 'FIFO (Tự động)' : 'Thủ công'}
+                      </strong>
+                    </div>
+
+                    <div>
+                      <div style={{ color: '#64748b', fontSize: '11.5px', marginBottom: '2px' }}>Ngày thu:</div>
+                      <strong style={{ color: '#1e293b' }}>{formatDate(viewingReceiptDetail.payment_date)}</strong>
+                    </div>
+
+                    <div>
+                      <div style={{ color: '#64748b', fontSize: '11.5px', marginBottom: '2px' }}>Người thu:</div>
+                      <strong style={{ color: '#1e293b' }}>{viewingReceiptDetail.collector_name}</strong>
+                    </div>
                   </div>
-                  <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12.5px' }}>
-                      <thead>
-                        <tr style={{ background: '#f1f5f9', color: '#475569', textAlign: 'left', borderBottom: '1px solid #cbd5e1' }}>
-                          <th style={{ padding: '8px 12px', width: '45px', textAlign: 'center' }}>STT</th>
-                          <th style={{ padding: '8px 12px' }}>Mã số hoá đơn</th>
-                          <th style={{ padding: '8px 12px', textAlign: 'right' }}>Số tiền đối trừ</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {viewingReceiptDetail.allocations && viewingReceiptDetail.allocations.length > 0 ? (
-                          viewingReceiptDetail.allocations.map((a, idx) => (
-                            <tr key={a.id || idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                              <td style={{ padding: '9px 12px', textAlign: 'center', color: '#64748b' }}>
-                                {idx + 1}
-                              </td>
-                              <td style={{ padding: '9px 12px' }}>
-                                <strong style={{ color: '#0f172a' }}>
-                                  {a.invoice_code || `HĐ #${a.invoice_id}`}
-                                </strong>
-                              </td>
-                              <td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: '700', color: '#059669', fontSize: '13px' }}>
-                                {formatVND(a.allocated_amount)}
+
+                  {viewingReceiptDetail.note && (
+                    <div
+                      style={{
+                        padding: '8px 12px',
+                        background: '#fffbeb',
+                        border: '1px solid #fef3c7',
+                        borderRadius: '6px',
+                        fontSize: '12px',
+                        color: '#92400e',
+                        marginBottom: '16px',
+                      }}
+                    >
+                      <strong>Ghi chú:</strong> {viewingReceiptDetail.note}
+                    </div>
+                  )}
+
+                  {/* Bảng danh sách hoá đơn */}
+                  <div style={{ marginBottom: '14px' }}>
+                    <div style={{ fontSize: '13px', fontWeight: '700', color: '#334155', marginBottom: '8px' }}>
+                      Danh sách hoá đơn đã được bù trừ ({viewingReceiptDetail.allocations?.length || 0} hoá đơn):
+                    </div>
+                    <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12.5px' }}>
+                        <thead>
+                          <tr style={{ background: '#f1f5f9', color: '#475569', textAlign: 'left', borderBottom: '1px solid #cbd5e1' }}>
+                            <th style={{ padding: '8px 12px', width: '40px', textAlign: 'center' }}>STT</th>
+                            <th style={{ padding: '8px 12px' }}>Mã số hoá đơn</th>
+                            {isAdjusted ? (
+                              <>
+                                <th style={{ padding: '8px 12px', textAlign: 'right' }}>Đối trừ ban đầu</th>
+                                <th style={{ padding: '8px 12px', textAlign: 'right' }}>Điều chỉnh giảm</th>
+                                <th style={{ padding: '8px 12px', textAlign: 'right' }}>Đối trừ hiện tại</th>
+                              </>
+                            ) : (
+                              <th style={{ padding: '8px 12px', textAlign: 'right' }}>Số tiền đối trừ</th>
+                            )}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {viewingReceiptDetail.allocations && viewingReceiptDetail.allocations.length > 0 ? (
+                            viewingReceiptDetail.allocations.map((a, idx) => {
+                              const origAmt = a.allocated_amount || 0;
+                              const curAmt =
+                                a.current_allocated_amount !== undefined
+                                  ? a.current_allocated_amount
+                                  : origAmt;
+                              const reducedAmt = Math.max(0, origAmt - curAmt);
+
+                              return (
+                                <tr key={a.id || idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                  <td style={{ padding: '9px 12px', textAlign: 'center', color: '#64748b' }}>
+                                    {idx + 1}
+                                  </td>
+                                  <td style={{ padding: '9px 12px' }}>
+                                    <strong style={{ color: '#0f172a' }}>
+                                      {a.invoice_code || `HĐ #${a.invoice_id}`}
+                                    </strong>
+                                  </td>
+                                  {isAdjusted ? (
+                                    <>
+                                      <td style={{ padding: '9px 12px', textAlign: 'right', color: '#64748b', fontSize: '12.5px' }}>
+                                        {formatVND(origAmt)}
+                                      </td>
+                                      <td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: '600', color: reducedAmt > 0 ? '#d97706' : '#94a3b8', fontSize: '12.5px' }}>
+                                        {reducedAmt > 0 ? `-${formatVND(reducedAmt)}` : '—'}
+                                      </td>
+                                      <td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: '700', color: '#059669', fontSize: '13px' }}>
+                                        {formatVND(curAmt)}
+                                      </td>
+                                    </>
+                                  ) : (
+                                    <td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: '700', color: '#059669', fontSize: '13px' }}>
+                                      {formatVND(curAmt)}
+                                    </td>
+                                  )}
+                                </tr>
+                              );
+                            })
+                          ) : (
+                            <tr>
+                              <td colSpan={isAdjusted ? 5 : 3} style={{ padding: '16px', textAlign: 'center', color: '#94a3b8' }}>
+                                Không có hoá đơn nào được ghi nhận.
                               </td>
                             </tr>
-                          ))
-                        ) : (
-                          <tr>
-                            <td colSpan={3} style={{ padding: '16px', textAlign: 'center', color: '#94a3b8' }}>
-                              Không có hoá đơn nào được ghi nhận.
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                      {viewingReceiptDetail.allocations && viewingReceiptDetail.allocations.length > 0 && (
-                        <tfoot>
-                          <tr style={{ background: '#f8fafc', fontWeight: '700', borderTop: '1px solid #cbd5e1' }}>
-                            <td colSpan={2} style={{ padding: '10px 12px', textAlign: 'right', color: '#334155' }}>
-                              Tổng số tiền đã đối trừ:
-                            </td>
-                            <td style={{ padding: '10px 12px', textAlign: 'right', color: '#059669', fontSize: '14px' }}>
-                              {formatVND(
-                                viewingReceiptDetail.allocations.reduce(
-                                  (sum, item) => sum + (item.allocated_amount || 0),
-                                  0
-                                )
+                          )}
+                        </tbody>
+                        {viewingReceiptDetail.allocations && viewingReceiptDetail.allocations.length > 0 && (
+                          <tfoot>
+                            <tr style={{ background: '#f8fafc', fontWeight: '700', borderTop: '1px solid #cbd5e1' }}>
+                              <td colSpan={2} style={{ padding: '10px 12px', textAlign: 'right', color: '#334155' }}>
+                                Tổng số tiền:
+                              </td>
+                              {isAdjusted ? (
+                                <>
+                                  <td style={{ padding: '10px 12px', textAlign: 'right', color: '#64748b', fontSize: '13px' }}>
+                                    {formatVND(totalOrigAllocated)}
+                                  </td>
+                                  <td style={{ padding: '10px 12px', textAlign: 'right', color: totalAdjustedAmount > 0 ? '#d97706' : '#94a3b8', fontSize: '13px' }}>
+                                    {totalAdjustedAmount > 0 ? `-${formatVND(totalAdjustedAmount)}` : '—'}
+                                  </td>
+                                  <td style={{ padding: '10px 12px', textAlign: 'right', color: '#059669', fontSize: '14px' }}>
+                                    {formatVND(totalCurAllocated)}
+                                  </td>
+                                </>
+                              ) : (
+                                <td style={{ padding: '10px 12px', textAlign: 'right', color: '#059669', fontSize: '14px' }}>
+                                  {formatVND(totalCurAllocated)}
+                                </td>
                               )}
-                            </td>
-                          </tr>
-                        </tfoot>
-                      )}
-                    </table>
+                            </tr>
+                          </tfoot>
+                        )}
+                      </table>
+                    </div>
                   </div>
+
+                  {/* Danh sách chứng từ bút toán điều chỉnh đã lập (Tiêu chí 5) */}
+                  {viewingReceiptDetail.adjustments && viewingReceiptDetail.adjustments.length > 0 && (
+                    <div style={{ marginTop: '14px', borderTop: '1px solid #e2e8f0', paddingTop: '12px' }}>
+                      <div style={{ fontSize: '13px', fontWeight: '700', color: '#92400e', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <circle cx="12" cy="12" r="10"></circle>
+                          <polyline points="12 6 12 12 16 14"></polyline>
+                        </svg>
+                        <span>Lịch sử bút toán điều chỉnh ({viewingReceiptDetail.adjustments.length} chứng từ)</span>
+                      </div>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        {viewingReceiptDetail.adjustments.map((adj) => (
+                          <div
+                            key={adj.id}
+                            style={{
+                              background: '#fffbeb',
+                              border: '1px solid #fef3c7',
+                              borderRadius: '6px',
+                              padding: '10px 12px',
+                              fontSize: '12px',
+                            }}
+                          >
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px', flexWrap: 'wrap', gap: '6px' }}>
+                              <span>
+                                Mã bút toán: <strong style={{ color: '#b45309' }}>{adj.adjustment_code}</strong>
+                              </span>
+                              <span style={{ color: '#64748b' }}>
+                                {formatDateTime(adj.created_at)}
+                              </span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px', flexWrap: 'wrap', gap: '6px' }}>
+                              <span style={{ color: '#475569' }}>
+                                Người lập: <strong>{adj.adjusted_by_name || 'Kế toán'}</strong>
+                              </span>
+                              <span style={{ color: '#dc2626', fontWeight: '700', fontSize: '13px' }}>
+                                Giảm đối trừ: -{formatVND(adj.adjustment_amount)}
+                              </span>
+                            </div>
+                            <div style={{ color: '#78350f', background: '#fef3c7', padding: '6px 8px', borderRadius: '4px', marginTop: '4px', fontStyle: 'italic' }}>
+                              <strong>Lý do điều chỉnh:</strong> {adj.reason}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div
+                  className="debt-modal-footer"
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'flex-end',
+                    padding: '12px 20px',
+                    borderTop: '1px solid #e2e8f0',
+                    background: '#f8fafc',
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => setViewingReceiptDetail(null)}
+                    className="btn-outline"
+                    style={{ padding: '7px 18px', fontSize: '13px' }}
+                  >
+                    Đóng
+                  </button>
                 </div>
               </div>
-
-              <div
-                className="debt-modal-footer"
-                style={{
-                  display: 'flex',
-                  justifyContent: 'flex-end',
-                  padding: '12px 20px',
-                  borderTop: '1px solid #e2e8f0',
-                  background: '#f8fafc',
-                }}
-              >
-                <button
-                  type="button"
-                  onClick={() => setViewingReceiptDetail(null)}
-                  className="btn-outline"
-                  style={{ padding: '7px 18px', fontSize: '13px' }}
-                >
-                  Đóng
-                </button>
-              </div>
             </div>
-          </div>
-        </ModalPortal>
-      )}
+          </ModalPortal>
+        );
+      })()}
     </div>
   );
 };
