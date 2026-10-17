@@ -567,7 +567,13 @@ export const CreateReturnOrderPage: React.FC<CreateReturnOrderPageProps> = ({
                 {orderDetails?.default_warehouse?.name && (
                   <>
                     <span style={{ color: '#cbd5e1' }}>|</span>
-                    <span><strong>Kho xuất:</strong> {orderDetails.default_warehouse.name}</span>
+                    <span><strong>Kho gốc:</strong> {orderDetails.default_warehouse.name}</span>
+                  </>
+                )}
+                {orderDetails?.damaged_warehouse?.name && (
+                  <>
+                    <span style={{ color: '#cbd5e1' }}>|</span>
+                    <span><strong>Kho lỗi:</strong> {orderDetails.damaged_warehouse.name}</span>
                   </>
                 )}
                 <span style={{ color: '#cbd5e1' }}>|</span>
@@ -908,6 +914,7 @@ export const CreateReturnOrderPage: React.FC<CreateReturnOrderPageProps> = ({
                             {row.is_selected ? (
                               isDamaged ? (
                                 <span
+                                  title={`Nhập vào: ${orderDetails?.damaged_warehouse?.name || 'Kho Hàng Lỗi & Chờ Xử Lý'}`}
                                   style={{
                                     whiteSpace: 'nowrap',
                                     display: 'inline-block',
@@ -918,12 +925,14 @@ export const CreateReturnOrderPage: React.FC<CreateReturnOrderPageProps> = ({
                                     fontSize: '11.5px',
                                     fontWeight: '700',
                                     border: '1px solid #fca5a5',
+                                    cursor: 'help',
                                   }}
                                 >
                                   Kho lỗi
                                 </span>
                               ) : (
                                 <span
+                                  title={`Nhập vào: ${orderDetails?.default_warehouse?.name || 'Kho xuất gốc'}`}
                                   style={{
                                     whiteSpace: 'nowrap',
                                     display: 'inline-block',
@@ -934,6 +943,7 @@ export const CreateReturnOrderPage: React.FC<CreateReturnOrderPageProps> = ({
                                     fontSize: '11.5px',
                                     fontWeight: '700',
                                     border: '1px solid #bfdbfe',
+                                    cursor: 'help',
                                   }}
                                 >
                                   Kho gốc
