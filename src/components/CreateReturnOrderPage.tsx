@@ -27,7 +27,7 @@ interface SelectedReturnItemState {
   original_quantity: number;
   already_returned: number;
   remaining_quantity: number;
-  return_quantity: number;
+  return_quantity: number | string;
   return_reason: string;
   custom_reason: string;
   batch_number: string;
@@ -173,7 +173,11 @@ export const CreateReturnOrderPage: React.FC<CreateReturnOrderPageProps> = ({
     setItemsState((prev) => {
       const copy = [...prev];
       if (copy[index].remaining_quantity <= 0) return prev;
-      copy[index].is_selected = !copy[index].is_selected;
+      const nextSelected = !copy[index].is_selected;
+      copy[index].is_selected = nextSelected;
+      if (nextSelected && (!copy[index].return_quantity || Number(copy[index].return_quantity) <= 0)) {
+        copy[index].return_quantity = 1;
+      }
       return copy;
     });
   };
@@ -181,15 +185,17 @@ export const CreateReturnOrderPage: React.FC<CreateReturnOrderPageProps> = ({
   const handleToggleSelectAll = () => {
     const returnableItems = itemsState.filter((it) => it.remaining_quantity > 0);
     const areAllSelected = returnableItems.length > 0 && returnableItems.every((it) => it.is_selected);
+    const nextSelected = !areAllSelected;
     setItemsState((prev) =>
       prev.map((it) => ({
         ...it,
-        is_selected: it.remaining_quantity > 0 ? !areAllSelected : false,
+        is_selected: it.remaining_quantity > 0 ? nextSelected : false,
+        return_quantity: it.remaining_quantity > 0 ? (nextSelected && (!it.return_quantity || Number(it.return_quantity) <= 0) ? 1 : it.return_quantity) : 0,
       }))
     );
   };
 
-  const handleQuantityChange = (index: number, val: number) => {
+  const handleQuantityChange = (index: number, val: number | string) => {
     setItemsState((prev) => {
       const copy = [...prev];
       copy[index].return_quantity = val;
@@ -248,10 +254,11 @@ export const CreateReturnOrderPage: React.FC<CreateReturnOrderPageProps> = ({
     }
 
     for (const it of selectedRows) {
-      if (!it.return_quantity || it.return_quantity <= 0) {
+      const qtyNum = Number(it.return_quantity || 0);
+      if (!it.return_quantity || qtyNum <= 0) {
         return `Số lượng trả của sản phẩm "${it.product_name}" phải lớn hơn 0.`;
       }
-      if (it.return_quantity > it.remaining_quantity) {
+      if (qtyNum > it.remaining_quantity) {
         return `Số lượng trả của "${it.product_name}" (${it.return_quantity}) vượt quá số lượng còn được trả (${it.remaining_quantity}).`;
       }
       const actualReason = it.return_reason === 'Khác (tự nhập lý do)' ? it.custom_reason.trim() : it.return_reason;
@@ -711,7 +718,7 @@ export const CreateReturnOrderPage: React.FC<CreateReturnOrderPageProps> = ({
                   <tbody>
                     {itemsState.map((row, idx) => {
                       const isReturnable = row.remaining_quantity > 0;
-                      const isQtyExceeded = row.is_selected && row.return_quantity > row.remaining_quantity;
+                      const isQtyExceeded = row.is_selected && Number(row.return_quantity || 0) > row.remaining_quantity;
                       const isDamaged = isReasonDamagedHelper(row.return_reason === 'Khác (tự nhập lý do)' ? row.custom_reason : row.return_reason);
                       const lineRefund = (Number(row.return_quantity) || 0) * row.unit_price;
 
@@ -795,10 +802,32 @@ export const CreateReturnOrderPage: React.FC<CreateReturnOrderPageProps> = ({
                               min={1}
                               max={row.remaining_quantity}
                               disabled={!row.is_selected || !isReturnable || isSubmitting}
-                              value={row.return_quantity}
-                              onChange={(e) => handleQuantityChange(idx, Number(e.target.value))}
+                              value={row.return_quantity === 0 && !row.is_selected ? 0 : row.return_quantity}
+                              placeholder="0"
+                              onFocus={(e) => {
+                                e.target.select();
+                              }}
+                              onChange={(e) => {
+                                const raw = e.target.value;
+                                if (raw === '') {
+                                  handleQuantityChange(idx, '');
+                                  return;
+                                }
+                                const parsed = parseInt(raw, 10);
+                                if (!isNaN(parsed)) {
+                                  handleQuantityChange(idx, parsed);
+                                }
+                              }}
+                              onBlur={() => {
+                                const num = Number(row.return_quantity);
+                                if (!row.return_quantity || isNaN(num) || num <= 0) {
+                                  handleQuantityChange(idx, row.is_selected ? 1 : 0);
+                                } else if (num > row.remaining_quantity) {
+                                  handleQuantityChange(idx, row.remaining_quantity);
+                                }
+                              }}
                               style={{
-                                width: '46px',
+                                width: '48px',
                                 padding: '3px 4px',
                                 borderRadius: '4px',
                                 border: isQtyExceeded ? '2px solid #ef4444' : '1px solid #cbd5e1',
