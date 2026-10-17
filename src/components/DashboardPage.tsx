@@ -1820,13 +1820,15 @@ export default function DashboardPage({
           onToggleMobileSidebar={() => setIsMobileSidebarOpen((prev) => !prev)}
         />
       }
-      noScroll={!isMobileScreen && isLockedScrollTab}
+      noScroll={!isCustomer && !isMobileScreen && isLockedScrollTab}
       mainClassName={
         isOrderDetailSubpage || isOrdersCreateSubpage || isPriceListsCreateSubpage || isPriceBookDetailSubpage || isPriceBookEditSubpage || isGoodsReceiptPage || isStockTransferCreateSubpage || isBatchesCreateSubpage || isProductsImportPage || isUsersImportPage || isPaymentCollectionsSubpage || isPaymentCollectionsPage || isDeliveryTrackingPage || activeTab === 'debt-payments'
           ? 'flex-1 min-w-0 overflow-y-auto p-0 flex flex-col bg-slate-50'
-          : isCustomer || activeTab === 'agency-debts'
+          : activeTab === 'agency-debts'
             ? 'flex-1 min-w-0 overflow-hidden p-0 flex flex-col bg-slate-50 h-full'
-            : isMobileScreen
+            : isCustomer
+              ? 'flex-1 min-w-0 overflow-y-auto p-0 flex flex-col bg-slate-50'
+              : isMobileScreen
               ? 'flex-1 h-full min-h-0 overflow-y-auto p-2 sm:p-3 flex flex-col'
               : undefined
       }
