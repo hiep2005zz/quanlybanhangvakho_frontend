@@ -71,6 +71,9 @@ export function useParams<T extends Record<string, string | undefined> = Record<
     if (parts[0] === 'price-books' || parts[0] === 'price-lists') {
       return { id: decodeURIComponent(parts[1]) } as unknown as T;
     }
+    if (parts[0] === 'delivery-tracking') {
+      return { id: decodeURIComponent(parts[1]) } as unknown as T;
+    }
   }
   return {} as T;
 }

@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   getStockBookApi,
   StockBookResponse,
   StockBookFilterParams,
 } from '../services/api';
+import { StockCardModal } from './StockCardModal';
 import { StockCardView } from './StockCardView';
 
 interface WarehouseStockBookViewProps {
@@ -12,6 +13,15 @@ interface WarehouseStockBookViewProps {
   onNavigateToTab?: (tab: string, queryParam?: string) => void;
   onOpenStockCard?: (productId: number, productName: string, productCode: string) => void;
   canAccessStockCard?: boolean;
+  onOpenTurnoverReport?: () => void;
+  onNavigateToAdjustments?: () => void;
+  currentUser?: {
+    id?: number;
+    username?: string;
+    full_name?: string;
+    role?: string;
+    roles?: string[];
+  };
 }
 
 export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
@@ -20,6 +30,9 @@ export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
   onNavigateToTab,
   onOpenStockCard,
   canAccessStockCard = true,
+  onOpenTurnoverReport: _onOpenTurnoverReport,
+  onNavigateToAdjustments,
+  currentUser,
 }) => {
   const [data, setData] = useState<StockBookResponse | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -37,6 +50,32 @@ export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
   // Phân trang
   const [currentPage, setCurrentPage] = useState<number>(1);
   const pageSize = 20;
+
+  // Modal Thẻ kho
+  const [selectedStockCardProduct, setSelectedStockCardProduct] = useState<{
+    productId: number;
+    productCode: string;
+    productName: string;
+    warehouseId?: string | number;
+    warehouseName?: string;
+  } | null>(null);
+
+  // Quyền truy cập điều chỉnh tồn kho: Hiển thị cho Admin, Quản lý kho và Thủ kho. Ẩn hoàn toàn với các vai trò khác (sales, sales_manager, accountant, etc.)
+  const canAccessAdjustments = useMemo(() => {
+    if (!currentUser) return false;
+    const r = currentUser.role ? currentUser.role.toLowerCase() : '';
+    const roles: string[] = [r];
+    if ((currentUser as any).roles && Array.isArray((currentUser as any).roles)) {
+      roles.push(...(currentUser as any).roles.map((x: string) => (x || '').toLowerCase()));
+    }
+    return (
+      roles.includes('admin') ||
+      roles.includes('system_admin') ||
+      roles.includes('warehouse_manager') ||
+      roles.includes('warehouse_mgr') ||
+      roles.includes('warehouse')
+    );
+  }, [currentUser]);
 
   // Debounce tìm kiếm 300ms để không gọi API và render liên tục theo từng phím gõ
   useEffect(() => {
@@ -129,10 +168,57 @@ export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
       }}
     >
       {/* Tiêu đề & Điều hướng */}
-      <div style={{ marginBottom: '14px', flexShrink: 0 }}>
-        <h1 style={{ fontSize: '22px', fontWeight: '800', color: '#0f172a', margin: 0, letterSpacing: '-0.02em' }}>
-          Hàng Tồn Kho Theo Kho & SKU
-        </h1>
+      <div
+        style={{
+          marginBottom: '14px',
+          flexShrink: 0,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '12px',
+        }}
+      >
+        <div>
+          <h1 style={{ fontSize: '22px', fontWeight: '800', color: '#0f172a', margin: 0, letterSpacing: '-0.02em' }}>
+            Hàng Tồn Kho Theo Kho & SKU
+          </h1>
+          <div style={{ fontSize: '12.5px', color: '#64748b', marginTop: '2px' }}>
+            Theo dõi tồn kho thực tế, tồn khả dụng và lịch sử biến động Thẻ kho
+          </div>
+        </div>
+
+        {/* Nút Chuyển sang Trang Điều chỉnh tồn kho: Hiển thị cho Admin, Quản lý kho và Thủ kho */}
+        {canAccessAdjustments && (
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+            <button
+              type="button"
+              onClick={() => {
+                if (onNavigateToAdjustments) {
+                  onNavigateToAdjustments();
+                } else {
+                  try {
+                    window.history.pushState({}, '', '/stock-adjustments');
+                    window.dispatchEvent(new PopStateEvent('popstate'));
+                  } catch { }
+                }
+              }}
+              style={{
+                padding: '8px 16px',
+                backgroundColor: '#0f172a',
+                color: '#ffffff',
+                border: 'none',
+                borderRadius: '6px',
+                fontSize: '13px',
+                fontWeight: '700',
+                cursor: 'pointer',
+                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.1)',
+              }}
+            >
+              Điều chỉnh tồn kho
+            </button>
+          </div>
+        )}
       </div>
 
       {/* 4 Thẻ KPI Tóm tắt nhanh */}
@@ -546,7 +632,7 @@ export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
                 </th>
                 {canAccessStockCard && (
                   <th style={{ padding: '10px 14px', fontWeight: '700', width: '115px', minWidth: '100px', textAlign: 'center', backgroundColor: '#f1f5f9' }}>
-                    Thẻ kho
+                    Thao tác
                   </th>
                 )}
               </tr>
@@ -561,11 +647,13 @@ export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
               ) : items.length === 0 ? (
                 <tr>
                   <td colSpan={canAccessStockCard ? 9 : 8} style={{ padding: '48px 24px', textAlign: 'center', color: '#64748b' }}>
-                    <div style={{ fontSize: '15px', fontWeight: '600', color: '#475569', marginBottom: '4px' }}>
-                      Không tìm thấy mặt hàng nào phù hợp với bộ lọc
+                    <div style={{ fontSize: '15px', fontWeight: '700', color: '#1e293b', marginBottom: '6px' }}>
+                      {selectedWarehouse !== 'all' ? 'Kho này hiện chưa có mặt hàng nào' : 'Không tìm thấy mặt hàng nào phù hợp với bộ lọc'}
                     </div>
-                    <div style={{ fontSize: '13px' }}>
-                      Hãy thử chọn kho khác hoặc thay đổi từ khóa tìm kiếm.
+                    <div style={{ fontSize: '13px', color: '#64748b' }}>
+                      {selectedWarehouse !== 'all'
+                        ? 'Vui lòng thực hiện nhập kho hoặc chuyển kho nội bộ để lưu trữ và phân bổ sản phẩm vào kho này.'
+                        : 'Hãy thử chọn kho khác hoặc thay đổi từ khóa tìm kiếm.'}
                     </div>
                   </td>
                 </tr>
@@ -723,7 +811,13 @@ export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
                               if (onOpenStockCard) {
                                 onOpenStockCard(it.product_id, it.product_name, it.product_code);
                               } else {
-                                setSelectedProductForStockCard({ id: it.product_id, name: it.product_name, code: it.product_code });
+                                setSelectedStockCardProduct({
+                                  productId: it.product_id,
+                                  productCode: it.product_code,
+                                  productName: it.product_name,
+                                  warehouseId: it.warehouse_id,
+                                  warehouseName: it.warehouse_name,
+                                });
                               }
                             }}
                             title={`Xem thẻ kho của ${it.product_name}`}
@@ -768,11 +862,12 @@ export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
         </div>
 
         {/* Chân trang bảng: Khối phân trang liền thanh chuẩn theo thiết kế thu nhỏ */}
-        <div
-          style={{
-            padding: '8px 18px',
-            backgroundColor: '#ffffff',
-            borderTop: '1px solid #e2e8f0',
+        {totalItems > 0 && (
+          <div
+            style={{
+              padding: '8px 18px',
+              backgroundColor: '#ffffff',
+              borderTop: '1px solid #e2e8f0',
             display: 'flex',
             justifyContent: 'flex-end',
             alignItems: 'center',
@@ -865,7 +960,23 @@ export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
               })}
           </div>
         </div>
-      </div>
+      )}
+    </div>
+
+      {/* Modal Thẻ kho chi tiết cho từng sản phẩm */}
+      {selectedStockCardProduct && (
+        <StockCardModal
+          token={token}
+          isOpen={!!selectedStockCardProduct}
+          onClose={() => setSelectedStockCardProduct(null)}
+          productId={selectedStockCardProduct.productId}
+          productCode={selectedStockCardProduct.productCode}
+          productName={selectedStockCardProduct.productName}
+          warehouseId={selectedStockCardProduct.warehouseId}
+          warehouseName={selectedStockCardProduct.warehouseName}
+          currentUser={currentUser}
+        />
+      )}
     </div>
   );
 };

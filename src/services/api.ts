@@ -98,7 +98,7 @@ export interface ProductItem {
   // Chi tiết form quản lý sản phẩm
   packaging_specification?: string;
   images?: string[];
-  status?: 'active' | 'inactive';
+  status?: 'active' | 'inactive' | 'out_of_stock' | string;
   is_batch_managed?: boolean;
   min_stock?: number;
   transaction_count?: number; // Số giao dịch đã phát sinh (đơn hàng, nhập/xuất kho)
@@ -1022,6 +1022,10 @@ export async function createStockIssueApi(
     note?: string;
     unit_name?: string;
     conversion_rate?: number;
+    warehouse_id?: string | number;
+    selected_batch_id?: number | null;
+    suggested_batch_id?: number | null;
+    batch_change_reason?: string | null;
     batch_number?: string;
     override_expired?: boolean;
     override_reason?: string;
@@ -1037,6 +1041,38 @@ export async function createStockIssueApi(
   if (!response.ok) {
     const errorMsg = formatErrorMessage(data.detail, data.message || `Lỗi xuất kho (Mã lỗi ${response.status})`);
     throw new Error(errorMsg);
+  }
+  return data;
+}
+
+export async function getBatchSuggestionsApi(
+  token: string,
+  params: {
+    product_id: number;
+    warehouse_id?: string | number;
+    quantity?: number;
+    conversion_rate?: number;
+  }
+): Promise<{
+  product_id: number;
+  warehouse_id: number;
+  required_base_qty: number;
+  suggested_batch: ProductBatchInfo | null;
+  available_batches: ProductBatchInfo[];
+}> {
+  const q = new URLSearchParams();
+  q.set('product_id', String(params.product_id));
+  if (params.warehouse_id) q.set('warehouse_id', String(params.warehouse_id));
+  if (params.quantity) q.set('quantity', String(params.quantity));
+  if (params.conversion_rate) q.set('conversion_rate', String(params.conversion_rate));
+
+  const response = await authenticatedFetch(`${API_BASE_URL}/inventory/batches/suggest?${q.toString()}`, {
+    method: 'GET',
+  }, token);
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || 'Lỗi khi lấy danh sách lô gợi ý');
   }
   return data;
 }
@@ -2014,6 +2050,17 @@ export interface OrderResponseData {
   cancelled_at?: string | null;
 }
 
+export interface ApprovalHistoryItem {
+  id: number;
+  user_id?: number | null;
+  user_name: string;
+  user_avatar?: string | null;
+  action_type: string;
+  action_label: string;
+  reason?: string | null;
+  created_at: string;
+}
+
 export async function approveOrderApi(token: string, orderIdOrCode: number | string): Promise<OrderResponseData> {
   const response = await authenticatedFetch(`${API_BASE_URL}/orders/${orderIdOrCode}/approve`, {
     method: 'POST',
@@ -2027,11 +2074,11 @@ export async function approveOrderApi(token: string, orderIdOrCode: number | str
   return data;
 }
 
-export async function rejectOrderApi(token: string, orderIdOrCode: number | string, reason?: string): Promise<OrderResponseData> {
+export async function rejectOrderApi(token: string, orderIdOrCode: number | string, reason: string): Promise<OrderResponseData> {
   const response = await authenticatedFetch(`${API_BASE_URL}/orders/${orderIdOrCode}/reject`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ reason: reason || 'Từ chối duyệt đơn hàng' }),
+    body: JSON.stringify({ reason }),
   }, token);
 
   const data = await response.json().catch(() => ({}));
@@ -2039,6 +2086,33 @@ export async function rejectOrderApi(token: string, orderIdOrCode: number | stri
     throw new Error(data.detail || `Lỗi từ chối đơn hàng (Mã lỗi ${response.status})`);
   }
   return data;
+}
+
+export async function returnOrderApi(token: string, orderIdOrCode: number | string, reason: string): Promise<OrderResponseData> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/orders/${orderIdOrCode}/return-for-edit`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ reason }),
+  }, token);
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi trả lại đơn hàng (Mã lỗi ${response.status})`);
+  }
+  return data;
+}
+
+export async function getOrderApprovalHistoryApi(token: string, orderIdOrCode: number | string): Promise<ApprovalHistoryItem[]> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/orders/${orderIdOrCode}/approval-history`, {
+    method: 'GET',
+    headers: { 'Content-Type': 'application/json' },
+  }, token);
+
+  const data = await response.json().catch(() => []);
+  if (!response.ok) {
+    throw new Error((data && data.detail) || `Lỗi tải lịch sử duyệt đơn (Mã lỗi ${response.status})`);
+  }
+  return Array.isArray(data) ? data : [];
 }
 
 export interface ReorderItemDetail {
@@ -2507,16 +2581,33 @@ export interface ProductPickingLocationItem {
   actual_quantity?: number;
 }
 
+export interface ProductBatchInfo {
+  id: number;
+  batch_number: string;
+  manufacturing_date?: string | null;
+  expiry_date?: string | null;
+  quantity: number;
+  reserved_quantity?: number;
+  available_quantity: number;
+}
+
 export interface OrderPickingItem {
   product_id: number;
   product_code: string;
   product_name: string;
   ordered_quantity: number;
   unit_name: string;
+  conversion_rate?: number;
+  base_quantity?: number;
+  is_batch_managed?: boolean;
   warehouse_id?: number;
   warehouse_code?: string;
   warehouse_name?: string;
   locations: ProductPickingLocationItem[];
+  suggested_batch?: ProductBatchInfo | null;
+  available_batches?: ProductBatchInfo[];
+  selected_batch_id?: number | null;
+  batch_change_reason?: string | null;
 }
 
 export interface OrderPickingSummary {
@@ -2747,6 +2838,42 @@ export async function assignProductToLocationApi(
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
     throw new Error(data.detail || `Lỗi gán sản phẩm vào vị trí (${response.status})`);
+  }
+  return data;
+}
+
+export interface ProductAllocationStatusResponse {
+  product_id: number;
+  product_code: string;
+  product_name: string;
+  base_unit: string;
+  warehouse_id: number;
+  warehouse_name: string;
+  warehouse_total_stock: number;
+  total_allocated: number;
+  unallocated_stock: number;
+  shelves: Array<{
+    location_id: number;
+    location_code: string;
+    location_name?: string;
+    zone?: string;
+    quantity: number;
+  }>;
+}
+
+export async function getProductLocationAllocationStatusApi(
+  token: string,
+  warehouseId: number,
+  productId: number
+): Promise<ProductAllocationStatusResponse> {
+  const response = await authenticatedFetch(
+    `${API_BASE_URL}/warehouses/${warehouseId}/products/${productId}/allocation-status`,
+    { method: 'GET' },
+    token
+  );
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi tra cứu phân bổ tồn kho (${response.status})`);
   }
   return data;
 }
@@ -3671,6 +3798,9 @@ export interface StockBookItem {
   min_stock: number;
   is_low_stock: boolean;
   status: 'available' | 'out_of_stock' | 'low_stock' | string;
+  is_batch_managed?: boolean;
+  cost_price?: number;
+  sell_price?: number;
 }
 
 export interface StockBookSummary {
@@ -3776,9 +3906,11 @@ export interface StockCardSummary {
 }
 
 export interface StockCardResponse {
-  summary: StockCardSummary;
-  entries: StockCardEntry[];
-  warehouses: WarehouseInfo[];
+  summary?: StockCardSummary;
+  entries?: StockCardEntry[];
+  warehouses?: WarehouseInfo[];
+  items?: StockCardItem[];
+  total?: number;
 }
 
 export interface StockCardFilterParams {
@@ -4154,6 +4286,256 @@ export async function cancelStockTransferApi(token: string, code: string, reason
 }
 
 // ==========================================
+// SCRUM-91: Báo cáo Sổ công nợ theo đại lý & Phân tích tuổi nợ
+// ==========================================
+
+export interface AgeingBuckets {
+  bucket_0_30: number;
+  bucket_31_60: number;
+  bucket_61_90: number;
+  bucket_over_90: number;
+}
+
+export interface DealerDebtAgeingItem {
+  dealer_id: number;
+  dealer_code: string;
+  dealer_name: string;
+  region?: string | null;
+  assigned_sale_id?: number | null;
+  assigned_sale_name?: string | null;
+  phone?: string | null;
+  credit_limit: number;
+  max_debt_days: number;
+  overdue_days_allowed: number;
+  total_receivable: number;
+  total_paid: number;
+  remaining_debt: number;
+  oldest_debt_days: number;
+  is_overdue: boolean;
+  ageing: AgeingBuckets;
+}
+
+export interface DebtLedgerSummary {
+  total_dealers: number;
+  total_receivable: number;
+  total_paid: number;
+  total_remaining_debt: number;
+  total_bucket_0_30: number;
+  total_bucket_31_60: number;
+  total_bucket_61_90: number;
+  total_bucket_over_90: number;
+}
+
+export interface DebtLedgerResponse {
+  items: DealerDebtAgeingItem[];
+  summary: DebtLedgerSummary;
+}
+
+export interface DebtLedgerFilters {
+  region?: string;
+  assigned_sale_id?: number;
+  overdue_only?: boolean;
+  search?: string;
+}
+
+export async function getDebtLedgerApi(token: string, filters?: DebtLedgerFilters): Promise<DebtLedgerResponse> {
+  const params = new URLSearchParams();
+  if (filters?.region) params.append('region', filters.region);
+  if (filters?.assigned_sale_id) params.append('assigned_sale_id', String(filters.assigned_sale_id));
+  if (filters?.overdue_only) params.append('overdue_only', 'true');
+  if (filters?.search) params.append('search', filters.search);
+
+  const qs = params.toString() ? `?${params.toString()}` : '';
+  const response = await authenticatedFetch(`${API_BASE_URL}/dealers/debt-ledger${qs}`, {
+    method: 'GET',
+  }, token);
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi tải sổ công nợ (${response.status})`);
+  }
+  return data;
+}
+
+export async function exportDebtLedgerExcelApi(token: string, filters?: DebtLedgerFilters): Promise<Blob> {
+  const params = new URLSearchParams();
+  if (filters?.region) params.append('region', filters.region);
+  if (filters?.assigned_sale_id) params.append('assigned_sale_id', String(filters.assigned_sale_id));
+  if (filters?.overdue_only) params.append('overdue_only', 'true');
+  if (filters?.search) params.append('search', filters.search);
+
+  const qs = params.toString() ? `?${params.toString()}` : '';
+  const response = await authenticatedFetch(`${API_BASE_URL}/dealers/debt-ledger/export${qs}`, {
+    method: 'GET',
+  }, token);
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data.detail || `Lỗi tải file Excel (${response.status})`);
+  }
+  return await response.blob();
+}
+
+// ==========================================
+// SCRUM-84: THEO DÕI HÀNG TRÊN ĐƯỜNG & CHUYẾN GIAO HÀNG
+// ==========================================
+export interface DeliveryTripStopItem {
+  product_id?: number;
+  product_code?: string;
+  product_name: string;
+  unit: string;
+  quantity: number;
+  price: number;
+  line_total: number;
+}
+
+export interface DeliveryTripStop {
+  id: number;
+  trip_id?: number;
+  stop_order: number;
+  dealer_name: string;
+  order_code: string;
+  delivery_address: string;
+  total_amount: number;
+  status: 'PENDING' | 'DELIVERED' | 'FAILED' | 'RETURNED_TO_WAREHOUSE' | string;
+  status_label: string;
+  items?: DeliveryTripStopItem[];
+  failure_reason?: string | null;
+  return_note?: string | null;
+  returned_at?: string | null;
+  returned_to_warehouse_at?: string | null;
+  returned_by?: string | null;
+  delivered_at?: string | null;
+}
+
+export interface DeliveryTrip {
+  id: number;
+  trip_code: string;
+  warehouse_id: number;
+  warehouse_name: string;
+  driver_name: string;
+  driver_phone?: string | null;
+  license_plate: string;
+  departure_time: string;
+  expected_completion_time: string;
+  actual_completion_time?: string | null;
+  total_stops: number;
+  delivered_stops: number;
+  remaining_stops: number;
+  failed_stops?: number;
+  failed_stops_count: number;
+  in_transit_amount: number;
+  total_trip_amount: number;
+  status: 'IN_TRANSIT' | 'COMPLETED' | 'CANCELLED' | string;
+  is_overdue: boolean;
+  overdue_hours?: number;
+  overdue_text?: string;
+  note?: string | null;
+  stops: DeliveryTripStop[];
+}
+
+export interface InTransitSummary {
+  total_active_trips: number;
+  total_stops: number;
+  total_remaining_stops: number;
+  total_delivered_stops: number;
+  total_in_transit_amount: number;
+  total_overdue_trips: number;
+  trips: DeliveryTrip[];
+}
+
+export interface CreateDeliveryTripPayload {
+  warehouse_id: string | number;
+  driver_name: string;
+  driver_phone?: string;
+  license_plate: string;
+  expected_completion_time: string;
+  note?: string;
+  stops: Array<{
+    order_code: string;
+    dealer_name: string;
+    delivery_address: string;
+    items: Array<{
+      product_id: number;
+      product_code: string;
+      product_name: string;
+      unit: string;
+      quantity: number;
+      price: number;
+      line_total: number;
+    }>;
+  }>;
+}
+
+export async function getInTransitTripsApi(
+  token: string,
+  warehouseId?: string,
+  onlyOverdue?: boolean
+): Promise<InTransitSummary> {
+  const query = new URLSearchParams();
+  if (warehouseId && warehouseId !== 'all') query.append('warehouse_id', warehouseId);
+  if (onlyOverdue) query.append('only_overdue', 'true');
+  const url = `${API_BASE_URL}/inventory/delivery-trips/in-transit${query.toString() ? `?${query.toString()}` : ''}`;
+  const response = await authenticatedFetch(url, { method: 'GET' }, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi tải danh sách chuyến giao hàng (${response.status})`);
+  }
+  return data;
+}
+
+export async function createDeliveryTripApi(
+  token: string,
+  payload: CreateDeliveryTripPayload
+): Promise<DeliveryTrip> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/inventory/delivery-trips`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  }, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi tạo chuyến giao hàng (${response.status})`);
+  }
+  return data;
+}
+
+export async function updateTripStopStatusApi(
+  token: string,
+  stopId: number,
+  status: 'DELIVERED' | 'FAILED',
+  failureReason?: string
+): Promise<DeliveryTripStop> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/inventory/delivery-trips/stops/${stopId}/status`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status, failure_reason: failureReason }),
+  }, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi cập nhật trạng thái điểm giao (${response.status})`);
+  }
+  return data;
+}
+
+export async function returnStopGoodsToWarehouseApi(
+  token: string,
+  stopId: number,
+  returnNote?: string
+): Promise<DeliveryTripStop> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/inventory/delivery-trips/stops/${stopId}/return-to-warehouse`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ return_note: returnNote }),
+  }, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi hoàn nhập hàng về kho (${response.status})`);
+  }
+  return data;
+}
+
+// ==========================================
 // QUẢN LÝ LÔ VÀ HẠN SỬ DỤNG HÀNG HÓA (BATCH & EXPIRY TRACKING)
 // ==========================================
 export interface BatchItem {
@@ -4361,3 +4743,771 @@ export async function recordDealerPaymentApi(
   }
   return data;
 }
+
+// ==========================================
+// BÁO CÁO TỒN KHO & VÒNG QUAY HÀNG HÓA (INVENTORY TURNOVER & AGING STOCK)
+// ==========================================
+export interface WarehouseBreakdown {
+  warehouse_id: string;
+  warehouse_name: string;
+  total_value: number;
+  total_stock: number;
+  sku_count: number;
+  percentage: number;
+}
+
+export interface CategoryBreakdown {
+  category: string;
+  total_value: number;
+  total_stock: number;
+  sku_count: number;
+  percentage: number;
+}
+
+export interface TurnoverReportItem {
+  product_id: number;
+  product_code: string;
+  product_name: string;
+  category: string;
+  base_unit: string;
+  warehouse_id?: string;
+  warehouse_name?: string;
+  current_stock: number;
+  cost_price: number;
+  inventory_value: number;
+  sold_quantity: number;
+  cogs: number;
+  turnover_rate: number;
+  dsi: number | null;
+  last_sale_date: string | null;
+  days_without_sale: number | null;
+  status: 'stagnant' | 'slow' | 'normal' | 'fast' | 'out_of_stock' | string;
+  status_label: string;
+  status_severity: 'danger' | 'warning' | 'info' | 'success' | 'neutral';
+  warning_note?: string;
+}
+
+export interface TurnoverReportSummary {
+  total_inventory_value: number;
+  slow_stagnant_value: number;
+  slow_stagnant_skus: number;
+  total_skus: number;
+  avg_turnover_rate: number;
+  avg_dsi: number | null;
+  total_cogs: number;
+  period_days: number;
+}
+
+export interface TurnoverSummaryResponse {
+  summary: TurnoverReportSummary;
+  warehouse_breakdown: WarehouseBreakdown[];
+  category_breakdown: CategoryBreakdown[];
+  warehouses: WarehouseInfo[];
+  categories: string[];
+}
+
+export interface TurnoverReportResponse {
+  summary?: TurnoverReportSummary;
+  warehouse_breakdown?: WarehouseBreakdown[];
+  category_breakdown?: CategoryBreakdown[];
+  items: TurnoverReportItem[];
+  warehouses?: WarehouseInfo[];
+  categories?: string[];
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+}
+
+export interface TurnoverReportFilterParams {
+  warehouse_id?: string;
+  warehouse_code?: string;
+  category?: string;
+  days?: number;
+  search?: string;
+  status?: string;
+  page?: number;
+  page_size?: number;
+  include_summary?: boolean;
+}
+
+export async function getTurnoverSummaryApi(
+  token: string,
+  params?: { warehouse_id?: string; category?: string; days?: number; status?: string }
+): Promise<TurnoverSummaryResponse> {
+  const query = new URLSearchParams();
+  if (params?.warehouse_id && params.warehouse_id !== 'all') {
+    query.set('warehouse_id', params.warehouse_id);
+  }
+  if (params?.category && params.category !== 'all') {
+    query.set('category', params.category);
+  }
+  if (params?.days) {
+    query.set('days', String(params.days));
+  }
+  if (params?.status && params.status !== 'all') {
+    query.set('status', params.status);
+  }
+
+  const url = `${API_BASE_URL}/inventory/turnover-report/summary${query.toString() ? `?${query.toString()}` : ''}`;
+  const response = await authenticatedFetch(url, { method: 'GET' }, token);
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Lỗi tải thống kê báo cáo tồn kho');
+  }
+  return response.json();
+}
+
+export async function getTurnoverReportApi(
+  token: string,
+  params?: TurnoverReportFilterParams
+): Promise<TurnoverReportResponse> {
+  const query = new URLSearchParams();
+  if (params?.warehouse_id && params.warehouse_id !== 'all') {
+    query.set('warehouse_id', params.warehouse_id);
+  }
+  if (params?.category && params.category !== 'all') {
+    query.set('category', params.category);
+  }
+  if (params?.days) {
+    query.set('days', String(params.days));
+  }
+  if (params?.search && params.search.trim()) {
+    query.set('search', params.search.trim());
+  }
+  if (params?.status && params.status !== 'all') {
+    query.set('status', params.status);
+  }
+  if (params?.page) {
+    query.set('page', String(params.page));
+  }
+  if (params?.page_size) {
+    query.set('page_size', String(params.page_size));
+  }
+  if (params?.include_summary !== undefined) {
+    query.set('include_summary', String(params.include_summary));
+  }
+
+  const url = `${API_BASE_URL}/inventory/turnover-report${query.toString() ? `?${query.toString()}` : ''}`;
+  const response = await authenticatedFetch(url, { method: 'GET' }, token);
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Lỗi tải dữ liệu báo cáo vòng quay tồn kho');
+  }
+  return response.json();
+}
+
+export async function exportTurnoverReportExcelApi(
+  token: string,
+  params?: TurnoverReportFilterParams
+): Promise<void> {
+  const query = new URLSearchParams();
+  const wh = params?.warehouse_id || params?.warehouse_code;
+  if (wh && wh !== 'all') {
+    query.set('warehouse_id', wh);
+    query.set('warehouse_code', wh);
+  }
+  if (params?.category && params.category !== 'all') {
+    query.set('category', params.category);
+  }
+  if (params?.days) {
+    query.set('days', String(params.days));
+  }
+  if (params?.search && params.search.trim()) {
+    query.set('search', params.search.trim());
+  }
+  if (params?.status && params.status !== 'all') {
+    query.set('status', params.status);
+  }
+
+  const url = `${API_BASE_URL}/inventory/turnover-report/export${query.toString() ? `?${query.toString()}` : ''}`;
+  const response = await authenticatedFetch(url, { method: 'GET' }, token);
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Lỗi xuất file Excel báo cáo tồn kho');
+  }
+
+  const blob = await response.blob();
+  const downloadUrl = window.URL.createObjectURL(blob);
+  try {
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    const contentDisposition = response.headers.get('content-disposition');
+    const todayStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    let defaultSlug = 'Tat_Ca';
+    if (wh && wh !== 'all') {
+      defaultSlug = wh.replace(/[^a-zA-Z0-9]/g, '');
+    }
+    let filename = `Bao_Cao_Ton_Kho_Vong_Quay_${defaultSlug}_${todayStr}.xlsx`;
+    if (contentDisposition) {
+      const match = contentDisposition.match(/filename\*?=(?:UTF-8'')?"?([^";]+)"?/i);
+      if (match && match[1]) {
+        filename = decodeURIComponent(match[1]);
+      }
+    }
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  } finally {
+    window.URL.revokeObjectURL(downloadUrl);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// STOCK ADJUSTMENT (PHIẾU ĐIỀU CHỈNH TỒN KHO CÓ PHÊ DUYỆT - FOUR-EYES PRINCIPLE)
+// -----------------------------------------------------------------------------
+
+export interface StockAdjustmentItemInput {
+  product_id: number;
+  product_code?: string;
+  product_name?: string;
+  quantity: number;
+  cost_price?: number;
+  loss_value?: number;
+  estimated_loss_value?: number;
+  batch_number?: string;
+  note?: string;
+}
+
+export interface StockAdjustmentCreatePayload {
+  warehouse_id: string;
+  reason_type: 'damaged' | 'lost' | 'expired' | 'other';
+  reason_note: string;
+  total_loss_value?: number;
+  items: StockAdjustmentItemInput[];
+}
+
+export interface StockAdjustmentItemResponse {
+  id?: number;
+  product_id: number;
+  product_code: string;
+  product_name: string;
+  category?: string;
+  base_unit: string;
+  quantity: number;
+  cost_price: number;
+  loss_value: number;
+  estimated_loss_value?: number;
+  batch_number?: string;
+  note?: string;
+  current_actual_stock?: number;
+}
+
+export interface StockAdjustmentResponse {
+  id: number;
+  code: string;
+  warehouse_id: string;
+  warehouse_name: string;
+  reason_type: string;
+  reason_label: string;
+  reason_note: string;
+  total_loss_value: number;
+  total_items: number;
+  total_quantity: number;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  status_label: string;
+  items: StockAdjustmentItemResponse[];
+  created_by_id?: number;
+  created_by: string;
+  created_by_role?: string;
+  approved_by_id?: number;
+  approved_by?: string;
+  approved_at?: string;
+  rejected_by_id?: number;
+  rejected_by?: string;
+  rejected_at?: string;
+  rejection_reason?: string;
+  can_approve: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface StockAdjustmentListResponse {
+  items: StockAdjustmentResponse[];
+  total: number;
+  pending_count: number;
+  approved_count: number;
+  rejected_count: number;
+  total_loss_value_sum: number;
+}
+
+export interface StockCardItem {
+  id: number;
+  product_id: number;
+  product_code: string;
+  product_name: string;
+  warehouse_id: number;
+  warehouse_name: string;
+  reference_code?: string;
+  transaction_type: string; // RECEIPT, ISSUE, ADJUST
+  quantity: number;
+  previous_stock: number;
+  new_stock: number;
+  batch_number?: string;
+  performed_by?: string;
+  note?: string;
+  created_at: string;
+}
+
+export async function createStockAdjustmentApi(
+  token: string,
+  payload: StockAdjustmentCreatePayload
+): Promise<StockAdjustmentResponse> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/stock-adjustments`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  }, token);
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const errorMsg = formatErrorMessage(data.detail, data.message || `Lỗi tạo phiếu điều chỉnh (${response.status})`);
+    throw new Error(errorMsg);
+  }
+  return data;
+}
+
+export async function getStockAdjustmentsApi(
+  token: string,
+  params?: {
+    warehouse_id?: string;
+    status?: string;
+    reason_type?: string;
+    search?: string;
+    limit?: number;
+    offset?: number;
+  }
+): Promise<StockAdjustmentListResponse> {
+  const query = new URLSearchParams();
+  if (params?.warehouse_id && params.warehouse_id !== 'all') {
+    query.set('warehouse_id', params.warehouse_id);
+  }
+  if (params?.status && params.status !== 'all') {
+    query.set('status', params.status);
+  }
+  if (params?.reason_type && params.reason_type !== 'all') {
+    query.set('reason_type', params.reason_type);
+  }
+  if (params?.search && params.search.trim()) {
+    query.set('search', params.search.trim());
+  }
+  if (params?.limit) {
+    query.set('limit', String(params.limit));
+  }
+  if (params?.offset) {
+    query.set('offset', String(params.offset));
+  }
+
+  const url = `${API_BASE_URL}/stock-adjustments${query.toString() ? `?${query.toString()}` : ''}`;
+  const response = await authenticatedFetch(url, {}, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi tải danh sách phiếu điều chỉnh (${response.status})`);
+  }
+  return data;
+}
+
+export async function getStockAdjustmentDetailApi(
+  token: string,
+  id: number
+): Promise<StockAdjustmentResponse> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/stock-adjustments/${id}`, {}, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi tải chi tiết phiếu điều chỉnh (${response.status})`);
+  }
+  return data;
+}
+
+export async function approveStockAdjustmentApi(
+  token: string,
+  id: number,
+  note?: string
+): Promise<StockAdjustmentResponse> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/stock-adjustments/${id}/approve`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ note }),
+  }, token);
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const errorMsg = formatErrorMessage(data.detail, data.message || `Lỗi phê duyệt phiếu (${response.status})`);
+    throw new Error(errorMsg);
+  }
+  return data;
+}
+
+export async function rejectStockAdjustmentApi(
+  token: string,
+  id: number,
+  reason: string
+): Promise<StockAdjustmentResponse> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/stock-adjustments/${id}/reject`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ reason }),
+  }, token);
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const errorMsg = formatErrorMessage(data.detail, data.message || `Lỗi từ chối phiếu (${response.status})`);
+    throw new Error(errorMsg);
+  }
+  return data;
+}
+
+export async function getStockCardLedgersApi(
+  token: string,
+  params?: {
+    product_id?: number;
+    warehouse_id?: string;
+    search?: string;
+    limit?: number;
+    offset?: number;
+  }
+): Promise<StockCardResponse> {
+  const query = new URLSearchParams();
+  if (params?.product_id) {
+    query.set('product_id', String(params.product_id));
+  }
+  if (params?.warehouse_id && params.warehouse_id !== 'all') {
+    query.set('warehouse_id', params.warehouse_id);
+  }
+  if (params?.search && params.search.trim()) {
+    query.set('search', params.search.trim());
+  }
+  if (params?.limit) {
+    query.set('limit', String(params.limit));
+  }
+  if (params?.offset) {
+    query.set('offset', String(params.offset));
+  }
+
+  const url = `${API_BASE_URL}/inventory/stock-card${query.toString() ? `?${query.toString()}` : ''}`;
+  const response = await authenticatedFetch(url, {}, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi tải dữ liệu Thẻ kho (${response.status})`);
+  }
+  return data;
+}
+
+// ============================================================================
+// PHÂN HỆ THU TIỀN THEO TUYẾN & ĐỐI CHIẾU NỘP TIỀN VỀ CÔNG TY (TIÊU CHÍ 1, 2, 3)
+// ============================================================================
+
+export interface PaymentCollectionItem {
+  id: number;
+  code: string;
+  sales_id: number;
+  sales_name: string;
+  dealer_id: number;
+  dealer_name: string;
+  order_id?: number | null;
+  order_code?: string | null;
+  amount: number;
+  payment_method: 'cash' | 'bank_transfer' | string;
+  receipt_image_url: string;
+  collection_date: string;
+  route_name?: string | null;
+  note?: string | null;
+  status: 'PENDING_REMITTANCE' | 'SUBMITTED' | 'CONFIRMED' | 'REJECTED';
+  remitted_at?: string | null;
+  remitted_amount?: number | null;
+  remittance_note?: string | null;
+  confirmed_at?: string | null;
+  confirmed_by_id?: number | null;
+  confirmed_by_name?: string | null;
+  confirmed_amount?: number | null;
+  confirmation_note?: string | null;
+  rejected_at?: string | null;
+  rejected_by_id?: number | null;
+  rejected_by_name?: string | null;
+  rejection_reason?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PaymentCollectionListResponse {
+  items: PaymentCollectionItem[];
+  total: number;
+  page?: number;
+  limit?: number;
+  page_size?: number;
+  total_pages?: number;
+  total_amount?: number;
+  total_pending_remittance?: number;
+  total_submitted?: number;
+  total_confirmed?: number;
+  total_amount_collected?: number;
+  total_amount_pending?: number;
+  total_amount_submitted?: number;
+  total_amount_confirmed?: number;
+}
+
+export interface PaymentCollectionCreatePayload {
+  dealer_id: number;
+  dealer_name?: string;
+  order_id?: number;
+  order_code?: string;
+  amount: number;
+  payment_method?: 'cash' | 'bank_transfer';
+  receipt_image_url: string;
+  collection_date?: string;
+  route_name?: string;
+  note?: string;
+}
+
+export interface DailyReconciliationItem {
+  date: string;
+  sales_id: number;
+  sales_name: string;
+  total_collected: number;
+  total_pending_remittance: number;
+  total_submitted: number;
+  total_confirmed: number;
+  total_rejected: number;
+  collections_count: number;
+  is_balanced: boolean;
+  collections: PaymentCollectionItem[];
+}
+
+export interface DailyReconciliationSummary {
+  grand_total_collected: number;
+  grand_total_pending_remittance: number;
+  grand_total_submitted: number;
+  grand_total_confirmed: number;
+  grand_total_rejected: number;
+  total_days: number;
+  total_sales_staff: number;
+}
+
+export interface DailyReconciliationResponse {
+  items: DailyReconciliationItem[];
+  summary: DailyReconciliationSummary;
+  total?: number;
+  page?: number;
+  page_size?: number;
+  total_pages?: number;
+}
+
+export async function createPaymentCollectionApi(
+  payload: PaymentCollectionCreatePayload,
+  token: string
+): Promise<PaymentCollectionItem> {
+  const url = `${API_BASE_URL}/payment-collections`;
+  const response = await authenticatedFetch(
+    url,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    },
+    token
+  );
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const errorMsg = formatErrorMessage(data.detail, data.message || `Lỗi ghi nhận khoản thu (${response.status})`);
+    throw new Error(errorMsg);
+  }
+  return data;
+}
+
+export async function getPaymentCollectionsApi(
+  params: {
+    status?: string;
+    sales_id?: number;
+    dealer_id?: number;
+    from_date?: string;
+    to_date?: string;
+    route_name?: string;
+    search?: string;
+    page?: number;
+    limit?: number;
+  },
+  token: string
+): Promise<PaymentCollectionListResponse> {
+  const query = new URLSearchParams();
+  if (params.status && params.status !== 'all') query.set('status', params.status);
+  if (params.sales_id) query.set('sales_id', String(params.sales_id));
+  if (params.dealer_id) query.set('dealer_id', String(params.dealer_id));
+  if (params.from_date) query.set('from_date', params.from_date);
+  if (params.to_date) query.set('to_date', params.to_date);
+  if (params.route_name && params.route_name.trim()) query.set('route_name', params.route_name.trim());
+  if (params.search && params.search.trim()) query.set('search', params.search.trim());
+  if (params.page) query.set('page', String(params.page));
+  if (params.limit) query.set('limit', String(params.limit));
+
+  const url = `${API_BASE_URL}/payment-collections${query.toString() ? `?${query.toString()}` : ''}`;
+  const response = await authenticatedFetch(url, {}, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi tải danh sách khoản thu (${response.status})`);
+  }
+  return data;
+}
+
+export async function getPaymentCollectionDetailApi(
+  id: number,
+  token: string
+): Promise<PaymentCollectionItem> {
+  const url = `${API_BASE_URL}/payment-collections/${id}`;
+  const response = await authenticatedFetch(url, {}, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi tải chi tiết khoản thu (${response.status})`);
+  }
+  return data;
+}
+
+export async function submitRemittanceApi(
+  id: number,
+  payload: { remittance_note?: string; remitted_amount?: number },
+  token: string
+): Promise<PaymentCollectionItem> {
+  const url = `${API_BASE_URL}/payment-collections/${id}/submit-remittance`;
+  const response = await authenticatedFetch(
+    url,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    },
+    token
+  );
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const errorMsg = formatErrorMessage(data.detail, data.message || `Lỗi nộp tiền về công ty (${response.status})`);
+    throw new Error(errorMsg);
+  }
+  return data;
+}
+
+export async function bulkSubmitRemittanceApi(
+  payload: { collection_ids: number[]; remittance_note?: string },
+  token: string
+): Promise<{ success: boolean; updated_count: number; total_amount: number; message: string }> {
+  const url = `${API_BASE_URL}/payment-collections/bulk-submit-remittance`;
+  const response = await authenticatedFetch(
+    url,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    },
+    token
+  );
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const errorMsg = formatErrorMessage(data.detail, data.message || `Lỗi nộp tiền theo lô (${response.status})`);
+    throw new Error(errorMsg);
+  }
+  return data;
+}
+
+export async function confirmPaymentCollectionApi(
+  id: number,
+  payload: { confirmation_note?: string; confirmed_amount?: number },
+  token: string
+): Promise<PaymentCollectionItem> {
+  const url = `${API_BASE_URL}/payment-collections/${id}/confirm`;
+  const response = await authenticatedFetch(
+    url,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    },
+    token
+  );
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const errorMsg = formatErrorMessage(data.detail, data.message || `Lỗi xác nhận nhận tiền (${response.status})`);
+    throw new Error(errorMsg);
+  }
+  return data;
+}
+
+export async function bulkConfirmPaymentCollectionApi(
+  payload: { collection_ids: number[]; confirmation_note?: string },
+  token: string
+): Promise<{ success: boolean; updated_count: number; total_amount: number; message: string }> {
+  const url = `${API_BASE_URL}/payment-collections/bulk-confirm`;
+  const response = await authenticatedFetch(
+    url,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    },
+    token
+  );
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const errorMsg = formatErrorMessage(data.detail, data.message || `Lỗi duyệt nhận tiền theo lô (${response.status})`);
+    throw new Error(errorMsg);
+  }
+  return data;
+}
+
+export async function rejectPaymentCollectionApi(
+  id: number,
+  payload: { reason?: string; rejection_reason?: string },
+  token: string
+): Promise<PaymentCollectionItem> {
+  const reasonText = (payload.rejection_reason || payload.reason || '').trim();
+  const url = `${API_BASE_URL}/payment-collections/${id}/reject`;
+  const response = await authenticatedFetch(
+    url,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        rejection_reason: reasonText,
+        reason: reasonText,
+      }),
+    },
+    token
+  );
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const errorMsg = formatErrorMessage(data.detail, data.message || `Lỗi từ chối khoản thu (${response.status})`);
+    throw new Error(errorMsg);
+  }
+  return data;
+}
+
+export async function getDailyReconciliationApi(
+  params: {
+    from_date?: string;
+    to_date?: string;
+    sales_id?: number;
+    search?: string;
+    balanced_only?: boolean;
+    unbalanced_only?: boolean;
+    page?: number;
+    page_size?: number;
+  },
+  token: string
+): Promise<DailyReconciliationResponse> {
+  const query = new URLSearchParams();
+  if (params.from_date) query.set('from_date', params.from_date);
+  if (params.to_date) query.set('to_date', params.to_date);
+  if (params.sales_id) query.set('sales_id', String(params.sales_id));
+  if (params.search && params.search.trim()) query.set('search', params.search.trim());
+  if (params.balanced_only !== undefined) query.set('balanced_only', String(params.balanced_only));
+  if (params.unbalanced_only !== undefined) query.set('unbalanced_only', String(params.unbalanced_only));
+  if (params.page) query.set('page', String(params.page));
+  if (params.page_size) query.set('page_size', String(params.page_size));
+
+  const url = `${API_BASE_URL}/payment-collections/daily-reconciliation${query.toString() ? `?${query.toString()}` : ''}`;
+  const response = await authenticatedFetch(url, {}, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi tải bảng đối chiếu tiền thu (${response.status})`);
+  }
+  return data;
+}
+

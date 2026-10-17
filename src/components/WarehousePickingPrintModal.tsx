@@ -17,11 +17,13 @@ export const WarehousePickingPrintModal: React.FC<WarehousePickingPrintModalProp
   itemsState,
   onClose,
 }) => {
-  // Thêm class has-print-modal vào body để CSS @media print kích hoạt chuẩn xác
+  // Thêm class has-print-modal và has-order-print-modal vào body để CSS @media print kích hoạt chuẩn xác
   useEffect(() => {
     document.body.classList.add('has-print-modal');
+    document.body.classList.add('has-order-print-modal');
     return () => {
       document.body.classList.remove('has-print-modal');
+      document.body.classList.remove('has-order-print-modal');
     };
   }, []);
 

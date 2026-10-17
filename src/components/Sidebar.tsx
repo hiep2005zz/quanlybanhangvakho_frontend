@@ -3,8 +3,10 @@ import { useLocation } from '../hooks/useLocation';
 
 export type TabType =
   | 'inventory'
+  | 'cart'
   | 'warehouses'
   | 'stock-book'
+  | 'inventory-turnover'
   | 'stock-audits'
   | 'stock-transfers'
   | 'orders'
@@ -17,6 +19,7 @@ export type TabType =
   | 'suppliers'
   | 'dealers'
   | 'dealer-profiles'
+  | 'debt-ledger'
   | 'price-books'
   | 'delivery-points'
   | 'product-history'
@@ -27,8 +30,12 @@ export type TabType =
   | 'add-product'
   | 'products-import'
   | 'stock-card'
+  | 'agency-debts'
   | 'picking'
-  | 'batches';
+  | 'batches'
+  | 'delivery-tracking'
+  | 'stock-adjustments'
+  | 'payment-collections';
 
 export interface SidebarProps {
   activeTab?: TabType;
@@ -39,6 +46,7 @@ export interface SidebarProps {
   canReadOrders?: boolean;
   canViewDealers?: boolean;
   canManageDealerProfiles?: boolean;
+  canAccessDebtLedger?: boolean;
   canManageDeliveryPoints?: boolean;
   canManageSuppliers?: boolean;
   canAccessPriceBooks?: boolean;
@@ -49,8 +57,10 @@ export interface SidebarProps {
   canAccessStockTransfer?: boolean;
   canAccessWarehouses?: boolean;
   canWriteInventory?: boolean;
+  canAccessDeliveryTracking?: boolean;
   isWarehouseOrAdmin?: boolean;
   isAdmin?: boolean;
+  canAccessPaymentCollections?: boolean;
   onLogout?: () => void;
   isLoggingOut?: boolean;
   isMobileOpen?: boolean;
@@ -77,6 +87,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   canReadOrders = false,
   canViewDealers = false,
   canManageDealerProfiles = false,
+  canAccessDebtLedger = false,
   canManageDeliveryPoints = false,
   canManageSuppliers = false,
   canAccessPriceBooks = false,
@@ -87,7 +98,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
   canAccessStockTransfer = false,
   canAccessWarehouses = false,
   canWriteInventory: _canWriteInventory = false,
+  canAccessDeliveryTracking = false,
   isWarehouseOrAdmin = false,
+  isAdmin: _isAdmin = false,
+  canAccessPaymentCollections = false,
   onLogout,
   isLoggingOut = false,
 }) => {
@@ -97,7 +111,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   // TIÊU CHÍ CHẤP NHẬN 1: Nếu user là Customer, ẨN HOÀN TOÀN các menu:
   // Quản lý Kho, Nhập/Xuất tồn, Duyệt đơn hàng, Báo cáo, Quản lý người dùng.
-  // CHỈ HIỂN THỊ: Danh sách Sản phẩm, Đơn hàng của tôi, Công nợ & Hóa đơn.
+  // CHỈ HIỂN THỊ: Danh sách Sản phẩm, Giỏ hàng của tôi, Đơn hàng của tôi, Danh bạ đại lý.
   if (isCustomer) {
     const customerMenuItems: MenuItemConfig[] = [
       {
@@ -142,6 +156,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </svg>
         ),
       },
+      {
+        id: 'btn-sidebar-agency-debts',
+        tab: 'agency-debts',
+        path: '/agency-debts',
+        label: 'Công nợ & Hóa đơn',
+        visible: true,
+        icon: (
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+            <line x1="16" y1="13" x2="8" y2="13" />
+            <line x1="16" y1="17" x2="8" y2="17" />
+            <polyline points="10 9 9 9 8 9" />
+          </svg>
+        ),
+      },
     ];
 
     return (
@@ -166,18 +196,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     boxShadow: 'none',
                     marginTop: 0,
                   }}
-                  className={`group w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm transition-colors text-left border-0 cursor-pointer ${isActive
+                  className={`group w-full flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-lg text-sm transition-colors text-left border-0 cursor-pointer ${isActive
                       ? 'bg-emerald-50 text-emerald-800 font-semibold'
                       : 'bg-transparent text-gray-700 hover:bg-gray-100 hover:text-gray-900 font-medium'
                     }`}
                 >
-                  <span
-                    className={`flex-shrink-0 transition-colors ${isActive ? 'text-[#0fad89]' : 'text-gray-500 group-hover:text-gray-700'
-                      }`}
-                  >
-                    {item.icon}
-                  </span>
-                  <span className="truncate">{item.label}</span>
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span
+                      className={`flex-shrink-0 transition-colors ${isActive ? 'text-[#0fad89]' : 'text-gray-500 group-hover:text-gray-700'
+                        }`}
+                    >
+                      {item.icon}
+                    </span>
+                    <span className="truncate">{item.label}</span>
+                  </div>
                 </button>
               );
             })}
@@ -239,15 +271,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         onSelectTab(item.tab);
                         onCloseMobile?.();
                       }}
-                      className={`group w-full flex items-center gap-3 px-3.5 py-3 rounded-lg text-sm transition-colors text-left border-0 cursor-pointer ${isActive
+                      className={`group w-full flex items-center justify-between gap-3 px-3.5 py-3 rounded-lg text-sm transition-colors text-left border-0 cursor-pointer ${isActive
                           ? 'bg-emerald-50 text-emerald-800 font-semibold'
                           : 'bg-transparent text-gray-700 hover:bg-gray-100 hover:text-gray-900 font-medium'
                         }`}
                     >
-                      <span className={`flex-shrink-0 transition-colors ${isActive ? 'text-[#0fad89]' : 'text-gray-500'}`}>
-                        {item.icon}
-                      </span>
-                      <span className="truncate">{item.label}</span>
+                      <div className="flex items-center gap-3 min-w-0">
+                        <span className={`flex-shrink-0 transition-colors ${isActive ? 'text-[#0fad89]' : 'text-gray-500'}`}>
+                          {item.icon}
+                        </span>
+                        <span className="truncate">{item.label}</span>
+                      </div>
                     </button>
                   );
                 })}
@@ -326,6 +360,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
       ),
     },
     {
+      id: 'btn-sidebar-inventory-turnover',
+      tab: 'inventory-turnover',
+      path: '/inventory-turnover',
+      label: 'Vòng quay & Tuổi tồn',
+      visible: !isCustomer,
+      icon: (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
+          <path d="M12 7v5l3 3" />
+        </svg>
+      ),
+    },
+    {
       id: 'btn-sidebar-picking',
       tab: 'picking',
       path: '/picking',
@@ -381,6 +428,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </svg>
       ),
     },
+
     {
       id: 'btn-sidebar-product-history',
       tab: 'product-history',
@@ -436,6 +484,34 @@ export const Sidebar: React.FC<SidebarProps> = ({
       ),
     },
     {
+      id: 'btn-sidebar-debt-ledger',
+      tab: 'debt-ledger',
+      path: '/debt-ledger',
+      label: 'Sổ công nợ & Tuổi nợ',
+      visible: Boolean(canAccessDebtLedger),
+      icon: (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
+          <path d="M8 7h6M8 11h6" />
+        </svg>
+      ),
+    },
+    {
+      id: 'btn-sidebar-payment-collections',
+      tab: 'payment-collections',
+      path: '/payment-collections',
+      label: 'Thu tiền theo tuyến',
+      visible: !isCustomer && canAccessPaymentCollections,
+      icon: (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="2" y="4" width="20" height="16" rx="2" />
+          <line x1="2" y1="10" x2="22" y2="10" />
+          <line x1="6" y1="15" x2="6.01" y2="15" />
+          <line x1="10" y1="15" x2="14" y2="15" />
+        </svg>
+      ),
+    },
+    {
       id: 'btn-sidebar-dealers',
       tab: 'dealers',
       path: '/dealers',
@@ -460,6 +536,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
           <circle cx="12" cy="10" r="3" />
+        </svg>
+      ),
+    },
+    {
+      id: 'btn-sidebar-delivery-tracking',
+      tab: 'delivery-tracking',
+      path: '/delivery-tracking',
+      label: 'Theo dõi giao hàng',
+      visible: canAccessDeliveryTracking,
+      icon: (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="1" y="3" width="15" height="13" rx="1" />
+          <polygon points="16 8 20 8 23 11 23 16 16 16 8" />
+          <circle cx="5.5" cy="18.5" r="2.5" />
+          <circle cx="18.5" cy="18.5" r="2.5" />
+          <line x1="9" y1="11" x2="12" y2="11" />
         </svg>
       ),
     },

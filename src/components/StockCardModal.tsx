@@ -1,241 +1,187 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
-  getStockCardApi,
-  StockCardResponse,
-  StockCardFilterParams,
-  StockCardVoucherInfo,
+  getStockCardLedgersApi,
+  StockCardItem,
+  getStockAdjustmentsApi,
+  StockAdjustmentResponse,
+  approveStockAdjustmentApi,
 } from '../services/api';
 
 interface StockCardModalProps {
-  productId: number;
-  productName?: string;
-  productCode?: string;
   token: string;
   isOpen: boolean;
   onClose: () => void;
-  onNavigateToTab?: (tab: string, queryParam?: string) => void;
+  productId: number;
+  productCode: string;
+  productName: string;
+  warehouseId?: string | number;
+  warehouseName?: string;
+  currentUser?: {
+    id?: number;
+    username?: string;
+    full_name?: string;
+    role?: string;
+    roles?: string[];
+  };
 }
 
 export const StockCardModal: React.FC<StockCardModalProps> = ({
-  productId,
-  productName: initialProductName,
-  productCode: initialProductCode,
   token,
   isOpen,
   onClose,
-  onNavigateToTab,
+  productId,
+  productCode,
+  productName,
+  warehouseId,
+  warehouseName,
+  currentUser,
 }) => {
-  const [data, setData] = useState<StockCardResponse | null>(null);
+  const [ledgers, setLedgers] = useState<StockCardItem[]>([]);
+  const [pendingAdjustments, setPendingAdjustments] = useState<StockAdjustmentResponse[]>([]);
+  const [approvingAdjId, setApprovingAdjId] = useState<number | null>(null);
+  const [actionSuccessMsg, setActionSuccessMsg] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [filterType, setFilterType] = useState<string>('all');
 
-  // Bộ lọc theo kho và khoảng thời gian (Tiêu chí 3)
-  const [selectedWarehouse, setSelectedWarehouse] = useState<string>('all');
-  const [fromDate, setFromDate] = useState<string>('');
-  const [toDate, setToDate] = useState<string>('');
-  const [activeVoucher, setActiveVoucher] = useState<{ code: string; type: string; url?: string | null } | null>(null);
+  const userRoles = useMemo(() => {
+    if (!currentUser) return [];
+    const r = currentUser.role ? currentUser.role.toLowerCase() : '';
+    const roles: string[] = [r];
+    if ((currentUser as any).roles && Array.isArray((currentUser as any).roles)) {
+      roles.push(...(currentUser as any).roles.map((x: string) => (x || '').toLowerCase()));
+    }
+    return roles;
+  }, [currentUser]);
 
-  const fetchStockCard = useCallback(async () => {
-    if (!productId) return;
+  const isWarehousePersonnel =
+    userRoles.includes('admin') ||
+    userRoles.includes('warehouse_manager') ||
+    userRoles.includes('warehouse') ||
+    userRoles.includes('system_admin');
+
+  const isManagerOrAdmin =
+    userRoles.includes('admin') ||
+    userRoles.includes('warehouse_manager') ||
+    userRoles.includes('warehouse_mgr') ||
+    userRoles.includes('system_admin');
+
+  const fetchLedgers = useCallback(async () => {
+    if (!isOpen || !productId) return;
     setIsLoading(true);
     setError(null);
     try {
-      const params: StockCardFilterParams = {
+      const res = await getStockCardLedgersApi(token, {
         product_id: productId,
-        warehouse_id: selectedWarehouse !== 'all' ? selectedWarehouse : undefined,
-        from_date: fromDate || undefined,
-        to_date: toDate || undefined,
-      };
-      const res = await getStockCardApi(token, params);
-      setData(res);
+        warehouse_id: warehouseId ? String(warehouseId) : undefined,
+        limit: 100,
+      });
+      setLedgers(res.items || []);
     } catch (err: any) {
-      console.error('Lỗi khi tải thẻ kho:', err);
-      setError(err?.message || 'Không thể tải dữ liệu thẻ kho sản phẩm.');
+      console.error('Error fetching stock card ledgers:', err);
+      setError(err?.message || 'Không thể tải dữ liệu Thẻ kho.');
     } finally {
       setIsLoading(false);
     }
-  }, [productId, selectedWarehouse, fromDate, toDate, token]);
 
-  useEffect(() => {
-    if (isOpen && productId) {
-      fetchStockCard();
+    // Tải thông tin các phiếu điều chỉnh đang ở trạng thái 'PENDING' (Chờ duyệt) cho sản phẩm này
+    try {
+      const pendingRes = await getStockAdjustmentsApi(token, {
+        status: 'PENDING',
+        warehouse_id: warehouseId ? String(warehouseId) : undefined,
+        limit: 50,
+      });
+      const relevant = (pendingRes.items || []).filter((adj) =>
+        adj.items?.some((it) => it.product_id === productId || it.product_code === productCode)
+      );
+      setPendingAdjustments(relevant);
+    } catch (pendErr) {
+      console.warn('Could not load pending adjustments for stock card:', pendErr);
     }
-  }, [isOpen, productId, fetchStockCard]);
+  }, [token, isOpen, productId, productCode, warehouseId]);
 
-  // Đóng modal khi bấm Escape
+  const handleQuickApprovePending = async (adj: StockAdjustmentResponse) => {
+    setApprovingAdjId(adj.id);
+    try {
+      await approveStockAdjustmentApi(token, adj.id, 'Phê duyệt trực tiếp từ màn hình Thẻ kho');
+      setActionSuccessMsg(`Đã phê duyệt thành công phiếu ${adj.code}. Tồn kho và Thẻ kho đã được cập nhật!`);
+      setTimeout(() => setActionSuccessMsg(null), 5000);
+      await fetchLedgers();
+    } catch (apprErr: any) {
+      setError(apprErr?.message || 'Không thể phê duyệt phiếu điều chỉnh.');
+    } finally {
+      setApprovingAdjId(null);
+    }
+  };
+
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        if (activeVoucher) {
-          setActiveVoucher(null);
-        } else {
-          onClose();
-        }
-      }
-    };
     if (isOpen) {
-      window.addEventListener('keydown', handleKeyDown);
+      fetchLedgers();
     }
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, activeVoucher, onClose]);
+  }, [isOpen, fetchLedgers]);
 
   if (!isOpen) return null;
 
-  const summary = data?.summary;
-  const entries = data?.entries || [];
-  const warehouses = data?.warehouses || [];
-
-  const formatNumber = (val: number | undefined | null) => {
-    if (val === undefined || val === null) return '0';
-    return Number(val).toLocaleString('vi-VN');
+  const formatNumber = (num: number | undefined | null) => {
+    if (num === undefined || num === null) return '0';
+    return Number(num).toLocaleString('vi-VN');
   };
 
-  const formatDateTime = (dateStr: string) => {
-    if (!dateStr) return '—';
+  const formatDate = (isoStr: string | undefined | null) => {
+    if (!isoStr) return '—';
     try {
-      const d = new Date(dateStr);
-      if (isNaN(d.getTime())) return dateStr;
-      const day = String(d.getDate()).padStart(2, '0');
-      const month = String(d.getMonth() + 1).padStart(2, '0');
-      const year = d.getFullYear();
-      const hours = String(d.getHours()).padStart(2, '0');
-      const mins = String(d.getMinutes()).padStart(2, '0');
-      return `${day}/${month}/${year} ${hours}:${mins}`;
+      const d = new Date(isoStr);
+      return d.toLocaleString('vi-VN', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
     } catch {
-      return dateStr;
+      return isoStr;
     }
   };
 
-  // Huy hiệu loại phát sinh
-  const renderTransactionTypeBadge = (type: string, label: string) => {
-    switch (type) {
-      case 'RECEIPT':
-        return (
-          <span
-            style={{
-              display: 'inline-block',
-              padding: '3px 8px',
-              borderRadius: '9999px',
-              fontSize: '11.5px',
-              fontWeight: '600',
-              backgroundColor: '#dcfce7',
-              color: '#15803d',
-              border: '1px solid #bbf7d0',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {label || 'Nhập kho'}
-          </span>
-        );
-      case 'ISSUE':
-        return (
-          <span
-            style={{
-              display: 'inline-block',
-              padding: '3px 8px',
-              borderRadius: '9999px',
-              fontSize: '11.5px',
-              fontWeight: '600',
-              backgroundColor: '#fee2e2',
-              color: '#b91c1c',
-              border: '1px solid #fecaca',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {label || 'Xuất kho'}
-          </span>
-        );
-      case 'TRANSFER':
-        return (
-          <span
-            style={{
-              display: 'inline-block',
-              padding: '3px 8px',
-              borderRadius: '9999px',
-              fontSize: '11.5px',
-              fontWeight: '600',
-              backgroundColor: '#e0f2fe',
-              color: '#0369a1',
-              border: '1px solid #bae6fd',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {label || 'Chuyển kho'}
-          </span>
-        );
-      case 'ADJUST':
-      default:
-        return (
-          <span
-            style={{
-              display: 'inline-block',
-              padding: '3px 8px',
-              borderRadius: '9999px',
-              fontSize: '11.5px',
-              fontWeight: '600',
-              backgroundColor: '#f3e8ff',
-              color: '#7e22ce',
-              border: '1px solid #e9d5ff',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {label || 'Điều chỉnh'}
-          </span>
-        );
-    }
-  };
+  // Lọc theo loại giao dịch nếu cần
+  const filteredLedgers = ledgers.filter((item) => {
+    if (filterType === 'all') return true;
+    if (filterType === 'IMPORT') return item.transaction_type === 'IMPORT' || item.transaction_type === 'RECEIPT' || item.quantity > 0;
+    if (filterType === 'EXPORT') return (item.transaction_type === 'EXPORT' || item.transaction_type === 'ISSUE' || item.transaction_type === 'SALE') && item.quantity < 0;
+    if (filterType === 'ADJUST') return item.transaction_type === 'ADJUST' || item.reference_code?.startsWith('ADJ-');
+    return true;
+  });
 
-  // Xử lý mở hoặc liên kết tới chứng từ gốc (Tiêu chí 2)
-  const handleVoucherClick = (voucherInfo?: StockCardVoucherInfo | null, refCode?: string) => {
-    const code = voucherInfo?.voucher_code || refCode || '';
-    const vType = voucherInfo?.voucher_type || 'other';
+  // Tính tổng biến động
+  const totalImport = ledgers
+    .filter((l) => l.quantity > 0)
+    .reduce((sum, l) => sum + l.quantity, 0);
 
-    setActiveVoucher({
-      code,
-      type: vType,
-      url: voucherInfo?.url,
-    });
-  };
+  const totalExport = ledgers
+    .filter((l) => (l.transaction_type === 'EXPORT' || l.transaction_type === 'ISSUE' || l.transaction_type === 'SALE') && l.quantity < 0)
+    .reduce((sum, l) => sum + Math.abs(l.quantity), 0);
 
-  const handleNavigateVoucher = () => {
-    if (!activeVoucher) return;
-    const { code, type } = activeVoucher;
-    if (onNavigateToTab) {
-      if (type === 'grn' || code.startsWith('GRN-') || code.startsWith('PNK-')) {
-        onNavigateToTab('goods-receipt', code);
-      } else if (type === 'order' || code.startsWith('ORD') || code.startsWith('DH')) {
-        onNavigateToTab('orders', code);
-      } else if (type === 'transfer' || code.startsWith('CK-')) {
-        onNavigateToTab('stock-transfers', code);
-      } else if (type === 'audit' || code.startsWith('PKK-')) {
-        onNavigateToTab('stock-audits', code);
-      }
-      onClose();
-    }
-  };
+  const totalAdjustmentLoss = ledgers
+    .filter((l) => l.transaction_type === 'ADJUST' || l.reference_code?.startsWith('ADJ-'))
+    .reduce((sum, l) => sum + Math.abs(l.quantity), 0);
 
-  const handleResetFilters = () => {
-    setSelectedWarehouse('all');
-    setFromDate('');
-    setToDate('');
-  };
-
-  const displayProductName = summary?.product_name || initialProductName || `Sản phẩm #${productId}`;
-  const displayProductCode = summary?.product_code || initialProductCode || '';
+  const currentBalance = ledgers.length > 0 ? ledgers[0].new_stock : 0;
 
   return (
     <div
       style={{
         position: 'fixed',
-        inset: 0,
-        zIndex: 9999,
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
         backgroundColor: 'rgba(15, 23, 42, 0.65)',
         backdropFilter: 'blur(3px)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
+        zIndex: 9999,
         padding: '16px',
-        overflow: 'hidden',
       }}
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
@@ -244,772 +190,667 @@ export const StockCardModal: React.FC<StockCardModalProps> = ({
       <div
         style={{
           backgroundColor: '#ffffff',
-          borderRadius: '16px',
-          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+          borderRadius: '14px',
           width: '100%',
-          maxWidth: '1240px',
-          maxHeight: '92vh',
+          maxWidth: '1080px',
+          maxHeight: '90vh',
           display: 'flex',
           flexDirection: 'column',
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+          overflow: 'hidden',
           border: '1px solid #e2e8f0',
-          position: 'relative',
         }}
       >
-        {/* HEADER MODAL */}
+        {/* Header Modal */}
         <div
           style={{
-            padding: '18px 24px',
-            borderBottom: '1px solid #e2e8f0',
-            backgroundColor: '#f8fafc',
-            borderTopLeftRadius: '16px',
-            borderTopRightRadius: '16px',
+            padding: '16px 24px',
+            backgroundColor: '#0f172a',
+            color: '#ffffff',
             display: 'flex',
-            alignItems: 'center',
             justifyContent: 'space-between',
+            alignItems: 'center',
             flexShrink: 0,
-            gap: '16px',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
-            <div style={{ minWidth: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                <h2
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div
+              style={{
+                width: '40px',
+                height: '40px',
+                borderRadius: '10px',
+                backgroundColor: 'rgba(37, 99, 235, 0.2)',
+                border: '1px solid #3b82f6',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" strokeWidth="2">
+                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+                <line x1="9" y1="7" x2="15" y2="7" />
+                <line x1="9" y1="11" x2="15" y2="11" />
+              </svg>
+            </div>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <h2 style={{ fontSize: '18px', fontWeight: '800', margin: 0, letterSpacing: '-0.01em', color: '#ffffff' }}>
+                  THẺ KHO CHI TIẾT
+                </h2>
+                <span
                   style={{
-                    fontSize: '18px',
+                    backgroundColor: '#1e293b',
+                    color: '#93c5fd',
+                    padding: '2px 8px',
+                    borderRadius: '6px',
+                    fontSize: '12px',
                     fontWeight: '700',
-                    color: '#0f172a',
-                    margin: 0,
-                    lineHeight: 1.3,
+                    border: '1px solid #334155',
                   }}
                 >
-                  Thẻ kho: {displayProductName}
-                </h2>
-                {displayProductCode && (
+                  {productCode}
+                </span>
+                {warehouseName && (
                   <span
                     style={{
+                      backgroundColor: 'rgba(56, 189, 248, 0.15)',
+                      color: '#38bdf8',
                       padding: '2px 8px',
                       borderRadius: '6px',
-                      backgroundColor: '#eff6ff',
-                      color: '#1d4ed8',
-                      fontSize: '12px',
-                      fontWeight: '700',
-                      border: '1px solid #bfdbfe',
-                      flexShrink: 0,
-                    }}
-                  >
-                    SKU: {displayProductCode}
-                  </span>
-                )}
-                {summary?.base_unit && (
-                  <span
-                    style={{
-                      padding: '2px 8px',
-                      borderRadius: '6px',
-                      backgroundColor: '#f1f5f9',
-                      color: '#475569',
                       fontSize: '12px',
                       fontWeight: '600',
-                      flexShrink: 0,
                     }}
                   >
-                    ĐVT: {summary.base_unit}
-                  </span>
-                )}
-                {summary?.category && (
-                  <span
-                    style={{
-                      padding: '2px 8px',
-                      borderRadius: '6px',
-                      backgroundColor: '#f8fafc',
-                      color: '#64748b',
-                      fontSize: '12px',
-                      border: '1px solid #e2e8f0',
-                      flexShrink: 0,
-                    }}
-                  >
-                    {summary.category}
+                    {warehouseName}
                   </span>
                 )}
               </div>
-              <p
-                style={{
-                  fontSize: '12.5px',
-                  color: '#64748b',
-                  margin: '3px 0 0 0',
-                }}
-              >
-                Nhật ký truy nguyên toàn bộ biến động nhập, xuất, chuyển kho và điều chỉnh để xác định nguyên nhân lệch tồn.
-              </p>
+              <div style={{ fontSize: '13px', color: '#cbd5e1', marginTop: '2px' }}>
+                {productName}
+              </div>
             </div>
           </div>
-
-          {/* Nút đóng modal - padding và margin chuẩn, không bị đè icon */}
           <button
-            type="button"
             onClick={onClose}
-            aria-label="Đóng thẻ kho"
             style={{
-              width: '36px',
-              height: '36px',
-              borderRadius: '8px',
-              border: '1px solid #cbd5e1',
-              backgroundColor: '#ffffff',
-              color: '#64748b',
+              background: 'none',
+              border: 'none',
+              color: '#94a3b8',
+              fontSize: '22px',
+              cursor: 'pointer',
+              padding: '6px',
+              borderRadius: '6px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              cursor: 'pointer',
-              fontSize: '18px',
-              fontWeight: '600',
-              flexShrink: 0,
-              transition: 'all 0.15s ease',
             }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = '#f1f5f9';
-              e.currentTarget.style.color = '#0f172a';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = '#ffffff';
-              e.currentTarget.style.color = '#64748b';
-            }}
+            title="Đóng"
           >
             ✕
           </button>
         </div>
 
-        {/* BODY MODAL */}
+        {/* Thẻ KPI thống kê nhanh Thẻ kho */}
         <div
           style={{
-            padding: '18px 24px',
-            overflowY: 'auto',
-            flexGrow: 1,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '16px',
+            padding: '12px 24px',
+            backgroundColor: '#f8fafc',
+            borderBottom: '1px solid #e2e8f0',
+            display: 'grid',
+            gridTemplateColumns: isWarehousePersonnel
+              ? 'repeat(4, 1fr)'
+              : 'repeat(3, 1fr)',
+            gap: '12px',
+            flexShrink: 0,
           }}
         >
-          {/* KPI CARDS (Tồn đầu kỳ, Tổng nhập, Tổng xuất, Tồn cuối kỳ, Tồn thực tế hiện tại) */}
+          {/* KPI 1: Tổng nhập */}
           <div
             style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-              gap: '12px',
-              flexShrink: 0,
-            }}
-          >
-            {/* 1. TỒN ĐẦU KỲ */}
-            <div
-              style={{
-                padding: '12px 16px',
-                borderRadius: '10px',
-                backgroundColor: '#ffffff',
-                border: '1px solid #e2e8f0',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'center',
-                gap: '4px',
-              }}
-            >
-              <div style={{ fontSize: '11.5px', color: '#64748b', fontWeight: '600' }}>Tồn đầu kỳ</div>
-              <div style={{ fontSize: '18px', fontWeight: '800', color: '#1e293b' }}>
-                {formatNumber(summary?.opening_stock)}
-              </div>
-            </div>
-
-            {/* 2. TỔNG NHẬP TRONG KỲ */}
-            <div
-              style={{
-                padding: '12px 16px',
-                borderRadius: '10px',
-                backgroundColor: '#ffffff',
-                border: '1px solid #e2e8f0',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'center',
-                gap: '4px',
-              }}
-            >
-              <div style={{ fontSize: '11.5px', color: '#64748b', fontWeight: '600' }}>Tổng nhập trong kỳ</div>
-              <div style={{ fontSize: '18px', fontWeight: '800', color: '#1e293b' }}>
-                {formatNumber(summary?.total_receipt)}
-              </div>
-            </div>
-
-            {/* 3. TỔNG XUẤT TRONG KỲ */}
-            <div
-              style={{
-                padding: '12px 16px',
-                borderRadius: '10px',
-                backgroundColor: '#ffffff',
-                border: '1px solid #e2e8f0',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'center',
-                gap: '4px',
-              }}
-            >
-              <div style={{ fontSize: '11.5px', color: '#64748b', fontWeight: '600' }}>Tổng xuất trong kỳ</div>
-              <div style={{ fontSize: '18px', fontWeight: '800', color: '#1e293b' }}>
-                {formatNumber(summary?.total_issue)}
-              </div>
-            </div>
-
-            {/* 4. TỒN CUỐI KỲ */}
-            <div
-              style={{
-                padding: '12px 16px',
-                borderRadius: '10px',
-                backgroundColor: '#ffffff',
-                border: '1px solid #e2e8f0',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'center',
-                gap: '4px',
-              }}
-            >
-              <div style={{ fontSize: '11.5px', color: '#64748b', fontWeight: '600' }}>Tồn cuối kỳ</div>
-              <div style={{ fontSize: '18px', fontWeight: '800', color: '#1e293b' }}>
-                {formatNumber(summary?.closing_stock)}
-              </div>
-            </div>
-
-            {/* 5. TỒN THỰC TẾ HIỆN TẠI TRÊN HỆ THỐNG */}
-            <div
-              style={{
-                padding: '12px 16px',
-                borderRadius: '10px',
-                backgroundColor: '#ffffff',
-                border: '1px solid #e2e8f0',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'center',
-                gap: '4px',
-              }}
-            >
-              <div style={{ fontSize: '11.5px', color: '#64748b', fontWeight: '600' }}>Tồn thực tế hiện tại</div>
-              <div style={{ fontSize: '18px', fontWeight: '800', color: '#1e293b' }}>
-                {formatNumber(summary?.current_actual_stock)}
-              </div>
-            </div>
-          </div>
-
-          {/* BỘ LỌC THEO KHO VÀ KHOẢNG THỜI GIAN (TIÊU CHÍ 3) */}
-          <div
-            style={{
-              padding: '12px 16px',
-              borderRadius: '10px',
-              backgroundColor: '#f8fafc',
+              backgroundColor: '#ffffff',
+              padding: '10px 14px',
+              borderRadius: '8px',
               border: '1px solid #e2e8f0',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              flexWrap: 'wrap',
-              gap: '12px',
-              flexShrink: 0,
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-              {/* Lọc theo kho */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <label style={{ fontSize: '12.5px', fontWeight: '600', color: '#475569', whiteSpace: 'nowrap' }}>
-                  Kho hàng:
-                </label>
-                <select
-                  value={selectedWarehouse}
-                  onChange={(e) => setSelectedWarehouse(e.target.value)}
-                  style={{
-                    height: '34px',
-                    padding: '0 10px',
-                    fontSize: '12.5px',
-                    borderRadius: '8px',
-                    border: '1px solid #cbd5e1',
-                    backgroundColor: '#ffffff',
-                    color: '#1e293b',
-                    fontWeight: '500',
-                    outline: 'none',
-                    cursor: 'pointer',
-                  }}
-                >
-                  <option value="all">Tất cả kho</option>
-                  {warehouses.map((w) => (
-                    <option key={w.warehouse_id} value={w.warehouse_id}>
-                      {w.warehouse_name} ({w.warehouse_id})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Lọc khoảng thời gian: Từ ngày */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <label style={{ fontSize: '12.5px', fontWeight: '600', color: '#475569', whiteSpace: 'nowrap' }}>
-                  Từ ngày:
-                </label>
-                <input
-                  type="date"
-                  value={fromDate}
-                  onChange={(e) => setFromDate(e.target.value)}
-                  style={{
-                    height: '34px',
-                    padding: '0 8px',
-                    fontSize: '12.5px',
-                    borderRadius: '8px',
-                    border: '1px solid #cbd5e1',
-                    backgroundColor: '#ffffff',
-                    color: '#1e293b',
-                    outline: 'none',
-                  }}
-                />
-              </div>
-
-              {/* Lọc khoảng thời gian: Đến ngày */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <label style={{ fontSize: '12.5px', fontWeight: '600', color: '#475569', whiteSpace: 'nowrap' }}>
-                  Đến ngày:
-                </label>
-                <input
-                  type="date"
-                  value={toDate}
-                  onChange={(e) => setToDate(e.target.value)}
-                  style={{
-                    height: '34px',
-                    padding: '0 8px',
-                    fontSize: '12.5px',
-                    borderRadius: '8px',
-                    border: '1px solid #cbd5e1',
-                    backgroundColor: '#ffffff',
-                    color: '#1e293b',
-                    outline: 'none',
-                  }}
-                />
-              </div>
-
-              {/* Nút Đặt lại bộ lọc */}
-              {(selectedWarehouse !== 'all' || fromDate || toDate) && (
-                <button
-                  type="button"
-                  onClick={handleResetFilters}
-                  style={{
-                    height: '34px',
-                    padding: '0 12px',
-                    fontSize: '12px',
-                    fontWeight: '600',
-                    borderRadius: '8px',
-                    border: '1px solid #cbd5e1',
-                    backgroundColor: '#ffffff',
-                    color: '#64748b',
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease',
-                  }}
-                >
-                  Xóa lọc
-                </button>
-              )}
-            </div>
-
-            {/* Thông tin số lượng dòng phát sinh */}
-            <div style={{ fontSize: '12px', color: '#64748b', fontWeight: '500' }}>
-              Tìm thấy <strong style={{ color: '#0f172a' }}>{entries.length}</strong> phát sinh trong kỳ
+            <div style={{ fontSize: '11px', fontWeight: '600', color: '#64748b' }}>Tổng nhập ghi nhận</div>
+            <div style={{ fontSize: '18px', fontWeight: '800', color: '#16a34a', marginTop: '2px' }}>
+              +{formatNumber(totalImport)}
             </div>
           </div>
 
-          {/* THÔNG BÁO LỖI NẾU CÓ */}
-          {error && (
+          {/* KPI 2: Tổng xuất bán/chuyển */}
+          <div
+            style={{
+              backgroundColor: '#ffffff',
+              padding: '10px 14px',
+              borderRadius: '8px',
+              border: '1px solid #e2e8f0',
+            }}
+          >
+            <div style={{ fontSize: '11px', fontWeight: '600', color: '#64748b' }}>Tổng xuất giao hàng</div>
+            <div style={{ fontSize: '18px', fontWeight: '800', color: '#ea580c', marginTop: '2px' }}>
+              -{formatNumber(totalExport)}
+            </div>
+          </div>
+
+          {/* KPI 3: Điều chỉnh tổn thất (Hiển thị cho toàn bộ nhân sự quản lý & thủ kho) */}
+          {isWarehousePersonnel && (
+            <div
+              style={{
+                backgroundColor: '#fff7ed',
+                padding: '10px 14px',
+                borderRadius: '8px',
+                border: '1px solid #fed7aa',
+              }}
+            >
+              <div style={{ fontSize: '11px', fontWeight: '700', color: '#c2410c', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                  <line x1="12" y1="9" x2="12" y2="13" />
+                  <line x1="12" y1="17" x2="12.01" y2="17" />
+                </svg>
+                Điều chỉnh tổn thất (Hỏng/Mất)
+              </div>
+              <div style={{ fontSize: '18px', fontWeight: '800', color: '#dc2626', marginTop: '2px' }}>
+                -{formatNumber(totalAdjustmentLoss)}
+              </div>
+            </div>
+          )}
+
+          {/* KPI 4: Tồn cuối hiện tại */}
+          <div
+            style={{
+              backgroundColor: '#eff6ff',
+              padding: '10px 14px',
+              borderRadius: '8px',
+              border: '1px solid #bfdbfe',
+            }}
+          >
+            <div style={{ fontSize: '11px', fontWeight: '700', color: '#1d4ed8' }}>Tồn sổ sách hiện tại</div>
+            <div style={{ fontSize: '18px', fontWeight: '900', color: '#2563eb', marginTop: '2px' }}>
+              {formatNumber(currentBalance)}
+            </div>
+          </div>
+        </div>
+
+        {/* Thanh công cụ lọc loại giao dịch & Làm mới */}
+        <div
+          style={{
+            padding: '10px 24px',
+            backgroundColor: '#ffffff',
+            borderBottom: '1px solid #e2e8f0',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '10px',
+            flexShrink: 0,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '12.5px', fontWeight: '700', color: '#475569' }}>Lọc giao dịch:</span>
+            <div style={{ display: 'flex', gap: '6px' }}>
+              {[
+                { key: 'all', label: 'Tất cả' },
+                { key: 'IMPORT', label: 'Nhập kho' },
+                { key: 'EXPORT', label: 'Xuất kho' },
+                ...(isWarehousePersonnel ? [{ key: 'ADJUST', label: 'Phiếu điều chỉnh tổn thất' }] : []),
+              ].map((btn) => (
+                <button
+                  key={btn.key}
+                  type="button"
+                  onClick={() => setFilterType(btn.key)}
+                  style={{
+                    padding: '5px 12px',
+                    borderRadius: '6px',
+                    border: '1px solid',
+                    borderColor: filterType === btn.key ? '#2563eb' : '#cbd5e1',
+                    backgroundColor: filterType === btn.key ? '#eff6ff' : '#ffffff',
+                    color: filterType === btn.key ? '#1d4ed8' : '#475569',
+                    fontSize: '12px',
+                    fontWeight: filterType === btn.key ? '700' : '500',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {btn.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <button
+              type="button"
+              onClick={fetchLedgers}
+              disabled={isLoading}
+              style={{
+                padding: '6px 12px',
+                borderRadius: '6px',
+                border: '1px solid #cbd5e1',
+                backgroundColor: '#ffffff',
+                color: '#334155',
+                fontSize: '12px',
+                fontWeight: '600',
+                cursor: isLoading ? 'not-allowed' : 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+              }}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2" />
+              </svg>
+              {isLoading ? 'Đang tải...' : 'Tải lại'}
+            </button>
+          </div>
+        </div>
+
+        {/* Nội dung bảng Thẻ kho */}
+        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '16px 24px' }}>
+          {/* Thông báo thao tác thành công */}
+          {actionSuccessMsg && (
             <div
               style={{
                 padding: '10px 14px',
+                backgroundColor: '#f0fdf4',
+                border: '1px solid #bbf7d0',
                 borderRadius: '8px',
-                backgroundColor: '#fef2f2',
-                border: '1px solid #fecaca',
-                color: '#b91c1c',
+                color: '#15803d',
                 fontSize: '13px',
+                fontWeight: '600',
+                marginBottom: '12px',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '8px',
               }}
             >
-              <span>{error}</span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+              {actionSuccessMsg}
             </div>
           )}
 
-          {/* BẢNG THẺ KHO CHI TIẾT (TIÊU CHÍ 1 & TIÊU CHÍ 2) */}
-          <div
-            style={{
-              backgroundColor: '#ffffff',
-              borderRadius: '10px',
-              border: '1px solid #e2e8f0',
-              overflow: 'hidden',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-              flexGrow: 1,
-              display: 'flex',
-              flexDirection: 'column',
-            }}
-          >
-            <div style={{ overflowX: 'auto', maxHeight: '480px' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
-                <thead
+          {/* Cảnh báo phiếu điều chỉnh đang ở trạng thái Chờ duyệt (kèm nút duyệt ngay) */}
+          {pendingAdjustments.length > 0 && (
+            <div
+              style={{
+                padding: '12px 16px',
+                backgroundColor: '#fffbeb',
+                border: '1px solid #fde68a',
+                borderRadius: '8px',
+                marginBottom: '14px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '10px',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div
                   style={{
-                    backgroundColor: '#f8fafc',
-                    position: 'sticky',
-                    top: 0,
-                    zIndex: 10,
-                    borderBottom: '2px solid #e2e8f0',
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: '50%',
+                    backgroundColor: '#fef3c7',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#b45309',
+                    flexShrink: 0,
                   }}
                 >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="8" x2="12" y2="12" />
+                    <line x1="12" y1="16" x2="12.01" y2="16" />
+                  </svg>
+                </div>
+                <div>
+                  <div style={{ fontSize: '13px', fontWeight: '700', color: '#92400e' }}>
+                    Có {pendingAdjustments.length} phiếu điều chỉnh tồn kho đang ở trạng thái Chờ duyệt
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#b45309', marginTop: '2px' }}>
+                    Mã phiếu: <strong>{pendingAdjustments.map((p) => p.code).join(', ')}</strong> — Phiếu này chưa trừ tồn kho chính thức và chưa ghi Thẻ kho cho đến khi được duyệt.
+                  </div>
+                </div>
+              </div>
+
+              {isManagerOrAdmin && (
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  {pendingAdjustments.map((p) => {
+                    const isCreator = Boolean(
+                      (p.created_by_id && currentUser?.id && String(p.created_by_id) === String(currentUser.id)) ||
+                      (p.created_by && currentUser?.username && p.created_by.trim().toLowerCase() === currentUser.username.trim().toLowerCase()) ||
+                      (p.created_by && currentUser?.full_name && p.created_by.trim().toLowerCase() === currentUser.full_name.trim().toLowerCase())
+                    );
+                    const isAdminUser = userRoles.includes('admin') || userRoles.includes('system_admin');
+                    const isSelfBlocked = Boolean(
+                      (isCreator && !isAdminUser) ||
+                      (p.can_approve === false && !isAdminUser)
+                    );
+
+                    if (isSelfBlocked) {
+                      return (
+                        <span
+                          key={p.id}
+                          title="Quy tắc Four-Eyes: Bạn là Quản lý kho lập phiếu này nên không thể tự phê duyệt. Cần một Quản lý kho khác hoặc Admin duyệt."
+                          style={{
+                            padding: '6px 12px',
+                            backgroundColor: '#f1f5f9',
+                            color: '#94a3b8',
+                            borderRadius: '6px',
+                            fontSize: '12px',
+                            fontWeight: '600',
+                            fontStyle: 'italic',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '5px',
+                            border: '1px solid #e2e8f0',
+                            cursor: 'not-allowed',
+                          }}
+                        >
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                          </svg>
+                          Tự lập: {p.code} (Chờ duyệt)
+                        </span>
+                      );
+                    }
+
+                    return (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => handleQuickApprovePending(p)}
+                        disabled={approvingAdjId === p.id}
+                        style={{
+                          padding: '6px 12px',
+                          backgroundColor: '#16a34a',
+                          color: '#ffffff',
+                          border: 'none',
+                          borderRadius: '6px',
+                          fontSize: '12px',
+                          fontWeight: '700',
+                          cursor: approvingAdjId === p.id ? 'not-allowed' : 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                        }}
+                        title={`Phê duyệt ngay phiếu ${p.code} để cập nhật vào Thẻ kho`}
+                      >
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                        {approvingAdjId === p.id ? 'Đang duyệt...' : `Duyệt ${p.code}`}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {error && (
+            <div
+              style={{
+                padding: '10px 14px',
+                backgroundColor: '#fef2f2',
+                border: '1px solid #fecaca',
+                borderRadius: '8px',
+                color: '#b91c1c',
+                fontSize: '13px',
+                marginBottom: '12px',
+              }}
+            >
+              {error}
+            </div>
+          )}
+
+          {isLoading ? (
+            <div style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>
+              <div style={{ fontSize: '14px', fontWeight: '600' }}>Đang tải dữ liệu thẻ kho...</div>
+            </div>
+          ) : filteredLedgers.length === 0 ? (
+            <div
+              style={{
+                padding: '48px 24px',
+                textAlign: 'center',
+                backgroundColor: '#f8fafc',
+                borderRadius: '8px',
+                border: '1px dashed #cbd5e1',
+              }}
+            >
+              <div style={{ fontSize: '14px', fontWeight: '700', color: '#475569', marginBottom: '4px' }}>
+                Chưa có giao dịch biến động kho nào
+              </div>
+              <div style={{ fontSize: '12.5px', color: '#64748b' }}>
+                Các giao dịch nhập, xuất hoặc điều chỉnh tồn kho được duyệt sẽ được ghi tự động vào Thẻ kho này.
+              </div>
+            </div>
+          ) : (
+            <div style={{ borderRadius: '8px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+                <thead style={{ backgroundColor: '#f1f5f9', borderBottom: '1px solid #cbd5e1' }}>
                   <tr>
-                    <th style={{ padding: '10px 12px', fontWeight: '700', color: '#475569', width: '45px', textAlign: 'center' }}>
-                      #
-                    </th>
-                    <th style={{ padding: '10px 14px', fontWeight: '700', color: '#475569', width: '140px', whiteSpace: 'nowrap' }}>
-                      Thời gian
-                    </th>
-                    <th style={{ padding: '10px 12px', fontWeight: '700', color: '#475569', width: '135px' }}>
-                      Loại nghiệp vụ
-                    </th>
-                    <th style={{ padding: '10px 14px', fontWeight: '700', color: '#475569', width: '160px' }}>
-                      Chứng từ gốc
-                    </th>
-                    <th style={{ padding: '10px 12px', fontWeight: '700', color: '#475569', width: '150px' }}>
-                      Kho hàng
-                    </th>
-                    <th style={{ padding: '10px 12px', fontWeight: '700', color: '#475569', textAlign: 'right', width: '90px' }}>
-                      Nhập (+)
-                    </th>
-                    <th style={{ padding: '10px 12px', fontWeight: '700', color: '#475569', textAlign: 'right', width: '90px' }}>
-                      Xuất (-)
-                    </th>
-                    <th
-                      style={{
-                        padding: '10px 14px',
-                        fontWeight: '700',
-                        color: '#475569',
-                        textAlign: 'right',
-                        width: '120px',
-                      }}
-                    >
-                      Tồn sau phát sinh
-                    </th>
-                    <th style={{ padding: '10px 12px', fontWeight: '700', color: '#475569', width: '120px' }}>
-                      Người thực hiện
-                    </th>
-                    <th style={{ padding: '10px 14px', fontWeight: '700', color: '#475569', minWidth: '180px' }}>
-                      Diễn giải / Ghi chú
-                    </th>
+                    <th style={{ padding: '10px 12px', fontWeight: '700', color: '#334155', width: '130px' }}>Ngày giờ</th>
+                    <th style={{ padding: '10px 12px', fontWeight: '700', color: '#334155', width: '120px' }}>Số chứng từ</th>
+                    <th style={{ padding: '10px 12px', fontWeight: '700', color: '#334155', width: '150px' }}>Loại giao dịch</th>
+                    <th style={{ padding: '10px 12px', fontWeight: '700', color: '#334155', width: '100px', textAlign: 'right' }}>Biến động</th>
+                    <th style={{ padding: '10px 12px', fontWeight: '700', color: '#334155', width: '100px', textAlign: 'right' }}>Tồn trước</th>
+                    <th style={{ padding: '10px 12px', fontWeight: '700', color: '#334155', width: '100px', textAlign: 'right' }}>Tồn sau</th>
+                    <th style={{ padding: '10px 12px', fontWeight: '700', color: '#334155', minWidth: '220px' }}>Diễn giải / Ghi chú</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {isLoading && !data ? (
-                    <tr>
-                      <td colSpan={10} style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>
-                        Đang truy nguyên lịch sử thẻ kho...
-                      </td>
-                    </tr>
-                  ) : entries.length === 0 ? (
-                    <tr>
-                      <td colSpan={10} style={{ padding: '48px 24px', textAlign: 'center', color: '#64748b' }}>
-                        <div style={{ fontSize: '15px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>
-                          Không có phát sinh kho nào trong điều kiện lọc này
-                        </div>
-                        <div style={{ fontSize: '12.5px', color: '#94a3b8' }}>
-                          Thử chọn khoảng thời gian rộng hơn hoặc chọn "Tất cả kho" để xem toàn bộ lịch sử.
-                        </div>
-                      </td>
-                    </tr>
-                  ) : (
-                    entries.map((entry, idx) => {
-                      const isReceipt = entry.quantity > 0;
-                      const isIssue = entry.quantity < 0;
+                  {filteredLedgers.map((item, index) => {
+                    const isAdjustment =
+                      item.transaction_type === 'ADJUST' ||
+                      item.reference_code?.startsWith('ADJ-');
+                    const isImport = item.quantity > 0;
+                    const isExport = item.quantity < 0 && !isAdjustment;
 
-                      return (
-                        <tr
-                          key={entry.id || idx}
-                          style={{
-                            borderBottom: '1px solid #f1f5f9',
-                            backgroundColor: idx % 2 === 0 ? '#ffffff' : '#fafafa',
-                            transition: 'background-color 0.1s ease',
-                          }}
-                        >
-                          {/* STT */}
-                          <td style={{ padding: '10px 12px', textAlign: 'center', color: '#94a3b8', fontSize: '12px' }}>
-                            {idx + 1}
-                          </td>
+                    return (
+                      <tr
+                        key={item.id || index}
+                        style={{
+                          borderBottom: '1px solid #f1f5f9',
+                          backgroundColor: isAdjustment
+                            ? '#fff7ed' // Highlight nhẹ dòng điều chỉnh tồn kho cho Quản lý & Admin dễ nhận biết
+                            : index % 2 === 0
+                            ? '#ffffff'
+                            : '#fafafa',
+                        }}
+                      >
+                        {/* Ngày giờ */}
+                        <td style={{ padding: '10px 12px', color: '#475569', fontSize: '12px', whiteSpace: 'nowrap' }}>
+                          {formatDate(item.created_at)}
+                        </td>
 
-                          {/* Thời gian */}
-                          <td style={{ padding: '10px 14px', color: '#334155', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
-                            {formatDateTime(entry.created_at)}
-                          </td>
+                        {/* Số chứng từ */}
+                        <td style={{ padding: '10px 12px', fontWeight: '700', color: '#1e293b' }}>
+                          <span
+                            style={{
+                              backgroundColor: isAdjustment ? '#fed7aa' : '#e2e8f0',
+                              color: isAdjustment ? '#9a3412' : '#334155',
+                              padding: '2px 6px',
+                              borderRadius: '4px',
+                              fontSize: '11.5px',
+                              fontFamily: 'monospace',
+                            }}
+                          >
+                            {item.reference_code || '—'}
+                          </span>
+                        </td>
 
-                          {/* Loại nghiệp vụ */}
-                          <td style={{ padding: '10px 12px' }}>
-                            {renderTransactionTypeBadge(entry.transaction_type, entry.transaction_label)}
-                          </td>
-
-                          {/* Liên kết chứng từ gốc (Tiêu chí 2) */}
-                          <td style={{ padding: '10px 14px' }}>
-                            <button
-                              type="button"
-                              onClick={() => handleVoucherClick(entry.voucher_info, entry.reference_code)}
-                              title={`Bấm để truy nguyên chứng từ gốc ${entry.reference_code}`}
+                        {/* Loại giao dịch */}
+                        <td style={{ padding: '10px 12px' }}>
+                          {isAdjustment ? (
+                            <span
                               style={{
                                 display: 'inline-flex',
                                 alignItems: 'center',
-                                gap: '6px',
+                                gap: '4px',
                                 padding: '3px 8px',
-                                borderRadius: '6px',
-                                backgroundColor: '#f8fafc',
-                                border: '1px solid #cbd5e1',
-                                color: '#0284c7',
+                                borderRadius: '4px',
+                                fontSize: '11px',
                                 fontWeight: '700',
-                                fontSize: '12px',
-                                cursor: 'pointer',
-                                transition: 'all 0.15s ease',
-                              }}
-                              onMouseEnter={(e) => {
-                                e.currentTarget.style.backgroundColor = '#e0f2fe';
-                                e.currentTarget.style.borderColor = '#7dd3fc';
-                              }}
-                              onMouseLeave={(e) => {
-                                e.currentTarget.style.backgroundColor = '#f8fafc';
-                                e.currentTarget.style.borderColor = '#cbd5e1';
+                                backgroundColor: '#fee2e2',
+                                color: '#b91c1c',
+                                border: '1px solid #fecaca',
                               }}
                             >
-                              <span style={{ textDecoration: 'underline' }}>{entry.reference_code}</span>
-                            </button>
-                          </td>
+                              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                              </svg>
+                              Điều chỉnh tổn thất
+                            </span>
+                          ) : isImport ? (
+                            <span
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                padding: '3px 8px',
+                                borderRadius: '4px',
+                                fontSize: '11px',
+                                fontWeight: '700',
+                                backgroundColor: '#dcfce7',
+                                color: '#15803d',
+                              }}
+                            >
+                              Nhập kho
+                            </span>
+                          ) : isExport ? (
+                            <span
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                padding: '3px 8px',
+                                borderRadius: '4px',
+                                fontSize: '11px',
+                                fontWeight: '700',
+                                backgroundColor: '#ffedd5',
+                                color: '#c2410c',
+                              }}
+                            >
+                              Xuất kho
+                            </span>
+                          ) : (
+                            <span
+                              style={{
+                                padding: '3px 8px',
+                                borderRadius: '4px',
+                                fontSize: '11px',
+                                fontWeight: '600',
+                                backgroundColor: '#f1f5f9',
+                                color: '#475569',
+                              }}
+                            >
+                              {item.transaction_type}
+                            </span>
+                          )}
+                        </td>
 
-                          {/* Kho hàng */}
-                          <td style={{ padding: '10px 12px', color: '#475569' }}>
-                            <div style={{ fontWeight: '600' }}>{entry.warehouse_name}</div>
-                            <div style={{ fontSize: '11px', color: '#94a3b8' }}>{entry.warehouse_id}</div>
-                          </td>
+                        {/* Biến động (+/-) */}
+                        <td
+                          style={{
+                            padding: '10px 12px',
+                            textAlign: 'right',
+                            fontWeight: '800',
+                            fontVariantNumeric: 'tabular-nums',
+                            color: isAdjustment
+                              ? '#dc2626'
+                              : item.quantity > 0
+                              ? '#16a34a'
+                              : '#ea580c',
+                          }}
+                        >
+                          {item.quantity > 0 ? `+${formatNumber(item.quantity)}` : formatNumber(item.quantity)}
+                        </td>
 
-                          {/* Số lượng nhập (+) */}
-                          <td
-                            style={{
-                              padding: '10px 12px',
-                              textAlign: 'right',
-                              fontWeight: '700',
-                              color: isReceipt ? '#15803d' : '#94a3b8',
-                              fontVariantNumeric: 'tabular-nums',
-                            }}
-                          >
-                            {isReceipt ? `+${formatNumber(entry.receipt_quantity || entry.quantity)}` : '—'}
-                          </td>
+                        {/* Tồn trước */}
+                        <td
+                          style={{
+                            padding: '10px 12px',
+                            textAlign: 'right',
+                            color: '#64748b',
+                            fontVariantNumeric: 'tabular-nums',
+                          }}
+                        >
+                          {formatNumber(item.previous_stock)}
+                        </td>
 
-                          {/* Số lượng xuất (-) */}
-                          <td
-                            style={{
-                              padding: '10px 12px',
-                              textAlign: 'right',
-                              fontWeight: '700',
-                              color: isIssue ? '#b91c1c' : '#94a3b8',
-                              fontVariantNumeric: 'tabular-nums',
-                            }}
-                          >
-                            {isIssue ? `-${formatNumber(entry.issue_quantity || Math.abs(entry.quantity))}` : '—'}
-                          </td>
+                        {/* Tồn sau */}
+                        <td
+                          style={{
+                            padding: '10px 12px',
+                            textAlign: 'right',
+                            fontWeight: '700',
+                            color: '#0f172a',
+                            fontVariantNumeric: 'tabular-nums',
+                          }}
+                        >
+                          {formatNumber(item.new_stock)}
+                        </td>
 
-                          {/* TỒN SAU PHÁT SINH (TIÊU CHÍ 2 - NỔI BẬT) */}
-                          <td
-                            style={{
-                              padding: '10px 14px',
-                              textAlign: 'right',
-                              fontWeight: '800',
-                              fontSize: '13.5px',
-                              color: '#1d4ed8',
-                              backgroundColor: '#eff6ff',
-                              borderLeft: '1px solid #dbeafe',
-                              borderRight: '1px solid #dbeafe',
-                              fontVariantNumeric: 'tabular-nums',
-                            }}
-                          >
-                            {formatNumber(entry.balance_stock)}
-                          </td>
-
-                          {/* Người thực hiện */}
-                          <td style={{ padding: '10px 12px', color: '#475569', fontSize: '12px' }}>
-                            {entry.performed_by || '—'}
-                          </td>
-
-                          {/* Diễn giải / Ghi chú */}
-                          <td style={{ padding: '10px 14px', color: '#64748b', fontSize: '12px', lineHeight: 1.4 }}>
-                            {entry.note || '—'}
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
+                        {/* Diễn giải / Ghi chú */}
+                        <td style={{ padding: '10px 12px', color: '#334155', fontSize: '12.5px' }}>
+                          <div>{item.note || '—'}</div>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
-          </div>
+          )}
         </div>
 
-        {/* FOOTER MODAL */}
+        {/* Footer Modal */}
         <div
           style={{
             padding: '12px 24px',
-            borderTop: '1px solid #e2e8f0',
             backgroundColor: '#f8fafc',
-            borderBottomLeftRadius: '16px',
-            borderBottomRightRadius: '16px',
+            borderTop: '1px solid #e2e8f0',
             display: 'flex',
-            alignItems: 'center',
             justifyContent: 'space-between',
+            alignItems: 'center',
             flexShrink: 0,
-            gap: '12px',
           }}
         >
           <div style={{ fontSize: '12px', color: '#64748b' }}>
-            <span>Đơn vị tính: <strong>{summary?.base_unit || 'Cái'}</strong></span>
-            <span style={{ margin: '0 8px' }}>•</span>
-            <span>Trạng thái: <strong>Đồng bộ thẻ kho trực tiếp từ CSDL</strong></span>
+            {isManagerOrAdmin ? (
+              <span style={{ color: '#15803d', fontWeight: '600' }}>
+                ✓ Bạn đang đăng nhập với quyền Quản lý/Admin: Hiển thị đầy đủ mọi phiếu điều chỉnh tổn thất trên thẻ kho.
+              </span>
+            ) : (
+              <span style={{ color: '#64748b' }}>
+                • Dữ liệu Thẻ kho theo tiêu chuẩn kế toán kho nội bộ.
+              </span>
+            )}
           </div>
-
           <button
             type="button"
             onClick={onClose}
             style={{
-              padding: '8px 18px',
-              backgroundColor: '#ffffff',
-              border: '1px solid #cbd5e1',
+              padding: '8px 20px',
+              backgroundColor: '#334155',
+              color: '#ffffff',
+              border: 'none',
               borderRadius: '8px',
               fontSize: '13px',
               fontWeight: '600',
-              color: '#334155',
               cursor: 'pointer',
-              transition: 'background-color 0.15s ease',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = '#f1f5f9';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = '#ffffff';
             }}
           >
-            Đóng
+            Đóng thẻ kho
           </button>
         </div>
-
-        {/* DIALOG XEM NHANH CHỨNG TỪ GỐC (POPUP TRUY NGUYÊN) */}
-        {activeVoucher && (
-          <div
-            style={{
-              position: 'absolute',
-              inset: 0,
-              backgroundColor: 'rgba(15, 23, 42, 0.5)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              zIndex: 10000,
-              padding: '16px',
-            }}
-            onClick={(e) => {
-              if (e.target === e.currentTarget) setActiveVoucher(null);
-            }}
-          >
-            <div
-              style={{
-                backgroundColor: '#ffffff',
-                borderRadius: '12px',
-                padding: '20px 24px',
-                maxWidth: '460px',
-                width: '100%',
-                boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.2)',
-                border: '1px solid #e2e8f0',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <h3 style={{ fontSize: '16px', fontWeight: '700', color: '#0f172a', margin: 0 }}>
-                    Chi tiết chứng từ gốc
-                  </h3>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setActiveVoucher(null)}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    fontSize: '18px',
-                    color: '#94a3b8',
-                    cursor: 'pointer',
-                    padding: '4px',
-                  }}
-                >
-                  ✕
-                </button>
-              </div>
-
-              <div style={{ backgroundColor: '#f8fafc', padding: '12px 14px', borderRadius: '8px', marginBottom: '16px' }}>
-                <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '2px' }}>Số hiệu chứng từ</div>
-                <div style={{ fontSize: '16px', fontWeight: '800', color: '#0284c7' }}>
-                  {activeVoucher.code}
-                </div>
-                <div style={{ fontSize: '12px', color: '#475569', marginTop: '6px' }}>
-                  Loại chứng từ:{' '}
-                  <strong>
-                    {activeVoucher.code.startsWith('GRN-') || activeVoucher.code.startsWith('PNK-')
-                      ? 'Phiếu nhập kho nhà cung cấp'
-                      : activeVoucher.code.startsWith('ORD') || activeVoucher.code.startsWith('DH')
-                      ? 'Đơn hàng bán xuất kho'
-                      : activeVoucher.code.startsWith('CK-')
-                      ? 'Phiếu xuất / nhập chuyển kho nội bộ'
-                      : activeVoucher.code.startsWith('PKK-')
-                      ? 'Phiếu kiểm kê điều chỉnh cân đối tồn'
-                      : activeVoucher.code.startsWith('DK-')
-                      ? 'Số dư ban đầu khi thiết lập kho'
-                      : 'Phiếu điều chỉnh kho'}
-                  </strong>
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-                <button
-                  type="button"
-                  onClick={() => setActiveVoucher(null)}
-                  style={{
-                    padding: '8px 14px',
-                    borderRadius: '6px',
-                    border: '1px solid #cbd5e1',
-                    backgroundColor: '#ffffff',
-                    fontSize: '13px',
-                    color: '#475569',
-                    fontWeight: '600',
-                    cursor: 'pointer',
-                  }}
-                >
-                  Đóng
-                </button>
-                {onNavigateToTab && !activeVoucher.code.startsWith('DK-') && !activeVoucher.code.startsWith('TX-') && (
-                  <button
-                    type="button"
-                    onClick={handleNavigateVoucher}
-                    style={{
-                      padding: '8px 16px',
-                      borderRadius: '6px',
-                      border: 'none',
-                      backgroundColor: '#2563eb',
-                      color: '#ffffff',
-                      fontSize: '13px',
-                      fontWeight: '600',
-                      cursor: 'pointer',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                    }}
-                  >
-                    <span>Mở phiếu chứng từ</span>
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
