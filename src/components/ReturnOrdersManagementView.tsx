@@ -5,7 +5,7 @@ import {
   confirmReturnReceiptApi,
   User,
 } from '../services/api';
-import { CreateReturnOrderModal } from './CreateReturnOrderModal';
+import { CreateReturnOrderPage } from './CreateReturnOrderPage';
 import { ReturnOrderDetailModal } from './ReturnOrderDetailModal';
 import { emitStatusToast } from './StatusToast';
 
@@ -25,14 +25,29 @@ export const ReturnOrdersManagementView: React.FC<ReturnOrdersManagementViewProp
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  // View mode: 'list' | 'create'
+  const isCreateUrl = typeof window !== 'undefined' && window.location.pathname.startsWith('/return-orders/create');
+  const [viewMode, setViewMode] = useState<'list' | 'create'>(isCreateUrl ? 'create' : 'list');
+
+  useEffect(() => {
+    const handlePopState = () => {
+      if (typeof window !== 'undefined' && window.location.pathname.startsWith('/return-orders/create')) {
+        setViewMode('create');
+      } else {
+        setViewMode('list');
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
   // Filters & Pagination
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [currentPage, setCurrentPage] = useState<number>(1);
   const pageSize = 15;
 
-  // Modals state
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState<boolean>(false);
+  // Selected order for detail modal
   const [selectedOrderForDetail, setSelectedOrderForDetail] = useState<ReturnOrderData | null>(null);
 
   // Phân quyền
@@ -96,6 +111,24 @@ export const ReturnOrdersManagementView: React.FC<ReturnOrdersManagementViewProp
   const totalRefundSum = returnOrders.reduce((sum, r) => sum + (r.total_refund_amount || 0), 0);
 
   const totalPages = Math.ceil(totalCount / pageSize) || 1;
+
+  if (viewMode === 'create') {
+    return (
+      <CreateReturnOrderPage
+        token={token}
+        currentUser={currentUser}
+        onBack={() => {
+          setViewMode('list');
+          try { window.history.pushState({}, '', '/return-orders'); } catch { }
+        }}
+        onSuccess={() => {
+          setViewMode('list');
+          try { window.history.pushState({}, '', '/return-orders'); } catch { }
+          fetchReturnOrders();
+        }}
+      />
+    );
+  }
 
   return (
     <div
@@ -189,7 +222,10 @@ export const ReturnOrdersManagementView: React.FC<ReturnOrdersManagementViewProp
             <button
               type="button"
               id="btn-create-return-order"
-              onClick={() => setIsCreateModalOpen(true)}
+              onClick={() => {
+                setViewMode('create');
+                try { window.history.pushState({}, '', '/return-orders/create'); } catch { }
+              }}
               style={{
                 padding: '8px 18px',
                 borderRadius: '8px',
@@ -639,16 +675,6 @@ export const ReturnOrdersManagementView: React.FC<ReturnOrdersManagementViewProp
         </div>
       )}
 
-      {/* Modal Lập phiếu trả hàng */}
-      <CreateReturnOrderModal
-        isOpen={isCreateModalOpen}
-        token={token}
-        currentUser={currentUser}
-        onClose={() => setIsCreateModalOpen(false)}
-        onSuccess={() => {
-          fetchReturnOrders();
-        }}
-      />
 
       {/* Modal Chi tiết & Xác nhận kho */}
       <ReturnOrderDetailModal
