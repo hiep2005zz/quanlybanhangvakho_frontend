@@ -80,22 +80,19 @@ export const ReturnOrderDetailModal: React.FC<ReturnOrderDetailModalProps> = ({
     switch (st) {
       case 'PENDING_WAREHOUSE':
         return (
-          <span style={{ padding: '3px 10px', borderRadius: '12px', background: '#fef3c7', color: '#b45309', fontWeight: '700', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
-            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#f59e0b', display: 'inline-block' }}></span>
+          <span style={{ padding: '3px 10px', borderRadius: '12px', background: '#fef3c7', color: '#b45309', fontWeight: '700', fontSize: '12px', whiteSpace: 'nowrap' }}>
             Chờ kho xác nhận
           </span>
         );
       case 'COMPLETED':
         return (
-          <span style={{ padding: '3px 10px', borderRadius: '12px', background: '#dcfce7', color: '#166534', fontWeight: '700', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
-            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#22c55e', display: 'inline-block' }}></span>
-            Đã nhập kho (Hoàn thành)
+          <span style={{ padding: '3px 10px', borderRadius: '12px', background: '#dcfce7', color: '#166534', fontWeight: '700', fontSize: '12px', whiteSpace: 'nowrap' }}>
+            Đã nhập kho
           </span>
         );
       case 'CANCELLED':
         return (
-          <span style={{ padding: '3px 10px', borderRadius: '12px', background: '#f1f5f9', color: '#475569', fontWeight: '700', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
-            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#94a3b8', display: 'inline-block' }}></span>
+          <span style={{ padding: '3px 10px', borderRadius: '12px', background: '#f1f5f9', color: '#475569', fontWeight: '700', fontSize: '12px', whiteSpace: 'nowrap' }}>
             Đã hủy
           </span>
         );
@@ -469,11 +466,12 @@ export const ReturnOrderDetailModal: React.FC<ReturnOrderDetailModalProps> = ({
                               borderRadius: '6px',
                               fontSize: '11.5px',
                               fontWeight: '700',
-                              background: item.is_damaged ? '#fef3c7' : '#dcfce7',
-                              color: item.is_damaged ? '#b45309' : '#166534',
+                              background: item.is_damaged ? '#fee2e2' : '#eff6ff',
+                              color: item.is_damaged ? '#b91c1c' : '#1d4ed8',
+                              whiteSpace: 'nowrap',
                             }}
                           >
-                            {item.target_warehouse_name || (item.is_damaged ? 'Kho Lỗi (KHO_LOI)' : 'Kho Tổng')}
+                            {item.target_warehouse_name || (item.is_damaged ? 'Kho lỗi' : 'Kho gốc')}
                           </span>
                         </td>
                       </tr>

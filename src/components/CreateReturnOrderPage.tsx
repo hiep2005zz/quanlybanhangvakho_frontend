@@ -38,11 +38,11 @@ interface SelectedReturnItemState {
 }
 
 const COMMON_RETURN_REASONS = [
-  'Hàng lỗi / hư hỏng do vận chuyển',
-  'Hàng lỗi kỹ thuật / lỗi sản xuất',
-  'Hàng hết hạn / cận hạn sử dụng',
-  'Giao sai mẫu mã / quy cách',
-  'Đại lý trả lại hàng tốt (không có nhu cầu bán tiếp)',
+  'Hàng lỗi do vận chuyển',
+  'Hàng lỗi kỹ thuật sản xuất',
+  'Hàng hết hạn sử dụng',
+  'Giao sai quy cách mẫu mã',
+  'Đại lý trả lại hàng tốt',
   'Khác (tự nhập lý do)',
 ];
 
@@ -241,7 +241,7 @@ export const CreateReturnOrderPage: React.FC<CreateReturnOrderPageProps> = ({
   // Validation
   const validateForm = (): string | null => {
     if (!selectedOrderId) {
-      return 'Vui lòng chọn Đơn hàng gốc cần trả hàng.';
+      return 'Vui lòng chọn đơn hàng gốc cần trả hàng.';
     }
     if (selectedRows.length === 0) {
       return 'Vui lòng tích chọn ít nhất 1 dòng hàng cần trả.';
@@ -252,14 +252,14 @@ export const CreateReturnOrderPage: React.FC<CreateReturnOrderPageProps> = ({
         return `Số lượng trả của sản phẩm "${it.product_name}" phải lớn hơn 0.`;
       }
       if (it.return_quantity > it.remaining_quantity) {
-        return `Số lượng trả của "${it.product_name}" (${it.return_quantity}) vượt quá số lượng tối đa được phép trả (${it.remaining_quantity}).`;
+        return `Số lượng trả của "${it.product_name}" (${it.return_quantity}) vượt quá số lượng còn được trả (${it.remaining_quantity}).`;
       }
       const actualReason = it.return_reason === 'Khác (tự nhập lý do)' ? it.custom_reason.trim() : it.return_reason;
       if (!actualReason) {
         return `Vui lòng nhập lý do trả hàng cho sản phẩm "${it.product_name}".`;
       }
       if (it.is_batch_managed && (!it.batch_number || !it.batch_number.trim())) {
-        return `Sản phẩm "${it.product_name}" có quản lý theo Lô. Bắt buộc phải chọn hoặc nhập Mã Lô đã xuất trên đơn gốc.`;
+        return `Sản phẩm "${it.product_name}" có quản lý lô. Vui lòng chọn hoặc nhập mã lô đã xuất.`;
       }
     }
 
@@ -297,8 +297,8 @@ export const CreateReturnOrderPage: React.FC<CreateReturnOrderPageProps> = ({
 
       const res = await createReturnOrderApi(token, payload);
       emitStatusToast({
-        title: 'Lập phiếu trả hàng thành công',
-        message: `Phiếu trả hàng ${res.code} đã được tạo ở trạng thái Chờ kho xác nhận.`,
+        title: 'Tạo phiếu thành công',
+        message: `Phiếu trả hàng ${res.code} đã được tạo thành công.`,
       });
       onSuccess();
     } catch (err: any) {
@@ -319,7 +319,7 @@ export const CreateReturnOrderPage: React.FC<CreateReturnOrderPageProps> = ({
         backgroundColor: '#f8fafc',
       }}
     >
-      {/* Top Header / Breadcrumb Bar */}
+      {/* Top Header */}
       <div
         style={{
           position: 'sticky',
@@ -327,89 +327,55 @@ export const CreateReturnOrderPage: React.FC<CreateReturnOrderPageProps> = ({
           zIndex: 40,
           backgroundColor: '#ffffff',
           borderBottom: '1px solid #e2e8f0',
-          padding: '14px 28px',
+          padding: '12px 24px',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+          boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
           flexWrap: 'wrap',
           gap: '12px',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <button
             type="button"
             onClick={onBack}
             style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '8px 14px',
-              borderRadius: '8px',
+              padding: '7px 14px',
+              borderRadius: '6px',
               border: '1px solid #cbd5e1',
               backgroundColor: '#ffffff',
               color: '#334155',
               fontSize: '13px',
               fontWeight: '600',
               cursor: 'pointer',
-              transition: 'all 0.15s ease',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = '#f1f5f9';
-              e.currentTarget.style.borderColor = '#94a3b8';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = '#ffffff';
-              e.currentTarget.style.borderColor = '#cbd5e1';
+              whiteSpace: 'nowrap',
             }}
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="19" y1="12" x2="5" y2="12" />
-              <polyline points="12 19 5 12 12 5" />
-            </svg>
             Quay lại danh sách
           </button>
 
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <h1 style={{ margin: 0, fontSize: '19px', fontWeight: '800', color: '#0f172a' }}>
-                Lập Phiếu Trả Hàng Từ Đại Lý (Sales Return / RMA)
-              </h1>
-              <span
-                style={{
-                  fontSize: '11px',
-                  fontWeight: '700',
-                  padding: '2px 8px',
-                  borderRadius: '12px',
-                  backgroundColor: '#eff6ff',
-                  color: '#2563eb',
-                  border: '1px solid #bfdbfe',
-                }}
-              >
-                Quy trình 2 bước
-              </span>
-            </div>
-            <p style={{ margin: '2px 0 0 0', fontSize: '12.5px', color: '#64748b' }}>
-              Khởi tạo yêu cầu trả hàng từ Đơn hàng gốc &bull; Tự động kiểm tra số lượng &bull; Điều hướng kho nhận thông minh
-            </p>
-          </div>
+          <h1 style={{ margin: 0, fontSize: '18px', fontWeight: '800', color: '#0f172a', whiteSpace: 'nowrap' }}>
+            Lập Phiếu Trả Hàng Từ Đại Lý
+          </h1>
         </div>
 
-        {/* Header Right Action Buttons */}
+        {/* Top Action Buttons */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <button
             type="button"
             onClick={onBack}
             disabled={isSubmitting}
             style={{
-              padding: '8px 16px',
-              borderRadius: '8px',
+              padding: '7px 14px',
+              borderRadius: '6px',
               border: '1px solid #cbd5e1',
               backgroundColor: '#ffffff',
               color: '#475569',
-              fontSize: '13.5px',
+              fontSize: '13px',
               fontWeight: '600',
               cursor: 'pointer',
+              whiteSpace: 'nowrap',
             }}
           >
             Hủy bỏ
@@ -420,46 +386,18 @@ export const CreateReturnOrderPage: React.FC<CreateReturnOrderPageProps> = ({
             onClick={handleSubmit}
             disabled={isSubmitting || selectedRows.length === 0}
             style={{
-              padding: '8px 20px',
-              borderRadius: '8px',
+              padding: '7px 18px',
+              borderRadius: '6px',
               border: 'none',
               backgroundColor: isSubmitting || selectedRows.length === 0 ? '#94a3b8' : '#2563eb',
               color: '#ffffff',
-              fontSize: '13.5px',
+              fontSize: '13px',
               fontWeight: '700',
               cursor: isSubmitting || selectedRows.length === 0 ? 'not-allowed' : 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '8px',
-              boxShadow: isSubmitting || selectedRows.length === 0 ? 'none' : '0 2px 4px rgba(37, 99, 235, 0.25)',
-              transition: 'background-color 0.15s ease',
+              whiteSpace: 'nowrap',
             }}
           >
-            {isSubmitting ? (
-              <>
-                <span
-                  style={{
-                    display: 'inline-block',
-                    width: '14px',
-                    height: '14px',
-                    border: '2px solid #ffffff',
-                    borderTopColor: 'transparent',
-                    borderRadius: '50%',
-                    animation: 'spin 0.8s linear infinite',
-                  }}
-                />
-                Đang lưu phiếu...
-              </>
-            ) : (
-              <>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
-                  <polyline points="17 21 17 13 7 13 7 21" />
-                  <polyline points="7 3 7 8 15 8" />
-                </svg>
-                Lưu Phiếu (Chờ Kho Nhận)
-              </>
-            )}
+            {isSubmitting ? 'Đang lưu phiếu...' : 'Lưu Phiếu Trả Hàng'}
           </button>
         </div>
       </div>
@@ -467,13 +405,13 @@ export const CreateReturnOrderPage: React.FC<CreateReturnOrderPageProps> = ({
       {/* Main Page Scrollable Body */}
       <div
         style={{
-          maxWidth: '1240px',
+          maxWidth: '1280px',
           width: '100%',
           margin: '0 auto',
-          padding: '24px 28px 80px 28px',
+          padding: '16px 20px 80px 20px',
           display: 'flex',
           flexDirection: 'column',
-          gap: '22px',
+          gap: '16px',
           boxSizing: 'border-box',
         }}
       >
@@ -481,31 +419,25 @@ export const CreateReturnOrderPage: React.FC<CreateReturnOrderPageProps> = ({
         {errorMsg && (
           <div
             style={{
-              padding: '12px 18px',
-              borderRadius: '10px',
+              padding: '10px 14px',
+              borderRadius: '8px',
               background: '#fef2f2',
-              border: '1.5px solid #fecaca',
+              border: '1px solid #fecaca',
               color: '#dc2626',
-              fontSize: '13.5px',
+              fontSize: '13px',
               fontWeight: '600',
               display: 'flex',
+              justifyContent: 'space-between',
               alignItems: 'center',
-              gap: '10px',
-              boxShadow: '0 1px 3px rgba(220, 38, 38, 0.08)',
             }}
           >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10" />
-              <line x1="12" y1="8" x2="12" y2="12" />
-              <line x1="12" y1="16" x2="12.01" y2="16" />
-            </svg>
-            <div style={{ flex: 1 }}>{errorMsg}</div>
+            <div>{errorMsg}</div>
             <button
               type="button"
               onClick={() => setErrorMsg(null)}
-              style={{ background: 'none', border: 'none', color: '#dc2626', cursor: 'pointer', padding: '2px' }}
+              style={{ background: 'none', border: 'none', color: '#dc2626', cursor: 'pointer', fontWeight: 'bold' }}
             >
-              ✕
+              Đóng
             </button>
           </div>
         )}
@@ -514,168 +446,57 @@ export const CreateReturnOrderPage: React.FC<CreateReturnOrderPageProps> = ({
         <div
           style={{
             backgroundColor: '#ffffff',
-            borderRadius: '14px',
+            borderRadius: '10px',
             border: '1px solid #e2e8f0',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
-            padding: '20px 24px',
+            padding: '14px 18px',
           }}
         >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-            <h2 style={{ margin: 0, fontSize: '15.5px', fontWeight: '700', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  width: '24px',
-                  height: '24px',
-                  borderRadius: '50%',
-                  backgroundColor: '#eff6ff',
-                  color: '#2563eb',
-                  fontSize: '13px',
-                  fontWeight: '800',
-                }}
-              >
-                1
-              </span>
-              Chọn Đơn Hàng Gốc Đã Giao (Original Order)
-              <span style={{ color: '#ef4444' }}>*</span>
-            </h2>
-
-            {selectedOrderId && (
-              <button
-                type="button"
-                onClick={() => {
-                  setSelectedOrderId(null);
-                  setOrderDetails(null);
-                  setItemsState([]);
-                  setIsOrderDropdownOpen(true);
-                }}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: '#2563eb',
-                  fontSize: '13px',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                }}
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                  <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-                  <path d="M3 3v5h5" />
-                </svg>
-                Chọn đơn hàng khác
-              </button>
-            )}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: selectedOrderId ? '0' : '10px' }}>
+            <div style={{ fontSize: '14px', fontWeight: '700', color: '#0f172a' }}>
+              1. Chọn Đơn Hàng Gốc <span style={{ color: '#ef4444' }}>*</span>
+            </div>
           </div>
 
-          {/* Search & Custom Dropdown if not selected or changing */}
           {!selectedOrderId ? (
             <div ref={dropdownRef} style={{ position: 'relative' }}>
-              <div
-                style={{
-                  display: 'flex',
-                  gap: '10px',
-                  alignItems: 'center',
-                }}
-              >
-                {/* Search Input Box */}
-                <div style={{ position: 'relative', flex: 1 }}>
-                  <span
-                    style={{
-                      position: 'absolute',
-                      left: '14px',
-                      top: '50%',
-                      transform: 'translateY(-50%)',
-                      color: '#94a3b8',
-                      display: 'flex',
-                    }}
-                  >
-                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                      <circle cx="11" cy="11" r="8" />
-                      <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                    </svg>
-                  </span>
-                  <input
-                    type="text"
-                    value={orderSearchText}
-                    onChange={(e) => {
-                      setOrderSearchText(e.target.value);
-                      setIsOrderDropdownOpen(true);
-                    }}
-                    onFocus={() => setIsOrderDropdownOpen(true)}
-                    placeholder="Tìm đơn hàng theo mã (ORD...), tên đại lý hoặc số điện thoại..."
-                    style={{
-                      width: '100%',
-                      padding: '11px 36px 11px 40px',
-                      borderRadius: '10px',
-                      border: '1.5px solid #cbd5e1',
-                      fontSize: '14px',
-                      color: '#0f172a',
-                      boxSizing: 'border-box',
-                      outline: 'none',
-                      backgroundColor: '#ffffff',
-                      boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
-                    }}
-                  />
-                  {orderSearchText && (
-                    <button
-                      type="button"
-                      onClick={() => setOrderSearchText('')}
-                      style={{
-                        position: 'absolute',
-                        right: '12px',
-                        top: '50%',
-                        transform: 'translateY(-50%)',
-                        background: 'none',
-                        border: 'none',
-                        color: '#94a3b8',
-                        cursor: 'pointer',
-                        fontSize: '14px',
-                        padding: '4px',
-                      }}
-                    >
-                      ✕
-                    </button>
-                  )}
-                </div>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <input
+                  type="text"
+                  value={orderSearchText}
+                  onChange={(e) => {
+                    setOrderSearchText(e.target.value);
+                    setIsOrderDropdownOpen(true);
+                  }}
+                  onFocus={() => setIsOrderDropdownOpen(true)}
+                  placeholder="Tìm theo mã đơn hàng, tên đại lý hoặc số điện thoại..."
+                  style={{
+                    flex: 1,
+                    padding: '8px 12px',
+                    borderRadius: '6px',
+                    border: '1px solid #cbd5e1',
+                    fontSize: '13px',
+                    color: '#0f172a',
+                    outline: 'none',
+                    backgroundColor: '#ffffff',
+                  }}
+                />
 
                 <button
                   type="button"
                   onClick={() => setIsOrderDropdownOpen((prev) => !prev)}
                   style={{
-                    padding: '11px 18px',
-                    borderRadius: '10px',
-                    border: '1.5px solid #cbd5e1',
+                    padding: '8px 14px',
+                    borderRadius: '6px',
+                    border: '1px solid #cbd5e1',
                     backgroundColor: '#f8fafc',
                     color: '#334155',
-                    fontSize: '13.5px',
+                    fontSize: '13px',
                     fontWeight: '600',
                     cursor: 'pointer',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '6px',
                     whiteSpace: 'nowrap',
                   }}
                 >
-                  {isOrderDropdownOpen ? 'Đóng danh sách' : 'Xem danh sách đơn'}
-                  <svg
-                    width="14"
-                    height="14"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2.2"
-                    style={{
-                      transform: isOrderDropdownOpen ? 'rotate(180deg)' : 'none',
-                      transition: 'transform 0.2s ease',
-                    }}
-                  >
-                    <polyline points="6 9 12 15 18 9" />
-                  </svg>
+                  {isOrderDropdownOpen ? 'Đóng' : 'Chọn đơn hàng'}
                 </button>
               </div>
 
@@ -684,56 +505,44 @@ export const CreateReturnOrderPage: React.FC<CreateReturnOrderPageProps> = ({
                 <div
                   style={{
                     position: 'absolute',
-                    top: 'calc(100% + 6px)',
+                    top: 'calc(100% + 4px)',
                     left: 0,
                     right: 0,
                     backgroundColor: '#ffffff',
-                    borderRadius: '12px',
+                    borderRadius: '8px',
                     border: '1px solid #cbd5e1',
-                    boxShadow: '0 12px 28px -6px rgba(0, 0, 0, 0.15)',
-                    maxHeight: '340px',
+                    boxShadow: '0 8px 20px rgba(0, 0, 0, 0.1)',
+                    maxHeight: '280px',
                     overflowY: 'auto',
                     zIndex: 50,
                   }}
                 >
                   {isLoadingOrders ? (
-                    <div style={{ padding: '24px', textAlign: 'center', color: '#64748b', fontSize: '13.5px' }}>
-                      Đang tải danh sách đơn hàng đủ điều kiện...
+                    <div style={{ padding: '16px', textAlign: 'center', color: '#64748b', fontSize: '13px' }}>
+                      Đang tải danh sách đơn hàng...
                     </div>
                   ) : filteredOrders.length === 0 ? (
-                    <div style={{ padding: '24px', textAlign: 'center', color: '#64748b', fontSize: '13.5px' }}>
-                      {orderSearchText ? 'Không tìm thấy đơn hàng phù hợp.' : 'Không có đơn hàng nào đã giao đủ điều kiện trả.'}
+                    <div style={{ padding: '16px', textAlign: 'center', color: '#64748b', fontSize: '13px' }}>
+                      Không tìm thấy đơn hàng phù hợp.
                     </div>
                   ) : (
                     <div>
-                      <div
-                        style={{
-                          padding: '8px 16px',
-                          backgroundColor: '#f8fafc',
-                          borderBottom: '1px solid #f1f5f9',
-                          fontSize: '12px',
-                          fontWeight: '700',
-                          color: '#64748b',
-                        }}
-                      >
-                        Tìm thấy {filteredOrders.length} đơn hàng đã giao / hoàn thành
-                      </div>
                       {filteredOrders.map((ord) => {
                         const amount = ord.total_amount ?? 0;
-                        const dealerName = ord.dealer_name || (ord as any).customer_name || 'Khách lẻ / Đại lý';
+                        const dealerName = ord.dealer_name || (ord as any).customer_name || 'Đại lý';
                         const orderCode = ord.order_code || (ord as any).code || `ORD#${ord.id}`;
                         return (
                           <div
                             key={ord.id}
                             onClick={() => handleSelectOrder(ord.id)}
                             style={{
-                              padding: '12px 18px',
+                              padding: '10px 14px',
                               borderBottom: '1px solid #f1f5f9',
                               cursor: 'pointer',
                               display: 'flex',
                               justifyContent: 'space-between',
                               alignItems: 'center',
-                              transition: 'background-color 0.12s ease',
+                              fontSize: '13px',
                             }}
                             onMouseEnter={(e) => {
                               e.currentTarget.style.backgroundColor = '#f0f9ff';
@@ -742,50 +551,18 @@ export const CreateReturnOrderPage: React.FC<CreateReturnOrderPageProps> = ({
                               e.currentTarget.style.backgroundColor = '#ffffff';
                             }}
                           >
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                              <span
-                                style={{
-                                  fontSize: '12.5px',
-                                  fontWeight: '700',
-                                  padding: '3px 8px',
-                                  borderRadius: '6px',
-                                  backgroundColor: '#eff6ff',
-                                  color: '#2563eb',
-                                  border: '1px solid #bfdbfe',
-                                  fontFamily: 'monospace',
-                                }}
-                              >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              <span style={{ fontWeight: '700', color: '#2563eb' }}>
                                 {orderCode}
                               </span>
-                              <div>
-                                <div style={{ fontSize: '13.5px', fontWeight: '700', color: '#0f172a' }}>
-                                  {dealerName}
-                                </div>
-                                <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>
-                                  {ord.created_at ? new Date(ord.created_at).toLocaleDateString('vi-VN') : ''}
-                                  {(ord as any).phone ? ` &bull; SĐT: ${(ord as any).phone}` : ''}
-                                </div>
-                              </div>
+                              <span style={{ color: '#0f172a' }}>{dealerName}</span>
+                              <span style={{ color: '#64748b', fontSize: '12px' }}>
+                                {ord.created_at ? new Date(ord.created_at).toLocaleDateString('vi-VN') : ''}
+                              </span>
                             </div>
 
-                            <div style={{ textAlign: 'right' }}>
-                              <div style={{ fontSize: '14px', fontWeight: '800', color: '#059669', fontVariantNumeric: 'tabular-nums' }}>
-                                {amount.toLocaleString('vi-VN')} đ
-                              </div>
-                              <span
-                                style={{
-                                  display: 'inline-block',
-                                  marginTop: '3px',
-                                  fontSize: '11px',
-                                  fontWeight: '700',
-                                  padding: '1px 6px',
-                                  borderRadius: '4px',
-                                  backgroundColor: '#dcfce7',
-                                  color: '#15803d',
-                                }}
-                              >
-                                {ord.status}
-                              </span>
+                            <div style={{ fontWeight: '700', color: '#059669', fontVariantNumeric: 'tabular-nums' }}>
+                              {amount.toLocaleString('vi-VN')} đ
                             </div>
                           </div>
                         );
@@ -796,119 +573,93 @@ export const CreateReturnOrderPage: React.FC<CreateReturnOrderPageProps> = ({
               )}
             </div>
           ) : (
-            /* Selected Order Banner Card */
+            /* Selected Order Single Line Banner */
             <div
               style={{
+                marginTop: '6px',
                 backgroundColor: '#f0fdf4',
-                border: '1.5px solid #86efac',
-                borderRadius: '12px',
-                padding: '16px 20px',
+                border: '1px solid #86efac',
+                borderRadius: '8px',
+                padding: '10px 14px',
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
-                flexWrap: 'wrap',
-                gap: '14px',
+                flexWrap: 'nowrap',
+                gap: '12px',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                <span
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    width: '42px',
-                    height: '42px',
-                    borderRadius: '10px',
-                    backgroundColor: '#dcfce7',
-                    color: '#16a34a',
-                  }}
-                >
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3">
-                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-                    <polyline points="22 4 12 14.01 9 11.01" />
-                  </svg>
-                </span>
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ fontSize: '15px', fontWeight: '800', color: '#0f172a' }}>
-                      Đơn hàng: {orderDetails?.order_code || selectedOrderObj?.code}
-                    </span>
-                    <span
-                      style={{
-                        fontSize: '11px',
-                        fontWeight: '700',
-                        padding: '1px 7px',
-                        borderRadius: '4px',
-                        backgroundColor: '#dcfce7',
-                        color: '#15803d',
-                      }}
-                    >
-                      {orderDetails?.order_status || selectedOrderObj?.status || 'HOÀN THÀNH'}
-                    </span>
-                  </div>
-                  <div style={{ fontSize: '13px', color: '#334155', marginTop: '3px' }}>
-                    <strong>Đại lý / Khách hàng:</strong> {orderDetails?.dealer_name || selectedOrderObj?.dealer_name || 'Đại lý'}
-                    {orderDetails?.default_warehouse?.name ? ` &bull; Kho gốc: ${orderDetails.default_warehouse.name}` : ''}
-                  </div>
-                </div>
+              <div
+                style={{
+                  fontSize: '13.5px',
+                  color: '#0f172a',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                }}
+              >
+                <span><strong>Đơn hàng:</strong> {orderDetails?.order_code || selectedOrderObj?.code}</span>
+                <span style={{ color: '#cbd5e1' }}>|</span>
+                <span><strong>Đại lý:</strong> {orderDetails?.dealer_name || selectedOrderObj?.dealer_name || 'Đại lý'}</span>
+                {orderDetails?.default_warehouse?.name && (
+                  <>
+                    <span style={{ color: '#cbd5e1' }}>|</span>
+                    <span><strong>Kho xuất:</strong> {orderDetails.default_warehouse.name}</span>
+                  </>
+                )}
+                <span style={{ color: '#cbd5e1' }}>|</span>
+                <span><strong>Tổng tiền:</strong> <span style={{ color: '#059669', fontWeight: '700' }}>{(selectedOrderObj?.total_amount || 0).toLocaleString('vi-VN')} đ</span></span>
               </div>
 
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: '12px', color: '#64748b' }}>Tổng giá trị đơn gốc</div>
-                <div style={{ fontSize: '18px', fontWeight: '800', color: '#059669', fontVariantNumeric: 'tabular-nums' }}>
-                  {(selectedOrderObj?.total_amount || 0).toLocaleString('vi-VN')} đ
-                </div>
-              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedOrderId(null);
+                  setOrderDetails(null);
+                  setItemsState([]);
+                  setIsOrderDropdownOpen(true);
+                }}
+                style={{
+                  background: 'none',
+                  border: '1px solid #86efac',
+                  borderRadius: '6px',
+                  padding: '4px 10px',
+                  color: '#15803d',
+                  fontSize: '12px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                Đổi đơn hàng khác
+              </button>
             </div>
           )}
         </div>
 
-        {/* SECTION 2: Dòng Hàng Trả & Phân Luồng Kho */}
+        {/* SECTION 2: Danh Sách Dòng Hàng Trả */}
         {selectedOrderId && (
           <div
             style={{
               backgroundColor: '#ffffff',
-              borderRadius: '14px',
+              borderRadius: '10px',
               border: '1px solid #e2e8f0',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
               overflow: 'hidden',
             }}
           >
             <div
               style={{
-                padding: '16px 24px',
+                padding: '12px 18px',
                 borderBottom: '1px solid #e2e8f0',
-                backgroundColor: '#ffffff',
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
-                flexWrap: 'wrap',
-                gap: '10px',
               }}
             >
-              <div>
-                <h2 style={{ margin: 0, fontSize: '15.5px', fontWeight: '700', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      width: '24px',
-                      height: '24px',
-                      borderRadius: '50%',
-                      backgroundColor: '#eff6ff',
-                      color: '#2563eb',
-                      fontSize: '13px',
-                      fontWeight: '800',
-                    }}
-                  >
-                    2
-                  </span>
-                  Danh Sách Dòng Hàng Cần Trả & Phân Luồng Kho Nhập
-                </h2>
-                <p style={{ margin: '3px 0 0 32px', fontSize: '12.5px', color: '#64748b' }}>
-                  Kiểm soát giới hạn: SL trả lần này &le; SL đơn gốc &minus; Đã trả trước &bull; Chọn đúng Lô (nếu SKU quản lý lô)
-                </p>
+              <div style={{ fontSize: '14px', fontWeight: '700', color: '#0f172a' }}>
+                2. Danh Sách Dòng Hàng Trả
               </div>
 
               {itemsState.some((it) => it.remaining_quantity > 0) && (
@@ -919,11 +670,12 @@ export const CreateReturnOrderPage: React.FC<CreateReturnOrderPageProps> = ({
                     background: '#f8fafc',
                     border: '1px solid #cbd5e1',
                     borderRadius: '6px',
-                    padding: '5px 12px',
+                    padding: '4px 10px',
                     fontSize: '12px',
                     fontWeight: '600',
                     color: '#334155',
                     cursor: 'pointer',
+                    whiteSpace: 'nowrap',
                   }}
                 >
                   {itemsState.filter((it) => it.remaining_quantity > 0).every((it) => it.is_selected)
@@ -934,11 +686,11 @@ export const CreateReturnOrderPage: React.FC<CreateReturnOrderPageProps> = ({
             </div>
 
             {isLoadingDetails ? (
-              <div style={{ padding: '40px', textAlign: 'center', color: '#64748b', fontSize: '14px' }}>
-                Đang tải chi tiết các dòng hàng và giới hạn trả hàng...
+              <div style={{ padding: '24px', textAlign: 'center', color: '#64748b', fontSize: '13px' }}>
+                Đang tải dữ liệu dòng hàng...
               </div>
             ) : itemsState.length === 0 ? (
-              <div style={{ padding: '36px', textAlign: 'center', color: '#64748b', fontSize: '14px' }}>
+              <div style={{ padding: '24px', textAlign: 'center', color: '#64748b', fontSize: '13px' }}>
                 Đơn hàng này không có dòng hàng nào.
               </div>
             ) : (
@@ -955,24 +707,24 @@ export const CreateReturnOrderPage: React.FC<CreateReturnOrderPageProps> = ({
                     <tr
                       style={{
                         backgroundColor: '#f8fafc',
-                        borderBottom: '1.5px solid #e2e8f0',
+                        borderBottom: '1px solid #e2e8f0',
                         color: '#475569',
                         fontSize: '12px',
                         textTransform: 'uppercase',
-                        letterSpacing: '0.03em',
+                        whiteSpace: 'nowrap',
                       }}
                     >
-                      <th style={{ padding: '12px 14px', width: '40px', textAlign: 'center' }}>Chọn</th>
-                      <th style={{ padding: '12px 14px', minWidth: '180px' }}>Sản phẩm / SKU</th>
-                      <th style={{ padding: '12px 10px', width: '95px', textAlign: 'right' }}>Đơn giá</th>
-                      <th style={{ padding: '12px 10px', width: '75px', textAlign: 'center' }}>Đã mua</th>
-                      <th style={{ padding: '12px 10px', width: '75px', textAlign: 'center' }}>Đã trả</th>
-                      <th style={{ padding: '12px 10px', width: '90px', textAlign: 'center' }}>Còn được trả</th>
-                      <th style={{ padding: '12px 14px', width: '110px' }}>SL Trả Lần Này</th>
-                      <th style={{ padding: '12px 14px', minWidth: '180px' }}>Lý Do Trả Hàng</th>
-                      <th style={{ padding: '12px 14px', minWidth: '140px' }}>Mã Lô (Lot/Batch)</th>
-                      <th style={{ padding: '12px 14px', width: '120px', textAlign: 'right' }}>Thành Tiền Hoàn</th>
-                      <th style={{ padding: '12px 14px', minWidth: '140px' }}>Kho Nhập Lại</th>
+                      <th style={{ padding: '10px 12px', width: '40px', textAlign: 'center' }}>CHỌN</th>
+                      <th style={{ padding: '10px 12px', minWidth: '220px' }}>SẢN PHẨM</th>
+                      <th style={{ padding: '10px 12px', minWidth: '105px', textAlign: 'right' }}>ĐƠN GIÁ</th>
+                      <th style={{ padding: '10px 10px', width: '70px', textAlign: 'center' }}>ĐÃ MUA</th>
+                      <th style={{ padding: '10px 10px', width: '70px', textAlign: 'center' }}>ĐÃ TRẢ</th>
+                      <th style={{ padding: '10px 10px', minWidth: '95px', textAlign: 'center' }}>CÒN ĐƯỢC TRẢ</th>
+                      <th style={{ padding: '10px 12px', width: '90px' }}>SL TRẢ</th>
+                      <th style={{ padding: '10px 12px', minWidth: '170px' }}>LÝ DO TRẢ</th>
+                      <th style={{ padding: '10px 12px', minWidth: '130px' }}>MÃ LÔ</th>
+                      <th style={{ padding: '10px 12px', minWidth: '115px', textAlign: 'right' }}>THÀNH TIỀN</th>
+                      <th style={{ padding: '10px 12px', minWidth: '110px' }}>KHO NHẬP</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -988,72 +740,68 @@ export const CreateReturnOrderPage: React.FC<CreateReturnOrderPageProps> = ({
                           style={{
                             borderBottom: '1px solid #f1f5f9',
                             backgroundColor: row.is_selected ? '#f8fafc' : !isReturnable ? '#fafafa' : '#ffffff',
-                            opacity: !isReturnable ? 0.65 : 1,
-                            transition: 'background-color 0.15s ease',
+                            opacity: !isReturnable ? 0.6 : 1,
                           }}
                         >
                           {/* Checkbox */}
-                          <td style={{ padding: '14px', textAlign: 'center', verticalAlign: 'top' }}>
+                          <td style={{ padding: '10px 12px', textAlign: 'center', verticalAlign: 'middle' }}>
                             <input
                               type="checkbox"
                               checked={row.is_selected}
                               disabled={!isReturnable || isSubmitting}
                               onChange={() => handleToggleItem(idx)}
-                              style={{ width: '17px', height: '17px', cursor: isReturnable ? 'pointer' : 'not-allowed' }}
+                              style={{ width: '16px', height: '16px', cursor: isReturnable ? 'pointer' : 'not-allowed' }}
                             />
                           </td>
 
-                          {/* Sản phẩm */}
-                          <td style={{ padding: '14px', verticalAlign: 'top' }}>
-                            <div style={{ fontWeight: '700', color: '#0f172a' }}>{row.product_name}</div>
-                            <div style={{ fontSize: '11.5px', color: '#64748b', marginTop: '2px', display: 'flex', gap: '6px', alignItems: 'center' }}>
-                              <span>SKU: {row.product_code || '---'}</span>
-                              <span>&bull;</span>
-                              <span>ĐVT: {row.unit_name}</span>
-                            </div>
+                          {/* Sản phẩm trên 1 dòng */}
+                          <td style={{ padding: '10px 12px', verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
+                            <span style={{ fontWeight: '700', color: '#0f172a' }}>{row.product_name}</span>
+                            <span style={{ fontSize: '12px', color: '#64748b', marginLeft: '6px' }}>
+                              ({row.product_code || '---'} - {row.unit_name})
+                            </span>
                             {row.is_batch_managed && (
                               <span
                                 style={{
-                                  display: 'inline-block',
-                                  marginTop: '4px',
+                                  marginLeft: '6px',
                                   fontSize: '11px',
                                   fontWeight: '700',
-                                  padding: '1px 6px',
+                                  padding: '1px 5px',
                                   borderRadius: '4px',
                                   backgroundColor: '#fef3c7',
                                   color: '#b45309',
                                   border: '1px solid #fde68a',
                                 }}
                               >
-                                Quản lý Lô
+                                Lô
                               </span>
                             )}
                           </td>
 
-                          {/* Đơn giá */}
-                          <td style={{ padding: '14px 10px', textAlign: 'right', verticalAlign: 'top', color: '#334155', fontVariantNumeric: 'tabular-nums' }}>
+                          {/* Đơn giá trên 1 dòng */}
+                          <td style={{ padding: '10px 12px', textAlign: 'right', verticalAlign: 'middle', whiteSpace: 'nowrap', color: '#334155', fontVariantNumeric: 'tabular-nums' }}>
                             {row.unit_price.toLocaleString('vi-VN')} đ
                           </td>
 
-                          {/* Đã giao */}
-                          <td style={{ padding: '14px 10px', textAlign: 'center', verticalAlign: 'top', fontWeight: '600', color: '#0f172a' }}>
+                          {/* Đã mua */}
+                          <td style={{ padding: '10px', textAlign: 'center', verticalAlign: 'middle', fontWeight: '600', color: '#0f172a' }}>
                             {row.original_quantity}
                           </td>
 
-                          {/* Đã trả trước */}
-                          <td style={{ padding: '14px 10px', textAlign: 'center', verticalAlign: 'top', color: row.already_returned > 0 ? '#ea580c' : '#64748b', fontWeight: row.already_returned > 0 ? '700' : 'normal' }}>
+                          {/* Đã trả */}
+                          <td style={{ padding: '10px', textAlign: 'center', verticalAlign: 'middle', color: row.already_returned > 0 ? '#ea580c' : '#64748b' }}>
                             {row.already_returned}
                           </td>
 
                           {/* Còn được trả */}
-                          <td style={{ padding: '14px 10px', textAlign: 'center', verticalAlign: 'top' }}>
+                          <td style={{ padding: '10px', textAlign: 'center', verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
                             <span
                               style={{
                                 display: 'inline-block',
                                 padding: '2px 8px',
-                                borderRadius: '12px',
+                                borderRadius: '10px',
                                 fontSize: '12px',
-                                fontWeight: '800',
+                                fontWeight: '700',
                                 backgroundColor: isReturnable ? '#dcfce7' : '#fee2e2',
                                 color: isReturnable ? '#15803d' : '#b91c1c',
                               }}
@@ -1063,7 +811,7 @@ export const CreateReturnOrderPage: React.FC<CreateReturnOrderPageProps> = ({
                           </td>
 
                           {/* Số lượng trả */}
-                          <td style={{ padding: '14px', verticalAlign: 'top' }}>
+                          <td style={{ padding: '10px 12px', verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
                             <input
                               type="number"
                               min={1}
@@ -1072,9 +820,9 @@ export const CreateReturnOrderPage: React.FC<CreateReturnOrderPageProps> = ({
                               value={row.return_quantity}
                               onChange={(e) => handleQuantityChange(idx, Number(e.target.value))}
                               style={{
-                                width: '80px',
-                                padding: '6px 8px',
-                                borderRadius: '6px',
+                                width: '70px',
+                                padding: '5px 6px',
+                                borderRadius: '5px',
                                 border: isQtyExceeded ? '2px solid #ef4444' : '1px solid #cbd5e1',
                                 textAlign: 'center',
                                 fontWeight: '700',
@@ -1083,23 +831,18 @@ export const CreateReturnOrderPage: React.FC<CreateReturnOrderPageProps> = ({
                                 backgroundColor: !row.is_selected ? '#f1f5f9' : '#ffffff',
                               }}
                             />
-                            {isQtyExceeded && (
-                              <div style={{ color: '#ef4444', fontSize: '11px', marginTop: '3px', fontWeight: '700' }}>
-                                Vượt quá {row.remaining_quantity}!
-                              </div>
-                            )}
                           </td>
 
                           {/* Lý do trả hàng */}
-                          <td style={{ padding: '14px', verticalAlign: 'top' }}>
+                          <td style={{ padding: '10px 12px', verticalAlign: 'middle' }}>
                             <select
                               disabled={!row.is_selected || !isReturnable || isSubmitting}
                               value={row.return_reason}
                               onChange={(e) => handleReasonChange(idx, e.target.value)}
                               style={{
                                 width: '100%',
-                                padding: '6px 8px',
-                                borderRadius: '6px',
+                                padding: '5px 6px',
+                                borderRadius: '5px',
                                 border: '1px solid #cbd5e1',
                                 fontSize: '12.5px',
                                 color: '#0f172a',
@@ -1117,14 +860,14 @@ export const CreateReturnOrderPage: React.FC<CreateReturnOrderPageProps> = ({
                             {row.return_reason === 'Khác (tự nhập lý do)' && row.is_selected && (
                               <input
                                 type="text"
-                                placeholder="Ghi rõ lý do trả..."
+                                placeholder="Ghi rõ lý do..."
                                 value={row.custom_reason}
                                 onChange={(e) => handleCustomReasonChange(idx, e.target.value)}
                                 style={{
-                                  marginTop: '6px',
+                                  marginTop: '4px',
                                   width: '100%',
-                                  padding: '5px 8px',
-                                  borderRadius: '6px',
+                                  padding: '4px 6px',
+                                  borderRadius: '4px',
                                   border: '1px solid #cbd5e1',
                                   fontSize: '12px',
                                   boxSizing: 'border-box',
@@ -1135,103 +878,95 @@ export const CreateReturnOrderPage: React.FC<CreateReturnOrderPageProps> = ({
                           </td>
 
                           {/* Mã Lô */}
-                          <td style={{ padding: '14px', verticalAlign: 'top' }}>
+                          <td style={{ padding: '10px 12px', verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
                             {row.is_batch_managed ? (
-                              <div>
-                                {row.available_batches.length > 0 ? (
-                                  <select
-                                    disabled={!row.is_selected || !isReturnable || isSubmitting}
-                                    value={row.batch_number}
-                                    onChange={(e) => {
-                                      const sel = row.available_batches.find((b) => b.batch_number === e.target.value);
-                                      handleBatchChange(idx, e.target.value, sel?.id || null);
-                                    }}
-                                    style={{
-                                      width: '100%',
-                                      padding: '6px 8px',
-                                      borderRadius: '6px',
-                                      border: !row.batch_number && row.is_selected ? '2px solid #f59e0b' : '1px solid #cbd5e1',
-                                      fontSize: '12px',
-                                      fontWeight: '600',
-                                      backgroundColor: !row.is_selected ? '#f1f5f9' : '#ffffff',
-                                    }}
-                                  >
-                                    <option value="">-- Chọn Lô đã xuất --</option>
-                                    {row.available_batches.map((b) => (
-                                      <option key={b.id || b.batch_number} value={b.batch_number}>
-                                        {b.batch_number} {b.expiry_date ? `(HSD: ${b.expiry_date})` : ''}
-                                      </option>
-                                    ))}
-                                  </select>
-                                ) : (
-                                  <input
-                                    type="text"
-                                    placeholder="Nhập Mã Lô đơn gốc *"
-                                    value={row.batch_number}
-                                    disabled={!row.is_selected || !isReturnable || isSubmitting}
-                                    onChange={(e) => handleBatchChange(idx, e.target.value)}
-                                    style={{
-                                      width: '100%',
-                                      padding: '6px 8px',
-                                      borderRadius: '6px',
-                                      border: !row.batch_number && row.is_selected ? '2px solid #f59e0b' : '1px solid #cbd5e1',
-                                      fontSize: '12px',
-                                      boxSizing: 'border-box',
-                                    }}
-                                  />
-                                )}
-                                <div style={{ fontSize: '10.5px', color: '#b45309', marginTop: '3px', fontWeight: '600' }}>
-                                  * Bắt buộc có mã Lô
-                                </div>
-                              </div>
+                              row.available_batches.length > 0 ? (
+                                <select
+                                  disabled={!row.is_selected || !isReturnable || isSubmitting}
+                                  value={row.batch_number}
+                                  onChange={(e) => {
+                                    const sel = row.available_batches.find((b) => b.batch_number === e.target.value);
+                                    handleBatchChange(idx, e.target.value, sel?.id || null);
+                                  }}
+                                  style={{
+                                    width: '100%',
+                                    padding: '5px 6px',
+                                    borderRadius: '5px',
+                                    border: !row.batch_number && row.is_selected ? '1.5px solid #f59e0b' : '1px solid #cbd5e1',
+                                    fontSize: '12px',
+                                    backgroundColor: !row.is_selected ? '#f1f5f9' : '#ffffff',
+                                  }}
+                                >
+                                  <option value="">-- Chọn Lô --</option>
+                                  {row.available_batches.map((b) => (
+                                    <option key={b.id || b.batch_number} value={b.batch_number}>
+                                      {b.batch_number}
+                                    </option>
+                                  ))}
+                                </select>
+                              ) : (
+                                <input
+                                  type="text"
+                                  placeholder="Nhập mã lô *"
+                                  value={row.batch_number}
+                                  disabled={!row.is_selected || !isReturnable || isSubmitting}
+                                  onChange={(e) => handleBatchChange(idx, e.target.value)}
+                                  style={{
+                                    width: '100%',
+                                    padding: '5px 6px',
+                                    borderRadius: '5px',
+                                    border: !row.batch_number && row.is_selected ? '1.5px solid #f59e0b' : '1px solid #cbd5e1',
+                                    fontSize: '12px',
+                                    boxSizing: 'border-box',
+                                  }}
+                                />
+                              )
                             ) : (
-                              <span style={{ fontSize: '12px', color: '#94a3b8', fontStyle: 'italic' }}>
-                                Không quản lý lô
+                              <span style={{ fontSize: '12px', color: '#94a3b8' }}>
+                                Không có
                               </span>
                             )}
                           </td>
 
-                          {/* Thành tiền hoàn */}
-                          <td style={{ padding: '14px', textAlign: 'right', verticalAlign: 'top', fontWeight: '800', color: row.is_selected ? '#059669' : '#94a3b8', fontVariantNumeric: 'tabular-nums' }}>
+                          {/* Thành tiền trên 1 dòng */}
+                          <td style={{ padding: '10px 12px', textAlign: 'right', verticalAlign: 'middle', whiteSpace: 'nowrap', fontWeight: '700', color: row.is_selected ? '#059669' : '#94a3b8', fontVariantNumeric: 'tabular-nums' }}>
                             {row.is_selected ? `${lineRefund.toLocaleString('vi-VN')} đ` : '0 đ'}
                           </td>
 
-                          {/* Kho nhập lại */}
-                          <td style={{ padding: '14px', verticalAlign: 'top' }}>
+                          {/* Kho nhập lại trên 1 dòng, không icon, không tiếng Anh */}
+                          <td style={{ padding: '10px 12px', verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
                             {row.is_selected ? (
                               isDamaged ? (
                                 <span
                                   style={{
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: '4px',
+                                    whiteSpace: 'nowrap',
+                                    display: 'inline-block',
                                     padding: '3px 8px',
-                                    borderRadius: '6px',
+                                    borderRadius: '5px',
                                     backgroundColor: '#fee2e2',
                                     color: '#b91c1c',
-                                    fontSize: '11.5px',
+                                    fontSize: '12px',
                                     fontWeight: '700',
                                     border: '1px solid #fca5a5',
                                   }}
                                 >
-                                  ⚠️ Kho Lỗi (KHO_LOI)
+                                  Kho lỗi
                                 </span>
                               ) : (
                                 <span
                                   style={{
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: '4px',
+                                    whiteSpace: 'nowrap',
+                                    display: 'inline-block',
                                     padding: '3px 8px',
-                                    borderRadius: '6px',
+                                    borderRadius: '5px',
                                     backgroundColor: '#eff6ff',
                                     color: '#1d4ed8',
-                                    fontSize: '11.5px',
+                                    fontSize: '12px',
                                     fontWeight: '700',
                                     border: '1px solid #bfdbfe',
                                   }}
                                 >
-                                  ✓ Kho Gốc Xuất Bán
+                                  Kho gốc
                                 </span>
                               )
                             ) : (
@@ -1254,31 +989,30 @@ export const CreateReturnOrderPage: React.FC<CreateReturnOrderPageProps> = ({
             style={{
               display: 'grid',
               gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-              gap: '20px',
+              gap: '16px',
             }}
           >
-            {/* Ghi chú chung */}
+            {/* Ghi chú */}
             <div
               style={{
                 backgroundColor: '#ffffff',
-                borderRadius: '14px',
+                borderRadius: '10px',
                 border: '1px solid #e2e8f0',
-                padding: '20px 24px',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+                padding: '16px 18px',
               }}
             >
-              <label style={{ display: 'block', fontSize: '14px', fontWeight: '700', color: '#0f172a', marginBottom: '8px' }}>
-                Ghi chú phiếu trả hàng (Optional)
+              <label style={{ display: 'block', fontSize: '13.5px', fontWeight: '700', color: '#0f172a', marginBottom: '8px' }}>
+                Ghi chú phiếu trả hàng
               </label>
               <textarea
-                rows={4}
+                rows={3}
                 value={generalNote}
                 onChange={(e) => setGeneralNote(e.target.value)}
-                placeholder="Nhập thông tin thỏa thuận với đại lý, ghi chú tình trạng vỏ thùng, biên bản giao nhận..."
+                placeholder="Nhập thông tin ghi chú cho phiếu trả hàng..."
                 style={{
                   width: '100%',
-                  padding: '10px 12px',
-                  borderRadius: '8px',
+                  padding: '8px 10px',
+                  borderRadius: '6px',
                   border: '1px solid #cbd5e1',
                   fontSize: '13px',
                   color: '#0f172a',
@@ -1293,54 +1027,38 @@ export const CreateReturnOrderPage: React.FC<CreateReturnOrderPageProps> = ({
             <div
               style={{
                 backgroundColor: '#ffffff',
-                borderRadius: '14px',
+                borderRadius: '10px',
                 border: '1px solid #e2e8f0',
-                padding: '20px 24px',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+                padding: '16px 18px',
                 display: 'flex',
                 flexDirection: 'column',
-                justifyContent: 'space-between',
+                justifyContent: 'center',
+                gap: '10px',
               }}
             >
-              <div>
-                <h3 style={{ margin: '0 0 14px 0', fontSize: '15px', fontWeight: '700', color: '#0f172a' }}>
-                  Tổng Kết Phiếu Trả Hàng
-                </h3>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '13.5px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', color: '#475569' }}>
-                    <span>Số dòng hàng chọn trả:</span>
-                    <strong style={{ color: '#0f172a' }}>{totalReturnLines} dòng</strong>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', color: '#475569' }}>
-                    <span>Tổng số lượng sản phẩm trả:</span>
-                    <strong style={{ color: '#0f172a' }}>{totalReturnQty} sản phẩm</strong>
-                  </div>
-                  <div style={{ height: '1px', backgroundColor: '#e2e8f0', margin: '4px 0' }} />
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: '14px', fontWeight: '700', color: '#0f172a' }}>
-                      Tổng tiền hoàn trả đại lý:
-                    </span>
-                    <span style={{ fontSize: '20px', fontWeight: '800', color: '#059669', fontVariantNumeric: 'tabular-nums' }}>
-                      {totalRefundAmount.toLocaleString('vi-VN')} đ
-                    </span>
-                  </div>
-                </div>
+              <div style={{ fontSize: '14px', fontWeight: '700', color: '#0f172a', marginBottom: '4px' }}>
+                Tổng Kết Phiếu Trả Hàng
               </div>
 
-              <div
-                style={{
-                  marginTop: '16px',
-                  padding: '10px 14px',
-                  borderRadius: '8px',
-                  backgroundColor: '#f8fafc',
-                  border: '1px solid #e2e8f0',
-                  fontSize: '12px',
-                  color: '#64748b',
-                  lineHeight: '1.5',
-                }}
-              >
-                ℹ️ <strong>Lưu ý:</strong> Khi lưu, phiếu sẽ ở trạng thái <code>PENDING_WAREHOUSE</code>. Tồn kho thực tế chỉ được cộng sau khi Thủ kho bấm xác nhận nhập hàng.
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: '#475569' }}>
+                <span>Số dòng hàng chọn trả:</span>
+                <strong style={{ color: '#0f172a' }}>{totalReturnLines} dòng</strong>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: '#475569' }}>
+                <span>Tổng số lượng sản phẩm trả:</span>
+                <strong style={{ color: '#0f172a' }}>{totalReturnQty} sản phẩm</strong>
+              </div>
+
+              <div style={{ height: '1px', backgroundColor: '#e2e8f0', margin: '2px 0' }} />
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '13.5px', fontWeight: '700', color: '#0f172a' }}>
+                  Tổng tiền hoàn trả:
+                </span>
+                <span style={{ fontSize: '18px', fontWeight: '800', color: '#059669', fontVariantNumeric: 'tabular-nums' }}>
+                  {totalRefundAmount.toLocaleString('vi-VN')} đ
+                </span>
               </div>
             </div>
           </div>
@@ -1356,37 +1074,37 @@ export const CreateReturnOrderPage: React.FC<CreateReturnOrderPageProps> = ({
           right: 0,
           backgroundColor: '#ffffff',
           borderTop: '1px solid #e2e8f0',
-          padding: '12px 28px',
+          padding: '10px 24px',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          boxShadow: '0 -4px 12px rgba(0, 0, 0, 0.05)',
+          boxShadow: '0 -2px 8px rgba(0, 0, 0, 0.05)',
           zIndex: 40,
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-          <div style={{ fontSize: '13px', color: '#64748b' }}>
-            Đã chọn: <strong style={{ color: '#0f172a' }}>{totalReturnLines}</strong> dòng hàng &bull; SL: <strong style={{ color: '#0f172a' }}>{totalReturnQty}</strong>
-          </div>
-          <div style={{ fontSize: '13px', color: '#64748b' }}>
-            Tổng hoàn trả: <strong style={{ color: '#059669', fontSize: '16px' }}>{totalRefundAmount.toLocaleString('vi-VN')} đ</strong>
-          </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', fontSize: '13px', color: '#475569' }}>
+          <span>Đã chọn: <strong style={{ color: '#0f172a' }}>{totalReturnLines}</strong> dòng</span>
+          <span>&bull;</span>
+          <span>Số lượng: <strong style={{ color: '#0f172a' }}>{totalReturnQty}</strong></span>
+          <span>&bull;</span>
+          <span>Tổng hoàn trả: <strong style={{ color: '#059669', fontSize: '15px' }}>{totalRefundAmount.toLocaleString('vi-VN')} đ</strong></span>
         </div>
 
-        <div style={{ display: 'flex', gap: '10px' }}>
+        <div style={{ display: 'flex', gap: '8px' }}>
           <button
             type="button"
             onClick={onBack}
             disabled={isSubmitting}
             style={{
-              padding: '9px 18px',
-              borderRadius: '8px',
+              padding: '7px 14px',
+              borderRadius: '6px',
               border: '1px solid #cbd5e1',
               backgroundColor: '#ffffff',
               color: '#475569',
-              fontSize: '13.5px',
+              fontSize: '13px',
               fontWeight: '600',
               cursor: 'pointer',
+              whiteSpace: 'nowrap',
             }}
           >
             Quay lại
@@ -1397,21 +1115,18 @@ export const CreateReturnOrderPage: React.FC<CreateReturnOrderPageProps> = ({
             onClick={handleSubmit}
             disabled={isSubmitting || selectedRows.length === 0}
             style={{
-              padding: '9px 24px',
-              borderRadius: '8px',
+              padding: '7px 20px',
+              borderRadius: '6px',
               border: 'none',
               backgroundColor: isSubmitting || selectedRows.length === 0 ? '#94a3b8' : '#2563eb',
               color: '#ffffff',
-              fontSize: '13.5px',
+              fontSize: '13px',
               fontWeight: '700',
               cursor: isSubmitting || selectedRows.length === 0 ? 'not-allowed' : 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '8px',
-              boxShadow: isSubmitting || selectedRows.length === 0 ? 'none' : '0 2px 4px rgba(37, 99, 235, 0.25)',
+              whiteSpace: 'nowrap',
             }}
           >
-            {isSubmitting ? 'Đang xử lý...' : 'Lưu Phiếu Trả Hàng (Chờ Kho Xác Nhận)'}
+            {isSubmitting ? 'Đang lưu...' : 'Lưu Phiếu Trả Hàng'}
           </button>
         </div>
       </div>

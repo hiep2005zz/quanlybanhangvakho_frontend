@@ -163,31 +163,21 @@ export const ReturnOrdersManagementView: React.FC<ReturnOrdersManagementViewProp
                 background: '#f1f5f9',
                 border: '1px solid #cbd5e1',
                 borderRadius: '8px',
-                padding: '6px 10px',
+                padding: '6px 12px',
                 cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
                 fontSize: '12.5px',
                 color: '#475569',
               }}
               title="Quay lại danh sách hàng hóa"
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="19" y1="12" x2="5" y2="12" />
-                <polyline points="12 19 5 12 12 5" />
-              </svg>
-              <span>Về Kho</span>
+              Về Kho
             </button>
           )}
 
           <div>
-            <h1 style={{ margin: 0, fontSize: '20px', fontWeight: '800', color: '#0f172a' }}>
-              Quản Lý Phiếu Trả Hàng & Nhập Lại Kho (RMA)
+            <h1 style={{ margin: 0, fontSize: '18px', fontWeight: '800', color: '#0f172a' }}>
+              Quản Lý Phiếu Trả Hàng & Nhập Lại Kho
             </h1>
-            <p style={{ margin: '2px 0 0 0', fontSize: '13px', color: '#64748b' }}>
-              Quy trình 2 bước: Nhân viên kinh doanh lập phiếu &rarr; Thủ kho kiểm đếm và xác thực cộng tồn kho
-            </p>
           </div>
         </div>
 
@@ -197,24 +187,16 @@ export const ReturnOrdersManagementView: React.FC<ReturnOrdersManagementViewProp
             onClick={fetchReturnOrders}
             disabled={isLoading}
             style={{
-              padding: '8px 14px',
-              borderRadius: '8px',
+              padding: '7px 14px',
+              borderRadius: '6px',
               border: '1px solid #cbd5e1',
               backgroundColor: '#ffffff',
               color: '#334155',
               fontSize: '13px',
               fontWeight: '600',
               cursor: 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
             }}
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="23 4 23 10 17 10" />
-              <polyline points="1 20 1 14 7 14" />
-              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
-            </svg>
             Tải lại
           </button>
 
@@ -227,24 +209,16 @@ export const ReturnOrdersManagementView: React.FC<ReturnOrdersManagementViewProp
                 try { window.history.pushState({}, '', '/return-orders/create'); } catch { }
               }}
               style={{
-                padding: '8px 18px',
-                borderRadius: '8px',
+                padding: '7px 16px',
+                borderRadius: '6px',
                 border: 'none',
                 backgroundColor: '#2563eb',
                 color: '#ffffff',
-                fontSize: '13.5px',
+                fontSize: '13px',
                 fontWeight: '700',
                 cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '8px',
-                boxShadow: '0 2px 4px rgba(37, 99, 235, 0.25)',
               }}
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="12" y1="5" x2="12" y2="19" />
-                <line x1="5" y1="12" x2="19" y2="12" />
-              </svg>
               + Lập Phiếu Trả Hàng
             </button>
           )}
