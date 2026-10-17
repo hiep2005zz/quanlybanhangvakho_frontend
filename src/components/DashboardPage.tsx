@@ -65,6 +65,7 @@ import { BatchManagementView } from './BatchManagementView';
 import WarehousePickingView from './WarehousePickingView';
 import { StockAdjustmentPageView } from './StockAdjustmentPageView';
 import { PaymentCollectionView } from './PaymentCollectionView';
+import { ReturnOrdersManagementView } from './ReturnOrdersManagementView';
 
 import './dashboard.css';
 import { Sidebar, type TabType } from './Sidebar';
@@ -737,6 +738,13 @@ export default function DashboardPage({
       } catch {
         // ignore
       }
+    } else if (tab === 'return-orders') {
+      setActiveTabState('return-orders');
+      try {
+        window.history.pushState({}, '', '/return-orders');
+      } catch {
+        // ignore
+      }
     } else if (tab === 'profile') {
       setActiveTabState('profile');
       try {
@@ -974,6 +982,7 @@ export default function DashboardPage({
       const isUsersPath = !isUsersImportPath && (pathname === '/users' || pathname.startsWith('/users/') || pathname === '/admin' || pathname.startsWith('/admin/'));
       const isAuditPath = pathname === '/audit-logs' || pathname.startsWith('/audit-logs/');
       const isOrdersPath = pathname === '/orders' || pathname.startsWith('/orders/');
+      const isReturnOrdersPath = pathname === '/return-orders' || pathname.startsWith('/return-orders');
       const isProfilePath = pathname === '/profile' || pathname.startsWith('/profile/');
       const isProductHistoryPath = pathname === '/product-history' || pathname.startsWith('/product-history/');
       const isStockTransfersPath = pathname === '/stock-transfers' || pathname.startsWith('/stock-transfers/');
@@ -1112,6 +1121,14 @@ export default function DashboardPage({
           try { window.history.replaceState({}, '', '/orders'); } catch { }
         }
         setActiveTabState('orders');
+        return;
+      }
+
+      if (isReturnOrdersPath || tabParam === 'return-orders' || tabParam === 'returns') {
+        if (pathname !== '/return-orders' || tabParam) {
+          try { window.history.replaceState({}, '', '/return-orders'); } catch { }
+        }
+        setActiveTabState('return-orders');
         return;
       }
 
@@ -1750,7 +1767,7 @@ export default function DashboardPage({
   const isUsersImportPage = activeTab === 'users-import';
   const isPaymentCollectionsPage = activeTab === 'payment-collections';
   const isDeliveryTrackingPage = activeTab === 'delivery-tracking' || currentPath.startsWith('/delivery-tracking');
-  const isLockedScrollTab = !isProductFormOpen && !isSalesOrderOpen && !isOrdersCreateSubpage && !isOrderDetailSubpage && !isPriceListsCreateSubpage && !isPriceBookDetailSubpage && !isPriceBookEditSubpage && !isGoodsReceiptPage && !isStockTransferCreateSubpage && !isBatchesCreateSubpage && !isProductsImportPage && !isUsersImportPage && !isPaymentCollectionsSubpage && !isPaymentCollectionsPage && !isDeliveryTrackingPage && (activeTab === 'inventory' || activeTab === 'dealers' || activeTab === 'dealer-profiles' || activeTab === 'delivery-points' || activeTab === 'suppliers' || activeTab === 'price-books' || activeTab === 'categories' || activeTab === 'orders' || activeTab === 'product-history' || activeTab === 'stock-book' || activeTab === 'inventory-turnover' || activeTab === 'stock-audits' || activeTab === 'stock-adjustments' || activeTab === 'stock-transfers' || activeTab === 'stock-thresholds' || activeTab === 'low-stock-alerts' || activeTab === 'batches' || activeTab === 'picking') && !isPendingCustomer;
+  const isLockedScrollTab = !isProductFormOpen && !isSalesOrderOpen && !isOrdersCreateSubpage && !isOrderDetailSubpage && !isPriceListsCreateSubpage && !isPriceBookDetailSubpage && !isPriceBookEditSubpage && !isGoodsReceiptPage && !isStockTransferCreateSubpage && !isBatchesCreateSubpage && !isProductsImportPage && !isUsersImportPage && !isPaymentCollectionsSubpage && !isPaymentCollectionsPage && !isDeliveryTrackingPage && (activeTab === 'inventory' || activeTab === 'dealers' || activeTab === 'dealer-profiles' || activeTab === 'delivery-points' || activeTab === 'suppliers' || activeTab === 'price-books' || activeTab === 'categories' || activeTab === 'orders' || activeTab === 'return-orders' || activeTab === 'product-history' || activeTab === 'stock-book' || activeTab === 'inventory-turnover' || activeTab === 'stock-audits' || activeTab === 'stock-adjustments' || activeTab === 'stock-transfers' || activeTab === 'stock-thresholds' || activeTab === 'low-stock-alerts' || activeTab === 'batches' || activeTab === 'picking') && !isPendingCustomer;
   return (
     <DashboardLayout
       header={
@@ -1992,6 +2009,12 @@ export default function DashboardPage({
               onLogout={onLogout}
             />
           )
+        ) : activeTab === 'return-orders' ? (
+          <ReturnOrdersManagementView
+            currentUser={user}
+            token={token}
+            onBackToHome={() => setActiveTab('inventory')}
+          />
         ) : activeTab === 'goods-receipt' ? (
           canWriteInventory ? (
             <GoodsReceiptView
