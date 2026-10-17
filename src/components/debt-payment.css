@@ -1,16 +1,17 @@
 /* frontend/src/components/debt-payment.css - Responsive & High-Density UI for S7-02 Debt Payment & Reconciliation (Optimized for 100% Zoom) */
 
 .debt-payment-container {
+  zoom: 0.9;
   display: flex;
   flex-direction: column;
   width: 100%;
-  max-width: 1600px;
+  max-width: 100%;
   margin: 0 auto;
   min-height: 100%;
   background-color: #f8fafc;
   color: #0f172a;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  padding: 14px 18px;
+  padding: 12px 16px;
   box-sizing: border-box;
 }
 
@@ -316,7 +317,8 @@
 .debt-table-wrapper {
   overflow-x: auto;
   overflow-y: auto;
-  max-height: 440px;
+  max-height: calc(100vh - 210px);
+  min-height: 420px;
   border-radius: 8px;
   border: 1px solid #e2e8f0;
   background: #ffffff;
@@ -353,7 +355,7 @@
 }
 
 .debt-table tbody tr.row-allocated {
-  background: #f0fdf4;
+  background: #ffffff;
 }
 
 /* BADGES */
@@ -433,6 +435,20 @@
   opacity: 0.7;
 }
 
+.btn-primary.btn-danger-locked:disabled,
+.btn-primary.btn-danger-locked {
+  background: #ef4444 !important;
+  color: #ffffff !important;
+  cursor: not-allowed !important;
+  opacity: 0.9 !important;
+  border: 1px solid #dc2626 !important;
+  box-shadow: 0 1px 3px rgba(239, 68, 68, 0.3) !important;
+}
+
+.btn-primary.btn-danger-locked:hover {
+  background: #ef4444 !important;
+}
+
 .btn-outline {
   background: #ffffff;
   color: #334155;
@@ -490,10 +506,11 @@
 }
 
 .debt-modal-panel {
+  zoom: 0.9;
   background: #ffffff;
   border-radius: 12px;
   width: 100%;
-  max-width: 620px;
+  max-width: 640px;
   box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.25);
   display: flex;
   flex-direction: column;

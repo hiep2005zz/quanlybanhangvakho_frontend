@@ -87,6 +87,7 @@ export const DebtPaymentReconciliationView: React.FC<DebtPaymentReconciliationVi
   // Adjustment Modal state (Tiêu chí 5)
   const [adjustingReceipt, setAdjustingReceipt] = useState<PaymentReceipt | null>(null);
   const [adjustmentReason, setAdjustmentReason] = useState<string>('');
+  const [adjustmentAmounts, setAdjustmentAmounts] = useState<Record<number, string>>({});
   const [adjustingSubmitting, setAdjustingSubmitting] = useState<boolean>(false);
   const [adjustmentError, setAdjustmentError] = useState<string | null>(null);
 
@@ -333,6 +334,36 @@ export const DebtPaymentReconciliationView: React.FC<DebtPaymentReconciliationVi
     }
   };
 
+  // Mở Modal Lập Bút Toán Điều Chỉnh Phiếu Thu (Điền sẵn mặc định toàn bộ số tiền đã đối trừ)
+  const openAdjustmentModal = (r: PaymentReceipt) => {
+    setAdjustingReceipt(r);
+    setAdjustmentReason('');
+    setAdjustmentError(null);
+    const initialAmounts: Record<number, string> = {};
+    r.allocations.forEach((a) => {
+      const curAllocated = a.current_allocated_amount !== undefined ? a.current_allocated_amount : a.allocated_amount;
+      initialAmounts[a.id] = String(curAllocated);
+    });
+    setAdjustmentAmounts(initialAmounts);
+  };
+
+  // Kiểm tra tính hợp lệ của Form điều chỉnh
+  const isAdjustmentFormValid = useMemo(() => {
+    if (!adjustingReceipt) return false;
+    if (!adjustmentReason.trim()) return false;
+    if (adjustingReceipt.allocations.length === 0) return true;
+
+    for (const a of adjustingReceipt.allocations) {
+      const curAllocated = a.current_allocated_amount !== undefined ? a.current_allocated_amount : a.allocated_amount;
+      const strVal = adjustmentAmounts[a.id] ?? String(curAllocated);
+      const numVal = parseFloat(strVal);
+      if (isNaN(numVal) || numVal < 1 || numVal > curAllocated) {
+        return false;
+      }
+    }
+    return true;
+  }, [adjustingReceipt, adjustmentReason, adjustmentAmounts]);
+
   // Handle confirm adjustment voucher (Tiêu chí 5)
   const handleConfirmAdjustment = async () => {
     if (!adjustingReceipt) return;
@@ -343,14 +374,45 @@ export const DebtPaymentReconciliationView: React.FC<DebtPaymentReconciliationVi
       return;
     }
 
+    // Kiểm tra và lấy đúng "Số tiền điều chỉnh" mà Kế toán đã nhập
+    const invoiceAdjustments: { invoice_id: number; amount: number }[] = [];
+    let totalAdjustAmount = 0;
+
+    for (const a of adjustingReceipt.allocations) {
+      const curAllocated = a.current_allocated_amount !== undefined ? a.current_allocated_amount : a.allocated_amount;
+      const strVal = adjustmentAmounts[a.id] ?? String(curAllocated);
+      const numVal = parseFloat(strVal);
+
+      if (isNaN(numVal) || numVal < 1) {
+        setAdjustmentError(`Số tiền điều chỉnh giảm trên hoá đơn ${a.invoice_code || '#' + a.invoice_id} phải từ 1 đ trở lên.`);
+        return;
+      }
+      if (numVal > curAllocated) {
+        setAdjustmentError(
+          `Số tiền điều chỉnh giảm trên hoá đơn ${a.invoice_code || '#' + a.invoice_id} (${numVal.toLocaleString('vi-VN')} đ) không được vượt quá số tiền đã đối trừ (${curAllocated.toLocaleString('vi-VN')} đ).`
+        );
+        return;
+      }
+
+      invoiceAdjustments.push({
+        invoice_id: a.invoice_id,
+        amount: numVal,
+      });
+      totalAdjustAmount += numVal;
+    }
+
     setAdjustingSubmitting(true);
     try {
       const adj = await createPaymentAdjustmentApi(token, adjustingReceipt.id, {
         reason: adjustmentReason.trim(),
+        adjustment_amount: totalAdjustAmount,
+        invoice_id: adjustingReceipt.allocations.length === 1 ? adjustingReceipt.allocations[0].invoice_id : undefined,
+        invoice_adjustments: invoiceAdjustments,
       });
 
       setAdjustingReceipt(null);
       setAdjustmentReason('');
+      setAdjustmentAmounts({});
 
       // Phát thông báo nổi góc phải dưới màn hình (Toast) - tự ẩn sau 4 giây (từ 3-5s)
       emitStatusToast({
@@ -672,7 +734,7 @@ export const DebtPaymentReconciliationView: React.FC<DebtPaymentReconciliationVi
                     />
                     <div>
                       <label htmlFor="mode-fifo" style={{ fontWeight: '700', fontSize: '14px', cursor: 'pointer' }}>
-                        Tự động theo hoá đơn cũ nhất trước (FIFO)
+                        Tự động theo hoá đơn cũ nhất trước
                       </label>
                       <p style={{ margin: '4px 0 0 0', fontSize: '12.5px', color: '#64748b' }}>
                         Hệ thống tự động trừ lần lượt vào các hoá đơn có ngày phát hành cũ nhất trước cho đến khi hết số tiền thu.
@@ -693,7 +755,7 @@ export const DebtPaymentReconciliationView: React.FC<DebtPaymentReconciliationVi
                     />
                     <div>
                       <label htmlFor="mode-manual" style={{ fontWeight: '700', fontSize: '14px', cursor: 'pointer' }}>
-                        Chọn đối trừ vào hoá đơn cụ thể (Thủ công)
+                        Chọn đối trừ vào hoá đơn cụ thể
                       </label>
                       <p style={{ margin: '4px 0 0 0', fontSize: '12.5px', color: '#64748b' }}>
                         Kế toán tích chọn hoá đơn cụ thể và nhập số tiền muốn trừ cho từng hoá đơn.
@@ -748,7 +810,7 @@ export const DebtPaymentReconciliationView: React.FC<DebtPaymentReconciliationVi
                     Danh sách hoá đơn của đại lý ({invoices.length} hoá đơn)
                   </span>
                   <span style={{ fontSize: '12px', color: '#64748b' }}>
-                    * Sắp xếp theo ngày phát hành cũ nhất xếp trước (FIFO)
+                    * Sắp xếp theo ngày phát hành cũ nhất xếp trước
                   </span>
                 </div>
 
@@ -771,8 +833,8 @@ export const DebtPaymentReconciliationView: React.FC<DebtPaymentReconciliationVi
                           <th style={{ textAlign: 'right' }}>Đã thu</th>
                           <th style={{ textAlign: 'right' }}>Còn nợ</th>
                           <th style={{ textAlign: 'center' }}>Trạng thái</th>
-                          <th style={{ textAlign: 'right', background: '#f0fdf4' }}>Trừ đợt này</th>
-                          <th style={{ textAlign: 'right', background: '#f0fdf4' }}>Còn nợ sau trừ</th>
+                          <th style={{ textAlign: 'right' }}>Trừ đợt này</th>
+                          <th style={{ textAlign: 'right' }}>Còn nợ sau trừ</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -860,7 +922,7 @@ export const DebtPaymentReconciliationView: React.FC<DebtPaymentReconciliationVi
                               </td>
 
                               {/* Cột Trừ đợt này */}
-                              <td style={{ textAlign: 'right', background: isAllocated ? '#dcfce7' : '#f0fdf4' }}>
+                              <td style={{ textAlign: 'right' }}>
                                 {allocationMode === 'AUTO_FIFO' ? (
                                   <strong style={{ color: allocatedAmt > 0 ? '#059669' : '#94a3b8' }}>
                                     {allocatedAmt > 0 ? formatVND(allocatedAmt) : '—'}
@@ -905,7 +967,7 @@ export const DebtPaymentReconciliationView: React.FC<DebtPaymentReconciliationVi
                               </td>
 
                               {/* Cột Còn nợ sau trừ */}
-                              <td style={{ textAlign: 'right', background: isAllocated ? '#dcfce7' : '#f0fdf4' }}>
+                              <td style={{ textAlign: 'right' }}>
                                 {allocatedAmt > 0 ? (
                                   <div>
                                     <strong style={{ color: remAfter === 0 ? '#059669' : '#b45309' }}>
@@ -928,20 +990,38 @@ export const DebtPaymentReconciliationView: React.FC<DebtPaymentReconciliationVi
 
               {/* NÚT XÁC NHẬN GHI NHẬN THANH TOÁN - Không dùng icon */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '14px', paddingTop: '16px', borderTop: '1px solid #f1f5f9' }}>
-                <span style={{ fontSize: '13px', color: '#64748b' }}>
+                <span
+                  style={{
+                    fontSize: '13px',
+                    color: isOverRemainingDebt ? '#dc2626' : '#64748b',
+                    fontWeight: isOverRemainingDebt ? '600' : 'normal',
+                  }}
+                >
                   {isOverRemainingDebt
-                    ? 'Số tiền thu vượt quá tổng công nợ còn lại (Đang khoá nút)'
+                    ? 'Số tiền thu vượt quá tổng công nợ còn lại'
                     : numAmount <= 0
-                    ? 'Vui lòng nhập số tiền thu để tiếp tục'
+                    ? ''
                     : allocationMode === 'MANUAL' && !isManualAllocationMatched
-                    ? 'Tổng tiền phân bổ chưa khớp số tiền thu (Đang khoá nút)'
+                    ? 'Tổng tiền phân bổ chưa khớp số tiền thu'
                     : `Sẵn sàng đối trừ ${formatVND(numAmount)}`}
                 </span>
 
                 <button
                   type="submit"
-                  disabled={isInvalidAmount || submitting || (allocationMode === 'MANUAL' && !isManualAllocationMatched)}
-                  className="btn-primary"
+                  disabled={isInvalidAmount || isOverRemainingDebt || submitting || (allocationMode === 'MANUAL' && !isManualAllocationMatched)}
+                  className={`btn-primary ${isOverRemainingDebt ? 'btn-danger-locked' : ''}`}
+                  style={
+                    isOverRemainingDebt
+                      ? {
+                          backgroundColor: '#ef4444',
+                          borderColor: '#dc2626',
+                          color: '#ffffff',
+                          cursor: 'not-allowed',
+                          opacity: 0.95,
+                        }
+                      : undefined
+                  }
+                  title={isOverRemainingDebt ? 'Số tiền thu vượt quá tổng công nợ còn lại' : undefined}
                 >
                   {submitting ? 'Đang xử lý đối trừ...' : `Xác nhận thu tiền (${formatVND(numAmount)})`}
                 </button>
@@ -1029,11 +1109,7 @@ export const DebtPaymentReconciliationView: React.FC<DebtPaymentReconciliationVi
                         {r.status === 'CONFIRMED' ? (
                           <button
                             type="button"
-                            onClick={() => {
-                              setAdjustingReceipt(r);
-                              setAdjustmentReason('');
-                              setAdjustmentError(null);
-                            }}
+                            onClick={() => openAdjustmentModal(r)}
                             className="btn-warning"
                           >
                             Lập bút toán điều chỉnh
@@ -1104,15 +1180,117 @@ export const DebtPaymentReconciliationView: React.FC<DebtPaymentReconciliationVi
                   </div>
 
                   <div style={{ marginTop: '12px', paddingTop: '10px', borderTop: '1px solid #e2e8f0', fontSize: '13px' }}>
-                    <div style={{ fontWeight: '600', marginBottom: '4px' }}>Các hoá đơn đã được đối trừ:</div>
-                    <ul style={{ margin: 0, paddingLeft: '18px', color: '#334155' }}>
-                      {adjustingReceipt.allocations.map((a) => (
-                        <li key={a.id}>
-                          {a.invoice_code || `HĐ #${a.invoice_id}`}: Đối trừ {formatVND(a.allocated_amount)} (Sẽ được hoàn
-                          lại vào dư nợ hoá đơn)
-                        </li>
-                      ))}
-                    </ul>
+                    <div style={{ fontWeight: '600', marginBottom: '8px', color: '#0f172a' }}>
+                      Các hoá đơn đã được đối trừ:
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      {adjustingReceipt.allocations.map((a) => {
+                        const curAllocated = a.current_allocated_amount !== undefined ? a.current_allocated_amount : a.allocated_amount;
+                        const enteredStr = adjustmentAmounts[a.id] ?? String(curAllocated);
+                        const enteredNum = parseFloat(enteredStr) || 0;
+                        const isOver = enteredNum > curAllocated;
+                        const isUnder = enteredStr.trim() !== '' && enteredNum < 1;
+                        const remainingAfter = Math.max(0, curAllocated - enteredNum);
+
+                        return (
+                          <div
+                            key={a.id}
+                            style={{
+                              background: '#ffffff',
+                              border: isOver || isUnder ? '1px solid #f87171' : '1px solid #cbd5e1',
+                              borderRadius: '8px',
+                              padding: '12px 14px',
+                            }}
+                          >
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexWrap: 'wrap', gap: '6px' }}>
+                              <span style={{ fontWeight: '600', color: '#1e293b' }}>
+                                Hoá đơn: <strong style={{ color: '#0f172a' }}>{a.invoice_code || `HĐ #${a.invoice_id}`}</strong>
+                              </span>
+                              <span style={{ fontSize: '12.5px', color: '#475569' }}>
+                                Số tiền đã đối trừ: <strong style={{ color: '#059669' }}>{formatVND(curAllocated)}</strong>
+                              </span>
+                            </div>
+
+                            <div className="form-field" style={{ marginBottom: '6px' }}>
+                              <label
+                                htmlFor={`adjust-amount-${a.id}`}
+                                style={{ fontWeight: '600', fontSize: '12.5px', color: '#334155', display: 'flex', justifyContent: 'space-between' }}
+                              >
+                                <span>
+                                  Số tiền điều chỉnh giảm (VNĐ) <span style={{ color: '#ef4444' }}>*</span>
+                                </span>
+                                <span style={{ fontSize: '11.5px', color: '#64748b', fontWeight: 'normal' }}>
+                                  (Từ 1 đ đến tối đa {formatVND(curAllocated)})
+                                </span>
+                              </label>
+                              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                <input
+                                  id={`adjust-amount-${a.id}`}
+                                  type="number"
+                                  min="1"
+                                  max={curAllocated}
+                                  step="any"
+                                  placeholder="Nhập số tiền điều chỉnh giảm..."
+                                  value={adjustmentAmounts[a.id] ?? String(curAllocated)}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    setAdjustmentAmounts((prev) => ({ ...prev, [a.id]: val }));
+                                  }}
+                                  style={{
+                                    flex: 1,
+                                    padding: '7px 10px',
+                                    borderRadius: '6px',
+                                    border: isOver || isUnder ? '1px solid #ef4444' : '1px solid #cbd5e1',
+                                    fontSize: '13.5px',
+                                    fontWeight: '600',
+                                    outline: 'none',
+                                  }}
+                                  required
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => setAdjustmentAmounts((prev) => ({ ...prev, [a.id]: String(curAllocated) }))}
+                                  className="btn-outline"
+                                  style={{ padding: '6px 10px', fontSize: '12px', whiteSpace: 'nowrap' }}
+                                  title="Điền sẵn toàn bộ số tiền đã đối trừ để huỷ/đảo phiếu thu"
+                                >
+                                  Huỷ
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* CẢNH BÁO LỖI HOẶC DÒNG XEM TRƯỚC */}
+                            {isOver ? (
+                              <div style={{ fontSize: '12px', color: '#dc2626', marginTop: '4px', fontWeight: '500' }}>
+                                Số tiền điều chỉnh giảm không được vượt quá số tiền đã đối trừ ({formatVND(curAllocated)}).
+                              </div>
+                            ) : isUnder || enteredStr.trim() === '' ? (
+                              <div style={{ fontSize: '12px', color: '#dc2626', marginTop: '4px', fontWeight: '500' }}>
+                                Số tiền điều chỉnh giảm phải từ 1 đ trở lên.
+                              </div>
+                            ) : (
+                              <div
+                                style={{
+                                  marginTop: '6px',
+                                  padding: '7px 10px',
+                                  background: '#f0fdf4',
+                                  border: '1px solid #bbf7d0',
+                                  borderRadius: '6px',
+                                  fontSize: '12px',
+                                  color: '#166534',
+                                  lineHeight: '1.4',
+                                }}
+                              >
+                                Số tiền thực thu còn lại sau điều chỉnh:{' '}
+                                <strong style={{ color: '#0f172a' }}>{remainingAfter.toLocaleString('vi-VN')} đ</strong> | Dư nợ hoá đơn sẽ cộng hoàn lại:{' '}
+                                <strong style={{ color: '#059669' }}>+{enteredNum.toLocaleString('vi-VN')} đ</strong>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
 
@@ -1146,7 +1324,7 @@ export const DebtPaymentReconciliationView: React.FC<DebtPaymentReconciliationVi
                 <button
                   type="button"
                   onClick={handleConfirmAdjustment}
-                  disabled={adjustingSubmitting || !adjustmentReason.trim()}
+                  disabled={adjustingSubmitting || !isAdjustmentFormValid}
                   className="btn-primary"
                   style={{ background: '#d97706' }}
                 >

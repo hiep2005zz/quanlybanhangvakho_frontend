@@ -112,7 +112,14 @@ export interface InvoiceAllocationOption {
   note?: string | null;
 }
 
+export interface InvoiceAdjustmentItemRequest {
+  invoice_id: number;
+  amount: number;
+}
+
 export interface CreateAdjustmentPayload {
   reason: string;
   adjustment_amount?: number;
+  invoice_id?: number;
+  invoice_adjustments?: InvoiceAdjustmentItemRequest[];
 }
