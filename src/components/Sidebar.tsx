@@ -60,6 +60,7 @@ export interface SidebarProps {
   isWarehouseOrAdmin?: boolean;
   isAdmin?: boolean;
   canAccessPaymentCollections?: boolean;
+  canAccessInventoryTurnover?: boolean;
   onLogout?: () => void;
   isLoggingOut?: boolean;
   isMobileOpen?: boolean;
@@ -101,6 +102,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isWarehouseOrAdmin = false,
   isAdmin: _isAdmin = false,
   canAccessPaymentCollections = false,
+  canAccessInventoryTurnover = false,
   onLogout,
   isLoggingOut = false,
 }) => {
@@ -363,7 +365,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       tab: 'inventory-turnover',
       path: '/inventory-turnover',
       label: 'Vòng quay & Tuổi tồn',
-      visible: !isCustomer,
+      visible: Boolean(canAccessInventoryTurnover),
       icon: (
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />

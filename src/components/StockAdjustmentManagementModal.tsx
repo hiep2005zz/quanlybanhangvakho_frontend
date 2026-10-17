@@ -676,17 +676,43 @@ export const StockAdjustmentManagementModal: React.FC<StockAdjustmentManagementM
                     rows={2}
                     value={createReasonNote}
                     onChange={(e) => setCreateReasonNote(e.target.value)}
-                    placeholder="Mô tả cụ thể sự việc (Ví dụ: 2 thùng bị rơi vỡ khi dỡ hàng xe tải; phát hiện mất mát sau ca trực...)"
+                    placeholder={
+                      createReasonType === 'other'
+                        ? 'Điền chi tiết lý do tổn thất khác và biên bản sự việc (Ví dụ: Hàng mẫu kiểm định; Hao hụt kỹ thuật; Sai lệch kiểm đếm...)'
+                        : 'Mô tả cụ thể sự việc (Ví dụ: 2 thùng bị rơi vỡ khi dỡ hàng xe tải; phát hiện mất mát sau ca trực...)'
+                    }
                     style={{
                       width: '100%',
                       padding: '9px 12px',
                       borderRadius: '8px',
-                      border: '1px solid #cbd5e1',
+                      border: createReasonType === 'other' ? '1.5px solid #059669' : '1px solid #cbd5e1',
                       fontSize: '13px',
                       color: '#0f172a',
                       boxSizing: 'border-box',
                     }}
                   />
+                  {createReasonType === 'other' && (
+                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '6px' }}>
+                      {['Hàng mẫu kiểm định', 'Hao hụt kỹ thuật', 'Sai lệch kiểm kê', 'Chuyển mục đích', 'Hàng khuyến mãi'].map((tag) => (
+                        <button
+                          key={tag}
+                          type="button"
+                          onClick={() => setCreateReasonNote((prev) => (prev ? `${tag} - ${prev}` : tag))}
+                          style={{
+                            fontSize: '11px',
+                            padding: '2px 7px',
+                            borderRadius: '4px',
+                            border: '1px solid #cbd5e1',
+                            backgroundColor: '#ffffff',
+                            color: '#475569',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          + {tag}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
 
