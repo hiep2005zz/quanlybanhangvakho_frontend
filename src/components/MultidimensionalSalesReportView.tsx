@@ -7,22 +7,49 @@ import {
   SalesMultidimensionalResponse,
 } from '../services/salesReportApi';
 import { User } from '../services/api';
+import { emitStatusToast } from './StatusToast';
 
 interface MultidimensionalSalesReportViewProps {
   token: string;
   currentUser?: User;
+  onNavigateTab?: (tab: string) => void;
 }
 
 export const MultidimensionalSalesReportView: React.FC<MultidimensionalSalesReportViewProps> = ({
   token,
-  currentUser,
 }) => {
   // Bộ lọc
-  const [dimension, setDimension] = useState<SalesDimension>('salesperson');
-  const [timePreset, setTimePreset] = useState<SalesTimePreset>('this_month');
-  const [startDate, setStartDate] = useState<string>('');
-  const [endDate, setEndDate] = useState<string>('');
-  const [searchTerm, setSearchTerm] = useState<string>('');
+  const [dimension, setDimension] = useState<SalesDimension>(() => {
+    try {
+      const saved = sessionStorage.getItem('sales_report_dimension') as SalesDimension;
+      if (saved && ['salesperson', 'region', 'dealer', 'category', 'sku'].includes(saved)) {
+        sessionStorage.removeItem('sales_report_dimension');
+        return saved;
+      }
+    } catch {}
+    return 'salesperson';
+  });
+
+  const [timePreset, setTimePreset] = useState<SalesTimePreset>(() => {
+    try {
+      const saved = sessionStorage.getItem('sales_report_preset') as SalesTimePreset;
+      if (saved && ['this_month', 'last_month', 'this_quarter', 'today'].includes(saved)) {
+        sessionStorage.removeItem('sales_report_preset');
+        return saved;
+      }
+    } catch {}
+    return 'this_month';
+  });
+  const [searchTerm, setSearchTerm] = useState<string>(() => {
+    try {
+      const saved = sessionStorage.getItem('sales_report_search') || '';
+      if (saved) {
+        sessionStorage.removeItem('sales_report_search');
+        return saved;
+      }
+    } catch {}
+    return '';
+  });
   const [showComparison, setShowComparison] = useState<boolean>(true);
 
   // Dữ liệu API
@@ -41,10 +68,10 @@ export const MultidimensionalSalesReportView: React.FC<MultidimensionalSalesRepo
 
   // Tải dữ liệu báo cáo
   const loadReport = useCallback(
-    async (isManualRefresh = false) => {
+    async (isManualRefresh = false, isBackground = false) => {
       if (isManualRefresh) {
         setIsRefreshing(true);
-      } else {
+      } else if (!isBackground) {
         setIsLoading(true);
       }
       setError(null);
@@ -54,14 +81,14 @@ export const MultidimensionalSalesReportView: React.FC<MultidimensionalSalesRepo
           {
             dimension,
             time_preset: timePreset,
-            start_date: timePreset === 'custom' ? startDate : undefined,
-            end_date: timePreset === 'custom' ? endDate : undefined,
             search: searchTerm.trim() || undefined,
           },
           token
         );
         setReportData(res);
-        setCurrentPage(1);
+        if (!isBackground) {
+          setCurrentPage(1);
+        }
       } catch (err: any) {
         console.error('Lỗi khi tải báo cáo doanh số đa chiều:', err);
         setError(err?.message || 'Không thể tải dữ liệu báo cáo doanh số.');
@@ -70,13 +97,61 @@ export const MultidimensionalSalesReportView: React.FC<MultidimensionalSalesRepo
         setIsRefreshing(false);
       }
     },
-    [dimension, timePreset, startDate, endDate, searchTerm, token]
+    [dimension, timePreset, searchTerm, token]
   );
 
   // Gọi API mỗi khi thay đổi dimension hoặc timePreset
   useEffect(() => {
     loadReport();
   }, [dimension, timePreset, loadReport]);
+
+  // Thiết lập cơ chế tự động đồng bộ theo thời gian thực (Real-time auto sync)
+  useEffect(() => {
+    // 1. Lắng nghe các sự kiện nội bộ ứng dụng
+    const handleSystemSync = () => {
+      loadReport(false, true);
+    };
+
+    window.addEventListener('ORDERS_UPDATED', handleSystemSync);
+    window.addEventListener('DEALER_DATA_CHANGED', handleSystemSync);
+    window.addEventListener('INVENTORY_STOCK_UPDATED', handleSystemSync);
+
+    // 2. Lắng nghe thay đổi giữa các tab/cửa sổ khác (cross-tab sync qua localStorage)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (
+        e.key === 'orders_last_updated' ||
+        e.key === 'dealers_last_updated' ||
+        e.key === 'inventory_last_updated'
+      ) {
+        loadReport(false, true);
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+
+    // 3. Tự động đồng bộ lại khi người dùng quay lại tab (focus / visibility)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        loadReport(false, true);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // 4. Chu kỳ đồng bộ tự động mỗi 60 giây khi đang xem màn hình
+    const intervalTimer = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        loadReport(false, true);
+      }
+    }, 60000);
+
+    return () => {
+      window.removeEventListener('ORDERS_UPDATED', handleSystemSync);
+      window.removeEventListener('DEALER_DATA_CHANGED', handleSystemSync);
+      window.removeEventListener('INVENTORY_STOCK_UPDATED', handleSystemSync);
+      window.removeEventListener('storage', handleStorageChange);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      clearInterval(intervalTimer);
+    };
+  }, [loadReport]);
 
   // Format tiền tệ VNĐ
   const formatVND = (val?: number | null) => {
@@ -103,7 +178,7 @@ export const MultidimensionalSalesReportView: React.FC<MultidimensionalSalesRepo
 
   // Label theo từng dimension
   const dimensionLabels: Record<SalesDimension, { title: string; colName: string }> = {
-    salesperson: { title: 'Nhân viên kinh doanh', colName: 'Nhân viên KD' },
+    salesperson: { title: 'Nhân viên kinh doanh', colName: 'Nhân viên kinh doanh' },
     region: { title: 'Khu vực địa lý', colName: 'Khu vực / Địa bàn' },
     dealer: { title: 'Đại lý', colName: 'Đại lý phân phối' },
     category: { title: 'Nhóm ngành hàng', colName: 'Ngành hàng / Danh mục' },
@@ -165,7 +240,11 @@ export const MultidimensionalSalesReportView: React.FC<MultidimensionalSalesRepo
   // Xuất Excel chuẩn UTF-8 kèm BOM
   const handleExportExcel = () => {
     if (!reportData || sortedItems.length === 0) {
-      alert('Không có dữ liệu để xuất Excel.');
+      emitStatusToast({
+        title: 'Xuất file Excel',
+        message: 'Không có dữ liệu phù hợp với điều kiện lọc hiện tại để xuất Excel.',
+        type: 'warning',
+      });
       return;
     }
 
@@ -283,6 +362,12 @@ export const MultidimensionalSalesReportView: React.FC<MultidimensionalSalesRepo
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
+
+    emitStatusToast({
+      title: 'Xuất file Excel thành công',
+      message: `Đã xuất báo cáo doanh số theo ${curDim.title.toLowerCase()} (${reportData.start_date} - ${reportData.end_date}) thành công.`,
+      type: 'success',
+    });
   };
 
   return (
@@ -294,21 +379,6 @@ export const MultidimensionalSalesReportView: React.FC<MultidimensionalSalesRepo
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          {/* Badge phân quyền */}
-          <div
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium flex items-center ${
-              canViewProfit
-                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                : 'bg-amber-50 text-amber-700 border border-amber-200'
-            }`}
-          >
-            <span>
-              {canViewProfit
-                ? `Quản lý: Đầy đủ Lãi gộp & Giá vốn (${currentUser?.full_name || currentUser?.username || 'Quản lý'})`
-                : `Nhân viên: Ẩn giá vốn & Lợi nhuận (${currentUser?.full_name || currentUser?.username || 'Kinh doanh'})`}
-            </span>
-          </div>
-
           {/* Nút Làm mới */}
           <button
             onClick={() => loadReport(true)}
@@ -353,77 +423,18 @@ export const MultidimensionalSalesReportView: React.FC<MultidimensionalSalesRepo
       </div>
 
       {/* Thanh bộ lọc thời gian & tìm kiếm */}
-      <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 flex flex-wrap items-center justify-between gap-4">
-        <div className="flex flex-wrap items-center gap-3">
-          {/* Preset thời gian */}
-          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl text-xs font-medium text-slate-600">
-            {[
-              { key: 'this_month', label: 'Tháng này' },
-              { key: 'last_month', label: 'Tháng trước' },
-              { key: 'this_quarter', label: 'Quý này' },
-              { key: 'today', label: 'Hôm nay' },
-              { key: 'custom', label: 'Tùy chỉnh' },
-            ].map((p) => (
-              <button
-                key={p.key}
-                onClick={() => setTimePreset(p.key as SalesTimePreset)}
-                className={`px-3 py-1.5 rounded-lg transition ${
-                  timePreset === p.key
-                    ? 'bg-white text-indigo-600 shadow-sm font-semibold'
-                    : 'hover:text-slate-900'
-                }`}
-              >
-                {p.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Chọn ngày tùy chỉnh */}
-          {timePreset === 'custom' && (
-            <div className="flex items-center gap-2">
-              <input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="px-2.5 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-700 focus:outline-indigo-500"
-              />
-              <span className="text-xs text-slate-400">đến</span>
-              <input
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="px-2.5 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-700 focus:outline-indigo-500"
-              />
-              <button
-                type="button"
-                onClick={() => loadReport(false)}
-                className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 font-medium text-xs rounded-lg whitespace-nowrap shrink-0 transition-colors cursor-pointer"
-              >
-                Áp dụng
-              </button>
-            </div>
-          )}
-
-          {/* Toggle so sánh cùng kỳ */}
-          <label className="flex items-center gap-2 text-xs font-medium text-slate-600 cursor-pointer ml-2">
-            <input
-              type="checkbox"
-              checked={showComparison}
-              onChange={(e) => setShowComparison(e.target.checked)}
-              className="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500"
-            />
-            <span>So sánh cùng kỳ trước</span>
-          </label>
-        </div>
-
-        {/* Ô tìm kiếm */}
-        <div className="relative w-48 sm:w-56">
+      <div
+        className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex items-center gap-3 overflow-x-auto"
+        style={{ flexWrap: 'nowrap' }}
+      >
+        {/* Ô tìm kiếm đưa lên trước chữ Tháng này */}
+        <div className="relative w-72 sm:w-80 md:w-96 shrink-0">
           <input
             type="text"
             placeholder={`Tìm ${dimensionLabels[dimension].colName.toLowerCase()}...`}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full px-2.5 py-1 h-7 bg-slate-50 border border-slate-200 rounded-md text-xs text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+            className="w-full pl-3 pr-8 py-1.5 h-8 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
           />
           {searchTerm && (
             <button
@@ -435,6 +446,39 @@ export const MultidimensionalSalesReportView: React.FC<MultidimensionalSalesRepo
             </button>
           )}
         </div>
+
+        {/* Preset thời gian */}
+        <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl text-xs font-medium text-slate-600 shrink-0">
+          {[
+            { key: 'this_month', label: 'Tháng này' },
+            { key: 'last_month', label: 'Tháng trước' },
+            { key: 'this_quarter', label: 'Quý này' },
+            { key: 'today', label: 'Hôm nay' },
+          ].map((p) => (
+            <button
+              key={p.key}
+              onClick={() => setTimePreset(p.key as SalesTimePreset)}
+              className={`px-3 py-1.5 rounded-lg transition whitespace-nowrap ${
+                timePreset === p.key
+                  ? 'bg-white text-indigo-600 shadow-sm font-semibold'
+                  : 'hover:text-slate-900'
+              }`}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Toggle so sánh cùng kỳ */}
+        <label className="flex items-center gap-2 text-xs font-medium text-slate-600 cursor-pointer shrink-0 ml-auto whitespace-nowrap">
+          <input
+            type="checkbox"
+            checked={showComparison}
+            onChange={(e) => setShowComparison(e.target.checked)}
+            className="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500"
+          />
+          <span>So sánh cùng kỳ trước</span>
+        </label>
       </div>
 
       {/* Hiển thị lỗi nếu có */}
@@ -561,34 +605,34 @@ export const MultidimensionalSalesReportView: React.FC<MultidimensionalSalesRepo
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm text-slate-600">
-              <thead className="bg-slate-50/80 text-xs text-slate-500 uppercase font-semibold border-b border-slate-100">
+            <table className="w-full text-left text-xs text-slate-600">
+              <thead className="bg-slate-50/80 text-[11px] text-slate-500 uppercase font-semibold border-b border-slate-100">
                 <tr>
-                  <th className="py-3.5 px-4 w-12 text-center">STT</th>
+                  <th className="py-2.5 px-2 w-9 text-center whitespace-nowrap">STT</th>
                   <th
-                    className="py-3.5 px-4 cursor-pointer hover:text-indigo-600 select-none"
+                    className="py-2.5 px-2 cursor-pointer hover:text-indigo-600 select-none whitespace-nowrap"
                     onClick={() => handleSort('name')}
                   >
-                    <div className="flex items-center">
+                    <div className="flex items-center gap-1">
                       <span>{dimensionLabels[dimension].colName}</span>
                       {renderSortIcon('name')}
                     </div>
                   </th>
                   <th
-                    className="py-3.5 px-4 text-right cursor-pointer hover:text-indigo-600 select-none"
+                    className="py-2.5 px-2 text-right cursor-pointer hover:text-indigo-600 select-none whitespace-nowrap"
                     onClick={() => handleSort('quantity')}
                   >
-                    <div className="flex items-center justify-end">
+                    <div className="flex items-center justify-end gap-1">
                       <span>Sản lượng</span>
                       {renderSortIcon('quantity')}
                     </div>
                   </th>
                   <th
-                    className="py-3.5 px-4 text-right cursor-pointer hover:text-indigo-600 select-none"
+                    className="py-2.5 px-2 text-right cursor-pointer hover:text-indigo-600 select-none whitespace-nowrap"
                     onClick={() => handleSort('revenue')}
                   >
-                    <div className="flex items-center justify-end">
-                      <span>Doanh số (VNĐ)</span>
+                    <div className="flex items-center justify-end gap-1">
+                      <span>Doanh số</span>
                       {renderSortIcon('revenue')}
                     </div>
                   </th>
@@ -596,13 +640,13 @@ export const MultidimensionalSalesReportView: React.FC<MultidimensionalSalesRepo
                   {/* Cột so sánh cùng kỳ */}
                   {showComparison && (
                     <>
-                      <th className="py-3.5 px-4 text-right text-slate-400 font-normal">Sản lượng cùng kỳ</th>
-                      <th className="py-3.5 px-4 text-right text-slate-400 font-normal">Doanh số cùng kỳ</th>
+                      <th className="py-2.5 px-2 text-right text-slate-400 font-normal whitespace-nowrap">SL cùng kỳ</th>
+                      <th className="py-2.5 px-2 text-right text-slate-400 font-normal whitespace-nowrap">DS cùng kỳ</th>
                       <th
-                        className="py-3.5 px-4 text-right cursor-pointer hover:text-indigo-600 select-none"
+                        className="py-2.5 px-2 text-right cursor-pointer hover:text-indigo-600 select-none whitespace-nowrap"
                         onClick={() => handleSort('growth_rate')}
                       >
-                        <div className="flex items-center justify-end">
+                        <div className="flex items-center justify-end gap-1">
                           <span>Tăng trưởng</span>
                           {renderSortIcon('growth_rate')}
                         </div>
@@ -613,22 +657,22 @@ export const MultidimensionalSalesReportView: React.FC<MultidimensionalSalesRepo
                   {/* Cột Lợi nhuận & Biên gộp (Chỉ Quản lý) */}
                   {canViewProfit && (
                     <>
-                      <th className="py-3.5 px-4 text-right text-slate-500 font-medium">Giá vốn (VNĐ)</th>
+                      <th className="py-2.5 px-2 text-right text-slate-500 font-medium whitespace-nowrap">Giá vốn</th>
                       <th
-                        className="py-3.5 px-4 text-right cursor-pointer hover:text-indigo-600 select-none"
+                        className="py-2.5 px-2 text-right cursor-pointer hover:text-indigo-600 select-none whitespace-nowrap"
                         onClick={() => handleSort('gross_profit')}
                       >
-                        <div className="flex items-center justify-end">
-                          <span>Lãi gộp (VNĐ)</span>
+                        <div className="flex items-center justify-end gap-1">
+                          <span>Lãi gộp</span>
                           {renderSortIcon('gross_profit')}
                         </div>
                       </th>
                       <th
-                        className="py-3.5 px-4 text-right cursor-pointer hover:text-indigo-600 select-none"
+                        className="py-2.5 px-2 text-right cursor-pointer hover:text-indigo-600 select-none whitespace-nowrap"
                         onClick={() => handleSort('gross_margin_pct')}
                       >
-                        <div className="flex items-center justify-end">
-                          <span>Biên lãi (%)</span>
+                        <div className="flex items-center justify-end gap-1">
+                          <span>Biên lãi</span>
                           {renderSortIcon('gross_margin_pct')}
                         </div>
                       </th>
@@ -636,44 +680,44 @@ export const MultidimensionalSalesReportView: React.FC<MultidimensionalSalesRepo
                   )}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-slate-100 text-xs">
                 {paginatedItems.map((item, idx) => {
                   const globalIdx = (currentPage - 1) * pageSize + idx + 1;
                   const marginPct = item.gross_margin_pct;
 
                   return (
                     <tr key={item.id} className="hover:bg-slate-50/60 transition">
-                      <td className="py-3.5 px-4 text-center text-xs text-slate-400">{globalIdx}</td>
-                      <td className="py-3.5 px-4">
-                        <div className="font-semibold text-slate-800">{item.name}</div>
-                        <div className="text-xs text-slate-400 flex items-center gap-2 mt-0.5">
+                      <td className="py-2 px-2 text-center text-[11px] text-slate-400">{globalIdx}</td>
+                      <td className="py-2 px-2 whitespace-nowrap">
+                        <div className="font-semibold text-slate-800 text-xs whitespace-nowrap">{item.name}</div>
+                        <div className="text-[11px] text-slate-400 flex items-center gap-1.5 mt-0.5 whitespace-nowrap">
                           {item.code && (
-                            <span className="bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded text-[11px] font-mono">
+                            <span className="bg-slate-100 text-slate-600 px-1 py-0.5 rounded text-[10px] font-mono">
                               {item.code}
                             </span>
                           )}
                           {item.sub_text && <span>{item.sub_text}</span>}
                         </div>
                       </td>
-                      <td className="py-3.5 px-4 text-right font-medium text-slate-700">
+                      <td className="py-2 px-2 text-right font-medium text-slate-700 text-xs">
                         {formatNumber(item.quantity)}
                       </td>
-                      <td className="py-3.5 px-4 text-right font-bold text-slate-900">
+                      <td className="py-2 px-2 text-right font-bold text-slate-900 text-xs whitespace-nowrap">
                         {formatVND(item.revenue)}
                       </td>
 
                       {/* Cột so sánh */}
                       {showComparison && (
                         <>
-                          <td className="py-3.5 px-4 text-right text-slate-500">
+                          <td className="py-2 px-2 text-right text-slate-500 text-xs">
                             {formatNumber(item.previous_quantity)}
                           </td>
-                          <td className="py-3.5 px-4 text-right text-slate-500">
+                          <td className="py-2 px-2 text-right text-slate-500 text-xs whitespace-nowrap">
                             {formatVND(item.previous_revenue)}
                           </td>
-                          <td className="py-3.5 px-4 text-right font-medium">
+                          <td className="py-2 px-2 text-right font-medium text-xs whitespace-nowrap">
                             <span
-                              className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${
+                              className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[11px] font-semibold ${
                                 (item.growth_rate || 0) >= 0
                                   ? 'bg-emerald-50 text-emerald-700'
                                   : 'bg-rose-50 text-rose-700'
@@ -688,14 +732,14 @@ export const MultidimensionalSalesReportView: React.FC<MultidimensionalSalesRepo
                       {/* Cột lợi nhuận gộp */}
                       {canViewProfit && (
                         <>
-                          <td className="py-3.5 px-4 text-right text-slate-500">{formatVND(item.cost)}</td>
-                          <td className="py-3.5 px-4 text-right font-semibold text-emerald-600">
+                          <td className="py-2 px-2 text-right text-slate-500 text-xs whitespace-nowrap">{formatVND(item.cost)}</td>
+                          <td className="py-2 px-2 text-right font-semibold text-emerald-600 text-xs whitespace-nowrap">
                             {formatVND(item.gross_profit)}
                           </td>
-                          <td className="py-3.5 px-4 text-right">
+                          <td className="py-2 px-2 text-right text-xs whitespace-nowrap">
                             {marginPct !== null && marginPct !== undefined ? (
                               <span
-                                className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${
+                                className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[11px] font-semibold ${
                                   marginPct >= 30
                                     ? 'bg-emerald-50 text-emerald-700'
                                     : marginPct >= 15
@@ -718,27 +762,27 @@ export const MultidimensionalSalesReportView: React.FC<MultidimensionalSalesRepo
 
               {/* Dòng Tổng cộng */}
               {reportData && (
-                <tfoot className="bg-slate-50/90 font-bold text-slate-800 border-t-2 border-slate-200">
+                <tfoot className="bg-slate-50/90 font-bold text-slate-800 border-t-2 border-slate-200 text-xs">
                   <tr>
-                    <td colSpan={2} className="py-4 px-4 text-center uppercase tracking-wide text-xs">
+                    <td colSpan={2} className="py-2.5 px-2 text-center uppercase tracking-wide text-[11px]">
                       TỔNG CỘNG ({sortedItems.length} đối tượng)
                     </td>
-                    <td className="py-4 px-4 text-right text-indigo-700">
+                    <td className="py-2.5 px-2 text-right text-indigo-700 text-xs">
                       {formatNumber(reportData.summary.total_quantity)}
                     </td>
-                    <td className="py-4 px-4 text-right text-indigo-700 text-base">
+                    <td className="py-2.5 px-2 text-right text-indigo-700 text-xs whitespace-nowrap">
                       {formatVND(reportData.summary.total_revenue)}
                     </td>
 
                     {showComparison && (
                       <>
-                        <td className="py-4 px-4 text-right text-slate-400 font-normal">—</td>
-                        <td className="py-4 px-4 text-right text-slate-600">
+                        <td className="py-2.5 px-2 text-right text-slate-400 font-normal text-xs">—</td>
+                        <td className="py-2.5 px-2 text-right text-slate-600 text-xs whitespace-nowrap">
                           {formatVND(reportData.summary.previous_total_revenue)}
                         </td>
-                        <td className="py-4 px-4 text-right">
+                        <td className="py-2.5 px-2 text-right text-xs whitespace-nowrap">
                           <span
-                            className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold ${
+                            className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[11px] font-bold ${
                               reportData.summary.total_growth_rate >= 0
                                 ? 'bg-emerald-100 text-emerald-800'
                                 : 'bg-rose-100 text-rose-800'
@@ -752,14 +796,14 @@ export const MultidimensionalSalesReportView: React.FC<MultidimensionalSalesRepo
 
                     {canViewProfit && (
                       <>
-                        <td className="py-4 px-4 text-right text-slate-600">
+                        <td className="py-2.5 px-2 text-right text-slate-600 text-xs whitespace-nowrap">
                           {formatVND(reportData.summary.total_cost)}
                         </td>
-                        <td className="py-4 px-4 text-right text-emerald-700 text-base">
+                        <td className="py-2.5 px-2 text-right text-emerald-700 text-xs whitespace-nowrap">
                           {formatVND(reportData.summary.total_gross_profit)}
                         </td>
-                        <td className="py-4 px-4 text-right">
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800">
+                        <td className="py-2.5 px-2 text-right text-xs whitespace-nowrap">
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800">
                             {(reportData.summary.average_gross_margin_pct || 0).toFixed(1)}%
                           </span>
                         </td>

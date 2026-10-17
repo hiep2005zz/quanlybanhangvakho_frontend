@@ -42,6 +42,57 @@ export const ExecutiveDashboardView: React.FC<ExecutiveDashboardViewProps> = ({
     loadData();
   }, [loadData]);
 
+  // Thiết lập cơ chế tự động đồng bộ theo thời gian thực (Real-time auto sync)
+  useEffect(() => {
+    // 1. Lắng nghe các sự kiện nghiệp vụ nội bộ ứng dụng
+    const handleSystemSync = () => {
+      loadData(false);
+    };
+
+    window.addEventListener('ORDERS_UPDATED', handleSystemSync);
+    window.addEventListener('INVENTORY_STOCK_UPDATED', handleSystemSync);
+    window.addEventListener('debt-reconciliation-updated', handleSystemSync);
+    window.addEventListener('DEALER_DATA_CHANGED', handleSystemSync);
+
+    // 2. Lắng nghe thay đổi giữa các tab/cửa sổ khác (cross-tab sync qua localStorage)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (
+        e.key === 'orders_last_updated' ||
+        e.key === 'inventory_last_updated' ||
+        e.key === 'debt_reconciliation_last_updated' ||
+        e.key === 'dealers_last_updated'
+      ) {
+        loadData(false);
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+
+    // 3. Tự động đồng bộ lại khi người dùng quay lại tab dashboard (focus / visibility)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        loadData(false);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // 4. Chu kỳ đồng bộ tự động mỗi 60 giây để đảm bảo số liệu kinh doanh luôn mới nhất
+    const intervalTimer = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        loadData(false);
+      }
+    }, 60000);
+
+    return () => {
+      window.removeEventListener('ORDERS_UPDATED', handleSystemSync);
+      window.removeEventListener('INVENTORY_STOCK_UPDATED', handleSystemSync);
+      window.removeEventListener('debt-reconciliation-updated', handleSystemSync);
+      window.removeEventListener('DEALER_DATA_CHANGED', handleSystemSync);
+      window.removeEventListener('storage', handleStorageChange);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      clearInterval(intervalTimer);
+    };
+  }, [loadData]);
+
   const formatVND = (amount: number) => {
     return new Intl.NumberFormat('vi-VN', {
       style: 'currency',
@@ -130,23 +181,29 @@ export const ExecutiveDashboardView: React.FC<ExecutiveDashboardViewProps> = ({
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-12 animate-in fade-in duration-200">
       {/* 1. Header & Actions */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-gray-200/80 shadow-xs">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-white px-5 py-3.5 rounded-xl border border-gray-200 shadow-xs">
         <div>
-          <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight">
+          <h1 className="text-xl font-extrabold text-gray-900 tracking-tight">
             Điều Hành Bán Hàng & Kho
           </h1>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
+          {/* Trạng thái đồng bộ tự động thời gian thực */}
+          <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-emerald-800 bg-emerald-50 rounded-lg border border-emerald-200/80 shadow-2xs">
+            <span className={`w-2 h-2 rounded-full ${isRefreshing ? 'bg-amber-500 animate-ping' : 'bg-emerald-500 animate-pulse'}`} />
+            <span>{isRefreshing ? 'Đang đồng bộ...' : `Tự động đồng bộ (${data?.updated_at || 'Mới nhất'})`}</span>
+          </div>
+
           <button
             type="button"
             onClick={() => loadData(true)}
             disabled={isRefreshing}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-800 transition-colors border border-gray-300/80 disabled:opacity-50"
-            title="Làm mới số liệu"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 transition-colors border border-gray-300/80 disabled:opacity-50 cursor-pointer"
+            title="Làm mới số liệu ngay lập tức"
           >
             <svg
-              className={`w-4 h-4 ${isRefreshing ? 'animate-spin text-emerald-600' : 'text-gray-600'}`}
+              className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-emerald-600' : 'text-gray-600'}`}
               fill="none"
               stroke="currentColor"
               strokeWidth="2"
@@ -159,31 +216,43 @@ export const ExecutiveDashboardView: React.FC<ExecutiveDashboardViewProps> = ({
         </div>
       </div>
 
-      {/* 2. 6 KPI Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+      {/* 2. 6 KPI Cards Grid (Gọn gàng & Tối ưu chiều cao) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
         {/* KPI 1: Doanh số hôm nay */}
-        <div className="bg-white p-5 rounded-2xl border border-gray-200/80 shadow-xs hover:shadow-md transition-shadow relative overflow-hidden flex flex-col justify-between">
+        <div
+          onClick={() => {
+            try {
+              sessionStorage.setItem('sales_report_preset', 'today');
+              sessionStorage.setItem('sales_report_dimension', 'salesperson');
+            } catch {}
+            onNavigateTab?.('sales-report');
+          }}
+          className="bg-white p-3.5 rounded-xl border border-gray-200 shadow-xs hover:shadow-sm transition-all relative overflow-hidden flex flex-col justify-between cursor-pointer group"
+          title="Nhấn để mở Báo cáo doanh số chi tiết ngày hôm nay"
+        >
           <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-400 to-teal-500"></div>
           <div>
-            <div className="flex items-center justify-between text-gray-500 mb-2">
-              <span className="text-xs font-semibold uppercase tracking-wider">Doanh số hôm nay</span>
-              <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+            <div className="flex items-center justify-between text-gray-500 mb-1">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500 truncate" title="Doanh số hôm nay">
+                Doanh số hôm nay
+              </span>
+              <div className="w-6 h-6 rounded-md bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
             </div>
-            <div className="text-xl font-black text-gray-900 tracking-tight">
+            <div className="text-lg font-black text-gray-900 tracking-tight leading-tight">
               {formatCompactVND(kpis?.revenue_today || 0)}
             </div>
-            <div className="text-xs text-gray-500 mt-0.5 truncate" title={formatVND(kpis?.revenue_today || 0)}>
+            <div className="text-[11px] text-gray-500 truncate" title={formatVND(kpis?.revenue_today || 0)}>
               {formatVND(kpis?.revenue_today || 0)}
             </div>
           </div>
-          <div className="mt-3 pt-2 border-t border-gray-100 flex items-center justify-between text-xs">
-            <span className="text-gray-500">So hôm qua:</span>
+          <div className="mt-2 pt-1.5 border-t border-gray-100 flex items-center justify-between text-[11px]">
+            <span className="text-gray-400">So hôm qua:</span>
             <span
-              className={`font-bold flex items-center gap-0.5 ${
+              className={`font-semibold flex items-center gap-0.5 ${
                 (kpis?.revenue_today_growth || 0) >= 0 ? 'text-emerald-600' : 'text-red-500'
               }`}
             >
@@ -194,28 +263,40 @@ export const ExecutiveDashboardView: React.FC<ExecutiveDashboardViewProps> = ({
         </div>
 
         {/* KPI 2: Doanh số tháng này */}
-        <div className="bg-white p-5 rounded-2xl border border-gray-200/80 shadow-xs hover:shadow-md transition-shadow relative overflow-hidden flex flex-col justify-between">
+        <div
+          onClick={() => {
+            try {
+              sessionStorage.setItem('sales_report_preset', 'this_month');
+              sessionStorage.setItem('sales_report_dimension', 'salesperson');
+            } catch {}
+            onNavigateTab?.('sales-report');
+          }}
+          className="bg-white p-3.5 rounded-xl border border-gray-200 shadow-xs hover:shadow-sm transition-all relative overflow-hidden flex flex-col justify-between cursor-pointer group"
+          title="Nhấn để mở Báo cáo doanh số đa chiều tháng này"
+        >
           <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 to-indigo-600"></div>
           <div>
-            <div className="flex items-center justify-between text-gray-500 mb-2">
-              <span className="text-xs font-semibold uppercase tracking-wider">Doanh số tháng này</span>
-              <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
-                <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+            <div className="flex items-center justify-between text-gray-500 mb-1">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500 truncate" title="Doanh số tháng này">
+                Doanh số tháng này
+              </span>
+              <div className="w-6 h-6 rounded-md bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
               </div>
             </div>
-            <div className="text-xl font-black text-blue-900 tracking-tight">
+            <div className="text-lg font-black text-blue-900 tracking-tight leading-tight">
               {formatCompactVND(kpis?.revenue_this_month || 0)}
             </div>
-            <div className="text-xs text-gray-500 mt-0.5 truncate" title={formatVND(kpis?.revenue_this_month || 0)}>
+            <div className="text-[11px] text-gray-500 truncate" title={formatVND(kpis?.revenue_this_month || 0)}>
               {formatVND(kpis?.revenue_this_month || 0)}
             </div>
           </div>
-          <div className="mt-3 pt-2 border-t border-gray-100 flex items-center justify-between text-xs">
-            <span className="text-gray-500">So tháng trước:</span>
+          <div className="mt-2 pt-1.5 border-t border-gray-100 flex items-center justify-between text-[11px]">
+            <span className="text-gray-400">So tháng trước:</span>
             <span
-              className={`font-bold flex items-center gap-0.5 ${
+              className={`font-semibold flex items-center gap-0.5 ${
                 (kpis?.revenue_this_month_growth || 0) >= 0 ? 'text-emerald-600' : 'text-red-500'
               }`}
             >
@@ -228,25 +309,27 @@ export const ExecutiveDashboardView: React.FC<ExecutiveDashboardViewProps> = ({
         {/* KPI 3: Đơn chờ duyệt */}
         <div
           onClick={() => onNavigateTab?.('orders')}
-          className="bg-white p-5 rounded-2xl border border-amber-200/90 shadow-xs hover:shadow-md transition-shadow relative overflow-hidden flex flex-col justify-between cursor-pointer group"
+          className="bg-white p-3.5 rounded-xl border border-amber-200/90 shadow-xs hover:shadow-sm transition-all relative overflow-hidden flex flex-col justify-between cursor-pointer group"
         >
           <div className="absolute top-0 left-0 right-0 h-1 bg-amber-500"></div>
           <div>
-            <div className="flex items-center justify-between text-gray-500 mb-2">
-              <span className="text-xs font-semibold uppercase tracking-wider text-amber-800">Đơn chờ duyệt</span>
-              <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
-                <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+            <div className="flex items-center justify-between text-gray-500 mb-1">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-amber-800 truncate" title="Đơn chờ duyệt">
+                Đơn chờ duyệt
+              </span>
+              <div className="w-6 h-6 rounded-md bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
+                <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
             </div>
-            <div className="text-2xl font-black text-amber-700 tracking-tight">
+            <div className="text-lg font-black text-amber-700 tracking-tight leading-tight">
               {kpis?.pending_approval_orders_count || 0}{' '}
               <span className="text-xs font-semibold text-amber-600">đơn</span>
             </div>
-            <div className="text-xs text-amber-800/80 mt-1">Cần Sales duyệt ngay</div>
+            <div className="text-[11px] text-amber-800/80 truncate">Cần Sales duyệt ngay</div>
           </div>
-          <div className="mt-3 pt-2 border-t border-amber-100 flex items-center justify-between text-xs text-amber-700 font-medium group-hover:underline">
+          <div className="mt-2 pt-1.5 border-t border-amber-100 flex items-center justify-between text-[11px] text-amber-700 font-medium group-hover:underline">
             <span>Xử lý đơn hàng</span>
             <span>&rarr;</span>
           </div>
@@ -255,25 +338,27 @@ export const ExecutiveDashboardView: React.FC<ExecutiveDashboardViewProps> = ({
         {/* KPI 4: Đơn chờ xuất */}
         <div
           onClick={() => onNavigateTab?.('orders')}
-          className="bg-white p-5 rounded-2xl border border-sky-200/90 shadow-xs hover:shadow-md transition-shadow relative overflow-hidden flex flex-col justify-between cursor-pointer group"
+          className="bg-white p-3.5 rounded-xl border border-sky-200/90 shadow-xs hover:shadow-sm transition-all relative overflow-hidden flex flex-col justify-between cursor-pointer group"
         >
           <div className="absolute top-0 left-0 right-0 h-1 bg-sky-500"></div>
           <div>
-            <div className="flex items-center justify-between text-gray-500 mb-2">
-              <span className="text-xs font-semibold uppercase tracking-wider text-sky-800">Đơn chờ xuất</span>
-              <div className="w-8 h-8 rounded-lg bg-sky-50 text-sky-600 flex items-center justify-center">
-                <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+            <div className="flex items-center justify-between text-gray-500 mb-1">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-sky-800 truncate" title="Đơn chờ xuất">
+                Đơn chờ xuất
+              </span>
+              <div className="w-6 h-6 rounded-md bg-sky-50 text-sky-600 flex items-center justify-center shrink-0">
+                <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
                 </svg>
               </div>
             </div>
-            <div className="text-2xl font-black text-sky-700 tracking-tight">
+            <div className="text-lg font-black text-sky-700 tracking-tight leading-tight">
               {kpis?.pending_export_orders_count || 0}{' '}
               <span className="text-xs font-semibold text-sky-600">đơn</span>
             </div>
-            <div className="text-xs text-sky-800/80 mt-1">Kho đang soạn hàng</div>
+            <div className="text-[11px] text-sky-800/80 truncate">Kho đang soạn hàng</div>
           </div>
-          <div className="mt-3 pt-2 border-t border-sky-100 flex items-center justify-between text-xs text-sky-700 font-medium group-hover:underline">
+          <div className="mt-2 pt-1.5 border-t border-sky-100 flex items-center justify-between text-[11px] text-sky-700 font-medium group-hover:underline">
             <span>Tiến độ giao hàng</span>
             <span>&rarr;</span>
           </div>
@@ -281,27 +366,29 @@ export const ExecutiveDashboardView: React.FC<ExecutiveDashboardViewProps> = ({
 
         {/* KPI 5: Công nợ quá hạn */}
         <div
-          onClick={() => onNavigateTab?.('debt-aging')}
-          className="bg-white p-5 rounded-2xl border border-red-200/90 shadow-xs hover:shadow-md transition-shadow relative overflow-hidden flex flex-col justify-between cursor-pointer group"
+          onClick={() => onNavigateTab?.('debt-ledger')}
+          className="bg-white p-3.5 rounded-xl border border-red-200/90 shadow-xs hover:shadow-sm transition-all relative overflow-hidden flex flex-col justify-between cursor-pointer group"
         >
           <div className="absolute top-0 left-0 right-0 h-1 bg-red-500"></div>
           <div>
-            <div className="flex items-center justify-between text-gray-500 mb-2">
-              <span className="text-xs font-semibold uppercase tracking-wider text-red-800">Công nợ quá hạn</span>
-              <div className="w-8 h-8 rounded-lg bg-red-50 text-red-600 flex items-center justify-center">
-                <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+            <div className="flex items-center justify-between text-gray-500 mb-1">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-red-800 truncate" title="Công nợ quá hạn">
+                Công nợ quá hạn
+              </span>
+              <div className="w-6 h-6 rounded-md bg-red-50 text-red-600 flex items-center justify-center shrink-0">
+                <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
               </div>
             </div>
-            <div className="text-xl font-black text-red-600 tracking-tight">
+            <div className="text-lg font-black text-red-600 tracking-tight leading-tight">
               {formatCompactVND(kpis?.total_overdue_debt || 0)}
             </div>
-            <div className="text-xs text-red-500 mt-0.5 truncate" title={formatVND(kpis?.total_overdue_debt || 0)}>
+            <div className="text-[11px] text-red-500 truncate" title={formatVND(kpis?.total_overdue_debt || 0)}>
               {formatVND(kpis?.total_overdue_debt || 0)}
             </div>
           </div>
-          <div className="mt-3 pt-2 border-t border-red-100 flex items-center justify-between text-xs text-red-700 font-medium group-hover:underline">
+          <div className="mt-2 pt-1.5 border-t border-red-100 flex items-center justify-between text-[11px] text-red-700 font-medium group-hover:underline">
             <span>Xem tuổi nợ</span>
             <span>&rarr;</span>
           </div>
@@ -310,25 +397,29 @@ export const ExecutiveDashboardView: React.FC<ExecutiveDashboardViewProps> = ({
         {/* KPI 6: SKU dưới tồn tối thiểu */}
         <div
           onClick={() => onNavigateTab?.('low-stock-alerts')}
-          className="bg-white p-5 rounded-2xl border border-purple-200/90 shadow-xs hover:shadow-md transition-shadow relative overflow-hidden flex flex-col justify-between cursor-pointer group"
+          className="bg-white p-3.5 rounded-xl border border-purple-200/90 shadow-xs hover:shadow-sm transition-all relative overflow-hidden flex flex-col justify-between cursor-pointer group"
         >
           <div className="absolute top-0 left-0 right-0 h-1 bg-purple-500"></div>
           <div>
-            <div className="flex items-center justify-between text-gray-500 mb-2">
-              <span className="text-xs font-semibold uppercase tracking-wider text-purple-800">SKU dưới tồn tối thiểu</span>
-              <div className="w-8 h-8 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center">
-                <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+            <div className="flex items-center justify-between text-gray-500 mb-1">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-purple-800 truncate" title="SKU dưới tồn tối thiểu">
+                SKU dưới tồn tối thiểu
+              </span>
+              <div className="w-6 h-6 rounded-md bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
+                <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                 </svg>
               </div>
             </div>
-            <div className="text-2xl font-black text-purple-700 tracking-tight">
-              {kpis?.low_stock_skus_count || 0}{' '}
+            <div className="text-lg font-black text-purple-700 tracking-tight leading-tight truncate" title={`${(kpis?.low_stock_skus_count || 0).toLocaleString('vi-VN')} SKU`}>
+              {(kpis?.low_stock_skus_count || 0) >= 1_000_000
+                ? ((kpis?.low_stock_skus_count || 0) / 1_000_000).toFixed(1) + ' tr'
+                : (kpis?.low_stock_skus_count || 0).toLocaleString('vi-VN')}{' '}
               <span className="text-xs font-semibold text-purple-600">SKU</span>
             </div>
-            <div className="text-xs text-purple-800/80 mt-1">Cần lên kế hoạch nhập</div>
+            <div className="text-[11px] text-purple-800/80 truncate">Cần lên kế hoạch nhập</div>
           </div>
-          <div className="mt-3 pt-2 border-t border-purple-100 flex items-center justify-between text-xs text-purple-700 font-medium group-hover:underline">
+          <div className="mt-2 pt-1.5 border-t border-purple-100 flex items-center justify-between text-[11px] text-purple-700 font-medium group-hover:underline">
             <span>Cảnh báo tồn kho</span>
             <span>&rarr;</span>
           </div>
@@ -515,9 +606,20 @@ export const ExecutiveDashboardView: React.FC<ExecutiveDashboardViewProps> = ({
                   text: 'text-slate-700',
                 };
                 return (
-                  <div key={item.region} className="group">
+                  <div
+                    key={item.region}
+                    onClick={() => {
+                      try {
+                        sessionStorage.setItem('sales_report_dimension', 'region');
+                        sessionStorage.setItem('sales_report_preset', 'this_month');
+                      } catch {}
+                      onNavigateTab?.('sales-report');
+                    }}
+                    className="group cursor-pointer hover:bg-slate-50 p-1.5 -mx-1.5 rounded-lg transition"
+                    title={`Xem phân tích chi tiết khu vực ${item.region} trong Báo cáo doanh số đa chiều`}
+                  >
                     <div className="flex items-center justify-between text-xs mb-1.5">
-                      <span className="font-semibold text-gray-800 flex items-center gap-1.5">
+                      <span className="font-semibold text-gray-800 flex items-center gap-1.5 group-hover:text-indigo-600 transition-colors">
                         <span className={`w-2.5 h-2.5 rounded-full ${color.bg}`} />
                         {item.region}
                       </span>
@@ -564,10 +666,10 @@ export const ExecutiveDashboardView: React.FC<ExecutiveDashboardViewProps> = ({
 
           <button
             type="button"
-            onClick={() => onNavigateTab?.('debt-aging')}
+            onClick={() => onNavigateTab?.('debt-ledger')}
             className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-xl transition-colors self-start sm:self-auto border border-blue-200"
           >
-            <span>Mở Báo cáo tuổi nợ chi tiết</span>
+            <span>Mở Sổ công nợ & Tuổi nợ chi tiết</span>
             <span>&rarr;</span>
           </button>
         </div>
@@ -602,8 +704,24 @@ export const ExecutiveDashboardView: React.FC<ExecutiveDashboardViewProps> = ({
                         {idx + 1}
                       </td>
                       <td className="px-5 py-4">
-                        <div className="font-bold text-gray-900">{dealer.dealer_name}</div>
-                        <div className="text-xs text-gray-400">{dealer.dealer_code}</div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            try {
+                              sessionStorage.setItem('selected_debt_dealer_code', dealer.dealer_code);
+                            } catch {}
+                            onNavigateTab?.('debt-ledger');
+                          }}
+                          className="text-left group/dealer"
+                          title={`Xem phân tích sổ nợ đại lý ${dealer.dealer_name}`}
+                        >
+                          <div className="font-bold text-gray-900 group-hover/dealer:text-blue-600 transition-colors">
+                            {dealer.dealer_name}
+                          </div>
+                          <div className="text-xs text-gray-400 font-mono group-hover/dealer:underline">
+                            {dealer.dealer_code}
+                          </div>
+                        </button>
                       </td>
                       <td className="px-5 py-4 font-mono text-xs text-gray-600">
                         {dealer.phone || '---'}
@@ -621,13 +739,34 @@ export const ExecutiveDashboardView: React.FC<ExecutiveDashboardViewProps> = ({
                         {formatVND(dealer.credit_limit)}
                       </td>
                       <td className="px-5 py-4 text-center">
-                        <button
-                          type="button"
-                          onClick={() => onNavigateTab?.('debt-aging')}
-                          className="px-3 py-1 text-xs font-semibold text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors border border-blue-200"
-                        >
-                          Xem chi tiết
-                        </button>
+                        <div className="flex items-center justify-center gap-1.5 whitespace-nowrap">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              try {
+                                sessionStorage.setItem('selected_debt_dealer_code', dealer.dealer_code);
+                              } catch {}
+                              onNavigateTab?.('debt-ledger');
+                            }}
+                            className="px-2.5 py-1 text-xs font-semibold text-blue-700 hover:text-blue-900 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors border border-blue-200"
+                            title={`Xem phân tích sổ nợ đại lý ${dealer.dealer_name}`}
+                          >
+                            Tuổi nợ
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              try {
+                                sessionStorage.setItem('selected_debt_dealer_code', dealer.dealer_code);
+                              } catch {}
+                              onNavigateTab?.('debt-reconciliation');
+                            }}
+                            className="px-2.5 py-1 text-xs font-semibold text-emerald-700 hover:text-emerald-900 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors border border-emerald-200"
+                            title={`Mở đối chiếu công nợ đại lý ${dealer.dealer_name}`}
+                          >
+                            Đối chiếu
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );

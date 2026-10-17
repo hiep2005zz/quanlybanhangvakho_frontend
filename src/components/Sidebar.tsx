@@ -38,7 +38,8 @@ export type TabType =
   | 'executive-dashboard'
   | 'delivery-tracking'
   | 'stock-adjustments'
-  | 'payment-collections';
+  | 'payment-collections'
+  | 'debt-reconciliation';
 
 export interface SidebarProps {
   activeTab?: TabType;
@@ -68,6 +69,7 @@ export interface SidebarProps {
   isWarehouseOrAdmin?: boolean;
   isAdmin?: boolean;
   canAccessPaymentCollections?: boolean;
+  canAccessDebtReconciliation?: boolean;
   onLogout?: () => void;
   isLoggingOut?: boolean;
   isMobileOpen?: boolean;
@@ -104,7 +106,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   canAccessStockAudit = false,
   canAccessStockTransfer = false,
   canAccessWarehouses = false,
-  canAccessDebtAging = false,
+  canAccessDebtAging: _canAccessDebtAging = false,
   canAccessSalesReport = false,
   canAccessSalesTargets = false,
   canAccessExecutiveDashboard = false,
@@ -113,6 +115,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isWarehouseOrAdmin = false,
   isAdmin: _isAdmin = false,
   canAccessPaymentCollections = false,
+  canAccessDebtReconciliation = false,
   onLogout,
   isLoggingOut = false,
 }) => {
@@ -514,7 +517,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       tab: 'debt-aging',
       path: '/debt-aging',
       label: 'Báo cáo tuổi nợ',
-      visible: !isCustomer && canAccessDebtAging,
+      visible: false,
       icon: (
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <circle cx="12" cy="12" r="10" />
@@ -532,6 +535,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
           <path d="M8 7h6M8 11h6" />
+        </svg>
+      ),
+    },
+    {
+      id: 'btn-sidebar-debt-reconciliation',
+      tab: 'debt-reconciliation',
+      path: '/debt-reconciliation',
+      label: 'Đối chiếu công nợ',
+      visible: !isCustomer && Boolean(canAccessDebtReconciliation),
+      icon: (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+          <polyline points="14 2 14 8 20 8" />
+          <line x1="16" y1="13" x2="8" y2="13" />
+          <line x1="16" y1="17" x2="8" y2="17" />
+          <polyline points="10 9 9 9 8 9" />
         </svg>
       ),
     },

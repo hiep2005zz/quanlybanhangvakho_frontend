@@ -24,7 +24,17 @@ export const DebtAgingReportView: React.FC<DebtAgingReportViewProps> = ({
   // Bộ lọc
   const [selectedSaleId, setSelectedSaleId] = useState<string>('all');
   const [selectedRiskLevel, setSelectedRiskLevel] = useState<string>('all');
-  const [searchTerm, setSearchTerm] = useState<string>('');
+  const [searchTerm, setSearchTerm] = useState<string>(() => {
+    try {
+      const saved = sessionStorage.getItem('selected_debt_dealer_code') || '';
+      if (saved) {
+        sessionStorage.removeItem('selected_debt_dealer_code');
+      }
+      return saved;
+    } catch {
+      return '';
+    }
+  });
   const [debouncedSearch, setDebouncedSearch] = useState<string>('');
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [isExporting, setIsExporting] = useState<boolean>(false);

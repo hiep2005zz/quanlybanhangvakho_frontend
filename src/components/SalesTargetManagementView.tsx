@@ -1,6 +1,7 @@
 // frontend/src/components/SalesTargetManagementView.tsx
 import React, { useState, useEffect, useMemo } from 'react';
 import { ModalPortal } from './ModalPortal';
+import { emitStatusToast } from './StatusToast';
 import {
   fetchSalesTargets,
   fetchMySalesProgress,
@@ -24,6 +25,7 @@ interface SalesTargetManagementViewProps {
     roles?: string[];
   };
   token: string;
+  onNavigateTab?: (tab: string) => void;
 }
 
 const formatCurrency = (val: number | null | undefined): string => {
@@ -35,43 +37,51 @@ const SELECTABLE_YEARS = [2025, 2026, 2027, 2028];
 const SELECTABLE_MONTHS = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12'];
 
 export const SalesTargetManagementView: React.FC<SalesTargetManagementViewProps> = ({
-  currentUser: _currentUser,
+  currentUser,
   token,
+  onNavigateTab,
 }) => {
+  // Kiểm tra vai trò Admin
+  const isAdmin = useMemo(() => {
+    if (!currentUser) {
+      try {
+        const storedRole = localStorage.getItem('user_role');
+        return storedRole === 'admin';
+      } catch {
+        return false;
+      }
+    }
+    if (currentUser.role === 'admin') return true;
+    if (currentUser.username === 'admin') return true;
+    if (Array.isArray(currentUser.roles) && currentUser.roles.includes('admin')) return true;
+    try {
+      const storedRole = localStorage.getItem('user_role');
+      if (storedRole === 'admin') return true;
+    } catch {}
+    return false;
+  }, [currentUser]);
+
   // State bộ lọc
   const [selectedMonth, setSelectedMonth] = useState<string>('2026-10');
   const [targetTypeFilter, setTargetTypeFilter] = useState<'all' | 'salesperson' | 'region'>('all');
-  const [searchTerm, setSearchTerm] = useState<string>('');
+  const [searchTerm, setSearchTerm] = useState<string>(() => {
+    try {
+      const saved = sessionStorage.getItem('selected_sales_target_employee') || '';
+      if (saved) {
+        sessionStorage.removeItem('selected_sales_target_employee');
+      }
+      return saved;
+    } catch {
+      return '';
+    }
+  });
+  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
 
   // Tách năm và tháng cho bộ lọc
   const [selectedYear, selectedMonthNum] = useMemo(() => {
     const parts = (selectedMonth || '2026-10').split('-');
     return [parts[0] || '2026', parts[1] || '10'];
   }, [selectedMonth]);
-
-  const handlePrevMonth = () => {
-    const [yStr, mStr] = selectedMonth.split('-');
-    let y = parseInt(yStr, 10);
-    let m = parseInt(mStr, 10);
-    m -= 1;
-    if (m < 1) {
-      m = 12;
-      y -= 1;
-    }
-    setSelectedMonth(`${y}-${m.toString().padStart(2, '0')}`);
-  };
-
-  const handleNextMonth = () => {
-    const [yStr, mStr] = selectedMonth.split('-');
-    let y = parseInt(yStr, 10);
-    let m = parseInt(mStr, 10);
-    m += 1;
-    if (m > 12) {
-      m = 1;
-      y += 1;
-    }
-    setSelectedMonth(`${y}-${m.toString().padStart(2, '0')}`);
-  };
 
 
   // Dữ liệu API
@@ -88,6 +98,8 @@ export const SalesTargetManagementView: React.FC<SalesTargetManagementViewProps>
   const [isCreateModalOpen, setIsCreateModalOpen] = useState<boolean>(false);
   const [editingTarget, setEditingTarget] = useState<SalesTargetItem | null>(null);
   const [viewingLogsTarget, setViewingLogsTarget] = useState<SalesTargetItem | null>(null);
+  const [targetToDelete, setTargetToDelete] = useState<SalesTargetItem | null>(null);
+  const [isDeleting, setIsDeleting] = useState<boolean>(false);
 
   // Form Create State
   const [createForm, setCreateForm] = useState<SalesTargetCreatePayload>({
@@ -114,10 +126,9 @@ export const SalesTargetManagementView: React.FC<SalesTargetManagementViewProps>
   ]);
   const [availableRegions, setAvailableRegions] = useState<string[]>([
     'Hà Nội',
+    'Hải Phòng',
     'TP. HCM',
-    'Miền Bắc',
-    'Miền Trung',
-    'Miền Nam',
+    'Đà Nẵng',
   ]);
 
   // Form Edit State
@@ -151,12 +162,16 @@ export const SalesTargetManagementView: React.FC<SalesTargetManagementViewProps>
         // Bỏ qua nếu lỗi metadata, dùng danh sách mặc định
       }
 
-      // Nếu là nhân viên sale hoặc muốn xem tiến độ cá nhân
-      try {
-        const myProg = await fetchMySalesProgress(token);
-        setMyProgress(myProg);
-      } catch {
-        // Bỏ qua nếu không lấy được
+      // Nếu là nhân viên sale hoặc muốn xem tiến độ cá nhân (bỏ qua nếu là vai trò Admin)
+      if (!isAdmin) {
+        try {
+          const myProg = await fetchMySalesProgress(token);
+          setMyProgress(myProg);
+        } catch {
+          // Bỏ qua nếu không lấy được
+        }
+      } else {
+        setMyProgress(null);
       }
     } catch (err: any) {
       setErrorMsg(err.message || 'Lỗi kết nối máy chủ khi tải chỉ tiêu');
@@ -168,6 +183,56 @@ export const SalesTargetManagementView: React.FC<SalesTargetManagementViewProps>
   // Chỉ gọi API khi đổi tháng hoặc phân loại (Không gọi API khi gõ ô tìm kiếm)
   useEffect(() => {
     loadData(items.length === 0);
+  }, [selectedMonth, targetTypeFilter, isAdmin]);
+
+  // Thiết lập cơ chế tự động đồng bộ theo thời gian thực (Real-time auto sync)
+  useEffect(() => {
+    // 1. Lắng nghe các sự kiện nghiệp vụ nội bộ ứng dụng
+    const handleSystemSync = () => {
+      loadData(false);
+    };
+
+    window.addEventListener('ORDERS_UPDATED', handleSystemSync);
+    window.addEventListener('DEALER_DATA_CHANGED', handleSystemSync);
+    window.addEventListener('USER_ACCOUNTS_CHANGED', handleSystemSync);
+    window.addEventListener('USER_ROLE_UPDATED', handleSystemSync);
+
+    // 2. Lắng nghe thay đổi giữa các tab/cửa sổ khác (cross-tab sync qua localStorage)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (
+        e.key === 'orders_last_updated' ||
+        e.key === 'dealers_last_updated' ||
+        e.key === 'auth_user'
+      ) {
+        loadData(false);
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+
+    // 3. Tự động đồng bộ lại khi người dùng quay lại tab (focus / visibility)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        loadData(false);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // 4. Chu kỳ đồng bộ tự động mỗi 60 giây khi đang xem màn hình
+    const intervalTimer = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        loadData(false);
+      }
+    }, 60000);
+
+    return () => {
+      window.removeEventListener('ORDERS_UPDATED', handleSystemSync);
+      window.removeEventListener('DEALER_DATA_CHANGED', handleSystemSync);
+      window.removeEventListener('USER_ACCOUNTS_CHANGED', handleSystemSync);
+      window.removeEventListener('USER_ROLE_UPDATED', handleSystemSync);
+      window.removeEventListener('storage', handleStorageChange);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      clearInterval(intervalTimer);
+    };
   }, [selectedMonth, targetTypeFilter]);
 
   // Tìm kiếm tức thì trong bộ nhớ (Zero latency, không giật nháy màn hình)
@@ -222,24 +287,41 @@ export const SalesTargetManagementView: React.FC<SalesTargetManagementViewProps>
     }
   };
 
-  // Xóa chỉ tiêu
-  const handleDelete = async (target: SalesTargetItem) => {
+  // Xóa chỉ tiêu - Mở modal xác nhận hệ thống
+  const handleDelete = (target: SalesTargetItem) => {
     if (target.is_locked) {
-      alert('Không thể xóa chỉ tiêu của kỳ đã bị khoá.');
+      emitStatusToast({
+        title: 'Chỉ tiêu đã khóa',
+        message: 'Không thể xóa chỉ tiêu của kỳ đã bị khoá.',
+        type: 'warning',
+      });
       return;
     }
-    const targetLabel = target.target_type === 'salesperson' ? target.employee_name : target.region;
-    if (!window.confirm(`Bạn có chắc chắn muốn xóa chỉ tiêu cho "${targetLabel}" tháng ${target.month_year}?`)) {
-      return;
-    }
+    setTargetToDelete(target);
+  };
 
+  // Xác nhận xóa thực tế từ modal hệ thống
+  const handleConfirmDelete = async () => {
+    if (!targetToDelete) return;
+    setIsDeleting(true);
+    const targetLabel = targetToDelete.target_type === 'salesperson' ? targetToDelete.employee_name : targetToDelete.region;
     try {
-      await deleteSalesTarget(token, target.id);
-      setSuccessMsg('Đã xóa chỉ tiêu thành công.');
+      await deleteSalesTarget(token, targetToDelete.id);
+      emitStatusToast({
+        title: 'Xóa chỉ tiêu',
+        message: `Đã xóa chỉ tiêu cho "${targetLabel}" thành công.`,
+        type: 'success',
+      });
+      setTargetToDelete(null);
       loadData();
-      setTimeout(() => setSuccessMsg(null), 3500);
     } catch (err: any) {
-      alert(err.message || 'Lỗi khi xóa chỉ tiêu.');
+      emitStatusToast({
+        title: 'Lỗi xóa chỉ tiêu',
+        message: err.message || 'Lỗi khi xóa chỉ tiêu.',
+        type: 'error',
+      });
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -248,12 +330,19 @@ export const SalesTargetManagementView: React.FC<SalesTargetManagementViewProps>
     e.preventDefault();
     try {
       await createSalesTarget(token, createForm);
-      setSuccessMsg('Đã thiết lập chỉ tiêu mới thành công.');
+      emitStatusToast({
+        title: 'Thiết lập chỉ tiêu thành công',
+        message: 'Đã thiết lập chỉ tiêu mới thành công.',
+        type: 'success',
+      });
       setIsCreateModalOpen(false);
       loadData();
-      setTimeout(() => setSuccessMsg(null), 3500);
     } catch (err: any) {
-      alert(err.message || 'Lỗi khi tạo chỉ tiêu mới.');
+      emitStatusToast({
+        title: 'Lỗi thiết lập chỉ tiêu',
+        message: err.message || 'Lỗi khi tạo chỉ tiêu mới.',
+        type: 'error',
+      });
     }
   };
 
@@ -266,80 +355,107 @@ export const SalesTargetManagementView: React.FC<SalesTargetManagementViewProps>
   };
 
   return (
-    <div className="w-full flex flex-col p-4 md:p-6 bg-gray-50 min-h-screen text-slate-800">
+    <div className="w-full flex flex-col -mt-3 sm:-mt-4 md:-mt-6 pt-2 md:pt-2.5 pb-6 bg-gray-50 min-h-screen text-slate-800">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
             Chỉ tiêu doanh số & Tiến độ kinh doanh
           </h1>
         </div>
 
-        {canManage && (
-          <div>
+        <div className="flex items-center gap-2.5">
+          <button
+            type="button"
+            onClick={async () => {
+              setIsRefreshing(true);
+              try {
+                await loadData(false);
+              } finally {
+                setIsRefreshing(false);
+              }
+            }}
+            disabled={isRefreshing || loading}
+            className="flex items-center gap-2 px-3 py-2 text-xs font-semibold rounded-lg bg-white hover:bg-slate-50 text-slate-700 transition-colors border border-slate-300 disabled:opacity-50 cursor-pointer shadow-sm"
+            title="Làm mới số liệu ngay lập tức"
+          >
+            <svg
+              className={`w-4 h-4 ${isRefreshing ? 'animate-spin text-emerald-600' : 'text-slate-500'}`}
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            <span>{isRefreshing ? 'Đang tải...' : 'Làm mới'}</span>
+          </button>
+
+          {canManage && (
             <button
               type="button"
-              onClick={() => setIsCreateModalOpen(true)}
-              className="inline-flex items-center px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-lg shadow-sm transition-colors"
+              onClick={() => {
+                setIsCreateModalOpen(true);
+              }}
+              className="inline-flex items-center px-4 py-2 text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-sm transition-colors cursor-pointer"
             >
-              Thiết lập chỉ tiêu mới
+              <span>Thiết lập chỉ tiêu mới</span>
             </button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {/* Thông báo Alert */}
       {successMsg && (
-        <div className="mb-4 p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-lg text-sm font-medium">
+        <div className="mb-4 p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-sm font-medium">
           {successMsg}
         </div>
       )}
       {errorMsg && (
-        <div className="mb-4 p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-lg text-sm font-medium">
+        <div className="mb-4 p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl text-sm font-medium">
           {errorMsg}
         </div>
       )}
 
-      {/* Card Tiến độ Cá nhân (Dành cho nhân viên kinh doanh) */}
-      {myProgress && (
-        <div className="mb-6 p-4 rounded-xl bg-white border border-slate-200 shadow-sm">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-3 border-b border-slate-100">
-            <div>
-              <span className="text-xs font-bold uppercase tracking-wider text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">
+      {/* Card Tiến độ Cá nhân (Dành cho nhân viên kinh doanh - ẩn đối với vai trò Admin) */}
+      {!isAdmin && myProgress && (
+        <div className="mb-5 p-4 rounded-xl bg-white border border-slate-200 shadow-sm">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <span className="text-xs font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-2.5 py-1 rounded-md">
                 Tiến độ của bạn
               </span>
-              <h2 className="text-lg font-bold text-slate-900 mt-1">
+              <span className="text-base font-bold text-slate-900">
                 {myProgress.employee_name} — Tháng {myProgress.month_year}
-              </h2>
+              </span>
+              <span className="text-xs text-slate-500 font-medium">
+                (Còn {myProgress.days_left} ngày)
+              </span>
             </div>
+
             <div className="flex items-center gap-4 text-sm">
               <div>
-                <span className="text-slate-400 block text-xs">Mục tiêu</span>
-                <span className="font-bold text-slate-800">{formatCurrency(myProgress.target_amount)}</span>
+                <span className="text-slate-400 mr-1.5 text-xs">Mục tiêu:</span>
+                <span className="font-bold text-slate-900">{formatCurrency(myProgress.target_amount)}</span>
               </div>
-              <div className="h-6 w-px bg-slate-200" />
+              <div className="h-4 w-px bg-slate-200" />
               <div>
-                <span className="text-slate-400 block text-xs">Đã đạt</span>
+                <span className="text-slate-400 mr-1.5 text-xs">Đã đạt:</span>
                 <span className="font-bold text-emerald-600">{formatCurrency(myProgress.actual_amount)}</span>
               </div>
-              <div className="h-6 w-px bg-slate-200" />
+              <div className="h-4 w-px bg-slate-200" />
               <div>
-                <span className="text-slate-400 block text-xs">Còn thiếu</span>
+                <span className="text-slate-400 mr-1.5 text-xs">Còn thiếu:</span>
                 <span className="font-bold text-rose-600">{formatCurrency(myProgress.remaining_amount)}</span>
               </div>
             </div>
           </div>
 
-          <div className="mt-4">
-            <div className="flex justify-between text-xs font-semibold text-slate-600 mb-1">
-              <span>Tỷ lệ hoàn thành: {myProgress.progress_pct}%</span>
-              {myProgress.projected_amount && (
-                <span className="text-slate-500">
-                  Dự báo cuối tháng: {formatCurrency(myProgress.projected_amount)}
-                </span>
-              )}
-            </div>
-            <div className="w-full bg-slate-100 rounded-full h-3.5 overflow-hidden">
+          <div className="flex items-center gap-3 mt-3 pt-3 border-t border-slate-100">
+            <span className="text-xs font-semibold text-slate-700 shrink-0">
+              Tỷ lệ hoàn thành: <strong className="text-emerald-700">{myProgress.progress_pct}%</strong>
+            </span>
+            <div className="flex-1 min-w-0 bg-slate-100 rounded-full h-2.5 overflow-hidden">
               <div
                 className="h-full rounded-full transition-all duration-500"
                 style={{
@@ -348,38 +464,40 @@ export const SalesTargetManagementView: React.FC<SalesTargetManagementViewProps>
                 }}
               />
             </div>
-            <p className="text-xs text-slate-500 mt-2">
-              Thời gian kỳ kinh doanh đang diễn ra. Bạn còn {myProgress.days_left} ngày để hoàn thành mục tiêu tháng!
-            </p>
+            {myProgress.projected_amount && (
+              <span className="text-xs text-slate-500 shrink-0">
+                Dự báo cuối tháng: <strong className="text-slate-800">{formatCurrency(myProgress.projected_amount)}</strong>
+              </span>
+            )}
           </div>
         </div>
       )}
 
-      {/* Summary KPI Cards (Dành cho Quản lý & Admin) */}
+      {/* Summary KPI Cards (Dành cho Quản lý & Admin) - Kích thước rộng rãi rõ ràng */}
       {summary && canManage && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-            <div className="text-xs font-medium text-slate-400">Tổng chỉ tiêu toàn đội</div>
-            <div className="text-xl font-bold text-slate-900 mt-1">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
+          <div className="bg-white p-4 sm:p-5 rounded-xl border border-slate-200 shadow-sm">
+            <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Tổng chỉ tiêu toàn đội</div>
+            <div className="text-2xl font-bold text-slate-900 mt-1">
               {formatCurrency(summary.total_target_amount)}
             </div>
             <div className="text-xs text-slate-500 mt-1">Kỳ tháng {summary.month_year}</div>
           </div>
 
-          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-            <div className="text-xs font-medium text-slate-400">Doanh số thực tế đạt</div>
-            <div className="text-xl font-bold text-emerald-600 mt-1">
+          <div className="bg-white p-4 sm:p-5 rounded-xl border border-slate-200 shadow-sm">
+            <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Doanh số thực tế đạt</div>
+            <div className="text-2xl font-bold text-emerald-600 mt-1">
               {formatCurrency(summary.total_actual_amount)}
             </div>
             <div className="text-xs text-slate-500 mt-1">Cập nhật theo đơn hàng</div>
           </div>
 
-          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-            <div className="text-xs font-medium text-slate-400">Tiến độ trung bình</div>
-            <div className="text-xl font-bold text-slate-900 mt-1">
+          <div className="bg-white p-4 sm:p-5 rounded-xl border border-slate-200 shadow-sm">
+            <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Tiến độ trung bình</div>
+            <div className="text-2xl font-bold text-slate-900 mt-1">
               {summary.average_progress_pct}%
             </div>
-            <div className="w-full bg-slate-100 rounded-full h-1.5 mt-2">
+            <div className="w-full bg-slate-100 rounded-full h-2 mt-2 overflow-hidden">
               <div
                 className="h-full rounded-full"
                 style={{
@@ -390,9 +508,9 @@ export const SalesTargetManagementView: React.FC<SalesTargetManagementViewProps>
             </div>
           </div>
 
-          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-            <div className="text-xs font-medium text-slate-400">Đạt mục tiêu (≥ 100%)</div>
-            <div className="text-xl font-bold text-slate-900 mt-1">
+          <div className="bg-white p-4 sm:p-5 rounded-xl border border-slate-200 shadow-sm">
+            <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Đạt mục tiêu (≥ 100%)</div>
+            <div className="text-2xl font-bold text-slate-900 mt-1">
               {summary.completed_count} / {summary.total_count}
             </div>
             <div className="text-xs text-slate-500 mt-1">Số nhân viên / khu vực về đích</div>
@@ -400,141 +518,131 @@ export const SalesTargetManagementView: React.FC<SalesTargetManagementViewProps>
         </div>
       )}
 
-      {/* Control Bar (Lọc tháng, loại chỉ tiêu, tìm kiếm) */}
-      <div
-        className="bg-white px-4 py-3 rounded-xl border border-slate-200 shadow-sm mb-6 flex items-center justify-between gap-4 overflow-x-auto"
-        style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', flexWrap: 'nowrap' }}
-      >
-        <form
-          onSubmit={(e) => e.preventDefault()}
-          className="flex items-center gap-3 shrink-0"
+      {/* Khối Bảng danh sách gộp chung thanh điều khiển */}
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden mb-6">
+        {/* Control Bar (Lọc tháng, loại chỉ tiêu, tìm kiếm) */}
+        <div
+          className="px-4 py-3 border-b border-slate-200 flex items-center justify-between gap-4 overflow-x-auto bg-white"
           style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', flexWrap: 'nowrap' }}
         >
-          {/* Chọn tháng & năm tối ưu gọn gàng */}
-          <div
-            className="flex items-center gap-1.5 shrink-0"
+          <form
+            onSubmit={(e) => e.preventDefault()}
+            className="flex items-center gap-3.5 shrink-0"
             style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', flexWrap: 'nowrap' }}
           >
-            <span className="text-xs font-semibold text-slate-600 whitespace-nowrap">Tháng:</span>
-
-            {/* Nút lùi 1 tháng */}
-            <button
-              type="button"
-              onClick={handlePrevMonth}
-              title="Kỳ tháng trước"
-              className="h-8 w-6 inline-flex items-center justify-center border border-slate-300 rounded-lg bg-white hover:bg-slate-50 text-slate-600 text-xs font-bold transition-colors cursor-pointer"
+            {/* Ô tìm kiếm tự động khi nhập - Đặt trước chữ Tháng */}
+            <div
+              className="relative flex items-center shrink-0"
+              style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', flexWrap: 'nowrap' }}
             >
-              ‹
-            </button>
+              <input
+                type="text"
+                placeholder="Tìm nhân viên, khu vực..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                style={{ paddingLeft: '34px' }}
+                className="h-8 pr-3 text-xs border border-slate-300 rounded-lg bg-white text-slate-800 w-60 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              />
+              <svg
+                className="w-4 h-4 text-slate-400 absolute left-2.5 pointer-events-none"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
 
-            {/* Chọn Tháng (chỉ 12 giá trị) */}
-            <select
-              value={selectedMonthNum}
-              onChange={(e) => setSelectedMonth(`${selectedYear}-${e.target.value}`)}
-              className="h-8 px-2 text-xs font-semibold border border-slate-300 rounded-lg bg-white text-slate-800 focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer"
-              title="Chọn tháng"
+            {/* Chọn tháng & năm */}
+            <div
+              className="flex items-center gap-1.5 shrink-0"
+              style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', flexWrap: 'nowrap' }}
             >
-              {SELECTABLE_MONTHS.map((m) => (
-                <option key={m} value={m}>
-                  {m}
-                </option>
-              ))}
-            </select>
+              <span className="text-xs font-semibold text-slate-600 whitespace-nowrap mr-0.5">Tháng:</span>
 
-            <span className="text-xs font-semibold text-slate-400">/</span>
+              {/* Chọn Tháng */}
+              <select
+                value={selectedMonthNum}
+                onChange={(e) => setSelectedMonth(`${selectedYear}-${e.target.value}`)}
+                className="h-8 px-2.5 text-xs font-semibold border border-slate-300 rounded-lg bg-white text-slate-800 focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer"
+                title="Chọn tháng"
+              >
+                {SELECTABLE_MONTHS.map((m) => (
+                  <option key={m} value={m}>
+                    {m}
+                  </option>
+                ))}
+              </select>
 
-            {/* Chọn Năm (chỉ các năm) */}
-            <select
-              value={selectedYear}
-              onChange={(e) => setSelectedMonth(`${e.target.value}-${selectedMonthNum}`)}
-              className="h-8 px-2 text-xs font-semibold border border-slate-300 rounded-lg bg-white text-slate-800 focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer"
-              title="Chọn năm"
+              <span className="text-xs font-semibold text-slate-400">/</span>
+
+              {/* Chọn Năm */}
+              <select
+                value={selectedYear}
+                onChange={(e) => setSelectedMonth(`${e.target.value}-${selectedMonthNum}`)}
+                className="h-8 px-2.5 text-xs font-semibold border border-slate-300 rounded-lg bg-white text-slate-800 focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer"
+                title="Chọn năm"
+              >
+                {SELECTABLE_YEARS.map((y) => (
+                  <option key={y} value={y.toString()}>
+                    {y}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Chọn loại chỉ tiêu */}
+            <div
+              className="flex items-center gap-2 shrink-0"
+              style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', flexWrap: 'nowrap' }}
             >
-              {SELECTABLE_YEARS.map((y) => (
-                <option key={y} value={y.toString()}>
-                  {y}
-                </option>
-              ))}
-            </select>
+              <span className="text-xs font-semibold text-slate-600 whitespace-nowrap">Phân loại:</span>
+              <select
+                value={targetTypeFilter}
+                onChange={(e) => setTargetTypeFilter(e.target.value as any)}
+                className="h-8 px-3 text-xs font-medium border border-slate-300 rounded-lg bg-white text-slate-800 focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer"
+              >
+                <option value="all">Tất cả đối tượng</option>
+                <option value="salesperson">Theo nhân viên</option>
+                <option value="region">Theo khu vực</option>
+              </select>
+            </div>
+          </form>
 
-            {/* Nút tiến 1 tháng */}
-            <button
-              type="button"
-              onClick={handleNextMonth}
-              title="Kỳ tháng kế tiếp"
-              className="h-8 w-6 inline-flex items-center justify-center border border-slate-300 rounded-lg bg-white hover:bg-slate-50 text-slate-600 text-xs font-bold transition-colors cursor-pointer"
-            >
-              ›
-            </button>
-          </div>
-
-          {/* Chọn loại chỉ tiêu */}
           <div
-            className="flex items-center gap-2 shrink-0"
-            style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', flexWrap: 'nowrap' }}
+            className="flex items-center gap-1.5 text-xs text-slate-500 whitespace-nowrap shrink-0"
+            style={{ whiteSpace: 'nowrap' }}
           >
-            <span className="text-xs font-semibold text-slate-600 whitespace-nowrap">Phân loại:</span>
-            <select
-              value={targetTypeFilter}
-              onChange={(e) => setTargetTypeFilter(e.target.value as any)}
-              className="h-8 px-2.5 text-xs font-medium border border-slate-300 rounded-lg bg-white text-slate-800 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-            >
-              <option value="all">Tất cả đối tượng</option>
-              <option value="salesperson">Theo nhân viên</option>
-              <option value="region">Theo khu vực</option>
-            </select>
+            <span>Kỳ tháng hiện tại: <strong className="text-slate-800">2026-10</strong></span>
           </div>
-
-          {/* Ô tìm kiếm tự động khi nhập */}
-          <div
-            className="flex items-center shrink-0"
-            style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', flexWrap: 'nowrap' }}
-          >
-            <input
-              type="text"
-              placeholder="Tìm nhân viên, khu vực..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="h-8 px-3 text-xs border border-slate-300 rounded-lg bg-white text-slate-800 w-56 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-            />
-          </div>
-        </form>
-
-        <div
-          className="flex items-center gap-1.5 text-xs text-slate-500 whitespace-nowrap shrink-0"
-          style={{ whiteSpace: 'nowrap' }}
-        >
-          <span>Kỳ tháng hiện tại: <strong>2026-10</strong></span>
         </div>
-      </div>
 
-      {/* Table danh sách chỉ tiêu */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        {/* Table danh sách chỉ tiêu */}
         <div className="w-full overflow-hidden">
-          <table className="w-full table-fixed text-left border-collapse text-xs">
+          <table className="w-full table-fixed text-left border-collapse">
             <thead>
-              <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-bold text-slate-600 uppercase tracking-wider">
-                <th className={`py-2.5 px-3 ${canManage ? 'w-[18%]' : 'w-[20%]'}`}>Đối tượng</th>
-                <th className={`py-2.5 px-1.5 text-center ${canManage ? 'w-[9%]' : 'w-[10%]'}`}>Phân loại</th>
-                <th className={`py-2.5 px-2 text-right ${canManage ? 'w-[11%]' : 'w-[12%]'}`}>Chỉ tiêu (VNĐ)</th>
-                <th className={`py-2.5 px-2 text-right ${canManage ? 'w-[11%]' : 'w-[12%]'}`}>Thực tế đạt</th>
-                <th className={`py-2.5 px-2 text-right ${canManage ? 'w-[10%]' : 'w-[11%]'}`}>Còn thiếu</th>
-                <th className={`py-2.5 px-2 ${canManage ? 'w-[14%]' : 'w-[15%]'}`}>Tiến độ</th>
-                <th className={`py-2.5 px-2 text-right ${canManage ? 'w-[11%]' : 'w-[12%]'}`}>Dự báo cuối</th>
-                <th className={`py-2.5 px-1.5 text-center ${canManage ? 'w-[8%]' : 'w-[8%]'}`}>Trạng thái</th>
-                {canManage && <th className="py-2.5 px-1.5 text-center w-[8%]">Thao tác</th>}
+              <tr className="bg-slate-50 border-b border-slate-200 text-xs font-bold text-slate-600 uppercase tracking-wider">
+                <th className={`py-3 px-3.5 ${canManage ? 'w-[18%]' : 'w-[20%]'}`}>Đối tượng</th>
+                <th className={`py-3 px-2 text-center ${canManage ? 'w-[9%]' : 'w-[10%]'}`}>Phân loại</th>
+                <th className={`py-3 px-3 text-right ${canManage ? 'w-[11%]' : 'w-[12%]'}`}>Chỉ tiêu (VNĐ)</th>
+                <th className={`py-3 px-3 text-right ${canManage ? 'w-[11%]' : 'w-[12%]'}`}>Thực tế đạt</th>
+                <th className={`py-3 px-3 text-right ${canManage ? 'w-[10%]' : 'w-[11%]'}`}>Còn thiếu</th>
+                <th className={`py-3 px-3 ${canManage ? 'w-[14%]' : 'w-[15%]'}`}>Tiến độ</th>
+                <th className={`py-3 px-3 text-right ${canManage ? 'w-[11%]' : 'w-[12%]'}`}>Dự báo cuối</th>
+                <th className={`py-3 px-2 text-center ${canManage ? 'w-[8%]' : 'w-[8%]'}`}>Trạng thái</th>
+                {canManage && <th className="py-3 px-2 text-center w-[8%]">Thao tác</th>}
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 text-xs">
+            <tbody className="divide-y divide-slate-100 text-sm">
               {loading && items.length === 0 ? (
                 <tr>
-                  <td colSpan={canManage ? 9 : 8} className="py-8 text-center text-slate-400">
+                  <td colSpan={canManage ? 9 : 8} className="py-8 text-center text-slate-400 text-sm">
                     Đang tải dữ liệu chỉ tiêu...
                   </td>
                 </tr>
               ) : filteredItems.length === 0 ? (
                 <tr>
-                  <td colSpan={canManage ? 9 : 8} className="py-8 text-center text-slate-400">
+                  <td colSpan={canManage ? 9 : 8} className="py-8 text-center text-slate-400 text-sm">
                     {searchTerm.trim()
                       ? `Không tìm thấy chỉ tiêu nào phù hợp với từ khóa "${searchTerm}".`
                       : 'Không có chỉ tiêu nào trong kỳ tháng đã chọn.'}
@@ -550,24 +658,63 @@ export const SalesTargetManagementView: React.FC<SalesTargetManagementViewProps>
                   return (
                     <tr key={item.id} className="hover:bg-slate-50 transition-colors">
                       {/* Đối tượng */}
-                      <td className="py-2.5 px-3">
-                        <div className="font-semibold text-slate-900 truncate" title={targetName}>
-                          {targetName}
+                      <td className="py-3 px-3.5">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              try {
+                                if (item.target_type === 'salesperson') {
+                                  sessionStorage.setItem('sales_report_search', item.employee_name || '');
+                                  sessionStorage.setItem('sales_report_dimension', 'salesperson');
+                                } else {
+                                  sessionStorage.setItem('sales_report_search', item.region || '');
+                                  sessionStorage.setItem('sales_report_dimension', 'region');
+                                }
+                                sessionStorage.setItem('sales_report_preset', 'this_month');
+                              } catch {}
+                              onNavigateTab?.('sales-report');
+                            }}
+                            className="font-semibold text-slate-900 hover:text-indigo-600 transition-colors text-left truncate cursor-pointer text-sm"
+                            title={`Nhấn để mở Báo cáo doanh số đa chiều cho ${targetName}`}
+                          >
+                            {targetName}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              try {
+                                if (item.target_type === 'salesperson') {
+                                  sessionStorage.setItem('sales_report_search', item.employee_name || '');
+                                  sessionStorage.setItem('sales_report_dimension', 'salesperson');
+                                } else {
+                                  sessionStorage.setItem('sales_report_search', item.region || '');
+                                  sessionStorage.setItem('sales_report_dimension', 'region');
+                                }
+                                sessionStorage.setItem('sales_report_preset', 'this_month');
+                              } catch {}
+                              onNavigateTab?.('sales-report');
+                            }}
+                            className="text-xs text-indigo-600 hover:text-indigo-800 hover:underline font-semibold shrink-0"
+                            title={`Xem chi tiết doanh số trong Báo cáo đa chiều`}
+                          >
+                            [Doanh số]
+                          </button>
                         </div>
                         {item.note && (
-                          <div className="text-[11px] text-slate-400 font-normal truncate" title={item.note}>
+                          <div className="text-xs text-slate-400 font-normal truncate mt-0.5" title={item.note}>
                             {item.note}
                           </div>
                         )}
                       </td>
 
                       {/* Phân loại */}
-                      <td className="py-2.5 px-1.5 text-center">
+                      <td className="py-3 px-2 text-center">
                         <span
-                          className={`inline-block px-1.5 py-0.5 text-[11px] font-semibold rounded whitespace-nowrap ${
+                          className={`inline-block px-2.5 py-1 text-xs font-semibold rounded-md whitespace-nowrap ${
                             item.target_type === 'salesperson'
-                              ? 'bg-blue-50 text-blue-700'
-                              : 'bg-purple-50 text-purple-700'
+                              ? 'bg-blue-50 text-blue-700 border border-blue-100'
+                              : 'bg-purple-50 text-purple-700 border border-purple-100'
                           }`}
                         >
                           {item.target_type === 'salesperson' ? 'Nhân viên' : 'Khu vực'}
@@ -575,27 +722,27 @@ export const SalesTargetManagementView: React.FC<SalesTargetManagementViewProps>
                       </td>
 
                       {/* Chỉ tiêu */}
-                      <td className="py-2.5 px-2 text-right font-semibold text-slate-800 whitespace-nowrap">
+                      <td className="py-3 px-3 text-right font-semibold text-slate-800 whitespace-nowrap text-sm">
                         {formatCurrency(item.target_amount)}
                       </td>
 
                       {/* Thực tế đạt */}
-                      <td className="py-2.5 px-2 text-right font-semibold text-emerald-600 whitespace-nowrap">
+                      <td className="py-3 px-3 text-right font-bold text-emerald-600 whitespace-nowrap text-sm">
                         {formatCurrency(item.actual_amount)}
                       </td>
 
                       {/* Còn thiếu */}
-                      <td className="py-2.5 px-2 text-right font-medium text-rose-600 whitespace-nowrap">
+                      <td className="py-3 px-3 text-right font-semibold text-rose-600 whitespace-nowrap text-sm">
                         {formatCurrency(item.remaining_amount)}
                       </td>
 
                       {/* Tiến độ */}
-                      <td className="py-2.5 px-2">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-[11px] font-bold w-11 text-slate-700 shrink-0">
+                      <td className="py-3 px-3">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold w-12 text-slate-700 shrink-0">
                             {item.progress_pct}%
                           </span>
-                          <div className="flex-1 min-w-0 bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                          <div className="flex-1 min-w-0 bg-slate-100 rounded-full h-2 overflow-hidden">
                             <div
                               className="h-full rounded-full"
                               style={{
@@ -608,14 +755,14 @@ export const SalesTargetManagementView: React.FC<SalesTargetManagementViewProps>
                       </td>
 
                       {/* Dự báo cuối tháng */}
-                      <td className="py-2.5 px-2 text-right text-xs font-medium text-slate-600 whitespace-nowrap">
+                      <td className="py-3 px-3 text-right text-sm font-medium text-slate-700 whitespace-nowrap">
                         {item.projected_amount ? formatCurrency(item.projected_amount) : '—'}
                       </td>
 
                       {/* Trạng thái */}
-                      <td className="py-2.5 px-1.5 text-center">
+                      <td className="py-3 px-2 text-center">
                         <span
-                          className={`inline-block px-2 py-0.5 text-[11px] font-bold rounded-full whitespace-nowrap ${
+                          className={`inline-block px-2.5 py-1 text-xs font-semibold rounded-full whitespace-nowrap ${
                             item.is_locked
                               ? 'bg-slate-100 text-slate-600 border border-slate-200'
                               : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
@@ -627,12 +774,12 @@ export const SalesTargetManagementView: React.FC<SalesTargetManagementViewProps>
 
                       {/* Thao tác */}
                       {canManage && (
-                        <td className="py-2.5 px-1.5 text-center whitespace-nowrap">
-                          <div className="inline-flex items-center justify-center gap-2">
+                        <td className="py-3 px-2 text-center whitespace-nowrap">
+                          <div className="inline-flex items-center justify-center gap-2.5">
                             <button
                               type="button"
                               onClick={() => handleOpenEdit(item)}
-                              className="text-xs font-semibold text-blue-600 hover:text-blue-800 transition-colors"
+                              className="text-xs font-semibold text-blue-600 hover:text-blue-800 transition-colors cursor-pointer"
                             >
                               Sửa
                             </button>
@@ -641,7 +788,7 @@ export const SalesTargetManagementView: React.FC<SalesTargetManagementViewProps>
                               <button
                                 type="button"
                                 onClick={() => handleDelete(item)}
-                                className="text-xs font-semibold text-rose-600 hover:text-rose-800 transition-colors"
+                                className="text-xs font-semibold text-rose-600 hover:text-rose-800 transition-colors cursor-pointer"
                               >
                                 Xóa
                               </button>
@@ -651,7 +798,7 @@ export const SalesTargetManagementView: React.FC<SalesTargetManagementViewProps>
                               <button
                                 type="button"
                                 onClick={() => setViewingLogsTarget(item)}
-                                className="text-[11px] font-semibold text-slate-500 hover:text-slate-700 transition-colors"
+                                className="text-xs font-semibold text-slate-500 hover:text-slate-700 transition-colors cursor-pointer"
                                 title="Xem nhật ký điều chỉnh"
                               >
                                 Log ({item.audit_logs.length})
@@ -725,24 +872,21 @@ export const SalesTargetManagementView: React.FC<SalesTargetManagementViewProps>
                   <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
                     Tên khu vực (Đồng bộ từ danh bạ đại lý)
                   </label>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      list="sales-target-regions-list"
-                      required
-                      value={createForm.region || ''}
-                      onChange={(e) => setCreateForm({ ...createForm, region: e.target.value })}
-                      placeholder="Chọn hoặc nhập khu vực (Hà Nội, TP. HCM...)"
-                      className="w-full h-9 px-3 text-sm border border-slate-300 rounded-lg"
-                    />
-                    <datalist id="sales-target-regions-list">
-                      {availableRegions.map((r) => (
-                        <option key={r} value={r} />
-                      ))}
-                    </datalist>
-                  </div>
+                  <select
+                    value={createForm.region || (availableRegions[0] ?? 'Hà Nội')}
+                    onChange={(e) => {
+                      setCreateForm({ ...createForm, region: e.target.value });
+                    }}
+                    className="w-full h-9 px-3 text-sm border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer"
+                  >
+                    {availableRegions.map((r) => (
+                      <option key={r} value={r}>
+                        {r}
+                      </option>
+                    ))}
+                  </select>
                   <p className="text-[11px] text-slate-400 mt-1">
-                    Khu vực có sẵn: {availableRegions.join(', ')}
+                    Khu vực có sẵn trong hệ thống: {availableRegions.join(', ')}
                   </p>
                 </div>
               )}
@@ -1020,6 +1164,62 @@ export const SalesTargetManagementView: React.FC<SalesTargetManagementViewProps>
           </div>
         </div>
       </ModalPortal>
+      )}
+
+      {/* Modal Xác Nhận Xóa Chỉ Tiêu (Hộp thoại hệ thống) */}
+      {targetToDelete && (
+        <ModalPortal>
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-md p-4 animate-fadeIn">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-scaleUp">
+              <div className="p-6">
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 rounded-full bg-rose-100 flex items-center justify-center shrink-0 text-rose-600">
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-base font-bold text-slate-900">
+                      Xác nhận xóa chỉ tiêu
+                    </h3>
+                    <p className="text-sm text-slate-600 mt-2 leading-relaxed">
+                      Bạn có chắc chắn muốn xóa chỉ tiêu của{' '}
+                      <strong className="text-slate-900 font-semibold">
+                        {targetToDelete.target_type === 'salesperson'
+                          ? targetToDelete.employee_name
+                          : targetToDelete.region}
+                      </strong>{' '}
+                      (Kỳ tháng <strong className="text-slate-900 font-semibold">{targetToDelete.month_year}</strong>, mức chỉ tiêu{' '}
+                      <strong className="text-emerald-700 font-semibold">{formatCurrency(targetToDelete.target_amount)}</strong>)?
+                    </p>
+                    <p className="text-xs text-rose-500 mt-2 font-medium">
+                      Hành động này sẽ xóa dữ liệu chỉ tiêu khỏi hệ thống và không thể hoàn tác.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-6 flex justify-end gap-3">
+                  <button
+                    type="button"
+                    disabled={isDeleting}
+                    onClick={() => setTargetToDelete(null)}
+                    className="px-4 py-2 text-sm font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors cursor-pointer"
+                  >
+                    Hủy bỏ
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isDeleting}
+                    onClick={handleConfirmDelete}
+                    className="px-4 py-2 text-sm font-semibold text-white bg-rose-600 hover:bg-rose-700 rounded-lg shadow-sm transition-colors cursor-pointer inline-flex items-center gap-1.5"
+                  >
+                    {isDeleting ? 'Đang xóa...' : 'Xác nhận xóa'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </ModalPortal>
       )}
     </div>
   );
