@@ -5,6 +5,7 @@ import {
   StockCardResponse,
   StockCardFilterParams,
   StockCardVoucherInfo,
+  StockCardEntry,
   ProductItem,
 } from '../services/api';
 
@@ -35,7 +36,12 @@ export const StockCardView: React.FC<StockCardViewProps> = ({
   const [selectedWarehouse, setSelectedWarehouse] = useState<string>('all');
   const [fromDate, setFromDate] = useState<string>('');
   const [toDate, setToDate] = useState<string>('');
-  const [activeVoucher, setActiveVoucher] = useState<{ code: string; type: string; url?: string | null } | null>(null);
+  const [activeVoucher, setActiveVoucher] = useState<{
+    code: string;
+    type: string;
+    url?: string | null;
+    entry?: StockCardEntry | null;
+  } | null>(null);
 
   // Phân trang 20 dòng / sản phẩm mỗi trang theo đúng yêu cầu
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -208,7 +214,7 @@ export const StockCardView: React.FC<StockCardViewProps> = ({
   };
 
   // Xử lý mở thông tin chứng từ gốc (Tiêu chí 2)
-  const handleVoucherClick = (voucherInfo?: StockCardVoucherInfo | null, refCode?: string) => {
+  const handleVoucherClick = (voucherInfo?: StockCardVoucherInfo | null, refCode?: string, entry?: StockCardEntry) => {
     const code = voucherInfo?.voucher_code || refCode || '';
     const vType = voucherInfo?.voucher_type || 'other';
 
@@ -216,6 +222,7 @@ export const StockCardView: React.FC<StockCardViewProps> = ({
       code,
       type: vType,
       url: voucherInfo?.url,
+      entry: entry || null,
     });
   };
 
@@ -803,7 +810,7 @@ export const StockCardView: React.FC<StockCardViewProps> = ({
                           <td style={{ padding: '7px 10px' }}>
                             <button
                               type="button"
-                              onClick={() => handleVoucherClick(entry.voucher_info, entry.reference_code)}
+                              onClick={() => handleVoucherClick(entry.voucher_info, entry.reference_code, entry)}
                               title={`Bấm để truy nguyên chứng từ gốc ${entry.reference_code}`}
                               style={{
                                 padding: '2px 8px',
@@ -1108,27 +1115,110 @@ export const StockCardView: React.FC<StockCardViewProps> = ({
               </button>
             </div>
 
-            <div style={{ backgroundColor: '#f8fafc', padding: '14px 16px', borderRadius: '8px', marginBottom: '18px' }}>
-              <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '2px' }}>Số hiệu chứng từ</div>
-              <div style={{ fontSize: '17px', fontWeight: '800', color: '#0284c7' }}>
-                {activeVoucher.code}
-              </div>
-              <div style={{ fontSize: '13px', color: '#475569', marginTop: '8px' }}>
-                Loại chứng từ:{' '}
-                <strong>
+            <div style={{ backgroundColor: '#f8fafc', padding: '14px 16px', borderRadius: '8px', marginBottom: '18px', border: '1px solid #e2e8f0' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                <div>
+                  <div style={{ fontSize: '11px', textTransform: 'uppercase', color: '#64748b', fontWeight: '700', letterSpacing: '0.5px' }}>
+                    Số hiệu chứng từ gốc
+                  </div>
+                  <div style={{ fontSize: '18px', fontWeight: '800', color: '#0284c7' }}>
+                    {activeVoucher.code}
+                  </div>
+                </div>
+                <span
+                  style={{
+                    padding: '4px 10px',
+                    borderRadius: '9999px',
+                    fontSize: '12px',
+                    fontWeight: '700',
+                    backgroundColor: activeVoucher.code.startsWith('PKK-') ? '#f3e8ff' : '#e0f2fe',
+                    color: activeVoucher.code.startsWith('PKK-') ? '#7e22ce' : '#0369a1',
+                    border: activeVoucher.code.startsWith('PKK-') ? '1px solid #d8b4fe' : '1px solid #bae6fd',
+                  }}
+                >
                   {activeVoucher.code.startsWith('GRN-') || activeVoucher.code.startsWith('PNK-')
-                    ? 'Phiếu nhập kho nhà cung cấp'
+                    ? 'Phiếu nhập kho'
                     : activeVoucher.code.startsWith('ORD') || activeVoucher.code.startsWith('DH')
-                    ? 'Đơn hàng bán xuất kho'
+                    ? 'Đơn xuất bán'
                     : activeVoucher.code.startsWith('CK-')
-                    ? 'Phiếu xuất / nhập chuyển kho nội bộ'
+                    ? 'Phiếu chuyển kho'
                     : activeVoucher.code.startsWith('PKK-')
-                    ? 'Phiếu kiểm kê điều chỉnh cân đối tồn'
+                    ? 'Phiếu kiểm kê điều chỉnh tồn'
                     : activeVoucher.code.startsWith('DK-')
-                    ? 'Số dư ban đầu khi thiết lập kho'
-                    : 'Phiếu điều chỉnh kho'}
-                </strong>
+                    ? 'Số dư ban đầu'
+                    : 'Phiếu điều chỉnh'}
+                </span>
               </div>
+
+              {activeVoucher.entry && (
+                <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px dashed #cbd5e1', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {/* Biến động tồn kho của phiếu */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#ffffff', padding: '8px 12px', borderRadius: '6px', border: '1px solid #f1f5f9' }}>
+                    <span style={{ fontSize: '13px', color: '#475569' }}>Biến động tồn kho do phiếu này:</span>
+                    <span
+                      style={{
+                        fontSize: '14px',
+                        fontWeight: '800',
+                        color:
+                          activeVoucher.entry.quantity > 0 || activeVoucher.entry.receipt_quantity > 0
+                            ? '#16a34a'
+                            : activeVoucher.entry.quantity < 0 || activeVoucher.entry.issue_quantity > 0
+                            ? '#dc2626'
+                            : '#475569',
+                      }}
+                    >
+                      {activeVoucher.entry.quantity > 0
+                        ? `+${activeVoucher.entry.quantity.toLocaleString('vi-VN')}`
+                        : activeVoucher.entry.quantity < 0
+                        ? `${activeVoucher.entry.quantity.toLocaleString('vi-VN')}`
+                        : activeVoucher.entry.receipt_quantity > 0
+                        ? `+${activeVoucher.entry.receipt_quantity.toLocaleString('vi-VN')}`
+                        : activeVoucher.entry.issue_quantity > 0
+                        ? `-${activeVoucher.entry.issue_quantity.toLocaleString('vi-VN')}`
+                        : '0'}{' '}
+                      {displayUnit}
+                    </span>
+                  </div>
+
+                  {/* Tồn trước và tồn sau phát sinh */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                    <div style={{ backgroundColor: '#ffffff', padding: '6px 10px', borderRadius: '6px', border: '1px solid #f1f5f9' }}>
+                      <div style={{ fontSize: '11px', color: '#64748b' }}>Tồn trước phát sinh</div>
+                      <div style={{ fontSize: '13px', fontWeight: '700', color: '#334155' }}>
+                        {activeVoucher.entry.previous_stock?.toLocaleString('vi-VN')} {displayUnit}
+                      </div>
+                    </div>
+                    <div style={{ backgroundColor: '#ffffff', padding: '6px 10px', borderRadius: '6px', border: '1px solid #f1f5f9' }}>
+                      <div style={{ fontSize: '11px', color: '#64748b' }}>Tồn sau phát sinh</div>
+                      <div style={{ fontSize: '13px', fontWeight: '800', color: '#0284c7' }}>
+                        {activeVoucher.entry.balance_stock?.toLocaleString('vi-VN')} {displayUnit}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Kho và người thực hiện */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                    <div style={{ fontSize: '12px', color: '#64748b' }}>
+                      Kho: <strong style={{ color: '#334155' }}>{activeVoucher.entry.warehouse_name || 'N/A'}</strong>
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#64748b' }}>
+                      Thực hiện: <strong style={{ color: '#334155' }}>{activeVoucher.entry.performed_by || 'Hệ thống'}</strong>
+                    </div>
+                  </div>
+
+                  {/* Diễn giải / Lý do sai lệch */}
+                  {activeVoucher.entry.note && (
+                    <div style={{ backgroundColor: '#fffbeb', border: '1px solid #fef3c7', padding: '8px 10px', borderRadius: '6px', marginTop: '2px' }}>
+                      <div style={{ fontSize: '11px', fontWeight: '700', color: '#b45309', marginBottom: '2px' }}>
+                        Lý do / Diễn giải sai lệch:
+                      </div>
+                      <div style={{ fontSize: '12.5px', color: '#92400e' }}>
+                        {activeVoucher.entry.note}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>

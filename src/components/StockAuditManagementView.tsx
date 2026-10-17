@@ -20,9 +20,10 @@ import { ModalPortal } from './ModalPortal';
 interface StockAuditManagementViewProps {
   token: string;
   currentUser?: User | null;
+  initialSearchCode?: string;
 }
 
-export function StockAuditManagementView({ token, currentUser }: StockAuditManagementViewProps) {
+export function StockAuditManagementView({ token, currentUser, initialSearchCode }: StockAuditManagementViewProps) {
   // Xác định vai trò
   const userRoles = useMemo(() => {
     if (currentUser?.roles && currentUser.roles.length > 0) {
@@ -52,10 +53,18 @@ export function StockAuditManagementView({ token, currentUser }: StockAuditManag
   const [totalCount, setTotalCount] = useState(0);
 
   // Bộ lọc
-  const [searchCode, setSearchCode] = useState('');
+  const [searchCode, setSearchCode] = useState(initialSearchCode || '');
   const [filterWarehouse, setFilterWarehouse] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [filterScope, setFilterScope] = useState('');
+
+  // Tự động đồng bộ khi initialSearchCode được truyền vào (từ Thẻ kho)
+  useEffect(() => {
+    if (initialSearchCode !== undefined && initialSearchCode !== '') {
+      setSearchCode(initialSearchCode);
+      setPage(1);
+    }
+  }, [initialSearchCode]);
 
   // Danh mục kho & nhóm hàng
   const [warehouses, setWarehouses] = useState<{ id: string; name: string }[]>([]);

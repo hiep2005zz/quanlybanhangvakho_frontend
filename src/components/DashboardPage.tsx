@@ -1163,6 +1163,7 @@ export default function DashboardPage({
   const [goodsReceiptInitialTab] = useState<'form' | 'list'>('form');
   const [selectedProductForStockCard, setSelectedProductForStockCard] = useState<{ id: number; name: string; code: string } | null>(null);
   const [stockCardReturnTab, setStockCardReturnTab] = useState<TabType>('stock-book');
+  const [stockAuditSearchCode, setStockAuditSearchCode] = useState<string>('');
   const [isSalesOrderEntryOpen, setIsSalesOrderEntryOpen] = useState(false);
   const [cloneOrderData, setCloneOrderData] = useState<any>(() => {
     try {
@@ -2081,7 +2082,10 @@ export default function DashboardPage({
                 setActiveTab(stockCardReturnTab || 'stock-book');
                 setSelectedProductForStockCard(null);
               }}
-              onNavigateToTab={(tab) => {
+              onNavigateToTab={(tab, queryParam) => {
+                if (tab === 'stock-audits' && queryParam) {
+                  setStockAuditSearchCode(queryParam);
+                }
                 setActiveTab(tab as TabType);
                 setSelectedProductForStockCard(null);
               }}
@@ -2146,6 +2150,7 @@ export default function DashboardPage({
             <StockAuditManagementView
               token={token}
               currentUser={user}
+              initialSearchCode={stockAuditSearchCode}
             />
           ) : (
             <AccessDeniedView
