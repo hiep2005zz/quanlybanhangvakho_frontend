@@ -313,6 +313,16 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
   const [tripToDeleteId, setTripToDeleteId] = useState<number | null>(null);
   const [isDeletingTrip, setIsDeletingTrip] = useState(false);
 
+  // Kích hoạt class cho body khi mở chế độ in phiếu để tránh trang trắng
+  useEffect(() => {
+    if (viewMode === 'print') {
+      document.body.classList.add('has-trip-print');
+      return () => {
+        document.body.classList.remove('has-trip-print');
+      };
+    }
+  }, [viewMode]);
+
   // 1. Tải danh sách chuyến giao hàng
   const loadTrips = useCallback(async () => {
     setIsLoading(true);
@@ -736,7 +746,7 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
   // =========================================================================
   if (viewMode === 'print' && selectedTrip) {
     return (
-      <div style={{ background: '#525659', minHeight: '100vh', padding: '24px 0' }}>
+      <div className="trip-print-wrap" style={{ background: '#525659', minHeight: '100vh', padding: '24px 0' }}>
         {/* Thanh công cụ khi xem trước in */}
         <div
           className="no-print"
@@ -909,16 +919,73 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
           </div>
         </div>
 
-        {/* Global style cho Print ẩn navigation */}
+        {/* Global style cho Print ẩn navigation & loại bỏ triệt để lỗi trang in trắng */}
         <style>{`
           @media print {
-            body { background: #ffffff !important; }
-            .no-print { display: none !important; }
+            @page {
+              size: A4 portrait;
+              margin: 8mm 10mm;
+            }
+
+            html, body {
+              margin: 0 !important;
+              padding: 0 !important;
+              background: #ffffff !important;
+              color: #000000 !important;
+              height: auto !important;
+              min-height: auto !important;
+              overflow: visible !important;
+            }
+
+            /* Ẩn hoàn toàn header, sidebar, footer của ứng dụng web */
+            header, aside, nav, .no-print, [class*="Sidebar"], [class*="DashboardHeader"], [class*="navbar"] {
+              display: none !important;
+              visibility: hidden !important;
+              height: 0 !important;
+            }
+
+            /* Phá bỏ ràng buộc height: 100vh và overflow: hidden của Dashboard layout để Chromium render đủ trang */
+            body.has-trip-print,
+            body.has-trip-print #root,
+            body.has-trip-print #root > div,
+            body.has-trip-print main,
+            body.has-trip-print .trip-print-wrap,
+            div[class*="overflow-hidden"],
+            div[class*="overflow-y-auto"],
+            div[class*="h-screen"],
+            div[class*="min-h-0"] {
+              height: auto !important;
+              min-height: auto !important;
+              max-height: none !important;
+              overflow: visible !important;
+              display: block !important;
+              margin: 0 !important;
+              padding: 0 !important;
+              background: #ffffff !important;
+              border: none !important;
+              box-shadow: none !important;
+              position: static !important;
+            }
+
             #print-sheet {
               box-shadow: none !important;
+              border: none !important;
               padding: 0 !important;
+              margin: 0 auto !important;
               max-width: 100% !important;
               width: 100% !important;
+              background: #ffffff !important;
+              color: #000000 !important;
+              display: block !important;
+            }
+
+            table {
+              page-break-inside: auto;
+              width: 100% !important;
+            }
+            tr {
+              page-break-inside: avoid;
+              page-break-after: auto;
             }
           }
         `}</style>
