@@ -1266,17 +1266,24 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({
                     >
                       {/* Hộp tìm kiếm đại lý phía trên (Chuẩn Ảnh 2) */}
                       <div className="p-2.5 bg-slate-50 border-b border-slate-200 shrink-0">
-                        <div className="relative flex items-center w-full">
+                        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', width: '100%' }}>
                           <svg
-                            width="14"
-                            height="14"
+                            width="16"
+                            height="16"
                             viewBox="0 0 24 24"
                             fill="none"
-                            stroke="#94a3b8"
+                            stroke="#64748b"
                             strokeWidth="2.5"
                             strokeLinecap="round"
                             strokeLinejoin="round"
-                            className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
+                            style={{
+                              position: 'absolute',
+                              left: '10px',
+                              top: '50%',
+                              transform: 'translateY(-50%)',
+                              pointerEvents: 'none',
+                              zIndex: 10,
+                            }}
                           >
                             <circle cx="11" cy="11" r="8" />
                             <line x1="21" y1="21" x2="16.65" y2="16.65" />
@@ -1287,16 +1294,41 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({
                             value={dealerSearchQuery}
                             onChange={(e) => setDealerSearchQuery(e.target.value)}
                             placeholder="Tìm kiếm theo mã đại lý, tên hoặc số điện thoại..."
-                            className="w-full pl-9 pr-7 py-2 text-xs rounded-xl bg-white border border-emerald-500 text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 font-medium"
+                            style={{
+                              width: '100%',
+                              padding: '8px 28px 8px 34px',
+                              borderRadius: '10px',
+                              fontSize: '13px',
+                              background: '#ffffff',
+                              border: '1.5px solid #10b981',
+                              color: '#0f172a',
+                              outline: 'none',
+                              boxShadow: '0 0 0 3px rgba(16, 185, 129, 0.15)',
+                              fontWeight: 500,
+                              boxSizing: 'border-box',
+                            }}
                           />
                           {dealerSearchQuery && (
                             <button
                               type="button"
                               onClick={() => setDealerSearchQuery('')}
-                              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1"
+                              style={{
+                                position: 'absolute',
+                                right: '10px',
+                                top: '50%',
+                                transform: 'translateY(-50%)',
+                                background: 'transparent',
+                                border: 'none',
+                                cursor: 'pointer',
+                                color: '#94a3b8',
+                                padding: '4px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                              }}
                               title="Xóa tìm kiếm"
                             >
-                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                                 <line x1="18" y1="6" x2="6" y2="18" />
                                 <line x1="6" y1="6" x2="18" y2="18" />
                               </svg>
