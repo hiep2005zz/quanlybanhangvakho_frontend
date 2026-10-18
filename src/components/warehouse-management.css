@@ -1414,13 +1414,13 @@
 
 /* Viền kẻ dọc ngăn cách giữa cột 1 và cột 2 */
 .wh-form-master-frame .wh-col-info {
-  border-right: 1px solid #e2e8f0 !important;
+  border-right: 1px solid #cbd5e1 !important;
 }
 
 /* Viền kẻ dọc ngăn cách giữa cột 2 và cột 3 */
 .wh-form-master-frame .wh-col-contact,
 .wh-form-master-frame .wh-col-capacity {
-  border-right: 1px solid #e2e8f0 !important;
+  border-right: 1px solid #cbd5e1 !important;
 }
 
 /* Cột 3: Tổng kết có nền xám nhẹ dịu mát để phân biệt rõ với 2 cột nhập liệu */

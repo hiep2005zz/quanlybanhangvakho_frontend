@@ -18,6 +18,7 @@ import {
   getWarehousesApi,
 } from '../services/api';
 import { emitStatusToast } from './StatusToast';
+import { DeliveryTripPrintModal } from './DeliveryTripPrintModal';
 
 // Component Combobox tìm kiếm kết hợp vừa nhập vừa chọn từ database
 interface ComboboxOption {
@@ -257,6 +258,7 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
 }) => {
   // Mode giao diện: 'list' (danh sách), 'create' (tạo chuyến), 'detail' (chi tiết chuyến), 'print' (mẫu in A4)
   const [viewMode, setViewMode] = useState<'list' | 'create' | 'detail' | 'print'>('list');
+  const previousViewModeRef = useRef<'list' | 'detail'>('list');
 
   // Danh sách chuyến giao
   const [trips, setTrips] = useState<DeliveryTrip[]>([]);
@@ -612,6 +614,7 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
 
   // 4. Mở mẫu in A4
   const handleOpenPrint = async (tripId: number) => {
+    previousViewModeRef.current = viewMode === 'detail' ? 'detail' : 'list';
     setIsLoadingDetail(true);
     try {
       const data = await getDeliveryTripDetailApi(token, tripId);
@@ -742,254 +745,15 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
   }
 
   // =========================================================================
-  // VIEW: MẪU IN A4 (PRINT VIEW)
+  // VIEW: MẪU IN A4 (PRINT VIEW) - MODAL CHUẨN ĐỒNG BỘ VỚI CHỨNG TỪ PHIẾU THU
   // =========================================================================
   if (viewMode === 'print' && selectedTrip) {
     return (
-      <div className="trip-print-wrap" style={{ background: '#525659', minHeight: '100vh', padding: '24px 0' }}>
-        {/* Thanh công cụ khi xem trước in */}
-        <div
-          className="no-print"
-          style={{
-            maxWidth: '210mm',
-            margin: '0 auto 16px auto',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            padding: '12px 20px',
-            background: '#ffffff',
-            borderRadius: '8px',
-            boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-          }}
-        >
-          <button
-            type="button"
-            onClick={() => setViewMode('detail')}
-            style={{
-              padding: '8px 16px',
-              background: '#f1f5f9',
-              border: '1px solid #cbd5e1',
-              borderRadius: '6px',
-              fontSize: '13px',
-              fontWeight: '600',
-              color: '#334155',
-              cursor: 'pointer',
-            }}
-          >
-            Quay lại chi tiết
-          </button>
-          <div style={{ display: 'flex', gap: '10px' }}>
-            <button
-              type="button"
-              onClick={() => window.print()}
-              style={{
-                padding: '8px 24px',
-                background: '#0284c7',
-                border: 'none',
-                borderRadius: '6px',
-                fontSize: '13.5px',
-                fontWeight: '700',
-                color: '#ffffff',
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                boxShadow: '0 2px 4px rgba(2,132,199,0.3)',
-              }}
-              title="In trực tiếp hoặc Lưu dưới dạng file PDF (Save as PDF)"
-            >
-              In phiếu / Xuất PDF
-            </button>
-          </div>
-        </div>
-
-        {/* Khung tài liệu A4 chuẩn in ấn */}
-        <div
-          id="print-sheet"
-          style={{
-            maxWidth: '210mm',
-            minHeight: '297mm',
-            margin: '0 auto',
-            background: '#ffffff',
-            padding: '20mm',
-            boxSizing: 'border-box',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-            color: '#000000',
-            fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-            fontSize: '13px',
-            lineHeight: 1.4,
-          }}
-        >
-          {/* Header phiếu in */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '2px solid #000000', paddingBottom: '12px', marginBottom: '16px' }}>
-            <div>
-              <div style={{ fontSize: '14px', fontWeight: '800', textTransform: 'uppercase' }}>HỆ THỐNG QUẢN LÝ KHO & BÁN HÀNG</div>
-              <div style={{ fontSize: '11px', color: '#444444' }}>Kho xuất: {selectedTrip.warehouse_name || 'Kho Tổng Hà Nội'}</div>
-            </div>
-            <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: '12px', fontWeight: '700' }}>Mã chuyến: {selectedTrip.trip_code}</div>
-              <div style={{ fontSize: '11px', color: '#444444' }}>Ngày in: {new Date().toLocaleDateString('vi-VN')}</div>
-            </div>
-          </div>
-
-          <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-            <h1 style={{ margin: '0 0 6px 0', fontSize: '20px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '1px' }}>
-              PHIẾU GIAO HÀNG THEO CHUYẾN
-            </h1>
-            <div style={{ fontSize: '12.5px', fontStyle: 'italic' }}>
-              Ngày giao hàng: <strong>{selectedTrip.delivery_date}</strong> | Tổng số điểm giao: <strong>{selectedTrip.total_stops}</strong> điểm | Tổng số phiếu xuất: <strong>{selectedTrip.total_dispatches}</strong> phiếu
-            </div>
-          </div>
-
-          {/* Khung thông tin tài xế & phương tiện */}
-          <div style={{ border: '1px solid #000000', padding: '10px 14px', marginBottom: '18px', background: '#fafafa' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '12.5px' }}>
-              <div>Tài xế phụ trách: <strong>{selectedTrip.driver_name || 'Chưa phân công'}</strong></div>
-              <div>Số điện thoại tài xế: <strong>{selectedTrip.driver_phone || '—'}</strong></div>
-              <div>Phương tiện / Biển số: <strong>{selectedTrip.vehicle_plate || 'Chưa phân công'}</strong></div>
-              <div>Loại xe: <strong>{selectedTrip.vehicle_type || '—'}</strong></div>
-            </div>
-            {selectedTrip.note && (
-              <div style={{ marginTop: '6px', paddingTop: '6px', borderTop: '1px dashed #cccccc', fontSize: '12px' }}>
-                Ghi chú điều phối: <em>{selectedTrip.note}</em>
-              </div>
-            )}
-          </div>
-
-          {/* Bảng danh sách điểm giao theo thứ tự */}
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11.5px', marginBottom: '24px' }}>
-            <thead>
-              <tr style={{ background: '#eeeeee', borderTop: '1px solid #000000', borderBottom: '1px solid #000000' }}>
-                <th style={{ border: '1px solid #000000', padding: '6px', textAlign: 'center', width: '35px' }}>STT</th>
-                <th style={{ border: '1px solid #000000', padding: '6px', textAlign: 'left', width: '140px' }}>Người nhận / Đại lý</th>
-                <th style={{ border: '1px solid #000000', padding: '6px', textAlign: 'center', width: '85px' }}>Số điện thoại</th>
-                <th style={{ border: '1px solid #000000', padding: '6px', textAlign: 'left' }}>Địa chỉ giao hàng</th>
-                <th style={{ border: '1px solid #000000', padding: '6px', textAlign: 'left', width: '110px' }}>Phiếu xuất</th>
-                <th style={{ border: '1px solid #000000', padding: '6px', textAlign: 'center', width: '90px' }}>Ký nhận</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(selectedTrip.stops || []).map((st: any) => (
-                <tr key={st.id} style={{ borderBottom: '1px solid #cccccc' }}>
-                  <td style={{ border: '1px solid #000000', padding: '6px', textAlign: 'center', fontWeight: '800' }}>
-                    {st.stop_order}
-                  </td>
-                  <td style={{ border: '1px solid #000000', padding: '6px' }}>
-                    <div style={{ fontWeight: '700' }}>{st.receiver_name}</div>
-                    <div style={{ fontSize: '10.5px', color: '#555555' }}>{st.dealer_name}</div>
-                  </td>
-                  <td style={{ border: '1px solid #000000', padding: '6px', textAlign: 'center', fontWeight: '600' }}>
-                    {st.receiver_phone}
-                  </td>
-                  <td style={{ border: '1px solid #000000', padding: '6px' }}>
-                    <div>{st.address}</div>
-                    {st.route_note && <div style={{ fontSize: '10.5px', color: '#555555', fontStyle: 'italic' }}>Lưu ý: {st.route_note}</div>}
-                  </td>
-                  <td style={{ border: '1px solid #000000', padding: '6px' }}>
-                    {(st.dispatches || []).map((d: any) => (
-                      <div key={d.id} style={{ fontWeight: '600' }}>
-                        {d.dispatch_code}
-                      </div>
-                    ))}
-                  </td>
-                  <td style={{ border: '1px solid #000000', padding: '6px', textAlign: 'center', height: '45px' }}>
-                    {/* Ô trống cho khách ký nhận */}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-
-          {/* Phần chữ ký xác nhận */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', textAlign: 'center', marginTop: '30px' }}>
-            <div>
-              <div style={{ fontWeight: '700', fontSize: '12px' }}>NGƯỜI LẬP PHIẾU</div>
-              <div style={{ fontSize: '11px', color: '#666666', marginBottom: '50px' }}>(Ký, họ tên)</div>
-              <div style={{ fontWeight: '600' }}>{selectedTrip.created_by}</div>
-            </div>
-            <div>
-              <div style={{ fontWeight: '700', fontSize: '12px' }}>TÀI XẾ NHẬN HÀNG</div>
-              <div style={{ fontSize: '11px', color: '#666666', marginBottom: '50px' }}>(Ký, họ tên)</div>
-              <div style={{ fontWeight: '600' }}>{selectedTrip.driver_name || '................................'}</div>
-            </div>
-            <div>
-              <div style={{ fontWeight: '700', fontSize: '12px' }}>QUẢN LÝ KHO DUYỆT</div>
-              <div style={{ fontSize: '11px', color: '#666666', marginBottom: '50px' }}>(Ký, họ tên)</div>
-              <div style={{ fontWeight: '600' }}>................................</div>
-            </div>
-          </div>
-        </div>
-
-        {/* Global style cho Print ẩn navigation & loại bỏ triệt để lỗi trang in trắng */}
-        <style>{`
-          @media print {
-            @page {
-              size: A4 portrait;
-              margin: 8mm 10mm;
-            }
-
-            html, body {
-              margin: 0 !important;
-              padding: 0 !important;
-              background: #ffffff !important;
-              color: #000000 !important;
-              height: auto !important;
-              min-height: auto !important;
-              overflow: visible !important;
-            }
-
-            /* Ẩn hoàn toàn header, sidebar, footer của ứng dụng web */
-            header, aside, nav, .no-print, [class*="Sidebar"], [class*="DashboardHeader"], [class*="navbar"] {
-              display: none !important;
-              visibility: hidden !important;
-              height: 0 !important;
-            }
-
-            /* Phá bỏ ràng buộc height: 100vh và overflow: hidden của Dashboard layout để Chromium render đủ trang */
-            body.has-trip-print,
-            body.has-trip-print #root,
-            body.has-trip-print #root > div,
-            body.has-trip-print main,
-            body.has-trip-print .trip-print-wrap,
-            div[class*="overflow-hidden"],
-            div[class*="overflow-y-auto"],
-            div[class*="h-screen"],
-            div[class*="min-h-0"] {
-              height: auto !important;
-              min-height: auto !important;
-              max-height: none !important;
-              overflow: visible !important;
-              display: block !important;
-              margin: 0 !important;
-              padding: 0 !important;
-              background: #ffffff !important;
-              border: none !important;
-              box-shadow: none !important;
-              position: static !important;
-            }
-
-            #print-sheet {
-              box-shadow: none !important;
-              border: none !important;
-              padding: 0 !important;
-              margin: 0 auto !important;
-              max-width: 100% !important;
-              width: 100% !important;
-              background: #ffffff !important;
-              color: #000000 !important;
-              display: block !important;
-            }
-
-            table {
-              page-break-inside: auto;
-              width: 100% !important;
-            }
-            tr {
-              page-break-inside: avoid;
-              page-break-after: auto;
-            }
-          }
-        `}</style>
-      </div>
+      <DeliveryTripPrintModal
+        trip={selectedTrip}
+        currentUser={currentUser}
+        onClose={() => setViewMode(previousViewModeRef.current || 'detail')}
+      />
     );
   }
 

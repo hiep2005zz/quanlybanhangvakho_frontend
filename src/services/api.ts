@@ -2829,6 +2829,22 @@ export async function getProductLocationAllocationStatusApi(
   return data;
 }
 
+export async function getWarehouseStocksMapApi(
+  token: string,
+  warehouseId: number
+): Promise<Record<number, number>> {
+  const response = await authenticatedFetch(
+    `${API_BASE_URL}/warehouses/${warehouseId}/warehouse-stocks`,
+    { method: 'GET' },
+    token
+  );
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi tải tồn kho sản phẩm theo kho (${response.status})`);
+  }
+  return data;
+}
+
 export async function transferLocationProductApi(
   token: string,
   fromLocationId: number,
@@ -6207,7 +6223,422 @@ export interface BatchTrackingToggleResponse {
   is_batch_managed: boolean;
 
   message: string;
-
   batch_created?: BatchItem | null;
-
 }
+
+// ==========================================
+// XUẤT HÓA ĐƠN BÁN HÀNG TỪ PHIẾU GIAO HÀNG (SALES INVOICES)
+// ==========================================
+
+export interface DeliveryDispatchItem {
+  dispatch_id: number;
+  dispatch_code: string;
+  order_id: number;
+  order_code: string;
+  dealer_id: number | null;
+  dealer_code: string;
+  dealer_name: string;
+  dealer_phone?: string;
+  dealer_address?: string;
+  warehouse_id?: string;
+  warehouse_name: string;
+  delivery_date: string;
+  delivery_status: 'DELIVERED' | 'PENDING' | 'FAILED' | string;
+  items_count: number;
+  total_delivered_quantity: number;
+  total_amount: number;
+  invoice_status: 'PENDING' | 'INVOICED';
+  is_eligible: boolean;
+  invoice_info?: {
+    invoice_id: number;
+    invoice_code: string;
+    issue_date: string;
+    status: string;
+  } | null;
+  items?: Array<{
+    product_id: number;
+    product_code: string;
+    product_name: string;
+    unit_name: string;
+    delivered_quantity: number;
+    unit_price: number;
+    subtotal: number;
+    vat_rate: number;
+    vat_amount: number;
+    total_amount: number;
+  }>;
+}
+
+export interface DeliveryDispatchesListResponse {
+  status: string;
+  quick_stats: {
+    total_pending_invoices: number;
+    total_issued_invoices: number;
+    total_pending_amount: number;
+  };
+  pagination: {
+    page: number;
+    page_size: number;
+    total_records: number;
+    total_pages: number;
+  };
+  data: DeliveryDispatchItem[];
+}
+
+export interface SalesInvoicePreviewItem {
+  stt: number;
+  product_id: number;
+  product_code: string;
+  product_name: string;
+  unit_name: string;
+  delivered_quantity: number;
+  quantity?: number;
+  unit_price: number;
+  discount_amount: number;
+  subtotal: number;
+  vat_rate: number;
+  vat_amount: number;
+  total_amount: number;
+}
+
+export interface SalesInvoicePreviewData {
+  template_code: string;
+  invoice_series: string;
+  invoice_code_placeholder: string;
+  issue_date: string;
+  currency: string;
+  issued_by: string;
+  dealer: {
+    id: number;
+    code: string;
+    name: string;
+    tax_code?: string;
+    phone?: string;
+    address?: string;
+    credit_limit?: number;
+  };
+  source_dispatches: Array<{
+    dispatch_id: number;
+    dispatch_code: string;
+    order_id: number;
+    order_code: string;
+    warehouse_name: string;
+    delivery_date: string;
+    items_count: number;
+    delivered_quantity: number;
+    total_amount: number;
+  }>;
+  items: SalesInvoicePreviewItem[];
+  summary: {
+    total_quantity: number;
+    subtotal_amount: number;
+    discount_amount: number;
+    taxable_amount: number;
+    vat_amount: number;
+    total_amount: number;
+    amount_in_words: string;
+  };
+}
+
+export interface SalesInvoicePreviewResponse {
+  status: string;
+  preview: SalesInvoicePreviewData;
+}
+
+export interface SalesInvoiceIssuePayload {
+  dispatch_ids: number[];
+  template_code?: string;
+  invoice_series?: string;
+  note?: string;
+}
+
+export interface SalesInvoiceIssueResponse {
+  status: string;
+  message: string;
+  data: {
+    invoice_id: number;
+    invoice_code: string;
+    dealer_name: string;
+    total_amount: number;
+    issue_date: string;
+    due_date: string;
+    dispatches_count: number;
+  };
+}
+
+export interface SalesInvoiceDetail {
+  id: number;
+  invoice_code: string;
+  template_code: string;
+  invoice_series: string;
+  issue_date: string;
+  due_date: string;
+  issue_status: string;
+  status: string;
+  issued_by: string;
+  currency: string;
+  dealer: {
+    id: number;
+    code: string;
+    name: string;
+    tax_code?: string;
+    phone?: string;
+    address?: string;
+  };
+  source_dispatches: Array<{
+    dispatch_id: number;
+    dispatch_code: string;
+    order_id: number;
+    order_code: string;
+    delivered_quantity: number;
+    total_amount: number;
+  }>;
+  items: SalesInvoicePreviewItem[];
+  summary: {
+    subtotal_amount: number;
+    discount_amount: number;
+    taxable_amount: number;
+    vat_amount: number;
+    total_amount: number;
+    paid_amount: number;
+    remaining_debt: number;
+    amount_in_words: string;
+  };
+  note?: string;
+  adjustments?: Array<{
+    id: number;
+    adjustment_code: string;
+    adjustment_type: string;
+    reason: string;
+    difference_total: number;
+    created_by?: string;
+    created_at?: string;
+  }>;
+}
+
+export interface SalesInvoiceListResponse {
+  status: string;
+  pagination: {
+    page: number;
+    page_size: number;
+    total_records: number;
+    total_pages: number;
+  };
+  data: Array<{
+    id: number;
+    invoice_code: string;
+    dealer_id: number;
+    dealer_name: string;
+    issue_date: string;
+    due_date: string;
+    template_code: string;
+    invoice_series: string;
+    subtotal_amount: number;
+    vat_amount: number;
+    total_amount: number;
+    paid_amount: number;
+    remaining_debt: number;
+    status: string;
+    issue_status: string;
+    issued_by: string;
+    delivery_dispatches_summary: string;
+    currency: string;
+  }>;
+}
+
+export async function getDeliveryDispatchesForInvoicingApi(
+  token: string,
+  params: {
+    dispatch_code?: string;
+    order_code?: string;
+    dealer_id?: number;
+    dealer_name?: string;
+    warehouse_id?: string;
+    from_date?: string;
+    to_date?: string;
+    delivery_status?: string;
+    invoice_status?: string;
+    page?: number;
+    page_size?: number;
+  } = {}
+): Promise<DeliveryDispatchesListResponse> {
+  const q = new URLSearchParams();
+  if (params.dispatch_code) q.set('dispatch_code', params.dispatch_code);
+  if (params.order_code) q.set('order_code', params.order_code);
+  if (params.dealer_id) q.set('dealer_id', String(params.dealer_id));
+  if (params.dealer_name) q.set('dealer_name', params.dealer_name);
+  if (params.warehouse_id) q.set('warehouse_id', params.warehouse_id);
+  if (params.from_date) q.set('from_date', params.from_date);
+  if (params.to_date) q.set('to_date', params.to_date);
+  if (params.delivery_status) q.set('delivery_status', params.delivery_status);
+  if (params.invoice_status) q.set('invoice_status', params.invoice_status);
+  if (params.page) q.set('page', String(params.page));
+  if (params.page_size) q.set('page_size', String(params.page_size));
+
+  const qs = q.toString();
+  const response = await authenticatedFetch(`${API_BASE_URL}/sales-invoices/deliveries${qs ? `?${qs}` : ''}`, { method: 'GET' }, token);
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Lỗi tải danh sách phiếu giao hàng');
+  }
+  return response.json();
+}
+
+export async function getDeliveryDispatchDetailApi(
+  token: string,
+  dispatchId: number
+): Promise<{ status: string; data: any }> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/sales-invoices/deliveries/${dispatchId}`, { method: 'GET' }, token);
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Lỗi tải chi tiết phiếu giao hàng');
+  }
+  return response.json();
+}
+
+export async function previewSalesInvoiceApi(
+  token: string,
+  dispatchIds: number[]
+): Promise<SalesInvoicePreviewResponse> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/sales-invoices/preview`, {
+    method: 'POST',
+    body: JSON.stringify({ dispatch_ids: dispatchIds }),
+  }, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi xem trước hóa đơn (${response.status})`);
+  }
+  return data;
+}
+
+export async function issueSalesInvoiceApi(
+  token: string,
+  payload: SalesInvoiceIssuePayload
+): Promise<SalesInvoiceIssueResponse> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/sales-invoices/issue`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  }, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi phát hành hóa đơn (${response.status})`);
+  }
+  return data;
+}
+
+export async function getSalesInvoicesListApi(
+  token: string,
+  params: {
+    invoice_code?: string;
+    dealer_id?: number;
+    dealer_name?: string;
+    from_date?: string;
+    to_date?: string;
+    status_filter?: string;
+    page?: number;
+    page_size?: number;
+  } = {}
+): Promise<SalesInvoiceListResponse> {
+  const q = new URLSearchParams();
+  if (params.invoice_code) q.set('invoice_code', params.invoice_code);
+  if (params.dealer_id) q.set('dealer_id', String(params.dealer_id));
+  if (params.dealer_name) q.set('dealer_name', params.dealer_name);
+  if (params.from_date) q.set('from_date', params.from_date);
+  if (params.to_date) q.set('to_date', params.to_date);
+  if (params.status_filter) q.set('status_filter', params.status_filter);
+  if (params.page) q.set('page', String(params.page));
+  if (params.page_size) q.set('page_size', String(params.page_size));
+
+  const qs = q.toString();
+  const response = await authenticatedFetch(`${API_BASE_URL}/sales-invoices${qs ? `?${qs}` : ''}`, { method: 'GET' }, token);
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Lỗi tải danh sách hóa đơn bán hàng');
+  }
+  return response.json();
+}
+
+export async function getSalesInvoiceDetailApi(
+  token: string,
+  invoiceId: number
+): Promise<{ status: string; data: SalesInvoiceDetail }> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/sales-invoices/${invoiceId}`, { method: 'GET' }, token);
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Lỗi tải chi tiết hóa đơn');
+  }
+  return response.json();
+}
+
+export async function logSalesInvoicePrintApi(
+  token: string,
+  invoiceId: number
+): Promise<void> {
+  await authenticatedFetch(`${API_BASE_URL}/sales-invoices/${invoiceId}/print-log`, { method: 'POST' }, token).catch(() => {});
+}
+
+export async function downloadSalesInvoicePdfApi(
+  token: string,
+  invoiceId: number,
+  invoiceCode: string
+): Promise<void> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/sales-invoices/${invoiceId}/pdf`, { method: 'GET' }, token);
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Lỗi tải tệp PDF hóa đơn');
+  }
+  const blob = await response.blob();
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${invoiceCode}.pdf`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  window.URL.revokeObjectURL(url);
+}
+
+export interface InvoiceAdjustmentPayload {
+  adjustment_type: 'INCREASE' | 'DECREASE' | 'INFO';
+  reason: string;
+  difference_subtotal?: number;
+  difference_vat?: number;
+  difference_total?: number;
+  details_json?: string;
+}
+
+export async function createInvoiceAdjustmentApi(
+  token: string,
+  invoiceId: number,
+  payload: InvoiceAdjustmentPayload
+): Promise<any> {
+  const response = await authenticatedFetch(
+    `${API_BASE_URL}/sales-invoices/${invoiceId}/adjustments`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    },
+    token
+  );
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Lỗi khi lập chứng từ điều chỉnh hóa đơn');
+  }
+  return response.json();
+}
+
+export async function getInvoiceAdjustmentsApi(
+  token: string,
+  invoiceId: number
+): Promise<any[]> {
+  const response = await authenticatedFetch(
+    `${API_BASE_URL}/sales-invoices/${invoiceId}/adjustments`,
+    { method: 'GET' },
+    token
+  );
+  if (!response.ok) return [];
+  const data = await response.json().catch(() => ({}));
+  return data.data || [];
+}
+

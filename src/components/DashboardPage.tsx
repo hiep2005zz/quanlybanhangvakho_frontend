@@ -67,6 +67,7 @@ import { BatchManagementView } from './BatchManagementView';
 import WarehousePickingView from './WarehousePickingView';
 import { StockAdjustmentPageView } from './StockAdjustmentPageView';
 import { PaymentCollectionView } from './PaymentCollectionView';
+import SalesInvoiceFromDeliveriesView from './SalesInvoiceFromDeliveriesView';
 
 import './dashboard.css';
 import { Sidebar, type TabType } from './Sidebar';
@@ -215,6 +216,9 @@ export default function DashboardPage({
     officialRoles.includes('warehouse_manager')
   );
 
+  // Quyền xuất hóa đơn bán hàng từ phiếu giao hàng: Cho phép tất cả nhân viên nội bộ (Admin, Kế toán, Quản lý kinh doanh, Sales, Quản lý kho, Thủ kho)
+  const canAccessSalesInvoices = !isCustomer;
+
   // Quyền truy cập phân hệ Điều chỉnh tồn kho: Admin, Quản lý kho và Thủ kho. Ẩn hoàn toàn với các vai trò khác (sales, sales_manager, accountant, etc.)
   const canAccessStockAdjustments = Boolean(
     isAdmin ||
@@ -302,6 +306,7 @@ export default function DashboardPage({
     const isGoodsReceiptPath = pathname === '/goods-receipt' || pathname.startsWith('/goods-receipt/') || pathname === '/goods-receipts';
     const isStockAdjustmentsPath = pathname === '/stock-adjustments' || pathname.startsWith('/stock-adjustments/');
     const isPaymentCollectionsPath = pathname === '/payment-collections' || pathname.startsWith('/payment-collections/');
+    const isSalesInvoicesPath = pathname === '/sales-invoices' || pathname.startsWith('/sales-invoices/');
 
     const params = new URLSearchParams(window.location.search);
     const hasOldTabParam = params.has('tab') || params.has('view');
@@ -428,6 +433,17 @@ export default function DashboardPage({
           try { window.history.replaceState({}, '', '/payment-collections'); } catch { }
         }
         return 'payment-collections';
+      }
+      try { window.history.replaceState({}, '', '/'); } catch { }
+      return 'inventory';
+    }
+
+    if (isSalesInvoicesPath || oldTabVal === 'sales-invoices' || oldTabVal === 'sales-invoice') {
+      if (canAccessSalesInvoices) {
+        if (pathname !== '/sales-invoices' || hasOldTabParam) {
+          try { window.history.replaceState({}, '', '/sales-invoices'); } catch { }
+        }
+        return 'sales-invoices';
       }
       try { window.history.replaceState({}, '', '/'); } catch { }
       return 'inventory';
@@ -875,6 +891,17 @@ export default function DashboardPage({
       } catch {
         // ignore
       }
+    } else if (tab === 'sales-invoices') {
+      if (!canAccessSalesInvoices) {
+        setActiveTabState('inventory');
+        try { window.history.replaceState({}, '', '/'); } catch { }
+        return;
+      }
+      setActiveTabState('sales-invoices');
+      try {
+        window.history.pushState({}, '', '/sales-invoices');
+      } catch { }
+      return;
     } else {
       setActiveTabState('inventory');
       window.history.replaceState({}, '', '/');
@@ -902,6 +929,7 @@ export default function DashboardPage({
                             : activeTab === 'picking' ? isWarehouseOrAdmin
                               : activeTab === 'delivery-tracking' ? canAccessDeliveryTracking
                               : activeTab === 'payment-collections' ? canAccessPaymentCollections
+                              : activeTab === 'sales-invoices' ? canAccessSalesInvoices
                                 : true;
     if (!isAllowed) {
       setActiveTabState('inventory');
@@ -1229,6 +1257,22 @@ export default function DashboardPage({
         return;
       }
 
+      const isSalesInvoicesPath = pathname === '/sales-invoices' || pathname.startsWith('/sales-invoices/');
+      if (isSalesInvoicesPath || tabParam === 'sales-invoices' || tabParam === 'sales-invoice') {
+        if (canAccessSalesInvoices) {
+          if (pathname !== '/sales-invoices' || tabParam) {
+            try {
+              window.history.replaceState({}, '', '/sales-invoices');
+            } catch { }
+          }
+          setActiveTabState('sales-invoices');
+        } else {
+          setActiveTabState('inventory');
+          try { window.history.replaceState({}, '', '/'); } catch { }
+        }
+        return;
+      }
+
       const isDebtLedgerPath = pathname === '/debt-ledger' || pathname.startsWith('/debt-ledger/');
       if (isDebtLedgerPath || tabParam === 'debt-ledger') {
         if (pathname !== '/debt-ledger' || tabParam) {
@@ -1324,7 +1368,7 @@ export default function DashboardPage({
 
     window.addEventListener('popstate', syncFromUrl);
     return () => window.removeEventListener('popstate', syncFromUrl);
-  }, [canManageCategories, canManageSuppliers, canReadOrders, isAdmin, canAccessDiscounts, canAccessWarehouses, canAccessPaymentCollections, isCustomer]);
+  }, [canManageCategories, canManageSuppliers, canReadOrders, isAdmin, canAccessDiscounts, canAccessWarehouses, canAccessPaymentCollections, canAccessSalesInvoices, isCustomer]);
   const [products, setProducts] = useState<ProductItem[]>([]);
   const [appliedPriceBook, setAppliedPriceBook] = useState<string | null>(null);
   const [serverTotalCount, setServerTotalCount] = useState<number>(0);
@@ -1827,7 +1871,7 @@ export default function DashboardPage({
       }
       noScroll={!isMobileScreen && isLockedScrollTab}
       mainClassName={
-        isOrderDetailSubpage || isOrdersCreateSubpage || isPriceListsCreateSubpage || isPriceBookDetailSubpage || isPriceBookEditSubpage || isGoodsReceiptPage || isStockTransferCreateSubpage || isBatchesCreateSubpage || isProductsImportPage || isUsersImportPage || isPaymentCollectionsSubpage || isPaymentCollectionsPage || isDeliveryTrackingPage
+        isOrderDetailSubpage || isOrdersCreateSubpage || isPriceListsCreateSubpage || isPriceBookDetailSubpage || isPriceBookEditSubpage || isGoodsReceiptPage || isStockTransferCreateSubpage || isBatchesCreateSubpage || isProductsImportPage || isUsersImportPage || isPaymentCollectionsSubpage || isPaymentCollectionsPage || isDeliveryTrackingPage || activeTab === 'sales-invoices'
           ? 'flex-1 min-w-0 overflow-y-auto p-0 flex flex-col bg-slate-50'
           : isCustomer || activeTab === 'agency-debts'
             ? 'flex-1 min-w-0 overflow-hidden p-0 flex flex-col bg-slate-50 h-full'
@@ -1871,6 +1915,7 @@ export default function DashboardPage({
           isWarehouseOrAdmin={isWarehouseOrAdmin}
           isAdmin={isAdmin}
           canAccessPaymentCollections={canAccessPaymentCollections}
+          canAccessSalesInvoices={canAccessSalesInvoices}
           onLogout={() => {
             if (isLoggingOut) return;
             setShowLogoutConfirm(true);
@@ -2534,6 +2579,21 @@ export default function DashboardPage({
             <AccessDeniedView
               currentUser={user}
               requiredPermission="Thu tiền theo tuyến & Đối chiếu quỹ (Nhân viên kinh doanh / Kế toán / Quản trị hệ thống)"
+              onBackToWorkflow={() => setActiveTab('inventory')}
+              onLogout={onLogout}
+            />
+          )
+        ) : activeTab === 'sales-invoices' ? (
+          canAccessSalesInvoices ? (
+            <SalesInvoiceFromDeliveriesView
+              currentUser={user}
+              token={token}
+              onBackToWorkflow={() => setActiveTab('inventory')}
+            />
+          ) : (
+            <AccessDeniedView
+              currentUser={user}
+              requiredPermission="Xuất hóa đơn bán hàng từ phiếu giao hàng (Kế toán công nợ / Quản lý kinh doanh / Quản trị viên)"
               onBackToWorkflow={() => setActiveTab('inventory')}
               onLogout={onLogout}
             />
