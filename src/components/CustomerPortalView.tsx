@@ -617,7 +617,7 @@ export const CustomerPortalView: React.FC<CustomerPortalViewProps> = ({
   };
 
   return (
-    <div className="w-full h-full flex-1 bg-slate-50 flex flex-col overflow-hidden">
+    <div className="w-full min-h-full flex-1 bg-slate-50 flex flex-col">
       {/* =========================================================================
           KHỐI CỐ ĐỊNH TRÊN CÙNG (IMMOBILE FIXED HEADER): TOÀN BỘ TIÊU ĐỀ ĐẠI LÝ VÀ 3 THẺ CÔNG NỢ
           - Thu gọn tối đa chiều dọc (vertical space) để không chiếm diện tích màn hình
@@ -735,7 +735,7 @@ export const CustomerPortalView: React.FC<CustomerPortalViewProps> = ({
           KHỐI NỘI DUNG CUỘN (SCROLLABLE CONTAINER): Sản phẩm, Bộ lọc, Phân trang, Giỏ hàng
           - Cấu trúc 2 cột items-start để bên phải không bị kéo dãn và giỏ hàng sticky cố định tầm nhìn
       ========================================================================= */}
-      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto w-full">
+      <div ref={scrollContainerRef} className="w-full pb-16">
         {viewMode === 'products' ? (
           /* THÂN CỔNG ĐẶT HÀNG: DANH SÁCH SẢN PHẨM RỘNG RÃI TOÀN MÀN HÌNH */
           <div className="max-w-7xl mx-auto w-full px-4 md:px-8 py-5 flex flex-col gap-4 pb-20">

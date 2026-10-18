@@ -5,8 +5,10 @@ import {
   getInventoryWarehousesApi,
   getWarehouseThresholdsApi,
   updateWarehouseThresholdApi,
+  bulkApplyWarehouseThresholdApi,
 } from '../services/api';
 import { emitStatusToast } from './StatusToast';
+import { ModalPortal } from './ModalPortal';
 
 interface StockThresholdManagementViewProps {
   token: string;
@@ -51,11 +53,16 @@ export const StockThresholdManagementView: React.FC<StockThresholdManagementView
     activeWarehouses: 3,
   });
 
-  // State chỉnh sửa
   // State chỉnh sửa (dùng string để cho phép xóa sạch về rỗng mà không bị tự nhảy lại số 0 hoặc bị dính số 0 đằng trước)
   const [editingValues, setEditingValues] = useState<{ [key: string]: string }>({});
   const [savingKey, setSavingKey] = useState<string | null>(null);
   const [isSavingAll, setIsSavingAll] = useState<boolean>(false);
+
+  // State modal áp dụng định mức đồng loạt cho tất cả sản phẩm
+  const [isBulkModalOpen, setIsBulkModalOpen] = useState<boolean>(false);
+  const [bulkMinStock, setBulkMinStock] = useState<string>('10');
+  const [bulkWarehouseId, setBulkWarehouseId] = useState<string>('ALL');
+  const [isApplyingBulk, setIsApplyingBulk] = useState<boolean>(false);
 
   // Debounce tìm kiếm 300ms
   useEffect(() => {
@@ -286,6 +293,49 @@ export const StockThresholdManagementView: React.FC<StockThresholdManagementView
     }
   };
 
+  // Áp dụng định mức cho tất cả sản phẩm
+  const handleBulkApply = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const minStockNum = parseInt(bulkMinStock, 10);
+    if (isNaN(minStockNum) || minStockNum < 0) {
+      emitStatusToast({
+        title: 'Giá trị không hợp lệ',
+        message: 'Định mức tồn tối thiểu phải là số nguyên không âm (≥ 0).',
+        type: 'warning',
+      });
+      return;
+    }
+
+    setIsApplyingBulk(true);
+    try {
+      const res = await bulkApplyWarehouseThresholdApi(token, {
+        min_stock: minStockNum,
+        warehouse_id: bulkWarehouseId === 'ALL' ? undefined : bulkWarehouseId,
+      });
+
+      emitStatusToast({
+        title: 'Áp dụng đồng loạt thành công',
+        message: res.message,
+      });
+
+      setIsBulkModalOpen(false);
+      setEditingValues({});
+      loadPaginatedThresholds();
+
+      if (onThresholdsUpdated) {
+        onThresholdsUpdated();
+      }
+    } catch (err: any) {
+      emitStatusToast({
+        title: 'Áp dụng thất bại',
+        message: err.message || 'Có lỗi xảy ra khi áp dụng định mức tồn đồng loạt.',
+        type: 'error',
+      });
+    } finally {
+      setIsApplyingBulk(false);
+    }
+  };
+
   return (
     <div
       style={{
@@ -319,6 +369,39 @@ export const StockThresholdManagementView: React.FC<StockThresholdManagementView
 
           {/* Nút thao tác nhanh trên header */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            {canManageThresholds && (
+              <button
+                type="button"
+                onClick={() => {
+                  setBulkWarehouseId(selectedWarehouseId);
+                  setBulkMinStock('10');
+                  setIsBulkModalOpen(true);
+                }}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  background: '#059669',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '8px',
+                  padding: '8px 16px',
+                  fontSize: '13px',
+                  fontWeight: '700',
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 4px rgba(5, 150, 105, 0.25)',
+                  transition: 'all 0.15s ease',
+                }}
+                title="Áp dụng định mức tồn tối thiểu cho tất cả sản phẩm cùng 1 lúc"
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                  <circle cx="9" cy="7" r="4" />
+                  <polyline points="16 11 18 13 22 9" />
+                </svg>
+                <span>Áp dụng cho tất cả sản phẩm</span>
+              </button>
+            )}
             {changedItemsOnPage.length > 0 && canManageThresholds && (
               <button
                 type="button"
@@ -906,6 +989,134 @@ export const StockThresholdManagementView: React.FC<StockThresholdManagementView
           </div>
         </div>
       </div>
+
+      {/* Modal Áp dụng Định mức Đồng loạt cho Tất Cả Sản Phẩm */}
+      {isBulkModalOpen && (
+        <ModalPortal>
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-md p-4 animate-fadeIn">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-scaleUp">
+              {/* Header */}
+              <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-600 shrink-0">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-slate-900 text-base">
+                      Áp dụng định mức cho tất cả sản phẩm
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Cài đặt nhanh mức tồn an toàn đồng loạt cho toàn bộ danh mục SKU
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsBulkModalOpen(false)}
+                  disabled={isApplyingBulk}
+                  className="text-slate-400 hover:text-slate-600 text-xl font-bold p-1 cursor-pointer"
+                >
+                  &times;
+                </button>
+              </div>
+
+              {/* Form */}
+              <form onSubmit={handleBulkApply} className="p-6 space-y-4">
+                {/* Chọn phạm vi kho */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Phạm vi áp dụng kho
+                  </label>
+                  <select
+                    value={bulkWarehouseId}
+                    onChange={(e) => setBulkWarehouseId(e.target.value)}
+                    disabled={isApplyingBulk}
+                    className="w-full h-10 px-3 text-sm border border-slate-300 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer font-medium text-slate-800"
+                  >
+                    <option value="ALL">Tất cả các kho (Kho Tổng Hà Nội, TP.HCM, Đà Nẵng)</option>
+                    {warehouses.map((wh) => (
+                      <option key={wh.warehouse_id} value={wh.warehouse_id}>
+                        {wh.warehouse_name} ({wh.warehouse_id})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Nhập mức định mức mới */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Định mức tồn tối thiểu mới (Cái / Đơn vị chuẩn)
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      required
+                      autoFocus
+                      disabled={isApplyingBulk}
+                      value={bulkMinStock}
+                      onChange={(e) => {
+                        const clean = e.target.value.replace(/\D/g, '');
+                        setBulkMinStock(clean.replace(/^0+(?=\d)/, '') || (clean === '' ? '' : '0'));
+                      }}
+                      onBlur={() => {
+                        if (bulkMinStock === '') setBulkMinStock('0');
+                      }}
+                      style={{ height: '42px', paddingLeft: '14px', paddingRight: '60px', fontSize: '15px', fontWeight: 'bold' }}
+                      className="w-full border border-slate-300 rounded-xl bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      placeholder="Ví dụ: 10"
+                    />
+                    <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-400">
+                      Sản phẩm
+                    </span>
+                  </div>
+                </div>
+
+                {/* Cảnh báo thông tin */}
+                <div className="p-3.5 bg-emerald-50 border border-emerald-200/80 rounded-xl text-xs text-emerald-900 space-y-1 leading-relaxed">
+                  <div className="font-bold flex items-center gap-1.5 text-emerald-800">
+                    <svg className="w-4 h-4 text-emerald-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Tác động toàn hệ thống ({stats.totalCount.toLocaleString('vi-VN')} dòng SKU)
+                  </div>
+                  <p className="text-slate-600">
+                    Hệ thống sẽ cập nhật mức tồn an toàn mới cho toàn bộ các mặt hàng đang quản lý. Các chỉ số cảnh báo dưới định mức và trạng thái an toàn sẽ tự động được đồng bộ lại ngay lập tức.
+                  </p>
+                </div>
+
+                {/* Nút hành động */}
+                <div className="pt-2 flex justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setIsBulkModalOpen(false)}
+                    disabled={isApplyingBulk}
+                    className="px-4 py-2.5 text-sm font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors cursor-pointer"
+                  >
+                    Hủy bỏ
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isApplyingBulk}
+                    className="px-5 py-2.5 text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-md transition-colors cursor-pointer inline-flex items-center gap-2 disabled:opacity-50"
+                  >
+                    {isApplyingBulk ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        <span>Đang xử lý đồng loạt...</span>
+                      </>
+                    ) : (
+                      <span>Xác nhận áp dụng tất cả</span>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </ModalPortal>
+      )}
     </div>
   );
 };

@@ -72,6 +72,20 @@ export const StockAdjustmentPageView: React.FC<StockAdjustmentPageViewProps> = (
   const [reasonFilter, setReasonFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
 
+  // Phân trang danh sách phiếu (10 phiếu mỗi trang theo chuẩn ERP)
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const pageSize = 10;
+  const [totalRecords, setTotalRecords] = useState<number>(0);
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState<string>('');
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+      setCurrentPage(1);
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
   // Thống kê nhanh
   const [stats, setStats] = useState({ pending: 0, approved: 0, rejected: 0, totalLoss: 0 });
 
@@ -90,7 +104,8 @@ export const StockAdjustmentPageView: React.FC<StockAdjustmentPageViewProps> = (
   // Form Lập phiếu mới (Chế độ CREATE)
   const [createWarehouse, setCreateWarehouse] = useState<string>('KHO_HN');
   const [warehousesList, setWarehousesList] = useState<{ id: string; name: string }[]>([]);
-  const [createReasonType, setCreateReasonType] = useState<'damaged' | 'lost' | 'expired'>('damaged');
+  const [createReasonType, setCreateReasonType] = useState<'damaged' | 'lost' | 'expired' | 'other'>('damaged');
+  const [customReasonName, setCustomReasonName] = useState<string>('');
   const [createReasonNote, setCreateReasonNote] = useState<string>('');
   const [formItems, setFormItems] = useState<StockAdjustmentItemInput[]>([]);
   const [isSubmittingCreate, setIsSubmittingCreate] = useState<boolean>(false);
@@ -178,11 +193,13 @@ export const StockAdjustmentPageView: React.FC<StockAdjustmentPageViewProps> = (
         warehouse_id: warehouseFilter !== 'all' ? warehouseFilter : undefined,
         status: statusFilter !== 'all' ? statusFilter : undefined,
         reason_type: reasonFilter !== 'all' ? reasonFilter : undefined,
-        search: searchQuery.trim() || undefined,
-        limit: 100,
+        search: debouncedSearchQuery.trim() || undefined,
+        page: currentPage,
+        page_size: pageSize,
       });
 
       setAdjustments(res.items || []);
+      setTotalRecords(res.total || 0);
       setStats({
         pending: res.pending_count || 0,
         approved: res.approved_count || 0,
@@ -195,11 +212,15 @@ export const StockAdjustmentPageView: React.FC<StockAdjustmentPageViewProps> = (
     } finally {
       setIsLoading(false);
     }
-  }, [token, warehouseFilter, statusFilter, reasonFilter, searchQuery]);
+  }, [token, warehouseFilter, statusFilter, reasonFilter, debouncedSearchQuery, currentPage, pageSize]);
 
   useEffect(() => {
     loadAdjustments();
   }, [loadAdjustments]);
+
+  // Tính toán trang hiện tại an toàn
+  const totalPages = Math.max(1, Math.ceil(totalRecords / pageSize));
+  const safePage = Math.min(Math.max(1, currentPage), totalPages);
 
   // Đồng bộ sản phẩm theo kho đã chọn: CHỈ LẤY CÁC SẢN PHẨM THUỘC KHO ĐÓ VÀ CÓ TỒN KHO > 0
   const syncProductsForWarehouse = useCallback(async (whId: string) => {
@@ -364,8 +385,18 @@ export const StockAdjustmentPageView: React.FC<StockAdjustmentPageViewProps> = (
       return;
     }
 
-    if (!createReasonNote.trim()) {
-      showToast('Bắt buộc phải nhập chi tiết nguyên nhân / biên bản sự việc tổn thất.', 'error');
+    const finalReasonNote = createReasonType === 'other'
+      ? (customReasonName.trim()
+          ? `${customReasonName.trim()}${createReasonNote.trim() ? ' - ' + createReasonNote.trim() : ''}`
+          : createReasonNote.trim())
+      : createReasonNote.trim();
+
+    if (!finalReasonNote || finalReasonNote.length < 2) {
+      if (createReasonType === 'other') {
+        showToast('Vui lòng nhập lý do khác cụ thể hoặc chi tiết biên bản tổn thất (tối thiểu 2 ký tự).', 'error');
+      } else {
+        showToast('Bắt buộc phải nhập chi tiết nguyên nhân / biên bản sự việc tổn thất.', 'error');
+      }
       return;
     }
 
@@ -375,7 +406,7 @@ export const StockAdjustmentPageView: React.FC<StockAdjustmentPageViewProps> = (
       const payload: StockAdjustmentCreatePayload = {
         warehouse_id: createWarehouse,
         reason_type: createReasonType,
-        reason_note: createReasonNote.trim(),
+        reason_note: finalReasonNote,
         items: formItems.map((it) => ({
           product_id: it.product_id,
           product_code: it.product_code,
@@ -404,6 +435,8 @@ export const StockAdjustmentPageView: React.FC<StockAdjustmentPageViewProps> = (
       // Reset form
       setFormItems([]);
       setCreateReasonNote('');
+      setCustomReasonName('');
+      setCreateReasonType('damaged');
       setViewMode('LIST');
       loadAdjustments();
       setTimeout(() => setSuccessMsg(null), 5000);
@@ -480,14 +513,16 @@ export const StockAdjustmentPageView: React.FC<StockAdjustmentPageViewProps> = (
 
   return (
     <div
+      className="stock-adjustment-page-container"
       style={{
-        padding: '20px 28px',
+        padding: '20px 28px 48px 28px',
         backgroundColor: '#f8fafc',
         minHeight: '100%',
         width: '100%',
         boxSizing: 'border-box',
         display: 'flex',
         flexDirection: 'column',
+        flex: 1,
       }}
     >
       {/* 1. Header Trang Chuyên Nghiệp (Không Icon, Tiêu đề ngắn gọn) */}
@@ -702,7 +737,10 @@ export const StockAdjustmentPageView: React.FC<StockAdjustmentPageViewProps> = (
                 <button
                   key={pill.key}
                   type="button"
-                  onClick={() => setStatusFilter(pill.key as any)}
+                  onClick={() => {
+                    setStatusFilter(pill.key as any);
+                    setCurrentPage(1);
+                  }}
                   style={{
                     padding: '5px 10px',
                     borderRadius: '5px',
@@ -742,7 +780,10 @@ export const StockAdjustmentPageView: React.FC<StockAdjustmentPageViewProps> = (
             {/* Lọc theo Kho (Đồng bộ động từ CSDL) */}
             <select
               value={warehouseFilter}
-              onChange={(e) => setWarehouseFilter(e.target.value)}
+              onChange={(e) => {
+                setWarehouseFilter(e.target.value);
+                setCurrentPage(1);
+              }}
               style={{
                 padding: '6px 10px',
                 borderRadius: '6px',
@@ -764,7 +805,10 @@ export const StockAdjustmentPageView: React.FC<StockAdjustmentPageViewProps> = (
             {/* Lọc theo Lý do */}
             <select
               value={reasonFilter}
-              onChange={(e) => setReasonFilter(e.target.value)}
+              onChange={(e) => {
+                setReasonFilter(e.target.value);
+                setCurrentPage(1);
+              }}
               style={{
                 padding: '6px 10px',
                 borderRadius: '6px',
@@ -779,12 +823,16 @@ export const StockAdjustmentPageView: React.FC<StockAdjustmentPageViewProps> = (
               <option value="damaged">Hàng hỏng</option>
               <option value="lost">Hàng mất</option>
               <option value="expired">Hàng hết hạn</option>
+              <option value="other">Lý do khác</option>
             </select>
 
             {/* Nút Làm mới */}
             <button
               type="button"
-              onClick={loadAdjustments}
+              onClick={() => {
+                setCurrentPage(1);
+                loadAdjustments();
+              }}
               style={{
                 padding: '6px 12px',
                 borderRadius: '6px',
@@ -882,13 +930,17 @@ export const StockAdjustmentPageView: React.FC<StockAdjustmentPageViewProps> = (
                                   ? '#fee2e2'
                                   : adj.reason_type === 'lost'
                                   ? '#fef3c7'
-                                  : '#f3e8ff',
+                                  : adj.reason_type === 'expired'
+                                  ? '#f3e8ff'
+                                  : '#e0e7ff',
                               color:
                                 adj.reason_type === 'damaged'
                                   ? '#991b1b'
                                   : adj.reason_type === 'lost'
                                   ? '#92400e'
-                                  : '#6b21a8',
+                                  : adj.reason_type === 'expired'
+                                  ? '#6b21a8'
+                                  : '#3730a3',
                             }}
                           >
                             {adj.reason_label}
@@ -1138,6 +1190,181 @@ export const StockAdjustmentPageView: React.FC<StockAdjustmentPageViewProps> = (
               </tbody>
             </table>
           </div>
+
+          {/* Thanh phân trang 10 sản phẩm/phiếu mỗi trang chuẩn ERP */}
+          <div
+            style={{
+              padding: '12px 18px',
+              backgroundColor: '#ffffff',
+              borderTop: '1px solid #e2e8f0',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              fontSize: '12.5px',
+              color: '#64748b',
+              flexWrap: 'wrap',
+              gap: '12px',
+            }}
+          >
+            {/* Hiển thị số lượng */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span>
+                {totalRecords > 0 ? (
+                  <>
+                    Hiển thị <strong style={{ color: '#0f172a' }}>{(safePage - 1) * pageSize + 1}</strong> –{' '}
+                    <strong style={{ color: '#0f172a' }}>{Math.min(safePage * pageSize, totalRecords)}</strong> trong tổng số{' '}
+                    <strong style={{ color: '#0f172a' }}>{formatNumber(totalRecords)}</strong> phiếu
+                  </>
+                ) : (
+                  'Không có phiếu nào'
+                )}
+              </span>
+              <span style={{ color: '#cbd5e1' }}>|</span>
+              <span style={{ color: '#94a3b8' }}>10 phiếu/trang</span>
+            </div>
+
+            {/* Cụm nút chuyển trang */}
+            {totalPages > 1 && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                {/* Nút Trang trước */}
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={safePage === 1 || isLoading}
+                  style={{
+                    padding: '5px 11px',
+                    borderRadius: '6px',
+                    border: '1px solid #cbd5e1',
+                    backgroundColor: safePage === 1 || isLoading ? '#f8fafc' : '#ffffff',
+                    color: safePage === 1 || isLoading ? '#94a3b8' : '#334155',
+                    fontSize: '12px',
+                    fontWeight: '600',
+                    cursor: safePage === 1 || isLoading ? 'not-allowed' : 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    transition: 'all 0.15s ease',
+                  }}
+                  title="Về trang trước đó"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="15 18 9 12 15 6" />
+                  </svg>
+                  <span>Trang trước</span>
+                </button>
+
+                {/* Các số trang */}
+                <div
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'stretch',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '6px',
+                    overflow: 'hidden',
+                    background: '#ffffff',
+                    boxShadow: '0 1px 2px rgba(0, 0, 0, 0.04)',
+                    height: '28px',
+                  }}
+                >
+                  {Array.from({ length: totalPages }, (_, i) => i + 1)
+                    .filter((p) => p === 1 || p === totalPages || Math.abs(p - safePage) <= 1)
+                    .reduce<(number | string)[]>((acc, p, idx, arr) => {
+                      if (idx > 0 && typeof arr[idx - 1] === 'number' && (p as number) - (arr[idx - 1] as number) > 1) {
+                        acc.push('...');
+                      }
+                      acc.push(p);
+                      return acc;
+                    }, [])
+                    .map((p, idx, arr) => {
+                      const isLastItem = idx === arr.length - 1;
+                      if (typeof p === 'string') {
+                        return (
+                          <span
+                            key={`ellipsis-${idx}`}
+                            style={{
+                              minWidth: '28px',
+                              height: '100%',
+                              padding: '0 6px',
+                              borderRight: isLastItem ? 'none' : '1px solid #e5e7eb',
+                              background: '#ffffff',
+                              color: '#94a3b8',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: '12px',
+                              userSelect: 'none',
+                            }}
+                          >
+                            ...
+                          </span>
+                        );
+                      }
+
+                      const isActive = p === safePage;
+                      return (
+                        <button
+                          key={p}
+                          type="button"
+                          onClick={() => setCurrentPage(p)}
+                          disabled={isLoading}
+                          style={{
+                            minWidth: '30px',
+                            height: '100%',
+                            padding: '0 8px',
+                            border: 'none',
+                            borderRight: isLastItem ? 'none' : '1px solid #e5e7eb',
+                            background: isActive ? '#0f172a' : '#ffffff',
+                            color: isActive ? '#ffffff' : '#374151',
+                            cursor: isActive ? 'default' : 'pointer',
+                            fontSize: '12px',
+                            fontWeight: isActive ? '700' : '500',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            transition: 'all 0.15s ease',
+                          }}
+                          onMouseEnter={(e) => {
+                            if (!isActive) e.currentTarget.style.backgroundColor = '#f1f5f9';
+                          }}
+                          onMouseLeave={(e) => {
+                            if (!isActive) e.currentTarget.style.backgroundColor = '#ffffff';
+                          }}
+                        >
+                          {p}
+                        </button>
+                      );
+                    })}
+                </div>
+
+                {/* Nút Trang tiếp */}
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={safePage >= totalPages || isLoading}
+                  style={{
+                    padding: '5px 11px',
+                    borderRadius: '6px',
+                    border: '1px solid #cbd5e1',
+                    backgroundColor: safePage >= totalPages || isLoading ? '#f8fafc' : '#ffffff',
+                    color: safePage >= totalPages || isLoading ? '#94a3b8' : '#334155',
+                    fontSize: '12px',
+                    fontWeight: '600',
+                    cursor: safePage >= totalPages || isLoading ? 'not-allowed' : 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    transition: 'all 0.15s ease',
+                  }}
+                  title="Sang trang tiếp theo"
+                >
+                  <span>Trang tiếp</span>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="9 18 15 12 9 6" />
+                  </svg>
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -1221,17 +1448,73 @@ export const StockAdjustmentPageView: React.FC<StockAdjustmentPageViewProps> = (
                 <option value="damaged">Hàng hỏng (Rách vỡ bao bì, biến dạng, ẩm mốc)</option>
                 <option value="lost">Hàng mất (Hao hụt thất thoát kiểm đếm kho)</option>
                 <option value="expired">Hàng hết hạn (Hết hạn sử dụng phải tiêu hủy)</option>
+                <option value="other">📝 Lý do khác (Tự điền lý do cụ thể)</option>
               </select>
+
+              {createReasonType === 'other' && (
+                <div style={{ marginTop: '8px' }}>
+                  <input
+                    type="text"
+                    placeholder="Điền lý do khác cụ thể (VD: Hàng mẫu, Chuyển công năng...)"
+                    value={customReasonName}
+                    onChange={(e) => setCustomReasonName(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      borderRadius: '6px',
+                      border: '1.5px solid #059669',
+                      fontSize: '13px',
+                      outline: 'none',
+                      boxSizing: 'border-box',
+                      backgroundColor: '#f0fdf4',
+                      color: '#0f172a',
+                    }}
+                  />
+                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '6px' }}>
+                    {['Hàng mẫu', 'Hao hụt kỹ thuật', 'Sai lệch kiểm kê', 'Chuyển mục đích', 'Hàng khuyến mãi'].map((tag) => (
+                      <button
+                        key={tag}
+                        type="button"
+                        onClick={() => setCustomReasonName(tag)}
+                        style={{
+                          fontSize: '11px',
+                          padding: '2px 7px',
+                          borderRadius: '4px',
+                          border: '1px solid #cbd5e1',
+                          backgroundColor: '#ffffff',
+                          color: '#475569',
+                          cursor: 'pointer',
+                          transition: 'all 0.15s ease',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.borderColor = '#059669';
+                          e.currentTarget.style.color = '#059669';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.borderColor = '#cbd5e1';
+                          e.currentTarget.style.color = '#475569';
+                        }}
+                      >
+                        + {tag}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Cột 3: Chi tiết nguyên nhân / Biên bản */}
             <div>
               <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>
-                Biên bản / Nguyên nhân cụ thể <span style={{ color: '#dc2626' }}>*</span>
+                {createReasonType === 'other' ? 'Biên bản / Chi tiết sự việc' : 'Biên bản / Nguyên nhân cụ thể'} <span style={{ color: '#dc2626' }}>*</span>
               </label>
               <input
                 type="text"
-                placeholder="Ví dụ: Rơi vỡ khi bốc dỡ ca sáng; Hao hụt đối chiếu kiểm đếm..."
+                placeholder={
+                  createReasonType === 'other'
+                    ? 'Ví dụ: Theo biên bản kiểm nghiệm số 08/BB, Quyết định số 15/QĐ...'
+                    : 'Ví dụ: Rơi vỡ khi bốc dỡ ca sáng; Hao hụt đối chiếu kiểm đếm...'
+                }
                 value={createReasonNote}
                 onChange={(e) => setCreateReasonNote(e.target.value)}
                 style={{

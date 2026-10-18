@@ -9,6 +9,7 @@ export interface ProductInfiniteSelectProps {
   placeholder?: string;
   className?: string;
   id?: string;
+  stockMap?: Map<number, { available_stock: number; actual_stock: number; reserved_stock: number }>;
 }
 
 export const ProductInfiniteSelect: React.FC<ProductInfiniteSelectProps> = ({
@@ -19,6 +20,7 @@ export const ProductInfiniteSelect: React.FC<ProductInfiniteSelectProps> = ({
   placeholder = 'Bấm vào đây để tìm và chọn sản phẩm thêm vào đơn hàng...',
   className = '',
   id = 'select-order-product-infinite',
+  stockMap,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -284,7 +286,9 @@ export const ProductInfiniteSelect: React.FC<ProductInfiniteSelectProps> = ({
                     ? addedItem.quantity
                     : parseFloat(addedItem.quantity) || 1
                   : 0;
-                const isOutOfStock = (p.stock ?? 0) <= 0 || p.status === 'out_of_stock' || p.status === 'inactive';
+                const stockItem = stockMap ? stockMap.get(p.id) : undefined;
+                const availableStock = stockItem ? stockItem.available_stock : (p.stock ?? 0);
+                const isOutOfStock = availableStock <= 0 || p.status === 'out_of_stock' || p.status === 'inactive';
 
                 return (
                   <div
@@ -322,7 +326,7 @@ export const ProductInfiniteSelect: React.FC<ProductInfiniteSelectProps> = ({
                               Hết hàng (0)
                             </strong>
                           ) : (
-                            <strong className="text-emerald-700 font-bold">{p.stock}</strong>
+                            <strong className="text-emerald-700 font-bold">{availableStock}</strong>
                           )}{' '}
                           {p.base_unit || 'Cái'}
                         </span>

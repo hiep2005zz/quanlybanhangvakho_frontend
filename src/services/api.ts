@@ -33,6 +33,30 @@ export const AUTH_STORAGE = {
   EXPIRED_MESSAGE: 'auth_session_expired_message',
 };
 
+export type SystemSyncEventKey = 'ORDERS_UPDATED' | 'INVENTORY_STOCK_UPDATED' | 'DEBT_UPDATED' | 'DEALER_UPDATED';
+
+export function notifySystemSync(eventKey: SystemSyncEventKey) {
+  if (typeof window === 'undefined') return;
+  try {
+    const timestamp = Date.now().toString();
+    if (eventKey === 'ORDERS_UPDATED') {
+      localStorage.setItem('orders_last_updated', timestamp);
+      window.dispatchEvent(new CustomEvent('ORDERS_UPDATED', { detail: { timestamp } }));
+    } else if (eventKey === 'INVENTORY_STOCK_UPDATED') {
+      localStorage.setItem('inventory_last_updated', timestamp);
+      window.dispatchEvent(new CustomEvent('INVENTORY_STOCK_UPDATED', { detail: { timestamp } }));
+    } else if (eventKey === 'DEBT_UPDATED') {
+      localStorage.setItem('debt_reconciliation_last_updated', timestamp);
+      window.dispatchEvent(new CustomEvent('debt-reconciliation-updated', { detail: { timestamp } }));
+    } else if (eventKey === 'DEALER_UPDATED') {
+      localStorage.setItem('dealers_last_updated', timestamp);
+      window.dispatchEvent(new CustomEvent('DEALER_DATA_CHANGED', { detail: { timestamp } }));
+    }
+  } catch {
+    // Ignore quota or disabled storage
+  }
+}
+
 export interface User {
   id?: number;
   username: string;
@@ -845,8 +869,17 @@ export async function getCloneOrderDataApi(token: string, orderCode: string): Pr
   return data;
 }
 
-export async function getOrderDealersApi(token: string): Promise<OrderDealer[]> {
-  const response = await authenticatedFetch(`${API_BASE_URL}/orders/dealers`, { method: 'GET' }, token);
+export async function getOrderDealersApi(
+  token: string,
+  params?: { search?: string; page?: number; page_size?: number }
+): Promise<OrderDealer[]> {
+  const query = new URLSearchParams();
+  if (params?.search && params.search.trim()) query.append('search', params.search.trim());
+  if (params?.page) query.append('page', params.page.toString());
+  if (params?.page_size) query.append('page_size', params.page_size.toString());
+  const queryString = query.toString();
+  const url = `${API_BASE_URL}/orders/dealers${queryString ? `?${queryString}` : ''}`;
+  const response = await authenticatedFetch(url, { method: 'GET' }, token);
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
     throw new Error(data.detail || `Lỗi tải danh sách đại lý (Mã lỗi ${response.status})`);
@@ -880,7 +913,10 @@ export async function createOrderApi(
   if (!response.ok) {
     throw new Error(getApiErrorMessage(data, `Lỗi tạo đơn hàng (Mã lỗi ${response.status})`));
   }
-  return data as CreatedOrder;
+  const createdOrder = data as CreatedOrder;
+  notifySystemSync('ORDERS_UPDATED');
+  notifySystemSync('INVENTORY_STOCK_UPDATED');
+  return createdOrder;
 }
 
 export async function cancelOrderApi(
@@ -906,6 +942,8 @@ export async function cancelOrderApi(
   if (!response.ok) {
     throw new Error(data.detail || `Lỗi hủy đơn hàng (Mã lỗi ${response.status})`);
   }
+  notifySystemSync('ORDERS_UPDATED');
+  notifySystemSync('INVENTORY_STOCK_UPDATED');
   return data;
 }
 
@@ -2071,6 +2109,7 @@ export async function approveOrderApi(token: string, orderIdOrCode: number | str
   if (!response.ok) {
     throw new Error(data.detail || `Lỗi phê duyệt đơn hàng (Mã lỗi ${response.status})`);
   }
+  notifySystemSync('ORDERS_UPDATED');
   return data;
 }
 
@@ -2085,6 +2124,7 @@ export async function rejectOrderApi(token: string, orderIdOrCode: number | stri
   if (!response.ok) {
     throw new Error(data.detail || `Lỗi từ chối đơn hàng (Mã lỗi ${response.status})`);
   }
+  notifySystemSync('ORDERS_UPDATED');
   return data;
 }
 
@@ -2099,6 +2139,7 @@ export async function returnOrderApi(token: string, orderIdOrCode: number | stri
   if (!response.ok) {
     throw new Error(data.detail || `Lỗi trả lại đơn hàng (Mã lỗi ${response.status})`);
   }
+  notifySystemSync('ORDERS_UPDATED');
   return data;
 }
 
@@ -2575,6 +2616,20 @@ export interface WarehouseItem {
   total_stock_quantity: number;
 }
 
+export interface WarehouseKeeperItem {
+  id: number;
+  username: string;
+  full_name: string;
+  role: string;
+  roles?: string[];
+  role_title: string;
+  phone?: string | null;
+  email?: string | null;
+  branch?: string | null;
+  badge_color?: string | null;
+  is_active?: boolean;
+}
+
 export interface WarehouseLocationItem {
   id: number;
   warehouse_id: number;
@@ -2680,6 +2735,25 @@ export async function getWarehousesApi(
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
     throw new Error(errorData.detail || 'Lỗi tải danh sách kho hàng');
+  }
+  return response.json();
+}
+
+export async function getWarehouseKeepersApi(
+  token: string,
+  search?: string
+): Promise<WarehouseKeeperItem[]> {
+  const params = new URLSearchParams();
+  if (search && search.trim()) params.set('search', search.trim());
+  const qs = params.toString() ? `?${params.toString()}` : '';
+
+  const response = await authenticatedFetch(`${API_BASE_URL}/warehouses/keepers${qs}`, {
+    method: 'GET',
+  }, token);
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Lỗi tải danh sách nhân sự thủ kho');
   }
   return response.json();
 }
@@ -3804,6 +3878,35 @@ export async function updateWarehouseThresholdApi(
   return data;
 }
 
+export interface BulkApplyThresholdPayload {
+  min_stock: number;
+  warehouse_id?: string;
+}
+
+export interface BulkApplyThresholdResponse {
+  success: boolean;
+  message: string;
+  updated_count: number;
+  min_stock: number;
+  warehouse_id: string;
+}
+
+export async function bulkApplyWarehouseThresholdApi(
+  token: string,
+  payload: BulkApplyThresholdPayload
+): Promise<BulkApplyThresholdResponse> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/inventory/thresholds/bulk-apply`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  }, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || 'Lỗi áp dụng định mức tồn đồng loạt');
+  }
+  return data;
+}
+
 export async function getLowStockAlertsApi(
   token: string,
   page?: number,
@@ -4381,6 +4484,7 @@ export interface DebtLedgerFilters {
   assigned_sale_id?: number;
   overdue_only?: boolean;
   search?: string;
+  ageing_bucket?: string;
 }
 
 export async function getDebtLedgerApi(token: string, filters?: DebtLedgerFilters): Promise<DebtLedgerResponse> {
@@ -4389,6 +4493,7 @@ export async function getDebtLedgerApi(token: string, filters?: DebtLedgerFilter
   if (filters?.assigned_sale_id) params.append('assigned_sale_id', String(filters.assigned_sale_id));
   if (filters?.overdue_only) params.append('overdue_only', 'true');
   if (filters?.search) params.append('search', filters.search);
+  if (filters?.ageing_bucket && filters.ageing_bucket !== 'all') params.append('ageing_bucket', filters.ageing_bucket);
 
   const qs = params.toString() ? `?${params.toString()}` : '';
   const response = await authenticatedFetch(`${API_BASE_URL}/dealers/debt-ledger${qs}`, {
@@ -4408,6 +4513,7 @@ export async function exportDebtLedgerExcelApi(token: string, filters?: DebtLedg
   if (filters?.assigned_sale_id) params.append('assigned_sale_id', String(filters.assigned_sale_id));
   if (filters?.overdue_only) params.append('overdue_only', 'true');
   if (filters?.search) params.append('search', filters.search);
+  if (filters?.ageing_bucket && filters.ageing_bucket !== 'all') params.append('ageing_bucket', filters.ageing_bucket);
 
   const qs = params.toString() ? `?${params.toString()}` : '';
   const response = await authenticatedFetch(`${API_BASE_URL}/dealers/debt-ledger/export${qs}`, {
@@ -5071,6 +5177,9 @@ export interface StockAdjustmentResponse {
 export interface StockAdjustmentListResponse {
   items: StockAdjustmentResponse[];
   total: number;
+  page?: number;
+  page_size?: number;
+  total_pages?: number;
   pending_count: number;
   approved_count: number;
   rejected_count: number;
@@ -5122,6 +5231,8 @@ export async function getStockAdjustmentsApi(
     search?: string;
     limit?: number;
     offset?: number;
+    page?: number;
+    page_size?: number;
   }
 ): Promise<StockAdjustmentListResponse> {
   const query = new URLSearchParams();
@@ -5137,10 +5248,16 @@ export async function getStockAdjustmentsApi(
   if (params?.search && params.search.trim()) {
     query.set('search', params.search.trim());
   }
+  if (params?.page) {
+    query.set('page', String(params.page));
+  }
+  if (params?.page_size) {
+    query.set('page_size', String(params.page_size));
+  }
   if (params?.limit) {
     query.set('limit', String(params.limit));
   }
-  if (params?.offset) {
+  if (params?.offset !== undefined) {
     query.set('offset', String(params.offset));
   }
 
@@ -5472,6 +5589,8 @@ export async function confirmPaymentCollectionApi(
     const errorMsg = formatErrorMessage(data.detail, data.message || `Lỗi xác nhận nhận tiền (${response.status})`);
     throw new Error(errorMsg);
   }
+  notifySystemSync('DEBT_UPDATED');
+  notifySystemSync('ORDERS_UPDATED');
   return data;
 }
 
@@ -5494,6 +5613,8 @@ export async function bulkConfirmPaymentCollectionApi(
     const errorMsg = formatErrorMessage(data.detail, data.message || `Lỗi duyệt nhận tiền theo lô (${response.status})`);
     throw new Error(errorMsg);
   }
+  notifySystemSync('DEBT_UPDATED');
+  notifySystemSync('ORDERS_UPDATED');
   return data;
 }
 
@@ -5555,4 +5676,406 @@ export async function getDailyReconciliationApi(
   }
   return data;
 }
+
+export interface DebtAgingItem {
+  dealer_id: number;
+  dealer_code: string;
+  dealer_name: string;
+  phone?: string | null;
+  address?: string | null;
+  region?: string | null;
+  assigned_sale_id?: number | null;
+  assigned_sale_name?: string | null;
+  credit_limit: number;
+  max_debt_days: number;
+  current_debt: number;
+  remaining_credit: number;
+  max_debt_age: number;
+  max_overdue_days: number;
+  debt_current: number;
+  debt_overdue_1_30: number;
+  debt_overdue_31_60: number;
+  debt_overdue_61_90: number;
+  debt_overdue_over_90: number;
+  total_overdue: number;
+  overdue_invoices_count: number;
+  total_invoices_count: number;
+  risk_level: string;
+  risk_level_label: string;
+  risk_score: number;
+}
+
+export interface HighestRiskDealer {
+  dealer_id: number;
+  dealer_code: string;
+  dealer_name: string;
+  phone?: string | null;
+  assigned_sale_name?: string | null;
+  credit_limit: number;
+  current_debt: number;
+  total_overdue: number;
+  max_overdue_days: number;
+  max_debt_age: number;
+  debt_overdue_over_90: number;
+  risk_level_label: string;
+  reason: string;
+}
+
+export interface DebtAgingSummary {
+  total_debt: number;
+  total_overdue: number;
+  total_current: number;
+  total_overdue_1_30: number;
+  total_overdue_31_60: number;
+  total_overdue_61_90: number;
+  total_overdue_over_90: number;
+  total_dealers_count: number;
+  overdue_dealers_count: number;
+  highest_risk_dealer?: HighestRiskDealer | null;
+}
+
+export interface DebtAgingReportParams {
+  assigned_sale_id?: number | string;
+  risk_level?: string;
+  search?: string;
+}
+
+export interface DebtAgingReportResponse {
+  summary: DebtAgingSummary;
+  items: DebtAgingItem[];
+  sales_list: { id: number; name: string }[];
+}
+
+export async function getDebtAgingReportApi(
+  token: string,
+  params?: DebtAgingReportParams
+): Promise<DebtAgingReportResponse> {
+  const query = new URLSearchParams();
+  if (params?.assigned_sale_id && params.assigned_sale_id !== 'all') {
+    query.set('assigned_sale_id', String(params.assigned_sale_id));
+  }
+  if (params?.risk_level && params.risk_level !== 'all') {
+    query.set('risk_level', params.risk_level);
+  }
+  if (params?.search && params.search.trim()) {
+    query.set('search', params.search.trim());
+  }
+
+  const url = `${API_BASE_URL}/dealers/debt-aging-report${query.toString() ? `?${query.toString()}` : ''}`;
+  const response = await authenticatedFetch(url, { method: 'GET' }, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi tải báo cáo tuổi nợ (${response.status})`);
+  }
+  return data;
+}
+
+export interface ExecutiveKpiMetrics {
+  revenue_today: number;
+  revenue_today_growth: number;
+  revenue_this_month: number;
+  revenue_this_month_growth: number;
+  pending_approval_orders_count: number;
+  pending_export_orders_count: number;
+  total_overdue_debt: number;
+  low_stock_skus_count: number;
+}
+
+export interface ExecutiveDailyRevenueItem {
+  day: number;
+  date: string;
+  revenue: number;
+  is_today: boolean;
+}
+
+export interface ExecutiveRegionRevenueItem {
+  region: string;
+  revenue: number;
+  percentage: number;
+}
+
+export interface ExecutiveOverdueDealerItem {
+  dealer_id: number;
+  dealer_code: string;
+  dealer_name: string;
+  phone: string;
+  overdue_days: number;
+  overdue_amount: number;
+  total_debt: number;
+  credit_limit: number;
+}
+
+export interface ExecutiveDashboardResponse {
+  kpis: ExecutiveKpiMetrics;
+  daily_revenue: ExecutiveDailyRevenueItem[];
+  revenue_by_region: ExecutiveRegionRevenueItem[];
+  top_overdue_dealers: ExecutiveOverdueDealerItem[];
+  updated_at: string;
+}
+
+export async function getExecutiveMetricsApi(token: string): Promise<ExecutiveDashboardResponse> {
+  const url = `${API_BASE_URL}/dashboard/executive-metrics`;
+  const response = await authenticatedFetch(url, { method: 'GET' }, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi tải dữ liệu Dashboard điều hành (${response.status})`);
+  }
+  return data;
+}
+
+// ==========================================
+// ĐỐI CHIẾU CÔNG NỢ ĐỊNH KỲ (DEBT RECONCILIATION)
+// ==========================================
+
+export interface ReconciliationItem {
+  doc_type: 'INVOICE' | 'PAYMENT';
+  doc_code: string;
+  doc_date: string;
+  order_code?: string | null;
+  description?: string | null;
+  increase_amount: number;
+  decrease_amount: number;
+  running_balance: number;
+  payment_method?: string | null;
+}
+
+export interface DebtReconciliationItemResponse {
+  id: number;
+  code: string;
+  dealer_id: number;
+  dealer_code: string;
+  dealer_name: string;
+  dealer_phone?: string | null;
+  dealer_address?: string | null;
+  from_date: string;
+  to_date: string;
+  period_label: string;
+  opening_balance: number;
+  total_increase: number;
+  total_decrease: number;
+  closing_balance: number;
+  status: 'DRAFT' | 'SENT' | 'CONFIRMED' | 'DISPUTED' | 'CANCELLED';
+  items: ReconciliationItem[];
+  dealer_reported_balance?: number | null;
+  dealer_dispute_reason?: string | null;
+  disputed_at?: string | null;
+  confirmed_at?: string | null;
+  confirmed_by_name?: string | null;
+  created_by_name?: string | null;
+  note?: string | null;
+  resolution_note?: string | null;
+  created_at: string;
+}
+
+export interface DebtReconciliationKpiSummary {
+  total_count: number;
+  pending_count: number;
+  confirmed_count: number;
+  disputed_count: number;
+  draft_count: number;
+}
+
+export interface DebtReconciliationListResponse {
+  items: DebtReconciliationItemResponse[];
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+  kpi_summary: DebtReconciliationKpiSummary;
+}
+
+export interface DebtReconciliationPreviewParams {
+  dealer_id: number;
+  from_date: string;
+  to_date: string;
+}
+
+export interface DebtReconciliationPreviewResult {
+  dealer_id: number;
+  dealer_code: string;
+  dealer_name: string;
+  dealer_phone?: string;
+  dealer_address?: string;
+  from_date: string;
+  to_date: string;
+  period_label: string;
+  opening_balance: number;
+  total_increase: number;
+  total_decrease: number;
+  closing_balance: number;
+  items: ReconciliationItem[];
+}
+
+export interface DebtReconciliationCreateParams {
+  dealer_id: number;
+  from_date: string;
+  to_date: string;
+  note?: string;
+  send_immediately?: boolean;
+}
+
+export interface DebtReconciliationFilterParams {
+  dealer_id?: number | string;
+  status?: string;
+  search?: string;
+  from_date?: string;
+  to_date?: string;
+  page?: number;
+  page_size?: number;
+}
+
+export async function getDebtReconciliationsApi(
+  token: string,
+  params?: DebtReconciliationFilterParams
+): Promise<DebtReconciliationListResponse> {
+  const query = new URLSearchParams();
+  if (params?.dealer_id && params.dealer_id !== 'all') {
+    query.set('dealer_id', String(params.dealer_id));
+  }
+  if (params?.status && params.status !== 'all') {
+    query.set('status', params.status);
+  }
+  if (params?.search && params.search.trim()) {
+    query.set('search', params.search.trim());
+  }
+  if (params?.from_date) {
+    query.set('from_date', params.from_date);
+  }
+  if (params?.to_date) {
+    query.set('to_date', params.to_date);
+  }
+  if (params?.page) {
+    query.set('page', String(params.page));
+  }
+  if (params?.page_size) {
+    query.set('page_size', String(params.page_size));
+  }
+
+  const url = `${API_BASE_URL}/debt-reconciliations${query.toString() ? `?${query.toString()}` : ''}`;
+  const response = await authenticatedFetch(url, { method: 'GET' }, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi tải danh sách biên bản đối chiếu (${response.status})`);
+  }
+  return data;
+}
+
+export async function previewDebtReconciliationApi(
+  token: string,
+  payload: DebtReconciliationPreviewParams
+): Promise<DebtReconciliationPreviewResult> {
+  const url = `${API_BASE_URL}/debt-reconciliations/preview`;
+  const response = await authenticatedFetch(url, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  }, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi tính toán xem trước biên bản đối chiếu (${response.status})`);
+  }
+  return data;
+}
+
+export async function createDebtReconciliationApi(
+  token: string,
+  payload: DebtReconciliationCreateParams
+): Promise<DebtReconciliationItemResponse> {
+  const url = `${API_BASE_URL}/debt-reconciliations`;
+  const response = await authenticatedFetch(url, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  }, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi tạo biên bản đối chiếu (${response.status})`);
+  }
+  return data;
+}
+
+export async function getDebtReconciliationDetailApi(
+  token: string,
+  recId: number
+): Promise<DebtReconciliationItemResponse> {
+  const url = `${API_BASE_URL}/debt-reconciliations/${recId}`;
+  const response = await authenticatedFetch(url, { method: 'GET' }, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi tải chi tiết biên bản đối chiếu (${response.status})`);
+  }
+  return data;
+}
+
+export async function sendDebtReconciliationApi(
+  token: string,
+  recId: number
+): Promise<DebtReconciliationItemResponse> {
+  const url = `${API_BASE_URL}/debt-reconciliations/${recId}/send`;
+  const response = await authenticatedFetch(url, { method: 'POST' }, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi gửi biên bản sang đại lý (${response.status})`);
+  }
+  return data;
+}
+
+export async function confirmDebtReconciliationApi(
+  token: string,
+  recId: number
+): Promise<DebtReconciliationItemResponse> {
+  const url = `${API_BASE_URL}/debt-reconciliations/${recId}/confirm`;
+  const response = await authenticatedFetch(url, { method: 'POST' }, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi xác nhận biên bản đối chiếu (${response.status})`);
+  }
+  return data;
+}
+
+export async function disputeDebtReconciliationApi(
+  token: string,
+  recId: number,
+  payload: { dealer_reported_balance: number; reason: string }
+): Promise<DebtReconciliationItemResponse> {
+  const url = `${API_BASE_URL}/debt-reconciliations/${recId}/dispute`;
+  const response = await authenticatedFetch(url, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  }, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi gửi phản hồi chênh lệch (${response.status})`);
+  }
+  return data;
+}
+
+export async function resolveDebtReconciliationApi(
+  token: string,
+  recId: number,
+  payload: { resolution_note: string }
+): Promise<DebtReconciliationItemResponse> {
+  const url = `${API_BASE_URL}/debt-reconciliations/${recId}/resolve`;
+  const response = await authenticatedFetch(url, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  }, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi giải quyết khiếu nại (${response.status})`);
+  }
+  return data;
+}
+
+export async function deleteDebtReconciliationApi(
+  token: string,
+  recId: number
+): Promise<{ message: string }> {
+  const url = `${API_BASE_URL}/debt-reconciliations/${recId}`;
+  const response = await authenticatedFetch(url, { method: 'DELETE' }, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi xóa biên bản đối chiếu (${response.status})`);
+  }
+  return data;
+}
+
 

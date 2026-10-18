@@ -137,18 +137,50 @@ export const PaymentCollectionView: React.FC<PaymentCollectionViewProps> = ({
   // Đợt đối chiếu được chọn để xem bảng chi tiết ("bấm chi tiết thì sang một bảng chi tiết")
   const [selectedBatch, setSelectedBatch] = useState<DailyReconciliationItem | null>(null);
 
-  // Quản lý Hộp Menu Thao tác thả xuống (Action Dropdown Box)
-  const [openActionId, setOpenActionId] = useState<number | null>(null);
+  // Quản lý Hộp Menu Thao tác thả xuống (Action Dropdown Box qua ModalPortal chống bị che khuất)
+  const [actionMenuState, setActionMenuState] = useState<{
+    item: PaymentCollectionItem;
+    top: number;
+    right: number;
+    isDropup: boolean;
+  } | null>(null);
+
+  const handleToggleActionMenu = (e: React.MouseEvent, item: PaymentCollectionItem) => {
+    e.stopPropagation();
+    if (actionMenuState?.item.id === item.id) {
+      setActionMenuState(null);
+    } else {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const isDropup = spaceBelow < 190;
+      setActionMenuState({
+        item,
+        top: isDropup ? rect.top - 4 : rect.bottom + 4,
+        right: Math.max(10, window.innerWidth - rect.right),
+        isDropup,
+      });
+    }
+  };
 
   useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
+    const handleCloseActionMenu = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
-      if (!target.closest('.payment-action-menu-container')) {
-        setOpenActionId(null);
+      if (!target.closest('.payment-action-menu-portal') && !target.closest('.payment-action-menu-btn')) {
+        setActionMenuState(null);
       }
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    const handleScrollOrResize = () => {
+      setActionMenuState(null);
+    };
+
+    document.addEventListener('mousedown', handleCloseActionMenu);
+    window.addEventListener('scroll', handleScrollOrResize, true);
+    window.addEventListener('resize', handleScrollOrResize);
+    return () => {
+      document.removeEventListener('mousedown', handleCloseActionMenu);
+      window.removeEventListener('scroll', handleScrollOrResize, true);
+      window.removeEventListener('resize', handleScrollOrResize);
+    };
   }, []);
 
   // Kéo chuột để lướt ngang mượt mà (Mouse Drag-to-Scroll UX)
@@ -1058,6 +1090,7 @@ export const PaymentCollectionView: React.FC<PaymentCollectionViewProps> = ({
           <div
             style={{
               width: '100%',
+              minHeight: '140px',
               overflowX: 'auto',
               WebkitOverflowScrolling: 'touch',
               borderBottom: '1px solid #e2e8f0',
@@ -1116,7 +1149,6 @@ export const PaymentCollectionView: React.FC<PaymentCollectionViewProps> = ({
                   visibleBatchCollections.map((item) => {
                     const isSelected = selectedIds.includes(item.id);
                     const isOwnCollection = currentUser?.id === item.sales_id;
-                    const canUserConfirmThis = canConfirm && (!isOwnCollection || isAdmin);
 
                     return (
                       <tr
@@ -1222,214 +1254,62 @@ export const PaymentCollectionView: React.FC<PaymentCollectionViewProps> = ({
                         <td style={{ padding: '10px 8px', color: '#64748b', minWidth: '120px', fontSize: '12px' }}>
                           {item.note || item.remittance_note || item.confirmation_note || '—'}
                         </td>
-                        <td style={{ padding: '8px 10px', textAlign: 'center', width: '105px', minWidth: '105px', position: 'relative' }}>
-                          <div className="payment-action-menu-container" style={{ position: 'relative', display: 'inline-block' }}>
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setOpenActionId((prev) => (prev === item.id ? null : item.id));
-                              }}
+                        <td style={{ padding: '8px 10px', textAlign: 'center', width: '105px', minWidth: '105px' }}>
+                          <button
+                            type="button"
+                            className="payment-action-menu-btn"
+                            onClick={(e) => handleToggleActionMenu(e, item)}
+                            style={{
+                              padding: '4px 10px',
+                              backgroundColor: actionMenuState?.item.id === item.id ? '#f1f5f9' : '#ffffff',
+                              border: '1px solid #cbd5e1',
+                              borderRadius: '6px',
+                              fontSize: '12px',
+                              color: '#1e293b',
+                              cursor: 'pointer',
+                              fontWeight: 600,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '5px',
+                              whiteSpace: 'nowrap',
+                              boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+                              transition: 'all 0.15s ease',
+                            }}
+                          >
+                            <span>Thao tác</span>
+                            <svg
+                              width="11"
+                              height="11"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="#64748b"
+                              strokeWidth="2.5"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
                               style={{
-                                padding: '4px 10px',
-                                backgroundColor: openActionId === item.id ? '#f1f5f9' : '#ffffff',
-                                border: '1px solid #cbd5e1',
-                                borderRadius: '6px',
-                                fontSize: '12px',
-                                color: '#1e293b',
-                                cursor: 'pointer',
-                                fontWeight: 600,
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '5px',
-                                whiteSpace: 'nowrap',
-                                boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
-                                transition: 'all 0.15s ease',
+                                transform: actionMenuState?.item.id === item.id ? 'rotate(180deg)' : 'none',
+                                transition: 'transform 0.15s ease',
                               }}
                             >
-                              <span>Thao tác</span>
-                              <svg
-                                width="11"
-                                height="11"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="#64748b"
-                                strokeWidth="2.5"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                style={{
-                                  transform: openActionId === item.id ? 'rotate(180deg)' : 'none',
-                                  transition: 'transform 0.15s ease',
-                                }}
-                              >
-                                <polyline points="6 9 12 15 18 9" />
-                              </svg>
-                            </button>
+                              <polyline points="6 9 12 15 18 9" />
+                            </svg>
+                          </button>
 
-                            {openActionId === item.id && (
-                              <div
-                                style={{
-                                  position: 'absolute',
-                                  right: 0,
-                                  top: 'calc(100% + 4px)',
-                                  zIndex: 100,
-                                  backgroundColor: '#ffffff',
-                                  borderRadius: '8px',
-                                  border: '1px solid #e2e8f0',
-                                  boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.12), 0 8px 10px -6px rgba(0, 0, 0, 0.08)',
-                                  minWidth: '155px',
-                                  padding: '5px',
-                                  display: 'flex',
-                                  flexDirection: 'column',
-                                  gap: '2px',
-                                  textAlign: 'left',
-                                }}
-                              >
-                                {/* 1. Chi tiết */}
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleOpenDetail(item);
-                                    setOpenActionId(null);
-                                  }}
-                                  style={{
-                                    width: '100%',
-                                    padding: '7px 10px',
-                                    backgroundColor: 'transparent',
-                                    border: 'none',
-                                    borderRadius: '5px',
-                                    fontSize: '12.5px',
-                                    color: '#334155',
-                                    textAlign: 'left',
-                                    cursor: 'pointer',
-                                    fontWeight: 500,
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '8px',
-                                    whiteSpace: 'nowrap',
-                                  }}
-                                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f1f5f9')}
-                                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
-                                >
-                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                                    <circle cx="12" cy="12" r="3" />
-                                  </svg>
-                                  <span>Xem chi tiết</span>
-                                </button>
-
-                                {/* 2. Nộp Cty */}
-                                {(item.status === 'PENDING_REMITTANCE' || item.status === 'REJECTED') && canCollect && (
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setRemitModalItem(item);
-                                      setRemitNote('');
-                                      setOpenActionId(null);
-                                    }}
-                                    style={{
-                                      width: '100%',
-                                      padding: '7px 10px',
-                                      backgroundColor: 'transparent',
-                                      border: 'none',
-                                      borderRadius: '5px',
-                                      fontSize: '12.5px',
-                                      color: '#0284c7',
-                                      textAlign: 'left',
-                                      cursor: 'pointer',
-                                      fontWeight: 600,
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      gap: '8px',
-                                      whiteSpace: 'nowrap',
-                                    }}
-                                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#eff6ff')}
-                                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
-                                  >
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0284c7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                      <polyline points="9 18 15 12 9 6" />
-                                    </svg>
-                                    <span>Nộp tiền về Cty</span>
-                                  </button>
-                                )}
-
-                                {/* 3. Duyệt & Từ chối */}
-                                {canUserConfirmThis && item.status === 'SUBMITTED' && (
-                                  <>
-                                    <div style={{ height: '1px', backgroundColor: '#f1f5f9', margin: '3px 0' }} />
-                                    <button
-                                      type="button"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setConfirmModalItem(item);
-                                        setConfirmNote('');
-                                        setOpenActionId(null);
-                                      }}
-                                      style={{
-                                        width: '100%',
-                                        padding: '7px 10px',
-                                        backgroundColor: 'transparent',
-                                        border: 'none',
-                                        borderRadius: '5px',
-                                        fontSize: '12.5px',
-                                        color: '#16a34a',
-                                        textAlign: 'left',
-                                        cursor: 'pointer',
-                                        fontWeight: 600,
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '8px',
-                                        whiteSpace: 'nowrap',
-                                      }}
-                                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f0fdf4')}
-                                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
-                                    >
-                                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                        <polyline points="20 6 9 17 4 12" />
-                                      </svg>
-                                      <span>Duyệt nhận tiền</span>
-                                    </button>
-
-                                    <button
-                                      type="button"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setRejectModalItem(item);
-                                        setRejectReason('');
-                                        setOpenActionId(null);
-                                      }}
-                                      style={{
-                                        width: '100%',
-                                        padding: '7px 10px',
-                                        backgroundColor: 'transparent',
-                                        border: 'none',
-                                        borderRadius: '5px',
-                                        fontSize: '12.5px',
-                                        color: '#dc2626',
-                                        textAlign: 'left',
-                                        cursor: 'pointer',
-                                        fontWeight: 600,
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '8px',
-                                        whiteSpace: 'nowrap',
-                                      }}
-                                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#fef2f2')}
-                                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
-                                    >
-                                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                        <line x1="18" y1="6" x2="6" y2="18" />
-                                        <line x1="6" y1="6" x2="18" y2="18" />
-                                      </svg>
-                                      <span>Từ chối / Báo lệch</span>
-                                    </button>
-                                  </>
-                                )}
-                              </div>
-                            )}
-                          </div>
+                          {/* Segregation of duties warning if sales tries to confirm own remittance */}
+                          {!isAdmin && isAccountant && isOwnCollection && item.status === 'SUBMITTED' && (
+                            <span
+                              style={{
+                                fontSize: '10.5px',
+                                color: '#64748b',
+                                fontStyle: 'italic',
+                                display: 'block',
+                                marginTop: '2px',
+                              }}
+                              title="Theo quy tắc phân nhiệm (Segregation of Duties), bạn không thể tự duyệt khoản thu do chính mình tạo ra."
+                            >
+                              Cần KT khác duyệt
+                            </span>
+                          )}
                         </td>
                       </tr>
                     );
@@ -2048,7 +1928,6 @@ export const PaymentCollectionView: React.FC<PaymentCollectionViewProps> = ({
                   listData.items.map((item) => {
                     const isSelected = selectedIds.includes(item.id);
                     const isOwnCollection = currentUser?.id === item.sales_id;
-                    const canUserConfirmThis = canConfirm && (!isOwnCollection || isAdmin);
 
                     return (
                       <tr
@@ -2173,230 +2052,62 @@ export const PaymentCollectionView: React.FC<PaymentCollectionViewProps> = ({
                             </div>
                           )}
                         </td>
-                        <td style={{ padding: '8px 10px', textAlign: 'center', width: '105px', minWidth: '105px', position: 'relative' }}>
-                          <div className="payment-action-menu-container" style={{ position: 'relative', display: 'inline-block' }}>
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setOpenActionId((prev) => (prev === item.id ? null : item.id));
-                              }}
+                        <td style={{ padding: '8px 10px', textAlign: 'center', width: '105px', minWidth: '105px' }}>
+                          <button
+                            type="button"
+                            className="payment-action-menu-btn"
+                            onClick={(e) => handleToggleActionMenu(e, item)}
+                            style={{
+                              padding: '4px 10px',
+                              backgroundColor: actionMenuState?.item.id === item.id ? '#f1f5f9' : '#ffffff',
+                              border: '1px solid #cbd5e1',
+                              borderRadius: '6px',
+                              fontSize: '12px',
+                              color: '#1e293b',
+                              cursor: 'pointer',
+                              fontWeight: 600,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '5px',
+                              whiteSpace: 'nowrap',
+                              boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+                              transition: 'all 0.15s ease',
+                            }}
+                          >
+                            <span>Thao tác</span>
+                            <svg
+                              width="11"
+                              height="11"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="#64748b"
+                              strokeWidth="2.5"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
                               style={{
-                                padding: '4px 10px',
-                                backgroundColor: openActionId === item.id ? '#f1f5f9' : '#ffffff',
-                                border: '1px solid #cbd5e1',
-                                borderRadius: '6px',
-                                fontSize: '12px',
-                                color: '#1e293b',
-                                cursor: 'pointer',
-                                fontWeight: 600,
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '5px',
-                                whiteSpace: 'nowrap',
-                                boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
-                                transition: 'all 0.15s ease',
+                                transform: actionMenuState?.item.id === item.id ? 'rotate(180deg)' : 'none',
+                                transition: 'transform 0.15s ease',
                               }}
                             >
-                              <span>Thao tác</span>
-                              <svg
-                                width="11"
-                                height="11"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="#64748b"
-                                strokeWidth="2.5"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                style={{
-                                  transform: openActionId === item.id ? 'rotate(180deg)' : 'none',
-                                  transition: 'transform 0.15s ease',
-                                }}
-                              >
-                                <polyline points="6 9 12 15 18 9" />
-                              </svg>
-                            </button>
+                              <polyline points="6 9 12 15 18 9" />
+                            </svg>
+                          </button>
 
-                            {openActionId === item.id && (
-                              <div
-                                style={{
-                                  position: 'absolute',
-                                  right: 0,
-                                  top: 'calc(100% + 4px)',
-                                  zIndex: 100,
-                                  backgroundColor: '#ffffff',
-                                  borderRadius: '8px',
-                                  border: '1px solid #e2e8f0',
-                                  boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.12), 0 8px 10px -6px rgba(0, 0, 0, 0.08)',
-                                  minWidth: '155px',
-                                  padding: '5px',
-                                  display: 'flex',
-                                  flexDirection: 'column',
-                                  gap: '2px',
-                                  textAlign: 'left',
-                                }}
-                              >
-                                {/* 1. Chi tiết */}
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleOpenDetail(item);
-                                    setOpenActionId(null);
-                                  }}
-                                  style={{
-                                    width: '100%',
-                                    padding: '7px 10px',
-                                    backgroundColor: 'transparent',
-                                    border: 'none',
-                                    borderRadius: '5px',
-                                    fontSize: '12.5px',
-                                    color: '#334155',
-                                    textAlign: 'left',
-                                    cursor: 'pointer',
-                                    fontWeight: 500,
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '8px',
-                                    whiteSpace: 'nowrap',
-                                  }}
-                                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f1f5f9')}
-                                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
-                                >
-                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                                    <circle cx="12" cy="12" r="3" />
-                                  </svg>
-                                  <span>Xem chi tiết</span>
-                                </button>
-
-                                {/* 2. Nộp Cty */}
-                                {(item.status === 'PENDING_REMITTANCE' || item.status === 'REJECTED') && canCollect && (
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setRemitModalItem(item);
-                                      setRemitNote('');
-                                      setOpenActionId(null);
-                                    }}
-                                    style={{
-                                      width: '100%',
-                                      padding: '7px 10px',
-                                      backgroundColor: 'transparent',
-                                      border: 'none',
-                                      borderRadius: '5px',
-                                      fontSize: '12.5px',
-                                      color: '#0284c7',
-                                      textAlign: 'left',
-                                      cursor: 'pointer',
-                                      fontWeight: 600,
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      gap: '8px',
-                                      whiteSpace: 'nowrap',
-                                    }}
-                                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#eff6ff')}
-                                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
-                                  >
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0284c7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                      <polyline points="9 18 15 12 9 6" />
-                                    </svg>
-                                    <span>Nộp tiền về Cty</span>
-                                  </button>
-                                )}
-
-                                {/* 3. Duyệt & Báo lệch */}
-                                {canUserConfirmThis && item.status === 'SUBMITTED' && (
-                                  <>
-                                    <div style={{ height: '1px', backgroundColor: '#f1f5f9', margin: '3px 0' }} />
-                                    <button
-                                      type="button"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setConfirmModalItem(item);
-                                        setConfirmNote('');
-                                        setOpenActionId(null);
-                                      }}
-                                      style={{
-                                        width: '100%',
-                                        padding: '7px 10px',
-                                        backgroundColor: 'transparent',
-                                        border: 'none',
-                                        borderRadius: '5px',
-                                        fontSize: '12.5px',
-                                        color: '#16a34a',
-                                        textAlign: 'left',
-                                        cursor: 'pointer',
-                                        fontWeight: 600,
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '8px',
-                                        whiteSpace: 'nowrap',
-                                      }}
-                                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f0fdf4')}
-                                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
-                                    >
-                                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                        <polyline points="20 6 9 17 4 12" />
-                                      </svg>
-                                      <span>Duyệt nhận tiền</span>
-                                    </button>
-
-                                    <button
-                                      type="button"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setRejectModalItem(item);
-                                        setRejectReason('');
-                                        setOpenActionId(null);
-                                      }}
-                                      style={{
-                                        width: '100%',
-                                        padding: '7px 10px',
-                                        backgroundColor: 'transparent',
-                                        border: 'none',
-                                        borderRadius: '5px',
-                                        fontSize: '12.5px',
-                                        color: '#dc2626',
-                                        textAlign: 'left',
-                                        cursor: 'pointer',
-                                        fontWeight: 600,
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '8px',
-                                        whiteSpace: 'nowrap',
-                                      }}
-                                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#fef2f2')}
-                                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
-                                    >
-                                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                        <line x1="18" y1="6" x2="6" y2="18" />
-                                        <line x1="6" y1="6" x2="18" y2="18" />
-                                      </svg>
-                                      <span>Từ chối / Báo lệch</span>
-                                    </button>
-                                  </>
-                                )}
-                              </div>
-                            )}
-
-                            {/* Segregation of duties warning if sales tries to confirm own remittance */}
-                            {!isAdmin && isAccountant && isOwnCollection && item.status === 'SUBMITTED' && (
-                              <span
-                                style={{
-                                  fontSize: '10.5px',
-                                  color: '#64748b',
-                                  fontStyle: 'italic',
-                                  display: 'block',
-                                  marginTop: '2px',
-                                }}
-                                title="Theo quy tắc phân nhiệm (Segregation of Duties), bạn không thể tự duyệt khoản thu do chính mình tạo ra."
-                              >
-                                Cần KT khác duyệt
-                              </span>
-                            )}
-                          </div>
+                          {/* Segregation of duties warning if sales tries to confirm own remittance */}
+                          {!isAdmin && isAccountant && isOwnCollection && item.status === 'SUBMITTED' && (
+                            <span
+                              style={{
+                                fontSize: '10.5px',
+                                color: '#64748b',
+                                fontStyle: 'italic',
+                                display: 'block',
+                                marginTop: '2px',
+                              }}
+                              title="Theo quy tắc phân nhiệm (Segregation of Duties), bạn không thể tự duyệt khoản thu do chính mình tạo ra."
+                            >
+                              Cần KT khác duyệt
+                            </span>
+                          )}
                         </td>
                       </tr>
                     );
@@ -3271,6 +2982,176 @@ export const PaymentCollectionView: React.FC<PaymentCollectionViewProps> = ({
                 />
               </div>
             </div>
+          </div>
+        </ModalPortal>
+      )}
+
+      {/* Menu Thao Tác Popover qua ModalPortal (Tuyệt đối không bị che bởi overflow bảng) */}
+      {actionMenuState && (
+        <ModalPortal>
+          <div
+            className="payment-action-menu-portal"
+            style={{
+              position: 'fixed',
+              top: actionMenuState.isDropup ? undefined : `${actionMenuState.top}px`,
+              bottom: actionMenuState.isDropup ? `${window.innerHeight - actionMenuState.top}px` : undefined,
+              right: `${actionMenuState.right}px`,
+              zIndex: 999999,
+              backgroundColor: '#ffffff',
+              borderRadius: '8px',
+              border: '1px solid #e2e8f0',
+              boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.18), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+              minWidth: '160px',
+              padding: '5px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '2px',
+              textAlign: 'left',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* 1. Chi tiết */}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleOpenDetail(actionMenuState.item);
+                setActionMenuState(null);
+              }}
+              style={{
+                width: '100%',
+                padding: '7px 10px',
+                backgroundColor: 'transparent',
+                border: 'none',
+                borderRadius: '5px',
+                fontSize: '12.5px',
+                color: '#334155',
+                textAlign: 'left',
+                cursor: 'pointer',
+                fontWeight: 500,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                whiteSpace: 'nowrap',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f1f5f9')}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+              <span>Xem chi tiết</span>
+            </button>
+
+            {/* 2. Nộp Cty */}
+            {(actionMenuState.item.status === 'PENDING_REMITTANCE' || actionMenuState.item.status === 'REJECTED') && canCollect && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setRemitModalItem(actionMenuState.item);
+                  setRemitNote('');
+                  setActionMenuState(null);
+                }}
+                style={{
+                  width: '100%',
+                  padding: '7px 10px',
+                  backgroundColor: 'transparent',
+                  border: 'none',
+                  borderRadius: '5px',
+                  fontSize: '12.5px',
+                  color: '#0284c7',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  whiteSpace: 'nowrap',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#eff6ff')}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0284c7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="9 18 15 12 9 6" />
+                </svg>
+                <span>Nộp tiền về Cty</span>
+              </button>
+            )}
+
+            {/* 3. Duyệt & Báo lệch */}
+            {canConfirm && (!currentUser || currentUser.id !== actionMenuState.item.sales_id || isAdmin) && actionMenuState.item.status === 'SUBMITTED' && (
+              <>
+                <div style={{ height: '1px', backgroundColor: '#f1f5f9', margin: '3px 0' }} />
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setConfirmModalItem(actionMenuState.item);
+                    setConfirmNote('');
+                    setActionMenuState(null);
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '7px 10px',
+                    backgroundColor: 'transparent',
+                    border: 'none',
+                    borderRadius: '5px',
+                    fontSize: '12.5px',
+                    color: '#16a34a',
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                    fontWeight: 600,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    whiteSpace: 'nowrap',
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f0fdf4')}
+                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                  <span>Duyệt nhận tiền</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setRejectModalItem(actionMenuState.item);
+                    setRejectReason('');
+                    setActionMenuState(null);
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '7px 10px',
+                    backgroundColor: 'transparent',
+                    border: 'none',
+                    borderRadius: '5px',
+                    fontSize: '12.5px',
+                    color: '#dc2626',
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                    fontWeight: 600,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    whiteSpace: 'nowrap',
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#fef2f2')}
+                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                  <span>Từ chối / Báo lệch</span>
+                </button>
+              </>
+            )}
           </div>
         </ModalPortal>
       )}
