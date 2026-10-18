@@ -1,10 +1,8 @@
 import { useEffect, useState } from 'react';
 import {
-  getPaymentReminderScheduleApi,
   getPaymentRemindersApi,
   markPaymentReminderReadApi,
   type PaymentReminderNotification,
-  type PaymentReminderSchedule,
 } from '../../services/paymentReminderApi';
 
 interface PaymentReminderNotificationsProps {
@@ -21,35 +19,22 @@ export function PaymentReminderNotifications({
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [scheduleError, setScheduleError] = useState<string | null>(null);
-  const [schedule, setSchedule] = useState<PaymentReminderSchedule | null>(null);
 
   useEffect(() => {
     let active = true;
     const refresh = async () => {
-      const [reminders, scheduleResult] = await Promise.allSettled([
-        getPaymentRemindersApi(token),
-        getPaymentReminderScheduleApi(token),
-      ]);
-      if (!active) return;
-      if (reminders.status === 'fulfilled') {
-        setItems(reminders.value.items);
-        setUnreadCount(reminders.value.unread_count);
+      try {
+        const reminders = await getPaymentRemindersApi(token);
+        if (!active) return;
+        setItems(reminders.items);
+        setUnreadCount(reminders.unread_count);
         setError(null);
-      } else {
-        const reason: unknown = reminders.reason;
+      } catch (reason: unknown) {
+        if (!active) return;
         setError(reason instanceof Error ? reason.message : 'Không tải được thông báo.');
+      } finally {
+        if (active) setLoading(false);
       }
-      if (scheduleResult.status === 'fulfilled') {
-        setSchedule(scheduleResult.value);
-        setScheduleError(null);
-      } else {
-        const reason: unknown = scheduleResult.reason;
-        setScheduleError(
-          reason instanceof Error ? reason.message : 'Không kiểm tra được lịch nhắc hạn.'
-        );
-      }
-      setLoading(false);
     };
     void refresh();
     const intervalId = window.setInterval(() => {
@@ -107,26 +92,6 @@ export function PaymentReminderNotifications({
           className="absolute right-0 z-50 mt-2 max-h-96 w-[min(90vw,24rem)] overflow-y-auto rounded-xl border border-slate-200 bg-white p-3 text-slate-900 shadow-lg"
         >
           <h2 className="mb-2 text-base font-bold">Nhắc hạn thanh toán</h2>
-          {schedule && (
-            <p className="mb-2 text-xs text-slate-600">
-              {!schedule.enabled
-                ? 'Lịch nhắc hạn đang tắt.'
-                : !schedule.running
-                  ? 'Lịch đã bật nhưng tác vụ chưa chạy; hãy khởi động lại backend.'
-                  : `Tự kiểm tra hằng ngày lúc ${schedule.run_time} (giờ Việt Nam). Lần tiếp theo: ${new Date(schedule.next_run_at).toLocaleString('vi-VN')}.`}
-              {schedule.last_run_at &&
-                ` Lần chạy gần nhất: ${new Date(schedule.last_run_at).toLocaleString('vi-VN')}${
-                  schedule.last_run_summary
-                    ? ` (đã kiểm tra ${schedule.last_run_summary.candidates} hóa đơn, tạo ${schedule.last_run_summary.sent} lượt gửi, lỗi ${schedule.last_run_summary.failed}).`
-                    : '.'
-                }${schedule.last_run_failed ? ' Quản trị viên cần kiểm tra log.' : ''}`}
-            </p>
-          )}
-          {scheduleError && (
-            <p role="alert" className="mb-2 text-xs text-rose-800">
-              {scheduleError}
-            </p>
-          )}
           {error && (
             <p role="alert" className="mb-2 text-sm text-rose-800">
               {error}
