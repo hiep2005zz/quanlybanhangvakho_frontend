@@ -1370,7 +1370,7 @@ export const CustomerPortalView: React.FC<CustomerPortalViewProps> = ({
                           ? 'bg-rose-50 border border-rose-300 text-rose-800'
                           : 'bg-amber-50 border border-amber-300 text-amber-800'
                       }`}>
-                        ⚠️ <strong>Vượt hạn mức tín dụng:</strong>{' '}
+                        <strong>Vượt hạn mức tín dụng:</strong>{' '}
                         {creditInfo?.over_limit_action === 'BLOCK'
                           ? 'Đại lý đang vượt quá hạn mức công nợ. Hệ thống đang cấu hình CHẶN tạo đơn mới. Vui lòng liên hệ Kế toán thanh toán công nợ!'
                           : 'Đơn hàng sẽ ở trạng thái Chờ Quản Lý Duyệt trước khi được xuất kho.'}
@@ -1383,7 +1383,7 @@ export const CustomerPortalView: React.FC<CustomerPortalViewProps> = ({
                           ? 'bg-rose-50 border border-rose-300 text-rose-800'
                           : 'bg-amber-50 border border-amber-300 text-amber-800'
                       }`}>
-                        ⚠️ <strong>Khoản nợ quá hạn ({creditInfo.overdue_days_allowed || 30} ngày):</strong>{' '}
+                        <strong>Khoản nợ quá hạn ({creditInfo.overdue_days_allowed || 30} ngày):</strong>{' '}
                         {creditInfo?.overdue_action === 'BLOCK'
                           ? 'Hệ thống đang cấu hình CHẶN đặt hàng mới. Vui lòng thanh toán công nợ quá hạn!'
                           : 'Đơn hàng sẽ ở trạng thái Chờ Quản Lý Duyệt trước khi được xuất kho.'}
