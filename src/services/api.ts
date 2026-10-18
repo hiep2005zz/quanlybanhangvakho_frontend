@@ -810,14 +810,22 @@ export async function getCloneOrderDataApi(token: string, orderCode: string): Pr
   return data;
 }
 
-export async function getOrderDealersApi(token: string): Promise<OrderDealer[]> {
-  const response = await authenticatedFetch(`${API_BASE_URL}/orders/dealers`, { method: 'GET' }, token);
+export async function getOrderDealersApi(
+  token: string,
+  params?: { search?: string; page?: number; page_size?: number }
+): Promise<OrderDealer[]> {
+  const query = new URLSearchParams();
+  if (params?.search && params.search.trim()) query.append('search', params.search.trim());
+  if (params?.page) query.append('page', params.page.toString());
+  if (params?.page_size) query.append('page_size', params.page_size.toString());
+  const queryString = query.toString();
+  const url = `${API_BASE_URL}/orders/dealers${queryString ? `?${queryString}` : ''}`;
+  const response = await authenticatedFetch(url, { method: 'GET' }, token);
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
     throw new Error(data.detail || `Lỗi tải danh sách đại lý (Mã lỗi ${response.status})`);
   }
-  if (!Array.isArray(data)) throw new Error('Dữ liệu danh sách đại lý không hợp lệ.');
-  return data;
+  return Array.isArray(data) ? data : (data.dealers || []);
 }
 
 export async function getDealerCreditInfoApi(token: string, dealerId: number): Promise<DealerCreditInfo> {

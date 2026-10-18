@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useRef } from 'react';
+import { useEffect, useMemo, useState, useRef, useCallback } from 'react';
 import {
   createOrderApi,
   getOrderDealersApi,
@@ -24,6 +24,8 @@ import { emitStatusToast } from './StatusToast';
 import { AccessDeniedView } from './AccessDeniedView';
 import { DealerCreditBadge } from './DealerCreditBadge';
 import OrderPrintModal from './OrderPrintModal';
+import { OrderDealerInfiniteSelect } from './OrderDealerInfiniteSelect';
+import { ProductInfiniteSelect } from './ProductInfiniteSelect';
 import './sales-order-entry.css';
 
 interface SalesOrderEntryProps {
@@ -151,6 +153,8 @@ export default function SalesOrderEntry({
   const [deliveryPoints, setDeliveryPoints] = useState<DeliveryPoint[]>([]);
   const [isLoadingDeliveryPoints, setIsLoadingDeliveryPoints] = useState(false);
   const [deliveryPointId, setDeliveryPointId] = useState<number | null>(null);
+  const [isDeliveryPointsDropdownOpen, setIsDeliveryPointsDropdownOpen] = useState(false);
+  const deliveryPointsDropdownRef = useRef<HTMLDivElement>(null);
   const [desiredDeliveryDate, setDesiredDeliveryDate] = useState(getToday);
   const [discountPercent, setDiscountPercent] = useState('0');
   const [policies, setPolicies] = useState<DiscountPolicy[]>([]);
@@ -201,7 +205,6 @@ export default function SalesOrderEntry({
     }
   }, [cloneOrderData, products]);
 
-  const [productQuery, setProductQuery] = useState('');
   const [drafts, setDrafts] = useState<OrderDraft[]>([]);
   const [activeDraftId, setActiveDraftId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -307,10 +310,22 @@ export default function SalesOrderEntry({
     };
   }, [token]);
 
+  const handleDealersLoaded = useCallback((newDealers: OrderDealer[]) => {
+    setDealers((prev) => {
+      const map = new Map(prev.map((d) => [d.id, d]));
+      newDealers.forEach((d) => map.set(d.id, d));
+      const merged = Array.from(map.values());
+      if (merged.length === 1 && !dealerId) {
+        setDealerId(String(merged[0].id));
+      }
+      return merged;
+    });
+  }, [dealerId]);
+
   useEffect(() => {
     let isMounted = true;
     setIsLoadingDealers(true);
-    getOrderDealersApi(token)
+    getOrderDealersApi(token, { page: 1, page_size: 10 })
       .then((result) => {
         if (isMounted) {
           setDealers(result);
@@ -375,6 +390,29 @@ export default function SalesOrderEntry({
       isMounted = false;
     };
   }, [dealerId, token, dealers]);
+
+  // Đóng dropdown chọn địa chỉ khi click ra ngoài hoặc nhấn ESC
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        deliveryPointsDropdownRef.current &&
+        !deliveryPointsDropdownRef.current.contains(e.target as Node)
+      ) {
+        setIsDeliveryPointsDropdownOpen(false);
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsDeliveryPointsDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
   useEffect(() => {
     if (!dealerId) {
       setPurchaseHistory(null);
@@ -446,28 +484,6 @@ export default function SalesOrderEntry({
     (selectedDealer.status.toLowerCase().includes('khóa') ||
       selectedDealer.status.toLowerCase().includes('lock'))
   );
-  const deliveryPointSelectValue = useMemo(() => {
-    if (deliveryPointId && deliveryPoints.some((p) => p.id === deliveryPointId)) {
-      return `point_${deliveryPointId}`;
-    }
-    if (selectedDealer?.address && deliveryPoint === selectedDealer.address) {
-      return 'dealer_address';
-    }
-    if (deliveryPoint) {
-      return 'custom';
-    }
-    return '';
-  }, [deliveryPointId, deliveryPoints, selectedDealer, deliveryPoint]);
-  const searchResults = useMemo(() => {
-    const query = productQuery.trim().toLocaleLowerCase('vi');
-    if (query.length < 1) return [];
-    return products
-      .filter((product) =>
-        product.code.toLocaleLowerCase('vi').includes(query) ||
-        product.name.toLocaleLowerCase('vi').includes(query)
-      )
-      .slice(0, 6);
-  }, [productQuery, products]);
 
   const subtotal = lines.reduce((total, line) => total + (line.lineTotal ?? (line.quantity * line.price)), 0);
   const totalQuantity = lines.reduce((total, line) => total + line.quantity, 0);
@@ -532,12 +548,12 @@ export default function SalesOrderEntry({
     setDeliveryPoint('');
     setDeliveryPointId(null);
     setDeliveryPoints([]);
+    setIsDeliveryPointsDropdownOpen(false);
     setDesiredDeliveryDate(getToday());
     setDiscountPercent('0');
     setIsManualOverride(false);
     setNote('');
     setLines([]);
-    setProductQuery('');
     setActiveDraftId(null);
     setPurchaseHistory(null);
     setHistoryForbidden(false);
@@ -813,7 +829,6 @@ export default function SalesOrderEntry({
           lineTotal: priceRes.line_total,
         }];
       });
-      setProductQuery('');
     } catch (err: any) {
       // Hard Validation AC1: Nếu SKU chưa có bảng giá hiệu lực: Chặn thêm dòng hàng
       const errMsg = err?.message || `Sản phẩm [${product.code}] chưa có bảng giá đang hiệu lực cho nhóm khách hàng này. Vui lòng kiểm tra lại cấu hình giá.`;
@@ -822,7 +837,6 @@ export default function SalesOrderEntry({
         message: errMsg,
         type: 'error',
       });
-      setProductQuery('');
     }
   };
 
@@ -1126,30 +1140,20 @@ export default function SalesOrderEntry({
               </div>
             )}
             <div className="sales-order-fields">
-              <label className="sales-order-field">
+              <div className="sales-order-field">
                 <span>Đại lý <b aria-hidden="true">*</b></span>
-                <select
-                  value={dealerId}
-                  onChange={(event) => {
-                    const nextId = event.target.value;
-                    setDealerId(nextId);
+                <OrderDealerInfiniteSelect
+                  token={token}
+                  selectedId={dealerId}
+                  selectedDealer={selectedDealer}
+                  onSelect={(dealer) => {
+                    setDealerId(String(dealer.id));
+                    setDealers((prev) => (prev.some((d) => d.id === dealer.id) ? prev : [dealer, ...prev]));
                   }}
-                  disabled={isLoadingDealers || !!dealerLoadError || (dealers.length === 1) || isCustomer}
-                >
-                  <option value="">{isLoadingDealers ? 'Đang tải đại lý...' : 'Chọn đại lý'}</option>
-                  {dealers.map((dealer) => {
-                    const isLocked = Boolean(
-                      dealer.status &&
-                      (dealer.status.toLowerCase().includes('khóa') ||
-                        dealer.status.toLowerCase().includes('lock'))
-                    );
-                    return (
-                      <option key={dealer.id} value={dealer.id} disabled={isLocked}>
-                        {dealer.code} — {dealer.name}{isLocked ? ' [Đã khóa]' : ''}
-                      </option>
-                    );
-                  })}
-                </select>
+                  onDealersLoaded={handleDealersLoaded}
+                  disabled={isLoadingDealers || (dealers.length === 1 && !isCustomer) || isCustomer}
+                  isCustomer={isCustomer}
+                />
                 {isCustomer && (
                   <p style={{ margin: '6px 0 0', fontSize: '12px', color: '#047857', fontWeight: 600 }}>
                     ✓ Cổng Đại lý: Hệ thống tự động ghi nhận cho tài khoản đại lý của bạn
@@ -1173,7 +1177,7 @@ export default function SalesOrderEntry({
                       onClick={() => {
                         setDealerLoadError(null);
                         setIsLoadingDealers(true);
-                        getOrderDealersApi(token)
+                        getOrderDealersApi(token, { page: 1, page_size: 10 })
                           .then(setDealers)
                           .catch((loadError: unknown) => setDealerLoadError(loadError instanceof Error ? loadError.message : 'Không thể tải danh sách đại lý.'))
                           .finally(() => setIsLoadingDealers(false));
@@ -1183,7 +1187,7 @@ export default function SalesOrderEntry({
                     </button>
                   </span>
                 )}
-              </label>
+              </div>
 
               {/* AC 1, 2, 3: Hiển thị 3 chỉ số công nợ của đại lý */}
               {selectedDealer && (
@@ -1196,69 +1200,215 @@ export default function SalesOrderEntry({
                 </div>
               )}
 
-              <label className="sales-order-field">
-                <span>Điểm giao hàng <b aria-hidden="true">*</b></span>
-                <select
-                  value={deliveryPointSelectValue}
-                  disabled={!selectedDealer || isLoadingDeliveryPoints}
-                  onChange={(event) => {
-                    const val = event.target.value;
-                    if (val.startsWith('point_')) {
-                      const pId = Number(val.replace('point_', ''));
-                      const pt = deliveryPoints.find((p) => p.id === pId);
-                      setDeliveryPointId(pId);
-                      setDeliveryPoint(pt ? `${pt.label} — ${pt.address}` : '');
-                    } else if (val === 'dealer_address') {
-                      setDeliveryPointId(null);
-                      setDeliveryPoint(selectedDealer?.address || '');
-                    } else if (val === 'custom') {
-                      setDeliveryPointId(null);
-                      setDeliveryPoint('');
-                    }
-                  }}
-                >
-                  <option value="" disabled>
-                    {!selectedDealer
-                      ? 'Chọn đại lý trước'
-                      : isLoadingDeliveryPoints
-                        ? 'Đang tải điểm giao hàng...'
-                        : 'Chọn điểm giao hàng'}
-                  </option>
-                  {deliveryPoints
-                    .filter((p) => p.is_active)
-                    .map((p) => (
-                      <option key={p.id} value={`point_${p.id}`}>
-                        {p.label} — {p.address}
-                        {p.receiver_name ? ` (${p.receiver_name}${p.receiver_phone ? ' - ' + p.receiver_phone : ''})` : ''}
-                        {p.is_default ? ' [Mặc định]' : ''}
-                      </option>
-                    ))}
-                  {selectedDealer?.address && !deliveryPoints.some((p) => p.address === selectedDealer.address) && (
-                    <option value="dealer_address">Địa chỉ đại lý — {selectedDealer.address}</option>
+              {/* Địa chỉ giao hàng: Tự động điền theo đại lý, cho phép chọn điểm khác hoặc tự nhập địa chỉ mới */}
+              <div
+                ref={deliveryPointsDropdownRef}
+                className="sales-order-field"
+                style={{ position: 'relative' }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span>Địa chỉ giao hàng <b aria-hidden="true">*</b></span>
+                  {selectedDealer && deliveryPoints.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => setIsDeliveryPointsDropdownOpen((prev) => !prev)}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: '#2563eb',
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        padding: '0 4px',
+                      }}
+                    >
+                      {isDeliveryPointsDropdownOpen ? 'Đóng danh sách' : `Đổi địa chỉ (${deliveryPoints.length} điểm đã lưu)`}
+                    </button>
                   )}
-                  <option value="custom">Điểm giao khác</option>
-                </select>
-                {deliveryPointSelectValue === 'custom' && (
+                </div>
+
+                <div style={{ position: 'relative', width: '100%' }}>
                   <input
-                    aria-label="Địa chỉ giao hàng khác"
                     value={deliveryPoint}
-                    onChange={(event) => setDeliveryPoint(event.target.value)}
-                    placeholder="Nhập địa chỉ giao hàng cụ thể"
+                    onChange={(event) => {
+                      setDeliveryPoint(event.target.value);
+                      const matched = deliveryPoints.find(
+                        (p) => `${p.label} — ${p.address}` === event.target.value || p.address === event.target.value
+                      );
+                      setDeliveryPointId(matched ? matched.id : null);
+                    }}
+                    onFocus={() => {
+                      if (deliveryPoints.length > 1) {
+                        setIsDeliveryPointsDropdownOpen(true);
+                      }
+                    }}
+                    placeholder={
+                      isLoadingDeliveryPoints
+                        ? 'Đang nạp địa chỉ giao hàng của đại lý...'
+                        : selectedDealer
+                          ? 'Nhập địa chỉ cụ thể hoặc chọn từ danh sách...'
+                          : 'Chọn đại lý để tự động điền địa chỉ'
+                    }
+                    disabled={!selectedDealer}
                     maxLength={500}
+                    style={{
+                      paddingRight: selectedDealer && deliveryPoints.length > 0 ? '36px' : '11px',
+                    }}
                   />
-                )}
-                {deliveryPointId && (() => {
-                  const pt = deliveryPoints.find((p) => p.id === deliveryPointId);
-                  if (!pt) return null;
-                  return (
-                    <div style={{ fontSize: '11px', color: '#047857', marginTop: '4px', background: '#ecfdf5', padding: '3px 8px', borderRadius: '6px', border: '1px solid #a7f3d0', lineHeight: 1.35 }}>
-                      <strong>Người nhận:</strong> {pt.receiver_name || selectedDealer?.name || 'Đại lý'}
-                      {pt.receiver_phone ? ` • SĐT: ${pt.receiver_phone}` : ''}
-                      {pt.route_note ? ` • Tuyến: ${pt.route_note}` : ''}
+
+                  {selectedDealer && deliveryPoints.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setIsDeliveryPointsDropdownOpen((prev) => !prev)}
+                      title="Xem danh sách địa chỉ giao hàng của đại lý"
+                      style={{
+                        position: 'absolute',
+                        right: '8px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        background: 'transparent',
+                        border: 'none',
+                        cursor: 'pointer',
+                        color: '#64748b',
+                        padding: '4px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        style={{
+                          transition: 'transform 0.2s',
+                          transform: isDeliveryPointsDropdownOpen ? 'rotate(180deg)' : 'none',
+                        }}
+                      >
+                        <polyline points="6 9 12 15 18 9" />
+                      </svg>
+                    </button>
+                  )}
+
+                  {/* Menu thả xuống chọn địa chỉ khác đã lưu */}
+                  {isDeliveryPointsDropdownOpen && selectedDealer && deliveryPoints.length > 0 && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: 'calc(100% + 4px)',
+                        left: 0,
+                        right: 0,
+                        zIndex: 50,
+                        background: '#ffffff',
+                        border: '1px solid #cbd5e1',
+                        borderRadius: '10px',
+                        boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+                        maxHeight: '260px',
+                        overflowY: 'auto',
+                      }}
+                    >
+                      <div
+                        style={{
+                          padding: '8px 12px',
+                          background: '#f8fafc',
+                          borderBottom: '1px solid #e2e8f0',
+                          fontSize: '11px',
+                          fontWeight: 600,
+                          color: '#475569',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                        }}
+                      >
+                        <span>Danh sách địa chỉ đã lưu ({deliveryPoints.length} điểm):</span>
+                        <span style={{ fontSize: '10.5px', color: '#94a3b8', fontWeight: 'normal' }}>Bấm để chọn</span>
+                      </div>
+
+                      {deliveryPoints.map((pt) => {
+                        const isSelected = pt.id === deliveryPointId || deliveryPoint.includes(pt.address);
+                        return (
+                          <div
+                            key={pt.id}
+                            onClick={() => {
+                              setDeliveryPointId(pt.id);
+                              setDeliveryPoint(`${pt.label} — ${pt.address}`);
+                              setIsDeliveryPointsDropdownOpen(false);
+                            }}
+                            style={{
+                              padding: '10px 12px',
+                              cursor: 'pointer',
+                              borderBottom: '1px solid #f1f5f9',
+                              background: isSelected ? '#eff6ff' : '#ffffff',
+                              transition: 'background-color 0.15s',
+                            }}
+                            onMouseEnter={(e) => {
+                              if (!isSelected) e.currentTarget.style.backgroundColor = '#f8fafc';
+                            }}
+                            onMouseLeave={(e) => {
+                              if (!isSelected) e.currentTarget.style.backgroundColor = '#ffffff';
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <strong style={{ fontSize: '12px', color: '#0f172a' }}>{pt.label}</strong>
+                                {pt.is_default && (
+                                  <span style={{ fontSize: '10px', background: '#dbeafe', color: '#1d4ed8', padding: '1px 6px', borderRadius: '4px', fontWeight: 600 }}>
+                                    Mặc định
+                                  </span>
+                                )}
+                              </div>
+                              {isSelected && <span style={{ color: '#2563eb', fontWeight: 'bold', fontSize: '13px' }}>✓</span>}
+                            </div>
+                            <div style={{ fontSize: '11px', color: '#475569', marginTop: '3px' }}>
+                              {pt.address}
+                            </div>
+                            {(pt.receiver_name || pt.receiver_phone) && (
+                              <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
+                                Người nhận: {pt.receiver_name || '—'} {pt.receiver_phone ? `(SĐT: ${pt.receiver_phone})` : ''}
+                                {pt.route_note ? ` • Tuyến: ${pt.route_note}` : ''}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+
+                      <div
+                        onClick={() => setIsDeliveryPointsDropdownOpen(false)}
+                        style={{
+                          padding: '8px 12px',
+                          fontSize: '11px',
+                          color: '#64748b',
+                          background: '#f8fafc',
+                          textAlign: 'center',
+                          cursor: 'pointer',
+                          borderTop: '1px solid #f1f5f9',
+                        }}
+                      >
+                        (Hoặc gõ trực tiếp vào ô để sửa/nhập địa chỉ mới bất kỳ)
+                      </div>
                     </div>
-                  );
+                  )}
+                </div>
+
+                {selectedDealer && (() => {
+                  const pt = deliveryPoints.find((p) => p.id === deliveryPointId) || deliveryPoints.find((p) => deliveryPoint.includes(p.address));
+                  if (pt && (pt.receiver_name || pt.receiver_phone)) {
+                    return (
+                      <div style={{ fontSize: '11px', color: '#475569', marginTop: '4px' }}>
+                        Người nhận: <strong>{pt.receiver_name || selectedDealer.name}</strong>
+                        {pt.receiver_phone ? ` • SĐT: ${pt.receiver_phone}` : ''}
+                        {pt.route_note ? ` • Tuyến: ${pt.route_note}` : ''}
+                      </div>
+                    );
+                  }
+                  return null;
                 })()}
-              </label>
+              </div>
               <label className="sales-order-field">
                 <span>Ngày giao mong muốn <b aria-hidden="true">*</b></span>
                 <input
@@ -1396,48 +1546,20 @@ export default function SalesOrderEntry({
             <div className="sales-order-card-divider" />
 
             <h2>Sản phẩm</h2>
-            <label className="sales-order-field">
-              <span>Tìm theo mã hoặc tên sản phẩm</span>
-              <input
-                type="search"
-                value={productQuery}
-                onChange={(event) => setProductQuery(event.target.value)}
-                placeholder="Ví dụ: SP001 hoặc Áo thun Polo"
-                autoComplete="off"
+            <div style={{ marginBottom: '16px' }}>
+              <ProductInfiniteSelect
+                token={token}
+                stockMap={stockMap}
+                orderItems={lines.map((l) => ({ productId: l.productId, quantity: l.quantity }))}
+                onSelectProduct={addProduct}
+                disabled={!dealerId}
+                placeholder={
+                  !dealerId
+                    ? 'Vui lòng chọn đại lý trước khi tìm và thêm sản phẩm...'
+                    : 'Bấm vào đây để tìm và chọn sản phẩm thêm vào đơn hàng...'
+                }
               />
-            </label>
-            {productQuery.trim() && (
-              <div className="sales-order-search-results">
-                {searchResults.length ? searchResults.map((product) => {
-                  const stockItem = stockMap.get(product.id);
-                  const availableStock = stockItem ? stockItem.available_stock : (product.stock ?? 0);
-                  const isOutOfStock = availableStock <= 0 || product.status === 'out_of_stock' || product.status === 'inactive';
-                  return (
-                    <button
-                      type="button"
-                      key={product.id}
-                      disabled={isOutOfStock}
-                      onClick={() => !isOutOfStock && addProduct(product)}
-                      style={{
-                        opacity: isOutOfStock ? 0.6 : 1,
-                        cursor: isOutOfStock ? 'not-allowed' : 'pointer',
-                        background: isOutOfStock ? '#f8fafc' : undefined,
-                      }}
-                    >
-                      <span>
-                        <b>{product.code}</b> — {product.name}
-                        {isOutOfStock ? (
-                          <span style={{ color: '#dc2626', fontWeight: 700, marginLeft: 6, fontSize: '11px' }}>[Hết hàng]</span>
-                        ) : (
-                          <span style={{ color: '#059669', fontSize: '11px', marginLeft: 6 }}>({availableStock} {product.base_unit || 'Cái'})</span>
-                        )}
-                      </span>
-                      <strong>{formatCurrency(product.sell_price)}</strong>
-                    </button>
-                  );
-                }) : <p>Không tìm thấy sản phẩm phù hợp.</p>}
-              </div>
-            )}
+            </div>
 
             {lines.length === 0 ? (
               <div className="sales-order-empty">Chưa có sản phẩm. Tìm theo mã hoặc tên để thêm hàng.</div>

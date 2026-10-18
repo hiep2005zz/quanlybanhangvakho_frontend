@@ -188,6 +188,65 @@ export const CreateReceiptVoucherModal: React.FC<CreateReceiptVoucherModalProps>
                 marginBottom: '12px',
               }}
             >
+              {/* Số tiền thu - Đặt lên trên đầu form và căn lề trái */}
+              <div style={{ marginBottom: '14px' }}>
+                <label
+                  style={{
+                    display: 'block',
+                    fontSize: '13px',
+                    fontWeight: '700',
+                    color: '#334155',
+                    marginBottom: '4px',
+                  }}
+                >
+                  Số tiền thu (VNĐ) <span style={{ color: '#dc2626' }}>*</span>
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  step="any"
+                  autoFocus
+                  required
+                  value={amountStr}
+                  onChange={(e) => {
+                    setAmountStr(e.target.value);
+                    if (errorMsg) setErrorMsg(null);
+                  }}
+                  placeholder="Nhập số tiền..."
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    borderRadius: '7px',
+                    border: isInvalidAmount && amountStr !== '' ? '1.5px solid #ef4444' : '1px solid #cbd5e1',
+                    background: isInvalidAmount && amountStr !== '' ? '#fef2f2' : '#ffffff',
+                    fontSize: '15px',
+                    fontWeight: '800',
+                    color: isInvalidAmount && amountStr !== '' ? '#b91c1c' : '#1e40af',
+                    outline: 'none',
+                    textAlign: 'left',
+                    boxSizing: 'border-box',
+                  }}
+                />
+                {numAmount > 0 && (
+                  <div
+                    style={{
+                      marginTop: '4px',
+                      fontSize: '12px',
+                      color: '#15803d',
+                      fontStyle: 'italic',
+                      fontWeight: '600',
+                    }}
+                  >
+                    Bằng chữ: {words}
+                  </div>
+                )}
+                {isInvalidAmount && amountStr !== '' && (
+                  <div style={{ marginTop: '4px', fontSize: '12px', color: '#dc2626', fontWeight: '500' }}>
+                    Số tiền thu phải lớn hơn 0
+                  </div>
+                )}
+              </div>
+
               {/* Thông tin đại lý */}
               <div
                 style={{
@@ -210,64 +269,6 @@ export const CreateReceiptVoucherModal: React.FC<CreateReceiptVoucherModalProps>
                 <div>
                   <strong>Người thu (Kế toán):</strong> {collectorName}
                 </div>
-              </div>
-
-              {/* Số tiền thu */}
-              <div style={{ marginBottom: '12px' }}>
-                <label
-                  style={{
-                    display: 'block',
-                    fontSize: '13px',
-                    fontWeight: '700',
-                    color: '#334155',
-                    marginBottom: '4px',
-                  }}
-                >
-                  Số tiền thu (VNĐ) <span style={{ color: '#dc2626' }}>*</span>
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  step="any"
-                  required
-                  value={amountStr}
-                  onChange={(e) => {
-                    setAmountStr(e.target.value);
-                    if (errorMsg) setErrorMsg(null);
-                  }}
-                  placeholder="Nhập số tiền..."
-                  style={{
-                    width: '100%',
-                    padding: '8px 12px',
-                    borderRadius: '7px',
-                    border: isInvalidAmount && amountStr !== '' ? '1.5px solid #ef4444' : '1px solid #cbd5e1',
-                    background: isInvalidAmount && amountStr !== '' ? '#fef2f2' : '#ffffff',
-                    fontSize: '15px',
-                    fontWeight: '800',
-                    color: isInvalidAmount && amountStr !== '' ? '#b91c1c' : '#1e40af',
-                    outline: 'none',
-                    textAlign: 'right',
-                    boxSizing: 'border-box',
-                  }}
-                />
-                {numAmount > 0 && (
-                  <div
-                    style={{
-                      marginTop: '4px',
-                      fontSize: '12px',
-                      color: '#15803d',
-                      fontStyle: 'italic',
-                      fontWeight: '600',
-                    }}
-                  >
-                    Bằng chữ: {words}
-                  </div>
-                )}
-                {isInvalidAmount && amountStr !== '' && (
-                  <div style={{ marginTop: '4px', fontSize: '12px', color: '#dc2626', fontWeight: '500' }}>
-                    Số tiền thu phải lớn hơn 0
-                  </div>
-                )}
               </div>
 
               {/* Hình thức thanh toán */}
