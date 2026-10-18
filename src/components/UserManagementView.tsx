@@ -75,14 +75,6 @@ const ROLES_LIST = [
     invPerm: false,
   },
   {
-    role: 'purchasing',
-    title: 'Nhân viên mua hàng',
-    badgeColor: '#06b6d4',
-    description: '(Lập phiếu mua hàng, theo dõi đơn nhập từ nhà cung cấp)',
-    costPerm: false,
-    invPerm: false,
-  },
-  {
     role: 'customer',
     title: 'Đại lý',
     badgeColor: '#0284c7',
