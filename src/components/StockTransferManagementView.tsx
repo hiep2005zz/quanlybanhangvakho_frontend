@@ -17,6 +17,7 @@ interface StockTransferManagementViewProps {
   token: string;
   currentUser?: User | null;
   onBackToHome?: () => void;
+  initialSearchCode?: string;
 }
 
 interface TransferItemDraft {
@@ -52,6 +53,8 @@ interface CompensateItemDraft {
 export function StockTransferManagementView({
   token,
   currentUser,
+  onBackToHome: _onBackToHome,
+  initialSearchCode,
 }: StockTransferManagementViewProps) {
   // Quyền người dùng
   const userRoles = useMemo(() => {
@@ -74,7 +77,13 @@ export function StockTransferManagementView({
   // Bộ lọc
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [warehouseFilter, setWarehouseFilter] = useState<string>('ALL');
-  const [searchTerm, setSearchTerm] = useState<string>('');
+  const [searchTerm, setSearchTerm] = useState<string>(initialSearchCode || '');
+
+  useEffect(() => {
+    if (initialSearchCode) {
+      setSearchTerm(initialSearchCode);
+    }
+  }, [initialSearchCode]);
 
   // Trạng thái hiển thị trang tạo phiếu (đồng bộ Clean URL /stock-transfers/create)
   const [isCreatingPage, setIsCreatingPage] = useState(() => {

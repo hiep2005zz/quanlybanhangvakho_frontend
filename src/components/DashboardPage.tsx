@@ -55,6 +55,7 @@ import { WarehouseStockBookView } from './WarehouseStockBookView';
 import { InventoryTurnoverReportView } from './InventoryTurnoverReportView';
 import { StockAuditManagementView } from './StockAuditManagementView';
 import { StockTransferManagementView } from './StockTransferManagementView';
+import { StockCardView } from './StockCardView';
 import { ModalPortal } from './ModalPortal';
 import { DashboardHeader } from './DashboardHeader';
 import { CustomerDebtView } from './CustomerDebtView';
@@ -223,6 +224,19 @@ export default function DashboardPage({
     officialRoles.includes('accountant')
   );
 
+  // Quyền truy cập Thẻ kho (S5-04: Thủ kho, Quản lý kho, Quản trị hệ thống, Kế toán)
+  const canAccessStockCard = Boolean(
+    isAdmin ||
+    (!isCustomer && !isSalesPerson && (
+      isAccountant ||
+      user.role === 'warehouse' ||
+      user.role === 'warehouse_manager' ||
+      officialRoles.includes('warehouse') ||
+      officialRoles.includes('warehouse_manager')
+    )) ||
+    (!isCustomer && isAccountant)
+  );
+
   // Quyền truy cập các phân hệ kho vận (Chỉ Admin, Quản lý kho, Thủ kho): Soạn hàng & Theo dõi Lô
   const isWarehouseOrAdmin = Boolean(
     isAdmin ||
@@ -318,6 +332,7 @@ export default function DashboardPage({
     const isProductHistoryPath = pathname === '/product-history' || pathname.startsWith('/product-history/');
     const isWarehousesPath = pathname === '/warehouses' || pathname.startsWith('/warehouses/');
     const isStockBookPath = pathname === '/stock-book' || pathname.startsWith('/stock-book/');
+    const isStockCardPath = pathname === '/stock-card' || pathname.startsWith('/stock-card/');
     const isInventoryTurnoverPath = pathname === '/inventory-turnover' || pathname.startsWith('/inventory-turnover/');
     const isStockAuditsPath = pathname === '/stock-audits' || pathname.startsWith('/stock-audits/');
     const isStockTransfersPath = pathname === '/stock-transfers' || pathname.startsWith('/stock-transfers/');
@@ -394,6 +409,10 @@ export default function DashboardPage({
       }
       try { window.history.replaceState({}, '', '/'); } catch { }
       return 'inventory';
+    }
+
+    if (isStockCardPath || oldTabVal === 'stock-card') {
+      return 'stock-card';
     }
 
     if (isStockBookPath || oldTabVal === 'stock-book') {
@@ -799,6 +818,11 @@ export default function DashboardPage({
       return;
     }
 
+    if (tab === 'stock-card') {
+      setActiveTabState('stock-card');
+      return;
+    }
+
     if (tab === 'stock-book') {
       setActiveTabState('stock-book');
       try {
@@ -825,6 +849,8 @@ export default function DashboardPage({
     }
 
     if (tab === 'orders') {
+      setSelectedOrderCodeForDetail(null);
+      setOrderSearchCode('');
       setActiveTabState('orders');
       try {
         window.history.pushState({}, '', '/orders');
@@ -996,14 +1022,15 @@ export default function DashboardPage({
                     : activeTab === 'stock-audits' ? canAccessStockAudit
                       : activeTab === 'stock-adjustments' ? canAccessStockAdjustments
                       : activeTab === 'warehouses' ? canAccessWarehouses
-                        : activeTab === 'goods-receipt' ? canWriteInventory
-                          : activeTab === 'batches' ? isWarehouseOrAdmin
-                            : activeTab === 'picking' ? isWarehouseOrAdmin
-                              : activeTab === 'delivery-tracking' ? canAccessDeliveryTracking
-                              : activeTab === 'payment-collections' ? canAccessPaymentCollections
-                              : activeTab === 'debt-payments' ? canAccessDebtPayments
-                              : activeTab === 'debt-ledger' ? (isAccountant || isSalesManager || isAdmin)
-                                : true;
+                      : activeTab === 'goods-receipt' ? canWriteInventory
+                      : activeTab === 'batches' ? isWarehouseOrAdmin
+                      : activeTab === 'picking' ? isWarehouseOrAdmin
+                      : activeTab === 'delivery-tracking' ? canAccessDeliveryTracking
+                      : activeTab === 'payment-collections' ? canAccessPaymentCollections
+                      : activeTab === 'stock-card' ? canAccessStockCard
+                      : activeTab === 'debt-payments' ? canAccessDebtPayments
+                      : activeTab === 'debt-ledger' ? (isAccountant || isSalesManager || isAdmin)
+                      : true;
     if (!isAllowed) {
       setActiveTabState('inventory');
       window.history.replaceState({}, '', '/');
@@ -1154,6 +1181,12 @@ export default function DashboardPage({
           try { window.history.replaceState({}, '', '/products/import'); } catch { }
         }
         setActiveTabState('products-import');
+        return;
+      }
+
+      const isStockCardPath = pathname === '/stock-card' || pathname.startsWith('/stock-card/');
+      if (isStockCardPath || tabParam === 'stock-card') {
+        setActiveTabState('stock-card');
         return;
       }
 
@@ -1639,7 +1672,16 @@ export default function DashboardPage({
     product: ProductItem | null;
     initialReason?: string;
   }>({ isOpen: false, actionType: 'receipt', product: null });
-  const [goodsReceiptInitialTab] = useState<'form' | 'list'>('form');
+  const [goodsReceiptInitialTab, setGoodsReceiptInitialTab] = useState<'form' | 'list'>('form');
+  const [selectedProductForStockCard, setSelectedProductForStockCard] = useState<{ id: number; name: string; code: string } | null>(null);
+  const [stockCardReturnTab, setStockCardReturnTab] = useState<TabType>('stock-book');
+  const [stockAuditSearchCode, setStockAuditSearchCode] = useState<string>('');
+  const [stockAuditSearchProduct, setStockAuditSearchProduct] = useState<string>('');
+  const [goodsReceiptInitialCode, setGoodsReceiptInitialCode] = useState<string>('');
+  const [stockTransferInitialCode, setStockTransferInitialCode] = useState<string>('');
+  const [selectedOrderCodeForDetail, setSelectedOrderCodeForDetail] = useState<string | null>(null);
+  const [orderSearchCode, setOrderSearchCode] = useState<string>('');
+  const isOrderDetailEffective = isOrderDetailSubpage || Boolean(selectedOrderCodeForDetail);
   const [isSalesOrderEntryOpen, setIsSalesOrderEntryOpen] = useState(false);
   const [cloneOrderData, setCloneOrderData] = useState<any>(() => {
     try {
@@ -2004,7 +2046,7 @@ export default function DashboardPage({
   const isPaymentCollectionsPage = activeTab === 'payment-collections';
   const isDeliveryTrackingPage = activeTab === 'delivery-tracking' || currentPath.startsWith('/delivery-tracking');
   const isStockAdjustmentsPage = activeTab === 'stock-adjustments';
-  const isLockedScrollTab = !isProductFormOpen && !isSalesOrderOpen && !isOrdersCreateSubpage && !isOrderDetailSubpage && !isPriceListsCreateSubpage && !isPriceBookDetailSubpage && !isPriceBookEditSubpage && !isGoodsReceiptPage && !isStockTransferCreateSubpage && !isBatchesCreateSubpage && !isProductsImportPage && !isUsersImportPage && !isPaymentCollectionsSubpage && !isPaymentCollectionsPage && !isDeliveryTrackingPage && !isStockAdjustmentsPage && (activeTab === 'inventory' || activeTab === 'dealers' || activeTab === 'dealer-profiles' || activeTab === 'debt-aging' || activeTab === 'debt-reconciliation' || activeTab === 'delivery-points' || activeTab === 'suppliers' || activeTab === 'price-books' || activeTab === 'categories' || activeTab === 'orders' || activeTab === 'product-history' || activeTab === 'stock-book' || activeTab === 'inventory-turnover' || activeTab === 'stock-audits' || activeTab === 'stock-transfers' || activeTab === 'stock-thresholds' || activeTab === 'low-stock-alerts' || activeTab === 'batches' || activeTab === 'picking') && !isPendingCustomer;
+  const isLockedScrollTab = !isProductFormOpen && !isSalesOrderOpen && !isOrdersCreateSubpage && !isOrderDetailEffective && !isPriceListsCreateSubpage && !isPriceBookDetailSubpage && !isPriceBookEditSubpage && !isGoodsReceiptPage && !isStockTransferCreateSubpage && !isBatchesCreateSubpage && !isProductsImportPage && !isUsersImportPage && !isPaymentCollectionsSubpage && !isPaymentCollectionsPage && !isDeliveryTrackingPage && !isStockAdjustmentsPage && (activeTab === 'inventory' || activeTab === 'dealers' || activeTab === 'dealer-profiles' || activeTab === 'debt-aging' || activeTab === 'debt-reconciliation' || activeTab === 'delivery-points' || activeTab === 'suppliers' || activeTab === 'price-books' || activeTab === 'categories' || activeTab === 'orders' || activeTab === 'product-history' || activeTab === 'stock-book' || activeTab === 'stock-card' || activeTab === 'inventory-turnover' || activeTab === 'stock-audits' || activeTab === 'stock-transfers' || activeTab === 'stock-thresholds' || activeTab === 'low-stock-alerts' || activeTab === 'batches' || activeTab === 'picking') && !isPendingCustomer;
   return (
     <DashboardLayout
       header={
@@ -2032,7 +2074,7 @@ export default function DashboardPage({
       }
       noScroll={!isCustomer && !isMobileScreen && isLockedScrollTab}
       mainClassName={
-        isOrderDetailSubpage || isOrdersCreateSubpage || isPriceListsCreateSubpage || isPriceBookDetailSubpage || isPriceBookEditSubpage || isGoodsReceiptPage || isStockTransferCreateSubpage || isBatchesCreateSubpage || isProductsImportPage || isUsersImportPage || isPaymentCollectionsSubpage || isPaymentCollectionsPage || isDeliveryTrackingPage || isStockAdjustmentsPage || activeTab === 'debt-payments'
+        isOrderDetailEffective || isOrdersCreateSubpage || isPriceListsCreateSubpage || isPriceBookDetailSubpage || isPriceBookEditSubpage || isGoodsReceiptPage || isStockTransferCreateSubpage || isBatchesCreateSubpage || isProductsImportPage || isUsersImportPage || isPaymentCollectionsSubpage || isPaymentCollectionsPage || isDeliveryTrackingPage || isStockAdjustmentsPage || activeTab === 'debt-payments'
           ? 'flex-1 min-w-0 overflow-y-auto p-0 flex flex-col bg-slate-50'
           : activeTab === 'agency-debts'
             ? 'flex-1 min-w-0 overflow-hidden p-0 flex flex-col bg-slate-50 h-full'
@@ -2097,7 +2139,7 @@ export default function DashboardPage({
     >
       <div
         className="dashboard-main-container"
-        style={isCustomer || isOrdersCreateSubpage || isPriceListsCreateSubpage || isPriceBookDetailSubpage || isPriceBookEditSubpage || isOrderDetailSubpage || isGoodsReceiptPage || isStockTransferCreateSubpage || isBatchesCreateSubpage || isProductsImportPage || isUsersImportPage || isDeliveryTrackingPage || isStockAdjustmentsPage || activeTab === 'payment-collections' || activeTab === 'debt-payments' || isMobileScreen ? {
+        style={isCustomer || isOrdersCreateSubpage || isPriceListsCreateSubpage || isPriceBookDetailSubpage || isPriceBookEditSubpage || isOrderDetailEffective || isGoodsReceiptPage || isStockTransferCreateSubpage || isBatchesCreateSubpage || isProductsImportPage || isUsersImportPage || isDeliveryTrackingPage || isStockAdjustmentsPage || activeTab === 'payment-collections' || activeTab === 'debt-payments' || isMobileScreen ? {
           width: '100%',
           display: 'flex',
           flexDirection: 'column',
@@ -2214,12 +2256,16 @@ export default function DashboardPage({
                   fetchProducts();
                 }}
               />
-            ) : isOrderDetailSubpage ? (
+            ) : isOrderDetailEffective ? (
               <OrderDetailPage
                 currentUser={user}
                 token={token}
+                orderId={selectedOrderCodeForDetail || undefined}
                 onBack={() => {
+                  setSelectedOrderCodeForDetail(null);
+                  setOrderSearchCode('');
                   window.history.pushState({}, '', '/orders');
+                  window.dispatchEvent(new Event('popstate'));
                 }}
                 onCloneOrder={(data) => {
                   try {
@@ -2227,6 +2273,7 @@ export default function DashboardPage({
                   } catch { }
                   setCloneOrderData(data);
                   window.history.pushState({}, '', '/orders/create');
+                  window.dispatchEvent(new Event('popstate'));
                 }}
                 onRefreshProducts={fetchProducts}
               />
@@ -2235,6 +2282,7 @@ export default function DashboardPage({
                 currentUser={user}
                 token={token}
                 products={products}
+                initialSearchTerm={orderSearchCode}
                 onBackToHome={() => setActiveTab('inventory')}
                 onRefreshProducts={fetchProducts}
                 onNavigateToPriceBooks={canAccessPriceBooks ? () => setActiveTab('price-books') : undefined}
@@ -2244,6 +2292,7 @@ export default function DashboardPage({
                   } catch { }
                   setCloneOrderData(data);
                   window.history.pushState({}, '', '/orders/create');
+                  window.dispatchEvent(new Event('popstate'));
                 }}
               />
             )
@@ -2262,6 +2311,7 @@ export default function DashboardPage({
               products={products}
               currentUserWarehouse={user.branch || user.warehouse_name || undefined}
               initialTab={goodsReceiptInitialTab}
+              initialSearchCode={goodsReceiptInitialCode}
               onBackToInventory={() => setActiveTab('inventory')}
               onSuccess={() => {
                 fetchProducts();
@@ -2667,6 +2717,7 @@ export default function DashboardPage({
               token={token}
               currentUser={user}
               onBackToHome={() => setActiveTab('inventory')}
+              initialSearchCode={stockTransferInitialCode}
             />
           ) : (
             <AccessDeniedView
@@ -2718,15 +2769,74 @@ export default function DashboardPage({
               fetchLowStockAlerts();
             }}
           />
+        ) : activeTab === 'stock-card' ? (
+          canAccessStockCard ? (
+            <StockCardView
+              productId={selectedProductForStockCard?.id || 1}
+              productName={selectedProductForStockCard?.name}
+              productCode={selectedProductForStockCard?.code}
+              token={token}
+              onBack={() => {
+                setActiveTab(stockCardReturnTab || 'stock-book');
+                setSelectedProductForStockCard(null);
+              }}
+              onNavigateToTab={(tab, queryParam, productCode) => {
+                if (tab === 'stock-audits' && queryParam) {
+                  setStockAuditSearchCode(queryParam);
+                  if (productCode) setStockAuditSearchProduct(productCode);
+                  setActiveTabState('stock-audits');
+                  try { window.history.pushState({}, '', '/stock-audits'); } catch { }
+                } else if (tab === 'orders' && queryParam) {
+                  setSelectedOrderCodeForDetail(queryParam);
+                  setOrderSearchCode(queryParam);
+                  setActiveTabState('orders');
+                  try {
+                    window.history.pushState({}, '', `/orders/${queryParam}`);
+                    window.dispatchEvent(new Event('popstate'));
+                  } catch { }
+                } else if (tab === 'goods-receipt' && queryParam) {
+                  setGoodsReceiptInitialCode(queryParam);
+                  setGoodsReceiptInitialTab('list');
+                  setActiveTabState('goods-receipt');
+                  try { window.history.pushState({}, '', '/goods-receipt'); } catch { }
+                } else if (tab === 'stock-transfers' && queryParam) {
+                  setStockTransferInitialCode(queryParam);
+                  setActiveTabState('stock-transfers');
+                  try { window.history.pushState({}, '', '/stock-transfers'); } catch { }
+                } else {
+                  setActiveTab(tab as TabType);
+                }
+                setSelectedProductForStockCard(null);
+              }}
+            />
+          ) : (
+            <AccessDeniedView
+              currentUser={user}
+              requiredPermission="Xem Thẻ kho sản phẩm (Thủ kho / Quản lý kho / Quản trị hệ thống / Kế toán)"
+              onBackToWorkflow={() => setActiveTab('inventory')}
+              onLogout={onLogout}
+            />
+          )
         ) : activeTab === 'stock-book' ? (
           <WarehouseStockBookView
             token={token}
+            canAccessStockCard={canAccessStockCard}
             currentUser={user}
             onBackToHome={() => setActiveTab('inventory')}
             onOpenTurnoverReport={canAccessInventoryTurnover ? () => setActiveTab('inventory-turnover') : undefined}
             onNavigateToAdjustments={() => {
               setStockAdjustmentInitialMode('CREATE');
               setActiveTab('stock-adjustments');
+            }}
+            onNavigateToTab={(tab) => {
+              setActiveTab(tab as TabType);
+            }}
+            onOpenStockCard={(productId, productName, productCode) => {
+              if (canAccessStockCard) {
+                setSelectedProductForStockCard({ id: productId, name: productName, code: productCode });
+                setStockCardReturnTab('stock-book');
+                setActiveTab('stock-card');
+              }
             }}
           />
         ) : activeTab === 'inventory-turnover' ? (
@@ -2779,6 +2889,8 @@ export default function DashboardPage({
             <StockAuditManagementView
               token={token}
               currentUser={user}
+              initialSearchCode={stockAuditSearchCode}
+              initialSearchProduct={stockAuditSearchProduct}
             />
           ) : (
             <AccessDeniedView
@@ -4199,6 +4311,42 @@ export default function DashboardPage({
                                         </svg>
                                         <span>Xuất kho</span>
                                       </button>
+                                    )}
+
+                                    {canAccessStockCard && (
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setSelectedProductForStockCard({ id: item.id, name: item.name, code: item.code });
+                                        setStockCardReturnTab('inventory');
+                                        setActiveTab('stock-card');
+                                        setOpenProductMenuId(null);
+                                      }}
+                                      style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '8px',
+                                        width: '100%',
+                                        padding: '8px 12px',
+                                        background: 'transparent',
+                                        border: 'none',
+                                        borderRadius: '6px',
+                                        fontSize: '13px',
+                                        fontWeight: '600',
+                                        color: '#1d4ed8',
+                                        cursor: 'pointer',
+                                        boxShadow: 'none',
+                                        margin: 0,
+                                        transition: 'background 0.15s ease',
+                                        textAlign: 'left',
+                                      }}
+                                      onMouseEnter={(e) => (e.currentTarget.style.background = '#eff6ff')}
+                                      onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                                      title="Xem thẻ kho chi tiết để truy nguyên số tồn bị lệch"
+                                    >
+                                      <span>Xem thẻ kho</span>
+                                    </button>
                                     )}
                                   </div>
                                 )}
