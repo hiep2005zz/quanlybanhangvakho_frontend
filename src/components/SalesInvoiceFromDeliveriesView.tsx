@@ -4,6 +4,7 @@ import {
   DeliveryDispatchItem,
   SalesInvoicePreviewData,
   SalesInvoiceDetail,
+  InvoiceAdjustmentItem,
   getDeliveryDispatchesForInvoicingApi,
   getWarehousesApi,
   previewSalesInvoiceApi,
@@ -12,8 +13,10 @@ import {
   downloadSalesInvoicePdfApi,
   logSalesInvoicePrintApi,
   createInvoiceAdjustmentApi,
+  getInvoiceAdjustmentsHistoryApi,
 } from '../services/api';
 import { ModalPortal } from './ModalPortal';
+import { InvoiceAdjustmentDetailModal } from './InvoiceAdjustmentDetailModal';
 
 interface FilterComboboxProps {
   value: string;
@@ -146,15 +149,17 @@ interface SalesInvoiceFromDeliveriesViewProps {
 }
 
 export const SalesInvoiceFromDeliveriesView: React.FC<SalesInvoiceFromDeliveriesViewProps> = ({
+  currentUser,
   token,
 }) => {
   // 1. Tab & Bộ lọc
-  const [activeTab, setActiveTab] = useState<'PENDING' | 'INVOICED' | 'ALL'>('PENDING');
+  const [activeTab, setActiveTab] = useState<'PENDING' | 'INVOICED' | 'ADJUSTMENTS' | 'ALL'>('PENDING');
   const [dispatchCodeFilter, setDispatchCodeFilter] = useState('');
   const [orderCodeFilter, setOrderCodeFilter] = useState('');
   const [dealerNameFilter, setDealerNameFilter] = useState('');
   const [warehouseIdFilter, setWarehouseIdFilter] = useState('');
   const [deliveryStatusFilter, setDeliveryStatusFilter] = useState('');
+  const [adjustmentTypeFilter, setAdjustmentTypeFilter] = useState('');
   const [fromDateFilter, setFromDateFilter] = useState('');
   const [toDateFilter, setToDateFilter] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -163,10 +168,13 @@ export const SalesInvoiceFromDeliveriesView: React.FC<SalesInvoiceFromDeliveries
   // 2. Dữ liệu bảng & Thống kê
   const [isLoading, setIsLoading] = useState(false);
   const [dispatches, setDispatches] = useState<DeliveryDispatchItem[]>([]);
+  const [adjustmentsList, setAdjustmentsList] = useState<InvoiceAdjustmentItem[]>([]);
+  const [selectedAdjustmentDetail, setSelectedAdjustmentDetail] = useState<InvoiceAdjustmentItem | null>(null);
   const [warehousesList, setWarehousesList] = useState<{ id: number; name: string }[]>([]);
   const [quickStats, setQuickStats] = useState({
     total_pending_invoices: 0,
     total_issued_invoices: 0,
+    total_adjustments: 0,
     total_pending_amount: 0,
   });
   const [totalPages, setTotalPages] = useState(1);
@@ -194,27 +202,45 @@ export const SalesInvoiceFromDeliveriesView: React.FC<SalesInvoiceFromDeliveries
   // Gợi ý danh sách cho các trường vừa gõ tìm kiếm vừa chọn
   const dispatchCodeOptions = useMemo(() => {
     const s = new Set<string>();
-    dispatches.forEach((d) => {
-      if (d.dispatch_code) s.add(d.dispatch_code);
-    });
+    if (activeTab === 'ADJUSTMENTS') {
+      adjustmentsList.forEach((a) => {
+        if (a.adjustment_code) s.add(a.adjustment_code);
+      });
+    } else {
+      dispatches.forEach((d) => {
+        if (d.dispatch_code) s.add(d.dispatch_code);
+      });
+    }
     return Array.from(s);
-  }, [dispatches]);
+  }, [activeTab, adjustmentsList, dispatches]);
 
   const orderCodeOptions = useMemo(() => {
     const s = new Set<string>();
-    dispatches.forEach((d) => {
-      if (d.order_code) s.add(d.order_code);
-    });
+    if (activeTab === 'ADJUSTMENTS') {
+      adjustmentsList.forEach((a) => {
+        if (a.invoice_code) s.add(a.invoice_code);
+      });
+    } else {
+      dispatches.forEach((d) => {
+        if (d.order_code) s.add(d.order_code);
+      });
+    }
     return Array.from(s);
-  }, [dispatches]);
+  }, [activeTab, adjustmentsList, dispatches]);
 
   const dealerOptions = useMemo(() => {
     const s = new Set<string>();
-    dispatches.forEach((d) => {
-      if (d.dealer_name) s.add(d.dealer_name);
-    });
+    if (activeTab === 'ADJUSTMENTS') {
+      adjustmentsList.forEach((a) => {
+        if (a.dealer_name) s.add(a.dealer_name);
+      });
+    } else {
+      dispatches.forEach((d) => {
+        if (d.dealer_name) s.add(d.dealer_name);
+      });
+    }
     return Array.from(s);
-  }, [dispatches]);
+  }, [activeTab, adjustmentsList, dispatches]);
 
   const warehouseOptions = useMemo(() => {
     const s = new Set<string>();
@@ -233,6 +259,7 @@ export const SalesInvoiceFromDeliveriesView: React.FC<SalesInvoiceFromDeliveries
     setDealerNameFilter('');
     setWarehouseIdFilter('');
     setDeliveryStatusFilter('');
+    setAdjustmentTypeFilter('');
     setFromDateFilter('');
     setToDateFilter('');
     setCurrentPage(1);
@@ -294,10 +321,32 @@ export const SalesInvoiceFromDeliveriesView: React.FC<SalesInvoiceFromDeliveries
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount || 0);
   }, []);
 
-  // Tải dữ liệu phiếu giao hàng từ API
+  // Tải dữ liệu phiếu giao hàng hoặc lịch sử chứng từ điều chỉnh từ API
   const fetchDispatches = useCallback(async () => {
     setIsLoading(true);
     try {
+      if (activeTab === 'ADJUSTMENTS') {
+        const res = await getInvoiceAdjustmentsHistoryApi(token, {
+          search: (dispatchCodeFilter || orderCodeFilter || dealerNameFilter).trim() || undefined,
+          adjustment_type: adjustmentTypeFilter || undefined,
+          from_date: fromDateFilter || undefined,
+          to_date: toDateFilter || undefined,
+          page: currentPage,
+          page_size: pageSize,
+        });
+
+        setAdjustmentsList(res.data || []);
+        if (res.quick_stats) {
+          setQuickStats((prev) => ({
+            ...prev,
+            total_adjustments: res.quick_stats.total_adjustments,
+          }));
+        }
+        setTotalPages(res.pagination?.total_pages || 1);
+        setTotalRecords(res.pagination?.total_records || 0);
+        return;
+      }
+
       const res = await getDeliveryDispatchesForInvoicingApi(token, {
         dispatch_code: dispatchCodeFilter.trim() || undefined,
         order_code: orderCodeFilter.trim() || undefined,
@@ -312,11 +361,16 @@ export const SalesInvoiceFromDeliveriesView: React.FC<SalesInvoiceFromDeliveries
       });
 
       setDispatches(res.data || []);
-      setQuickStats(res.quick_stats || { total_pending_invoices: 0, total_issued_invoices: 0, total_pending_amount: 0 });
+      setQuickStats({
+        total_pending_invoices: res.quick_stats?.total_pending_invoices || 0,
+        total_issued_invoices: res.quick_stats?.total_issued_invoices || 0,
+        total_adjustments: res.quick_stats?.total_adjustments || 0,
+        total_pending_amount: res.quick_stats?.total_pending_amount || 0,
+      });
       setTotalPages(res.pagination?.total_pages || 1);
       setTotalRecords(res.pagination?.total_records || 0);
     } catch (err: any) {
-      showToast(err.message || 'Không thể tải danh sách phiếu giao hàng', 'error');
+      showToast(err.message || 'Không thể tải dữ liệu từ hệ thống', 'error');
     } finally {
       setIsLoading(false);
     }
@@ -326,6 +380,7 @@ export const SalesInvoiceFromDeliveriesView: React.FC<SalesInvoiceFromDeliveries
     orderCodeFilter,
     dealerNameFilter,
     warehouseIdFilter,
+    adjustmentTypeFilter,
     fromDateFilter,
     toDateFilter,
     deliveryStatusFilter,
@@ -989,8 +1044,8 @@ export const SalesInvoiceFromDeliveriesView: React.FC<SalesInvoiceFromDeliveries
             </h1>
           </div>
 
-          {/* 3 Thẻ thống kê nhanh */}
-          <div className="grid grid-cols-3 gap-2.5 md:min-w-[420px]">
+          {/* 4 Thẻ thống kê nhanh */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 md:min-w-[560px]">
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-2.5 flex flex-col justify-center">
               <span className="text-[10.5px] font-semibold text-amber-700 uppercase tracking-wide">Chờ xuất HĐ</span>
               <div className="text-lg font-bold text-amber-900 mt-0.5">
@@ -1001,6 +1056,12 @@ export const SalesInvoiceFromDeliveriesView: React.FC<SalesInvoiceFromDeliveries
               <span className="text-[10.5px] font-semibold text-emerald-700 uppercase tracking-wide">Đã xuất HĐ</span>
               <div className="text-lg font-bold text-emerald-900 mt-0.5">
                 {quickStats.total_issued_invoices.toLocaleString()} <span className="text-xs font-normal">phiếu</span>
+              </div>
+            </div>
+            <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-2.5 flex flex-col justify-center">
+              <span className="text-[10.5px] font-semibold text-indigo-700 uppercase tracking-wide">Chứng từ điều chỉnh</span>
+              <div className="text-lg font-bold text-indigo-900 mt-0.5">
+                {(quickStats.total_adjustments || 0).toLocaleString()} <span className="text-xs font-normal">chứng từ</span>
               </div>
             </div>
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-2.5 flex flex-col justify-center">
@@ -1015,26 +1076,30 @@ export const SalesInvoiceFromDeliveriesView: React.FC<SalesInvoiceFromDeliveries
 
         {/* Bộ lọc lưới 4x2 đồng bộ, chiều cao h-8, font chữ rõ ràng, không bị lệch */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 items-end pt-2.5 border-t border-slate-100">
-          {/* Cột 1: Mã phiếu giao */}
+          {/* Cột 1: Mã phiếu giao hoặc Mã chứng từ điều chỉnh */}
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">Mã phiếu giao</label>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">
+              {activeTab === 'ADJUSTMENTS' ? 'Mã chứng từ điều chỉnh' : 'Mã phiếu giao'}
+            </label>
             <FilterCombobox
               value={dispatchCodeFilter}
               onChange={setDispatchCodeFilter}
               options={dispatchCodeOptions}
-              placeholder="Chọn hoặc nhập mã phiếu..."
+              placeholder={activeTab === 'ADJUSTMENTS' ? 'Chọn hoặc nhập mã DC-...' : 'Chọn hoặc nhập mã phiếu...'}
               onEnter={handleKeyDown}
             />
           </div>
 
-          {/* Cột 2: Mã đơn hàng */}
+          {/* Cột 2: Mã đơn hàng hoặc Mã hóa đơn gốc */}
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">Mã đơn hàng</label>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">
+              {activeTab === 'ADJUSTMENTS' ? 'Mã hóa đơn gốc' : 'Mã đơn hàng'}
+            </label>
             <FilterCombobox
               value={orderCodeFilter}
               onChange={setOrderCodeFilter}
               options={orderCodeOptions}
-              placeholder="Chọn hoặc nhập mã đơn..."
+              placeholder={activeTab === 'ADJUSTMENTS' ? 'Chọn hoặc nhập mã HD-...' : 'Chọn hoặc nhập mã đơn...'}
               onEnter={handleKeyDown}
             />
           </div>
@@ -1063,19 +1128,34 @@ export const SalesInvoiceFromDeliveriesView: React.FC<SalesInvoiceFromDeliveries
             />
           </div>
 
-          {/* Cột 5: Trạng thái giao */}
+          {/* Cột 5: Trạng thái giao hoặc Loại điều chỉnh */}
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">Trạng thái giao</label>
-            <select
-              value={deliveryStatusFilter}
-              onChange={(e) => setDeliveryStatusFilter(e.target.value)}
-              className="w-full h-8 px-2.5 text-xs rounded-md border border-slate-300 bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 cursor-pointer transition-colors text-slate-800"
-            >
-              <option value="">Tất cả trạng thái</option>
-              <option value="DELIVERED">Đã giao thành công</option>
-              <option value="PENDING">Đang chờ giao</option>
-              <option value="FAILED">Giao thất bại</option>
-            </select>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">
+              {activeTab === 'ADJUSTMENTS' ? 'Loại điều chỉnh' : 'Trạng thái giao'}
+            </label>
+            {activeTab === 'ADJUSTMENTS' ? (
+              <select
+                value={adjustmentTypeFilter}
+                onChange={(e) => setAdjustmentTypeFilter(e.target.value)}
+                className="w-full h-8 px-2.5 text-xs rounded-md border border-slate-300 bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 cursor-pointer transition-colors text-slate-800"
+              >
+                <option value="">Tất cả loại điều chỉnh</option>
+                <option value="INCREASE">Điều chỉnh tăng (+)</option>
+                <option value="DECREASE">Điều chỉnh giảm (-)</option>
+                <option value="INFO">Điều chỉnh thông tin</option>
+              </select>
+            ) : (
+              <select
+                value={deliveryStatusFilter}
+                onChange={(e) => setDeliveryStatusFilter(e.target.value)}
+                className="w-full h-8 px-2.5 text-xs rounded-md border border-slate-300 bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 cursor-pointer transition-colors text-slate-800"
+              >
+                <option value="">Tất cả trạng thái</option>
+                <option value="DELIVERED">Đã giao thành công</option>
+                <option value="PENDING">Đang chờ giao</option>
+                <option value="FAILED">Giao thất bại</option>
+              </select>
+            )}
           </div>
 
           {/* Cột 6: Từ ngày */}
@@ -1128,68 +1208,84 @@ export const SalesInvoiceFromDeliveriesView: React.FC<SalesInvoiceFromDeliveries
         </div>
 
         {/* Thanh ngang gộp đặt bên trong ô tìm kiếm với màu nền sáng trang nhã, chiều cao h-7 */}
-        <div className="bg-slate-50/90 border border-slate-200/90 rounded py-1.5 px-2.5 flex flex-wrap items-center justify-between gap-2 text-slate-800">
-          <div className="flex items-center gap-2">
-            <label className="flex items-center gap-1.5 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                id="master-checkbox"
-                checked={isAllEligibleSelected}
-                onChange={handleToggleSelectAll}
-                disabled={eligibleDispatchesOnPage.length === 0}
-                className="w-3.5 h-3.5 text-emerald-600 rounded cursor-pointer"
-              />
-              <span className="text-[11px] font-semibold text-slate-700">
-                Chọn tất cả ({eligibleDispatchesOnPage.length} phiếu đủ điều kiện)
+        {activeTab === 'ADJUSTMENTS' ? (
+          <div className="bg-amber-50/80 border border-amber-200/90 rounded py-1.5 px-2.5 flex flex-wrap items-center justify-between gap-2 text-amber-900 text-xs">
+            <div className="flex items-center gap-2">
+              <span className="font-bold uppercase tracking-wider text-[11px] bg-amber-200 text-amber-900 px-2 py-0.5 rounded">
+                Sổ Lưu Vết Kế Toán
               </span>
-            </label>
-
-            <div className="h-3 w-px bg-slate-300 hidden sm:block" />
-
-            <div className="text-[11px] text-slate-600">
-              Đã chọn: <strong className="text-emerald-700 font-bold text-[11px]">{selectedSummary.count}</strong> phiếu
-              {selectedSummary.count > 0 && (
-                <>
-                  {' '}
-                  | Tổng tiền:{' '}
-                  <strong className="text-slate-900 font-bold text-[11px]">{formatVND(selectedSummary.totalAmount)}</strong>
-                  {selectedSummary.dealersCount > 1 && (
-                    <span className="ml-1.5 px-1 py-0.2 bg-red-100 text-red-700 text-[10px] rounded border border-red-300 font-semibold">
-                      Chọn nhiều đại lý khác nhau
-                    </span>
-                  )}
-                </>
-              )}
+              <span className="text-slate-700 font-medium">
+                Ghi nhận đầy đủ lịch sử tất cả các lần điều chỉnh giá trị, tiền thuế hoặc thông tin hóa đơn bán hàng theo nguyên tắc bất biến.
+              </span>
+            </div>
+            <div className="font-bold text-amber-900">
+              Tổng số: {totalRecords} chứng từ
             </div>
           </div>
+        ) : (
+          <div className="bg-slate-50/90 border border-slate-200/90 rounded py-1.5 px-2.5 flex flex-wrap items-center justify-between gap-2 text-slate-800">
+            <div className="flex items-center gap-2">
+              <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  id="master-checkbox"
+                  checked={isAllEligibleSelected}
+                  onChange={handleToggleSelectAll}
+                  disabled={eligibleDispatchesOnPage.length === 0}
+                  className="w-3.5 h-3.5 text-emerald-600 rounded cursor-pointer"
+                />
+                <span className="text-[11px] font-semibold text-slate-700">
+                  Chọn tất cả ({eligibleDispatchesOnPage.length} phiếu đủ điều kiện)
+                </span>
+              </label>
 
-          <div className="flex items-center gap-1.5">
-            {selectedSummary.count > 0 && (
+              <div className="h-3 w-px bg-slate-300 hidden sm:block" />
+
+              <div className="text-[11px] text-slate-600">
+                Đã chọn: <strong className="text-emerald-700 font-bold text-[11px]">{selectedSummary.count}</strong> phiếu
+                {selectedSummary.count > 0 && (
+                  <>
+                    {' '}
+                    | Tổng tiền:{' '}
+                    <strong className="text-slate-900 font-bold text-[11px]">{formatVND(selectedSummary.totalAmount)}</strong>
+                    {selectedSummary.dealersCount > 1 && (
+                      <span className="ml-1.5 px-1 py-0.2 bg-red-100 text-red-700 text-[10px] rounded border border-red-300 font-semibold">
+                        Chọn nhiều đại lý khác nhau
+                      </span>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              {selectedSummary.count > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedIds([])}
+                  className="px-2 py-0.5 text-[11px] text-slate-500 hover:text-slate-800 transition-colors cursor-pointer border-0 bg-transparent"
+                >
+                  Bỏ chọn
+                </button>
+              )}
+
               <button
                 type="button"
-                onClick={() => setSelectedIds([])}
-                className="px-2 py-0.5 text-[11px] text-slate-500 hover:text-slate-800 transition-colors cursor-pointer border-0 bg-transparent"
+                id="btn-consolidate-issue-invoice"
+                onClick={handleOpenPreview}
+                disabled={isPreviewLoading}
+                title={selectedSummary.count === 0 ? "Vui lòng tích chọn phiếu giao hàng bên dưới" : "Bấm để xem trước và xuất hóa đơn"}
+                className={`px-3 h-7 rounded text-[11px] font-bold transition-all cursor-pointer border-0 ${
+                  selectedSummary.count > 0 && !isPreviewLoading
+                    ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs'
+                    : 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none'
+                }`}
               >
-                Bỏ chọn
+                {isPreviewLoading ? 'Đang kiểm tra...' : `Gộp & Xuất Hóa Đơn (${selectedSummary.count})`}
               </button>
-            )}
-
-            <button
-              type="button"
-              id="btn-consolidate-issue-invoice"
-              onClick={handleOpenPreview}
-              disabled={isPreviewLoading}
-              title={selectedSummary.count === 0 ? "Vui lòng tích chọn phiếu giao hàng bên dưới" : "Bấm để xem trước và xuất hóa đơn"}
-              className={`px-3 h-7 rounded text-[11px] font-bold transition-all cursor-pointer border-0 ${
-                selectedSummary.count > 0 && !isPreviewLoading
-                  ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs'
-                  : 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none'
-              }`}
-            >
-              {isPreviewLoading ? 'Đang kiểm tra...' : `Gộp & Xuất Hóa Đơn (${selectedSummary.count})`}
-            </button>
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Tabs chuyển trạng thái đặt ngay bên dưới ô tiêu đề và tìm kiếm */}
@@ -1222,6 +1318,20 @@ export const SalesInvoiceFromDeliveriesView: React.FC<SalesInvoiceFromDeliveries
         >
           Đã xuất hóa đơn ({quickStats.total_issued_invoices})
         </button>
+        <button
+          type="button"
+          onClick={() => {
+            setActiveTab('ADJUSTMENTS');
+            setCurrentPage(1);
+          }}
+          className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+            activeTab === 'ADJUSTMENTS'
+              ? 'bg-emerald-600 text-white shadow-xs border border-emerald-600'
+              : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-300'
+          }`}
+        >
+          Lịch sử chứng từ điều chỉnh ({quickStats.total_adjustments || 0})
+        </button>
       </div>
 
       {/* 5. Bảng danh sách phiếu giao hàng */}
@@ -1230,20 +1340,103 @@ export const SalesInvoiceFromDeliveriesView: React.FC<SalesInvoiceFromDeliveries
           <table className="w-full text-left text-xs border-collapse">
             <thead>
               <tr className="bg-slate-100/90 text-slate-600 font-semibold uppercase text-[11px] border-b border-slate-200 tracking-wider">
-                <th className="px-2 py-2.5 w-10 text-center whitespace-nowrap">
-                  <span className="sr-only">Chọn</span>
-                </th>
-                <th className="px-3 py-2.5 whitespace-nowrap">Mã phiếu / Đơn</th>
-                <th className="px-3 py-2.5">Đại lý / Kho xuất</th>
-                <th className="px-3 py-2.5 whitespace-nowrap">Ngày giao</th>
-                <th className="px-3 py-2.5 whitespace-nowrap text-center">Trạng thái giao</th>
-                <th className="px-3 py-2.5 whitespace-nowrap text-right">SL thực (Mặt hàng)</th>
-                <th className="px-3 py-2.5 whitespace-nowrap text-right">Tổng tiền dự kiến</th>
-                <th className="px-3 py-2.5 whitespace-nowrap text-center">Hóa đơn & Thao tác</th>
+                {activeTab === 'ADJUSTMENTS' ? (
+                  <>
+                    <th className="px-3 py-2.5 whitespace-nowrap">Mã điều chỉnh</th>
+                    <th className="px-3 py-2.5 whitespace-nowrap">Hóa đơn gốc</th>
+                    <th className="px-3 py-2.5">Đại lý / Khách hàng</th>
+                    <th className="px-2.5 py-2.5 text-center whitespace-nowrap">Phân loại</th>
+                    <th className="px-3 py-2.5 whitespace-nowrap">Người lập & Ngày lập</th>
+                    <th className="px-3 py-2.5 text-center whitespace-nowrap">Thao tác</th>
+                  </>
+                ) : (
+                  <>
+                    <th className="px-2 py-2.5 w-10 text-center whitespace-nowrap">
+                      <span className="sr-only">Chọn</span>
+                    </th>
+                    <th className="px-3 py-2.5 whitespace-nowrap">Mã phiếu / Đơn</th>
+                    <th className="px-3 py-2.5">Đại lý / Kho xuất</th>
+                    <th className="px-3 py-2.5 whitespace-nowrap">Ngày giao</th>
+                    <th className="px-3 py-2.5 whitespace-nowrap text-center">Trạng thái giao</th>
+                    <th className="px-3 py-2.5 whitespace-nowrap text-right">SL thực (Mặt hàng)</th>
+                    <th className="px-3 py-2.5 whitespace-nowrap text-right">Tổng tiền dự kiến</th>
+                    <th className="px-3 py-2.5 whitespace-nowrap text-center">Hóa đơn & Thao tác</th>
+                  </>
+                )}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {isLoading ? (
+              {activeTab === 'ADJUSTMENTS' ? (
+                isLoading ? (
+                  <tr>
+                    <td colSpan={6} className="p-8 text-center text-slate-500 whitespace-nowrap text-[11px]">
+                      <div>Đang tải lịch sử chứng từ điều chỉnh từ hệ thống...</div>
+                    </td>
+                  </tr>
+                ) : adjustmentsList.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="p-8 text-center text-slate-500 whitespace-nowrap text-[11px]">
+                      <div className="font-semibold text-slate-700">Chưa có chứng từ điều chỉnh nào</div>
+                      <p className="text-[10.5px] text-slate-400 mt-1">
+                        Khi hóa đơn đã phát hành có sai sót và được lập chứng từ điều chỉnh, lịch sử sẽ tự động lưu vết tại đây.
+                      </p>
+                    </td>
+                  </tr>
+                ) : (
+                  adjustmentsList.map((adj) => (
+                    <tr key={adj.id} className="hover:bg-amber-50/30 transition-colors">
+                      <td className="px-3 py-2.5 whitespace-nowrap">
+                        <span className="font-mono font-bold text-amber-800 text-xs bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                          {adj.adjustment_code}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2.5 whitespace-nowrap">
+                        <button
+                          type="button"
+                          onClick={() => handleOpenInvoiceDetail(adj.invoice_id)}
+                          className="font-mono font-bold text-blue-600 hover:text-blue-800 hover:underline cursor-pointer bg-transparent border-0 p-0 text-xs flex items-center gap-1"
+                          title="Bấm để mở xem hóa đơn gốc"
+                        >
+                          <span>{adj.invoice_code}</span>
+                          <span className="text-[10px] text-blue-400">↗</span>
+                        </button>
+                      </td>
+                      <td className="px-3 py-2.5 min-w-[180px]">
+                        <div className="font-semibold text-slate-900 text-xs">
+                          {adj.dealer_name || 'Khách hàng mua lẻ'}
+                        </div>
+                      </td>
+                      <td className="px-2.5 py-2 whitespace-nowrap text-center">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10.5px] font-semibold border ${
+                          adj.adjustment_type === 'INCREASE'
+                            ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                            : adj.adjustment_type === 'DECREASE'
+                            ? 'bg-rose-50 text-rose-800 border-rose-200'
+                            : 'bg-blue-50 text-blue-800 border-blue-200'
+                        }`}>
+                          {adj.adjustment_type === 'INCREASE' ? 'Tăng tiền/thuế' : adj.adjustment_type === 'DECREASE' ? 'Giảm tiền/thuế' : 'Thông tin'}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2.5 whitespace-nowrap text-slate-600 text-xs">
+                        <div className="font-medium">{adj.created_at || '—'}</div>
+                        <div className="text-[10.5px] text-slate-400">{adj.created_by || '—'}</div>
+                      </td>
+                      <td className="px-3 py-2.5 text-center whitespace-nowrap">
+                        <div className="flex items-center justify-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedAdjustmentDetail(adj)}
+                            className="px-2.5 py-1 text-[11px] font-bold text-amber-800 bg-amber-100 hover:bg-amber-200 rounded border border-amber-300 transition-colors cursor-pointer"
+                            title="Xem chi tiết chứng từ điều chỉnh"
+                          >
+                            Chi tiết
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )
+              ) : isLoading ? (
                 <tr>
                   <td colSpan={8} className="p-8 text-center text-slate-500 whitespace-nowrap text-[11px]">
                     <div>Đang tải danh sách phiếu giao hàng từ hệ thống...</div>
@@ -1373,7 +1566,7 @@ export const SalesInvoiceFromDeliveriesView: React.FC<SalesInvoiceFromDeliveries
         {totalRecords > 0 && (
           <div className="py-2 px-3 border-t border-slate-200 bg-slate-50/50 flex flex-wrap items-center justify-between text-[11px] text-slate-500 gap-2">
             <div>
-              Hiển thị <strong className="text-slate-800">{dispatches.length}</strong> / {totalRecords} phiếu giao hàng
+              Hiển thị <strong className="text-slate-800">{activeTab === 'ADJUSTMENTS' ? adjustmentsList.length : dispatches.length}</strong> / {totalRecords} {activeTab === 'ADJUSTMENTS' ? 'chứng từ' : 'phiếu giao hàng'}
             </div>
             <div className="flex items-center gap-1">
               <button
@@ -1998,6 +2191,19 @@ export const SalesInvoiceFromDeliveriesView: React.FC<SalesInvoiceFromDeliveries
             </div>
           </div>
         </ModalPortal>
+      )}
+
+      {/* 8. MODAL CHI TIẾT CHỨNG TỪ ĐIỀU CHỈNH HÓA ĐƠN (KÈM IN & XUẤT PDF) */}
+      {selectedAdjustmentDetail && (
+        <InvoiceAdjustmentDetailModal
+          adjustment={selectedAdjustmentDetail}
+          currentUser={currentUser}
+          onClose={() => setSelectedAdjustmentDetail(null)}
+          onOpenOriginalInvoice={(invoiceId) => {
+            setSelectedAdjustmentDetail(null);
+            handleOpenInvoiceDetail(invoiceId);
+          }}
+        />
       )}
 
     </div>

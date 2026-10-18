@@ -6824,6 +6824,7 @@ export interface DeliveryDispatchesListResponse {
   quick_stats: {
     total_pending_invoices: number;
     total_issued_invoices: number;
+    total_adjustments?: number;
     total_pending_amount: number;
   };
   pagination: {
@@ -7190,4 +7191,63 @@ export async function getInvoiceAdjustmentsApi(
   if (!response.ok) return [];
   const data = await response.json().catch(() => ({}));
   return data.data || [];
+}
+
+export interface InvoiceAdjustmentItem {
+  id: number;
+  adjustment_code: string;
+  invoice_id: number;
+  invoice_code: string;
+  dealer_name?: string;
+  adjustment_type: 'INCREASE' | 'DECREASE' | 'INFO';
+  reason: string;
+  difference_subtotal: number;
+  difference_vat: number;
+  difference_total: number;
+  details_json?: string;
+  created_by?: string;
+  created_at?: string;
+}
+
+export interface InvoiceAdjustmentsHistoryResponse {
+  status: string;
+  quick_stats: {
+    total_adjustments: number;
+  };
+  pagination: {
+    page: number;
+    page_size: number;
+    total_records: number;
+    total_pages: number;
+  };
+  data: InvoiceAdjustmentItem[];
+}
+
+export async function getInvoiceAdjustmentsHistoryApi(
+  token: string,
+  params?: {
+    search?: string;
+    adjustment_type?: string;
+    from_date?: string;
+    to_date?: string;
+    page?: number;
+    page_size?: number;
+  }
+): Promise<InvoiceAdjustmentsHistoryResponse> {
+  const query = new URLSearchParams();
+  if (params?.search && params.search.trim()) query.append('search', params.search.trim());
+  if (params?.adjustment_type && params.adjustment_type.trim()) query.append('adjustment_type', params.adjustment_type.trim());
+  if (params?.from_date) query.append('from_date', params.from_date);
+  if (params?.to_date) query.append('to_date', params.to_date);
+  if (params?.page) query.append('page', params.page.toString());
+  if (params?.page_size) query.append('page_size', params.page_size.toString());
+
+  const queryString = query.toString();
+  const url = `${API_BASE_URL}/sales-invoices/adjustments/history${queryString ? `?${queryString}` : ''}`;
+  const response = await authenticatedFetch(url, { method: 'GET' }, token);
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Lỗi khi tải lịch sử chứng từ điều chỉnh hóa đơn');
+  }
+  return response.json();
 }
