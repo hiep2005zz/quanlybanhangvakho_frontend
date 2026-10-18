@@ -28,6 +28,7 @@ interface DealerProfileManagementProps {
   currentUser?: User;
   token?: string;
   onBackToHome?: () => void;
+  onOpenDebtStatement?: (dealerId: number) => void;
 }
 
 const CUSTOMER_GROUP_OPTIONS = [
@@ -69,6 +70,7 @@ export default function DealerProfileManagementView({
   currentUser: _currentUser,
   token,
   onBackToHome,
+  onOpenDebtStatement,
 }: DealerProfileManagementProps) {
   // Data list & loading
   const [dealers, setDealers] = useState<DealerSearchItem[]>([]);
@@ -1586,6 +1588,22 @@ export default function DealerProfileManagementView({
                               </svg>
                             </button>
 
+                            {/* Nút Xem Sổ chi tiết công nợ */}
+                            {onOpenDebtStatement && (
+                              <button
+                                type="button"
+                                className="btn-icon-action"
+                                style={{ color: '#2563eb', borderColor: '#bfdbfe', background: '#eff6ff' }}
+                                onClick={() => onOpenDebtStatement(dealer.id)}
+                                title="Xem và xuất Sổ chi tiết công nợ (S31-DN) của đại lý này"
+                              >
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                                  <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+                                  <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+                                </svg>
+                              </button>
+                            )}
+
                             {/* Nút Chỉnh sửa */}
                             <button
                               type="button"
@@ -2133,6 +2151,27 @@ export default function DealerProfileManagementView({
                       >
                         Lập phiếu thu tại chỗ
                       </button>
+                      {onOpenDebtStatement && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsTxModalOpen(false);
+                            onOpenDebtStatement(txModalDealer.id);
+                          }}
+                          style={{
+                            padding: '5px 12px',
+                            borderRadius: '6px',
+                            border: '1px solid #2563eb',
+                            background: '#eff6ff',
+                            color: '#1d4ed8',
+                            fontSize: '12.5px',
+                            fontWeight: '600',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          📖 Sổ công nợ
+                        </button>
+                      )}
                     </div>
                   </div>
 
