@@ -123,7 +123,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   canWriteInventory: _canWriteInventory = false,
   canAccessDeliveryTracking = false,
   isWarehouseOrAdmin = false,
-  isAdmin: _isAdmin = false,
+  isAdmin = false,
   canAccessPaymentCollections = false,
   canAccessDebtPayments = false,
   canAccessDebtReconciliation = false,
@@ -135,121 +135,212 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const currentPath = location.pathname.toLowerCase();
   const [searchTerm, setSearchTerm] = useState('');
 
-  // 1. DÀNH CHO KHÁCH HÀNG / ĐẠI LÝ (Customer portal)
+  // 1. DÀNH CHO KHÁCH HÀNG / ĐẠI LÝ (Customer portal - có thanh tìm kiếm và cấu trúc hiện đại)
   if (isCustomer) {
-    const customerMenuItems: MenuItemConfig[] = [
+    const customerGroups: MenuGroup[] = [
       {
-        id: 'btn-sidebar-products',
-        tab: 'inventory',
-        path: '/',
-        label: 'Danh sách Sản phẩm',
-        visible: true,
-        icon: (
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" />
-            <path d="M3 6h18" />
-            <path d="M16 10a4 4 0 0 1-8 0" />
-          </svg>
-        ),
+        id: 'group-customer-shopping',
+        title: 'MUA HÀNG & ĐƠN HÀNG',
+        items: [
+          {
+            id: 'btn-sidebar-products',
+            tab: 'inventory',
+            path: '/',
+            label: 'Danh sách Sản phẩm',
+            visible: true,
+            icon: (
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" />
+                <path d="M3 6h18" />
+                <path d="M16 10a4 4 0 0 1-8 0" />
+              </svg>
+            ),
+          },
+          {
+            id: 'btn-sidebar-orders',
+            tab: 'orders',
+            path: '/orders',
+            label: 'Đơn hàng của tôi',
+            visible: true,
+            icon: (
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2" />
+                <path d="M8 8h8M8 12h8M8 16h4" />
+              </svg>
+            ),
+          },
+        ],
       },
       {
-        id: 'btn-sidebar-orders',
-        tab: 'orders',
-        path: '/orders',
-        label: 'Đơn hàng của tôi',
-        visible: true,
-        icon: (
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="3" y="3" width="18" height="18" rx="2" />
-            <path d="M8 8h8M8 12h8M8 16h4" />
-          </svg>
-        ),
-      },
-      {
-        id: 'btn-sidebar-dealers',
-        tab: 'dealers',
-        path: '/dealers',
-        label: 'Danh bạ đại lý & Khách hàng',
-        visible: true,
-        icon: (
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-            <circle cx="9" cy="7" r="4" />
-            <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-            <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-          </svg>
-        ),
-      },
-      {
-        id: 'btn-sidebar-agency-debts',
-        tab: 'agency-debts',
-        path: '/agency-debts',
-        label: 'Công nợ & Hóa đơn',
-        visible: true,
-        icon: (
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-            <polyline points="14 2 14 8 20 8" />
-            <line x1="16" y1="13" x2="8" y2="13" />
-            <line x1="16" y1="17" x2="8" y2="17" />
-            <polyline points="10 9 9 9 8 9" />
-          </svg>
-        ),
+        id: 'group-customer-account',
+        title: 'TÀI KHOẢN & CÔNG NỢ',
+        items: [
+          {
+            id: 'btn-sidebar-dealers',
+            tab: 'dealers',
+            path: '/dealers',
+            label: 'Danh bạ đại lý & Khách hàng',
+            visible: true,
+            icon: (
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                <circle cx="9" cy="7" r="4" />
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+              </svg>
+            ),
+          },
+          {
+            id: 'btn-sidebar-agency-debts',
+            tab: 'agency-debts',
+            path: '/agency-debts',
+            label: 'Công nợ & Hóa đơn',
+            visible: true,
+            icon: (
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
+                <line x1="16" y1="13" x2="8" y2="13" />
+                <line x1="16" y1="17" x2="8" y2="17" />
+                <polyline points="10 9 9 9 8 9" />
+              </svg>
+            ),
+          },
+        ],
       },
     ];
 
+    const filteredCustomerGroups = customerGroups
+      .map((group) => {
+        const visibleItems = group.items.filter((item) => {
+          if (!searchTerm.trim()) return true;
+          return item.label.toLowerCase().includes(searchTerm.trim().toLowerCase());
+        });
+        return { ...group, items: visibleItems };
+      })
+      .filter((group) => group.items.length > 0);
+
     const renderCustomerNav = (isMobile = false) => (
-      <div className="flex-1 overflow-y-auto px-3 py-3 space-y-1">
-        {customerMenuItems.map((item) => {
-          const isActive = activeTab === item.tab;
-          return (
-            <button
-              key={item.tab}
-              type="button"
-              id={isMobile ? `mobile-${item.id}` : item.id}
-              onClick={() => {
-                onSelectTab(item.tab);
-                if (isMobile) onCloseMobile?.();
-              }}
-              className={`w-full flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all text-left border-0 cursor-pointer ${
-                isActive
-                  ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-600/30 font-semibold'
-                  : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'
-              }`}
+      <div className="flex-1 overflow-y-auto px-3 py-3 space-y-4">
+        {/* Ô tìm kiếm nhanh chức năng */}
+        <div className="relative px-0.5">
+          <div className="flex items-center w-full bg-slate-50 hover:bg-slate-100 focus-within:bg-white focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20 rounded-lg border border-slate-200 transition-all px-2.5 py-1.5 gap-2">
+            <svg
+              className="w-4 h-4 text-slate-400 flex-shrink-0"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
             >
-              <div className="flex items-center gap-3 min-w-0">
-                <span className={`flex-shrink-0 ${isActive ? 'text-white' : 'text-slate-500'}`}>
-                  {item.icon}
-                </span>
-                <span className="truncate">{item.label}</span>
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Tìm chức năng..."
+              style={{
+                outline: 'none',
+                boxShadow: 'none',
+                border: 'none',
+                padding: 0,
+              }}
+              className="w-full bg-transparent text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none"
+            />
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={() => setSearchTerm('')}
+                className="text-slate-400 hover:text-slate-600 text-xs cursor-pointer border-0 bg-transparent p-0 flex-shrink-0"
+                title="Xóa tìm kiếm"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+        </div>
+
+        {filteredCustomerGroups.length === 0 ? (
+          <div className="py-6 text-center text-xs text-slate-400">
+            Không tìm thấy chức năng phù hợp
+          </div>
+        ) : (
+          filteredCustomerGroups.map((group) => (
+            <div key={group.id} className="space-y-1">
+              <div className="px-2.5 pb-1 text-[10px] font-bold tracking-wider text-slate-400 uppercase">
+                {group.title}
               </div>
-            </button>
-          );
-        })}
+              <div className="space-y-0.5">
+                {group.items.map((item) => {
+                  const isActive = activeTab === item.tab;
+                  return (
+                    <button
+                      key={item.tab}
+                      type="button"
+                      id={isMobile ? `mobile-${item.id}` : item.id}
+                      onClick={() => {
+                        onSelectTab(item.tab);
+                        if (isMobile) onCloseMobile?.();
+                      }}
+                      style={{
+                        backgroundImage: 'none',
+                        boxShadow: 'none',
+                        marginTop: 0,
+                      }}
+                      className={`group w-full flex items-center justify-between gap-2.5 px-3 py-2 rounded-lg text-xs transition-all text-left border-0 cursor-pointer ${
+                        isActive
+                          ? 'bg-emerald-50 text-emerald-800 font-bold border-l-3 border-emerald-600 pl-[9px]'
+                          : 'bg-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-900 font-medium'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <span
+                          className={`flex-shrink-0 transition-colors ${
+                            isActive ? 'text-emerald-600' : 'text-slate-400 group-hover:text-slate-700'
+                          }`}
+                        >
+                          {item.icon}
+                        </span>
+                        <span className="truncate leading-tight">{item.label}</span>
+                      </div>
+                      {isActive && (
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 flex-shrink-0"></span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))
+        )}
       </div>
     );
 
     return (
       <>
         {/* Desktop Sidebar Customer */}
-        <aside className="hidden md:flex md:w-64 bg-white border-r border-slate-200/90 flex-col h-full flex-shrink-0 select-none shadow-[2px_0_12px_rgba(0,0,0,0.02)]">
-          <div className="px-4 py-3.5 bg-gradient-to-r from-emerald-50 to-teal-50/50 border-b border-emerald-100/80 flex items-center gap-2.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 ring-4 ring-emerald-100 animate-pulse"></span>
-            <div>
-              <div className="text-xs font-bold uppercase tracking-wider text-emerald-800">Cổng Đặt Hàng Đại Lý</div>
-              <div className="text-[11px] text-emerald-600 font-medium">Khách hàng & Bán sỉ</div>
-            </div>
+        <aside className="hidden md:flex md:w-64 bg-white border-r border-slate-200 flex-col h-full flex-shrink-0 select-none shadow-[1px_0_4px_rgba(0,0,0,0.02)]">
+          <div className="px-4 py-3 border-b border-slate-100 flex items-center bg-slate-50/70">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-800">CỔNG ĐẠI LÝ</span>
           </div>
           {renderCustomerNav(false)}
           {onLogout && (
-            <div className="p-3 border-t border-slate-200/80 bg-slate-50/50 flex-shrink-0">
+            <div className="p-3 border-t border-slate-200 bg-white flex-shrink-0">
               <button
                 type="button"
                 onClick={onLogout}
                 disabled={isLoggingOut}
-                className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:bg-rose-50 hover:text-rose-600 transition-colors disabled:opacity-50 text-left bg-transparent border-0 cursor-pointer"
+                style={{
+                  backgroundImage: 'none',
+                  boxShadow: 'none',
+                  marginTop: 0,
+                }}
+                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold text-slate-600 hover:bg-rose-50 hover:text-rose-600 transition-colors disabled:opacity-50 text-left bg-transparent border-0 cursor-pointer"
               >
-                <span className="text-slate-400 group-hover:text-rose-600">
+                <span className="text-slate-400 hover:text-rose-600 transition-colors flex-shrink-0">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
                     <polyline points="16 17 21 12 16 7" />
@@ -266,13 +357,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {isMobileOpen && (
           <div className="fixed inset-0 z-50 md:hidden flex">
             <div className="fixed inset-0 bg-black/40 backdrop-blur-xs transition-opacity" onClick={onCloseMobile} />
-            <div className="relative w-72 max-w-[80vw] bg-white flex flex-col h-full z-10 shadow-2xl">
-              <div className="px-4 py-3.5 bg-emerald-700 text-white flex items-center justify-between">
-                <span className="text-sm font-bold">Cổng Đặt Hàng Đại Lý</span>
+            <div className="relative w-72 max-w-[80vw] bg-white flex flex-col h-full z-10 shadow-2xl animate-in slide-in-from-left duration-200">
+              <div className="px-4 py-3 bg-emerald-700 text-white flex items-center justify-between">
+                <span className="text-sm font-bold">Cổng Đại Lý</span>
                 <button
                   type="button"
                   onClick={onCloseMobile}
                   className="w-8 h-8 flex items-center justify-center rounded-lg text-white hover:bg-white/20 text-lg cursor-pointer border-0 bg-transparent"
+                  title="Đóng menu"
                 >
                   ✕
                 </button>
@@ -287,8 +379,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       onLogout();
                     }}
                     disabled={isLoggingOut}
-                    className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:bg-rose-50 hover:text-rose-600 transition-colors text-left bg-transparent border-0 cursor-pointer"
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold text-slate-600 hover:bg-rose-50 hover:text-rose-600 transition-colors disabled:opacity-50 text-left bg-transparent border-0 cursor-pointer"
                   >
+                    <span className="text-slate-400 hover:text-rose-600 transition-colors flex-shrink-0">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                        <polyline points="16 17 21 12 16 7" />
+                        <line x1="21" y1="12" x2="9" y2="12" />
+                      </svg>
+                    </span>
                     <span className="truncate">{isLoggingOut ? 'Đang đăng xuất...' : 'Đăng xuất'}</span>
                   </button>
                 </div>
@@ -300,7 +399,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     );
   }
 
-  // 2. TỔ CHỨC CÁC PHÂN HỆ MENU THEO NHÓM NGHIỆP VỤ CHUYÊN NGHIỆP
+  // 2. TỔ CHỨC CÁC PHÂN HỆ MENU THEO NHÓM NGHIỆP VỤ CHO TOÀN BỘ CÁC VAI TRÒ HỆ THỐNG
   const menuGroups: MenuGroup[] = [
     {
       id: 'group-overview',
@@ -827,10 +926,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       <aside className="hidden md:flex md:w-64 bg-white border-r border-slate-200 flex-col h-full flex-shrink-0 select-none shadow-[1px_0_4px_rgba(0,0,0,0.02)]">
         {/* Header nhẹ nhàng trên thanh Menu */}
         <div className="px-4 py-3 border-b border-slate-100 flex items-center bg-slate-50/70">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 ring-4 ring-emerald-100 animate-pulse"></span>
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-800">MENU HỆ THỐNG</span>
-          </div>
+          <span className="text-xs font-bold uppercase tracking-wider text-slate-800">MENU HỆ THỐNG</span>
         </div>
 
         {/* Danh sách mục điều hướng Sidebar */}
