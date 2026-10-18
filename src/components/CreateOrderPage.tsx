@@ -929,7 +929,7 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({
     (creditInfo && creditInfo.max_debt_age > (creditInfo.overdue_days_allowed || 30))
   );
   const isOverdueBlocked = Boolean(
-    isOverdue && creditInfo?.overdue_action !== 'REQUIRE_APPROVAL'
+    isCustomerRole && isOverdue && creditInfo?.overdue_action !== 'REQUIRE_APPROVAL'
   );
   const isOverLimit = Boolean(
     creditInfo &&
@@ -937,7 +937,7 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({
     (creditInfo.current_debt + totalAmount > creditInfo.credit_limit || creditInfo.is_over_limit || creditInfo.is_over_credit_limit)
   );
   const isOverLimitBlocked = Boolean(
-    isOverLimit && creditInfo?.over_limit_action === 'BLOCK'
+    isCustomerRole && isOverLimit && creditInfo?.over_limit_action === 'BLOCK'
   );
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -1683,8 +1683,8 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({
                   </div>
                 )}
 
-                {/* Cảnh báo nợ quá hạn */}
-                {isOverdueBlocked && (
+                {/* Cảnh báo nợ quá hạn (chỉ hiển thị ở portal khách hàng/đại lý) */}
+                {isCustomerRole && isOverdueBlocked && (
                   <div className="p-3.5 bg-red-50 border border-red-200 rounded-xl text-xs sm:text-[13px] text-red-700 font-semibold space-y-1">
                     <div className="flex items-center gap-1.5 text-red-800 font-bold">
                       <span>⛔ Chặn tạo đơn do Nợ quá hạn</span>
@@ -1695,8 +1695,8 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({
                   </div>
                 )}
 
-                {/* Cảnh báo vượt hạn mức */}
-                {isOverLimit && !isOverdueBlocked && (
+                {/* Cảnh báo vượt hạn mức (chỉ hiển thị ở portal khách hàng/đại lý) */}
+                {isCustomerRole && isOverLimit && !isOverdueBlocked && (
                   <div className={`p-3.5 rounded-xl text-xs sm:text-[13px] font-medium space-y-1 ${
                     isOverLimitBlocked
                       ? 'bg-rose-50 border border-rose-300 text-rose-800'

@@ -133,6 +133,7 @@ export default function SalesOrderEntry({
   const userRoles = user ? (user.roles && user.roles.length > 0 ? user.roles : [user.role]) : [];
   const isSalesRole = !user || userRoles.some((r) => ['sales', 'sales_manager', 'admin', 'customer', 'agent'].includes(r));
   const isCustomer = Boolean(user && (user.role === 'customer' || user.role === 'agent' || userRoles.includes('customer') || userRoles.includes('agent')));
+  const isAdmin = Boolean(user && (user.role === 'admin' || userRoles.includes('admin')));
 
   // RBAC Guard: Chỉ Sales (sales, sales_manager) và Admin (admin) mới được sửa giá & xem cảnh báo giá sàn
   const canEditPrice = Boolean(
@@ -515,10 +516,12 @@ export default function SalesOrderEntry({
   const discountAmount = Math.round(subtotal * safeDiscount / 100);
   const totalDue = subtotal - discountAmount;
 
-  // AC 2 & AC 3: Kiểm tra nợ quá hạn (Block hoàn toàn) và Vượt hạn mức (Cần duyệt)
+  // AC 2 & AC 3: Kiểm tra nợ quá hạn và Vượt hạn mức
+  // Cấu hình chặn nợ quá hạn CHỈ áp dụng khi mua hàng ở trang đại lý (isCustomer). Ở trang admin tạo đơn không bị chặn bởi cấu hình.
   const isOverdueBlocked = Boolean(
-    creditInfo?.is_overdue ||
-    (creditInfo && creditInfo.max_debt_age > (creditInfo.overdue_days_allowed || 30))
+    isCustomer &&
+    (creditInfo?.is_overdue ||
+      (creditInfo && creditInfo.max_debt_age > (creditInfo.overdue_days_allowed || 30)))
   );
   const isOverLimit = Boolean(
     creditInfo &&
@@ -942,8 +945,8 @@ export default function SalesOrderEntry({
       return;
     }
 
-    // AC 3: Chặn tạo đơn hoàn toàn khi đại lý có nợ quá hạn
-    if (isOverdueBlocked) {
+    // AC 3: Chặn tạo đơn hoàn toàn khi đại lý có nợ quá hạn (chỉ khi đại lý tự đặt)
+    if (isCustomer && isOverdueBlocked) {
       const overdueDays = creditInfo?.max_debt_age || 0;
       const maxAllowed = creditInfo?.overdue_days_allowed || 30;
       const overdueMsg = `Đại lý "${selectedDealer.name}" có khoản nợ quá hạn (${overdueDays} ngày, vượt mức cho phép ${maxAllowed} ngày). Hệ thống chặn tạo đơn hàng hoàn toàn!`;
@@ -1185,13 +1188,14 @@ export default function SalesOrderEntry({
                 )}
               </label>
 
-              {/* AC 1, 2, 3: Hiển thị 3 chỉ số công nợ của đại lý */}
+              {/* AC 1, 2, 3: Hiển thị 3 chỉ số công nợ của đại lý (ở trang admin không hiển thị cảnh báo cấu hình) */}
               {selectedDealer && (
                 <div style={{ gridColumn: '1 / -1', marginBottom: '8px' }}>
                   <DealerCreditBadge
                     creditInfo={creditInfo}
                     currentOrderAmount={totalDue}
                     isLoading={isLoadingCredit}
+                    hidePolicyAlerts={!isCustomer}
                   />
                 </div>
               )}
@@ -1719,7 +1723,7 @@ export default function SalesOrderEntry({
                     ? 'Vượt tồn khả dụng (Không thể tạo đơn)'
                     : isSaving
                       ? 'Đang tạo đơn...'
-                      : isOverLimit
+                      : isOverLimit && !isAdmin
                         ? 'Tạo đơn hàng (Cần duyệt)'
                         : 'Tạo đơn hàng'}
             </button>
