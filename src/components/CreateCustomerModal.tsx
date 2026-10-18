@@ -16,7 +16,6 @@ const AVAILABLE_ROLES = [
   { role: 'sales', title: 'Nhân viên kinh doanh', badgeColor: '#3b82f6', desc: 'Tạo đơn hàng, tra cứu tồn kho' },
   { role: 'warehouse', title: 'Thủ kho', badgeColor: '#10b981', desc: 'Thực hiện nhập, xuất, kiểm đếm kho' },
   { role: 'accountant', title: 'Kế toán công nợ', badgeColor: '#f59e0b', desc: 'Quản lý công nợ, hóa đơn, sổ quỹ' },
-  { role: 'purchasing', title: 'Nhân viên mua hàng', badgeColor: '#06b6d4', desc: 'Lập đơn mua hàng từ nhà cung cấp' },
   { role: 'customer', title: 'Đại lý', badgeColor: '#0284c7', desc: 'Khách hàng đại lý sỉ đặt hàng qua hệ thống' },
 ];
 
