@@ -4942,6 +4942,9 @@ export interface StockAdjustmentResponse {
 export interface StockAdjustmentListResponse {
   items: StockAdjustmentResponse[];
   total: number;
+  page?: number;
+  page_size?: number;
+  total_pages?: number;
   pending_count: number;
   approved_count: number;
   rejected_count: number;
@@ -4998,6 +5001,8 @@ export async function getStockAdjustmentsApi(
     search?: string;
     limit?: number;
     offset?: number;
+    page?: number;
+    page_size?: number;
   }
 ): Promise<StockAdjustmentListResponse> {
   const query = new URLSearchParams();
@@ -5013,10 +5018,16 @@ export async function getStockAdjustmentsApi(
   if (params?.search && params.search.trim()) {
     query.set('search', params.search.trim());
   }
+  if (params?.page) {
+    query.set('page', String(params.page));
+  }
+  if (params?.page_size) {
+    query.set('page_size', String(params.page_size));
+  }
   if (params?.limit) {
     query.set('limit', String(params.limit));
   }
-  if (params?.offset) {
+  if (params?.offset !== undefined) {
     query.set('offset', String(params.offset));
   }
 

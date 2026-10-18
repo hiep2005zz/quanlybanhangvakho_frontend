@@ -2003,7 +2003,8 @@ export default function DashboardPage({
   const isUsersImportPage = activeTab === 'users-import';
   const isPaymentCollectionsPage = activeTab === 'payment-collections';
   const isDeliveryTrackingPage = activeTab === 'delivery-tracking' || currentPath.startsWith('/delivery-tracking');
-  const isLockedScrollTab = !isProductFormOpen && !isSalesOrderOpen && !isOrdersCreateSubpage && !isOrderDetailSubpage && !isPriceListsCreateSubpage && !isPriceBookDetailSubpage && !isPriceBookEditSubpage && !isGoodsReceiptPage && !isStockTransferCreateSubpage && !isBatchesCreateSubpage && !isProductsImportPage && !isUsersImportPage && !isPaymentCollectionsSubpage && !isPaymentCollectionsPage && !isDeliveryTrackingPage && (activeTab === 'inventory' || activeTab === 'dealers' || activeTab === 'dealer-profiles' || activeTab === 'debt-aging' || activeTab === 'debt-reconciliation' || activeTab === 'delivery-points' || activeTab === 'suppliers' || activeTab === 'price-books' || activeTab === 'categories' || activeTab === 'orders' || activeTab === 'product-history' || activeTab === 'stock-book' || activeTab === 'inventory-turnover' || activeTab === 'stock-audits' || activeTab === 'stock-adjustments' || activeTab === 'stock-transfers' || activeTab === 'stock-thresholds' || activeTab === 'low-stock-alerts' || activeTab === 'batches' || activeTab === 'picking') && !isPendingCustomer;
+  const isStockAdjustmentsPage = activeTab === 'stock-adjustments';
+  const isLockedScrollTab = !isProductFormOpen && !isSalesOrderOpen && !isOrdersCreateSubpage && !isOrderDetailSubpage && !isPriceListsCreateSubpage && !isPriceBookDetailSubpage && !isPriceBookEditSubpage && !isGoodsReceiptPage && !isStockTransferCreateSubpage && !isBatchesCreateSubpage && !isProductsImportPage && !isUsersImportPage && !isPaymentCollectionsSubpage && !isPaymentCollectionsPage && !isDeliveryTrackingPage && !isStockAdjustmentsPage && (activeTab === 'inventory' || activeTab === 'dealers' || activeTab === 'dealer-profiles' || activeTab === 'debt-aging' || activeTab === 'debt-reconciliation' || activeTab === 'delivery-points' || activeTab === 'suppliers' || activeTab === 'price-books' || activeTab === 'categories' || activeTab === 'orders' || activeTab === 'product-history' || activeTab === 'stock-book' || activeTab === 'inventory-turnover' || activeTab === 'stock-audits' || activeTab === 'stock-transfers' || activeTab === 'stock-thresholds' || activeTab === 'low-stock-alerts' || activeTab === 'batches' || activeTab === 'picking') && !isPendingCustomer;
   return (
     <DashboardLayout
       header={
@@ -2031,7 +2032,7 @@ export default function DashboardPage({
       }
       noScroll={!isCustomer && !isMobileScreen && isLockedScrollTab}
       mainClassName={
-        isOrderDetailSubpage || isOrdersCreateSubpage || isPriceListsCreateSubpage || isPriceBookDetailSubpage || isPriceBookEditSubpage || isGoodsReceiptPage || isStockTransferCreateSubpage || isBatchesCreateSubpage || isProductsImportPage || isUsersImportPage || isPaymentCollectionsSubpage || isPaymentCollectionsPage || isDeliveryTrackingPage || activeTab === 'debt-payments'
+        isOrderDetailSubpage || isOrdersCreateSubpage || isPriceListsCreateSubpage || isPriceBookDetailSubpage || isPriceBookEditSubpage || isGoodsReceiptPage || isStockTransferCreateSubpage || isBatchesCreateSubpage || isProductsImportPage || isUsersImportPage || isPaymentCollectionsSubpage || isPaymentCollectionsPage || isDeliveryTrackingPage || isStockAdjustmentsPage || activeTab === 'debt-payments'
           ? 'flex-1 min-w-0 overflow-y-auto p-0 flex flex-col bg-slate-50'
           : activeTab === 'agency-debts'
             ? 'flex-1 min-w-0 overflow-hidden p-0 flex flex-col bg-slate-50 h-full'
@@ -2096,7 +2097,7 @@ export default function DashboardPage({
     >
       <div
         className="dashboard-main-container"
-        style={isCustomer || isOrdersCreateSubpage || isPriceListsCreateSubpage || isPriceBookDetailSubpage || isPriceBookEditSubpage || isOrderDetailSubpage || isGoodsReceiptPage || isStockTransferCreateSubpage || isBatchesCreateSubpage || isProductsImportPage || isUsersImportPage || isDeliveryTrackingPage || activeTab === 'payment-collections' || activeTab === 'debt-payments' || isMobileScreen ? {
+        style={isCustomer || isOrdersCreateSubpage || isPriceListsCreateSubpage || isPriceBookDetailSubpage || isPriceBookEditSubpage || isOrderDetailSubpage || isGoodsReceiptPage || isStockTransferCreateSubpage || isBatchesCreateSubpage || isProductsImportPage || isUsersImportPage || isDeliveryTrackingPage || isStockAdjustmentsPage || activeTab === 'payment-collections' || activeTab === 'debt-payments' || isMobileScreen ? {
           width: '100%',
           display: 'flex',
           flexDirection: 'column',
