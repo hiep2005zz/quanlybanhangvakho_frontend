@@ -324,10 +324,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {/* Desktop Sidebar Customer */}
         <aside className="hidden md:flex md:w-64 bg-white border-r border-slate-200 flex-col h-full flex-shrink-0 select-none shadow-[1px_0_4px_rgba(0,0,0,0.02)]">
           <div className="px-4 py-3 border-b border-slate-100 flex items-center bg-slate-50/70">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 ring-4 ring-emerald-100 animate-pulse"></span>
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-800">CỔNG ĐẠI LÝ</span>
-            </div>
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-800">CỔNG ĐẠI LÝ</span>
           </div>
           {renderCustomerNav(false)}
           {onLogout && (
@@ -963,10 +960,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       <aside className="hidden md:flex md:w-64 bg-white border-r border-slate-200 flex-col h-full flex-shrink-0 select-none shadow-[1px_0_4px_rgba(0,0,0,0.02)]">
         {/* Header nhẹ nhàng trên thanh Menu */}
         <div className="px-4 py-3 border-b border-slate-100 flex items-center bg-slate-50/70">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 ring-4 ring-emerald-100 animate-pulse"></span>
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-800">MENU HỆ THỐNG</span>
-          </div>
+          <span className="text-xs font-bold uppercase tracking-wider text-slate-800">MENU HỆ THỐNG</span>
         </div>
 
         {/* Danh sách mục điều hướng Sidebar */}
