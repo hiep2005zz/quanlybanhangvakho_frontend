@@ -13,6 +13,7 @@ import {
 import { emitStatusToast } from './StatusToast';
 import { ModalPortal } from './ModalPortal';
 import { Link } from '../hooks/useLocation';
+import { ProductSelectDropdown } from './ProductSelectDropdown';
 
 interface PriceBookManagementViewProps {
   token: string;
@@ -308,18 +309,21 @@ export function PriceBookManagementView({
     }
   };
 
-  const handleProductSelect = (productIdStr: string) => {
-    setNewProductId(productIdStr);
-    const pid = parseInt(productIdStr);
-    const prod = products.find(p => p.id === pid);
-    if (prod) {
-      const currentSellPrice = prod.sell_price != null ? prod.sell_price : 0;
+  const [selectedModalProduct, setSelectedModalProduct] = useState<ProductItem | null>(null);
+
+  const handleProductSelect = (product: ProductItem | null) => {
+    if (product) {
+      setNewProductId(product.id.toString());
+      setSelectedModalProduct(product);
+      const currentSellPrice = product.sell_price != null ? product.sell_price : 0;
       setNewSalePrice(currentSellPrice > 0 ? currentSellPrice.toString() : '');
-      const currentFloorPrice = prod.floor_price != null && prod.floor_price > 0
-        ? prod.floor_price
+      const currentFloorPrice = product.floor_price != null && product.floor_price > 0
+        ? product.floor_price
         : Math.round(currentSellPrice * 0.85);
       setNewFloorPrice(currentFloorPrice > 0 ? currentFloorPrice.toString() : '');
     } else {
+      setNewProductId('');
+      setSelectedModalProduct(null);
       setNewSalePrice('');
       setNewFloorPrice('');
     }
@@ -350,7 +354,7 @@ export function PriceBookManagementView({
       return;
     }
 
-    const prod = products.find(p => p.id === pid);
+    const prod = selectedModalProduct || products.find(p => p.id === pid);
 
     setFormItems([{
       product_id: pid,
@@ -363,6 +367,7 @@ export function PriceBookManagementView({
     }, ...formItems]);
 
     setNewProductId('');
+    setSelectedModalProduct(null);
     setNewSalePrice('');
     setNewFloorPrice('');
   };
@@ -1091,16 +1096,19 @@ export function PriceBookManagementView({
                             <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#64748b', marginBottom: '4px' }}>
                               Sản phẩm
                             </label>
-                            <select
-                              value={newProductId}
-                              onChange={e => handleProductSelect(e.target.value)}
-                              style={{ padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', width: '100%', outline: 'none', fontSize: '14px', background: '#fff', boxSizing: 'border-box' }}
-                            >
-                              <option value="">-- Chọn Sản phẩm --</option>
-                              {products.map(p => (
-                                <option key={p.id} value={p.id}>{p.code} - {p.name} (Niêm yết: {(p.sell_price || 0).toLocaleString('vi-VN')} đồng)</option>
-                              ))}
-                            </select>
+                            <ProductSelectDropdown
+                              token={token}
+                              selectedProductId={newProductId ? parseInt(newProductId, 10) : 0}
+                              onSelectProduct={(p) => handleProductSelect(p)}
+                              placeholder="-- Chọn Sản phẩm --"
+                              autoSelectFirst={false}
+                              fallbackProduct={selectedModalProduct ? {
+                                id: selectedModalProduct.id,
+                                code: selectedModalProduct.code,
+                                name: selectedModalProduct.name,
+                                is_batch_managed: selectedModalProduct.is_batch_managed,
+                              } : null}
+                            />
                           </div>
 
                           <div style={{ flex: 1, minWidth: '140px' }}>
