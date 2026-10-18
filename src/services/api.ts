@@ -810,8 +810,17 @@ export async function getCloneOrderDataApi(token: string, orderCode: string): Pr
   return data;
 }
 
-export async function getOrderDealersApi(token: string): Promise<OrderDealer[]> {
-  const response = await authenticatedFetch(`${API_BASE_URL}/orders/dealers`, { method: 'GET' }, token);
+export async function getOrderDealersApi(
+  token: string,
+  params?: { search?: string; page?: number; page_size?: number }
+): Promise<OrderDealer[]> {
+  const query = new URLSearchParams();
+  if (params?.search && params.search.trim()) query.append('search', params.search.trim());
+  if (params?.page) query.append('page', params.page.toString());
+  if (params?.page_size) query.append('page_size', params.page_size.toString());
+  const queryString = query.toString();
+  const url = `${API_BASE_URL}/orders/dealers${queryString ? `?${queryString}` : ''}`;
+  const response = await authenticatedFetch(url, { method: 'GET' }, token);
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
     throw new Error(data.detail || `Lỗi tải danh sách đại lý (Mã lỗi ${response.status})`);
@@ -2548,6 +2557,20 @@ export interface WarehouseItem {
   total_stock_quantity: number;
 }
 
+export interface WarehouseKeeperItem {
+  id: number;
+  username: string;
+  full_name: string;
+  role: string;
+  roles?: string[];
+  role_title: string;
+  phone?: string | null;
+  email?: string | null;
+  branch?: string | null;
+  badge_color?: string | null;
+  is_active?: boolean;
+}
+
 export interface WarehouseLocationItem {
   id: number;
   warehouse_id: number;
@@ -2653,6 +2676,25 @@ export async function getWarehousesApi(
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
     throw new Error(errorData.detail || 'Lỗi tải danh sách kho hàng');
+  }
+  return response.json();
+}
+
+export async function getWarehouseKeepersApi(
+  token: string,
+  search?: string
+): Promise<WarehouseKeeperItem[]> {
+  const params = new URLSearchParams();
+  if (search && search.trim()) params.set('search', search.trim());
+  const qs = params.toString() ? `?${params.toString()}` : '';
+
+  const response = await authenticatedFetch(`${API_BASE_URL}/warehouses/keepers${qs}`, {
+    method: 'GET',
+  }, token);
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Lỗi tải danh sách nhân sự thủ kho');
   }
   return response.json();
 }
@@ -4909,6 +4951,9 @@ export interface StockAdjustmentResponse {
 export interface StockAdjustmentListResponse {
   items: StockAdjustmentResponse[];
   total: number;
+  page?: number;
+  page_size?: number;
+  total_pages?: number;
   pending_count: number;
   approved_count: number;
   rejected_count: number;
@@ -4965,6 +5010,8 @@ export async function getStockAdjustmentsApi(
     search?: string;
     limit?: number;
     offset?: number;
+    page?: number;
+    page_size?: number;
   }
 ): Promise<StockAdjustmentListResponse> {
   const query = new URLSearchParams();
@@ -4980,10 +5027,16 @@ export async function getStockAdjustmentsApi(
   if (params?.search && params.search.trim()) {
     query.set('search', params.search.trim());
   }
+  if (params?.page) {
+    query.set('page', String(params.page));
+  }
+  if (params?.page_size) {
+    query.set('page_size', String(params.page_size));
+  }
   if (params?.limit) {
     query.set('limit', String(params.limit));
   }
-  if (params?.offset) {
+  if (params?.offset !== undefined) {
     query.set('offset', String(params.offset));
   }
 

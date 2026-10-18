@@ -36,6 +36,7 @@ import './warehouse-management.css';
 import { emitStatusToast } from './StatusToast';
 import WarehousePickingView from './WarehousePickingView';
 import { ProductSelectDropdown } from './ProductSelectDropdown';
+import { WarehouseKeeperSelectDropdown } from './WarehouseKeeperSelectDropdown';
 
 
 interface WarehouseManagementViewProps {
@@ -1385,11 +1386,23 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
 
                 <div className="wh-form-field">
                   <span>Người phụ trách kho</span>
-                  <input
-                    type="text"
-                    placeholder="Họ và tên thủ kho / quản lý"
-                    value={whFormData.manager_name}
-                    onChange={(e) => setWhFormData({ ...whFormData, manager_name: e.target.value })}
+                  <WarehouseKeeperSelectDropdown
+                    token={token}
+                    selectedManagerName={whFormData.manager_name}
+                    onSelectKeeper={(keeper) => {
+                      setWhFormData((prev) => ({
+                        ...prev,
+                        manager_name: keeper.full_name || keeper.username,
+                        phone: keeper.phone || prev.phone,
+                      }));
+                    }}
+                    onClearKeeper={() => {
+                      setWhFormData((prev) => ({
+                        ...prev,
+                        manager_name: '',
+                      }));
+                    }}
+                    placeholder="Chọn thủ kho phụ trách..."
                   />
                 </div>
 
@@ -3136,12 +3149,23 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                 <div className="wh-form-grid-2">
                   <div className="wh-form-group">
                     <label>Người phụ trách kho</label>
-                    <input
-                      type="text"
-                      className="wh-form-input"
-                      placeholder="Họ và tên thủ kho / quản lý"
-                      value={whFormData.manager_name}
-                      onChange={(e) => setWhFormData({ ...whFormData, manager_name: e.target.value })}
+                    <WarehouseKeeperSelectDropdown
+                      token={token}
+                      selectedManagerName={whFormData.manager_name}
+                      onSelectKeeper={(keeper) => {
+                        setWhFormData((prev) => ({
+                          ...prev,
+                          manager_name: keeper.full_name || keeper.username,
+                          phone: keeper.phone || prev.phone,
+                        }));
+                      }}
+                      onClearKeeper={() => {
+                        setWhFormData((prev) => ({
+                          ...prev,
+                          manager_name: '',
+                        }));
+                      }}
+                      placeholder="Chọn thủ kho phụ trách..."
                     />
                   </div>
 

@@ -243,6 +243,15 @@ export default function DashboardPage({
     officialRoles.includes('warehouse_mgr')
   );
 
+  // Quyền truy cập Báo cáo Tồn kho & Vòng quay hàng hóa: CHỈ Quản lý kho và Quản trị hệ thống (admin). Ẩn hoàn toàn với các vai trò khác.
+  const canAccessInventoryTurnover = Boolean(
+    isAdmin ||
+    user.role === 'warehouse_manager' ||
+    user.role === 'warehouse_mgr' ||
+    officialRoles.includes('warehouse_manager') ||
+    officialRoles.includes('warehouse_mgr')
+  );
+
   // 2. Khởi tạo State với Clean URL
   const location = useLocation();
   const currentPath = location.pathname.toLowerCase();
@@ -395,10 +404,14 @@ export default function DashboardPage({
     }
 
     if (isInventoryTurnoverPath || oldTabVal === 'inventory-turnover') {
-      if (hasOldTabParam || pathname !== '/inventory-turnover') {
-        try { window.history.replaceState({}, '', '/inventory-turnover'); } catch { }
+      if (canAccessInventoryTurnover) {
+        if (hasOldTabParam || pathname !== '/inventory-turnover') {
+          try { window.history.replaceState({}, '', '/inventory-turnover'); } catch { }
+        }
+        return 'inventory-turnover';
       }
-      return 'inventory-turnover';
+      try { window.history.replaceState({}, '', '/'); } catch { }
+      return 'inventory';
     }
 
     if (isStockTransfersPath || oldTabVal === 'stock-transfers' || oldTabVal === 'stock-transfer') {
@@ -797,6 +810,11 @@ export default function DashboardPage({
     }
 
     if (tab === 'inventory-turnover') {
+      if (!canAccessInventoryTurnover) {
+        setActiveTabState('inventory');
+        try { window.history.replaceState({}, '', '/'); } catch { }
+        return;
+      }
       setActiveTabState('inventory-turnover');
       try {
         window.history.pushState({}, '', '/inventory-turnover');
@@ -1149,6 +1167,11 @@ export default function DashboardPage({
 
       const isInventoryTurnoverPath = pathname === '/inventory-turnover' || pathname.startsWith('/inventory-turnover/');
       if (isInventoryTurnoverPath || tabParam === 'inventory-turnover') {
+        if (!canAccessInventoryTurnover) {
+          try { window.history.replaceState({}, '', '/'); } catch { }
+          setActiveTabState('inventory');
+          return;
+        }
         if (pathname !== '/inventory-turnover' || tabParam) {
           try { window.history.replaceState({}, '', '/inventory-turnover'); } catch { }
         }
@@ -1980,7 +2003,8 @@ export default function DashboardPage({
   const isUsersImportPage = activeTab === 'users-import';
   const isPaymentCollectionsPage = activeTab === 'payment-collections';
   const isDeliveryTrackingPage = activeTab === 'delivery-tracking' || currentPath.startsWith('/delivery-tracking');
-  const isLockedScrollTab = !isProductFormOpen && !isSalesOrderOpen && !isOrdersCreateSubpage && !isOrderDetailSubpage && !isPriceListsCreateSubpage && !isPriceBookDetailSubpage && !isPriceBookEditSubpage && !isGoodsReceiptPage && !isStockTransferCreateSubpage && !isBatchesCreateSubpage && !isProductsImportPage && !isUsersImportPage && !isPaymentCollectionsSubpage && !isPaymentCollectionsPage && !isDeliveryTrackingPage && (activeTab === 'inventory' || activeTab === 'dealers' || activeTab === 'dealer-profiles' || activeTab === 'debt-aging' || activeTab === 'debt-reconciliation' || activeTab === 'delivery-points' || activeTab === 'suppliers' || activeTab === 'price-books' || activeTab === 'categories' || activeTab === 'orders' || activeTab === 'product-history' || activeTab === 'stock-book' || activeTab === 'inventory-turnover' || activeTab === 'stock-audits' || activeTab === 'stock-adjustments' || activeTab === 'stock-transfers' || activeTab === 'stock-thresholds' || activeTab === 'low-stock-alerts' || activeTab === 'batches' || activeTab === 'picking') && !isPendingCustomer;
+  const isStockAdjustmentsPage = activeTab === 'stock-adjustments';
+  const isLockedScrollTab = !isProductFormOpen && !isSalesOrderOpen && !isOrdersCreateSubpage && !isOrderDetailSubpage && !isPriceListsCreateSubpage && !isPriceBookDetailSubpage && !isPriceBookEditSubpage && !isGoodsReceiptPage && !isStockTransferCreateSubpage && !isBatchesCreateSubpage && !isProductsImportPage && !isUsersImportPage && !isPaymentCollectionsSubpage && !isPaymentCollectionsPage && !isDeliveryTrackingPage && !isStockAdjustmentsPage && (activeTab === 'inventory' || activeTab === 'dealers' || activeTab === 'dealer-profiles' || activeTab === 'debt-aging' || activeTab === 'debt-reconciliation' || activeTab === 'delivery-points' || activeTab === 'suppliers' || activeTab === 'price-books' || activeTab === 'categories' || activeTab === 'orders' || activeTab === 'product-history' || activeTab === 'stock-book' || activeTab === 'inventory-turnover' || activeTab === 'stock-audits' || activeTab === 'stock-transfers' || activeTab === 'stock-thresholds' || activeTab === 'low-stock-alerts' || activeTab === 'batches' || activeTab === 'picking') && !isPendingCustomer;
   return (
     <DashboardLayout
       header={
@@ -2008,7 +2032,7 @@ export default function DashboardPage({
       }
       noScroll={!isCustomer && !isMobileScreen && isLockedScrollTab}
       mainClassName={
-        isOrderDetailSubpage || isOrdersCreateSubpage || isPriceListsCreateSubpage || isPriceBookDetailSubpage || isPriceBookEditSubpage || isGoodsReceiptPage || isStockTransferCreateSubpage || isBatchesCreateSubpage || isProductsImportPage || isUsersImportPage || isPaymentCollectionsSubpage || isPaymentCollectionsPage || isDeliveryTrackingPage || activeTab === 'debt-payments'
+        isOrderDetailSubpage || isOrdersCreateSubpage || isPriceListsCreateSubpage || isPriceBookDetailSubpage || isPriceBookEditSubpage || isGoodsReceiptPage || isStockTransferCreateSubpage || isBatchesCreateSubpage || isProductsImportPage || isUsersImportPage || isPaymentCollectionsSubpage || isPaymentCollectionsPage || isDeliveryTrackingPage || isStockAdjustmentsPage || activeTab === 'debt-payments'
           ? 'flex-1 min-w-0 overflow-y-auto p-0 flex flex-col bg-slate-50'
           : activeTab === 'agency-debts'
             ? 'flex-1 min-w-0 overflow-hidden p-0 flex flex-col bg-slate-50 h-full'
@@ -2060,6 +2084,7 @@ export default function DashboardPage({
           isAdmin={isAdmin}
           canAccessPaymentCollections={canAccessPaymentCollections}
           canAccessDebtReconciliation={canAccessDebtReconciliation}
+          canAccessInventoryTurnover={canAccessInventoryTurnover}
           onLogout={() => {
             if (isLoggingOut) return;
             setShowLogoutConfirm(true);
@@ -2072,7 +2097,7 @@ export default function DashboardPage({
     >
       <div
         className="dashboard-main-container"
-        style={isCustomer || isOrdersCreateSubpage || isPriceListsCreateSubpage || isPriceBookDetailSubpage || isPriceBookEditSubpage || isOrderDetailSubpage || isGoodsReceiptPage || isStockTransferCreateSubpage || isBatchesCreateSubpage || isProductsImportPage || isUsersImportPage || isDeliveryTrackingPage || activeTab === 'payment-collections' || activeTab === 'debt-payments' || isMobileScreen ? {
+        style={isCustomer || isOrdersCreateSubpage || isPriceListsCreateSubpage || isPriceBookDetailSubpage || isPriceBookEditSubpage || isOrderDetailSubpage || isGoodsReceiptPage || isStockTransferCreateSubpage || isBatchesCreateSubpage || isProductsImportPage || isUsersImportPage || isDeliveryTrackingPage || isStockAdjustmentsPage || activeTab === 'payment-collections' || activeTab === 'debt-payments' || isMobileScreen ? {
           width: '100%',
           display: 'flex',
           flexDirection: 'column',
@@ -2698,17 +2723,26 @@ export default function DashboardPage({
             token={token}
             currentUser={user}
             onBackToHome={() => setActiveTab('inventory')}
-            onOpenTurnoverReport={() => setActiveTab('inventory-turnover')}
+            onOpenTurnoverReport={canAccessInventoryTurnover ? () => setActiveTab('inventory-turnover') : undefined}
             onNavigateToAdjustments={() => {
               setStockAdjustmentInitialMode('CREATE');
               setActiveTab('stock-adjustments');
             }}
           />
         ) : activeTab === 'inventory-turnover' ? (
-          <InventoryTurnoverReportView
-            token={token}
-            onBackToHome={() => setActiveTab('inventory')}
-          />
+          canAccessInventoryTurnover ? (
+            <InventoryTurnoverReportView
+              token={token}
+              onBackToHome={() => setActiveTab('inventory')}
+            />
+          ) : (
+            <AccessDeniedView
+              currentUser={user}
+              requiredPermission="Báo cáo Tồn kho & Vòng quay hàng hóa (Chỉ Quản trị hệ thống & Quản lý kho)"
+              onBackToWorkflow={() => setActiveTab('inventory')}
+              onLogout={onLogout}
+            />
+          )
         ) : activeTab === 'batches' ? (
           isWarehouseOrAdmin ? (
             <BatchManagementView

@@ -100,7 +100,7 @@ export const ProductSelectDropdown: React.FC<ProductSelectDropdownProps> = ({
           warehouse_id: warehouseId,
           search: query.trim() || undefined,
           page: 1,
-          page_size: 15,
+          page_size: 10,
         });
         let rawItems = res.items || [];
         if (onlyInStock) {
@@ -108,7 +108,7 @@ export const ProductSelectDropdown: React.FC<ProductSelectDropdownProps> = ({
         }
         items = rawItems.map(convertStockBookItemToProduct);
         total = res.total || items.length;
-        more = (res.page || 1) * (res.page_size || 15) < (res.total || 0);
+        more = (res.page || 1) * (res.page_size || 10) < (res.total || 0);
       } else {
         const res = await getProductsApi(token, {
           page: 1,
@@ -246,7 +246,7 @@ export const ProductSelectDropdown: React.FC<ProductSelectDropdownProps> = ({
           warehouse_id: warehouseId,
           search: debouncedSearch.trim() || undefined,
           page: nextPage,
-          page_size: 15,
+          page_size: 10,
         });
         let rawItems = res.items || [];
         if (onlyInStock) {
@@ -254,7 +254,7 @@ export const ProductSelectDropdown: React.FC<ProductSelectDropdownProps> = ({
         }
         newItems = rawItems.map(convertStockBookItemToProduct);
         total = res.total || 0;
-        more = nextPage * 15 < total;
+        more = nextPage * 10 < total;
       } else {
         const res = await getProductsApi(token, {
           page: nextPage,
