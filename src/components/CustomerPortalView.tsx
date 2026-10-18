@@ -727,22 +727,6 @@ export const CustomerPortalView: React.FC<CustomerPortalViewProps> = ({
                 </div>
               </div>
             </div>
-
-            {creditInfo?.is_overdue && (
-              <div className={`mt-2 px-2.5 py-1.5 rounded-lg text-xs flex items-center gap-2 ${
-                creditInfo?.overdue_action === 'BLOCK'
-                  ? 'bg-rose-50 border border-rose-300 text-rose-800'
-                  : 'bg-amber-50 border border-amber-300 text-amber-800'
-              }`}>
-                <span className="text-sm">{creditInfo?.overdue_action === 'BLOCK' ? '⛔' : '⚠️'}</span>
-                <span>
-                  <strong>Cảnh báo quá hạn ({creditInfo.overdue_days_allowed || 30} ngày):</strong>{' '}
-                  {creditInfo?.overdue_action === 'BLOCK'
-                    ? 'Đại lý đang có khoản công nợ quá hạn. Hệ thống đang cấu hình CHẶN đặt hàng mới cho đến khi hoàn tất thanh toán!'
-                    : 'Đại lý có khoản công nợ đã quá hạn. Đơn hàng đặt mới sẽ yêu cầu Quản lý xét duyệt!'}
-                </span>
-              </div>
-            )}
           </div>
         </div>
       </div>
