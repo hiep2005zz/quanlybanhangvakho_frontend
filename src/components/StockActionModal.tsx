@@ -388,6 +388,7 @@ export const StockActionModal: React.FC<StockActionModalProps> = ({
         if (currentProduct?.code) {
           sessionStorage.setItem('last_product_history_code', currentProduct.code);
         }
+        localStorage.setItem('inventory_last_updated', Date.now().toString());
         window.dispatchEvent(new CustomEvent('INVENTORY_STOCK_UPDATED'));
       } catch { }
 
