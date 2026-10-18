@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useLocation } from '../hooks/useLocation';
 
 export type TabType =
@@ -123,7 +123,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   canWriteInventory: _canWriteInventory = false,
   canAccessDeliveryTracking = false,
   isWarehouseOrAdmin = false,
-  isAdmin = false,
+  isAdmin: _isAdmin = false,
   canAccessPaymentCollections = false,
   canAccessDebtPayments = false,
   canAccessDebtReconciliation = false,
@@ -133,9 +133,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const location = useLocation();
   const currentPath = location.pathname.toLowerCase();
-  const [searchTerm, setSearchTerm] = useState('');
 
-  // 1. DÀNH CHO KHÁCH HÀNG / ĐẠI LÝ (Customer portal - có thanh tìm kiếm và cấu trúc hiện đại)
+  // 1. DÀNH CHO KHÁCH HÀNG / ĐẠI LÝ (Customer portal - cấu trúc hiện đại)
   if (isCustomer) {
     const customerGroups: MenuGroup[] = [
       {
@@ -212,57 +211,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
     const filteredCustomerGroups = customerGroups
       .map((group) => {
-        const visibleItems = group.items.filter((item) => {
-          if (!searchTerm.trim()) return true;
-          return item.label.toLowerCase().includes(searchTerm.trim().toLowerCase());
-        });
+        const visibleItems = group.items.filter(() => true);
         return { ...group, items: visibleItems };
       })
       .filter((group) => group.items.length > 0);
 
     const renderCustomerNav = (isMobile = false) => (
       <div className="flex-1 overflow-y-auto px-3 py-3 space-y-4">
-        {/* Ô tìm kiếm nhanh chức năng */}
-        <div className="relative px-0.5">
-          <div className="flex items-center w-full bg-slate-50 hover:bg-slate-100 focus-within:bg-white focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20 rounded-lg border border-slate-200 transition-all px-2.5 py-1.5 gap-2">
-            <svg
-              className="w-4 h-4 text-slate-400 flex-shrink-0"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <circle cx="11" cy="11" r="8" />
-              <line x1="21" y1="21" x2="16.65" y2="16.65" />
-            </svg>
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Tìm chức năng..."
-              style={{
-                outline: 'none',
-                boxShadow: 'none',
-                border: 'none',
-                padding: 0,
-              }}
-              className="w-full bg-transparent text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none"
-            />
-            {searchTerm && (
-              <button
-                type="button"
-                onClick={() => setSearchTerm('')}
-                className="text-slate-400 hover:text-slate-600 text-xs cursor-pointer border-0 bg-transparent p-0 flex-shrink-0"
-                title="Xóa tìm kiếm"
-              >
-                ✕
-              </button>
-            )}
-          </div>
-        </div>
-
         {filteredCustomerGroups.length === 0 ? (
           <div className="py-6 text-center text-xs text-slate-400">
             Không tìm thấy chức năng phù hợp
@@ -808,14 +763,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
       : isPathMatched;
   };
 
-  // Lọc theo từ khóa tìm kiếm nhanh menu
+  // Lọc các mục hiển thị trong menu
   const filteredGroups = menuGroups
     .map((group) => {
-      const visibleItems = group.items.filter((item) => {
-        if (!item.visible) return false;
-        if (!searchTerm.trim()) return true;
-        return item.label.toLowerCase().includes(searchTerm.trim().toLowerCase());
-      });
+      const visibleItems = group.items.filter((item) => item.visible);
       return { ...group, items: visibleItems };
     })
     .filter((group) => group.items.length > 0);
@@ -823,47 +774,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
   // Render nội dung danh sách menu
   const renderNavContent = (isMobile = false) => (
     <div className="flex-1 overflow-y-auto px-3 py-3 space-y-4">
-      {/* Ô tìm kiếm nhanh chức năng */}
-      <div className="relative px-0.5">
-        <div className="flex items-center w-full bg-slate-50 hover:bg-slate-100 focus-within:bg-white focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20 rounded-lg border border-slate-200 transition-all px-2.5 py-1.5 gap-2">
-          <svg
-            className="w-4 h-4 text-slate-400 flex-shrink-0"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <circle cx="11" cy="11" r="8" />
-            <line x1="21" y1="21" x2="16.65" y2="16.65" />
-          </svg>
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Tìm chức năng..."
-            style={{
-              outline: 'none',
-              boxShadow: 'none',
-              border: 'none',
-              padding: 0,
-            }}
-            className="w-full bg-transparent text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none"
-          />
-          {searchTerm && (
-            <button
-              type="button"
-              onClick={() => setSearchTerm('')}
-              className="text-slate-400 hover:text-slate-600 text-xs cursor-pointer border-0 bg-transparent p-0 flex-shrink-0"
-              title="Xóa tìm kiếm"
-            >
-              ✕
-            </button>
-          )}
-        </div>
-      </div>
-
       {filteredGroups.length === 0 ? (
         <div className="py-8 text-center text-xs text-slate-400">
           Không tìm thấy chức năng phù hợp
