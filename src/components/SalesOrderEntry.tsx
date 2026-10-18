@@ -1709,7 +1709,7 @@ export default function SalesOrderEntry({
                       </div>
 
                       {/* AC3: Cảnh báo giá sàn */}
-                      {canEditPrice && (line.isBelowFloor || (line.floorPrice && line.floorPrice > 0 && line.price < line.floorPrice)) && (
+                      {!isAdmin && canEditPrice && (line.isBelowFloor || (line.floorPrice && line.floorPrice > 0 && line.price < line.floorPrice)) && (
                         <div className="sales-order-price-floor-warning">
                           <span>⚠️</span>
                           <span>
@@ -1748,7 +1748,7 @@ export default function SalesOrderEntry({
           <section className="sales-order-card sales-order-summary">
             <h2>Tổng kết đơn hàng</h2>
 
-            {canEditPrice && hasBelowFloorLine && (
+            {!isAdmin && canEditPrice && hasBelowFloorLine && (
               <div className="sales-order-approval-banner">
                 <span style={{ fontSize: '18px' }}>⚠️</span>
                 <div>
