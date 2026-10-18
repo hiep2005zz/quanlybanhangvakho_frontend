@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   getStockCardApi,
   getProductsApi,
@@ -8,6 +8,15 @@ import {
   StockCardEntry,
   ProductItem,
 } from '../services/api';
+
+// Hàm bỏ dấu tiếng Việt để hỗ trợ tìm kiếm không dấu
+const removeVietnameseAccents = (str: string) => {
+  return str
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'D');
+};
 
 interface StockCardViewProps {
   productId: number;
@@ -31,6 +40,72 @@ export const StockCardView: React.FC<StockCardViewProps> = ({
   const [data, setData] = useState<StockCardResponse | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Bộ chọn sản phẩm có ô tìm kiếm
+  const [isProductPickerOpen, setIsProductPickerOpen] = useState<boolean>(false);
+  const [productSearchTerm, setProductSearchTerm] = useState<string>('');
+  const productPickerRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Đóng dropdown khi click ra ngoài
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (productPickerRef.current && !productPickerRef.current.contains(event.target as Node)) {
+        setIsProductPickerOpen(false);
+      }
+    };
+    if (isProductPickerOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isProductPickerOpen]);
+
+  // Đóng dropdown khi nhấn Escape
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsProductPickerOpen(false);
+      }
+    };
+    if (isProductPickerOpen) {
+      document.addEventListener('keydown', handleKeyDown);
+    }
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isProductPickerOpen]);
+
+  // Tự động focus vào ô tìm kiếm khi mở dropdown
+  useEffect(() => {
+    if (isProductPickerOpen) {
+      setTimeout(() => {
+        searchInputRef.current?.focus();
+      }, 50);
+    } else {
+      setProductSearchTerm('');
+    }
+  }, [isProductPickerOpen]);
+
+  // Lọc sản phẩm theo từ khóa (hỗ trợ cả có dấu và không dấu, tìm theo mã hoặc tên)
+  const filteredProducts = useMemo(() => {
+    const q = productSearchTerm.trim().toLowerCase();
+    if (!q) return productsList;
+    const cleanQ = removeVietnameseAccents(q);
+    return productsList.filter((p) => {
+      const code = (p.code || '').toLowerCase();
+      const name = (p.name || '').toLowerCase();
+      const cleanCode = removeVietnameseAccents(code);
+      const cleanName = removeVietnameseAccents(name);
+      return (
+        code.includes(q) ||
+        name.includes(q) ||
+        cleanCode.includes(cleanQ) ||
+        cleanName.includes(cleanQ)
+      );
+    });
+  }, [productsList, productSearchTerm]);
 
   // Bộ lọc theo kho và khoảng thời gian (Tiêu chí 3)
   const [selectedWarehouse, setSelectedWarehouse] = useState<string>('all');
@@ -517,35 +592,254 @@ export const StockCardView: React.FC<StockCardViewProps> = ({
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-              {/* Chọn sản phẩm trực tiếp (Nếu muốn chuyển sang xem sản phẩm khác) */}
+              {/* Chọn sản phẩm trực tiếp có ô tìm kiếm */}
               {productsList.length > 0 && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                   <label style={{ fontSize: '11.5px', fontWeight: '600', color: '#475569', whiteSpace: 'nowrap' }}>
                     Sản phẩm:
                   </label>
-                  <select
-                    value={selectedProductId}
-                    onChange={(e) => setSelectedProductId(Number(e.target.value))}
-                    style={{
-                      height: '30px',
-                      padding: '0 8px',
-                      fontSize: '11.5px',
-                      borderRadius: '6px',
-                      border: '1px solid #cbd5e1',
-                      backgroundColor: '#ffffff',
-                      color: '#1e293b',
-                      fontWeight: '500',
-                      outline: 'none',
-                      cursor: 'pointer',
-                      maxWidth: '190px',
-                    }}
-                  >
-                    {productsList.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.code ? `[${p.code}] ` : ''}{p.name}
-                      </option>
-                    ))}
-                  </select>
+                  <div ref={productPickerRef} style={{ position: 'relative' }}>
+                    <button
+                      type="button"
+                      onClick={() => setIsProductPickerOpen((prev) => !prev)}
+                      style={{
+                        height: '30px',
+                        padding: '0 8px',
+                        fontSize: '11.5px',
+                        borderRadius: '6px',
+                        border: isProductPickerOpen ? '1px solid #2563eb' : '1px solid #cbd5e1',
+                        backgroundColor: '#ffffff',
+                        color: '#1e293b',
+                        fontWeight: '500',
+                        outline: 'none',
+                        cursor: 'pointer',
+                        width: '210px',
+                        maxWidth: '240px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: '6px',
+                        boxSizing: 'border-box',
+                        boxShadow: isProductPickerOpen ? '0 0 0 2px rgba(37, 99, 235, 0.15)' : 'none',
+                        transition: 'all 0.15s ease',
+                      }}
+                      title={
+                        currentProductFromList
+                          ? `${currentProductFromList.code ? `[${currentProductFromList.code}] ` : ''}${currentProductFromList.name}`
+                          : ''
+                      }
+                    >
+                      <span
+                        style={{
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                          textAlign: 'left',
+                          flex: 1,
+                        }}
+                      >
+                        {currentProductFromList
+                          ? `${currentProductFromList.code ? `[${currentProductFromList.code}] ` : ''}${currentProductFromList.name}`
+                          : 'Chọn sản phẩm...'}
+                      </span>
+                      <svg
+                        width="12"
+                        height="12"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="#64748b"
+                        strokeWidth="2.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        style={{
+                          flexShrink: 0,
+                          transform: isProductPickerOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                          transition: 'transform 0.15s ease',
+                        }}
+                      >
+                        <polyline points="6 9 12 15 18 9" />
+                      </svg>
+                    </button>
+
+                    {/* Menu Dropdown danh sách sản phẩm có ô tìm kiếm */}
+                    {isProductPickerOpen && (
+                      <div
+                        style={{
+                          position: 'absolute',
+                          top: 'calc(100% + 4px)',
+                          left: 0,
+                          width: '320px',
+                          backgroundColor: '#ffffff',
+                          border: '1px solid #cbd5e1',
+                          borderRadius: '8px',
+                          boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+                          zIndex: 100,
+                          padding: '8px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          boxSizing: 'border-box',
+                        }}
+                      >
+                        {/* Ô nhập tìm kiếm */}
+                        <div
+                          style={{
+                            position: 'relative',
+                            display: 'flex',
+                            alignItems: 'center',
+                            marginBottom: '6px',
+                          }}
+                        >
+                          <svg
+                            width="13"
+                            height="13"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="#94a3b8"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            style={{ position: 'absolute', left: '8px', pointerEvents: 'none' }}
+                          >
+                            <circle cx="11" cy="11" r="8" />
+                            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                          </svg>
+                          <input
+                            ref={searchInputRef}
+                            type="text"
+                            value={productSearchTerm}
+                            onChange={(e) => setProductSearchTerm(e.target.value)}
+                            placeholder="Tìm theo mã hoặc tên sản phẩm..."
+                            style={{
+                              width: '100%',
+                              height: '28px',
+                              padding: '0 24px 0 26px',
+                              borderRadius: '6px',
+                              border: '1px solid #cbd5e1',
+                              fontSize: '11.5px',
+                              boxSizing: 'border-box',
+                              outline: 'none',
+                              color: '#0f172a',
+                              backgroundColor: '#f8fafc',
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                          {productSearchTerm && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setProductSearchTerm('');
+                                searchInputRef.current?.focus();
+                              }}
+                              style={{
+                                position: 'absolute',
+                                right: '6px',
+                                border: 'none',
+                                background: 'transparent',
+                                color: '#94a3b8',
+                                cursor: 'pointer',
+                                padding: 0,
+                                fontSize: '14px',
+                                lineHeight: '1',
+                              }}
+                              title="Xóa tìm kiếm"
+                            >
+                              ×
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Danh sách sản phẩm cuộn */}
+                        <div
+                          style={{
+                            maxHeight: '220px',
+                            overflowY: 'auto',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '2px',
+                          }}
+                        >
+                          {filteredProducts.length === 0 ? (
+                            <div
+                              style={{
+                                padding: '12px 8px',
+                                textAlign: 'center',
+                                color: '#94a3b8',
+                                fontSize: '11.5px',
+                              }}
+                            >
+                              Không tìm thấy sản phẩm nào
+                            </div>
+                          ) : (
+                            filteredProducts.map((p) => {
+                              const isSelected = p.id === selectedProductId;
+                              return (
+                                <div
+                                  key={p.id}
+                                  onClick={() => {
+                                    setSelectedProductId(p.id);
+                                    setIsProductPickerOpen(false);
+                                    setProductSearchTerm('');
+                                  }}
+                                  style={{
+                                    padding: '6px 8px',
+                                    borderRadius: '6px',
+                                    cursor: 'pointer',
+                                    backgroundColor: isSelected ? '#eff6ff' : 'transparent',
+                                    color: isSelected ? '#1d4ed8' : '#1e293b',
+                                    fontSize: '11.5px',
+                                    fontWeight: isSelected ? '600' : '400',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    gap: '6px',
+                                    transition: 'background-color 0.12s ease',
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    if (!isSelected) e.currentTarget.style.backgroundColor = '#f1f5f9';
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    if (!isSelected) e.currentTarget.style.backgroundColor = 'transparent';
+                                  }}
+                                >
+                                  <span
+                                    style={{
+                                      overflow: 'hidden',
+                                      textOverflow: 'ellipsis',
+                                      whiteSpace: 'nowrap',
+                                      flex: 1,
+                                    }}
+                                  >
+                                    {p.code && (
+                                      <span style={{ color: isSelected ? '#2563eb' : '#64748b', fontWeight: '600', marginRight: '4px' }}>
+                                        [{p.code}]
+                                      </span>
+                                    )}
+                                    {p.name}
+                                  </span>
+                                  {isSelected && (
+                                    <svg
+                                      width="12"
+                                      height="12"
+                                      viewBox="0 0 24 24"
+                                      fill="none"
+                                      stroke="#2563eb"
+                                      strokeWidth="3"
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      style={{ flexShrink: 0 }}
+                                    >
+                                      <polyline points="20 6 9 17 4 12" />
+                                    </svg>
+                                  )}
+                                </div>
+                              );
+                            })
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
 
