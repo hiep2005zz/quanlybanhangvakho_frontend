@@ -242,8 +242,9 @@
 }
 
 .debt-ledger-table th {
-  background-color: #0f766e;
-  color: #ffffff;
+  background-color: #ffffff;
+  color: #000000;
+  border: 1px solid #334155;
   font-weight: 700;
   text-align: center;
   font-size: 11px;
@@ -251,41 +252,41 @@
 }
 
 .debt-row-opening td {
-  background-color: #f1f5f9;
+  background-color: transparent;
   font-weight: 700;
-  color: #1e293b;
+  color: #000000;
 }
 
 .debt-row-subtotal td {
-  background-color: #fef3c7;
+  background-color: transparent;
   font-weight: 700;
-  color: #92400e;
+  color: #000000;
 }
 
 .debt-row-closing td {
-  background-color: #dcfce7;
+  background-color: transparent;
   font-weight: 800;
-  color: #166534;
+  color: #000000;
   font-size: 12px;
 }
 
 .debt-amount-inc {
-  color: #b91c1c;
-  font-weight: 600;
+  color: #dc2626;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
   text-align: right;
 }
 
 .debt-amount-dec {
-  color: #15803d;
-  font-weight: 600;
+  color: #000000;
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
   text-align: right;
 }
 
 .debt-amount-bal {
   font-weight: 700;
-  color: #0f172a;
+  color: #000000;
   font-variant-numeric: tabular-nums;
   text-align: right;
 }
@@ -294,8 +295,8 @@
 .debt-conclusion-section {
   margin: 12px 0 20px 0;
   padding: 10px 14px;
-  background-color: #f8fafc;
-  border-left: 3px solid #0f766e;
+  background-color: #ffffff;
+  border-left: 2px solid #334155;
   font-size: 12px;
   line-height: 1.6;
 }
@@ -583,47 +584,48 @@
   }
 
   .debt-ledger-table th {
-    background-color: #0f766e !important;
-    color: #ffffff !important;
+    background-color: #ffffff !important;
+    color: #000000 !important;
     font-weight: 700 !important;
     text-align: center !important;
     font-size: 8.5pt !important;
+    border: 1px solid #334155 !important;
   }
 
   .debt-row-opening td {
-    background-color: #f1f5f9 !important;
+    background-color: transparent !important;
     font-weight: 700 !important;
-    color: #1e293b !important;
+    color: #000000 !important;
   }
 
   .debt-row-subtotal td {
-    background-color: #fef3c7 !important;
+    background-color: transparent !important;
     font-weight: 700 !important;
-    color: #92400e !important;
+    color: #000000 !important;
   }
 
   .debt-row-closing td {
-    background-color: #dcfce7 !important;
+    background-color: transparent !important;
     font-weight: 800 !important;
-    color: #166534 !important;
+    color: #000000 !important;
     font-size: 9.5pt !important;
   }
 
   .debt-amount-inc {
-    color: #b91c1c !important;
+    color: #dc2626 !important;
     font-weight: 700 !important;
     text-align: right !important;
   }
 
   .debt-amount-dec {
-    color: #15803d !important;
-    font-weight: 700 !important;
+    color: #000000 !important;
+    font-weight: 600 !important;
     text-align: right !important;
   }
 
   .debt-amount-bal {
-    color: #0f172a !important;
-    font-weight: 800 !important;
+    color: #000000 !important;
+    font-weight: 700 !important;
     text-align: right !important;
   }
 
@@ -631,8 +633,8 @@
   .debt-conclusion-section {
     margin: 8px 0 12px 0 !important;
     padding: 6px 10px !important;
-    background-color: #f8fafc !important;
-    border-left: 3px solid #0f766e !important;
+    background-color: #ffffff !important;
+    border-left: 2px solid #334155 !important;
     font-size: 9pt !important;
     line-height: 1.4 !important;
     page-break-inside: avoid !important;

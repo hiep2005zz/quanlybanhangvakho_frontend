@@ -55,7 +55,7 @@ export const DebtStatementPrintModal: React.FC<DebtStatementPrintModalProps> = (
   const { dealer, period, summary, transactions } = statement;
 
   const formatDate = (val?: string | null) => {
-    if (!val) return '—';
+    if (!val) return '';
     try {
       const d = new Date(val);
       if (isNaN(d.getTime())) return val;
@@ -71,7 +71,7 @@ export const DebtStatementPrintModal: React.FC<DebtStatementPrintModalProps> = (
   };
 
   const formatCurrency = (amount?: number | null) => {
-    if (amount === undefined || amount === null) return '—';
+    if (amount === undefined || amount === null) return '';
     return Number(amount).toLocaleString('vi-VN') + ' đ';
   };
 
@@ -193,16 +193,16 @@ export const DebtStatementPrintModal: React.FC<DebtStatementPrintModalProps> = (
 
               <div className="debt-info-row">
                 <span className="debt-info-label">Địa chỉ liên hệ:</span>
-                <span className="debt-info-val">{dealer.address || '—'}</span>
+                <span className="debt-info-val">{dealer.address || ''}</span>
               </div>
               <div className="debt-info-row">
                 <span className="debt-info-label">Mã số thuế:</span>
-                <span className="debt-info-val">{dealer.tax_code || '—'}</span>
+                <span className="debt-info-val">{dealer.tax_code || ''}</span>
               </div>
 
               <div className="debt-info-row">
                 <span className="debt-info-label">Số điện thoại:</span>
-                <span className="debt-info-val">{dealer.phone || '—'}</span>
+                <span className="debt-info-val">{dealer.phone || ''}</span>
               </div>
               <div className="debt-info-row">
                 <span className="debt-info-label">Hạn mức tín dụng:</span>
@@ -228,16 +228,16 @@ export const DebtStatementPrintModal: React.FC<DebtStatementPrintModalProps> = (
                 </tr>
               </thead>
               <tbody>
-                {/* Dòng Số dư đầu kỳ */}
+                {/* Dòng Số dư đầu kỳ - Bắt đầu STT là 1, bỏ dấu gạch, chữ đỏ ở tiền nợ */}
                 <tr className="debt-row-opening">
-                  <td style={{ textAlign: 'center' }}>—</td>
-                  <td style={{ textAlign: 'center' }}>—</td>
-                  <td style={{ textAlign: 'center' }}>—</td>
-                  <td style={{ textAlign: 'center' }}>SỐ DƯ ĐẦU KỲ</td>
+                  <td style={{ textAlign: 'center' }}>1</td>
+                  <td style={{ textAlign: 'center' }}></td>
+                  <td style={{ textAlign: 'center' }}></td>
+                  <td style={{ textAlign: 'center', fontWeight: 700 }}>SỐ DƯ ĐẦU KỲ</td>
                   <td>Số dư công nợ phải thu chuyển sang từ kỳ trước</td>
-                  <td style={{ textAlign: 'right' }}>—</td>
-                  <td style={{ textAlign: 'right' }}>—</td>
-                  <td style={{ textAlign: 'right', fontWeight: 800 }}>
+                  <td style={{ textAlign: 'right' }}></td>
+                  <td style={{ textAlign: 'right' }}></td>
+                  <td style={{ textAlign: 'right', fontWeight: 800, color: '#dc2626' }}>
                     {Number(summary.opening_balance || 0).toLocaleString('vi-VN')} đ
                   </td>
                 </tr>
@@ -252,60 +252,50 @@ export const DebtStatementPrintModal: React.FC<DebtStatementPrintModalProps> = (
                 ) : (
                   transactions.map((tx, idx) => (
                     <tr key={tx.id || idx}>
-                      <td style={{ textAlign: 'center' }}>{idx + 1}</td>
+                      <td style={{ textAlign: 'center' }}>{idx + 2}</td>
                       <td style={{ textAlign: 'center' }}>{formatDate(tx.date)}</td>
                       <td style={{ textAlign: 'center', fontWeight: 600 }}>{tx.doc_code}</td>
                       <td style={{ textAlign: 'center' }}>
-                        <span
-                          style={{
-                            padding: '2px 6px',
-                            borderRadius: '4px',
-                            fontSize: '10.5px',
-                            fontWeight: 600,
-                            backgroundColor: tx.doc_type === 'ORDER' ? '#fff7ed' : '#f0fdf4',
-                            color: tx.doc_type === 'ORDER' ? '#c2410c' : '#15803d',
-                            border: `1px solid ${tx.doc_type === 'ORDER' ? '#fed7aa' : '#bbf7d0'}`,
-                          }}
-                        >
+                        <span style={{ fontSize: '11px', fontWeight: 500 }}>
                           {tx.doc_type_label}
                         </span>
                       </td>
                       <td>{tx.description}</td>
-                      <td className="debt-amount-inc">
-                        {tx.increase_amount > 0 ? `${Number(tx.increase_amount).toLocaleString('vi-VN')} đ` : '—'}
+                      <td className="debt-amount-inc" style={{ color: '#dc2626' }}>
+                        {tx.increase_amount > 0 ? `${Number(tx.increase_amount).toLocaleString('vi-VN')} đ` : ''}
                       </td>
-                      <td className="debt-amount-dec">
-                        {tx.decrease_amount > 0 ? `${Number(tx.decrease_amount).toLocaleString('vi-VN')} đ` : '—'}
+                      <td className="debt-amount-dec" style={{ color: '#000000' }}>
+                        {tx.decrease_amount > 0 ? `${Number(tx.decrease_amount).toLocaleString('vi-VN')} đ` : ''}
                       </td>
-                      <td className="debt-amount-bal">
+                      <td className="debt-amount-bal" style={{ color: tx.running_balance > 0 ? '#dc2626' : '#000000' }}>
                         {Number(tx.running_balance).toLocaleString('vi-VN')} đ
                       </td>
                     </tr>
                   ))
                 )}
 
-                {/* Dòng Tổng cộng phát sinh trong kỳ */}
+                {/* Dòng Tổng cộng phát sinh trong kỳ - Bỏ màu nền, chỉ chữ đỏ ở tiền nợ tăng, để trống khoảng trắng */}
                 <tr className="debt-row-subtotal">
-                  <td colSpan={5} style={{ textAlign: 'center', fontWeight: 700 }}>
+                  <td colSpan={5} style={{ textAlign: 'center', fontWeight: 700, color: '#000000' }}>
                     TỔNG CỘNG PHÁT SINH TRONG KỲ
                   </td>
-                  <td style={{ textAlign: 'right', color: '#b91c1c', fontWeight: 800 }}>
-                    {Number(summary.total_increase || 0).toLocaleString('vi-VN')} đ
+                  <td style={{ textAlign: 'right', color: '#dc2626', fontWeight: 800 }}>
+                    {summary.total_increase > 0 ? `${Number(summary.total_increase).toLocaleString('vi-VN')} đ` : ''}
                   </td>
-                  <td style={{ textAlign: 'right', color: '#15803d', fontWeight: 800 }}>
-                    {Number(summary.total_decrease || 0).toLocaleString('vi-VN')} đ
+                  <td style={{ textAlign: 'right', color: '#000000', fontWeight: 800 }}>
+                    {summary.total_decrease > 0 ? `${Number(summary.total_decrease).toLocaleString('vi-VN')} đ` : ''}
                   </td>
-                  <td style={{ textAlign: 'center' }}>—</td>
+                  <td style={{ textAlign: 'center' }}></td>
                 </tr>
 
-                {/* Dòng Số dư nợ cuối kỳ */}
+                {/* Dòng Số dư nợ cuối kỳ - Bỏ màu nền, chỉ chữ đỏ ở tiền nợ cuối kỳ, để trống khoảng trắng */}
                 <tr className="debt-row-closing">
-                  <td colSpan={5} style={{ textAlign: 'center', fontWeight: 800 }}>
+                  <td colSpan={5} style={{ textAlign: 'center', fontWeight: 800, color: '#000000' }}>
                     SỐ DƯ NỢ CUỐI KỲ PHẢI THU (TÍNH ĐẾN NGÀY {period.to_date || 'HIỆN TẠI'})
                   </td>
-                  <td style={{ textAlign: 'center' }}>—</td>
-                  <td style={{ textAlign: 'center' }}>—</td>
-                  <td style={{ textAlign: 'right', color: '#b91c1c', fontWeight: 900, fontSize: '12.5px' }}>
+                  <td style={{ textAlign: 'center' }}></td>
+                  <td style={{ textAlign: 'center' }}></td>
+                  <td style={{ textAlign: 'right', color: '#dc2626', fontWeight: 900, fontSize: '13px' }}>
                     {Number(summary.closing_balance || 0).toLocaleString('vi-VN')} đ
                   </td>
                 </tr>
@@ -320,7 +310,7 @@ export const DebtStatementPrintModal: React.FC<DebtStatementPrintModalProps> = (
               <div className="debt-pledge-line">
                 Hai bên đã cùng nhau kiểm tra, đối chiếu và thống nhất các hóa đơn bán hàng cùng các khoản thanh toán
                 phát sinh trong kỳ. Đại lý <strong>{dealer.name}</strong> xác nhận số dư nợ còn lại cần thanh toán cho
-                Công ty là <strong>{formatCurrency(summary.closing_balance)}</strong> và cam kết thanh toán đúng hạn quy
+                Công ty là <strong style={{ color: '#dc2626' }}>{formatCurrency(summary.closing_balance)}</strong> và cam kết thanh toán đúng hạn quy
                 định.
               </div>
             </div>

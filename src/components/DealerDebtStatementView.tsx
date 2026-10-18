@@ -735,7 +735,7 @@ export const DealerDebtStatementView: React.FC<DealerDebtStatementViewProps> = (
                     <th style={{ width: '135px', textAlign: 'center' }}>Ngày chứng từ</th>
                     <th style={{ width: '135px', textAlign: 'center' }}>Số chứng từ</th>
                     <th style={{ width: '135px', textAlign: 'center' }}>Loại chứng từ</th>
-                    <th>Diễn giải nghiệp vụ kinh tế</th>
+                    <th style={{ minWidth: '240px' }}>Diễn giải nghiệp vụ kinh tế</th>
                     <th style={{ width: '145px', textAlign: 'right' }}>Phát sinh Tăng (Nợ)</th>
                     <th style={{ width: '145px', textAlign: 'right' }}>Phát sinh Giảm (Có)</th>
                     <th style={{ width: '155px', textAlign: 'right' }}>Số dư nợ luỹ kế</th>
@@ -743,11 +743,11 @@ export const DealerDebtStatementView: React.FC<DealerDebtStatementViewProps> = (
                   </tr>
                 </thead>
                 <tbody>
-                  {/* Dòng Số dư đầu kỳ */}
+                  {/* Dòng Số dư đầu kỳ - Bắt đầu STT là 1, bỏ dấu gạch, để trống */}
                   <tr className="stmt-tr-opening">
-                    <td style={{ textAlign: 'center' }}>—</td>
-                    <td style={{ textAlign: 'center' }}>—</td>
-                    <td style={{ textAlign: 'center' }}>—</td>
+                    <td style={{ textAlign: 'center' }}>1</td>
+                    <td style={{ textAlign: 'center' }}></td>
+                    <td style={{ textAlign: 'center' }}></td>
                     <td style={{ textAlign: 'center' }}>
                       <span
                         style={{
@@ -765,8 +765,8 @@ export const DealerDebtStatementView: React.FC<DealerDebtStatementViewProps> = (
                     <td>
                       <strong>Số dư công nợ phải thu chuyển sang từ kỳ trước</strong>
                     </td>
-                    <td style={{ textAlign: 'right' }}>—</td>
-                    <td style={{ textAlign: 'right' }}>—</td>
+                    <td style={{ textAlign: 'right' }}></td>
+                    <td style={{ textAlign: 'right' }}></td>
                     <td className="stmt-num-bal" style={{ fontSize: '14px' }}>
                       {formatCurrency(summary?.opening_balance)}
                     </td>
@@ -786,7 +786,7 @@ export const DealerDebtStatementView: React.FC<DealerDebtStatementViewProps> = (
                   ) : (
                     transactions.map((tx, idx) => (
                       <tr key={tx.id || idx}>
-                        <td style={{ textAlign: 'center', color: '#64748b', fontWeight: 600 }}>{idx + 1}</td>
+                        <td style={{ textAlign: 'center', color: '#64748b', fontWeight: 600 }}>{idx + 2}</td>
                         <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>{formatDate(tx.date)}</td>
                         <td style={{ textAlign: 'center', fontFamily: 'monospace', fontWeight: 700, color: '#1e40af' }}>
                           {tx.doc_code}
@@ -800,14 +800,14 @@ export const DealerDebtStatementView: React.FC<DealerDebtStatementViewProps> = (
                         </td>
                         <td style={{ wordBreak: 'break-word' }}>{tx.description}</td>
                         <td className="stmt-num-inc">
-                          {tx.increase_amount > 0 ? `+ ${formatCurrency(tx.increase_amount)}` : '—'}
+                          {tx.increase_amount > 0 ? `+ ${formatCurrency(tx.increase_amount)}` : ''}
                         </td>
                         <td className="stmt-num-dec">
-                          {tx.decrease_amount > 0 ? `- ${formatCurrency(tx.decrease_amount)}` : '—'}
+                          {tx.decrease_amount > 0 ? `- ${formatCurrency(tx.decrease_amount)}` : ''}
                         </td>
                         <td className="stmt-num-bal">{formatCurrency(tx.running_balance)}</td>
                         <td style={{ textAlign: 'center', fontSize: '12px', color: '#64748b' }}>
-                          {tx.payment_method || tx.status || '—'}
+                          {tx.payment_method || tx.status || ''}
                         </td>
                       </tr>
                     ))
@@ -824,8 +824,8 @@ export const DealerDebtStatementView: React.FC<DealerDebtStatementViewProps> = (
                     <td className="stmt-num-dec" style={{ fontSize: '13.5px', fontWeight: 800 }}>
                       - {formatCurrency(summary?.total_decrease)}
                     </td>
-                    <td style={{ textAlign: 'center', color: '#94a3b8' }}>—</td>
-                    <td style={{ textAlign: 'center' }}>—</td>
+                    <td style={{ textAlign: 'center', color: '#94a3b8' }}></td>
+                    <td style={{ textAlign: 'center' }}></td>
                   </tr>
 
                   {/* Dòng Số dư nợ cuối kỳ */}
@@ -833,8 +833,8 @@ export const DealerDebtStatementView: React.FC<DealerDebtStatementViewProps> = (
                     <td colSpan={5} style={{ textAlign: 'center', fontWeight: 800, color: '#0f766e' }}>
                       SỐ DƯ NỢ CUỐI KỲ PHẢI THU (TÍNH ĐẾN NGÀY {statementData?.period.to_date || 'HIỆN TẠI'})
                     </td>
-                    <td style={{ textAlign: 'center' }}>—</td>
-                    <td style={{ textAlign: 'center' }}>—</td>
+                    <td style={{ textAlign: 'center' }}></td>
+                    <td style={{ textAlign: 'center' }}></td>
                     <td
                       className="stmt-num-bal"
                       style={{ color: '#b91c1c', fontSize: '15px', fontWeight: 900 }}
