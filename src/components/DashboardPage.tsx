@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import {
   getProductsApi,
   getDiscountPoliciesApi,
@@ -627,6 +627,10 @@ export default function DashboardPage({
     }
     return 'inventory';
   });
+  const [reminderInvoiceCode, setReminderInvoiceCode] = useState<string | null>(null);
+  const handleReminderInvoiceOpened = useCallback(() => {
+    setReminderInvoiceCode(null);
+  }, []);
   // 3. Chuyển đổi Route Clean URL
   const setActiveTab = (tab: TabType) => {
     // Luôn đóng màn hình Thêm/Sửa sản phẩm khi chuyển sang bất kỳ tab/nhánh nào
@@ -2421,6 +2425,8 @@ export default function DashboardPage({
           <AgencyDebtInvoiceView
             currentUser={user}
             token={token}
+            initialInvoiceCode={reminderInvoiceCode}
+            onInitialInvoiceOpened={handleReminderInvoiceOpened}
             onBackToPortal={() => setActiveTab('inventory')}
             onNavigateToOrders={() => setActiveTab('orders')}
           />
@@ -2973,7 +2979,10 @@ export default function DashboardPage({
             onViewChange={(view) => setActiveTab(view === 'cart' ? 'cart' : 'inventory')}
             onRefreshProducts={fetchProducts}
             onNavigateToOrders={() => setActiveTab('orders')}
-            onNavigateToDebt={() => setActiveTab('agency-debts')}
+            onNavigateToDebt={(invoiceCode) => {
+              setReminderInvoiceCode(invoiceCode);
+              setActiveTab('agency-debts');
+            }}
           />
         ) : (
           <>
@@ -4676,4 +4685,3 @@ export default function DashboardPage({
     </DashboardLayout>
   );
 }
-
