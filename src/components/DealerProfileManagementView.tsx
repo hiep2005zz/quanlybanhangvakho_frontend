@@ -921,20 +921,23 @@ export default function DealerProfileManagementView({
                     value={formData.warehouse_id}
                     onChange={(e) => {
                       const selId = e.target.value;
-                      const selWh = activeWarehouses.find((w) => String(w.id) === selId);
+                      const selWh = activeWarehouses.find((w) => (w.code && w.code === selId) || String(w.id) === selId);
                       setFormData({
                         ...formData,
-                        warehouse_id: selId,
+                        warehouse_id: selWh ? (selWh.code || String(selWh.id)) : selId,
                         warehouse_name: selWh ? selWh.name : '',
                       });
                     }}
                   >
                     <option value="">-- Tự động theo khu vực --</option>
-                    {activeWarehouses.map((wh) => (
-                      <option key={wh.id} value={wh.id}>
-                        {wh.code} - {wh.name}
-                      </option>
-                    ))}
+                    {activeWarehouses.map((wh) => {
+                      const val = wh.code || String(wh.id);
+                      return (
+                        <option key={wh.id} value={val}>
+                          {wh.code} - {wh.name}
+                        </option>
+                      );
+                    })}
                   </select>
                 </div>
 

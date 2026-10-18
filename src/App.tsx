@@ -69,17 +69,18 @@ function App() {
     return null;
   });
 
-  // Tự động đồng bộ vai trò và thông tin mới nhất từ máy chủ khi load trang (F5)
+  // Tự động đồng bộ vai trò và thông tin mới nhất từ máy chủ khi load trang (F5) - chỉ chạy 1 lần khi khởi tạo
   useEffect(() => {
-    if (authToken) {
-      getMeApi(authToken).then((freshUser) => {
+    const token = getClientSession().token;
+    if (token) {
+      getMeApi(token).then((freshUser) => {
         if (freshUser) {
           setCurrentUser(freshUser);
           sessionStorage.setItem(AUTH_STORAGE.USER, JSON.stringify(freshUser));
         }
       });
     }
-  }, [authToken]);
+  }, []);
 
   // Xử lý sự kiện hết hạn phiên
   const handleSessionExpired = useCallback((message: string) => {

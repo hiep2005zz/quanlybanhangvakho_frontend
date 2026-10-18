@@ -3,30 +3,36 @@ import {
   getStockBookApi,
   StockBookResponse,
   StockBookFilterParams,
+  getClientSession,
+  User,
 } from '../services/api';
 import { StockCardModal } from './StockCardModal';
 
 interface WarehouseStockBookViewProps {
   token: string;
+  currentUser?: User;
   onBackToHome?: () => void;
   onOpenTurnoverReport?: () => void;
   onNavigateToAdjustments?: () => void;
-  currentUser?: {
-    id?: number;
-    username?: string;
-    full_name?: string;
-    role?: string;
-    roles?: string[];
-  };
 }
 
 export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
   token,
+  currentUser,
   onBackToHome: _onBackToHome,
   onOpenTurnoverReport: _onOpenTurnoverReport,
   onNavigateToAdjustments,
-  currentUser,
 }) => {
+  // Lấy thông tin user hiện tại từ props hoặc session
+  const activeUser = currentUser || getClientSession().user;
+  const userRoles = [
+    activeUser?.role,
+    ...(activeUser?.roles || []),
+  ].filter(Boolean) as string[];
+
+  // Chỉ Admin và Quản lý kho (warehouse_manager) mới được phép thấy nút và xuất Excel.
+  // Thủ kho (warehouse) và các vai trò khác không nhìn thấy nút này.
+  const canExportExcel = userRoles.some((r) => ['admin', 'warehouse_manager'].includes(r));
   const [data, setData] = useState<StockBookResponse | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -38,6 +44,7 @@ export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [debouncedSearch, setDebouncedSearch] = useState<string>('');
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+  const [isExporting, setIsExporting] = useState<boolean>(false);
 
   // Phân trang
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -131,6 +138,173 @@ export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
   const startIndex = (safePage - 1) * pageSize;
   const endIndex = Math.min(startIndex + pageSize, totalItems);
   const pageItems = items.length > pageSize ? items.slice(startIndex, endIndex) : items;
+
+  const handleExportExcel = async () => {
+    try {
+      setIsExporting(true);
+      setError(null);
+
+      // Lấy toàn bộ danh sách bản ghi theo bộ lọc đang áp dụng (không phân trang)
+      const params: StockBookFilterParams = {
+        warehouse_id: selectedWarehouse,
+        category: selectedCategory,
+        stock_status: selectedStatus,
+        search: debouncedSearch,
+      };
+      const res = await getStockBookApi(token, params);
+      const exportItems = res.items || [];
+
+      if (exportItems.length === 0) {
+        alert('Không có dữ liệu tồn kho để xuất theo bộ lọc hiện tại.');
+        return;
+      }
+
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const warehouseCode = selectedWarehouse === 'all' ? 'TAT_CA_KHO' : selectedWarehouse;
+      const warehouseNameLabel = selectedWarehouse === 'all'
+        ? 'Tất cả các kho'
+        : (warehouses.find((w) => w.warehouse_id === selectedWarehouse)?.warehouse_name || selectedWarehouse);
+      const categoryLabel = selectedCategory === 'all' ? 'Tất cả ngành hàng' : selectedCategory;
+      const statusLabel = selectedStatus === 'all'
+        ? 'Tất cả trạng thái'
+        : selectedStatus === 'available'
+        ? 'Còn hàng (Khả dụng > 0)'
+        : selectedStatus === 'low_stock'
+        ? 'Thiếu hàng (Dưới định mức)'
+        : 'Hết hàng bán (Khả dụng = 0)';
+
+      let totalActual = 0;
+      let totalReserved = 0;
+      let totalAvailable = 0;
+
+      const rowsHtml = exportItems.map((item, idx) => {
+        totalActual += item.actual_stock || 0;
+        totalReserved += item.reserved_stock || 0;
+        totalAvailable += item.available_stock || 0;
+
+        const statusText = item.status === 'out_of_stock'
+          ? 'Hết hàng bán'
+          : item.status === 'low_stock'
+          ? 'Thiếu hàng'
+          : 'Còn hàng';
+
+        return `
+          <tr>
+            <td style="text-align: center;">${idx + 1}</td>
+            <td style="mso-number-format:'\\@'; font-weight: 600; text-align: center;">${item.warehouse_id}</td>
+            <td>${item.warehouse_name}</td>
+            <td style="mso-number-format:'\\@'; font-weight: 600;">${item.product_code}</td>
+            <td>${item.product_name}</td>
+            <td>${item.category || ''}</td>
+            <td style="text-align: center;">${item.base_unit || 'Cái'}</td>
+            <td style="text-align: right; font-weight: 600; color: #0284c7;">${(item.actual_stock || 0).toLocaleString('vi-VN')}</td>
+            <td style="text-align: right; font-weight: 600; color: #d97706;">${(item.reserved_stock || 0).toLocaleString('vi-VN')}</td>
+            <td style="text-align: right; font-weight: 700; color: #16a34a;">${(item.available_stock || 0).toLocaleString('vi-VN')}</td>
+            <td style="text-align: right;">${(item.min_stock || 0).toLocaleString('vi-VN')}</td>
+            <td style="text-align: center;">${statusText}</td>
+          </tr>
+        `;
+      }).join('');
+
+      const excelTemplate = `
+        <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+        <head>
+          <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+          <!--[if gte mso 9]>
+          <xml>
+            <x:ExcelWorkbook>
+              <x:ExcelWorksheets>
+                <x:ExcelWorksheet>
+                  <x:Name>BaoCaoTonKho</x:Name>
+                  <x:WorksheetOptions>
+                    <x:DisplayGridlines/>
+                  </x:WorksheetOptions>
+                </x:ExcelWorksheet>
+              </x:ExcelWorksheets>
+            </x:ExcelWorkbook>
+          </xml>
+          <![endif]-->
+          <style>
+            body { font-family: 'Segoe UI', Tahoma, Arial, sans-serif; }
+            table { border-collapse: collapse; width: 100%; }
+            th { background-color: #f1f5f9; color: #0f172a; border: 1px solid #cbd5e1; padding: 8px 12px; font-weight: bold; }
+            td { border: 1px solid #e2e8f0; padding: 6px 10px; }
+            .title { font-size: 18px; font-weight: bold; color: #0f172a; text-align: center; }
+            .meta { font-size: 12px; color: #475569; }
+            .sum-row { background-color: #f8fafc; font-weight: bold; }
+          </style>
+        </head>
+        <body>
+          <table>
+            <tr>
+              <td colspan="12" class="title" style="padding: 14px 0; font-size: 18px; font-weight: bold; text-align: center;">
+                BÁO CÁO TỒN KHO CHI TIẾT THEO KHO & SKU
+              </td>
+            </tr>
+            <tr>
+              <td colspan="12" class="meta" style="color: #475569;">
+                <strong>Kho lưu trữ:</strong> ${warehouseNameLabel} (${warehouseCode}) | 
+                <strong>Ngành hàng:</strong> ${categoryLabel} | 
+                <strong>Trạng thái:</strong> ${statusLabel} | 
+                <strong>Ngày xuất:</strong> ${todayStr}
+              </td>
+            </tr>
+            ${debouncedSearch ? `
+            <tr>
+              <td colspan="12" class="meta" style="color: #475569;">
+                <strong>Từ khóa tìm kiếm:</strong> ${debouncedSearch}
+              </td>
+            </tr>
+            ` : ''}
+            <tr><td colspan="12"></td></tr>
+            <thead>
+              <tr>
+                <th style="background-color: #e2e8f0; border: 1px solid #94a3b8; text-align: center;">STT</th>
+                <th style="background-color: #e2e8f0; border: 1px solid #94a3b8; text-align: center;">Mã kho</th>
+                <th style="background-color: #e2e8f0; border: 1px solid #94a3b8; text-align: left;">Tên kho</th>
+                <th style="background-color: #e2e8f0; border: 1px solid #94a3b8; text-align: center;">Mã SP</th>
+                <th style="background-color: #e2e8f0; border: 1px solid #94a3b8; text-align: left;">Tên sản phẩm</th>
+                <th style="background-color: #e2e8f0; border: 1px solid #94a3b8; text-align: left;">Ngành hàng</th>
+                <th style="background-color: #e2e8f0; border: 1px solid #94a3b8; text-align: center;">ĐVT</th>
+                <th style="background-color: #bae6fd; border: 1px solid #0284c7; text-align: right;">Tồn thực tế</th>
+                <th style="background-color: #fef08a; border: 1px solid #ca8a04; text-align: right;">Tồn giữ chỗ</th>
+                <th style="background-color: #bbf7d0; border: 1px solid #16a34a; text-align: right;">Tồn khả dụng</th>
+                <th style="background-color: #e2e8f0; border: 1px solid #94a3b8; text-align: right;">Định mức tối thiểu</th>
+                <th style="background-color: #e2e8f0; border: 1px solid #94a3b8; text-align: center;">Trạng thái</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rowsHtml}
+              <tr class="sum-row" style="background-color: #f1f5f9; font-weight: bold; border-top: 2px solid #64748b;">
+                <td colspan="7" style="text-align: right; padding: 8px 10px;">TỔNG CỘNG:</td>
+                <td style="text-align: right; color: #0284c7; padding: 8px 10px;">${totalActual.toLocaleString('vi-VN')}</td>
+                <td style="text-align: right; color: #d97706; padding: 8px 10px;">${totalReserved.toLocaleString('vi-VN')}</td>
+                <td style="text-align: right; color: #16a34a; padding: 8px 10px;">${totalAvailable.toLocaleString('vi-VN')}</td>
+                <td colspan="2"></td>
+              </tr>
+            </tbody>
+          </table>
+        </body>
+        </html>
+      `;
+
+      const blob = new Blob(['\uFEFF' + excelTemplate], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      const fileName = `bao_cao_ton_kho_${warehouseCode}_${todayStr}.xls`;
+      link.setAttribute('download', fileName);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      console.error('Error exporting stock book to Excel:', err);
+      setError(err?.message || 'Có lỗi xảy ra khi xuất báo cáo tồn kho ra Excel.');
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   return (
     <div
@@ -257,7 +431,7 @@ export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
           }}
         >
           <div style={{ fontSize: '12px', fontWeight: '600', color: '#b45309', marginBottom: '4px' }}>
-            Đang giữ chỗ cho đơn hàng
+            Tồn giữ chỗ cho đơn hàng
           </div>
           <div style={{ fontSize: '20px', fontWeight: '800', color: '#d97706' }}>
             {formatNumber(summary.total_reserved_stock)}
@@ -459,8 +633,8 @@ export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
           </div>
         </div>
 
-        {/* Nút Làm mới */}
-        <div style={{ alignSelf: 'flex-end' }}>
+        {/* Nút Làm mới & Xuất Excel */}
+        <div style={{ alignSelf: 'flex-end', display: 'flex', gap: '8px' }}>
           <button
             type="button"
             onClick={() => loadStockBook(true)}
@@ -486,6 +660,51 @@ export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
           >
             {isRefreshing ? 'Đang cập nhật...' : 'Làm mới'}
           </button>
+
+          {canExportExcel && (
+            <button
+              id="btn-export-stock-book-excel"
+              type="button"
+              onClick={handleExportExcel}
+              disabled={isExporting}
+              title="Xuất báo cáo tồn kho ra file Excel theo bộ lọc hiện tại (Dành cho Quản lý kho & Admin)"
+              style={{
+                padding: '0 16px',
+                height: '35px',
+                backgroundColor: '#16a34a',
+                color: '#ffffff',
+                border: 'none',
+                borderRadius: '8px',
+                fontSize: '13px',
+                fontWeight: '600',
+                cursor: isExporting ? 'not-allowed' : 'pointer',
+                opacity: isExporting ? 0.7 : 1,
+                boxShadow: '0 2px 4px rgba(22,163,74,0.2)',
+                transition: 'background-color 0.15s ease',
+                whiteSpace: 'nowrap',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                justifyContent: 'center',
+              }}
+            >
+              <svg
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+              {isExporting ? 'Đang xuất Excel...' : 'Xuất Excel'}
+            </button>
+          )}
         </div>
 
         {/* Nút đặt lại bộ lọc */}
@@ -591,7 +810,7 @@ export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
                     whiteSpace: 'nowrap',
                   }}
                 >
-                  Đang giữ chỗ
+                  Tồn giữ chỗ
                 </th>
                 <th
                   style={{

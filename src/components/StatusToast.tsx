@@ -412,7 +412,7 @@ export const StatusToastHost: React.FC = () => {
           background: progressBg,
           transformOrigin: 'left center',
           visibility: isExiting ? 'hidden' : 'visible',
-          animation: `accountStatusToastProgress ${STATUS_TOAST_VISIBLE_MS}ms linear forwards`,
+          animation: `accountStatusToastProgress ${durationMs}ms linear forwards`,
         }}
       />
     </div>,

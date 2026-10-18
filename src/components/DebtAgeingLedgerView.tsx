@@ -11,9 +11,10 @@ import './dealer-profile-management.css';
 
 interface DebtAgeingLedgerViewProps {
   token: string;
+  onNavigateReconciliation?: () => void;
 }
 
-export const DebtAgeingLedgerView: React.FC<DebtAgeingLedgerViewProps> = ({ token }) => {
+export const DebtAgeingLedgerView: React.FC<DebtAgeingLedgerViewProps> = ({ token, onNavigateReconciliation }) => {
   const [loading, setLoading] = useState<boolean>(true);
   const [exporting, setExporting] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -39,9 +40,19 @@ export const DebtAgeingLedgerView: React.FC<DebtAgeingLedgerViewProps> = ({ toke
 
   // Filter state
   const [search, setSearch] = useState<string>('');
+  const [debouncedSearch, setDebouncedSearch] = useState<string>('');
   const [selectedRegion, setSelectedRegion] = useState<string>('');
   const [selectedSaleId, setSelectedSaleId] = useState<string>('');
   const [overdueOnly, setOverdueOnly] = useState<boolean>(false);
+  const [selectedAgeingBucket, setSelectedAgeingBucket] = useState<string>('all');
+
+  // Tự động tìm kiếm tức thì sau 300ms khi người dùng nhập từ khóa
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [search]);
 
   // Load Filter Options from /dealers/filters (allowed for accountant, sales_manager, admin)
   useEffect(() => {
@@ -94,7 +105,8 @@ export const DebtAgeingLedgerView: React.FC<DebtAgeingLedgerViewProps> = ({ toke
         region: selectedRegion || undefined,
         assigned_sale_id: selectedSaleId ? Number(selectedSaleId) : undefined,
         overdue_only: overdueOnly,
-        search: search.trim() || undefined,
+        search: debouncedSearch.trim() || undefined,
+        ageing_bucket: selectedAgeingBucket !== 'all' ? selectedAgeingBucket : undefined,
       });
       setItems(res.items || []);
       setSummary(res.summary);
@@ -115,7 +127,7 @@ export const DebtAgeingLedgerView: React.FC<DebtAgeingLedgerViewProps> = ({ toke
   useEffect(() => {
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedRegion, selectedSaleId, overdueOnly]);
+  }, [selectedRegion, selectedSaleId, overdueOnly, selectedAgeingBucket, debouncedSearch]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -124,9 +136,11 @@ export const DebtAgeingLedgerView: React.FC<DebtAgeingLedgerViewProps> = ({ toke
 
   const handleResetFilters = () => {
     setSearch('');
+    setDebouncedSearch('');
     setSelectedRegion('');
     setSelectedSaleId('');
     setOverdueOnly(false);
+    setSelectedAgeingBucket('all');
   };
 
   // Export Excel
@@ -137,7 +151,8 @@ export const DebtAgeingLedgerView: React.FC<DebtAgeingLedgerViewProps> = ({ toke
         region: selectedRegion || undefined,
         assigned_sale_id: selectedSaleId ? Number(selectedSaleId) : undefined,
         overdue_only: overdueOnly,
-        search: search.trim() || undefined,
+        search: debouncedSearch.trim() || undefined,
+        ageing_bucket: selectedAgeingBucket !== 'all' ? selectedAgeingBucket : undefined,
       });
 
       const url = window.URL.createObjectURL(blob);
@@ -382,6 +397,32 @@ export const DebtAgeingLedgerView: React.FC<DebtAgeingLedgerViewProps> = ({ toke
             <span>Làm mới</span>
           </button>
 
+          {onNavigateReconciliation && (
+            <button
+              type="button"
+              onClick={onNavigateReconciliation}
+              className="btn-secondary-white"
+              style={{
+                height: '32px',
+                fontSize: '12px',
+                borderColor: '#6366f1',
+                color: '#4f46e5',
+                fontWeight: 600,
+                backgroundColor: '#eef2ff',
+              }}
+              title="Chuyển sang màn hình Lập & Quản lý Biên bản đối chiếu công nợ"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
+                <line x1="16" y1="13" x2="8" y2="13" />
+                <line x1="16" y1="17" x2="8" y2="17" />
+                <polyline points="10 9 9 9 8 9" />
+              </svg>
+              <span>Đối chiếu công nợ</span>
+            </button>
+          )}
+
           <button
             type="button"
             onClick={handleExportExcel}
@@ -486,11 +527,11 @@ export const DebtAgeingLedgerView: React.FC<DebtAgeingLedgerViewProps> = ({ toke
       {/* 3. Filter Section (Chuẩn Layout Cân Đối Hệ Thống & Responsive Trên Điện Thoại) */}
       <div className="dealer-filter-card" style={{ marginBottom: 0 }}>
         <form onSubmit={handleSearchSubmit} className="dealer-filter-grid debt-ledger-filter-form" style={{
-          gridTemplateColumns: 'minmax(220px, 2fr) minmax(150px, 1.2fr) minmax(160px, 1.2fr) auto auto',
+          gridTemplateColumns: 'minmax(220px, 2fr) minmax(140px, 1.2fr) minmax(150px, 1.2fr) minmax(150px, 1.2fr) auto',
           gap: '8px',
           alignItems: 'center',
         }}>
-          {/* Ô Tìm kiếm */}
+          {/* Ô Tìm kiếm (Tự động lọc khi gõ) */}
           <div className="search-input-wrapper" style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
             <svg
               width="15"
@@ -568,23 +609,26 @@ export const DebtAgeingLedgerView: React.FC<DebtAgeingLedgerViewProps> = ({ toke
             </select>
           </div>
 
-          {/* Nút Tìm kiếm */}
-          <div className="btn-search-wrapper">
-            <button
-              type="submit"
-              className="btn-primary-gradient"
-              style={{ height: '32px', padding: '0 14px', fontSize: '12px', whiteSpace: 'nowrap', width: '100%' }}
+          {/* Lọc theo Nhóm tuổi nợ */}
+          <div className="filter-select-wrapper">
+            <select
+              value={selectedAgeingBucket}
+              onChange={(e) => setSelectedAgeingBucket(e.target.value)}
+              className="filter-select"
+              style={{ height: '32px', fontSize: '12px', width: '100%' }}
+              title="Lọc đại lý theo các nhóm tuổi nợ"
             >
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="11" cy="11" r="8" />
-                <line x1="21" y1="21" x2="16.65" y2="16.65" />
-              </svg>
-              <span>Tìm kiếm</span>
-            </button>
+              <option value="all">Tất cả tuổi nợ</option>
+              <option value="0-30">Có nợ 0 - 30 ngày</option>
+              <option value="31-60">Có nợ 31 - 60 ngày</option>
+              <option value="61-90">Có nợ 61 - 90 ngày</option>
+              <option value="over_90">Có nợ &gt; 90 ngày (Khó đòi)</option>
+              <option value="settled">Đã tất toán (Hết nợ = 0 đ)</option>
+            </select>
           </div>
 
           {/* Nút Đặt lại bộ lọc */}
-          {(search || selectedRegion || selectedSaleId || overdueOnly) && (
+          {(search || selectedRegion || selectedSaleId || overdueOnly || selectedAgeingBucket !== 'all') && (
             <div className="btn-reset-wrapper">
               <button
                 type="button"

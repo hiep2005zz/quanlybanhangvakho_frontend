@@ -1349,6 +1349,7 @@ const IssueBatchModal: React.FC<IssueBatchModalProps> = ({
       });
       try {
         sessionStorage.setItem('last_product_history_code', batch.product_code);
+        localStorage.setItem('inventory_last_updated', Date.now().toString());
         window.dispatchEvent(new CustomEvent('INVENTORY_STOCK_UPDATED'));
       } catch { }
       onSuccess();
