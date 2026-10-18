@@ -1,6 +1,7 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { DeliveryTrip, User } from '../services/api';
+import { downloadElementAsPdf } from '../utils/pdfExport';
 import './receipt-voucher-print.css';
 
 interface DeliveryTripPrintModalProps {
@@ -240,6 +241,22 @@ export const DeliveryTripPrintModal: React.FC<DeliveryTripPrintModalProps> = ({
     }, 200);
   };
 
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
+
+  const handleDownloadPdf = async () => {
+    if (!paperRef.current || isExportingPdf) return;
+    try {
+      setIsExportingPdf(true);
+      await downloadElementAsPdf(paperRef.current, `Phieu-Giao-Hang-${trip.trip_code}.pdf`);
+    } catch (err) {
+      console.error('Lỗi khi xuất PDF:', err);
+      // Fallback an toàn nếu trình duyệt không hỗ trợ canvas
+      executeIframePrint();
+    } finally {
+      setIsExportingPdf(false);
+    }
+  };
+
   const printDateStr = new Date().toLocaleDateString('vi-VN');
   const creatorName =
     trip.created_by ||
@@ -277,11 +294,13 @@ export const DeliveryTripPrintModal: React.FC<DeliveryTripPrintModalProps> = ({
 
             <button
               type="button"
-              onClick={executeIframePrint}
+              onClick={handleDownloadPdf}
+              disabled={isExportingPdf}
               className="receipt-btn receipt-btn-pdf"
-              title="Lưu hoặc tải phiếu giao hàng dạng PDF"
+              title="Tải trực tiếp phiếu giao hàng dạng tệp PDF"
+              style={{ opacity: isExportingPdf ? 0.7 : 1, cursor: isExportingPdf ? 'wait' : 'pointer' }}
             >
-              Tải PDF
+              {isExportingPdf ? 'Đang tạo PDF...' : 'Tải PDF'}
             </button>
 
             <button
