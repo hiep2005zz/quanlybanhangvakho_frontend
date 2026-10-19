@@ -423,21 +423,20 @@ export const ProductSelectDropdown: React.FC<ProductSelectDropdownProps> = ({
           }}
         >
           {/* Hộp tìm kiếm sản phẩm phía trên (tối ưu gọn gàng) */}
-          <div className="p-2 px-2.5 bg-slate-50 border-b border-slate-200 shrink-0">
-            <div className="relative flex items-center">
+          <div style={{ padding: '6px 8px', backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0', flexShrink: 0 }}>
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center', width: '100%' }}>
               <svg
-                width="14"
-                height="14"
+                width="11"
+                height="11"
                 viewBox="0 0 24 24"
                 fill="none"
-                stroke="currentColor"
+                stroke="#94a3b8"
                 strokeWidth="2.5"
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                className="text-slate-400"
                 style={{
                   position: 'absolute',
-                  left: '10px',
+                  left: '8px',
                   top: '50%',
                   transform: 'translateY(-50%)',
                   pointerEvents: 'none',
@@ -452,8 +451,27 @@ export const ProductSelectDropdown: React.FC<ProductSelectDropdownProps> = ({
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Tìm kiếm theo mã SKU, tên hàng hóa hoặc ngành hàng..."
-                style={{ paddingLeft: '32px', paddingRight: '28px' }}
-                className="w-full py-1.5 rounded-lg text-xs bg-white border border-slate-200 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 font-medium"
+                style={{
+                  width: '100%',
+                  height: '24px',
+                  minHeight: '24px',
+                  maxHeight: '24px',
+                  paddingLeft: '24px',
+                  paddingRight: '22px',
+                  fontSize: '11px',
+                  borderRadius: '5px',
+                  border: '1px solid #cbd5e1',
+                  backgroundColor: '#ffffff',
+                  color: '#0f172a',
+                  outline: 'none',
+                  boxSizing: 'border-box',
+                }}
+                onFocus={(e) => {
+                  e.target.style.borderColor = '#10b981';
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = '#cbd5e1';
+                }}
               />
               {searchTerm && (
                 <button
@@ -464,10 +482,16 @@ export const ProductSelectDropdown: React.FC<ProductSelectDropdownProps> = ({
                     right: '6px',
                     top: '50%',
                     transform: 'translateY(-50%)',
+                    background: 'none',
+                    border: 'none',
+                    padding: '2px',
+                    color: '#94a3b8',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
                   }}
-                  className="text-slate-400 hover:text-slate-600 p-1 rounded cursor-pointer"
                 >
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                     <line x1="18" y1="6" x2="6" y2="18" />
                     <line x1="6" y1="6" x2="18" y2="18" />
                   </svg>
@@ -483,19 +507,19 @@ export const ProductSelectDropdown: React.FC<ProductSelectDropdownProps> = ({
             className="overflow-y-auto divide-y divide-slate-100"
             style={{
               overscrollBehavior: 'contain',
-              maxHeight: dropdownMaxHeight || '190px',
+              maxHeight: dropdownMaxHeight || '210px',
               scrollPaddingTop: '4px',
               paddingTop: '2px',
               paddingBottom: '2px',
             }}
           >
             {isLoading && products.length === 0 ? (
-              <div className="p-5 text-center text-xs font-semibold text-emerald-700 flex items-center justify-center gap-2">
-                <div className="w-4 h-4 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
+              <div className="p-4 text-center text-xs font-semibold text-emerald-700 flex items-center justify-center gap-2">
+                <div className="w-3.5 h-3.5 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
                 <span>Đang tải danh sách sản phẩm...</span>
               </div>
             ) : products.length === 0 ? (
-              <div className="p-5 text-center text-slate-500 text-xs">
+              <div className="p-4 text-center text-slate-500 text-xs">
                 {searchTerm
                   ? `Không tìm thấy sản phẩm nào phù hợp với từ khóa "${searchTerm}".`
                   : warehouseId
@@ -509,34 +533,37 @@ export const ProductSelectDropdown: React.FC<ProductSelectDropdownProps> = ({
                   <div
                     key={p.id}
                     onClick={() => handleSelectItem(p)}
-                    className={`py-2 px-3 hover:bg-emerald-50/80 cursor-pointer transition-colors flex items-center justify-between gap-3 min-h-[46px] ${
+                    className={`py-1.5 px-2.5 hover:bg-emerald-50/80 cursor-pointer transition-colors flex items-center justify-between gap-2 ${
                       isSelected ? 'bg-emerald-50/60 font-semibold text-emerald-950' : 'text-slate-800'
                     }`}
                   >
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono text-xs font-bold text-slate-900 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200 shrink-0">
+                      <div className="flex items-center gap-1.5 truncate">
+                        <span className="font-mono text-[10px] font-bold text-slate-900 bg-slate-100 px-1 py-0.2 rounded border border-slate-200 shrink-0">
                           {p.code}
                         </span>
-                        <span className="text-xs sm:text-sm font-medium truncate text-slate-900">
+                        <span className="text-xs font-medium truncate text-slate-900">
                           {p.name}
                         </span>
                       </div>
-                      <div className="flex items-center gap-2.5 text-2xs text-slate-500 mt-0.5 flex-wrap">
+                      <div className="flex items-center gap-1.5 text-[10.5px] text-slate-500 mt-0.5 whitespace-nowrap overflow-hidden text-ellipsis">
                         <span>{p.category || 'Chưa phân loại'}</span>
-                        <span>•</span>
-                        <span>Tồn kho: <strong className="text-slate-700">{p.stock || 0}</strong> {p.base_unit || 'Cái'}</span>
+                        <span className="text-slate-300">•</span>
+                        <span>
+                          Tồn kho: <strong className="text-slate-800 font-bold">{p.stock || 0}</strong> {p.base_unit || 'Cái'}
+                        </span>
+                        <span className="text-slate-300">•</span>
                         {p.is_batch_managed ? (
-                          <span className="text-emerald-600 font-semibold">• Quản lý lô: Đang bật</span>
+                          <span className="text-emerald-700 font-semibold">Quản lý lô: Đang bật</span>
                         ) : (
-                          <span className="text-slate-400">• Chưa bật quản lý lô</span>
+                          <span className="text-slate-400">Chưa bật quản lý lô</span>
                         )}
                       </div>
                     </div>
 
                     {isSelected && (
-                      <div className="shrink-0 text-emerald-600">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                      <div className="shrink-0 text-emerald-600 pl-1">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                           <polyline points="20 6 9 17 4 12" />
                         </svg>
                       </div>

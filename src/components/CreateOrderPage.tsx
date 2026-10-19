@@ -973,8 +973,15 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({
 
   // Phân quyền
   const rawRoles = currentUser?.roles && currentUser.roles.length > 0 ? currentUser.roles : (currentUser?.role ? [currentUser.role] : []);
-  const isSalesOrAdmin = !currentUser || rawRoles.some((r) => ['sales', 'sales_manager', 'admin'].includes(r));
+  const isAdmin = Boolean(
+    currentUser && (
+      currentUser.role?.toLowerCase() === 'admin' ||
+      rawRoles.some((r) => r.toLowerCase() === 'admin')
+    )
+  );
+  const isSalesOrAdmin = !currentUser || isAdmin || rawRoles.some((r) => ['sales', 'sales_manager', 'admin'].includes(r));
   const isCustomerRole = Boolean(
+    !isAdmin &&
     currentUser && (
       currentUser.role === 'customer' ||
       currentUser.role === 'agent' ||
@@ -983,22 +990,29 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({
     )
   );
   const isStrictlyBlockedRole = Boolean(
+    !isAdmin &&
     currentUser &&
     rawRoles.some((r) => ['muahang', 'purchasing', 'kho', 'warehouse', 'warehouse_manager', 'ketoan', 'accountant'].includes(r)) &&
     !isSalesOrAdmin &&
     !isCustomerRole
   );
-  const canCreateOrder = (isSalesOrAdmin || isCustomerRole) && !isStrictlyBlockedRole;
+  const canCreateOrder = isAdmin || ((isSalesOrAdmin || isCustomerRole) && !isStrictlyBlockedRole);
 
-  // Kiểm tra công nợ
-  const isOverdueBlocked = Boolean(
+  // Kiểm tra công nợ theo chính sách rủi ro (S7-04)
+  const isOverdue = Boolean(
     creditInfo?.is_overdue ||
     (creditInfo && creditInfo.max_debt_age > (creditInfo.overdue_days_allowed || 30))
+  );
+  const isOverdueBlocked = Boolean(
+    !isAdmin && isCustomerRole && isOverdue && creditInfo?.overdue_action !== 'REQUIRE_APPROVAL'
   );
   const isOverLimit = Boolean(
     creditInfo &&
     creditInfo.credit_limit > 0 &&
-    (creditInfo.current_debt + totalAmount > creditInfo.credit_limit)
+    (creditInfo.current_debt + totalAmount > creditInfo.credit_limit || creditInfo.is_over_limit || creditInfo.is_over_credit_limit)
+  );
+  const isOverLimitBlocked = Boolean(
+    !isAdmin && isCustomerRole && isOverLimit && creditInfo?.over_limit_action === 'BLOCK'
   );
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -1025,10 +1039,23 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({
       return;
     }
 
+    if (isOverLimitBlocked) {
+      const debtAfter = (creditInfo?.current_debt || 0) + totalAmount;
+      const limit = creditInfo?.credit_limit || 0;
+      const overLimitMsg = `Đại lý "${selectedDealer?.name}" vượt hạn mức công nợ cho phép (Tổng nợ sau đơn ${debtAfter.toLocaleString('vi-VN')} đ > Hạn mức ${limit.toLocaleString('vi-VN')} đ). Hệ thống đang cấu hình CHẶN tạo đơn hoàn toàn theo chính sách rủi ro công nợ (S7-04)!`;
+      setErrorMsg(overLimitMsg);
+      emitStatusToast({
+        title: 'Chặn tạo đơn do vượt hạn mức',
+        message: overLimitMsg,
+        type: 'error',
+      });
+      return;
+    }
+
     if (isOverdueBlocked) {
       const overdueDays = creditInfo?.max_debt_age || 0;
       const maxAllowed = creditInfo?.overdue_days_allowed || 30;
-      const overdueMsg = `Đại lý "${selectedDealer?.name}" có khoản nợ quá hạn (${overdueDays} ngày, vượt mức cho phép ${maxAllowed} ngày). Hệ thống chặn tạo đơn hàng hoàn toàn!`;
+      const overdueMsg = `Đại lý "${selectedDealer?.name}" có khoản nợ quá hạn (${overdueDays} ngày, vượt mức cho phép ${maxAllowed} ngày). Hệ thống đang cấu hình CHẶN tạo đơn hoàn toàn theo chính sách rủi ro công nợ (S7-04)!`;
       setErrorMsg(overdueMsg);
       emitStatusToast({
         title: 'Chặn tạo đơn do nợ quá hạn',
@@ -1086,7 +1113,7 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({
         delivery_point_id: deliveryPointId,
       });
 
-      if (res.status === 'PENDING_APPROVAL' || (res as any).requires_approval) {
+      if (!isAdmin && (res.status === 'PENDING_APPROVAL' || (res as any).requires_approval)) {
         const reasonText = (res as any).approval_reason
           ? `: ${(res as any).approval_reason}.`
           : ' do có chiết khấu hoặc đơn giá bán vượt mức quy định.';
@@ -1943,8 +1970,8 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({
                   </div>
                 )}
 
-                {/* Cảnh báo nợ quá hạn */}
-                {isOverdueBlocked && (
+                {/* Cảnh báo nợ quá hạn (chỉ hiển thị ở portal khách hàng/đại lý) */}
+                {isCustomerRole && isOverdueBlocked && (
                   <div className="p-3.5 bg-red-50 border border-red-200 rounded-xl text-xs sm:text-[13px] text-red-700 font-semibold space-y-1">
                     <div className="flex items-center gap-1.5 text-red-800 font-bold">
                       <span>⛔ Chặn tạo đơn do Nợ quá hạn</span>
@@ -1955,14 +1982,23 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({
                   </div>
                 )}
 
-                {/* Cảnh báo vượt hạn mức */}
-                {isOverLimit && !isOverdueBlocked && (
-                  <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-xl text-xs sm:text-[13px] text-amber-800 font-medium space-y-1">
-                    <div className="font-bold flex items-center gap-1.5 text-amber-900">
-                      <span>⚠️ Đơn hàng vượt hạn mức công nợ</span>
+                {/* Cảnh báo vượt hạn mức (chỉ hiển thị ở portal khách hàng/đại lý) */}
+                {isCustomerRole && isOverLimit && !isOverdueBlocked && (
+                  <div className={`p-3.5 rounded-xl text-xs sm:text-[13px] font-medium space-y-1 ${
+                    isOverLimitBlocked
+                      ? 'bg-rose-50 border border-rose-300 text-rose-800'
+                      : 'bg-amber-50 border border-amber-200 text-amber-800'
+                  }`}>
+                    <div className={`font-bold flex items-center gap-1.5 ${
+                      isOverLimitBlocked ? 'text-rose-900' : 'text-amber-900'
+                    }`}>
+                      <span>Đơn hàng vượt hạn mức công nợ</span>
                     </div>
                     <p>
-                      Tổng giá trị đơn hàng cộng công nợ hiện tại vượt quá hạn mức cho phép. Đơn hàng sẽ yêu cầu Quản lý kinh doanh phê duyệt.
+                      {isOverLimitBlocked
+                        ? 'Tổng giá trị đơn hàng cộng công nợ hiện tại vượt quá hạn mức cho phép. Hệ thống đang cấu hình CHẶN tạo đơn hoàn toàn theo chính sách rủi ro công nợ (S7-04). Vui lòng yêu cầu đại lý thanh toán công nợ trước khi tiếp tục!'
+                        : 'Tổng giá trị đơn hàng cộng công nợ hiện tại vượt quá hạn mức cho phép. Đơn hàng sẽ yêu cầu Quản lý kinh doanh phê duyệt ngoại lệ (S4-05).'
+                      }
                     </p>
                   </div>
                 )}
@@ -2041,13 +2077,13 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({
                   </div>
                 </div>
 
-                {!isCustomer && isManualDiscount && safeDiscount > discountEvaluation.discountPercent && (
+                {!isAdmin && !isCustomer && isManualDiscount && safeDiscount > discountEvaluation.discountPercent && (
                   <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800 leading-relaxed">
                     ⚠️ Mức chiết khấu ({safeDiscount}%) cao hơn định mức ({discountEvaluation.discountPercent}%). Đơn hàng sẽ cần Quản lý bán hàng phê duyệt.
                   </div>
                 )}
 
-                {isAnyBelowFloorPrice && (
+                {!isAdmin && isAnyBelowFloorPrice && (
                   <div className="p-2.5 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700 font-semibold leading-relaxed">
                     ⚠️ Có sản phẩm bán dưới giá sàn. Đơn hàng sẽ tự động chuyển sang Chờ duyệt.
                   </div>
@@ -2083,25 +2119,22 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({
                   disabled={
                     isSubmitting ||
                     orderItems.length === 0 ||
-                    isLockedDealer ||
-                    hasStockErrors ||
-                    isOverdueBlocked ||
-                    !canCreateOrder
+                    (!isAdmin && (isLockedDealer || hasStockErrors || isOverdueBlocked || !canCreateOrder))
                   }
-                  className={`w-full py-3 rounded-xl font-bold text-sm text-white shadow-md transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-60 flex items-center justify-center gap-2 ${orderItems.length === 0 || isLockedDealer || hasStockErrors || isOverdueBlocked || !canCreateOrder
+                  className={`w-full py-3 rounded-xl font-bold text-sm text-white shadow-md transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-60 flex items-center justify-center gap-2 ${orderItems.length === 0 || (!isAdmin && (isLockedDealer || hasStockErrors || isOverdueBlocked || !canCreateOrder))
                     ? 'bg-slate-400'
-                    : isAnyBelowFloorPrice || isOverLimit || isCustomerRole
+                    : !isAdmin && (isAnyBelowFloorPrice || isOverLimit || isCustomerRole)
                       ? 'bg-amber-600 hover:bg-amber-700 shadow-amber-600/30'
                       : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/30'
                     }`}
                   title={
                     !canCreateOrder
                       ? 'Chỉ Nhân viên kinh doanh, Quản trị hệ thống và Đại lý mới có quyền tạo đơn'
-                      : isOverdueBlocked
+                      : (!isAdmin && isOverdueBlocked)
                         ? `Đại lý "${selectedDealer?.name}" có khoản nợ quá hạn, bị chặn tạo đơn hoàn toàn`
-                        : isLockedDealer
+                        : (!isAdmin && isLockedDealer)
                           ? `Đại lý "${selectedDealer?.name}" hiện đang bị khóa giao dịch`
-                          : hasStockErrors
+                          : (!isAdmin && hasStockErrors)
                             ? 'Có sản phẩm vượt quá tồn khả dụng kho phục vụ'
                             : undefined
                   }
@@ -2116,17 +2149,17 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({
                     </span>
                   ) : !canCreateOrder ? (
                     'Không có quyền tạo đơn'
-                  ) : isOverdueBlocked ? (
+                  ) : (!isAdmin && isOverdueBlocked) ? (
                     'Bị chặn do nợ quá hạn'
-                  ) : isLockedDealer ? (
+                  ) : (!isAdmin && isLockedDealer) ? (
                     'Đại lý bị khóa'
-                  ) : hasStockErrors ? (
+                  ) : (!isAdmin && hasStockErrors) ? (
                     'Vượt tồn khả dụng'
-                  ) : isCustomerRole ? (
+                  ) : (!isAdmin && isCustomerRole) ? (
                     `Tạo đơn hàng (Chờ duyệt)`
-                  ) : isAnyBelowFloorPrice ? (
+                  ) : (!isAdmin && isAnyBelowFloorPrice) ? (
                     'Gửi duyệt (Dưới giá sàn)'
-                  ) : isOverLimit ? (
+                  ) : (!isAdmin && isOverLimit) ? (
                     'Tạo đơn (Cần duyệt do nợ)'
                   ) : (
                     `Tạo đơn hàng (${orderItems.length} SP)`

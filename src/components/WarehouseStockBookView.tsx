@@ -7,11 +7,15 @@ import {
   User,
 } from '../services/api';
 import { StockCardModal } from './StockCardModal';
+import { StockCardView } from './StockCardView';
 
 interface WarehouseStockBookViewProps {
   token: string;
   currentUser?: User;
   onBackToHome?: () => void;
+  onNavigateToTab?: (tab: string, queryParam?: string) => void;
+  onOpenStockCard?: (productId: number, productName: string, productCode: string) => void;
+  canAccessStockCard?: boolean;
   onOpenTurnoverReport?: () => void;
   onNavigateToAdjustments?: () => void;
 }
@@ -20,6 +24,9 @@ export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
   token,
   currentUser,
   onBackToHome: _onBackToHome,
+  onNavigateToTab,
+  onOpenStockCard,
+  canAccessStockCard = true,
   onOpenTurnoverReport: _onOpenTurnoverReport,
   onNavigateToAdjustments,
 }) => {
@@ -36,6 +43,7 @@ export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
   const [data, setData] = useState<StockBookResponse | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedProductForStockCard, setSelectedProductForStockCard] = useState<{ id: number; name: string; code: string } | null>(null);
 
   // Bộ lọc
   const [selectedWarehouse, setSelectedWarehouse] = useState<string>('all');
@@ -305,6 +313,19 @@ export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
       setIsExporting(false);
     }
   };
+
+  if (selectedProductForStockCard && canAccessStockCard) {
+    return (
+      <StockCardView
+        productId={selectedProductForStockCard.id}
+        productName={selectedProductForStockCard.name}
+        productCode={selectedProductForStockCard.code}
+        token={token}
+        onBack={() => setSelectedProductForStockCard(null)}
+        onNavigateToTab={onNavigateToTab}
+      />
+    );
+  }
 
   return (
     <div
@@ -828,21 +849,23 @@ export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
                 <th style={{ padding: '10px 14px', fontWeight: '700', width: '115px', minWidth: '105px', textAlign: 'center', backgroundColor: '#f1f5f9' }}>
                   Trạng thái
                 </th>
-                <th style={{ padding: '10px 14px', fontWeight: '700', width: '100px', minWidth: '95px', textAlign: 'center', backgroundColor: '#f1f5f9' }}>
-                  Thao tác
-                </th>
+                {canAccessStockCard && (
+                  <th style={{ padding: '10px 14px', fontWeight: '700', width: '115px', minWidth: '100px', textAlign: 'center', backgroundColor: '#f1f5f9' }}>
+                    Thao tác
+                  </th>
+                )}
               </tr>
             </thead>
             <tbody>
               {isLoading && !data ? (
                 <tr>
-                  <td colSpan={9} style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>
+                  <td colSpan={canAccessStockCard ? 9 : 8} style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>
                     Đang tải dữ liệu hàng tồn kho...
                   </td>
                 </tr>
               ) : items.length === 0 ? (
                 <tr>
-                  <td colSpan={9} style={{ padding: '48px 24px', textAlign: 'center', color: '#64748b' }}>
+                  <td colSpan={canAccessStockCard ? 9 : 8} style={{ padding: '48px 24px', textAlign: 'center', color: '#64748b' }}>
                     <div style={{ fontSize: '15px', fontWeight: '700', color: '#1e293b', marginBottom: '6px' }}>
                       {selectedWarehouse !== 'all' ? 'Kho này hiện chưa có mặt hàng nào' : 'Không tìm thấy mặt hàng nào phù hợp với bộ lọc'}
                     </div>
@@ -998,35 +1021,57 @@ export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
                         )}
                       </td>
 
-                      {/* Thao tác: Xem thẻ kho */}
-                      <td style={{ padding: '8px 12px', textAlign: 'center' }}>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSelectedStockCardProduct({
-                              productId: it.product_id,
-                              productCode: it.product_code,
-                              productName: it.product_name,
-                              warehouseId: it.warehouse_id,
-                              warehouseName: it.warehouse_name,
-                            });
-                          }}
-                          style={{
-                            padding: '4px 10px',
-                            backgroundColor: '#ffffff',
-                            color: '#1e293b',
-                            border: '1px solid #cbd5e1',
-                            borderRadius: '4px',
-                            fontSize: '12px',
-                            fontWeight: '600',
-                            cursor: 'pointer',
-                            whiteSpace: 'nowrap',
-                          }}
-                          title="Xem thẻ kho chi tiết (Nhập, xuất, điều chỉnh tổn thất)"
-                        >
-                          Thẻ kho
-                        </button>
-                      </td>
+                      {/* Thao tác xem thẻ kho */}
+                      {canAccessStockCard && (
+                        <td style={{ padding: '8px 12px', textAlign: 'center' }}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (onOpenStockCard) {
+                                onOpenStockCard(it.product_id, it.product_name, it.product_code);
+                              } else {
+                                setSelectedStockCardProduct({
+                                  productId: it.product_id,
+                                  productCode: it.product_code,
+                                  productName: it.product_name,
+                                  warehouseId: it.warehouse_id,
+                                  warehouseName: it.warehouse_name,
+                                });
+                              }
+                            }}
+                            title={`Xem thẻ kho của ${it.product_name}`}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '5px',
+                              padding: '5px 12px',
+                              height: '32px',
+                              borderRadius: '6px',
+                              border: '1px solid #bfdbfe',
+                              backgroundColor: '#eff6ff',
+                              color: '#1d4ed8',
+                              fontSize: '12.5px',
+                              fontWeight: '600',
+                              cursor: 'pointer',
+                              whiteSpace: 'nowrap',
+                              flexShrink: 0,
+                              boxSizing: 'border-box',
+                              transition: 'all 0.15s ease',
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.backgroundColor = '#dbeafe';
+                              e.currentTarget.style.borderColor = '#93c5fd';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.backgroundColor = '#eff6ff';
+                              e.currentTarget.style.borderColor = '#bfdbfe';
+                            }}
+                          >
+                            <span>Thẻ kho</span>
+                          </button>
+                        </td>
+                      )}
                     </tr>
                   );
                 })

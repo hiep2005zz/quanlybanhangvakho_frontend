@@ -20,9 +20,11 @@ import { ModalPortal } from './ModalPortal';
 interface StockAuditManagementViewProps {
   token: string;
   currentUser?: User | null;
+  initialSearchCode?: string;
+  initialSearchProduct?: string;
 }
 
-export function StockAuditManagementView({ token, currentUser }: StockAuditManagementViewProps) {
+export function StockAuditManagementView({ token, currentUser, initialSearchCode, initialSearchProduct }: StockAuditManagementViewProps) {
   // Xác định vai trò
   const userRoles = useMemo(() => {
     if (currentUser?.roles && currentUser.roles.length > 0) {
@@ -52,10 +54,19 @@ export function StockAuditManagementView({ token, currentUser }: StockAuditManag
   const [totalCount, setTotalCount] = useState(0);
 
   // Bộ lọc
-  const [searchCode, setSearchCode] = useState('');
+  const [searchCode, setSearchCode] = useState(initialSearchCode || '');
   const [filterWarehouse, setFilterWarehouse] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [filterScope, setFilterScope] = useState('');
+  const autoOpenedCodeRef = useRef<string | null>(null);
+
+  // Tự động đồng bộ khi initialSearchCode được truyền vào (từ Thẻ kho)
+  useEffect(() => {
+    if (initialSearchCode !== undefined && initialSearchCode !== '') {
+      setSearchCode(initialSearchCode);
+      setPage(1);
+    }
+  }, [initialSearchCode]);
 
   // Danh mục kho & nhóm hàng
   const [warehouses, setWarehouses] = useState<{ id: string; name: string }[]>([]);
@@ -290,9 +301,12 @@ export function StockAuditManagementView({ token, currentUser }: StockAuditManag
   }, [audits, totalCount]);
 
   // Mở trang chi tiết phiếu kiểm kê
-  const handleOpenDetail = async (auditId: number) => {
+  const handleOpenDetail = async (auditId: number, filterProduct?: string) => {
     setDetailLoading(true);
     setViewMode('detail');
+    if (filterProduct !== undefined) {
+      setDetailSearchProduct(filterProduct);
+    }
     try {
       const detail = await getStockAuditDetailApi(token, auditId);
       setSelectedAudit(detail);
@@ -309,6 +323,21 @@ export function StockAuditManagementView({ token, currentUser }: StockAuditManag
       setDetailLoading(false);
     }
   };
+
+  // Tự động mở thẳng màn hình chi tiết phiếu kiểm kê và lọc sản phẩm tương ứng khi truy nguyên từ Thẻ kho
+  useEffect(() => {
+    if (!initialSearchCode || audits.length === 0) return;
+    if (autoOpenedCodeRef.current === initialSearchCode) return;
+
+    const matchedAudit = audits.find(
+      (a) => a.code.trim().toUpperCase() === initialSearchCode.trim().toUpperCase()
+    );
+
+    if (matchedAudit) {
+      autoOpenedCodeRef.current = initialSearchCode;
+      handleOpenDetail(matchedAudit.id, initialSearchProduct || '');
+    }
+  }, [audits, initialSearchCode, initialSearchProduct]);
 
   // Cập nhật giá trị nhập thực tế trong bảng kiểm đếm
   const handleItemActualStockChange = (productId: number, valStr: string) => {
