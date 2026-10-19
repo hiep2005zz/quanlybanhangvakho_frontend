@@ -19,6 +19,7 @@ import { RouteCollectionDetailView } from './RouteCollectionDetailView';
 import { emitStatusToast } from './StatusToast';
 import { ModalPortal } from './ModalPortal';
 import { convertNumberToVietnameseWords } from '../utils/numberToWords';
+import { AccessDeniedView } from './AccessDeniedView';
 
 interface PaymentCollectionViewProps {
   currentUser: User | null;
@@ -133,7 +134,12 @@ export const PaymentCollectionView: React.FC<PaymentCollectionViewProps> = ({
   const [loading, setLoading] = useState(false);
 
   // Tab chuyển đổi: chỉ hiển thị đúng 1 bảng duy nhất tại một thời điểm
-  const [activeTab, setActiveTab] = useState<'reconciliation' | 'all_collections'>('reconciliation');
+  // Bảng đối chiếu tiền thu theo từng nhân viên và từng ngày CHỈ dành cho Admin và Sales
+  const [activeTab, setActiveTab] = useState<'reconciliation' | 'all_collections'>(() => {
+    const roles = currentUser?.roles && currentUser.roles.length > 0 ? currentUser.roles : [currentUser?.role || ''];
+    const canViewRecon = roles.includes('admin') || roles.includes('sales') || currentUser?.role === 'admin' || currentUser?.role === 'sales';
+    return canViewRecon ? 'reconciliation' : 'all_collections';
+  });
   // Đợt đối chiếu được chọn để xem bảng chi tiết ("bấm chi tiết thì sang một bảng chi tiết")
   const [selectedBatch, setSelectedBatch] = useState<DailyReconciliationItem | null>(null);
 
@@ -222,12 +228,26 @@ export const PaymentCollectionView: React.FC<PaymentCollectionViewProps> = ({
   }, [reconciliationData]);
 
   // Role permissions
-  const isAdmin = currentUser?.role === 'admin';
-  const isAccountant = currentUser?.role === 'accountant';
-  const isSalesManager = currentUser?.role === 'sales_manager';
-  const isSales = currentUser?.role === 'sales';
+  const userRoles = currentUser?.roles && currentUser.roles.length > 0 ? currentUser.roles : [currentUser?.role || ''];
+  const isAdmin = userRoles.includes('admin') || currentUser?.role === 'admin';
+  const isAccountant = userRoles.includes('accountant') || currentUser?.role === 'accountant';
+  const isSalesManager = userRoles.includes('sales_manager') || currentUser?.role === 'sales_manager';
+  const isSales = userRoles.includes('sales') || currentUser?.role === 'sales';
   const canConfirm = isAdmin || isAccountant;
   const canCollect = isAdmin || isSales || isSalesManager;
+  const canViewDailyReconciliation = isAdmin || isSales;
+
+  // Auto-guard: nếu vai trò không có quyền xem bảng đối chiếu theo NV & ngày, tự động chuyển về all_collections
+  useEffect(() => {
+    if (!canViewDailyReconciliation) {
+      if (activeTab === 'reconciliation') {
+        setActiveTab('all_collections');
+      }
+      if (selectedBatch) {
+        setSelectedBatch(null);
+      }
+    }
+  }, [canViewDailyReconciliation, activeTab, selectedBatch]);
 
   // Format currency VND
   const formatMoney = (val?: number | null) => {
@@ -391,7 +411,7 @@ export const PaymentCollectionView: React.FC<PaymentCollectionViewProps> = ({
 
   // Fetch Daily Reconciliation Table (Tiêu chí 3: phân trang 10 dòng/trang)
   const fetchReconciliation = useCallback(async () => {
-    if (!token) return;
+    if (!token || !canViewDailyReconciliation) return;
     setLoading(true);
     try {
       const res = await getDailyReconciliationApi(
@@ -417,7 +437,7 @@ export const PaymentCollectionView: React.FC<PaymentCollectionViewProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [token, fromDate, toDate, searchQuery, balancedOnly, reconPage]);
+  }, [token, canViewDailyReconciliation, fromDate, toDate, searchQuery, balancedOnly, reconPage]);
 
   // Fetch Collections List (Tiêu chí 1 & 2: phân trang 10 dòng/trang)
   const fetchCollections = useCallback(async () => {
@@ -679,6 +699,15 @@ export const PaymentCollectionView: React.FC<PaymentCollectionViewProps> = ({
   };
 
   if (isCreateView) {
+    if (!canCollect) {
+      return (
+        <AccessDeniedView
+          currentUser={currentUser || ({ username: 'user', role: 'unknown', roles: [] } as any)}
+          requiredPermission="Ghi nhận thu tiền theo tuyến (Chỉ Nhân viên kinh doanh và Quản trị viên)"
+          onBackToWorkflow={handleBackFromCreateView}
+        />
+      );
+    }
     return (
       <RouteCollectionFormView
         token={token}
@@ -686,7 +715,9 @@ export const PaymentCollectionView: React.FC<PaymentCollectionViewProps> = ({
         onBack={handleBackFromCreateView}
         onSuccess={() => {
           fetchCollections();
-          fetchReconciliation();
+          if (canViewDailyReconciliation) {
+            fetchReconciliation();
+          }
           handleBackFromCreateView();
         }}
       />
@@ -726,202 +757,203 @@ export const PaymentCollectionView: React.FC<PaymentCollectionViewProps> = ({
       {!selectedBatch && (
         <>
           {/* Top Banner & Header */}
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          gap: '16px',
-          marginBottom: '24px',
-        }}
-      >
-        <div>
-          <h1
+          <div
             style={{
-              margin: 0,
-              fontSize: '22px',
-              fontWeight: 800,
-              color: '#0f172a',
-              letterSpacing: '-0.02em',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '16px',
+              marginBottom: '24px',
             }}
           >
-            Thu Tiền Tuyến & Đối Chiếu Quỹ
-          </h1>
-          <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: '#64748b' }}>
-            Ghi nhận thu tiền tại cửa hàng kèm ảnh biên lai • Trạng thái Chờ nộp • Bảng đối chiếu minh bạch theo nhân viên & ngày
-          </p>
-        </div>
+            <div>
+              <h1
+                style={{
+                  margin: 0,
+                  fontSize: '22px',
+                  fontWeight: 800,
+                  color: '#0f172a',
+                  letterSpacing: '-0.02em',
+                }}
+              >
+                Thu Tiền Tuyến & Đối Chiếu Quỹ
+              </h1>
+              <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: '#64748b' }}>
+                Ghi nhận thu tiền tại cửa hàng kèm ảnh biên lai • Trạng thái Chờ nộp • Bảng đối chiếu minh bạch theo nhân viên & ngày
+              </p>
+            </div>
 
-        <div style={{ display: 'flex', gap: '10px' }}>
-          {canCollect && (
-            <button
-              type="button"
-              onClick={handleOpenCreateView}
+            <div style={{ display: 'flex', gap: '10px' }}>
+              {canCollect && (
+                <button
+                  type="button"
+                  onClick={handleOpenCreateView}
+                  style={{
+                    padding: '10px 18px',
+                    backgroundColor: '#2563eb',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontWeight: 600,
+                    fontSize: '14px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    boxShadow: '0 4px 6px -1px rgba(37, 99, 235, 0.25)',
+                  }}
+                >
+                  Ghi nhận khoản thu mới
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => {
+                  fetchReconciliation();
+                  fetchCollections();
+                }}
+                style={{
+                  padding: '10px 14px',
+                  backgroundColor: '#f1f5f9',
+                  color: '#334155',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: '8px',
+                  fontWeight: 600,
+                  fontSize: '14px',
+                  cursor: 'pointer',
+                }}
+              >
+                Tải lại
+              </button>
+            </div>
+          </div>
+
+          {/* 4 Summary KPI Cards (Tiêu chí 3) - Thu nhỏ gọn gàng chuẩn ERP */}
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
+              gap: '12px',
+              marginBottom: '12px',
+            }}
+          >
+            <div
               style={{
-                padding: '10px 18px',
-                backgroundColor: '#2563eb',
-                color: '#ffffff',
-                border: 'none',
+                backgroundColor: '#ffffff',
                 borderRadius: '8px',
-                fontWeight: 600,
-                fontSize: '14px',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                boxShadow: '0 4px 6px -1px rgba(37, 99, 235, 0.25)',
+                padding: '10px 14px',
+                border: '1px solid #e2e8f0',
+                boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
               }}
             >
-              Ghi nhận khoản thu mới
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={() => {
-              fetchReconciliation();
-              fetchCollections();
-            }}
-            style={{
-              padding: '10px 14px',
-              backgroundColor: '#f1f5f9',
-              color: '#334155',
-              border: '1px solid #cbd5e1',
-              borderRadius: '8px',
-              fontWeight: 600,
-              fontSize: '14px',
-              cursor: 'pointer',
-            }}
-          >
-            Tải lại
-          </button>
-        </div>
-      </div>
+              <div style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.02em' }}>
+                Tổng tiền đã thu tại tuyến
+              </div>
+              <div
+                style={{
+                  fontSize: '17px',
+                  fontWeight: 800,
+                  color: '#0f172a',
+                  marginTop: '2px',
+                }}
+              >
+                {formatMoney(summary?.grand_total_collected ?? listData?.total_amount_collected ?? listData?.total_amount ?? 0)}
+              </div>
+              <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
+                {summary?.total_sales_staff ? `${summary.total_sales_staff} nhân viên thu trong ${summary.total_days || 0} ngày` : `${listData?.total || 0} khoản thu trên hệ thống`}
+              </div>
+            </div>
 
-      {/* 4 Summary KPI Cards (Tiêu chí 3) - Thu nhỏ gọn gàng chuẩn ERP */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
-          gap: '12px',
-          marginBottom: '12px',
-        }}
-      >
-        <div
-          style={{
-            backgroundColor: '#ffffff',
-            borderRadius: '8px',
-            padding: '10px 14px',
-            border: '1px solid #e2e8f0',
-            boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
-          }}
-        >
-          <div style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.02em' }}>
-            Tổng tiền đã thu tại tuyến
-          </div>
-          <div
-            style={{
-              fontSize: '17px',
-              fontWeight: 800,
-              color: '#0f172a',
-              marginTop: '2px',
-            }}
-          >
-            {formatMoney(summary?.grand_total_collected || 0)}
-          </div>
-          <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
-            {summary?.total_sales_staff || 0} nhân viên thu trong {summary?.total_days || 0} ngày
-          </div>
-        </div>
+            <div
+              style={{
+                backgroundColor: '#ffffff',
+                borderRadius: '8px',
+                padding: '10px 14px',
+                border: '1px solid #fef3c7',
+                borderLeft: '3px solid #f59e0b',
+                boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
+              }}
+            >
+              <div style={{ fontSize: '11px', fontWeight: 700, color: '#b45309', textTransform: 'uppercase', letterSpacing: '0.02em' }}>
+                Chờ nộp về công ty (Còn ở NVKD)
+              </div>
+              <div
+                style={{
+                  fontSize: '17px',
+                  fontWeight: 800,
+                  color: '#b45309',
+                  marginTop: '2px',
+                }}
+              >
+                {formatMoney(summary?.grand_total_pending_remittance ?? listData?.total_pending_remittance ?? 0)}
+              </div>
+              <div style={{ fontSize: '11px', color: '#92400e', marginTop: '2px' }}>
+                NVKD chưa chuyển tiền về thủ quỹ
+              </div>
+            </div>
 
-        <div
-          style={{
-            backgroundColor: '#ffffff',
-            borderRadius: '8px',
-            padding: '10px 14px',
-            border: '1px solid #fef3c7',
-            borderLeft: '3px solid #f59e0b',
-            boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
-          }}
-        >
-          <div style={{ fontSize: '11px', fontWeight: 700, color: '#b45309', textTransform: 'uppercase', letterSpacing: '0.02em' }}>
-            Chờ nộp về công ty (Còn ở NVKD)
-          </div>
-          <div
-            style={{
-              fontSize: '17px',
-              fontWeight: 800,
-              color: '#b45309',
-              marginTop: '2px',
-            }}
-          >
-            {formatMoney(summary?.grand_total_pending_remittance || 0)}
-          </div>
-          <div style={{ fontSize: '11px', color: '#92400e', marginTop: '2px' }}>
-            NVKD chưa chuyển tiền về thủ quỹ
-          </div>
-        </div>
+            <div
+              style={{
+                backgroundColor: '#ffffff',
+                borderRadius: '8px',
+                padding: '10px 14px',
+                border: '1px solid #bae6fd',
+                borderLeft: '3px solid #0284c7',
+                boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
+              }}
+            >
+              <div style={{ fontSize: '11px', fontWeight: 700, color: '#0369a1', textTransform: 'uppercase', letterSpacing: '0.02em' }}>
+                Đã nộp (Chờ KT xác nhận)
+              </div>
+              <div
+                style={{
+                  fontSize: '17px',
+                  fontWeight: 800,
+                  color: '#0284c7',
+                  marginTop: '2px',
+                }}
+              >
+                {formatMoney(summary?.grand_total_submitted ?? listData?.total_submitted ?? 0)}
+              </div>
+              <div style={{ fontSize: '11px', color: '#0369a1', marginTop: '2px' }}>
+                NVKD đã nộp, chờ Kế toán khớp
+              </div>
+            </div>
 
-        <div
-          style={{
-            backgroundColor: '#ffffff',
-            borderRadius: '8px',
-            padding: '10px 14px',
-            border: '1px solid #bae6fd',
-            borderLeft: '3px solid #0284c7',
-            boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
-          }}
-        >
-          <div style={{ fontSize: '11px', fontWeight: 700, color: '#0369a1', textTransform: 'uppercase', letterSpacing: '0.02em' }}>
-            Đã nộp (Chờ KT xác nhận)
+            <div
+              style={{
+                backgroundColor: '#ffffff',
+                borderRadius: '8px',
+                padding: '10px 14px',
+                border: '1px solid #bbf7d0',
+                borderLeft: '3px solid #16a34a',
+                boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
+              }}
+            >
+              <div style={{ fontSize: '11px', fontWeight: 700, color: '#15803d', textTransform: 'uppercase', letterSpacing: '0.02em' }}>
+                Đã khớp tiền vào quỹ công ty
+              </div>
+              <div
+                style={{
+                  fontSize: '17px',
+                  fontWeight: 800,
+                  color: '#15803d',
+                  marginTop: '2px',
+                }}
+              >
+                {formatMoney(summary?.grand_total_confirmed ?? listData?.total_confirmed ?? 0)}
+              </div>
+              <div style={{ fontSize: '11px', color: '#15803d', marginTop: '2px' }}>
+                Đã kiểm đếm và ghi sổ quỹ cty
+              </div>
+            </div>
           </div>
-          <div
-            style={{
-              fontSize: '17px',
-              fontWeight: 800,
-              color: '#0284c7',
-              marginTop: '2px',
-            }}
-          >
-            {formatMoney(summary?.grand_total_submitted || 0)}
-          </div>
-          <div style={{ fontSize: '11px', color: '#0369a1', marginTop: '2px' }}>
-            NVKD đã nộp, chờ Kế toán khớp
-          </div>
-        </div>
-
-        <div
-          style={{
-            backgroundColor: '#ffffff',
-            borderRadius: '8px',
-            padding: '10px 14px',
-            border: '1px solid #bbf7d0',
-            borderLeft: '3px solid #16a34a',
-            boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
-          }}
-        >
-          <div style={{ fontSize: '11px', fontWeight: 700, color: '#15803d', textTransform: 'uppercase', letterSpacing: '0.02em' }}>
-            Đã khớp tiền vào quỹ công ty
-          </div>
-          <div
-            style={{
-              fontSize: '17px',
-              fontWeight: 800,
-              color: '#15803d',
-              marginTop: '2px',
-            }}
-          >
-            {formatMoney(summary?.grand_total_confirmed || 0)}
-          </div>
-          <div style={{ fontSize: '11px', color: '#15803d', marginTop: '2px' }}>
-            Đã kiểm đếm và ghi sổ quỹ cty
-          </div>
-        </div>
-      </div>
-      </>
+        </>
       )}
 
       {/* 2. TRANG CHI TIẾT ĐỢT ĐỐI CHIẾU: CHỈ CÓ 1 BẢNG DUY NHẤT */}
       {selectedBatch && (
+        canViewDailyReconciliation ? (
         <div
           style={{
             backgroundColor: '#ffffff',
@@ -1329,6 +1361,13 @@ export const PaymentCollectionView: React.FC<PaymentCollectionViewProps> = ({
             'khoản thu trong đợt'
           )}
         </div>
+        ) : (
+          <AccessDeniedView
+            currentUser={currentUser || ({ username: 'user', role: 'unknown', roles: [] } as any)}
+            requiredPermission="Bảng đối chiếu tiền thu theo từng nhân viên và từng ngày (Chỉ Quản trị viên và Nhân viên kinh doanh)"
+            onBackToWorkflow={() => setSelectedBatch(null)}
+          />
+        )
       )}
 
       {/* 2. THANH TAB CHUYỂN ĐỔI: Chỉ hiện khi ở chế độ danh sách chính (Đảm bảo chỉ có 1 bảng xuất hiện) */}
@@ -1340,22 +1379,24 @@ export const PaymentCollectionView: React.FC<PaymentCollectionViewProps> = ({
             marginBottom: '16px',
           }}
         >
-          <button
-            type="button"
-            onClick={() => setActiveTab('reconciliation')}
-            style={{
-              padding: '9px 18px',
-              borderRadius: '8px',
-              border: activeTab === 'reconciliation' ? '2px solid #2563eb' : '1px solid #cbd5e1',
-              backgroundColor: activeTab === 'reconciliation' ? '#eff6ff' : '#ffffff',
-              color: activeTab === 'reconciliation' ? '#1d4ed8' : '#64748b',
-              fontWeight: 700,
-              fontSize: '13.5px',
-              cursor: 'pointer',
-            }}
-          >
-            Bảng Tổng Hợp Đối Chiếu
-          </button>
+          {canViewDailyReconciliation && (
+            <button
+              type="button"
+              onClick={() => setActiveTab('reconciliation')}
+              style={{
+                padding: '9px 18px',
+                borderRadius: '8px',
+                border: activeTab === 'reconciliation' ? '2px solid #2563eb' : '1px solid #cbd5e1',
+                backgroundColor: activeTab === 'reconciliation' ? '#eff6ff' : '#ffffff',
+                color: activeTab === 'reconciliation' ? '#1d4ed8' : '#64748b',
+                fontWeight: 700,
+                fontSize: '13.5px',
+                cursor: 'pointer',
+              }}
+            >
+              Bảng Tổng Hợp Đối Chiếu
+            </button>
+          )}
           <button
             type="button"
             onClick={() => setActiveTab('all_collections')}
@@ -1497,35 +1538,37 @@ export const PaymentCollectionView: React.FC<PaymentCollectionViewProps> = ({
             </select>
           </div>
 
-          {/* Ô 5: TRẠNG THÁI ĐỐI CHIẾU */}
-          <div>
-            <label style={{ fontSize: '11px', fontWeight: 600, color: '#64748b', display: 'block', marginBottom: '2px' }}>
-              Trạng thái đối chiếu
-            </label>
-            <select
-              value={balancedOnly === undefined ? 'all' : balancedOnly ? 'balanced' : 'unbalanced'}
-              onChange={(e) => {
-                if (e.target.value === 'all') setBalancedOnly(undefined);
-                else if (e.target.value === 'balanced') setBalancedOnly(true);
-                else setBalancedOnly(false);
-                setReconPage(1);
-              }}
-              style={{
-                padding: '5px 8px',
-                borderRadius: '6px',
-                border: '1px solid #cbd5e1',
-                fontSize: '12px',
-                color: '#0f172a',
-                backgroundColor: '#ffffff',
-                height: '32px',
-                boxSizing: 'border-box',
-              }}
-            >
-              <option value="all">Tất cả bản ghi đối chiếu</option>
-              <option value="unbalanced">Có chênh lệch / Chưa khớp 100%</option>
-              <option value="balanced">Đã khớp 100% không lệch</option>
-            </select>
-          </div>
+          {/* Ô 5: TRẠNG THÁI ĐỐI CHIẾU (Chỉ hiện khi ở tab đối chiếu và có quyền) */}
+          {canViewDailyReconciliation && activeTab === 'reconciliation' && (
+            <div>
+              <label style={{ fontSize: '11px', fontWeight: 600, color: '#64748b', display: 'block', marginBottom: '2px' }}>
+                Trạng thái đối chiếu
+              </label>
+              <select
+                value={balancedOnly === undefined ? 'all' : balancedOnly ? 'balanced' : 'unbalanced'}
+                onChange={(e) => {
+                  if (e.target.value === 'all') setBalancedOnly(undefined);
+                  else if (e.target.value === 'balanced') setBalancedOnly(true);
+                  else setBalancedOnly(false);
+                  setReconPage(1);
+                }}
+                style={{
+                  padding: '5px 8px',
+                  borderRadius: '6px',
+                  border: '1px solid #cbd5e1',
+                  fontSize: '12px',
+                  color: '#0f172a',
+                  backgroundColor: '#ffffff',
+                  height: '32px',
+                  boxSizing: 'border-box',
+                }}
+              >
+                <option value="all">Tất cả bản ghi đối chiếu</option>
+                <option value="unbalanced">Có chênh lệch / Chưa khớp 100%</option>
+                <option value="balanced">Đã khớp 100% không lệch</option>
+              </select>
+            </div>
+          )}
 
           {/* NÚT XÓA BỘ LỌC KHI ĐANG CÓ LỌC */}
           {(fromDate || toDate || searchQuery || statusFilter !== 'all' || balancedOnly !== undefined) && (
@@ -1566,18 +1609,19 @@ export const PaymentCollectionView: React.FC<PaymentCollectionViewProps> = ({
 
       {/* KHỐI 1: BẢNG TỔNG HỢP ĐỐI CHIẾU TIỀN THU - TIỀN NỘP THEO NGÀY & NHÂN VIÊN */}
       {!selectedBatch && activeTab === 'reconciliation' && (
-      <div
-        style={{
-          backgroundColor: '#ffffff',
-          borderRadius: '12px',
-          border: '1px solid #e2e8f0',
-          overflow: 'hidden',
-          boxShadow: '0 2px 4px rgba(0,0,0,0.04)',
-          marginBottom: '32px',
-        }}
-      >
+        canViewDailyReconciliation ? (
         <div
           style={{
+            backgroundColor: '#ffffff',
+            borderRadius: '12px',
+            border: '1px solid #e2e8f0',
+            overflow: 'hidden',
+            boxShadow: '0 2px 4px rgba(0,0,0,0.04)',
+            marginBottom: '32px',
+          }}
+        >
+          <div
+            style={{
               padding: '14px 20px',
               backgroundColor: '#f8fafc',
               borderBottom: '1px solid #e2e8f0',
@@ -1773,86 +1817,93 @@ export const PaymentCollectionView: React.FC<PaymentCollectionViewProps> = ({
             'bản ghi đối chiếu'
           )}
         </div>
+        ) : (
+          <AccessDeniedView
+            currentUser={currentUser || ({ username: 'user', role: 'unknown', roles: [] } as any)}
+            requiredPermission="Bảng đối chiếu tiền thu theo từng nhân viên và từng ngày (Chỉ Quản trị viên và Nhân viên kinh doanh)"
+            onBackToWorkflow={() => setActiveTab('all_collections')}
+          />
+        )
       )}
 
       {/* KHỐI 2: DANH SÁCH CÁC KHOẢN THU TIỀN TUYẾN & DUYỆT NỘP */}
       {!selectedBatch && activeTab === 'all_collections' && (
-      <div
-        style={{
-          backgroundColor: '#ffffff',
-          borderRadius: '12px',
-          border: '1px solid #e2e8f0',
-          overflow: 'hidden',
-          boxShadow: '0 2px 4px rgba(0,0,0,0.04)',
-          marginBottom: '32px',
-        }}
-      >
         <div
           style={{
-            padding: '14px 20px',
-            backgroundColor: '#f8fafc',
-            borderBottom: '1px solid #e2e8f0',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            flexWrap: 'wrap',
-            gap: '12px',
+            backgroundColor: '#ffffff',
+            borderRadius: '12px',
+            border: '1px solid #e2e8f0',
+            overflow: 'hidden',
+            boxShadow: '0 2px 4px rgba(0,0,0,0.04)',
+            marginBottom: '32px',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
-            <span style={{ fontWeight: 700, color: '#0f172a', fontSize: '15px' }}>
-              Danh Sách Các Khoản Thu Tiền Tuyến
+          <div
+            style={{
+              padding: '14px 20px',
+              backgroundColor: '#f8fafc',
+              borderBottom: '1px solid #e2e8f0',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '12px',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+              <span style={{ fontWeight: 700, color: '#0f172a', fontSize: '15px' }}>
+                Danh Sách Các Khoản Thu Tiền Tuyến
+              </span>
+              {selectedIds.length > 0 && (
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  <span style={{ fontSize: '13px', fontWeight: 600, color: '#2563eb' }}>
+                    Đã chọn: {selectedIds.length} khoản
+                  </span>
+                  {canCollect && (
+                    <button
+                      type="button"
+                      onClick={handleBulkRemit}
+                      disabled={actionLoading}
+                      style={{
+                        padding: '6px 12px',
+                        backgroundColor: '#0284c7',
+                        color: '#ffffff',
+                        border: 'none',
+                        borderRadius: '6px',
+                        fontSize: '12px',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Nộp tiền về Cty ({selectedIds.length})
+                    </button>
+                  )}
+                  {canConfirm && (
+                    <button
+                      type="button"
+                      onClick={handleBulkConfirm}
+                      disabled={actionLoading}
+                      style={{
+                        padding: '6px 12px',
+                        backgroundColor: '#16a34a',
+                        color: '#ffffff',
+                        border: 'none',
+                        borderRadius: '6px',
+                        fontSize: '12px',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Duyệt nhận tiền ({selectedIds.length})
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+            <span style={{ fontSize: '13px', color: '#64748b' }}>
+              Tổng cộng: <strong>{listData?.total || 0}</strong> khoản thu
             </span>
-            {selectedIds.length > 0 && (
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                <span style={{ fontSize: '13px', fontWeight: 600, color: '#2563eb' }}>
-                  Đã chọn: {selectedIds.length} khoản
-                </span>
-                {canCollect && (
-                  <button
-                    type="button"
-                    onClick={handleBulkRemit}
-                    disabled={actionLoading}
-                    style={{
-                      padding: '6px 12px',
-                      backgroundColor: '#0284c7',
-                      color: '#ffffff',
-                      border: 'none',
-                      borderRadius: '6px',
-                      fontSize: '12px',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    Nộp tiền về Cty ({selectedIds.length})
-                  </button>
-                )}
-                {canConfirm && (
-                  <button
-                    type="button"
-                    onClick={handleBulkConfirm}
-                    disabled={actionLoading}
-                    style={{
-                      padding: '6px 12px',
-                      backgroundColor: '#16a34a',
-                      color: '#ffffff',
-                      border: 'none',
-                      borderRadius: '6px',
-                      fontSize: '12px',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    Duyệt nhận tiền ({selectedIds.length})
-                  </button>
-                )}
-              </div>
-            )}
           </div>
-          <span style={{ fontSize: '13px', color: '#64748b' }}>
-            Tổng cộng: <strong>{listData?.total || 0}</strong> khoản thu
-          </span>
-        </div>
 
           <div
             ref={collectionsTableRef}
