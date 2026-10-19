@@ -571,7 +571,7 @@ export default function DiscountPolicyView({ token, user, onBackToHome: _onBackT
                           transition: 'all 0.15s ease',
                         }}
                       >
-                        ✓ Tất cả SP
+                        Tất cả SP
                       </button>
 
                       <button
@@ -601,7 +601,7 @@ export default function DiscountPolicyView({ token, user, onBackToHome: _onBackT
                           transition: 'all 0.15s ease',
                         }}
                       >
-                        📦 1 Nhóm hàng
+                        1 Nhóm hàng
                       </button>
 
                       <button
@@ -631,7 +631,7 @@ export default function DiscountPolicyView({ token, user, onBackToHome: _onBackT
                           transition: 'all 0.15s ease',
                         }}
                       >
-                        🏷️ 1 SP lẻ
+                        1 SP lẻ
                       </button>
                     </div>
                   </div>

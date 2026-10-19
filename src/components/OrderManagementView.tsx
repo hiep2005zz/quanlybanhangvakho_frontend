@@ -30,6 +30,7 @@ interface OrderManagementViewProps {
   onBackToHome?: () => void;
   onRefreshProducts?: () => void;
   onNavigateToPriceBooks?: () => void;
+  initialSearchTerm?: string;
 }
 
 export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
@@ -40,11 +41,18 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
   onRefreshProducts,
   onNavigateToPriceBooks: _onNavigateToPriceBooks,
   onCloneOrder: _onCloneOrder,
+  initialSearchTerm,
 }) => {
   const [orders, setOrders] = useState<OrderResponseData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState(initialSearchTerm || '');
+
+  useEffect(() => {
+    if (initialSearchTerm !== undefined) {
+      setSearchTerm(initialSearchTerm);
+    }
+  }, [initialSearchTerm]);
   const [statusFilter, setStatusFilter] = useState<
     'ALL' | 'PENDING_APPROVAL' | 'CONFIRMED' | 'PICKING' | 'EXPORTED' | 'DELIVERED' | 'REJECTED' | 'CANCELLED'
   >('ALL');
@@ -308,8 +316,8 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
   // Tính toán số liệu thống kê
   const totalOrdersCount = orders.length;
   const pendingOrdersCount = orders.filter((o) => o.status === 'PENDING_APPROVAL' || o.status === 'PENDING').length;
-  const confirmedOrdersCount = orders.filter((o) => ['CONFIRMED', 'APPROVED'].includes(o.status)).length;
-  const deliveredOrdersCount = orders.filter((o) => ['DELIVERED', 'CLOSED', 'COMPLETED', 'ĐÃ GIAO'].includes((o.status || '').toUpperCase())).length;
+  const confirmedOrdersCount = orders.filter((o) => ['CONFIRMED', 'APPROVED', 'PICKING', 'PREPARING', 'PACKING', 'EXPORTED', 'SHIPPED', 'DISPATCHED', 'PARTIALLY_DELIVERED'].includes(o.status)).length;
+  const deliveredOrdersCount = orders.filter((o) => ['DELIVERED', 'CLOSED', 'COMPLETED', 'PARTIALLY_DELIVERED', 'ĐÃ GIAO'].includes((o.status || '').toUpperCase())).length;
   const totalRevenue = orders.reduce((sum, o) => sum + (o.total_amount || 0), 0);
 
   // Bộ lọc và sắp xếp đơn hàng: Ưu tiên đơn chưa duyệt (PENDING_APPROVAL) lên đầu trang
@@ -331,7 +339,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
           (statusFilter === 'CONFIRMED' && (o.status === 'CONFIRMED' || o.status === 'APPROVED')) ||
           (statusFilter === 'PICKING' && ['PICKING', 'PREPARING', 'PACKING', 'ĐANG SOẠN HÀNG'].includes((o.status || '').toUpperCase())) ||
           (statusFilter === 'EXPORTED' && ['EXPORTED', 'SHIPPED', 'DISPATCHED', 'ĐÃ XUẤT'].includes((o.status || '').toUpperCase())) ||
-          (statusFilter === 'DELIVERED' && ['DELIVERED', 'CLOSED', 'COMPLETED', 'ĐÃ GIAO'].includes((o.status || '').toUpperCase())) ||
+          (statusFilter === 'DELIVERED' && ['DELIVERED', 'CLOSED', 'COMPLETED', 'PARTIALLY_DELIVERED', 'ĐÃ GIAO'].includes((o.status || '').toUpperCase())) ||
           (statusFilter === 'REJECTED' && o.status === 'REJECTED') ||
           (statusFilter === 'CANCELLED' && o.status === 'CANCELLED');
 
@@ -576,6 +584,25 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
           }}
         >
           Đã giao hàng
+        </span>
+      );
+    }
+    if (['PARTIALLY_DELIVERED', 'GIAO THIẾU', 'XUẤT MỘT PHẦN'].includes((status || '').toUpperCase())) {
+      return (
+        <span
+          style={{
+            display: 'inline-block',
+            background: '#fef3c7',
+            color: '#b45309',
+            border: '1px solid #fde68a',
+            borderRadius: '999px',
+            padding: '2.5px 10px',
+            fontSize: '11.5px',
+            fontWeight: '600',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          Giao thiếu (Nợ hàng)
         </span>
       );
     }
