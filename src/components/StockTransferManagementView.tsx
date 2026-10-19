@@ -12,6 +12,7 @@ import {
 } from '../services/api';
 import { emitStatusToast } from './StatusToast';
 import { ModalPortal } from './ModalPortal';
+import { WarehouseSelectDropdown } from './WarehouseSelectDropdown';
 
 interface StockTransferManagementViewProps {
   token: string;
@@ -115,6 +116,19 @@ export function StockTransferManagementView({
   const [totalProductsCount, setTotalProductsCount] = useState(0);
   const [loadingMoreProducts, setLoadingMoreProducts] = useState(false);
   const productDropdownRef = useRef<HTMLDivElement | null>(null);
+  const productListContainerRef = useRef<HTMLDivElement | null>(null);
+  const initialProductsRef = useRef<
+    {
+      product_id: number;
+      product_code: string;
+      product_name: string;
+      category_name: string;
+      base_unit: string;
+      available_stock: number;
+    }[]
+  >([]);
+  const initialTotalCountRef = useRef<number>(0);
+  const prevProductDropdownOpenRef = useRef<boolean>(productDropdownOpen);
 
   // Debounce 300ms khi người dùng gõ từ khóa tìm kiếm
   useEffect(() => {
@@ -123,6 +137,59 @@ export function StockTransferManagementView({
     }, 300);
     return () => clearTimeout(timer);
   }, [productSearchTerm]);
+
+  // Hàm khôi phục danh sách sản phẩm về trạng thái ban đầu (10 sản phẩm đầu, trang 1, cuộn lên đỉnh, xóa ô tìm kiếm)
+  const resetProductDropdownToInitial = useCallback(async () => {
+    setProductSearchTerm('');
+    setDebouncedSearchTerm('');
+    setProductPage(1);
+    if (productListContainerRef.current) {
+      productListContainerRef.current.scrollTop = 0;
+    }
+
+    if (initialProductsRef.current.length > 0) {
+      setAvailableProducts(initialProductsRef.current);
+      setTotalProductsCount(initialTotalCountRef.current);
+    } else if (fromWarehouseId) {
+      setLoadingProducts(true);
+      try {
+        const res = await getStockBookApi(token, {
+          warehouse_id: fromWarehouseId,
+          page: 1,
+          page_size: PRODUCT_PAGE_SIZE,
+        });
+        const mapped = (res.items || []).map((it) => ({
+          product_id: it.product_id,
+          product_code: it.product_code,
+          product_name: it.product_name,
+          category_name: it.category,
+          base_unit: it.base_unit || 'Cái',
+          available_stock: it.available_stock ?? 0,
+        }));
+        setAvailableProducts(mapped);
+        const total = res.total ?? res.summary?.total_skus ?? mapped.length;
+        setTotalProductsCount(total);
+        initialProductsRef.current = mapped;
+        initialTotalCountRef.current = total;
+      } catch (err) {
+        console.error('Lỗi khôi phục danh sách sản phẩm ban đầu:', err);
+      } finally {
+        setLoadingProducts(false);
+      }
+    }
+  }, [fromWarehouseId, token]);
+
+  // Khi đóng bảng sản phẩm hoặc mở lại, luôn reset về trạng thái ban đầu (10 sản phẩm đầu tiên)
+  useEffect(() => {
+    if (prevProductDropdownOpenRef.current && !productDropdownOpen) {
+      // Khi đóng bảng: reset ngay để lần sau mở lại luôn ở trạng thái ban đầu
+      resetProductDropdownToInitial();
+    } else if (!prevProductDropdownOpenRef.current && productDropdownOpen) {
+      // Khi mở lại bảng: đảm bảo tải lại từ đầu
+      resetProductDropdownToInitial();
+    }
+    prevProductDropdownOpenRef.current = productDropdownOpen;
+  }, [productDropdownOpen, resetProductDropdownToInitial]);
 
   // Nạp thêm 10 sản phẩm tiếp theo từ Backend
   const handleLoadMoreProducts = useCallback(async () => {
@@ -313,7 +380,12 @@ export function StockTransferManagementView({
           available_stock: it.available_stock ?? 0,
         }));
         setAvailableProducts(mapped);
-        setTotalProductsCount(res.total ?? res.summary?.total_skus ?? mapped.length);
+        const total = res.total ?? res.summary?.total_skus ?? mapped.length;
+        setTotalProductsCount(total);
+        if (!debouncedSearchTerm.trim()) {
+          initialProductsRef.current = mapped;
+          initialTotalCountRef.current = total;
+        }
       })
       .catch((err) => {
         if (isCancelled) return;
@@ -1006,25 +1078,22 @@ export function StockTransferManagementView({
                         Kho xuất
                       </span>
                     </div>
-                    <select
-                      value={fromWarehouseId}
-                      onChange={(e) => {
-                        const newFrom = e.target.value;
+                    <WarehouseSelectDropdown
+                      id="select-from-warehouse"
+                      warehouses={warehouses}
+                      selectedId={fromWarehouseId}
+                      onSelect={(newFrom) => {
                         setFromWarehouseId(newFrom);
                         setTransferItems([]);
+                        initialProductsRef.current = [];
+                        setProductDropdownOpen(false);
                         if (toWarehouseId === newFrom) {
                           const nextTo = warehouses.find((w) => w.id !== newFrom);
                           if (nextTo) setToWarehouseId(nextTo.id);
                         }
                       }}
-                      className="w-full px-3.5 py-2.5 text-sm font-semibold border border-slate-300 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-2xs cursor-pointer text-slate-900"
-                    >
-                      {warehouses.map((w) => (
-                        <option key={w.id} value={w.id}>
-                          {w.name} ({w.id})
-                        </option>
-                      ))}
-                    </select>
+                      placeholder="-- Chọn kho gửi (xuất đi) --"
+                    />
                     <p className="text-[11px] text-slate-500 leading-relaxed">
                       Tồn kho thực tế tại kho này sẽ bị <b>trừ ngay</b> khi lập phiếu.
                     </p>
@@ -1041,19 +1110,13 @@ export function StockTransferManagementView({
                         Kho nhận
                       </span>
                     </div>
-                    <select
-                      value={toWarehouseId}
-                      onChange={(e) => setToWarehouseId(e.target.value)}
-                      className="w-full px-3.5 py-2.5 text-sm font-semibold border border-slate-300 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-2xs cursor-pointer text-slate-900"
-                    >
-                      {warehouses
-                        .filter((w) => w.id !== fromWarehouseId)
-                        .map((w) => (
-                          <option key={w.id} value={w.id}>
-                            {w.name} ({w.id})
-                          </option>
-                        ))}
-                    </select>
+                    <WarehouseSelectDropdown
+                      id="select-to-warehouse"
+                      warehouses={warehouses.filter((w) => w.id !== fromWarehouseId)}
+                      selectedId={toWarehouseId}
+                      onSelect={(newTo) => setToWarehouseId(newTo)}
+                      placeholder="-- Chọn kho nhận (đích đến) --"
+                    />
                     <p className="text-[11px] text-amber-700 leading-relaxed font-medium">
                       <b>Chưa cộng tồn kho nhận</b> cho đến khi thủ kho đến bấm xác nhận đủ.
                     </p>
@@ -1189,6 +1252,7 @@ export function StockTransferManagementView({
 
                       {/* Danh sách sản phẩm cuộn mượt, chiều cao linh hoạt, không bị che khuất */}
                       <div
+                        ref={productListContainerRef}
                         className="overflow-y-auto divide-y divide-slate-100"
                         style={{ maxHeight: '340px', minHeight: availableProducts.length === 0 ? '120px' : '160px' }}
                         onScroll={handleProductListScroll}
