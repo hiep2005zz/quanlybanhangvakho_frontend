@@ -181,8 +181,8 @@ export default function DashboardPage({
   // Quyền thao tác kho (Nhập/xuất/sửa kho: Admin, Quản lý kho, Thủ kho)
   const canWriteInventory = user.can_write_inventory ?? (isAdmin || officialRoles.some((r) => ['admin', 'warehouse', 'warehouse_manager'].includes(r)));
 
-  // Quyền Cấu hình ĐVT quy đổi (Chỉ Quản trị hệ thống và Quản lý kho)
-  const canConfigUnit = isAdmin || officialRoles.some((r) => ['admin', 'warehouse_manager'].includes(r));
+  // Quyền Cấu hình ĐVT quy đổi (Quản trị hệ thống, Quản lý kho và Thủ kho)
+  const canConfigUnit = isAdmin || officialRoles.some((r) => ['admin', 'warehouse_manager', 'warehouse', 'warehouse_mgr'].includes(r));
 
   // Quyền Cấu hình Định mức tồn tối thiểu (Chỉ Quản trị hệ thống và Quản lý kho, Thủ kho không có quyền)
   const canManageThreshold = isAdmin || officialRoles.some((r) => ['admin', 'warehouse_manager'].includes(r));
