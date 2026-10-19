@@ -608,7 +608,17 @@ export const DealerDebtStatementView: React.FC<DealerDebtStatementViewProps> = (
           <div className="stmt-dealer-field">
             <span className="stmt-dealer-lbl">Mã số thuế / SĐT</span>
             <span className="stmt-dealer-val">
-              {currentDealer.tax_code || '—'} {currentDealer.phone ? `| ${currentDealer.phone}` : ''}
+              {(() => {
+                const clean = (val?: string | null) => {
+                  if (!val) return '';
+                  const t = val.trim();
+                  return t === '-' || t === '—' ? '' : t;
+                };
+                const tax = clean(currentDealer.tax_code);
+                const phone = clean(currentDealer.phone);
+                if (tax && phone) return `${tax} | ${phone}`;
+                return tax || phone || '—';
+              })()}
             </span>
           </div>
 

@@ -1145,6 +1145,8 @@ export interface CustomerCreateResponse {
   user: UserAccount;
   email_sent: boolean;
   message: string;
+  temporary_password?: string;
+  activation_code?: string;
 }
 
 export interface UserCreatePayload {
@@ -1240,6 +1242,29 @@ export async function createCustomerApi(token: string, payload: CustomerCreatePa
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
     throw new Error(data.detail || `Lỗi tạo tài khoản kinh doanh (Mã lỗi ${response.status})`);
+  }
+  return data;
+}
+
+export interface ResendCredentialsResponse {
+  status: string;
+  message: string;
+  username: string;
+  email?: string;
+  email_sent: boolean;
+  temporary_password: string;
+  activation_code: string;
+}
+
+export async function resendUserCredentialsApi(token: string, username: string): Promise<ResendCredentialsResponse> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/users/${encodeURIComponent(username)}/resend-credentials`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+  }, token);
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi khi cấp lại mã đăng nhập (Mã lỗi ${response.status})`);
   }
   return data;
 }
