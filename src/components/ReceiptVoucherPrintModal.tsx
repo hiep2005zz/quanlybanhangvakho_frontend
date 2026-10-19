@@ -1,7 +1,8 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ReceiptVoucherData } from '../services/dealerSearchApi';
 import { User } from '../services/api';
+import { downloadElementAsPdf } from '../utils/pdfExport';
 import './receipt-voucher-print.css';
 
 interface ReceiptVoucherPrintModalProps {
@@ -281,12 +282,24 @@ export const ReceiptVoucherPrintModal: React.FC<ReceiptVoucherPrintModalProps> =
     }, 200);
   };
 
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
+
   const handlePrint = () => {
     executeIframePrint();
   };
 
-  const handleDownloadPdf = () => {
-    executeIframePrint();
+  const handleDownloadPdf = async () => {
+    const paperEl = printAreaRef.current?.querySelector('.receipt-print-paper') as HTMLElement | null;
+    if (!paperEl || isExportingPdf) return;
+    try {
+      setIsExportingPdf(true);
+      await downloadElementAsPdf(paperEl, `Phieu-Thu-${voucher.receipt_code}.pdf`);
+    } catch (err) {
+      console.error('Lỗi khi xuất PDF phiếu thu:', err);
+      executeIframePrint();
+    } finally {
+      setIsExportingPdf(false);
+    }
   };
 
   // Định dạng ngày chứng từ
@@ -324,10 +337,12 @@ export const ReceiptVoucherPrintModal: React.FC<ReceiptVoucherPrintModalProps> =
             <button
               type="button"
               onClick={handleDownloadPdf}
+              disabled={isExportingPdf}
               className="receipt-btn receipt-btn-pdf"
-              title="Lưu hoặc tải chứng từ dạng PDF"
+              title="Tải trực tiếp chứng từ dạng tệp PDF"
+              style={{ opacity: isExportingPdf ? 0.7 : 1, cursor: isExportingPdf ? 'wait' : 'pointer' }}
             >
-              Tải PDF
+              {isExportingPdf ? 'Đang tạo PDF...' : 'Tải PDF'}
             </button>
 
             <button
