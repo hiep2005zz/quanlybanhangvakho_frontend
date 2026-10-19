@@ -843,9 +843,6 @@ export const DeliveryTripDetailView: React.FC<DeliveryTripDetailViewProps> = ({
             {/* Header Modal */}
             <div className="flex items-start justify-between gap-3 pb-3 border-b border-gray-100">
               <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center font-bold text-lg shrink-0">
-                  ✓
-                </div>
                 <div>
                   <h3 className="text-base font-bold text-gray-900">Xác nhận Giao hàng thành công (POD)</h3>
                   <p className="text-xs text-gray-500">
@@ -911,7 +908,7 @@ export const DeliveryTripDetailView: React.FC<DeliveryTripDetailViewProps> = ({
                       />
                       <div className="flex items-center gap-2.5 mt-2">
                         <span className="text-[11px] text-emerald-700 font-semibold flex items-center gap-1">
-                          ✓ Đã đính kèm ảnh biên bản bàn giao
+                          Đã đính kèm ảnh biên bản bàn giao
                         </span>
                         <button
                           type="button"
@@ -960,7 +957,7 @@ export const DeliveryTripDetailView: React.FC<DeliveryTripDetailViewProps> = ({
                 <label className="block text-xs font-bold text-gray-700">
                   Rà soát chi tiết hàng hóa thực giao
                 </label>
-                <div className="border border-gray-200 rounded-xl overflow-hidden bg-white max-h-36 overflow-y-auto">
+                <div className="border border-gray-200 rounded-xl overflow-hidden bg-white shadow-2xs">
                   <table className="w-full text-left text-xs border-collapse">
                     <thead className="bg-gray-50 border-b border-gray-200 text-gray-500 font-semibold sticky top-0">
                       <tr>
