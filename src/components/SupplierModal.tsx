@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Supplier, createSupplierApi, updateSupplierApi } from '../services/api';
+import { emitStatusToast } from './StatusToast';
 
 interface SupplierModalProps {
   isOpen: boolean;
@@ -59,13 +60,11 @@ export const SupplierModal: React.FC<SupplierModalProps> = ({
     contact_person: '',
     payment_terms: '',
   });
-  const [error, setError] = useState<string | null>(null);
   const [invalidField, setInvalidField] = useState<'code' | 'name' | 'tax_code' | 'contact_person' | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Refs để điều khiển cuộn trang và tự động focus vào trường lỗi
+  // Refs để tự động focus vào trường lỗi
   const formRef = useRef<HTMLFormElement>(null);
-  const errorRef = useRef<HTMLDivElement>(null);
   const codeRef = useRef<HTMLInputElement>(null);
   const nameRef = useRef<HTMLInputElement>(null);
   const taxCodeRef = useRef<HTMLInputElement>(null);
@@ -74,7 +73,6 @@ export const SupplierModal: React.FC<SupplierModalProps> = ({
   // Mỗi lần mở modal: nạp lại dữ liệu (sửa) hoặc làm trống (thêm mới)
   useEffect(() => {
     if (!isOpen) return;
-    setError(null);
     setInvalidField(null);
     setIsSubmitting(false);
     setForm({
@@ -88,25 +86,20 @@ export const SupplierModal: React.FC<SupplierModalProps> = ({
 
   if (!isOpen) return null;
 
-  // Hàm kích hoạt nhảy lên đầu form khi có thông tin không hợp lệ
+  // Hàm kích hoạt thông báo hệ thống khi có thông tin không hợp lệ
   const triggerValidationError = (
     msg: string,
     field?: 'code' | 'name' | 'tax_code' | 'contact_person'
   ) => {
-    setError(msg);
+    emitStatusToast({
+      title: 'Thông báo hệ thống',
+      message: msg,
+      type: 'warning',
+    });
     setInvalidField(field || null);
 
-    // 1. Tự động nhảy / cuộn mượt mà lên đỉnh modal/form
-    if (formRef.current) {
-      formRef.current.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-
-    // 2. Đảm bảo khung thông báo lỗi lọt vào tầm nhìn
+    // Tự động focus vào trường chưa hợp lệ
     setTimeout(() => {
-      if (errorRef.current) {
-        errorRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      }
-      // 3. Tự động focus vào trường chưa hợp lệ
       if (field === 'code' && codeRef.current) codeRef.current.focus();
       else if (field === 'name' && nameRef.current) nameRef.current.focus();
       else if (field === 'tax_code' && taxCodeRef.current) taxCodeRef.current.focus();
@@ -116,7 +109,6 @@ export const SupplierModal: React.FC<SupplierModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
     setInvalidField(null);
 
     const code = form.code.trim().toUpperCase();
@@ -170,7 +162,11 @@ export const SupplierModal: React.FC<SupplierModalProps> = ({
       }
       onClose();
     } catch (err: any) {
-      triggerValidationError(err.message || 'Có lỗi xảy ra. Vui lòng thử lại.');
+      emitStatusToast({
+        title: 'Thông báo hệ thống',
+        message: err.message || 'Có lỗi xảy ra. Vui lòng thử lại.',
+        type: 'error',
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -247,34 +243,6 @@ export const SupplierModal: React.FC<SupplierModalProps> = ({
 
         {/* Form */}
         <form ref={formRef} onSubmit={handleSubmit} style={{ padding: '22px 24px', overflowY: 'auto' }}>
-          {error && (
-            <div
-              ref={errorRef}
-              style={{
-                background: '#fef2f2',
-                border: '1.5px solid #f87171',
-                color: '#991b1b',
-                padding: '12px 16px',
-                borderRadius: '12px',
-                fontSize: '13.5px',
-                marginBottom: '18px',
-                boxShadow: '0 4px 12px rgba(239, 68, 68, 0.15)',
-                display: 'flex',
-                alignItems: 'flex-start',
-                gap: '10px',
-                lineHeight: 1.5,
-              }}
-            >
-              <span style={{ fontSize: '18px', flexShrink: 0, marginTop: '1px' }}>⚠️</span>
-              <div style={{ flex: 1 }}>
-                <strong style={{ display: 'block', fontSize: '13.5px', marginBottom: '2px', color: '#b91c1c' }}>
-                  Thông tin chưa hợp lệ:
-                </strong>
-                <div>{error}</div>
-              </div>
-            </div>
-          )}
-
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             {/* Mã nhà cung cấp: chỉ nhập khi thêm mới, khi sửa thì khoá */}
             <div>

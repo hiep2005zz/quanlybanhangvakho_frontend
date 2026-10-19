@@ -20,12 +20,10 @@ export const RejectOrderModal: React.FC<RejectOrderModalProps> = ({
 }) => {
   const [reason, setReason] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOpen) {
       setReason('');
-      setErrorMsg(null);
       setIsSubmitting(false);
     }
   }, [isOpen]);
@@ -36,12 +34,15 @@ export const RejectOrderModal: React.FC<RejectOrderModalProps> = ({
     e.preventDefault();
     const trimmedReason = reason.trim();
     if (!trimmedReason) {
-      setErrorMsg('Vui lòng nhập lý do từ chối đơn hàng.');
+      emitStatusToast({
+        title: 'Thông báo hệ thống',
+        message: 'Vui lòng nhập lý do từ chối đơn hàng.',
+        type: 'warning',
+      });
       return;
     }
 
     setIsSubmitting(true);
-    setErrorMsg(null);
 
     try {
       const updated = await rejectOrderApi(token, order.order_code, trimmedReason);
@@ -52,7 +53,11 @@ export const RejectOrderModal: React.FC<RejectOrderModalProps> = ({
       onSuccess();
       onClose();
     } catch (err: any) {
-      setErrorMsg(err.message || 'Lỗi khi từ chối đơn hàng.');
+      emitStatusToast({
+        title: 'Thông báo hệ thống',
+        message: err.message || 'Lỗi khi từ chối đơn hàng.',
+        type: 'error',
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -109,32 +114,12 @@ export const RejectOrderModal: React.FC<RejectOrderModalProps> = ({
           </p>
         </div>
 
-        {errorMsg && (
-          <div
-            style={{
-              padding: '10px 14px',
-              borderRadius: '8px',
-              background: '#fef2f2',
-              border: '1px solid #fecaca',
-              color: '#dc2626',
-              fontSize: '13px',
-              fontWeight: '600',
-              marginBottom: '16px',
-            }}
-          >
-            {errorMsg}
-          </div>
-        )}
-
         <form onSubmit={handleSubmit}>
           <div style={{ marginBottom: '20px' }}>
             <textarea
               id="input-reject-order-reason"
               value={reason}
-              onChange={(e) => {
-                setReason(e.target.value);
-                if (errorMsg) setErrorMsg(null);
-              }}
+              onChange={(e) => setReason(e.target.value)}
               placeholder="Nhập chi tiết lý do từ chối (bắt buộc)..."
               rows={4}
               required

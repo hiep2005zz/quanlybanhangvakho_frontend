@@ -129,7 +129,15 @@ export default function DealerProfileManagementView({
     warehouse_id: '',
     warehouse_name: '',
   });
-  const [formError, setFormError] = useState('');
+  const setFormError = useCallback((msg: string) => {
+    if (msg) {
+      emitStatusToast({
+        title: 'Thông báo hệ thống',
+        message: msg,
+        type: 'warning',
+      });
+    }
+  }, []);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Dynamic applied price book preview in form modal
@@ -520,7 +528,11 @@ export default function DealerProfileManagementView({
       loadDealers();
       loadStats();
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'Có lỗi xảy ra khi lưu hồ sơ đại lý.');
+      emitStatusToast({
+        title: 'Thông báo hệ thống',
+        message: err instanceof Error ? err.message : 'Có lỗi xảy ra khi lưu hồ sơ đại lý.',
+        type: 'error',
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -696,28 +708,6 @@ export default function DealerProfileManagementView({
             </h2>
           </div>
         </div>
-
-        {/* Thông báo lỗi dạng popup nổi góc dưới bên phải */}
-        {formError && (
-          <div className="dealer-form-error-floating" role="alert">
-            <div className="dealer-form-error-floating-icon">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2.2">
-                <circle cx="12" cy="12" r="10" />
-                <line x1="12" y1="8" x2="12" y2="12" />
-                <line x1="12" y1="16" x2="12.01" y2="16" />
-              </svg>
-            </div>
-            <div className="dealer-form-error-floating-msg">{formError}</div>
-            <button
-              type="button"
-              className="dealer-form-error-floating-close"
-              onClick={() => setFormError('')}
-              title="Đóng thông báo"
-            >
-              ✕
-            </button>
-          </div>
-        )}
 
         {/* Bảng hồ sơ đại lý duy nhất (Unified Card) - Gọn đẹp, hiện đại, tối ưu 100% trên điện thoại & máy tính */}
         <form onSubmit={handleSubmitForm} className="dealer-unified-form-wrap">

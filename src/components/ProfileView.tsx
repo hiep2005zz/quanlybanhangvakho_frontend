@@ -52,7 +52,6 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // Form states
   const [fullNameInput, setFullNameInput] = useState(currentUser.full_name || '');
@@ -66,7 +65,6 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
 
   // Avatar upload & resize states
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
-  const [avatarError, setAvatarError] = useState<string | null>(null);
   const [pendingAvatarFile, setPendingAvatarFile] = useState<File | null>(null);
   const [pendingAvatarPreview, setPendingAvatarPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -99,9 +97,6 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
       }
     };
 
-    setAvatarError(null);
-    setErrorMsg(null);
-
     // 1. Ràng buộc loại file: CHỈ được là image/jpeg hoặc image/png
     const validMimes = ['image/jpeg', 'image/png'];
     const lowerName = file.name.toLowerCase();
@@ -113,8 +108,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
       setCropModalOpen(false);
       setRawImageSrc(null);
       const err = 'Định dạng ảnh không hợp lệ. Chỉ chấp nhận tệp image/jpeg hoặc image/png (.jpg, .jpeg, .png).';
-      setAvatarError(err);
-      emitStatusToast({ message: err, title: 'Ảnh đại diện' });
+      emitStatusToast({ message: err, title: 'Ảnh đại diện', type: 'warning' });
       return;
     }
 
@@ -128,8 +122,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
       const err = file.size <= 0
         ? 'Tệp hình ảnh rỗng hoặc không có dữ liệu.'
         : `Dung lượng tệp (${sizeMB}MB) vượt quá mức cho phép tối đa 2MB.`;
-      setAvatarError(err);
-      emitStatusToast({ message: err, title: 'Ảnh đại diện' });
+      emitStatusToast({ message: err, title: 'Ảnh đại diện', type: 'warning' });
       return;
     }
 
@@ -241,8 +234,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
       setRawImageSrc(null);
     } catch (err: any) {
       const msg = err.message || 'Lỗi khi xử lý hình ảnh.';
-      setAvatarError(msg);
-      emitStatusToast({ message: msg, title: 'Ảnh đại diện' });
+      emitStatusToast({ message: msg, title: 'Ảnh đại diện', type: 'error' });
     } finally {
       setUploadingAvatar(false);
     }
@@ -252,7 +244,6 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   useEffect(() => {
     let isMounted = true;
     setLoading(true);
-    setErrorMsg(null);
 
     getMyProfileApi(token)
       .then((data) => {
@@ -288,7 +279,11 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
       .catch((err) => {
         if (!isMounted) return;
         console.error('Failed to load profile:', err);
-        setErrorMsg(err.message || 'Không thể tải thông tin hồ sơ.');
+        emitStatusToast({
+          title: 'Thông báo hệ thống',
+          message: err.message || 'Không thể tải thông tin hồ sơ.',
+          type: 'error',
+        });
         setLoading(false);
       });
 
@@ -404,7 +399,6 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   // Xử lý gửi cập nhật hồ sơ
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setErrorMsg(null);
 
     const isNameValid = validateName(fullNameInput);
     const isPhoneValid = validatePhone(phoneInput);
@@ -492,7 +486,11 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
         // Bắt lỗi trùng số điện thoại (HTTP 409 Conflict / PHONE_DUPLICATED) và hiển thị chính xác thông báo yêu cầu
         setPhoneError('Số điện thoại này đã có trên hệ thống vui lòng đổi số khác');
       } else {
-        setErrorMsg(errMsg || 'Lỗi khi cập nhật hồ sơ cá nhân.');
+        emitStatusToast({
+          title: 'Thông báo hệ thống',
+          message: errMsg || 'Lỗi khi cập nhật hồ sơ cá nhân.',
+          type: 'error',
+        });
       }
     } finally {
       setSaving(false);
@@ -518,7 +516,6 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
     }
     setNameError(null);
     setPhoneError(null);
-    setErrorMsg(null);
     onBackToHome?.();
   };
 
@@ -700,49 +697,6 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               </h1>
             </div>
           </div>
-
-          {/* Thông báo lỗi nếu có */}
-          {errorMsg && (
-            <div
-              style={{
-                background: '#fef2f2',
-                border: '1px solid #fecaca',
-                color: '#dc2626',
-                padding: '12px 18px',
-                borderRadius: '10px',
-                margin: '18px 0 0',
-                fontSize: '13.5px',
-                fontWeight: '600',
-                display: 'flex',
-                alignItems: 'center',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
-              }}
-            >
-              <span>{errorMsg}</span>
-            </div>
-          )}
-
-          {/* Thông báo lỗi tải ảnh đại diện */}
-          {avatarError && (
-            <div
-              style={{
-                background: '#fef2f2',
-                border: '1px solid #fca5a5',
-                color: '#b91c1c',
-                padding: '12px 18px',
-                borderRadius: '10px',
-                margin: '18px 0 0',
-                fontSize: '13.5px',
-                fontWeight: '600',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
-              }}
-            >
-              <span>⚠️ {avatarError}</span>
-            </div>
-          )}
 
           {/* Toàn bộ các trường dữ liệu sắp xếp trong cùng 1 bảng gọn gàng */}
           <div
