@@ -9,15 +9,6 @@ import {
   ProductItem,
 } from '../services/api';
 
-// Hàm bỏ dấu tiếng Việt để hỗ trợ tìm kiếm không dấu
-const removeVietnameseAccents = (str: string) => {
-  return str
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/đ/g, 'd')
-    .replace(/Đ/g, 'D');
-};
-
 interface StockCardViewProps {
   productId: number;
   productName?: string;
@@ -36,7 +27,30 @@ export const StockCardView: React.FC<StockCardViewProps> = ({
   onNavigateToTab: _onNavigateToTab,
 }) => {
   const [selectedProductId, setSelectedProductId] = useState<number>(initialProductId);
+  const [selectedProductInfo, setSelectedProductInfo] = useState<{
+    id: number;
+    code?: string | null;
+    name: string;
+    category?: string | null;
+    base_unit?: string | null;
+  } | null>(
+    initialProductId
+      ? {
+          id: initialProductId,
+          name: initialProductName || '',
+          code: initialProductCode,
+        }
+      : null
+  );
+
+  // Danh sách sản phẩm phân trang 10 sản phẩm mỗi lần nạp & cuộn vô tận
   const [productsList, setProductsList] = useState<ProductItem[]>([]);
+  const [productPage, setProductPage] = useState<number>(1);
+  const [hasMoreProducts, setHasMoreProducts] = useState<boolean>(true);
+  const [isLoadingProducts, setIsLoadingProducts] = useState<boolean>(false);
+  const [isLoadingMoreProducts, setIsLoadingMoreProducts] = useState<boolean>(false);
+  const [totalProducts, setTotalProducts] = useState<number>(0);
+
   const [data, setData] = useState<StockCardResponse | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -44,8 +58,18 @@ export const StockCardView: React.FC<StockCardViewProps> = ({
   // Bộ chọn sản phẩm có ô tìm kiếm
   const [isProductPickerOpen, setIsProductPickerOpen] = useState<boolean>(false);
   const [productSearchTerm, setProductSearchTerm] = useState<string>('');
+  const [debouncedProductSearch, setDebouncedProductSearch] = useState<string>('');
   const productPickerRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const productListRef = useRef<HTMLDivElement>(null);
+
+  // Debounce tìm kiếm sản phẩm 250ms
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedProductSearch(productSearchTerm);
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [productSearchTerm]);
 
   // Đóng dropdown khi click ra ngoài
   useEffect(() => {
@@ -88,24 +112,102 @@ export const StockCardView: React.FC<StockCardViewProps> = ({
     }
   }, [isProductPickerOpen]);
 
-  // Lọc sản phẩm theo từ khóa (hỗ trợ cả có dấu và không dấu, tìm theo mã hoặc tên)
-  const filteredProducts = useMemo(() => {
-    const q = productSearchTerm.trim().toLowerCase();
-    if (!q) return productsList;
-    const cleanQ = removeVietnameseAccents(q);
-    return productsList.filter((p) => {
-      const code = (p.code || '').toLowerCase();
-      const name = (p.name || '').toLowerCase();
-      const cleanCode = removeVietnameseAccents(code);
-      const cleanName = removeVietnameseAccents(name);
-      return (
-        code.includes(q) ||
-        name.includes(q) ||
-        cleanCode.includes(cleanQ) ||
-        cleanName.includes(cleanQ)
-      );
-    });
-  }, [productsList, productSearchTerm]);
+  // Tải trang đầu tiên gồm 10 sản phẩm (có hỗ trợ tìm kiếm qua API backend)
+  const fetchProductsFirstPage = useCallback(
+    async (searchQuery: string) => {
+      if (!token) return;
+      setIsLoadingProducts(true);
+      try {
+        const trimmed = searchQuery.trim();
+        const res = await getProductsApi(token, {
+          page: 1,
+          page_size: 10,
+          search: trimmed || undefined,
+        });
+        const items = res.items || [];
+        const total = res.total ?? items.length;
+        const more =
+          res.has_more !== undefined
+            ? res.has_more
+            : items.length === 10 && items.length < total;
+
+        setProductsList(items);
+        setProductPage(1);
+        setTotalProducts(total);
+        setHasMoreProducts(more);
+      } catch (err) {
+        console.warn('Không thể tải danh sách sản phẩm cho bộ chọn thẻ kho:', err);
+        setProductsList([]);
+        setHasMoreProducts(false);
+      } finally {
+        setIsLoadingProducts(false);
+        if (productListRef.current) {
+          productListRef.current.scrollTop = 0;
+        }
+      }
+    },
+    [token]
+  );
+
+  // Tải lại trang đầu tiên khi thay đổi từ khóa tìm kiếm
+  useEffect(() => {
+    fetchProductsFirstPage(debouncedProductSearch);
+  }, [debouncedProductSearch, fetchProductsFirstPage]);
+
+  // Tải tiếp 10 sản phẩm tiếp theo khi cuộn xuống đáy (Infinite Scroll 10 items)
+  const loadMoreProducts = async () => {
+    if (!token || isLoadingProducts || isLoadingMoreProducts || !hasMoreProducts) return;
+    setIsLoadingMoreProducts(true);
+    const nextPage = productPage + 1;
+    try {
+      const res = await getProductsApi(token, {
+        page: nextPage,
+        page_size: 10,
+        search: debouncedProductSearch.trim() || undefined,
+      });
+      const newItems = res.items || [];
+      const total = res.total ?? (productsList.length + newItems.length);
+      const more =
+        res.has_more !== undefined
+          ? res.has_more
+          : newItems.length === 10 && (productsList.length + newItems.length) < total;
+
+      if (newItems.length === 0) {
+        setHasMoreProducts(false);
+      } else {
+        setProductsList((prev) => {
+          const existingIds = new Set(prev.map((p) => p.id));
+          const uniqueNewItems = newItems.filter((p) => !existingIds.has(p.id));
+          return [...prev, ...uniqueNewItems];
+        });
+        setProductPage(nextPage);
+        setTotalProducts(total);
+        setHasMoreProducts(more);
+      }
+    } catch (err) {
+      console.warn('Lỗi khi tải tiếp 10 sản phẩm:', err);
+      setHasMoreProducts(false);
+    } finally {
+      setIsLoadingMoreProducts(false);
+    }
+  };
+
+  // Bắt sự kiện cuộn danh sách (khi cách đáy <= 30px thì nạp thêm 10 sản phẩm tiếp)
+  const handleProductScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+    if (scrollHeight - scrollTop - clientHeight <= 30) {
+      if (hasMoreProducts && !isLoadingProducts && !isLoadingMoreProducts) {
+        loadMoreProducts();
+      }
+    }
+  };
+
+  // Cập nhật selectedProductId khi initialProductId thay đổi
+  useEffect(() => {
+    if (initialProductId) {
+      setSelectedProductId(initialProductId);
+    }
+  }, [initialProductId]);
 
   // Bộ lọc theo kho và khoảng thời gian (Tiêu chí 3)
   const [selectedWarehouse, setSelectedWarehouse] = useState<string>('all');
@@ -122,31 +224,18 @@ export const StockCardView: React.FC<StockCardViewProps> = ({
   const [currentPage, setCurrentPage] = useState<number>(1);
   const pageSize = 20;
 
-  // Tải danh sách sản phẩm để cho phép chọn nhanh sản phẩm khác ngay trên trang này
+  // Đồng bộ thông tin sản phẩm hiển thị khi summary trả về từ API
   useEffect(() => {
-    let isMounted = true;
-    const fetchProducts = async () => {
-      try {
-        const res = await getProductsApi(token);
-        if (isMounted && res?.items) {
-          setProductsList(res.items);
-        }
-      } catch (e) {
-        console.warn('Không thể tải danh sách sản phẩm cho bộ chọn thẻ kho:', e);
-      }
-    };
-    fetchProducts();
-    return () => {
-      isMounted = false;
-    };
-  }, [token]);
-
-  // Cập nhật selectedProductId khi initialProductId thay đổi
-  useEffect(() => {
-    if (initialProductId) {
-      setSelectedProductId(initialProductId);
+    if (data?.summary && data.summary.product_id === selectedProductId) {
+      setSelectedProductInfo({
+        id: selectedProductId,
+        name: data.summary.product_name,
+        code: data.summary.product_code,
+        category: data.summary.category,
+        base_unit: data.summary.base_unit,
+      });
     }
-  }, [initialProductId]);
+  }, [data?.summary, selectedProductId]);
 
   const fetchStockCard = useCallback(async () => {
     if (!selectedProductId) return;
@@ -308,10 +397,28 @@ export const StockCardView: React.FC<StockCardViewProps> = ({
   };
 
   const currentProductFromList = productsList.find((p) => p.id === selectedProductId);
-  const displayProductName = summary?.product_name || currentProductFromList?.name || initialProductName || `Sản phẩm #${selectedProductId}`;
-  const displayProductCode = summary?.product_code || currentProductFromList?.code || initialProductCode || '';
-  const displayCategory = summary?.category || currentProductFromList?.category || '';
-  const displayUnit = summary?.base_unit || currentProductFromList?.base_unit || 'Cái';
+  const displayProductName =
+    summary?.product_name ||
+    selectedProductInfo?.name ||
+    currentProductFromList?.name ||
+    initialProductName ||
+    `Sản phẩm #${selectedProductId}`;
+  const displayProductCode =
+    summary?.product_code ||
+    selectedProductInfo?.code ||
+    currentProductFromList?.code ||
+    initialProductCode ||
+    '';
+  const displayCategory =
+    summary?.category ||
+    selectedProductInfo?.category ||
+    currentProductFromList?.category ||
+    '';
+  const displayUnit =
+    summary?.base_unit ||
+    selectedProductInfo?.base_unit ||
+    currentProductFromList?.base_unit ||
+    'Cái';
 
   return (
     <div
@@ -593,7 +700,6 @@ export const StockCardView: React.FC<StockCardViewProps> = ({
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
               {/* Chọn sản phẩm trực tiếp có ô tìm kiếm */}
-              {productsList.length > 0 && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                   <label style={{ fontSize: '11.5px', fontWeight: '600', color: '#475569', whiteSpace: 'nowrap' }}>
                     Sản phẩm:
@@ -624,9 +730,9 @@ export const StockCardView: React.FC<StockCardViewProps> = ({
                         transition: 'all 0.15s ease',
                       }}
                       title={
-                        currentProductFromList
-                          ? `${currentProductFromList.code ? `[${currentProductFromList.code}] ` : ''}${currentProductFromList.name}`
-                          : ''
+                        displayProductCode
+                          ? `[${displayProductCode}] ${displayProductName}`
+                          : displayProductName
                       }
                     >
                       <span
@@ -638,9 +744,9 @@ export const StockCardView: React.FC<StockCardViewProps> = ({
                           flex: 1,
                         }}
                       >
-                        {currentProductFromList
-                          ? `${currentProductFromList.code ? `[${currentProductFromList.code}] ` : ''}${currentProductFromList.name}`
-                          : 'Chọn sản phẩm...'}
+                        {displayProductCode
+                          ? `[${displayProductCode}] ${displayProductName}`
+                          : displayProductName || 'Chọn sản phẩm...'}
                       </span>
                       <svg
                         width="12"
@@ -661,7 +767,7 @@ export const StockCardView: React.FC<StockCardViewProps> = ({
                       </svg>
                     </button>
 
-                    {/* Menu Dropdown danh sách sản phẩm có ô tìm kiếm */}
+                    {/* Menu Dropdown danh sách sản phẩm có ô tìm kiếm và nạp 10 sản phẩm mỗi lần */}
                     {isProductPickerOpen && (
                       <div
                         style={{
@@ -749,8 +855,34 @@ export const StockCardView: React.FC<StockCardViewProps> = ({
                           )}
                         </div>
 
-                        {/* Danh sách sản phẩm cuộn */}
+                        {/* Thông tin số lượng sản phẩm hiển thị */}
                         <div
+                          style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            padding: '2px 4px 6px',
+                            fontSize: '10.5px',
+                            color: '#64748b',
+                            borderBottom: '1px solid #f1f5f9',
+                            marginBottom: '4px',
+                          }}
+                        >
+                          <span>
+                            Đang hiển thị {productsList.length}
+                            {totalProducts > 0 ? ` / ${totalProducts}` : ''}
+                          </span>
+                          {hasMoreProducts && (
+                            <span style={{ color: '#2563eb', fontSize: '10px', fontWeight: '500' }}>
+                              Cuộn xuống để tải tiếp 10 SP
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Danh sách sản phẩm cuộn với phân trang 10 sản phẩm/lần */}
+                        <div
+                          ref={productListRef}
+                          onScroll={handleProductScroll}
                           style={{
                             maxHeight: '220px',
                             overflowY: 'auto',
@@ -759,7 +891,33 @@ export const StockCardView: React.FC<StockCardViewProps> = ({
                             gap: '2px',
                           }}
                         >
-                          {filteredProducts.length === 0 ? (
+                          {isLoadingProducts ? (
+                            <div
+                              style={{
+                                padding: '16px 8px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '8px',
+                                color: '#64748b',
+                                fontSize: '11.5px',
+                              }}
+                            >
+                              <svg
+                                className="animate-spin"
+                                width="14"
+                                height="14"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="#2563eb"
+                                strokeWidth="2.5"
+                              >
+                                <circle cx="12" cy="12" r="10" stroke="#2563eb" strokeOpacity="0.25" fill="none" />
+                                <path d="M12 2a10 10 0 0 1 10 10" stroke="#2563eb" />
+                              </svg>
+                              <span>Đang tải 10 sản phẩm...</span>
+                            </div>
+                          ) : productsList.length === 0 ? (
                             <div
                               style={{
                                 padding: '12px 8px',
@@ -771,77 +929,138 @@ export const StockCardView: React.FC<StockCardViewProps> = ({
                               Không tìm thấy sản phẩm nào
                             </div>
                           ) : (
-                            filteredProducts.map((p) => {
-                              const isSelected = p.id === selectedProductId;
-                              return (
-                                <div
-                                  key={p.id}
-                                  onClick={() => {
-                                    setSelectedProductId(p.id);
-                                    setIsProductPickerOpen(false);
-                                    setProductSearchTerm('');
-                                  }}
-                                  style={{
-                                    padding: '6px 8px',
-                                    borderRadius: '6px',
-                                    cursor: 'pointer',
-                                    backgroundColor: isSelected ? '#eff6ff' : 'transparent',
-                                    color: isSelected ? '#1d4ed8' : '#1e293b',
-                                    fontSize: '11.5px',
-                                    fontWeight: isSelected ? '600' : '400',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'space-between',
-                                    gap: '6px',
-                                    transition: 'background-color 0.12s ease',
-                                  }}
-                                  onMouseEnter={(e) => {
-                                    if (!isSelected) e.currentTarget.style.backgroundColor = '#f1f5f9';
-                                  }}
-                                  onMouseLeave={(e) => {
-                                    if (!isSelected) e.currentTarget.style.backgroundColor = 'transparent';
-                                  }}
-                                >
-                                  <span
+                            <>
+                              {productsList.map((p) => {
+                                const isSelected = p.id === selectedProductId;
+                                return (
+                                  <div
+                                    key={p.id}
+                                    onClick={() => {
+                                      setSelectedProductId(p.id);
+                                      setSelectedProductInfo({
+                                        id: p.id,
+                                        name: p.name,
+                                        code: p.code,
+                                        category: p.category,
+                                        base_unit: p.base_unit,
+                                      });
+                                      setIsProductPickerOpen(false);
+                                      setProductSearchTerm('');
+                                    }}
                                     style={{
-                                      overflow: 'hidden',
-                                      textOverflow: 'ellipsis',
-                                      whiteSpace: 'nowrap',
-                                      flex: 1,
+                                      padding: '6px 8px',
+                                      borderRadius: '6px',
+                                      cursor: 'pointer',
+                                      backgroundColor: isSelected ? '#eff6ff' : 'transparent',
+                                      color: isSelected ? '#1d4ed8' : '#1e293b',
+                                      fontSize: '11.5px',
+                                      fontWeight: isSelected ? '600' : '400',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'space-between',
+                                      gap: '6px',
+                                      transition: 'background-color 0.12s ease',
+                                    }}
+                                    onMouseEnter={(e) => {
+                                      if (!isSelected) e.currentTarget.style.backgroundColor = '#f1f5f9';
+                                    }}
+                                    onMouseLeave={(e) => {
+                                      if (!isSelected) e.currentTarget.style.backgroundColor = 'transparent';
                                     }}
                                   >
-                                    {p.code && (
-                                      <span style={{ color: isSelected ? '#2563eb' : '#64748b', fontWeight: '600', marginRight: '4px' }}>
-                                        [{p.code}]
-                                      </span>
-                                    )}
-                                    {p.name}
-                                  </span>
-                                  {isSelected && (
-                                    <svg
-                                      width="12"
-                                      height="12"
-                                      viewBox="0 0 24 24"
-                                      fill="none"
-                                      stroke="#2563eb"
-                                      strokeWidth="3"
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      style={{ flexShrink: 0 }}
+                                    <span
+                                      style={{
+                                        overflow: 'hidden',
+                                        textOverflow: 'ellipsis',
+                                        whiteSpace: 'nowrap',
+                                        flex: 1,
+                                      }}
                                     >
-                                      <polyline points="20 6 9 17 4 12" />
-                                    </svg>
-                                  )}
+                                      {p.code && (
+                                        <span
+                                          style={{
+                                            color: isSelected ? '#2563eb' : '#64748b',
+                                            fontWeight: '600',
+                                            marginRight: '4px',
+                                          }}
+                                        >
+                                          [{p.code}]
+                                        </span>
+                                      )}
+                                      {p.name}
+                                    </span>
+                                    {isSelected && (
+                                      <svg
+                                        width="12"
+                                        height="12"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="#2563eb"
+                                        strokeWidth="3"
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        style={{ flexShrink: 0 }}
+                                      >
+                                        <polyline points="20 6 9 17 4 12" />
+                                      </svg>
+                                    )}
+                                  </div>
+                                );
+                              })}
+
+                              {/* Hiệu ứng nạp thêm 10 sản phẩm tiếp theo khi cuộn */}
+                              {isLoadingMoreProducts && (
+                                <div
+                                  style={{
+                                    padding: '8px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '6px',
+                                    color: '#2563eb',
+                                    fontSize: '11px',
+                                    fontWeight: '500',
+                                    backgroundColor: '#f8fafc',
+                                    borderRadius: '4px',
+                                    margin: '2px 0',
+                                  }}
+                                >
+                                  <svg
+                                    className="animate-spin"
+                                    width="13"
+                                    height="13"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="#2563eb"
+                                    strokeWidth="2.5"
+                                  >
+                                    <circle cx="12" cy="12" r="10" stroke="#2563eb" strokeOpacity="0.25" fill="none" />
+                                    <path d="M12 2a10 10 0 0 1 10 10" stroke="#2563eb" />
+                                  </svg>
+                                  <span>Đang tải thêm 10 sản phẩm tiếp theo...</span>
                                 </div>
-                              );
-                            })
+                              )}
+
+                              {/* Đã nạp toàn bộ sản phẩm */}
+                              {!hasMoreProducts && productsList.length > 0 && (
+                                <div
+                                  style={{
+                                    padding: '6px 8px',
+                                    textAlign: 'center',
+                                    color: '#94a3b8',
+                                    fontSize: '10.5px',
+                                  }}
+                                >
+                                  Đã tải hết {totalProducts > 0 ? `${totalProducts} ` : ''}sản phẩm
+                                </div>
+                              )}
+                            </>
                           )}
                         </div>
                       </div>
                     )}
                   </div>
                 </div>
-              )}
 
               {/* Lọc theo kho */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
