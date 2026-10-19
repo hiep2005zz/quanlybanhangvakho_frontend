@@ -102,7 +102,15 @@ export const StockActionModal: React.FC<StockActionModalProps> = ({
   const [suppliersList, setSuppliersList] = useState<Supplier[]>([]);
   const [noteOrReason, setNoteOrReason] = useState<string>(initialReason || '');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const setErrorMsg = (msg: string | null) => {
+    if (msg) {
+      emitStatusToast({
+        title: 'Thông báo hệ thống',
+        message: msg,
+        type: 'warning',
+      });
+    }
+  };
 
   // SCRUM-81: Quản lý lô xuất theo FEFO
   const [suggestedBatch, setSuggestedBatch] = useState<ProductBatchInfo | null>(null);
@@ -400,7 +408,11 @@ export const StockActionModal: React.FC<StockActionModalProps> = ({
         rawMsg === '[object Object]' ? (err?.detail || err) : rawMsg,
         'Lỗi khi xử lý thao tác kho. Vui lòng kiểm tra lại thông tin nhập.'
       );
-      setErrorMsg(formatted);
+      emitStatusToast({
+        title: 'Thông báo hệ thống',
+        message: formatted,
+        type: 'error',
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -466,22 +478,6 @@ export const StockActionModal: React.FC<StockActionModalProps> = ({
               ✕
             </button>
           </div>
-
-          {errorMsg && (
-            <div
-              style={{
-                padding: '10px 14px',
-                borderRadius: '8px',
-                background: '#fef2f2',
-                border: '1px solid #fecaca',
-                color: '#dc2626',
-                fontSize: '13px',
-                marginBottom: '16px',
-              }}
-            >
-              {errorMsg}
-            </div>
-          )}
 
           <form onSubmit={handleSubmit}>
             {/* Cho phép chọn mặt hàng khi mở từ thanh công cụ chung */}
@@ -668,7 +664,6 @@ export const StockActionModal: React.FC<StockActionModalProps> = ({
                   value={inputQuantity}
                   onChange={(e) => {
                     setInputQuantity(e.target.value);
-                    if (errorMsg) setErrorMsg(null);
                   }}
                   placeholder="Nhập số lượng..."
                   style={{

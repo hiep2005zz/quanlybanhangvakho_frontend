@@ -56,7 +56,6 @@ export const RouteCollectionFormView: React.FC<RouteCollectionFormViewProps> = (
   const [lightboxOpen, setLightboxOpen] = useState<boolean>(false);
 
   const [submitting, setSubmitting] = useState<boolean>(false);
-  const [formError, setFormError] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -149,20 +148,31 @@ export const RouteCollectionFormView: React.FC<RouteCollectionFormViewProps> = (
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setFormError(null);
 
     if (!selectedDealer) {
-      setFormError('Vui lòng chọn Khách hàng / Đại lý thu tiền.');
+      emitStatusToast({
+        title: 'Thông báo hệ thống',
+        message: 'Vui lòng chọn Khách hàng / Đại lý thu tiền.',
+        type: 'warning',
+      });
       return;
     }
 
     if (numAmount <= 0) {
-      setFormError('Số tiền thu phải lớn hơn 0 đồng.');
+      emitStatusToast({
+        title: 'Thông báo hệ thống',
+        message: 'Số tiền thu phải lớn hơn 0 đồng.',
+        type: 'warning',
+      });
       return;
     }
 
     if (!receiptImage) {
-      setFormError('Tiêu chí bắt buộc: Vui lòng tải lên hoặc chụp ảnh biên lai / hóa đơn thu tiền.');
+      emitStatusToast({
+        title: 'Thông báo hệ thống',
+        message: 'Tiêu chí bắt buộc: Vui lòng tải lên hoặc chụp ảnh biên lai / hóa đơn thu tiền.',
+        type: 'warning',
+      });
       setImageError('Biên lai là chứng từ đối chiếu bắt buộc!');
       return;
     }
@@ -192,7 +202,11 @@ export const RouteCollectionFormView: React.FC<RouteCollectionFormViewProps> = (
       onBack();
     } catch (err: any) {
       console.error('Lỗi ghi nhận thu tiền:', err);
-      setFormError(err.message || 'Không thể ghi nhận khoản thu. Vui lòng thử lại.');
+      emitStatusToast({
+        title: 'Thông báo hệ thống',
+        message: err.message || 'Không thể ghi nhận khoản thu. Vui lòng thử lại.',
+        type: 'error',
+      });
     } finally {
       setSubmitting(false);
     }
@@ -271,23 +285,6 @@ export const RouteCollectionFormView: React.FC<RouteCollectionFormViewProps> = (
           </p>
         </div>
       </div>
-
-      {formError && (
-        <div
-          style={{
-            padding: '14px 18px',
-            backgroundColor: '#fef2f2',
-            border: '1px solid #fecaca',
-            borderRadius: '10px',
-            color: '#b91c1c',
-            fontSize: '14px',
-            fontWeight: 600,
-            marginBottom: '24px',
-          }}
-        >
-          {formError}
-        </div>
-      )}
 
       {/* Biểu Mẫu Nhập Liệu 1 Bảng ERP Thống Nhất */}
       <form onSubmit={handleSubmit}>

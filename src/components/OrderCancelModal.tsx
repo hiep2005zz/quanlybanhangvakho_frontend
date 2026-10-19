@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { emitStatusToast } from './StatusToast';
 
 export interface OrderCancelModalProps {
   orderCode: string;
@@ -20,12 +21,10 @@ export const OrderCancelModal: React.FC<OrderCancelModalProps> = ({
   onConfirm,
 }) => {
   const [reason, setReason] = useState('');
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOpen) {
       setReason('');
-      setError(null);
     }
   }, [isOpen]);
 
@@ -47,14 +46,21 @@ export const OrderCancelModal: React.FC<OrderCancelModalProps> = ({
     e.preventDefault();
     const cleanReason = reason.trim();
     if (!cleanReason) {
-      setError('Vui lòng nhập lý do hủy đơn hàng (* bắt buộc).');
+      emitStatusToast({
+        title: 'Thông báo hệ thống',
+        message: 'Vui lòng nhập lý do hủy đơn hàng (* bắt buộc).',
+        type: 'warning',
+      });
       return;
     }
     if (cleanReason.length < 3) {
-      setError('Lý do hủy đơn hàng phải có ít nhất 3 ký tự.');
+      emitStatusToast({
+        title: 'Thông báo hệ thống',
+        message: 'Lý do hủy đơn hàng phải có ít nhất 3 ký tự.',
+        type: 'warning',
+      });
       return;
     }
-    setError(null);
     onConfirm(cleanReason);
   };
 
@@ -189,7 +195,6 @@ export const OrderCancelModal: React.FC<OrderCancelModalProps> = ({
               value={reason}
               onChange={(e) => {
                 setReason(e.target.value);
-                if (error) setError(null);
               }}
               placeholder="Ví dụ: Đại lý đổi lịch lấy hàng, nhập nhầm số lượng, trùng đơn..."
               disabled={isSubmitting}
@@ -197,7 +202,7 @@ export const OrderCancelModal: React.FC<OrderCancelModalProps> = ({
                 width: '100%',
                 padding: '10px 14px',
                 borderRadius: '8px',
-                border: error ? '1.5px solid #dc2626' : '1.5px solid #cbd5e1',
+                border: '1.5px solid #cbd5e1',
                 fontSize: '13.5px',
                 fontFamily: 'inherit',
                 outline: 'none',
@@ -206,18 +211,6 @@ export const OrderCancelModal: React.FC<OrderCancelModalProps> = ({
                 transition: 'border-color 0.15s ease',
               }}
             />
-            {error && (
-              <div
-                style={{
-                  fontSize: '12px',
-                  color: '#dc2626',
-                  marginTop: '4px',
-                  fontWeight: 600,
-                }}
-              >
-                {error}
-              </div>
-            )}
           </div>
 
           {/* Action buttons (KHÔNG DÙNG ICON) */}

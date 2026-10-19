@@ -858,7 +858,15 @@ const ToggleBatchTrackingModal: React.FC<ToggleBatchTrackingModalProps> = ({
   const [initialExp, setInitialExp] = useState('');
   const [reason, setReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const setErrorMsg = (msg: string | null) => {
+    if (msg) {
+      emitStatusToast({
+        title: 'Thông báo hệ thống',
+        message: msg,
+        type: 'warning',
+      });
+    }
+  };
 
   useEffect(() => {
     if (products.length > 0 && !selectedProductId) {
@@ -911,7 +919,11 @@ const ToggleBatchTrackingModal: React.FC<ToggleBatchTrackingModalProps> = ({
       });
       onSuccess();
     } catch (err: any) {
-      setErrorMsg(formatErrorMessage(err?.message || err, 'Lỗi cập nhật cấu hình theo dõi lô.'));
+      emitStatusToast({
+        title: 'Thông báo hệ thống',
+        message: formatErrorMessage(err?.message || err, 'Lỗi cập nhật cấu hình theo dõi lô.'),
+        type: 'error',
+      });
     } finally {
       setSubmitting(false);
     }
@@ -991,12 +1003,6 @@ const ToggleBatchTrackingModal: React.FC<ToggleBatchTrackingModalProps> = ({
               ✕
             </button>
           </div>
-
-          {errorMsg && (
-            <div style={{ padding: '9px 13px', borderRadius: '8px', background: '#fef2f2', border: '1px solid #fecaca', color: '#dc2626', fontSize: '12.5px', marginBottom: '14px', flexShrink: 0 }}>
-              {errorMsg}
-            </div>
-          )}
 
           <form
             onSubmit={handleSubmit}
@@ -1284,7 +1290,15 @@ const IssueBatchModal: React.FC<IssueBatchModalProps> = ({
   const [overrideExpired, setOverrideExpired] = useState(false);
   const [overrideReason, setOverrideReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const setErrorMsg = (msg: string | null) => {
+    if (msg) {
+      emitStatusToast({
+        title: 'Thông báo hệ thống',
+        message: msg,
+        type: 'warning',
+      });
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -1354,7 +1368,11 @@ const IssueBatchModal: React.FC<IssueBatchModalProps> = ({
       } catch { }
       onSuccess();
     } catch (err: any) {
-      setErrorMsg(formatErrorMessage(err?.message || err, 'Lỗi xuất kho theo lô.'));
+      emitStatusToast({
+        title: 'Thông báo hệ thống',
+        message: formatErrorMessage(err?.message || err, 'Lỗi xuất kho theo lô.'),
+        type: 'error',
+      });
     } finally {
       setSubmitting(false);
     }
@@ -1518,12 +1536,6 @@ const IssueBatchModal: React.FC<IssueBatchModalProps> = ({
                 </div>
               )}
 
-              {errorMsg && (
-                <div style={{ padding: '8px 12px', borderRadius: '7px', background: '#fef2f2', border: '1px solid #fecaca', color: '#dc2626', fontSize: '12px', marginBottom: '10px' }}>
-                  {errorMsg}
-                </div>
-              )}
-
               <div style={{ marginBottom: '10px' }}>
                 <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '600', color: '#334155', marginBottom: '3px' }}>
                   Nơi nhận / Khách hàng / Đại lý <span style={{ color: '#dc2626' }}>*</span>
@@ -1551,7 +1563,6 @@ const IssueBatchModal: React.FC<IssueBatchModalProps> = ({
                   value={quantity}
                   onChange={(e) => {
                     setQuantity(e.target.value);
-                    if (errorMsg) setErrorMsg(null);
                   }}
                   placeholder="Nhập số lượng xuất (> 0)..."
                   style={{
