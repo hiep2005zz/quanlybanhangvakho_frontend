@@ -51,6 +51,8 @@ import { useLocation } from '../hooks/useLocation';
 import { ProductHistoryView } from './ProductHistoryView';
 import { ProductFormView } from './ProductFormView';
 import WarehouseManagementView from './WarehouseManagementView';
+import { StockCardView } from './StockCardView';
+import { ReturnOrdersManagementView } from './ReturnOrdersManagementView';
 import { WarehouseDispatchView } from './WarehouseDispatchView';
 import { DeliveryTripsView } from './DeliveryTripsView';
 import { WarehouseStockBookView } from './WarehouseStockBookView';
@@ -250,6 +252,17 @@ export default function DashboardPage({
     // Quyen xuat hoa don ban hang tu phieu giao hang: Cho phep tat ca nhan vien noi bo
   const canAccessSalesInvoices = !isCustomer;
 
+  const canAccessStockCard = Boolean(
+    isAdmin ||
+    (!isCustomer && !isSalesPerson && (
+      isAccountant ||
+      user.role === 'warehouse' ||
+      user.role === 'warehouse_manager' ||
+      officialRoles.includes('warehouse') ||
+      officialRoles.includes('warehouse_manager')
+    )) ||
+    (!isCustomer && isAccountant)
+  );
 const canAccessInventoryTurnover = Boolean(
     isAdmin ||
     user.role === 'warehouse_manager' ||
@@ -331,6 +344,21 @@ const canAccessInventoryTurnover = Boolean(
     const params = new URLSearchParams(window.location.search);
     const hasOldTabParam = params.has('tab') || params.has('view');
     const oldTabVal = (params.get('tab') || params.get('view') || '').toLowerCase();
+
+    const isStockCardPath = pathname === '/stock-card' || pathname.startsWith('/stock-card/');
+    const isReturnOrdersPath = pathname === '/return-orders' || pathname.startsWith('/return-orders');
+    if (isStockCardPath || oldTabVal === 'stock-card') {
+      if (hasOldTabParam || pathname !== '/stock-card') {
+        try { window.history.replaceState({}, '', '/stock-card'); } catch { }
+      }
+      return 'stock-card';
+    }
+    if (isReturnOrdersPath || oldTabVal === 'return-orders' || oldTabVal === 'returns') {
+      if (hasOldTabParam || pathname !== '/return-orders') {
+        try { window.history.replaceState({}, '', '/return-orders'); } catch { }
+      }
+      return 'return-orders';
+    }
 
     const isWarehouseDispatchPath = pathname === '/warehouse/dispatch' || pathname.startsWith('/warehouse/dispatch') || pathname === '/warehouse/supplementary-deliveries' || pathname === '/warehouse/dispatch-history' || pathname === '/warehouse-dispatch';
     const isDeliveryTripsPath = pathname === '/delivery-trips' || pathname.startsWith('/delivery-trips/') || pathname === '/warehouse/delivery-trips' || pathname.startsWith('/warehouse/delivery-trips');
@@ -995,6 +1023,12 @@ const canAccessInventoryTurnover = Boolean(
         // ignore
       }
 
+    } else if (tab === 'stock-card') {
+      setActiveTabState('stock-card');
+      try { window.history.pushState({}, '', '/stock-card'); } catch { }
+    } else if (tab === 'return-orders') {
+      setActiveTabState('return-orders');
+      try { window.history.pushState({}, '', '/return-orders'); } catch { }
     } else if (tab === 'warehouse-dispatch') {
       setActiveTabState('warehouse-dispatch');
       if (typeof window !== 'undefined' && window.location.pathname !== '/warehouse/dispatch') {
@@ -1054,6 +1088,8 @@ const canAccessInventoryTurnover = Boolean(
                       : activeTab === 'delivery-trips' ? (canAccessWarehouses || canWriteInventory || isAdmin)
                       : activeTab === 'warehouse-dispatch' ? (canAccessWarehouses || canWriteInventory || isAdmin)
                       : activeTab === 'sales-invoices' ? canAccessSalesInvoices
+    : activeTab === 'return-orders' ? (!isCustomer)
+    : activeTab === 'stock-card' ? canAccessStockCard
                       : activeTab === 'warehouses' ? canAccessWarehouses
                         : activeTab === 'goods-receipt' ? canWriteInventory
                           : activeTab === 'batches' ? isWarehouseOrAdmin
@@ -1206,6 +1242,22 @@ const canAccessInventoryTurnover = Boolean(
       const isStockTransfersPath = pathname === '/stock-transfers' || pathname.startsWith('/stock-transfers/');
       const isStockBookPath = pathname === '/stock-book' || pathname.startsWith('/stock-book/');
       const isBatchesPath = pathname === '/batches' || pathname.startsWith('/batches/');
+      const isStockCardPath = pathname === '/stock-card' || pathname.startsWith('/stock-card/');
+      const isReturnOrdersPath = pathname === '/return-orders' || pathname.startsWith('/return-orders');
+      if (isStockCardPath || tabParam === 'stock-card') {
+        if (pathname !== '/stock-card' || tabParam) {
+          try { window.history.replaceState({}, '', '/stock-card'); } catch { }
+        }
+        setActiveTabState('stock-card');
+        return;
+      }
+      if (isReturnOrdersPath || tabParam === 'return-orders' || tabParam === 'returns') {
+        if (pathname !== '/return-orders' || tabParam) {
+          try { window.history.replaceState({}, '', '/return-orders'); } catch { }
+        }
+        setActiveTabState('return-orders');
+        return;
+      }
       const isPickingPath = pathname === '/picking' || pathname.startsWith('/picking/') || pathname === '/warehouse-picking' || pathname.startsWith('/warehouse-picking/');
 
       if (isProductsImportPath || tabParam === 'products-import') {
@@ -1676,6 +1728,8 @@ const canAccessInventoryTurnover = Boolean(
   const [sessionInfo, setSessionInfo] = useState<SessionState>(() => sessionManager.getSessionState());
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isSecurityModalOpen, setIsSecurityModalOpen] = useState(false);
+  const [selectedProductForStockCard, setSelectedProductForStockCard] = useState<{ id: number; name: string; code: string } | null>(null);
+  const [stockCardReturnTab] = useState<TabType>('stock-book');
   const [isCreateAccountModalOpen, setIsCreateAccountModalOpen] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [stockAdjustmentInitialMode, setStockAdjustmentInitialMode] = useState<'LIST' | 'CREATE'>('CREATE');
@@ -2811,6 +2865,47 @@ const canAccessInventoryTurnover = Boolean(
             <AccessDeniedView
               currentUser={user}
               requiredPermission="Quản lý chuyến giao hàng (Quản lý kho / Thủ kho / Quản trị viên)"
+              onBackToWorkflow={() => setActiveTab('inventory')}
+              onLogout={onLogout}
+            />
+          )
+) : activeTab === 'return-orders' ? (
+          <ReturnOrdersManagementView
+            currentUser={user}
+            token={token}
+            onBackToHome={() => setActiveTab('inventory')}
+          />
+        ) : activeTab === 'stock-card' ? (
+          canAccessStockCard ? (
+            <StockCardView
+              productId={selectedProductForStockCard?.id || 1}
+              productName={selectedProductForStockCard?.name}
+              productCode={selectedProductForStockCard?.code}
+              token={token}
+              onBack={() => {
+                setActiveTab(stockCardReturnTab || 'stock-book');
+                setSelectedProductForStockCard(null);
+              }}
+              onNavigateToTab={(tab, queryParam) => {
+                if (tab === 'stock-audits' && queryParam) {
+                  setActiveTabState('stock-audits');
+                  try { window.history.pushState({}, '', '/stock-audits'); } catch { }
+                } else if (tab === 'orders' && queryParam) {
+                  setActiveTabState('orders');
+                  try {
+                    window.history.pushState({}, '', `/orders/${queryParam}`);
+                    window.dispatchEvent(new Event('popstate'));
+                  } catch { }
+                } else if (tab === 'goods-receipt' && queryParam) {
+                  setActiveTabState('goods-receipt');
+                  try { window.history.pushState({}, '', '/goods-receipt'); } catch { }
+                }
+              }}
+            />
+          ) : (
+            <AccessDeniedView
+              currentUser={user}
+              requiredPermission="Thẻ kho & Biến động xuất nhập tồn (Chỉ dành cho Quản lý kho, Thủ kho và Kế toán)"
               onBackToWorkflow={() => setActiveTab('inventory')}
               onLogout={onLogout}
             />
@@ -4830,4 +4925,3 @@ const canAccessInventoryTurnover = Boolean(
     </DashboardLayout>
   );
 }
-

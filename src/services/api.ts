@@ -191,6 +191,9 @@ export interface OrderDealer {
   max_debt_age?: number;
   is_overdue?: boolean;
   is_over_limit?: boolean;
+  credit_warning_flag?: boolean;
+  credit_flag_reason?: string | null;
+  last_credit_evaluated_at?: string | null;
   customer_group?: string;
 }
 
@@ -210,6 +213,62 @@ export interface DealerCreditInfo {
   max_debt_age: number;
   is_overdue: boolean;
   is_over_limit: boolean;
+  is_over_credit_limit?: boolean;
+  credit_warning_flag?: boolean;
+  credit_flag_reason?: string | null;
+  last_credit_evaluated_at?: string | null;
+  over_limit_action?: 'BLOCK' | 'REQUIRE_APPROVAL';
+  overdue_action?: 'BLOCK' | 'REQUIRE_APPROVAL';
+}
+
+export interface CreditPolicyConfig {
+  id?: number;
+  over_limit_action: 'BLOCK' | 'REQUIRE_APPROVAL';
+  overdue_action: 'BLOCK' | 'REQUIRE_APPROVAL';
+  auto_eval_enabled: boolean;
+  last_run_at?: string | null;
+  updated_by?: string | null;
+  updated_at?: string | null;
+}
+
+export interface CreditPolicyConfigUpdate {
+  over_limit_action?: 'BLOCK' | 'REQUIRE_APPROVAL';
+  overdue_action?: 'BLOCK' | 'REQUIRE_APPROVAL';
+  auto_eval_enabled?: boolean;
+}
+
+export interface DealerPaymentRequest {
+  amount: number;
+  payment_method?: string;
+  reference_code?: string;
+  note?: string;
+}
+
+export interface DealerPaymentResponse {
+  id: number;
+  dealer_id: number;
+  amount: number;
+  payment_date: string;
+  payment_method?: string;
+  reference_code?: string;
+  note?: string;
+  created_by: string;
+  cleared_orders_count: number;
+  created_at?: string;
+}
+
+export interface CreditEvaluationResult {
+  dealer_id: number;
+  dealer_name: string;
+  current_debt: number;
+  credit_limit: number;
+  max_debt_age: number;
+  overdue_days_allowed: number;
+  is_over_credit_limit: boolean;
+  is_overdue: boolean;
+  credit_warning_flag: boolean;
+  credit_flag_reason?: string | null;
+  status_change?: string | null;
 }
 
 export interface CreateOrderPayload {
@@ -491,7 +550,7 @@ export async function authenticatedFetch(input: string, init: RequestInit = {}, 
 
     if (response.status === 401) {
       const isAuthUrl = typeof input === 'string' && (input.includes('/auth/login') || input.includes('/auth/refresh'));
-      
+
       // Nếu không phải endpoint login/refresh và client vẫn có token: thử làm mới ngầm 1 lần
       if (!isAuthUrl && currentToken) {
         if (!isRefreshingGlobal) {
@@ -516,7 +575,7 @@ export async function authenticatedFetch(input: string, init: RequestInit = {}, 
             const waiting = [...refreshSubscribersGlobal];
             refreshSubscribersGlobal = [];
             waiting.forEach((cb) => {
-              try { cb(''); } catch {}
+              try { cb(''); } catch { }
             });
           }
         } else {
@@ -3965,6 +4024,90 @@ export async function getStockBookApi(
   }
   return response.json();
 }
+
+// ==========================================
+// THẺ KHO SẢN PHẨM (PRODUCT STOCK CARD)
+// ==========================================
+
+export interface StockCardVoucherInfo {
+  voucher_type: 'grn' | 'order' | 'transfer' | 'audit' | 'initial' | 'adjustment' | 'other';
+  voucher_code: string;
+  voucher_id?: number | string | null;
+  url?: string | null;
+}
+
+export interface StockCardEntry {
+  id: number | string;
+  created_at: string;
+  transaction_type: 'RECEIPT' | 'ISSUE' | 'TRANSFER' | 'ADJUST';
+  transaction_label: string;
+  reference_code: string;
+  voucher_info?: StockCardVoucherInfo | null;
+  warehouse_id: string;
+  warehouse_name: string;
+  quantity: number;
+  receipt_quantity: number;
+  issue_quantity: number;
+  previous_stock: number;
+  balance_stock: number;
+  performed_by?: string | null;
+  note?: string | null;
+}
+
+export interface StockCardSummary {
+  product_id: number;
+  product_code: string;
+  product_name: string;
+  category?: string | null;
+  base_unit: string;
+  current_actual_stock: number;
+  opening_stock: number;
+  total_receipt: number;
+  total_issue: number;
+  closing_stock: number;
+  total_records: number;
+}
+
+export interface StockCardResponse {
+  summary?: StockCardSummary;
+  entries?: StockCardEntry[];
+  warehouses?: WarehouseInfo[];
+  items?: StockCardItem[];
+  total?: number;
+}
+
+export interface StockCardFilterParams {
+  product_id: number;
+  warehouse_id?: string;
+  from_date?: string;
+  to_date?: string;
+}
+
+export async function getStockCardApi(
+  token: string,
+  params: StockCardFilterParams
+): Promise<StockCardResponse> {
+  const query = new URLSearchParams();
+  query.set('product_id', String(params.product_id));
+  if (params.warehouse_id && params.warehouse_id !== 'all') {
+    query.set('warehouse_id', params.warehouse_id);
+  }
+  if (params.from_date && params.from_date.trim()) {
+    query.set('from_date', params.from_date.trim());
+  }
+  if (params.to_date && params.to_date.trim()) {
+    query.set('to_date', params.to_date.trim());
+  }
+
+  const url = `${API_BASE_URL}/inventory/stock-card?${query.toString()}`;
+  const response = await authenticatedFetch(url, { method: 'GET' }, token);
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Lỗi tải dữ liệu thẻ kho sản phẩm');
+  }
+  return response.json();
+}
+
 // ==========================================
 // CHỨC NĂNG KIỂM KÊ KHO (STOCK AUDITS)
 // ==========================================
@@ -4707,6 +4850,89 @@ export async function toggleProductBatchTrackingApi(
   return data;
 }
 
+/**
+ * ==========================================
+ * S7-04: Credit Policy & Overdue Control APIs
+ * ==========================================
+ */
+
+export async function getCreditPolicyConfigApi(token?: string): Promise<CreditPolicyConfig> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/dealers/credit-policy/config`, {
+    method: 'GET',
+  }, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi tải cấu hình chính sách công nợ (${response.status})`);
+  }
+  return data;
+}
+
+export async function updateCreditPolicyConfigApi(
+  payload: CreditPolicyConfigUpdate,
+  token?: string
+): Promise<CreditPolicyConfig> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/dealers/credit-policy/config`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  }, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi cập nhật cấu hình chính sách công nợ (${response.status})`);
+  }
+  return data;
+}
+
+export async function evaluateCreditPolicyApi(token?: string): Promise<{
+  status: string;
+  message: string;
+  dealers_evaluated: CreditEvaluationResult[];
+}> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/dealers/credit-policy/evaluate`, {
+    method: 'POST',
+  }, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi chạy đánh giá lại công nợ đại lý (${response.status})`);
+  }
+  return data;
+}
+
+export async function evaluateSingleDealerCreditPolicyApi(
+  dealerId: number,
+  token?: string
+): Promise<{
+  status: string;
+  message: string;
+  result: CreditEvaluationResult;
+}> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/dealers/${dealerId}/credit-policy/evaluate`, {
+    method: 'POST',
+  }, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi đánh giá công nợ đại lý #${dealerId} (${response.status})`);
+  }
+  return data;
+}
+
+export async function recordDealerPaymentApi(
+  dealerId: number,
+  payload: DealerPaymentRequest,
+  token?: string
+): Promise<DealerPaymentResponse> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/dealers/${dealerId}/payments`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  }, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi ghi nhận thanh toán cho đại lý (${response.status})`);
+  }
+  return data;
+}
+
 // ==========================================
 // BÁO CÁO TỒN KHO & VÒNG QUAY HÀNG HÓA (INVENTORY TURNOVER & AGING STOCK)
 // ==========================================
@@ -5014,11 +5240,6 @@ export interface StockCardItem {
   performed_by?: string;
   note?: string;
   created_at: string;
-}
-
-export interface StockCardResponse {
-  items: StockCardItem[];
-  total: number;
 }
 
 export async function createStockAdjustmentApi(
@@ -5895,8 +6116,267 @@ export async function deleteDebtReconciliationApi(
   return data;
 }
 
-// PHÂN HỆ QUẢN LÝ XUẤT KHO & GIAO THIẾU (DUNG)
-// ==========================================
+// ==================== RETURN ORDERS / RMA APIs ====================
+export interface ReturnOrderItemData {
+  id: number;
+  return_order_id: number;
+  order_item_id?: number | null;
+  product_id: number;
+  product_code?: string | null;
+  product_name: string;
+  unit_name: string;
+  unit_price: number;
+  original_quantity: number;
+  return_quantity: number;
+  refund_amount: number;
+  return_reason: string;
+  is_damaged: boolean;
+  target_warehouse_id?: number | null;
+  target_warehouse_code?: string | null;
+  target_warehouse_name?: string | null;
+  batch_id?: number | null;
+  batch_number?: string | null;
+  note?: string | null;
+}
+
+export interface ReturnOrderData {
+  id: number;
+  code: string;
+  order_id: number;
+  order_code: string;
+  dealer_id: number;
+  dealer_name: string;
+  status: 'PENDING_WAREHOUSE' | 'COMPLETED' | 'CANCELLED' | string;
+  total_items: number;
+  total_quantity: number;
+  total_refund_amount: number;
+  note?: string | null;
+  created_by: string;
+  created_at: string;
+  confirmed_by?: string | null;
+  confirmed_at?: string | null;
+  cancelled_by?: string | null;
+  cancelled_at?: string | null;
+  cancel_reason?: string | null;
+  items: ReturnOrderItemData[];
+}
+
+export interface ReturnOrderListResponse {
+  items: ReturnOrderData[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
+export interface ReturnableItemInfo {
+  order_item_id: number;
+  product_id: number;
+  product_code?: string | null;
+  product_name: string;
+  unit_name: string;
+  unit_price: number;
+  original_quantity: number;
+  delivered_quantity: number;
+  already_returned_quantity: number;
+  remaining_quantity: number;
+  is_batch_managed: boolean;
+  selected_batch_id?: number | null;
+  selected_batch_number?: string | null;
+  available_batches: Array<{
+    id: number;
+    batch_number: string;
+    expiry_date?: string | null;
+    quantity: number;
+    is_order_batch: boolean;
+  }>;
+}
+
+export interface OrderReturnableInfoResponse {
+  order_id: number;
+  order_code: string;
+  dealer_id: number;
+  dealer_name: string;
+  order_status: string;
+  order_created_at: string;
+  items: ReturnableItemInfo[];
+  damaged_warehouse: {
+    id: number;
+    code: string;
+    name: string;
+    warehouse_type: string;
+  };
+  default_warehouse: {
+    id: number;
+    code: string;
+    name: string;
+    warehouse_type: string;
+  };
+}
+
+export interface ReturnOrderItemCreateInput {
+  order_item_id?: number;
+  product_id: number;
+  return_quantity: number;
+  return_reason: string;
+  batch_id?: number;
+  batch_number?: string;
+  target_warehouse_id?: number;
+  note?: string;
+}
+
+export interface ReturnOrderCreateInput {
+  order_id: number;
+  items: ReturnOrderItemCreateInput[];
+  note?: string;
+}
+
+export async function getEligibleOrdersForReturnApi(
+  token: string,
+  search?: string,
+  dealerId?: number
+): Promise<Array<{
+  id: number;
+  order_code: string;
+  dealer_id: number;
+  dealer_name: string;
+  status: string;
+  total_amount: number;
+  created_at: string;
+  items_count: number;
+}>> {
+  const query = new URLSearchParams();
+  if (search && search.trim()) query.set('search', search.trim());
+  if (dealerId) query.set('dealer_id', String(dealerId));
+
+  const url = `${API_BASE_URL}/return-orders/eligible-orders${query.toString() ? `?${query.toString()}` : ''}`;
+  const response = await authenticatedFetch(url, {}, token);
+  const data = await response.json().catch(() => []);
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi tải danh sách đơn hàng (${response.status})`);
+  }
+  return data;
+}
+
+export async function getOrderReturnableItemsApi(
+  token: string,
+  orderId: number
+): Promise<OrderReturnableInfoResponse> {
+  const url = `${API_BASE_URL}/return-orders/order-returnable-items/${orderId}`;
+  const response = await authenticatedFetch(url, {}, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi tải dòng hàng đơn (${response.status})`);
+  }
+  return data;
+}
+
+export async function createReturnOrderApi(
+  token: string,
+  payload: ReturnOrderCreateInput
+): Promise<ReturnOrderData> {
+  const url = `${API_BASE_URL}/return-orders`;
+  const response = await authenticatedFetch(
+    url,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    },
+    token
+  );
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const errorMsg = formatErrorMessage(data.detail, data.message || `Lỗi tạo phiếu trả hàng (${response.status})`);
+    throw new Error(errorMsg);
+  }
+  return data;
+}
+
+export async function getReturnOrdersApi(
+  token: string,
+  params?: {
+    status?: string;
+    search?: string;
+    dealer_id?: number;
+    page?: number;
+    page_size?: number;
+  }
+): Promise<ReturnOrderListResponse> {
+  const query = new URLSearchParams();
+  if (params?.status && params.status !== 'ALL') query.set('status', params.status);
+  if (params?.search && params.search.trim()) query.set('search', params.search.trim());
+  if (params?.dealer_id) query.set('dealer_id', String(params.dealer_id));
+  if (params?.page) query.set('page', String(params.page));
+  if (params?.page_size) query.set('page_size', String(params.page_size));
+
+  const url = `${API_BASE_URL}/return-orders${query.toString() ? `?${query.toString()}` : ''}`;
+  const response = await authenticatedFetch(url, {}, token);
+  const data = await response.json().catch(() => ({ items: [], total: 0 }));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi tải danh sách phiếu trả (${response.status})`);
+  }
+  return data;
+}
+
+export async function getReturnOrderByIdApi(
+  token: string,
+  returnOrderId: number
+): Promise<ReturnOrderData> {
+  const url = `${API_BASE_URL}/return-orders/${returnOrderId}`;
+  const response = await authenticatedFetch(url, {}, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi tải chi tiết phiếu trả (${response.status})`);
+  }
+  return data;
+}
+
+export async function confirmReturnReceiptApi(
+  token: string,
+  returnOrderId: number,
+  note?: string
+): Promise<ReturnOrderData> {
+  const url = `${API_BASE_URL}/return-orders/${returnOrderId}/confirm-receipt`;
+  const response = await authenticatedFetch(
+    url,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ note: note || '' }),
+    },
+    token
+  );
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const errorMsg = formatErrorMessage(data.detail, data.message || `Lỗi xác nhận nhập kho (${response.status})`);
+    throw new Error(errorMsg);
+  }
+  return data;
+}
+
+export async function cancelReturnOrderApi(
+  token: string,
+  returnOrderId: number,
+  reason: string
+): Promise<ReturnOrderData> {
+  const url = `${API_BASE_URL}/return-orders/${returnOrderId}/cancel`;
+  const response = await authenticatedFetch(
+    url,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reason }),
+    },
+    token
+  );
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const errorMsg = formatErrorMessage(data.detail, data.message || `Lỗi hủy phiếu trả (${response.status})`);
+    throw new Error(errorMsg);
+  }
+  return data;
+}
+
 export interface WarehouseDispatchOrderItem {
 
   product_id: number;

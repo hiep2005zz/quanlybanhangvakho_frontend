@@ -30,6 +30,7 @@ interface OrderManagementViewProps {
   onBackToHome?: () => void;
   onRefreshProducts?: () => void;
   onNavigateToPriceBooks?: () => void;
+  initialSearchTerm?: string;
 }
 
 export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
@@ -40,11 +41,18 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
   onRefreshProducts,
   onNavigateToPriceBooks: _onNavigateToPriceBooks,
   onCloneOrder: _onCloneOrder,
+  initialSearchTerm,
 }) => {
   const [orders, setOrders] = useState<OrderResponseData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState(initialSearchTerm || '');
+
+  useEffect(() => {
+    if (initialSearchTerm !== undefined) {
+      setSearchTerm(initialSearchTerm);
+    }
+  }, [initialSearchTerm]);
   const [statusFilter, setStatusFilter] = useState<
     'ALL' | 'PENDING_APPROVAL' | 'CONFIRMED' | 'PICKING' | 'EXPORTED' | 'DELIVERED' | 'REJECTED' | 'CANCELLED'
   >('ALL');
