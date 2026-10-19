@@ -3,6 +3,7 @@ import { DealerSearchItem, ReceiptVoucherData, createReceiptVoucherApi } from '.
 import { User, formatErrorMessage } from '../services/api';
 import { convertNumberToVietnameseWords } from '../utils/numberToWords';
 import { ModalPortal } from './ModalPortal';
+import { emitStatusToast } from './StatusToast';
 
 interface CreateReceiptVoucherModalProps {
   isOpen: boolean;
@@ -35,7 +36,15 @@ export const CreateReceiptVoucherModal: React.FC<CreateReceiptVoucherModalProps>
   );
   const [note, setNote] = useState<string>('');
   const [submitting, setSubmitting] = useState<boolean>(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const setErrorMsg = (msg: string | null) => {
+    if (msg) {
+      emitStatusToast({
+        title: 'Thông báo hệ thống',
+        message: msg,
+        type: 'warning',
+      });
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -72,7 +81,11 @@ export const CreateReceiptVoucherModal: React.FC<CreateReceiptVoucherModalProps>
       );
       onSuccess(voucher);
     } catch (err: any) {
-      setErrorMsg(formatErrorMessage(err?.message || err, 'Lỗi lập phiếu thu.'));
+      emitStatusToast({
+        title: 'Thông báo hệ thống',
+        message: formatErrorMessage(err?.message || err, 'Lỗi lập phiếu thu.'),
+        type: 'error',
+      });
     } finally {
       setSubmitting(false);
     }
@@ -153,23 +166,6 @@ export const CreateReceiptVoucherModal: React.FC<CreateReceiptVoucherModalProps>
             </button>
           </div>
 
-          {errorMsg && (
-            <div
-              style={{
-                padding: '8px 12px',
-                borderRadius: '7px',
-                background: '#fef2f2',
-                border: '1px solid #fecaca',
-                color: '#dc2626',
-                fontSize: '12.5px',
-                marginBottom: '10px',
-                flexShrink: 0,
-              }}
-            >
-              {errorMsg}
-            </div>
-          )}
-
           <form
             onSubmit={handleSubmit}
             style={{
@@ -210,7 +206,6 @@ export const CreateReceiptVoucherModal: React.FC<CreateReceiptVoucherModalProps>
                   value={amountStr}
                   onChange={(e) => {
                     setAmountStr(e.target.value);
-                    if (errorMsg) setErrorMsg(null);
                   }}
                   placeholder="Nhập số tiền..."
                   style={{

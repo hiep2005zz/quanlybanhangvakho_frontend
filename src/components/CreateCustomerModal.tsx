@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { CustomerCreatePayload, createCustomerApi } from '../services/api';
 import { ModalPortal } from './ModalPortal';
+import { emitStatusToast } from './StatusToast';
 
 
 interface CreateCustomerModalProps {
@@ -46,16 +47,16 @@ export const CreateCustomerModal: React.FC<CreateCustomerModalProps> = ({
   const [selectedRoles, setSelectedRoles] = useState<string[]>(['sales_manager']);
   const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
   const modalRef = useRef<HTMLDivElement>(null);
 
   if (!isOpen) return null;
 
   const triggerError = (msg: string) => {
-    setError(msg);
-    if (modalRef.current) {
-      modalRef.current.scrollTo({ top: 0, behavior: 'smooth' });
-    }
+    emitStatusToast({
+      title: 'Thông báo hệ thống',
+      message: msg,
+      type: 'warning',
+    });
   };
 
   const isWarehouseRole = (roles: string[]) => roles.some((r) => r === 'warehouse' || r === 'warehouse_manager');
@@ -66,7 +67,6 @@ export const CreateCustomerModal: React.FC<CreateCustomerModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
 
     const trimmedName = formData.full_name.trim();
     if (!trimmedName) {
@@ -156,7 +156,11 @@ export const CreateCustomerModal: React.FC<CreateCustomerModalProps> = ({
       setSelectedRoles(['sales_manager']);
       onClose();
     } catch (err: any) {
-      triggerError(err.message || 'Lỗi khi tạo tài khoản.');
+      emitStatusToast({
+        title: 'Thông báo hệ thống',
+        message: err.message || 'Lỗi khi tạo tài khoản.',
+        type: 'error',
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -256,22 +260,6 @@ export const CreateCustomerModal: React.FC<CreateCustomerModalProps> = ({
 
         {/* Form Create Customer */}
         <form onSubmit={handleSubmit} style={{ padding: '24px' }}>
-          {error && (
-            <div
-              style={{
-                background: '#fee2e2',
-                border: '1px solid #fecaca',
-                color: '#b91c1c',
-                padding: '10px 14px',
-                borderRadius: '10px',
-                fontSize: '13px',
-                marginBottom: '18px',
-              }}
-            >
-              ⚠️ {error}
-            </div>
-          )}
-
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             {/* Họ và tên */}
             <div>

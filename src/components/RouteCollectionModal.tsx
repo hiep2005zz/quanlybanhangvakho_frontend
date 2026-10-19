@@ -58,7 +58,6 @@ export const RouteCollectionModal: React.FC<RouteCollectionModalProps> = ({
   const [isProcessingImage, setIsProcessingImage] = useState<boolean>(false);
 
   const [submitting, setSubmitting] = useState<boolean>(false);
-  const [formError, setFormError] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -179,20 +178,31 @@ export const RouteCollectionModal: React.FC<RouteCollectionModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setFormError(null);
 
     if (!selectedDealer) {
-      setFormError('Vui lòng chọn Khách hàng / Đại lý thu tiền.');
+      emitStatusToast({
+        title: 'Thông báo hệ thống',
+        message: 'Vui lòng chọn Khách hàng / Đại lý thu tiền.',
+        type: 'warning',
+      });
       return;
     }
 
     if (numAmount <= 0) {
-      setFormError('Số tiền thu phải lớn hơn 0 đồng.');
+      emitStatusToast({
+        title: 'Thông báo hệ thống',
+        message: 'Số tiền thu phải lớn hơn 0 đồng.',
+        type: 'warning',
+      });
       return;
     }
 
     if (!receiptImage) {
-      setFormError('Tiêu chí bắt buộc: Vui lòng tải lên hoặc chụp ảnh biên lai / hóa đơn thu tiền.');
+      emitStatusToast({
+        title: 'Thông báo hệ thống',
+        message: 'Tiêu chí bắt buộc: Vui lòng tải lên hoặc chụp ảnh biên lai / hóa đơn thu tiền.',
+        type: 'warning',
+      });
       setImageError('Biên lai là chứng từ đối chiếu bắt buộc!');
       return;
     }
@@ -222,7 +232,11 @@ export const RouteCollectionModal: React.FC<RouteCollectionModalProps> = ({
       onClose();
     } catch (err: any) {
       console.error('Lỗi ghi nhận thu tiền:', err);
-      setFormError(err.message || 'Không thể ghi nhận khoản thu. Vui lòng thử lại.');
+      emitStatusToast({
+        title: 'Thông báo hệ thống',
+        message: err.message || 'Không thể ghi nhận khoản thu. Vui lòng thử lại.',
+        type: 'error',
+      });
     } finally {
       setSubmitting(false);
     }
@@ -334,24 +348,6 @@ export const RouteCollectionModal: React.FC<RouteCollectionModalProps> = ({
               gap: '16px',
             }}
           >
-            {formError && (
-              <div
-                style={{
-                  padding: '12px 16px',
-                  backgroundColor: '#fef2f2',
-                  border: '1px solid #fecaca',
-                  borderRadius: '8px',
-                  color: '#b91c1c',
-                  fontSize: '14px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                }}
-              >
-                <span>{formError}</span>
-              </div>
-            )}
-
             {/* Khách hàng / Đại lý */}
             <div ref={dropdownRef} style={{ position: 'relative' }}>
               <label

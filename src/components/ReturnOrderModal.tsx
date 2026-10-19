@@ -20,12 +20,10 @@ export const ReturnOrderModal: React.FC<ReturnOrderModalProps> = ({
 }) => {
   const [reason, setReason] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOpen) {
       setReason('');
-      setErrorMsg(null);
       setIsSubmitting(false);
     }
   }, [isOpen]);
@@ -38,12 +36,15 @@ export const ReturnOrderModal: React.FC<ReturnOrderModalProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isValidLength) {
-      setErrorMsg('Vui lòng nhập ý kiến chỉ đạo sửa (tối thiểu 5 ký tự).');
+      emitStatusToast({
+        title: 'Thông báo hệ thống',
+        message: 'Vui lòng nhập ý kiến chỉ đạo sửa (tối thiểu 5 ký tự).',
+        type: 'warning',
+      });
       return;
     }
 
     setIsSubmitting(true);
-    setErrorMsg(null);
 
     try {
       const updated = await returnOrderApi(token, order.order_code, trimmedReason);
@@ -54,7 +55,11 @@ export const ReturnOrderModal: React.FC<ReturnOrderModalProps> = ({
       onSuccess();
       onClose();
     } catch (err: any) {
-      setErrorMsg(err.message || 'Lỗi khi trả lại đơn hàng.');
+      emitStatusToast({
+        title: 'Thông báo hệ thống',
+        message: err.message || 'Lỗi khi trả lại đơn hàng.',
+        type: 'error',
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -129,23 +134,6 @@ export const ReturnOrderModal: React.FC<ReturnOrderModalProps> = ({
             </div>
           )}
 
-          {errorMsg && (
-            <div
-              style={{
-                padding: '8px 12px',
-                borderRadius: '6px',
-                background: '#fef2f2',
-                border: '1px solid #fecaca',
-                color: '#dc2626',
-                fontSize: '12.5px',
-                fontWeight: '600',
-                marginBottom: '12px',
-              }}
-            >
-              {errorMsg}
-            </div>
-          )}
-
           <form onSubmit={handleSubmit}>
             <div style={{ marginBottom: '14px' }}>
               <label
@@ -174,10 +162,7 @@ export const ReturnOrderModal: React.FC<ReturnOrderModalProps> = ({
               <textarea
                 id="input-return-order-reason"
                 value={reason}
-                onChange={(e) => {
-                  setReason(e.target.value);
-                  if (errorMsg) setErrorMsg(null);
-                }}
+                onChange={(e) => setReason(e.target.value)}
                 placeholder="Nhập nội dung chỉ đạo chỉnh sửa chi tiết (tối thiểu 5 ký tự)..."
                 rows={3}
                 required

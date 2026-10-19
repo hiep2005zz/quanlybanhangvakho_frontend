@@ -247,7 +247,15 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({
   const [isManualDiscount, setIsManualDiscount] = useState<boolean>(false);
   const [note, setNote] = useState<string>(() => initialNote || '');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const setErrorMsg = (msg: string | null) => {
+    if (msg) {
+      emitStatusToast({
+        title: 'Thông báo hệ thống',
+        message: msg,
+        type: 'warning',
+      });
+    }
+  };
 
   // 5. Lịch sử mua hàng của đại lý & gợi ý mặt hàng
   const [purchaseHistory, setPurchaseHistory] = useState<DealerPurchaseHistory | null>(null);
@@ -1108,7 +1116,6 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({
       }
     } catch (err: any) {
       const msg = err.message || 'Lỗi khi tạo đơn hàng';
-      setErrorMsg(msg);
       emitStatusToast({
         title: msg.includes('quá hạn') ? 'Chặn tạo đơn do nợ quá hạn' : (msg.includes('vượt quá tồn') ? 'Vượt tồn khả dụng' : 'Lỗi tạo đơn hàng'),
         message: msg,
@@ -1156,17 +1163,6 @@ export const CreateOrderPage: React.FC<CreateOrderPageProps> = ({
 
       {/* Main Content Form */}
       <form onSubmit={handleSubmit} className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-8 space-y-6 pb-28">
-        {errorMsg && (
-          <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm font-medium flex items-center gap-2 shadow-xs">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-red-500">
-              <circle cx="12" cy="12" r="10" />
-              <line x1="12" y1="8" x2="12" y2="12" />
-              <line x1="12" y1="16" x2="12.01" y2="16" />
-            </svg>
-            <span>{errorMsg}</span>
-          </div>
-        )}
-
         {/* ======================================================== */}
         {/* BỐ TRÍ 2 CỘT HIỆN ĐẠI (SPLIT-SCREEN WORKSPACE)          */}
         {/* ======================================================== */}
