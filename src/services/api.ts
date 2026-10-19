@@ -7000,6 +7000,7 @@ export interface SalesInvoiceListResponse {
 export async function getDeliveryDispatchesForInvoicingApi(
   token: string,
   params: {
+    search?: string;
     dispatch_code?: string;
     order_code?: string;
     dealer_id?: number;
@@ -7014,6 +7015,7 @@ export async function getDeliveryDispatchesForInvoicingApi(
   } = {}
 ): Promise<DeliveryDispatchesListResponse> {
   const q = new URLSearchParams();
+  if (params.search) q.set('search', params.search);
   if (params.dispatch_code) q.set('dispatch_code', params.dispatch_code);
   if (params.order_code) q.set('order_code', params.order_code);
   if (params.dealer_id) q.set('dealer_id', String(params.dealer_id));

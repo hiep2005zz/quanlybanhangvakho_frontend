@@ -4,6 +4,7 @@ import html2canvas from 'html2canvas';
 /**
  * Xuất và tải trực tiếp phần tử DOM dạng file PDF (khổ A4 chuẩn).
  * Tự động tính toán tỷ lệ, hỗ trợ nhiều trang nếu nội dung dài, và giữ nguyên giao diện sắc nét.
+ * Kiểm soát dung sai chống tràn trang: Không bao giờ sinh trang trắng thừa ở cuối.
  */
 export async function downloadElementAsPdf(
   element: HTMLElement,
@@ -16,7 +17,6 @@ export async function downloadElementAsPdf(
     useCORS: true,
     logging: false,
     backgroundColor: '#ffffff',
-    windowWidth: element.scrollWidth,
   });
 
   const imgData = canvas.toDataURL('image/jpeg', 0.98);
@@ -32,21 +32,32 @@ export async function downloadElementAsPdf(
 
   // Tính chiều cao của ảnh theo tỷ lệ khổ A4
   const imgHeight = (canvas.height * pageWidth) / canvas.width;
-  let heightLeft = imgHeight;
-  let position = 0;
 
-  // Thêm trang đầu tiên
-  pdf.addImage(imgData, 'JPEG', 0, position, pageWidth, imgHeight, undefined, 'FAST');
-  heightLeft -= pageHeight;
+  // Nếu nội dung vừa vặn trong 1 trang hoặc chỉ vượt nhẹ dưới 8mm do padding/làm tròn pixel:
+  // Gói gọn trong đúng 1 trang duy nhất, tuyệt đối không sinh trang thứ 2!
+  if (imgHeight <= pageHeight + 8) {
+    const finalHeight = Math.min(imgHeight, pageHeight);
+    pdf.addImage(imgData, 'JPEG', 0, 0, pageWidth, finalHeight, undefined, 'FAST');
+  } else {
+    // Tài liệu nhiều trang thực sự (ví dụ bảng có nhiều hàng hóa)
+    let heightLeft = imgHeight;
+    let position = 0;
 
-  // Nếu nội dung dài hơn 1 trang A4, tự động thêm các trang tiếp theo
-  while (heightLeft > 0) {
-    position = heightLeft - imgHeight;
-    pdf.addPage();
+    // Trang 1
     pdf.addImage(imgData, 'JPEG', 0, position, pageWidth, imgHeight, undefined, 'FAST');
     heightLeft -= pageHeight;
+
+    // Các trang tiếp theo: chỉ thêm khi phần dư còn lại thực sự có nội dung (> 15mm)
+    while (heightLeft > 15) {
+      position = heightLeft - imgHeight;
+      pdf.addPage();
+      pdf.addImage(imgData, 'JPEG', 0, position, pageWidth, imgHeight, undefined, 'FAST');
+      heightLeft -= pageHeight;
+    }
   }
 
-  // Lưu file về máy của người dùng
+  // Tải file về máy của người dùng
   pdf.save(safeFileName);
 }
+
+

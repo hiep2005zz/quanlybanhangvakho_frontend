@@ -2032,50 +2032,98 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
     const displayedList = filteredList.slice(0, assignProductDisplayLimit);
 
     return (
-      <div className="wh-container wh-form-fullscreen-wrap" style={{ padding: '16px' }}>
-        <div className="wh-form-master-frame" style={{ maxWidth: '980px', margin: '0 auto', width: '100%', borderRadius: '12px', border: '1px solid #cbd5e1', boxShadow: '0 2px 12px rgba(15, 23, 42, 0.08)', background: '#ffffff', overflow: 'hidden' }}>
-          <div className="wh-form-page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 20px', borderBottom: '1px solid #cbd5e1', background: '#ffffff' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+      <div className="wh-container wh-form-fullscreen-wrap" style={{ padding: '12px 16px', height: '100%', boxSizing: 'border-box' }}>
+        <div
+          className="wh-form-master-frame"
+          style={{
+            width: '100%',
+            maxWidth: '100%',
+            margin: '0',
+            borderRadius: '12px',
+            border: '1px solid #cbd5e1',
+            boxShadow: '0 2px 14px rgba(15, 23, 42, 0.07)',
+            background: '#ffffff',
+            display: 'flex',
+            flexDirection: 'column',
+            flex: 1,
+            minHeight: 'calc(100vh - 120px)',
+            overflow: 'hidden',
+          }}
+        >
+          <div
+            className="wh-form-page-header"
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '14px 24px',
+              borderBottom: '1px solid #e2e8f0',
+              background: '#ffffff',
+              flexShrink: 0,
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
               <button
                 type="button"
                 className="wh-btn wh-btn-secondary"
                 onClick={() => setIsAssignFormPageActive(false)}
-                style={{ padding: '6px 14px', fontWeight: '600', fontSize: '12.5px' }}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '7px 14px',
+                  fontWeight: '600',
+                  fontSize: '12.5px',
+                }}
               >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="15 18 9 12 15 6" />
+                </svg>
                 Quay lại
               </button>
               <div>
-                <h2 style={{ margin: 0, fontSize: '16.5px', fontWeight: '800', color: '#0f172a' }}>
+                <h2 style={{ margin: 0, fontSize: '17px', fontWeight: '800', color: '#0f172a' }}>
                   Gán Sản Phẩm Vào Vị Trí Kệ
                 </h2>
-                <div style={{ fontSize: '11.5px', color: '#64748b', marginTop: '2px' }}>
+                <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>
                   Kho: <strong style={{ color: '#0f172a' }}>{selectedWarehouse.name}</strong> ({selectedWarehouse.code})
                 </div>
               </div>
             </div>
 
-            <div style={{ fontSize: '11.5px', color: '#64748b' }}>
+            <div style={{ fontSize: '12px', color: '#64748b', fontWeight: '500' }}>
               Phân bổ hàng hóa từ tồn tổng vào từng vị trí kệ lưu trữ cụ thể
             </div>
           </div>
 
-          <form onSubmit={handleSaveAssignProduct} style={{ display: 'grid', gridTemplateColumns: '1.05fr 1fr', margin: 0, padding: 0 }}>
+          <form
+            onSubmit={handleSaveAssignProduct}
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'minmax(420px, 1.15fr) minmax(380px, 1fr)',
+              flex: 1,
+              margin: 0,
+              padding: 0,
+              minHeight: 0,
+            }}
+          >
             {/* CỘT 1 (BÊN TRÁI): CHỌN SẢN PHẨM */}
             <div
               style={{
-                padding: '16px 20px',
-                borderRight: '1px solid #cbd5e1',
+                padding: '18px 24px',
+                borderRight: '1px solid #e2e8f0',
                 display: 'flex',
                 flexDirection: 'column',
-                gap: '10px',
+                gap: '12px',
                 background: '#ffffff',
+                minHeight: 0,
               }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <h3 style={{ margin: 0, fontSize: '13.5px', fontWeight: '700', color: '#0f172a' }}>
+                <h3 style={{ margin: 0, fontSize: '14px', fontWeight: '700', color: '#0f172a' }}>
                   Chọn sản phẩm cần gán vào kệ <span style={{ color: '#ef4444' }}>*</span>
                 </h3>
-                <span style={{ fontSize: '11px', color: '#64748b' }}>
+                <span style={{ fontSize: '11.5px', color: '#64748b' }}>
                   Hiện 20 SP/lượt (cuộn để xem thêm)
                 </span>
               </div>
@@ -2092,14 +2140,15 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                   }}
                   style={{
                     width: '100%',
-                    padding: '7px 28px 7px 10px',
-                    fontSize: '12.5px',
-                    borderRadius: '6px',
+                    padding: '8px 30px 8px 12px',
+                    fontSize: '13px',
+                    borderRadius: '7px',
                     border: '1px solid #cbd5e1',
                     outline: 'none',
                     color: '#0f172a',
                     background: '#ffffff',
                     boxSizing: 'border-box',
+                    transition: 'border-color 0.15s ease',
                   }}
                 />
                 {assignProductSearch && (
@@ -2111,14 +2160,14 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                     }}
                     style={{
                       position: 'absolute',
-                      right: '8px',
+                      right: '9px',
                       top: '50%',
                       transform: 'translateY(-50%)',
                       background: 'transparent',
                       border: 'none',
                       cursor: 'pointer',
                       color: '#94a3b8',
-                      fontSize: '11px',
+                      fontSize: '12px',
                       padding: '2px',
                       lineHeight: 1,
                     }}
@@ -2132,15 +2181,17 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
               {/* Danh sách thẻ sản phẩm cuộn */}
               <div
                 style={{
-                  maxHeight: '380px',
+                  height: 'calc(100vh - 310px)',
+                  minHeight: '440px',
+                  maxHeight: '620px',
                   overflowY: 'auto',
                   border: '1px solid #cbd5e1',
-                  borderRadius: '6px',
+                  borderRadius: '8px',
                   background: '#ffffff',
-                  padding: '4px',
+                  padding: '6px',
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: '4px',
+                  gap: '5px',
                 }}
                 onScroll={(e) => {
                   const target = e.currentTarget;
@@ -2152,7 +2203,7 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                 }}
               >
                 {displayedList.length === 0 ? (
-                  <div style={{ padding: '20px', textAlign: 'center', color: '#94a3b8', fontSize: '12px' }}>
+                  <div style={{ padding: '30px 16px', textAlign: 'center', color: '#94a3b8', fontSize: '13px' }}>
                     Không tìm thấy sản phẩm nào phù hợp với &quot;{assignProductSearch}&quot;
                   </div>
                 ) : (
@@ -2192,20 +2243,20 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                           }
                         }}
                         style={{
-                          padding: '7px 10px',
-                          borderRadius: '5px',
+                          padding: '9px 12px',
+                          borderRadius: '6px',
                           border: isSelected ? '1.5px solid #0284c7' : '1px solid #e2e8f0',
                           background: isSelected ? '#f0f9ff' : isExhausted ? '#f8fafc' : '#ffffff',
                           cursor: isExhausted ? 'not-allowed' : 'pointer',
                           display: 'flex',
                           justifyContent: 'space-between',
                           alignItems: 'center',
-                          transition: 'all 0.1s ease',
+                          transition: 'all 0.15s ease',
                           opacity: isExhausted ? 0.6 : 1,
                         }}
                         onMouseEnter={(e) => {
                           if (!isExhausted && !isSelected) {
-                            e.currentTarget.style.backgroundColor = '#f1f5f9';
+                            e.currentTarget.style.backgroundColor = '#f8fafc';
                           }
                         }}
                         onMouseLeave={(e) => {
@@ -2214,18 +2265,18 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                           }
                         }}
                       >
-                        <div style={{ minWidth: 0, flex: 1, paddingRight: '8px' }}>
+                        <div style={{ minWidth: 0, flex: 1, paddingRight: '10px' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <span style={{ fontWeight: '700', color: isSelected ? '#0284c7' : '#0f172a', fontSize: '12.5px' }}>
+                            <span style={{ fontWeight: '700', color: isSelected ? '#0284c7' : '#0f172a', fontSize: '13px' }}>
                               [{p.code}] {p.name}
                             </span>
                             {isSelected && (
-                              <span style={{ fontSize: '10.5px', color: '#0284c7', fontWeight: '800' }}>
+                              <span style={{ fontSize: '11px', color: '#0284c7', fontWeight: '800', background: '#e0f2fe', padding: '1px 6px', borderRadius: '4px' }}>
                                 Đang chọn
                               </span>
                             )}
                           </div>
-                          <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
+                          <div style={{ fontSize: '11.5px', color: '#64748b', marginTop: '3px' }}>
                             Tồn tại kho: <strong style={{ color: '#0f172a' }}>{pWhTotal}</strong> | Chưa gán:{' '}
                             <strong style={{ color: isExhausted ? '#dc2626' : '#16a34a' }}>
                               {Math.max(0, pWhTotal - pAssignedTotal)} {p.base_unit || 'Cái'}
@@ -2245,7 +2296,7 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                             checked={isSelected}
                             disabled={isExhausted}
                             readOnly
-                            style={{ cursor: isExhausted ? 'not-allowed' : 'pointer' }}
+                            style={{ cursor: isExhausted ? 'not-allowed' : 'pointer', width: '15px', height: '15px' }}
                           />
                         </div>
                       </div>
@@ -2254,7 +2305,7 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                 )}
 
                 {assignProductDisplayLimit < filteredList.length && (
-                  <div style={{ padding: '6px', textAlign: 'center' }}>
+                  <div style={{ padding: '8px 6px', textAlign: 'center' }}>
                     <button
                       type="button"
                       onClick={() =>
@@ -2263,9 +2314,9 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                       style={{
                         background: '#f8fafc',
                         border: '1px dashed #cbd5e1',
-                        borderRadius: '5px',
-                        padding: '5px 12px',
-                        fontSize: '11.5px',
+                        borderRadius: '6px',
+                        padding: '6px 14px',
+                        fontSize: '12px',
                         color: '#0284c7',
                         fontWeight: '600',
                         cursor: 'pointer',
@@ -2282,31 +2333,32 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
             {/* CỘT 2 (BÊN PHẢI): THÔNG TIN PHÂN BỔ & VỊ TRÍ KỆ */}
             <div
               style={{
-                padding: '16px 20px',
+                padding: '18px 24px',
                 display: 'flex',
                 flexDirection: 'column',
-                gap: '14px',
+                gap: '16px',
                 background: '#ffffff',
+                minHeight: 0,
               }}
             >
-              <h3 style={{ margin: 0, fontSize: '13.5px', fontWeight: '700', color: '#0f172a' }}>
+              <h3 style={{ margin: 0, fontSize: '14px', fontWeight: '700', color: '#0f172a' }}>
                 Thông tin phân bổ & Vị trí kệ
               </h3>
 
               {/* Khung 4 ô tóm tắt tồn kho trên 1 hàng */}
               {currentSelectedProd && (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px' }}>
                   <div
                     style={{
                       border: '1px solid #e2e8f0',
                       borderRadius: '8px',
-                      padding: '8px 4px',
+                      padding: '10px 6px',
                       textAlign: 'center',
                       background: '#ffffff',
                     }}
                   >
                     <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600' }}>Tồn kho tổng</div>
-                    <div style={{ fontSize: '14px', fontWeight: '800', color: '#0f172a', marginTop: '3px' }}>
+                    <div style={{ fontSize: '15px', fontWeight: '800', color: '#0f172a', marginTop: '4px' }}>
                       {curTotalStock} <span style={{ fontSize: '11px', fontWeight: '500' }}>{curUnit}</span>
                     </div>
                   </div>
@@ -2315,28 +2367,28 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                     style={{
                       border: '1px solid #e2e8f0',
                       borderRadius: '8px',
-                      padding: '8px 4px',
+                      padding: '10px 6px',
                       textAlign: 'center',
                       background: '#ffffff',
                     }}
                   >
                     <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600' }}>Đã gán ở kệ khác</div>
-                    <div style={{ fontSize: '14px', fontWeight: '800', color: '#64748b', marginTop: '3px' }}>
+                    <div style={{ fontSize: '15px', fontWeight: '800', color: '#64748b', marginTop: '4px' }}>
                       {curAssignedOther} <span style={{ fontSize: '11px', fontWeight: '500' }}>{curUnit}</span>
                     </div>
                   </div>
 
                   <div
                     style={{
-                      border: '1px solid #e2e8f0',
+                      border: '1px solid #bae6fd',
                       borderRadius: '8px',
-                      padding: '8px 4px',
+                      padding: '10px 6px',
                       textAlign: 'center',
-                      background: '#ffffff',
+                      background: '#f0f9ff',
                     }}
                   >
-                    <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600' }}>Hiện tại kệ này</div>
-                    <div style={{ fontSize: '14px', fontWeight: '800', color: '#0284c7', marginTop: '3px' }}>
+                    <div style={{ fontSize: '11px', color: '#0369a1', fontWeight: '600' }}>Hiện tại kệ này</div>
+                    <div style={{ fontSize: '15px', fontWeight: '800', color: '#0284c7', marginTop: '4px' }}>
                       {curQtyAtThisLoc} <span style={{ fontSize: '11px', fontWeight: '500' }}>{curUnit}</span>
                     </div>
                   </div>
@@ -2345,13 +2397,13 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                     style={{
                       border: '1px solid #bbf7d0',
                       borderRadius: '8px',
-                      padding: '8px 4px',
+                      padding: '10px 6px',
                       textAlign: 'center',
                       background: '#f0fdf4',
                     }}
                   >
                     <div style={{ fontSize: '11px', color: '#166534', fontWeight: '700' }}>Tồn chưa gán</div>
-                    <div style={{ fontSize: '14px', fontWeight: '800', color: '#16a34a', marginTop: '3px' }}>
+                    <div style={{ fontSize: '15px', fontWeight: '800', color: '#16a34a', marginTop: '4px' }}>
                       {curUnassigned} <span style={{ fontSize: '11px', fontWeight: '500' }}>{curUnit}</span>
                     </div>
                   </div>
@@ -2359,16 +2411,16 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
               )}
 
               <div className="wh-form-group">
-                <label style={{ fontWeight: '700', fontSize: '12.5px', color: '#1e293b', marginBottom: '5px', display: 'block' }}>
+                <label style={{ fontWeight: '700', fontSize: '13px', color: '#1e293b', marginBottom: '6px', display: 'block' }}>
                   Chọn vị trí kệ lưu trữ <span style={{ color: '#ef4444' }}>*</span>
                 </label>
                 <select
                   className="wh-form-select"
                   style={{
                     width: '100%',
-                    padding: '8px 10px',
-                    fontSize: '12.5px',
-                    borderRadius: '6px',
+                    padding: '9px 12px',
+                    fontSize: '13px',
+                    borderRadius: '7px',
                     border: '1px solid #cbd5e1',
                     color: '#0f172a',
                     backgroundColor: '#ffffff',
@@ -2391,11 +2443,11 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
               </div>
 
               <div className="wh-form-group">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
-                  <label style={{ fontWeight: '700', fontSize: '12.5px', color: '#1e293b', margin: 0 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <label style={{ fontWeight: '700', fontSize: '13px', color: '#1e293b', margin: 0 }}>
                     Số lượng gán tại vị trí này <span style={{ color: '#ef4444' }}>*</span>
                   </label>
-                  <div style={{ display: 'flex', gap: '6px' }}>
+                  <div style={{ display: 'flex', gap: '8px' }}>
                     <button
                       type="button"
                       onClick={() => setAssignFormData({ ...assignFormData, quantity: curMaxAllowed })}
@@ -2403,11 +2455,12 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                         background: '#e0f2fe',
                         color: '#0284c7',
                         border: '1px solid #bae6fd',
-                        borderRadius: '4px',
-                        padding: '3px 8px',
-                        fontSize: '11px',
+                        borderRadius: '5px',
+                        padding: '4px 10px',
+                        fontSize: '11.5px',
                         fontWeight: '700',
                         cursor: 'pointer',
+                        transition: 'all 0.15s ease',
                       }}
                       title={`Gán tối đa có thể cho kệ này (${curQtyAtThisLoc} hiện có + ${curUnassigned} chưa gán)`}
                     >
@@ -2420,11 +2473,12 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                         background: '#f1f5f9',
                         color: '#475569',
                         border: '1px solid #cbd5e1',
-                        borderRadius: '4px',
-                        padding: '3px 8px',
-                        fontSize: '11px',
+                        borderRadius: '5px',
+                        padding: '4px 10px',
+                        fontSize: '11.5px',
                         fontWeight: '600',
                         cursor: 'pointer',
+                        transition: 'all 0.15s ease',
                       }}
                     >
                       0 (Gỡ khỏi kệ)
@@ -2439,10 +2493,10 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                     className="wh-form-input"
                     style={{
                       width: '100%',
-                      padding: '8px 36px 8px 10px',
-                      fontSize: '13px',
+                      padding: '9px 40px 9px 12px',
+                      fontSize: '14px',
                       fontWeight: '700',
-                      borderRadius: '6px',
+                      borderRadius: '7px',
                       border: isOverAssigned ? '1.5px solid #dc2626' : '1px solid #cbd5e1',
                       color: isOverAssigned ? '#dc2626' : '#0f172a',
                       boxSizing: 'border-box',
@@ -2456,11 +2510,11 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                   <span
                     style={{
                       position: 'absolute',
-                      right: '10px',
+                      right: '12px',
                       top: '50%',
                       transform: 'translateY(-50%)',
                       color: '#64748b',
-                      fontSize: '12px',
+                      fontSize: '12.5px',
                       fontWeight: '600',
                     }}
                   >
@@ -2469,28 +2523,40 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                 </div>
 
                 {isOverAssigned && (
-                  <div style={{ color: '#dc2626', fontSize: '11.5px', marginTop: '4px', fontWeight: '600' }}>
+                  <div style={{ color: '#dc2626', fontSize: '12px', marginTop: '5px', fontWeight: '600' }}>
                     Số lượng vượt quá mức cho phép tối đa ({curMaxAllowed} {curUnit}).
                   </div>
                 )}
               </div>
 
-              {/* Nút bấm ở dưới góc phải */}
-              <div style={{ marginTop: 'auto', paddingTop: '16px', borderTop: '1px solid #f1f5f9', display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
-                <button
-                  type="button"
-                  className="wh-btn wh-btn-secondary"
-                  onClick={() => setIsAssignFormPageActive(false)}
-                  disabled={isAssignSubmitting}
-                  style={{ padding: '7px 18px', fontWeight: '600', fontSize: '12.5px' }}
-                >
-                  Hủy bỏ
-                </button>
+              {/* Nút lưu căn ra chính giữa vùng trắng */}
+              <div
+                style={{
+                  flex: 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '24px 0 16px 0',
+                }}
+              >
                 <button
                   type="submit"
                   className="wh-btn wh-btn-primary"
                   disabled={isAssignSubmitting || isOverAssigned || Number(assignFormData.quantity) < 0 || !assignFormData.product_id || !assignFormData.location_id}
-                  style={{ padding: '7px 20px', fontWeight: '700', fontSize: '12.5px', background: '#16a34a', borderColor: '#16a34a' }}
+                  style={{
+                    minWidth: '220px',
+                    padding: '11px 32px',
+                    fontWeight: '700',
+                    fontSize: '14px',
+                    borderRadius: '8px',
+                    background: '#16a34a',
+                    borderColor: '#16a34a',
+                    boxShadow: '0 2px 8px rgba(22, 163, 74, 0.25)',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: isAssignSubmitting ? 'not-allowed' : 'pointer',
+                  }}
                 >
                   {isAssignSubmitting ? 'Đang lưu...' : 'Lưu phân bổ vào kệ'}
                 </button>

@@ -18,18 +18,29 @@ import {
 import { ModalPortal } from './ModalPortal';
 import { InvoiceAdjustmentDetailModal } from './InvoiceAdjustmentDetailModal';
 
+export interface FilterComboboxOptionItem {
+  value: string;
+  label?: string;
+  subLabel?: string;
+  badge?: string;
+}
+
+export type FilterComboboxOption = string | FilterComboboxOptionItem;
+
 interface FilterComboboxProps {
   value: string;
   onChange: (val: string) => void;
-  options: string[];
+  options: FilterComboboxOption[];
   placeholder?: string;
   onEnter?: () => void;
+  unitLabel?: string;
+  stepLimit?: number;
 }
 
 /**
- * Ô tìm kiếm kết hợp dropdown danh sách lựa chọn:
- * Độ rộng vừa khít 100% ô nhập, chiều cao giới hạn max-h-44 cuộn gọn gàng,
- * hỗ trợ gõ lọc tức thì, nút xóa nhanh và phím Enter.
+ * Ô tìm kiếm kết hợp dropdown danh sách lựa chọn theo lượt (chuẩn 5 đơn/lượt):
+ * Độ rộng vừa khít 100% ô nhập, chiều cao giới hạn cuộn gọn gàng,
+ * hỗ trợ gõ lọc tức thì, nút xóa nhanh ✕, hiển thị thẻ chi tiết và tự động tải thêm 5 đơn/lượt khi cuộn.
  */
 const FilterCombobox: React.FC<FilterComboboxProps> = ({
   value,
@@ -37,15 +48,31 @@ const FilterCombobox: React.FC<FilterComboboxProps> = ({
   options,
   placeholder = 'Chọn hoặc nhập...',
   onEnter,
+  unitLabel = 'đơn',
+  stepLimit = 5,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [displayLimit, setDisplayLimit] = useState(stepLimit);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const filtered = useMemo(() => {
     if (!value.trim()) return options;
     const term = value.toLowerCase().trim();
-    return options.filter((opt) => opt.toLowerCase().includes(term));
+    return options.filter((opt) => {
+      if (typeof opt === 'string') {
+        return opt.toLowerCase().includes(term);
+      }
+      return (
+        opt.value.toLowerCase().includes(term) ||
+        (opt.label && opt.label.toLowerCase().includes(term)) ||
+        (opt.subLabel && opt.subLabel.toLowerCase().includes(term))
+      );
+    });
   }, [options, value]);
+
+  const displayed = useMemo(() => {
+    return filtered.slice(0, displayLimit);
+  }, [filtered, displayLimit]);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -64,9 +91,13 @@ const FilterCombobox: React.FC<FilterComboboxProps> = ({
           type="text"
           value={value}
           placeholder={placeholder}
-          onFocus={() => setIsOpen(true)}
+          onFocus={() => {
+            setDisplayLimit(stepLimit);
+            setIsOpen(true);
+          }}
           onChange={(e) => {
             onChange(e.target.value);
+            setDisplayLimit(stepLimit);
             if (!isOpen) setIsOpen(true);
           }}
           onKeyDown={(e) => {
@@ -77,7 +108,7 @@ const FilterCombobox: React.FC<FilterComboboxProps> = ({
               setIsOpen(false);
             }
           }}
-          className="w-full h-8 pl-2.5 pr-11 text-xs rounded-md border border-slate-300 bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 transition-colors placeholder:text-slate-400"
+          className="w-full h-8 pl-2.5 pr-11 text-xs rounded-md border border-slate-300 bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 transition-colors placeholder:text-slate-400 text-slate-800"
         />
         <div className="absolute right-1.5 flex items-center gap-0.5 text-slate-400">
           {value && (
@@ -86,6 +117,7 @@ const FilterCombobox: React.FC<FilterComboboxProps> = ({
               onClick={(e) => {
                 e.stopPropagation();
                 onChange('');
+                setDisplayLimit(stepLimit);
                 setIsOpen(false);
               }}
               className="w-4 h-4 flex items-center justify-center text-[11px] text-slate-400 hover:text-slate-600 bg-transparent border-0 cursor-pointer"
@@ -98,6 +130,7 @@ const FilterCombobox: React.FC<FilterComboboxProps> = ({
             type="button"
             onClick={(e) => {
               e.stopPropagation();
+              if (!isOpen) setDisplayLimit(stepLimit);
               setIsOpen(!isOpen);
             }}
             className="w-4 h-4 flex items-center justify-center text-[9px] text-slate-500 hover:text-slate-800 bg-transparent border-0 cursor-pointer"
@@ -108,33 +141,85 @@ const FilterCombobox: React.FC<FilterComboboxProps> = ({
         </div>
       </div>
 
-      {/* Dropdown danh sách lựa chọn: Chiều rộng vừa khít 100% ô nhập, chiều cao tối đa vừa vặn */}
+      {/* Dropdown danh sách lựa chọn: 5 đơn/lượt, có thể cuộn hoặc bấm tải thêm */}
       {isOpen && (
-        <div className="absolute top-[calc(100%+3px)] left-0 w-full max-h-44 overflow-y-auto bg-white border border-slate-200 rounded-md shadow-lg z-50 py-1">
-          {filtered.length === 0 ? (
-            <div className="px-3 py-2 text-[11.5px] text-slate-400 text-center">
-              Không có lựa chọn phù hợp
-            </div>
-          ) : (
-            filtered.map((opt) => (
-              <div
-                key={opt}
-                onClick={() => {
-                  onChange(opt);
-                  setIsOpen(false);
-                }}
-                className={`px-2.5 py-1.5 text-xs cursor-pointer transition-colors flex items-center justify-between ${
-                  opt === value
-                    ? 'bg-emerald-50 text-emerald-800 font-semibold'
-                    : 'text-slate-700 hover:bg-slate-100'
-                }`}
-              >
-                <span className="truncate">{opt}</span>
-                {opt === value && (
-                  <span className="text-emerald-600 font-bold text-xs ml-2">✓</span>
-                )}
+        <div className="absolute top-[calc(100%+3px)] left-0 w-full min-w-[260px] bg-white border border-slate-200 rounded-md shadow-xl z-50 overflow-hidden text-left animate-in fade-in duration-150">
+          {/* Danh sách cuộn mượt mà có cơ chế tải thêm stepLimit (5 đơn) */}
+          <div
+            className="max-h-56 overflow-y-auto divide-y divide-slate-100"
+            onScroll={(e) => {
+              const target = e.currentTarget;
+              if (target.scrollHeight - target.scrollTop <= target.clientHeight + 25) {
+                if (displayLimit < filtered.length) {
+                  setDisplayLimit((prev) => Math.min(prev + stepLimit, filtered.length));
+                }
+              }
+            }}
+          >
+            {displayed.length === 0 ? (
+              <div className="px-3 py-3 text-[11.5px] text-slate-400 text-center">
+                Không có {unitLabel} nào phù hợp với &quot;{value}&quot;
               </div>
-            ))
+            ) : (
+              displayed.map((opt, idx) => {
+                const optVal = typeof opt === 'string' ? opt : opt.value;
+                const optLabel = typeof opt === 'string' ? opt : opt.label || opt.value;
+                const optSub = typeof opt === 'string' ? null : opt.subLabel;
+                const optBadge = typeof opt === 'string' ? null : opt.badge;
+                const isSelected = optVal === value;
+
+                return (
+                  <div
+                    key={`${optVal}-${idx}`}
+                    onClick={() => {
+                      onChange(optVal);
+                      setIsOpen(false);
+                      if (onEnter) onEnter();
+                    }}
+                    className={`px-2.5 py-1.5 cursor-pointer transition-colors ${
+                      isSelected
+                        ? 'bg-emerald-50 text-emerald-900 font-semibold'
+                        : 'text-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-1.5">
+                      <span className="font-bold text-xs text-slate-800 truncate">
+                        {optLabel}
+                      </span>
+                      <div className="flex items-center gap-1 shrink-0">
+                        {optBadge && (
+                          <span className="text-[10px] px-1.5 py-0.2 rounded font-medium bg-slate-100 text-slate-600 border border-slate-200">
+                            {optBadge}
+                          </span>
+                        )}
+                        {isSelected && (
+                          <span className="text-emerald-600 font-bold text-xs ml-1">✓</span>
+                        )}
+                      </div>
+                    </div>
+                    {optSub && (
+                      <div className="text-[10.5px] text-slate-500 truncate mt-0.5">
+                        {optSub}
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          {/* Nút bấm tải thêm 5 đơn tiếp theo nếu còn */}
+          {displayLimit < filtered.length && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setDisplayLimit((prev) => Math.min(prev + stepLimit, filtered.length));
+              }}
+              className="w-full py-1.5 px-2 bg-emerald-50/80 hover:bg-emerald-100 text-emerald-800 text-[11px] font-bold text-center cursor-pointer transition-colors border-t border-emerald-100 select-none block"
+            >
+              Tải thêm {Math.min(stepLimit, filtered.length - displayLimit)} {unitLabel} tiếp theo... (còn {filtered.length - displayLimit})
+            </button>
           )}
         </div>
       )}
@@ -162,8 +247,9 @@ export const SalesInvoiceFromDeliveriesView: React.FC<SalesInvoiceFromDeliveries
   const [adjustmentTypeFilter, setAdjustmentTypeFilter] = useState('');
   const [fromDateFilter, setFromDateFilter] = useState('');
   const [toDateFilter, setToDateFilter] = useState('');
+  const [quickSearchText, setQuickSearchText] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const pageSize = 15;
+  const [pageSize, setPageSize] = useState(5);
 
   // 2. Dữ liệu bảng & Thống kê
   const [isLoading, setIsLoading] = useState(false);
@@ -198,62 +284,107 @@ export const SalesInvoiceFromDeliveriesView: React.FC<SalesInvoiceFromDeliveries
     };
   }, [token]);
 
+  // Format currency
+  const formatVND = useCallback((amount: number) => {
+    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount || 0);
+  }, []);
 
-  // Gợi ý danh sách cho các trường vừa gõ tìm kiếm vừa chọn
-  const dispatchCodeOptions = useMemo(() => {
-    const s = new Set<string>();
+  // Gợi ý danh sách hiển thị dạng thẻ chi tiết (chuẩn 5 đơn/lượt cuộn)
+  const dispatchCodeOptions: FilterComboboxOption[] = useMemo(() => {
+    if (activeTab === 'ADJUSTMENTS') {
+      return adjustmentsList.map((a) => ({
+        value: a.adjustment_code,
+        label: a.adjustment_code,
+        subLabel: `${a.dealer_name || 'Khách lẻ'} • HĐ gốc: ${a.invoice_code}`,
+        badge: a.adjustment_type === 'INCREASE' ? '+ Tăng' : a.adjustment_type === 'DECREASE' ? '- Giảm' : 'Thông tin',
+      }));
+    }
+    return dispatches.map((d) => ({
+      value: d.dispatch_code,
+      label: d.dispatch_code,
+      subLabel: `${d.dealer_name || 'Khách lẻ'} • Đơn: ${d.order_code} • ${formatVND(d.total_amount)}`,
+      badge: d.delivery_status === 'DELIVERED' ? 'Đã giao' : d.delivery_status === 'FAILED' ? 'Thất bại' : 'Chờ giao',
+    }));
+  }, [activeTab, adjustmentsList, dispatches, formatVND]);
+
+  const orderCodeOptions: FilterComboboxOption[] = useMemo(() => {
+    if (activeTab === 'ADJUSTMENTS') {
+      const map = new Map<string, FilterComboboxOptionItem>();
+      adjustmentsList.forEach((a) => {
+        if (a.invoice_code && !map.has(a.invoice_code)) {
+          map.set(a.invoice_code, {
+            value: a.invoice_code,
+            label: a.invoice_code,
+            subLabel: `${a.dealer_name || 'Khách lẻ'} • Điều chỉnh: ${a.adjustment_code}`,
+          });
+        }
+      });
+      return Array.from(map.values());
+    }
+    const map = new Map<string, FilterComboboxOptionItem>();
+    dispatches.forEach((d) => {
+      if (d.order_code && !map.has(d.order_code)) {
+        map.set(d.order_code, {
+          value: d.order_code,
+          label: d.order_code,
+          subLabel: `${d.dealer_name || 'Khách lẻ'} • Phiếu: ${d.dispatch_code} • ${formatVND(d.total_amount)}`,
+        });
+      }
+    });
+    return Array.from(map.values());
+  }, [activeTab, adjustmentsList, dispatches, formatVND]);
+
+  const dealerOptions: FilterComboboxOption[] = useMemo(() => {
+    const map = new Map<string, FilterComboboxOptionItem>();
     if (activeTab === 'ADJUSTMENTS') {
       adjustmentsList.forEach((a) => {
-        if (a.adjustment_code) s.add(a.adjustment_code);
+        if (a.dealer_name && !map.has(a.dealer_name)) {
+          map.set(a.dealer_name, {
+            value: a.dealer_name,
+            label: a.dealer_name,
+            subLabel: `Mã điều chỉnh: ${a.adjustment_code}`,
+          });
+        }
       });
     } else {
       dispatches.forEach((d) => {
-        if (d.dispatch_code) s.add(d.dispatch_code);
+        if (d.dealer_name && !map.has(d.dealer_name)) {
+          map.set(d.dealer_name, {
+            value: d.dealer_name,
+            label: d.dealer_name,
+            subLabel: `${d.dealer_phone ? `SĐT: ${d.dealer_phone} • ` : ''}Đơn: ${d.order_code}`,
+          });
+        }
       });
     }
-    return Array.from(s);
+    return Array.from(map.values());
   }, [activeTab, adjustmentsList, dispatches]);
 
-  const orderCodeOptions = useMemo(() => {
-    const s = new Set<string>();
-    if (activeTab === 'ADJUSTMENTS') {
-      adjustmentsList.forEach((a) => {
-        if (a.invoice_code) s.add(a.invoice_code);
-      });
-    } else {
-      dispatches.forEach((d) => {
-        if (d.order_code) s.add(d.order_code);
-      });
-    }
-    return Array.from(s);
-  }, [activeTab, adjustmentsList, dispatches]);
-
-  const dealerOptions = useMemo(() => {
-    const s = new Set<string>();
-    if (activeTab === 'ADJUSTMENTS') {
-      adjustmentsList.forEach((a) => {
-        if (a.dealer_name) s.add(a.dealer_name);
-      });
-    } else {
-      dispatches.forEach((d) => {
-        if (d.dealer_name) s.add(d.dealer_name);
-      });
-    }
-    return Array.from(s);
-  }, [activeTab, adjustmentsList, dispatches]);
-
-  const warehouseOptions = useMemo(() => {
-    const s = new Set<string>();
+  const warehouseOptions: FilterComboboxOption[] = useMemo(() => {
+    const map = new Map<string, FilterComboboxOptionItem>();
     warehousesList.forEach((w) => {
-      if (w.name) s.add(w.name);
+      if (w.name && !map.has(w.name)) {
+        map.set(w.name, {
+          value: w.name,
+          label: w.name,
+          subLabel: `Kho hàng ID: ${w.id}`,
+        });
+      }
     });
     dispatches.forEach((d) => {
-      if (d.warehouse_name) s.add(d.warehouse_name);
+      if (d.warehouse_name && !map.has(d.warehouse_name)) {
+        map.set(d.warehouse_name, {
+          value: d.warehouse_name,
+          label: d.warehouse_name,
+          subLabel: `Xuất đơn: ${d.order_code}`,
+        });
+      }
     });
-    return Array.from(s);
+    return Array.from(map.values());
   }, [warehousesList, dispatches]);
 
   const handleResetFilters = () => {
+    setQuickSearchText('');
     setDispatchCodeFilter('');
     setOrderCodeFilter('');
     setDealerNameFilter('');
@@ -316,18 +447,13 @@ export const SalesInvoiceFromDeliveriesView: React.FC<SalesInvoiceFromDeliveries
     }, 4500);
   }, []);
 
-  // Format currency
-  const formatVND = useCallback((amount: number) => {
-    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount || 0);
-  }, []);
-
   // Tải dữ liệu phiếu giao hàng hoặc lịch sử chứng từ điều chỉnh từ API
   const fetchDispatches = useCallback(async () => {
     setIsLoading(true);
     try {
       if (activeTab === 'ADJUSTMENTS') {
         const res = await getInvoiceAdjustmentsHistoryApi(token, {
-          search: (dispatchCodeFilter || orderCodeFilter || dealerNameFilter).trim() || undefined,
+          search: (quickSearchText || dispatchCodeFilter || orderCodeFilter || dealerNameFilter).trim() || undefined,
           adjustment_type: adjustmentTypeFilter || undefined,
           from_date: fromDateFilter || undefined,
           to_date: toDateFilter || undefined,
@@ -348,6 +474,7 @@ export const SalesInvoiceFromDeliveriesView: React.FC<SalesInvoiceFromDeliveries
       }
 
       const res = await getDeliveryDispatchesForInvoicingApi(token, {
+        search: quickSearchText.trim() || undefined,
         dispatch_code: dispatchCodeFilter.trim() || undefined,
         order_code: orderCodeFilter.trim() || undefined,
         dealer_name: dealerNameFilter.trim() || undefined,
@@ -376,6 +503,7 @@ export const SalesInvoiceFromDeliveriesView: React.FC<SalesInvoiceFromDeliveries
     }
   }, [
     token,
+    quickSearchText,
     dispatchCodeFilter,
     orderCodeFilter,
     dealerNameFilter,
@@ -597,7 +725,7 @@ export const SalesInvoiceFromDeliveriesView: React.FC<SalesInvoiceFromDeliveries
   };
 
   return (
-    <div className="sales-invoice-view min-h-screen bg-slate-50 flex flex-col p-4 md:p-6 text-slate-800">
+    <div className="sales-invoice-view min-h-screen bg-slate-50 flex flex-col p-3 sm:p-4 md:p-5 text-slate-800">
       {/* Toast Host: Đặt ở góc dưới bên phải màn hình không bị thanh menu che khuất */}
       {toastMessage && (
         <div
@@ -619,7 +747,7 @@ export const SalesInvoiceFromDeliveriesView: React.FC<SalesInvoiceFromDeliveries
           TRANG CON 1: CHI TIẾT PHIẾU GIAO HÀNG (FULL-PAGE VIEW)
           ========================================================================= */}
       {viewMode === 'dispatch_detail' && viewingDispatch ? (
-        <div className="max-w-5xl mx-auto w-full animate-in fade-in duration-150">
+        <div className="w-full animate-in fade-in duration-150">
           {/* TẤT CẢ TRONG 1 KHUNG DUY NHẤT, NGĂN CÁCH BỞI ĐƯỜNG KẺ MỜ */}
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden divide-y divide-slate-200">
             {/* 1. Header Bar điều hướng & Thao tác */}
@@ -813,7 +941,7 @@ export const SalesInvoiceFromDeliveriesView: React.FC<SalesInvoiceFromDeliveries
         /* =========================================================================
            TRANG CON 2: LẬP CHỨNG TỪ ĐIỀU CHỈNH HÓA ĐƠN (FULL-PAGE VIEW)
            ========================================================================= */
-        <div className="max-w-4xl mx-auto w-full animate-in fade-in duration-150">
+        <div className="w-full animate-in fade-in duration-150">
           {/* TẤT CẢ TRONG 1 KHUNG DUY NHẤT, NGĂN CÁCH BỞI ĐƯỜNG KẺ MỜ */}
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden divide-y divide-slate-200">
             {/* 1. Header Bar điều hướng & Tiêu đề */}
@@ -1074,8 +1202,52 @@ export const SalesInvoiceFromDeliveriesView: React.FC<SalesInvoiceFromDeliveries
         </div>
 
 
-        {/* Bộ lọc lưới 4x2 đồng bộ, chiều cao h-8, font chữ rõ ràng, không bị lệch */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 items-end pt-2.5 border-t border-slate-100">
+        {/* Thanh tìm kiếm nhanh phong cách Chọn sản phẩm theo kệ (chuẩn 5 đơn/lượt) */}
+        <div className="pt-2.5 pb-2 border-t border-slate-100">
+          <div className="mb-1.5">
+            <span className="text-xs font-bold text-slate-800">
+              Tìm kiếm đơn hàng & phiếu giao
+            </span>
+          </div>
+
+          <div className="relative w-full">
+            <input
+              type="text"
+              placeholder="Tìm nhanh theo mã phiếu giao, mã đơn hàng, tên đại lý (VD: GH-001, DH-002, Minh Khang...)..."
+              value={quickSearchText}
+              onChange={(e) => {
+                setQuickSearchText(e.target.value);
+                setCurrentPage(1);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  setCurrentPage(1);
+                  fetchDispatches();
+                }
+              }}
+              className="w-full h-8 pl-8 pr-8 text-xs rounded-md border border-slate-300 bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 transition-colors text-slate-800 placeholder:text-slate-400"
+            />
+            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs pointer-events-none">
+              🔍
+            </span>
+            {quickSearchText && (
+              <button
+                type="button"
+                onClick={() => {
+                  setQuickSearchText('');
+                  setCurrentPage(1);
+                }}
+                className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 flex items-center justify-center text-[11px] text-slate-400 hover:text-slate-600 bg-transparent border-0 cursor-pointer"
+                title="Xóa tìm kiếm"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Bộ lọc lưới 4x2 chi tiết, mỗi combobox hiển thị chuẩn 5 đơn/lượt cuộn */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 items-end pt-2 border-t border-slate-100">
           {/* Cột 1: Mã phiếu giao hoặc Mã chứng từ điều chỉnh */}
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1">
@@ -1085,6 +1257,7 @@ export const SalesInvoiceFromDeliveriesView: React.FC<SalesInvoiceFromDeliveries
               value={dispatchCodeFilter}
               onChange={setDispatchCodeFilter}
               options={dispatchCodeOptions}
+              unitLabel={activeTab === 'ADJUSTMENTS' ? 'chứng từ' : 'phiếu'}
               placeholder={activeTab === 'ADJUSTMENTS' ? 'Chọn hoặc nhập mã DC-...' : 'Chọn hoặc nhập mã phiếu...'}
               onEnter={handleKeyDown}
             />
@@ -1099,6 +1272,7 @@ export const SalesInvoiceFromDeliveriesView: React.FC<SalesInvoiceFromDeliveries
               value={orderCodeFilter}
               onChange={setOrderCodeFilter}
               options={orderCodeOptions}
+              unitLabel={activeTab === 'ADJUSTMENTS' ? 'hóa đơn' : 'đơn'}
               placeholder={activeTab === 'ADJUSTMENTS' ? 'Chọn hoặc nhập mã HD-...' : 'Chọn hoặc nhập mã đơn...'}
               onEnter={handleKeyDown}
             />
@@ -1111,6 +1285,7 @@ export const SalesInvoiceFromDeliveriesView: React.FC<SalesInvoiceFromDeliveries
               value={dealerNameFilter}
               onChange={setDealerNameFilter}
               options={dealerOptions}
+              unitLabel="đại lý"
               placeholder="Chọn hoặc nhập đại lý..."
               onEnter={handleKeyDown}
             />
@@ -1123,6 +1298,7 @@ export const SalesInvoiceFromDeliveriesView: React.FC<SalesInvoiceFromDeliveries
               value={warehouseIdFilter}
               onChange={setWarehouseIdFilter}
               options={warehouseOptions}
+              unitLabel="kho"
               placeholder="Chọn hoặc nhập kho xuất..."
               onEnter={handleKeyDown}
             />
@@ -1562,12 +1738,32 @@ export const SalesInvoiceFromDeliveriesView: React.FC<SalesInvoiceFromDeliveries
           </table>
         </div>
 
-        {/* Phân trang */}
+        {/* Phân trang (chuẩn 5 đơn/lượt) */}
         {totalRecords > 0 && (
           <div className="py-2 px-3 border-t border-slate-200 bg-slate-50/50 flex flex-wrap items-center justify-between text-[11px] text-slate-500 gap-2">
-            <div>
-              Hiển thị <strong className="text-slate-800">{activeTab === 'ADJUSTMENTS' ? adjustmentsList.length : dispatches.length}</strong> / {totalRecords} {activeTab === 'ADJUSTMENTS' ? 'chứng từ' : 'phiếu giao hàng'}
+            <div className="flex items-center gap-2">
+              <span>
+                Hiển thị <strong className="text-slate-800">{activeTab === 'ADJUSTMENTS' ? adjustmentsList.length : dispatches.length}</strong> / {totalRecords} {activeTab === 'ADJUSTMENTS' ? 'chứng từ' : 'phiếu giao hàng'}
+              </span>
+              <span className="text-slate-300">|</span>
+              <div className="flex items-center gap-1.5">
+                <span>Số lượng hiển thị:</span>
+                <select
+                  value={pageSize}
+                  onChange={(e) => {
+                    setPageSize(Number(e.target.value));
+                    setCurrentPage(1);
+                  }}
+                  className="h-6 px-1.5 text-[11px] font-semibold text-slate-700 bg-white border border-slate-300 rounded cursor-pointer"
+                >
+                  <option value={5}>5 đơn / lượt</option>
+                  <option value={10}>10 đơn / lượt</option>
+                  <option value={15}>15 đơn / lượt</option>
+                  <option value={20}>20 đơn / lượt</option>
+                </select>
+              </div>
             </div>
+
             <div className="flex items-center gap-1">
               <button
                 type="button"

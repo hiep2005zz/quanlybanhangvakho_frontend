@@ -224,7 +224,7 @@ export const InvoiceAdjustmentDetailModal: React.FC<InvoiceAdjustmentDetailModal
             style={{
               width: '100%',
               maxWidth: '794px',
-              minHeight: '800px',
+              minHeight: 'auto',
               padding: '36px 44px',
               backgroundColor: '#ffffff',
               color: '#000000',

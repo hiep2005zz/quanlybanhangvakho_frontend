@@ -248,10 +248,9 @@ export const DeliveryTripPrintModal: React.FC<DeliveryTripPrintModalProps> = ({
     try {
       setIsExportingPdf(true);
       await downloadElementAsPdf(paperRef.current, `Phieu-Giao-Hang-${trip.trip_code}.pdf`);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Lỗi khi xuất PDF:', err);
-      // Fallback an toàn nếu trình duyệt không hỗ trợ canvas
-      executeIframePrint();
+      window.alert('Không thể tải PDF: ' + (err?.message || 'Vui lòng thử lại'));
     } finally {
       setIsExportingPdf(false);
     }
@@ -322,11 +321,11 @@ export const DeliveryTripPrintModal: React.FC<DeliveryTripPrintModalProps> = ({
             style={{
               width: '100%',
               maxWidth: '794px',
-              minHeight: '1000px',
+              minHeight: 'auto',
               padding: '36px 44px',
               backgroundColor: '#ffffff',
               color: '#000000',
-              boxShadow: '0 10px 25px rgba(0, 0, 0, 0.2)',
+              border: '1px solid #cbd5e1',
               borderRadius: '2px',
               fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
               fontSize: '13px',
