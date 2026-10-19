@@ -6078,4 +6078,264 @@ export async function deleteDebtReconciliationApi(
   return data;
 }
 
+// ==================== RETURN ORDERS / RMA APIs ====================
+export interface ReturnOrderItemData {
+  id: number;
+  return_order_id: number;
+  order_item_id?: number | null;
+  product_id: number;
+  product_code?: string | null;
+  product_name: string;
+  unit_name: string;
+  unit_price: number;
+  original_quantity: number;
+  return_quantity: number;
+  refund_amount: number;
+  return_reason: string;
+  is_damaged: boolean;
+  target_warehouse_id?: number | null;
+  target_warehouse_code?: string | null;
+  target_warehouse_name?: string | null;
+  batch_id?: number | null;
+  batch_number?: string | null;
+  note?: string | null;
+}
+
+export interface ReturnOrderData {
+  id: number;
+  code: string;
+  order_id: number;
+  order_code: string;
+  dealer_id: number;
+  dealer_name: string;
+  status: 'PENDING_WAREHOUSE' | 'COMPLETED' | 'CANCELLED' | string;
+  total_items: number;
+  total_quantity: number;
+  total_refund_amount: number;
+  note?: string | null;
+  created_by: string;
+  created_at: string;
+  confirmed_by?: string | null;
+  confirmed_at?: string | null;
+  cancelled_by?: string | null;
+  cancelled_at?: string | null;
+  cancel_reason?: string | null;
+  items: ReturnOrderItemData[];
+}
+
+export interface ReturnOrderListResponse {
+  items: ReturnOrderData[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
+export interface ReturnableItemInfo {
+  order_item_id: number;
+  product_id: number;
+  product_code?: string | null;
+  product_name: string;
+  unit_name: string;
+  unit_price: number;
+  original_quantity: number;
+  delivered_quantity: number;
+  already_returned_quantity: number;
+  remaining_quantity: number;
+  is_batch_managed: boolean;
+  selected_batch_id?: number | null;
+  selected_batch_number?: string | null;
+  available_batches: Array<{
+    id: number;
+    batch_number: string;
+    expiry_date?: string | null;
+    quantity: number;
+    is_order_batch: boolean;
+  }>;
+}
+
+export interface OrderReturnableInfoResponse {
+  order_id: number;
+  order_code: string;
+  dealer_id: number;
+  dealer_name: string;
+  order_status: string;
+  order_created_at: string;
+  items: ReturnableItemInfo[];
+  damaged_warehouse: {
+    id: number;
+    code: string;
+    name: string;
+    warehouse_type: string;
+  };
+  default_warehouse: {
+    id: number;
+    code: string;
+    name: string;
+    warehouse_type: string;
+  };
+}
+
+export interface ReturnOrderItemCreateInput {
+  order_item_id?: number;
+  product_id: number;
+  return_quantity: number;
+  return_reason: string;
+  batch_id?: number;
+  batch_number?: string;
+  target_warehouse_id?: number;
+  note?: string;
+}
+
+export interface ReturnOrderCreateInput {
+  order_id: number;
+  items: ReturnOrderItemCreateInput[];
+  note?: string;
+}
+
+export async function getEligibleOrdersForReturnApi(
+  token: string,
+  search?: string,
+  dealerId?: number
+): Promise<Array<{
+  id: number;
+  order_code: string;
+  dealer_id: number;
+  dealer_name: string;
+  status: string;
+  total_amount: number;
+  created_at: string;
+  items_count: number;
+}>> {
+  const query = new URLSearchParams();
+  if (search && search.trim()) query.set('search', search.trim());
+  if (dealerId) query.set('dealer_id', String(dealerId));
+
+  const url = `${API_BASE_URL}/return-orders/eligible-orders${query.toString() ? `?${query.toString()}` : ''}`;
+  const response = await authenticatedFetch(url, {}, token);
+  const data = await response.json().catch(() => []);
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi tải danh sách đơn hàng (${response.status})`);
+  }
+  return data;
+}
+
+export async function getOrderReturnableItemsApi(
+  token: string,
+  orderId: number
+): Promise<OrderReturnableInfoResponse> {
+  const url = `${API_BASE_URL}/return-orders/order-returnable-items/${orderId}`;
+  const response = await authenticatedFetch(url, {}, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi tải dòng hàng đơn (${response.status})`);
+  }
+  return data;
+}
+
+export async function createReturnOrderApi(
+  token: string,
+  payload: ReturnOrderCreateInput
+): Promise<ReturnOrderData> {
+  const url = `${API_BASE_URL}/return-orders`;
+  const response = await authenticatedFetch(
+    url,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    },
+    token
+  );
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const errorMsg = formatErrorMessage(data.detail, data.message || `Lỗi tạo phiếu trả hàng (${response.status})`);
+    throw new Error(errorMsg);
+  }
+  return data;
+}
+
+export async function getReturnOrdersApi(
+  token: string,
+  params?: {
+    status?: string;
+    search?: string;
+    dealer_id?: number;
+    page?: number;
+    page_size?: number;
+  }
+): Promise<ReturnOrderListResponse> {
+  const query = new URLSearchParams();
+  if (params?.status && params.status !== 'ALL') query.set('status', params.status);
+  if (params?.search && params.search.trim()) query.set('search', params.search.trim());
+  if (params?.dealer_id) query.set('dealer_id', String(params.dealer_id));
+  if (params?.page) query.set('page', String(params.page));
+  if (params?.page_size) query.set('page_size', String(params.page_size));
+
+  const url = `${API_BASE_URL}/return-orders${query.toString() ? `?${query.toString()}` : ''}`;
+  const response = await authenticatedFetch(url, {}, token);
+  const data = await response.json().catch(() => ({ items: [], total: 0 }));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi tải danh sách phiếu trả (${response.status})`);
+  }
+  return data;
+}
+
+export async function getReturnOrderByIdApi(
+  token: string,
+  returnOrderId: number
+): Promise<ReturnOrderData> {
+  const url = `${API_BASE_URL}/return-orders/${returnOrderId}`;
+  const response = await authenticatedFetch(url, {}, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi tải chi tiết phiếu trả (${response.status})`);
+  }
+  return data;
+}
+
+export async function confirmReturnReceiptApi(
+  token: string,
+  returnOrderId: number,
+  note?: string
+): Promise<ReturnOrderData> {
+  const url = `${API_BASE_URL}/return-orders/${returnOrderId}/confirm-receipt`;
+  const response = await authenticatedFetch(
+    url,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ note: note || '' }),
+    },
+    token
+  );
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const errorMsg = formatErrorMessage(data.detail, data.message || `Lỗi xác nhận nhập kho (${response.status})`);
+    throw new Error(errorMsg);
+  }
+  return data;
+}
+
+export async function cancelReturnOrderApi(
+  token: string,
+  returnOrderId: number,
+  reason: string
+): Promise<ReturnOrderData> {
+  const url = `${API_BASE_URL}/return-orders/${returnOrderId}/cancel`;
+  const response = await authenticatedFetch(
+    url,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reason }),
+    },
+    token
+  );
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const errorMsg = formatErrorMessage(data.detail, data.message || `Lỗi hủy phiếu trả (${response.status})`);
+    throw new Error(errorMsg);
+  }
+  return data;
+}
 

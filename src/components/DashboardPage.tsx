@@ -70,6 +70,7 @@ import { SalesTargetManagementView } from './SalesTargetManagementView';
 import WarehousePickingView from './WarehousePickingView';
 import { StockAdjustmentPageView } from './StockAdjustmentPageView';
 import { PaymentCollectionView } from './PaymentCollectionView';
+import { ReturnOrdersManagementView } from './ReturnOrdersManagementView';
 import { DebtPaymentReconciliationView } from './DebtPaymentReconciliationView';
 import { DebtReconciliationView } from './DebtReconciliationView';
 
@@ -772,6 +773,13 @@ export default function DashboardPage({
       } catch {
         // ignore
       }
+    } else if (tab === 'return-orders') {
+      setActiveTabState('return-orders');
+      try {
+        window.history.pushState({}, '', '/return-orders');
+      } catch {
+        // ignore
+      }
     } else if (tab === 'profile') {
       setActiveTabState('profile');
       try {
@@ -980,6 +988,7 @@ export default function DashboardPage({
       const isUsersPath = !isUsersImportPath && (pathname === '/users' || pathname.startsWith('/users/') || pathname === '/admin' || pathname.startsWith('/admin/'));
       const isAuditPath = pathname === '/audit-logs' || pathname.startsWith('/audit-logs/');
       const isOrdersPath = pathname === '/orders' || pathname.startsWith('/orders/');
+      const isReturnOrdersPath = pathname === '/return-orders' || pathname.startsWith('/return-orders');
       const isProfilePath = pathname === '/profile' || pathname.startsWith('/profile/');
       const isProductHistoryPath = pathname === '/product-history' || pathname.startsWith('/product-history/');
       const isStockTransfersPath = pathname === '/stock-transfers' || pathname.startsWith('/stock-transfers/');
@@ -1104,6 +1113,14 @@ export default function DashboardPage({
           try { window.history.replaceState({}, '', '/orders'); } catch { }
         }
         setActiveTabState('orders');
+        return;
+      }
+
+      if (isReturnOrdersPath || tabParam === 'return-orders' || tabParam === 'returns') {
+        if (!pathname.startsWith('/return-orders') || tabParam) {
+          try { window.history.replaceState({}, '', pathname.startsWith('/return-orders') ? pathname : '/return-orders'); } catch { }
+        }
+        setActiveTabState('return-orders');
         return;
       }
 
@@ -1795,8 +1812,8 @@ export default function DashboardPage({
   const isUsersImportPage = activeTab === 'users-import';
   const isPaymentCollectionsPage = activeTab === 'payment-collections';
   const isDeliveryTrackingPage = activeTab === 'delivery-tracking' || currentPath.startsWith('/delivery-tracking');
-  const isStockAdjustmentsPage = activeTab === 'stock-adjustments';
-  const isLockedScrollTab = !isProductFormOpen && !isSalesOrderOpen && !isOrdersCreateSubpage && !isOrderDetailEffective && !isPriceListsCreateSubpage && !isPriceBookDetailSubpage && !isPriceBookEditSubpage && !isGoodsReceiptPage && !isStockTransferCreateSubpage && !isBatchesCreateSubpage && !isProductsImportPage && !isUsersImportPage && !isPaymentCollectionsSubpage && !isPaymentCollectionsPage && !isDeliveryTrackingPage && !isStockAdjustmentsPage && (activeTab === 'inventory' || activeTab === 'dealers' || activeTab === 'dealer-profiles' || activeTab === 'debt-aging' || activeTab === 'debt-reconciliation' || activeTab === 'delivery-points' || activeTab === 'suppliers' || activeTab === 'price-books' || activeTab === 'categories' || activeTab === 'orders' || activeTab === 'product-history' || activeTab === 'stock-book' || activeTab === 'stock-card' || activeTab === 'inventory-turnover' || activeTab === 'stock-audits' || activeTab === 'stock-transfers' || activeTab === 'stock-thresholds' || activeTab === 'low-stock-alerts' || activeTab === 'batches' || activeTab === 'picking') && !isPendingCustomer;
+  const isReturnOrderCreatePage = activeTab === 'return-orders' && currentPath.startsWith('/return-orders/create');
+  const isLockedScrollTab = !isReturnOrderCreatePage && !isProductFormOpen && !isSalesOrderOpen && !isOrdersCreateSubpage && !isOrderDetailEffective && !isPriceListsCreateSubpage && !isPriceBookDetailSubpage && !isPriceBookEditSubpage && !isGoodsReceiptPage && !isStockTransferCreateSubpage && !isBatchesCreateSubpage && !isProductsImportPage && !isUsersImportPage && !isPaymentCollectionsSubpage && !isPaymentCollectionsPage && !isDeliveryTrackingPage && !isStockAdjustmentsPage && (activeTab === 'inventory' || activeTab === 'dealers' || activeTab === 'dealer-profiles' || activeTab === 'debt-aging' || activeTab === 'debt-reconciliation' || activeTab === 'delivery-points' || activeTab === 'suppliers' || activeTab === 'price-books' || activeTab === 'categories' || activeTab === 'orders' || activeTab === 'return-orders' || activeTab === 'product-history' || activeTab === 'stock-book' || activeTab === 'stock-card' || activeTab === 'inventory-turnover' || activeTab === 'stock-audits' || activeTab === 'stock-transfers' || activeTab === 'stock-thresholds' || activeTab === 'low-stock-alerts' || activeTab === 'batches' || activeTab === 'picking') && !isPendingCustomer;
   return (
     <DashboardLayout
       header={
@@ -1824,7 +1841,7 @@ export default function DashboardPage({
       }
       noScroll={!isCustomer && !isMobileScreen && isLockedScrollTab}
       mainClassName={
-        isOrderDetailEffective || isOrdersCreateSubpage || isPriceListsCreateSubpage || isPriceBookDetailSubpage || isPriceBookEditSubpage || isGoodsReceiptPage || isStockTransferCreateSubpage || isBatchesCreateSubpage || isProductsImportPage || isUsersImportPage || isPaymentCollectionsSubpage || isPaymentCollectionsPage || isDeliveryTrackingPage || isStockAdjustmentsPage || activeTab === 'debt-payments'
+        isOrderDetailEffective || isOrdersCreateSubpage || isReturnOrderCreatePage || isPriceListsCreateSubpage || isPriceBookDetailSubpage || isPriceBookEditSubpage || isGoodsReceiptPage || isStockTransferCreateSubpage || isBatchesCreateSubpage || isProductsImportPage || isUsersImportPage || isPaymentCollectionsSubpage || isPaymentCollectionsPage || isDeliveryTrackingPage || isStockAdjustmentsPage || activeTab === 'debt-payments'
           ? 'flex-1 min-w-0 overflow-y-auto p-0 flex flex-col bg-slate-50'
           : activeTab === 'agency-debts'
             ? 'flex-1 min-w-0 overflow-hidden p-0 flex flex-col bg-slate-50 h-full'
@@ -2066,6 +2083,12 @@ export default function DashboardPage({
               onLogout={onLogout}
             />
           )
+        ) : activeTab === 'return-orders' ? (
+          <ReturnOrdersManagementView
+            currentUser={user}
+            token={token}
+            onBackToHome={() => setActiveTab('inventory')}
+          />
         ) : activeTab === 'goods-receipt' ? (
           canWriteInventory ? (
             <GoodsReceiptView
