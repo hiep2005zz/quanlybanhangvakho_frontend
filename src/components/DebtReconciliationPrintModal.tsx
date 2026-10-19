@@ -396,46 +396,7 @@ export const DebtReconciliationPrintModal: React.FC<DebtReconciliationPrintModal
               <div style={{ fontWeight: 'bold', textTransform: 'uppercase' }}>ĐẠI DIỆN BÊN B</div>
               <div style={{ fontSize: '12px', fontStyle: 'italic' }}>(Ký, ghi rõ họ tên và đóng dấu)</div>
 
-              <div style={{ height: '90px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                {reconciliation.status === 'CONFIRMED' ? (
-                  <div
-                    style={{
-                      border: '2px solid #16a34a',
-                      color: '#16a34a',
-                      padding: '8px 16px',
-                      borderRadius: '8px',
-                      transform: 'rotate(-4deg)',
-                      fontSize: '12px',
-                      fontWeight: 'bold',
-                      backgroundColor: 'rgba(240, 253, 244, 0.6)',
-                    }}
-                  >
-                    <div>ĐÃ ĐỐI CHIẾU XÁC NHẬN</div>
-                    <div style={{ fontSize: '10.5px', color: '#15803d', fontWeight: 'normal', marginTop: '2px' }}>
-                      Xác nhận: {reconciliation.confirmed_by_name || reconciliation.dealer_name}
-                    </div>
-                    <div style={{ fontSize: '10px', color: '#64748b' }}>
-                      Thời gian: {reconciliation.confirmed_at}
-                    </div>
-                  </div>
-                ) : reconciliation.status === 'DISPUTED' ? (
-                  <div
-                    style={{
-                      border: '2px dashed #ea580c',
-                      color: '#ea580c',
-                      padding: '6px 12px',
-                      fontSize: '11px',
-                      borderRadius: '6px',
-                    }}
-                  >
-                    Đại lý báo lệch số dư ({formatMoney(reconciliation.dealer_reported_balance || 0)})
-                  </div>
-                ) : (
-                  <div style={{ fontStyle: 'italic', color: '#94a3b8', fontSize: '12px' }}>
-                    (Chưa ký xác nhận)
-                  </div>
-                )}
-              </div>
+              <div style={{ height: '90px' }} />
 
               <div style={{ fontWeight: 'bold', marginTop: '6px' }}>{reconciliation.dealer_name}</div>
             </div>
@@ -445,28 +406,7 @@ export const DebtReconciliationPrintModal: React.FC<DebtReconciliationPrintModal
               <div style={{ fontWeight: 'bold', textTransform: 'uppercase' }}>ĐẠI DIỆN BÊN A</div>
               <div style={{ fontSize: '12px', fontStyle: 'italic' }}>(Kế toán công nợ / Giám đốc ký)</div>
 
-              <div style={{ height: '90px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <div
-                  style={{
-                    border: '2px solid #2563eb',
-                    color: '#2563eb',
-                    padding: '8px 16px',
-                    borderRadius: '8px',
-                    transform: 'rotate(3deg)',
-                    fontSize: '12px',
-                    fontWeight: 'bold',
-                    backgroundColor: 'rgba(239, 246, 255, 0.6)',
-                  }}
-                >
-                  <div>PHÒNG TÀI CHÍNH KẾ TOÁN</div>
-                  <div style={{ fontSize: '10.5px', color: '#1d4ed8', fontWeight: 'normal', marginTop: '2px' }}>
-                    Người lập: {reconciliation.created_by_name || 'Kế toán công nợ'}
-                  </div>
-                  <div style={{ fontSize: '10px', color: '#64748b' }}>
-                    Ngày lập: {reconciliation.created_at}
-                  </div>
-                </div>
-              </div>
+              <div style={{ height: '90px' }} />
 
               <div style={{ fontWeight: 'bold', marginTop: '6px' }}>{companyInfo.representative}</div>
             </div>

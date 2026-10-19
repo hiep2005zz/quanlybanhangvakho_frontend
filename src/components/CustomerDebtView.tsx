@@ -184,13 +184,35 @@ export const CustomerDebtView: React.FC<CustomerDebtViewProps> = ({
                 </div>
                 <div className="text-xs mt-1.5">
                   {creditInfo?.is_overdue ? (
-                    <span className="text-rose-600 font-semibold">⚠️ Đang có nợ quá hạn</span>
+                    <span className="text-rose-600 font-semibold">Đang có nợ quá hạn</span>
                   ) : (
-                    <span className="text-emerald-600 font-semibold">✓ Tình trạng nợ chuẩn hạn</span>
+                    <span className="text-emerald-600 font-semibold">Tình trạng nợ chuẩn hạn</span>
                   )}
                 </div>
               </div>
             </div>
+
+            {/* CẢNH BÁO CÔNG NỢ TỰ ĐỘNG (S7-04) */}
+            {(creditInfo?.credit_warning_flag || creditInfo?.is_over_credit_limit || creditInfo?.is_overdue) && (
+              <div className="bg-rose-50 border border-rose-200 border-l-4 border-l-rose-500 p-4 rounded-xl shadow-xs">
+                <div className="flex items-start gap-3">
+                  <div>
+                    <h3 className="text-sm font-bold text-rose-800">
+                      Cảnh báo rủi ro tín dụng & công nợ tự động
+                    </h3>
+                    <p className="text-xs text-rose-700 mt-1 leading-relaxed">
+                      {creditInfo.credit_flag_reason || 'Đại lý đang vượt hạn mức tín dụng hoặc có khoản nợ quá số ngày cho phép.'}
+                      {' '}Đơn đặt hàng mới có thể bị hệ thống chặn hoặc chuyển sang trạng thái Cần duyệt theo chính sách kiểm soát rủi ro.
+                    </p>
+                    {creditInfo.last_credit_evaluated_at && (
+                      <div className="text-[11px] text-rose-500 mt-1.5">
+                        Thời điểm đánh giá gần nhất: {new Date(creditInfo.last_credit_evaluated_at).toLocaleString('vi-VN')}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* DANH SÁCH ĐƠN HÀNG & HÓA ĐƠN ĐÃ ĐẶT */}
             <div className="bg-white rounded-2xl border border-gray-200 shadow-xs overflow-hidden">

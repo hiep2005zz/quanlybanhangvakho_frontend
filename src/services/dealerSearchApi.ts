@@ -30,6 +30,11 @@ export interface DealerSearchItem {
     max_debt_days?: number;
     current_debt?: number;
     debt_status?: string;
+    is_over_credit_limit?: boolean;
+    is_overdue?: boolean;
+    credit_warning_flag?: boolean;
+    credit_flag_reason?: string | null;
+    last_credit_evaluated_at?: string | null;
     lock_reason?: string | null;
     locked_at?: string | null;
     locked_by?: string | null;
@@ -95,6 +100,7 @@ export interface DealerSearchParams {
     customer_group?: string;
     status?: string;
     has_transactions?: boolean;
+    credit_status?: string;
     page?: number;
     page_size?: number;
 }
@@ -164,6 +170,10 @@ export async function searchDealers(
 
     if (params?.has_transactions !== undefined) {
         query.set('has_transactions', String(params.has_transactions));
+    }
+
+    if (params?.credit_status?.trim()) {
+        query.set('credit_status', params.credit_status.trim());
     }
 
     if (params?.page) {

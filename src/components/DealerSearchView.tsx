@@ -12,7 +12,16 @@ import {
     updateDealerCreditLimit,
     deleteDealer,
 } from '../services/dealerSearchApi';
-import { User, getProductsApi, ProductItem } from '../services/api';
+import {
+    User,
+    getProductsApi,
+    ProductItem,
+    getCreditPolicyConfigApi,
+    updateCreditPolicyConfigApi,
+    evaluateCreditPolicyApi,
+    recordDealerPaymentApi,
+    CreditPolicyConfig,
+} from '../services/api';
 import { emitStatusToast } from './StatusToast';
 import { OrderCreateModal } from './OrderCreateModal';
 import DeliveryPointManager from './DeliveryPointManager';
@@ -50,6 +59,74 @@ const getUniqueFormattedGroups = (groups: string[]): string[] => {
     });
 };
 
+const getDealerCreditStatusInfo = (dealer: DealerSearchItem) => {
+    const isOverLimit = Boolean(
+        dealer.is_over_credit_limit ||
+        ((dealer.current_debt ?? 0) > (dealer.credit_limit ?? 0) && (dealer.credit_limit ?? 0) > 0) ||
+        dealer.debt_status?.includes('Vượt')
+    );
+    const isOverdue = Boolean(
+        dealer.is_overdue ||
+        dealer.debt_status?.includes('Quá hạn')
+    );
+    const isWarning = Boolean(
+        dealer.credit_warning_flag ||
+        isOverLimit ||
+        isOverdue ||
+        (dealer.debt_status && dealer.debt_status !== 'Trong hạn mức' && dealer.debt_status !== 'Bình thường')
+    );
+
+    if (!isWarning) {
+        return {
+            isWarning: false,
+            label: 'Trong hạn mức',
+            tooltip: 'Dư nợ trong hạn mức cho phép',
+            className: 'dealer-group-tag success',
+            style: {
+                background: '#dcfce7',
+                color: '#16a34a',
+                borderColor: '#86efac',
+                fontWeight: 700,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                whiteSpace: 'nowrap'
+            }
+        };
+    }
+
+    let label = 'Cảnh báo công nợ';
+    if (isOverLimit && isOverdue) {
+        label = 'Vượt hạn mức & Quá hạn';
+    } else if (isOverLimit) {
+        label = 'Vượt hạn mức tiền';
+    } else if (isOverdue) {
+        label = 'Quá hạn thanh toán';
+    }
+
+    const tooltip = [
+        dealer.credit_flag_reason || (isOverLimit ? `Vượt hạn mức công nợ (${(dealer.current_debt ?? 0).toLocaleString('vi-VN')} đ > ${(dealer.credit_limit ?? 0).toLocaleString('vi-VN')} đ)` : isOverdue ? 'Quá hạn thanh toán công nợ' : 'Đang bị gắn cờ cảnh báo công nợ'),
+        dealer.last_credit_evaluated_at ? `ĐG: ${new Date(dealer.last_credit_evaluated_at).toLocaleDateString('vi-VN')}` : ''
+    ].filter(Boolean).join(' • ');
+
+    return {
+        isWarning: true,
+        label,
+        tooltip,
+        className: 'dealer-group-tag danger',
+        style: {
+            background: '#fee2e2',
+            color: '#dc2626',
+            borderColor: '#fca5a5',
+            fontWeight: 700,
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '4px',
+            whiteSpace: 'nowrap'
+        }
+    };
+};
+
 const DEFAULT_STATUSES = [
     'Đang hoạt động',
     'Tạm ngừng',
@@ -72,6 +149,7 @@ export default function DealerSearchView({
     const [customerGroup, setCustomerGroup] = useState('');
     const [assignedSaleId, setAssignedSaleId] = useState('');
     const [status, setStatus] = useState('');
+    const [creditStatus, setCreditStatus] = useState('');
 
     const [regions, setRegions] = useState<string[]>([]);
     const [sales, setSales] = useState<
@@ -261,6 +339,117 @@ export default function DealerSearchView({
             emitStatusToast({ title: 'Lỗi', message: err instanceof Error ? err.message : 'Có lỗi xảy ra', type: 'error' });
         } finally {
             setIsSubmitting(false);
+        }
+    };
+
+    // S7-04 State cho Cấu hình chính sách cảnh báo & khoá bán
+    const [isPolicyModalOpen, setIsPolicyModalOpen] = useState(false);
+    const [policyConfig, setPolicyConfig] = useState<CreditPolicyConfig>({
+        over_limit_action: 'REQUIRE_APPROVAL',
+        overdue_action: 'BLOCK',
+        auto_eval_enabled: true,
+    });
+    const [loadingPolicy, setLoadingPolicy] = useState(false);
+    const [savingPolicy, setSavingPolicy] = useState(false);
+    const [evaluatingPolicy, setEvaluatingPolicy] = useState(false);
+
+    // S7-02 / S7-04 State cho Thu tiền & đối trừ công nợ
+    const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+    const [paymentTargetDealer, setPaymentTargetDealer] = useState<DealerSearchItem | null>(null);
+    const [paymentAmount, setPaymentAmount] = useState<string>('');
+    const [paymentMethod, setPaymentMethod] = useState<string>('Chuyển khoản');
+    const [paymentRef, setPaymentRef] = useState<string>('');
+    const [paymentNote, setPaymentNote] = useState<string>('');
+    const [submittingPayment, setSubmittingPayment] = useState(false);
+
+    const handleOpenPolicyModal = async () => {
+        setIsPolicyModalOpen(true);
+        setLoadingPolicy(true);
+        try {
+            const cfg = await getCreditPolicyConfigApi(token);
+            setPolicyConfig(cfg);
+        } catch (err) {
+            emitStatusToast({ title: 'Lỗi', message: err instanceof Error ? err.message : 'Không thể tải cấu hình chính sách', type: 'error' });
+        } finally {
+            setLoadingPolicy(false);
+        }
+    };
+
+    const handleSavePolicyConfig = async () => {
+        setSavingPolicy(true);
+        try {
+            const updated = await updateCreditPolicyConfigApi({
+                over_limit_action: policyConfig.over_limit_action,
+                overdue_action: policyConfig.overdue_action,
+                auto_eval_enabled: policyConfig.auto_eval_enabled,
+            }, token);
+            setPolicyConfig(updated);
+            emitStatusToast({ title: 'Thành công', message: 'Đã cập nhật chính sách cảnh báo & khoá bán công nợ', type: 'success' });
+            setIsPolicyModalOpen(false);
+        } catch (err) {
+            emitStatusToast({ title: 'Lỗi', message: err instanceof Error ? err.message : 'Không thể lưu cấu hình', type: 'error' });
+        } finally {
+            setSavingPolicy(false);
+        }
+    };
+
+    const handleRunEvaluation = async () => {
+        setEvaluatingPolicy(true);
+        try {
+            const res = await evaluateCreditPolicyApi(token);
+            emitStatusToast({
+                title: 'Đánh giá hoàn tất',
+                message: `Đã đánh giá lại ${res.dealers_evaluated?.length || 0} đại lý. Cờ cảnh báo đã được cập nhật.`,
+                type: 'success',
+            });
+            handleSearch();
+            const cfg = await getCreditPolicyConfigApi(token);
+            setPolicyConfig(cfg);
+        } catch (err) {
+            emitStatusToast({ title: 'Lỗi', message: err instanceof Error ? err.message : 'Lỗi đánh giá công nợ', type: 'error' });
+        } finally {
+            setEvaluatingPolicy(false);
+        }
+    };
+
+    const handleOpenPaymentModal = (dealer: DealerSearchItem) => {
+        setPaymentTargetDealer(dealer);
+        setPaymentAmount(dealer.current_debt ? String(dealer.current_debt) : '');
+        setPaymentMethod('Chuyển khoản');
+        setPaymentRef('');
+        setPaymentNote(`Thanh toán công nợ đơn hàng cho đại lý ${dealer.name}`);
+        setIsPaymentModalOpen(true);
+    };
+    void handleOpenPaymentModal;
+
+    const handleSubmitPayment = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!paymentTargetDealer) return;
+        const amt = Number(paymentAmount);
+        if (!amt || amt <= 0) {
+            emitStatusToast({ title: 'Lỗi', message: 'Vui lòng nhập số tiền thanh toán hợp lệ lớn hơn 0', type: 'error' });
+            return;
+        }
+
+        setSubmittingPayment(true);
+        try {
+            const res = await recordDealerPaymentApi(paymentTargetDealer.id, {
+                amount: amt,
+                payment_method: paymentMethod,
+                reference_code: paymentRef.trim() || undefined,
+                note: paymentNote.trim() || undefined,
+            }, token);
+            emitStatusToast({
+                title: 'Ghi nhận thanh toán thành công (S7-02)',
+                message: `Đã thu ${new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(res.amount)}. Đối trừ hoàn tất ${res.cleared_orders_count} đơn hàng và tự động đánh giá lại cờ công nợ.`,
+                type: 'success',
+            });
+            setIsPaymentModalOpen(false);
+            handleSearch();
+        } catch (err) {
+            emitStatusToast({ title: 'Lỗi', message: err instanceof Error ? err.message : 'Ghi nhận thanh toán thất bại', type: 'error' });
+        } finally {
+            setSubmittingPayment(false);
         }
     };
 
@@ -616,6 +805,7 @@ export default function DealerSearchView({
         assignedSaleId?: string;
         customerGroup?: string;
         status?: string;
+        creditStatus?: string;
         onlyMine?: boolean;
     }) => {
         try {
@@ -627,6 +817,7 @@ export default function DealerSearchView({
             const searchSaleId = overrides?.assignedSaleId !== undefined ? overrides.assignedSaleId : assignedSaleId;
             const searchGroup = overrides?.customerGroup !== undefined ? overrides.customerGroup : customerGroup;
             const searchStatus = overrides?.status !== undefined ? overrides.status : status;
+            const searchCreditStatus = overrides?.creditStatus !== undefined ? overrides.creditStatus : creditStatus;
             const isOnlyMine = overrides?.onlyMine !== undefined ? overrides.onlyMine : onlyMyDealers;
 
             const effectiveSaleId = isOnlyMine && currentUser?.id
@@ -640,6 +831,7 @@ export default function DealerSearchView({
                     assigned_sale_id: effectiveSaleId,
                     customer_group: searchGroup || undefined,
                     status: searchStatus || undefined,
+                    credit_status: searchCreditStatus || undefined,
                 },
                 token
             );
@@ -656,6 +848,18 @@ export default function DealerSearchView({
                 items = items.filter(
                     (d) => Boolean(d.status && d.status.toLowerCase() === searchStatus.toLowerCase())
                 );
+            }
+            if (searchCreditStatus) {
+                const cs = searchCreditStatus.toLowerCase();
+                if (cs === 'flagged') {
+                    items = items.filter((d) => Boolean(d.credit_warning_flag || d.is_over_credit_limit || d.is_overdue));
+                } else if (cs === 'over_limit') {
+                    items = items.filter((d) => Boolean(d.is_over_credit_limit));
+                } else if (cs === 'overdue') {
+                    items = items.filter((d) => Boolean(d.is_overdue));
+                } else if (cs === 'safe') {
+                    items = items.filter((d) => !d.credit_warning_flag && !d.is_over_credit_limit && !d.is_overdue);
+                }
             }
             if (isOnlyMine && currentUser) {
                 const myName = (currentUser.full_name || currentUser.username || '').toLowerCase();
@@ -675,7 +879,7 @@ export default function DealerSearchView({
         } finally {
             setLoading(false);
         }
-    }, [keyword, region, assignedSaleId, customerGroup, status, onlyMyDealers, token, currentUser]);
+    }, [keyword, region, assignedSaleId, customerGroup, status, creditStatus, onlyMyDealers, token, currentUser]);
 
     async function handleReset() {
         setKeyword('');
@@ -683,6 +887,7 @@ export default function DealerSearchView({
         setCustomerGroup('');
         setAssignedSaleId('');
         setStatus('');
+        setCreditStatus('');
         setOnlyMyDealers(false);
 
         try {
@@ -882,6 +1087,23 @@ export default function DealerSearchView({
                         </select>
                     </div>
 
+                    <div className="dealer-field">
+                        <label>Cảnh báo công nợ</label>
+                        <select
+                            value={creditStatus}
+                            onChange={(e) => {
+                                setCreditStatus(e.target.value);
+                                handleSearch({ creditStatus: e.target.value });
+                            }}
+                        >
+                            <option value="">Tất cả công nợ</option>
+                            <option value="flagged">Bị gắn cờ cảnh báo</option>
+                            <option value="over_limit">Vượt hạn mức tiền</option>
+                            <option value="overdue">Quá hạn thanh toán</option>
+                            <option value="safe">Trong hạn mức an toàn</option>
+                        </select>
+                    </div>
+
                     <div className="dealer-actions">
                         <button
                             type="button"
@@ -996,15 +1218,19 @@ export default function DealerSearchView({
                                                     {' / Hạn mức: '}
                                                     <span style={{ color: '#64748b' }}>{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(dealer.credit_limit ?? 50000000)}</span>
                                                 </span>
-                                                {dealer.debt_status && (
-                                                    <span style={{
-                                                        fontSize: '0.8rem',
-                                                        marginTop: '4px',
-                                                        color: dealer.debt_status.includes('Vượt') || dealer.debt_status.includes('Quá hạn') ? '#dc2626' : '#16a34a',
-                                                    }}>
-                                                        Trạng thái: {dealer.debt_status}
-                                                    </span>
-                                                )}
+                                                {(() => {
+                                                    const creditInfo = getDealerCreditStatusInfo(dealer);
+                                                    return (
+                                                        <span style={{
+                                                            fontSize: '0.8rem',
+                                                            marginTop: '4px',
+                                                            color: creditInfo.isWarning ? '#dc2626' : '#16a34a',
+                                                            fontWeight: 600,
+                                                        }}>
+                                                            Trạng thái: {creditInfo.label}
+                                                        </span>
+                                                    );
+                                                })()}
                                             </div>
                                         </div>
                                         {dealer.assigned_sale_name && (
@@ -1219,18 +1445,18 @@ export default function DealerSearchView({
                                                 </div>
                                             </td>
                                             <td>
-                                                {dealer.debt_status ? (
-                                                    <span className={`dealer-group-tag ${dealer.debt_status.includes('Vượt') || dealer.debt_status.includes('Quá hạn') ? 'danger' : 'success'
-                                                        }`} style={{
-                                                            background: dealer.debt_status.includes('Vượt') || dealer.debt_status.includes('Quá hạn') ? '#fee2e2' : '#dcfce7',
-                                                            color: dealer.debt_status.includes('Vượt') || dealer.debt_status.includes('Quá hạn') ? '#dc2626' : '#16a34a',
-                                                            borderColor: dealer.debt_status.includes('Vượt') || dealer.debt_status.includes('Quá hạn') ? '#fca5a5' : '#86efac'
-                                                        }}>
-                                                        {dealer.debt_status}
-                                                    </span>
-                                                ) : (
-                                                    <span className="dealer-group-tag">Chưa xác định</span>
-                                                )}
+                                                {(() => {
+                                                    const creditInfo = getDealerCreditStatusInfo(dealer);
+                                                    return (
+                                                        <span
+                                                            className={creditInfo.className}
+                                                            style={creditInfo.style}
+                                                            title={creditInfo.tooltip}
+                                                        >
+                                                            {creditInfo.label}
+                                                        </span>
+                                                    );
+                                                })()}
                                             </td>
                                             <td>
                                                 {dealer.assigned_sale_name ? (
@@ -1276,8 +1502,24 @@ export default function DealerSearchView({
                                                     )}
                                                 </div>
                                             </td>
-                                            <td style={{ textAlign: 'center', verticalAlign: 'middle', width: 56 }}>
-                                                <div className="dealer-dropdown-container" style={{ display: 'inline-flex', justifyContent: 'center' }}>
+                                            <td
+                                                className={openDropdownId === dealer.id ? 'dropdown-active' : undefined}
+                                                style={{
+                                                    textAlign: 'center',
+                                                    verticalAlign: 'middle',
+                                                    width: 56,
+                                                    zIndex: openDropdownId === dealer.id ? 25 : undefined,
+                                                }}
+                                            >
+                                                <div
+                                                    className={`dealer-dropdown-container ${openDropdownId === dealer.id ? 'open' : ''}`}
+                                                    style={{
+                                                        display: 'inline-flex',
+                                                        justifyContent: 'center',
+                                                        position: 'relative',
+                                                        zIndex: openDropdownId === dealer.id ? 30 : undefined,
+                                                    }}
+                                                >
                                                     <button
                                                         type="button"
                                                         style={{
@@ -1321,6 +1563,19 @@ export default function DealerSearchView({
                                                                     onClick={(e) => { e.stopPropagation(); handleOpenCreditModal(dealer); setOpenDropdownId(null); }}
                                                                 >
                                                                     Cập nhật hạn mức
+                                                                </button>
+                                                            )}
+                                                            {canManageStatus && (
+                                                                <button
+                                                                    type="button"
+                                                                    className="dealer-dropdown-item"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        handleOpenPolicyModal();
+                                                                        setOpenDropdownId(null);
+                                                                    }}
+                                                                >
+                                                                    Cấu hình cảnh báo
                                                                 </button>
                                                             )}
                                                             {canAssignDealer && (
@@ -1463,15 +1718,19 @@ export default function DealerSearchView({
                                                     {' / '}
                                                     <span style={{ color: '#64748b' }}>{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(dealer.credit_limit ?? 50000000)}</span>
                                                 </span>
-                                                {dealer.debt_status && (
-                                                    <span style={{
-                                                        fontSize: '0.8rem',
-                                                        marginTop: '4px',
-                                                        color: dealer.debt_status.includes('Vượt') || dealer.debt_status.includes('Quá hạn') ? '#dc2626' : '#16a34a',
-                                                    }}>
-                                                        Trạng thái: {dealer.debt_status}
-                                                    </span>
-                                                )}
+                                                {(() => {
+                                                    const creditInfo = getDealerCreditStatusInfo(dealer);
+                                                    return (
+                                                        <span style={{
+                                                            fontSize: '0.8rem',
+                                                            marginTop: '4px',
+                                                            color: creditInfo.isWarning ? '#dc2626' : '#16a34a',
+                                                            fontWeight: 600,
+                                                        }}>
+                                                            Trạng thái: {creditInfo.label}
+                                                        </span>
+                                                    );
+                                                })()}
                                             </div>
                                         </div>
                                     </div>
@@ -2491,6 +2750,337 @@ export default function DealerSearchView({
                     }}
                     initialDealerId={dealers[0]?.id}
                 />
+            )}
+
+            {/* Modal Cấu hình cảnh báo & khoá bán (S7-04) */}
+            {isPolicyModalOpen && (
+                <ModalPortal>
+                    <div className="dealer-modal-overlay" onClick={() => setIsPolicyModalOpen(false)}>
+                        <div
+                            className="dealer-modal-box"
+                            style={{
+                                maxWidth: '560px',
+                                width: '92%',
+                                maxHeight: 'min(90vh, 600px)',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                boxShadow: '0 20px 45px rgba(0, 0, 0, 0.28)',
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="dealer-modal-header" style={{ borderBottom: '1px solid #e2e8f0', background: '#f0f9ff', padding: '12px 18px', flexShrink: 0 }}>
+                                <div className="dealer-modal-title-wrap">
+                                    <div>
+                                        <h3 style={{ color: '#0369a1', fontSize: '15px', fontWeight: 700, margin: 0, lineHeight: 1.3 }}>
+                                            Cấu hình cảnh báo & kiểm soát rủi ro công nợ (S7-04)
+                                        </h3>
+                                        <p style={{ color: '#0284c7', fontSize: '12px', margin: '2px 0 0 0' }}>
+                                            Thiết lập hành vi tự động khi đại lý vượt hạn mức hoặc quá số ngày nợ cho phép
+                                        </p>
+                                    </div>
+                                </div>
+                                <button type="button" className="dealer-modal-close-btn" onClick={() => setIsPolicyModalOpen(false)} title="Đóng">✕</button>
+                            </div>
+
+                            <div className="dealer-modal-body" style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '14px 18px' }}>
+                                {loadingPolicy ? (
+                                    <div style={{ textAlign: 'center', padding: '24px', color: '#64748b', fontSize: '13px' }}>
+                                        Đang tải cấu hình chính sách...
+                                    </div>
+                                ) : (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                        {/* 1. Xử lý khi vượt hạn mức tiền */}
+                                        <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '10px 14px' }}>
+                                            <label style={{ fontSize: '13px', fontWeight: 700, color: '#0f172a', display: 'block', marginBottom: '3px' }}>
+                                                1. Hành vi khi Đại lý VƯỢT HẠN MỨC TIỀN:
+                                            </label>
+                                            <p style={{ fontSize: '11.5px', color: '#64748b', margin: '0 0 8px 0' }}>
+                                                Áp dụng khi tổng dư nợ hiện tại lớn hơn Hạn mức công nợ tối đa được cấp.
+                                            </p>
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                                <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', cursor: 'pointer', fontSize: '12.5px' }}>
+                                                    <input
+                                                        type="radio"
+                                                        name="over_limit_action"
+                                                        value="REQUIRE_APPROVAL"
+                                                        checked={policyConfig.over_limit_action === 'REQUIRE_APPROVAL'}
+                                                        onChange={() => setPolicyConfig(prev => ({ ...prev, over_limit_action: 'REQUIRE_APPROVAL' }))}
+                                                        style={{ marginTop: '2px' }}
+                                                    />
+                                                    <div>
+                                                        <strong style={{ color: '#b45309', fontSize: '12.5px' }}>Chuyển sang Cần duyệt (REQUIRE_APPROVAL)</strong>
+                                                        <span style={{ display: 'block', fontSize: '11.5px', color: '#64748b', lineHeight: 1.35 }}>
+                                                            Cho phép lên đơn nhưng tự động chuyển trạng thái Chờ duyệt để Quản lý kinh doanh duyệt ngoại lệ (S4-05).
+                                                        </span>
+                                                    </div>
+                                                </label>
+
+                                                <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', cursor: 'pointer', fontSize: '12.5px' }}>
+                                                    <input
+                                                        type="radio"
+                                                        name="over_limit_action"
+                                                        value="BLOCK"
+                                                        checked={policyConfig.over_limit_action === 'BLOCK'}
+                                                        onChange={() => setPolicyConfig(prev => ({ ...prev, over_limit_action: 'BLOCK' }))}
+                                                        style={{ marginTop: '2px' }}
+                                                    />
+                                                    <div>
+                                                        <strong style={{ color: '#dc2626', fontSize: '12.5px' }}>Chặn tạo đơn hoàn toàn (BLOCK)</strong>
+                                                        <span style={{ display: 'block', fontSize: '11.5px', color: '#64748b', lineHeight: 1.35 }}>
+                                                            Chặn mọi đơn hàng mới và trả về thông báo lỗi yêu cầu thanh toán trước khi tiếp tục.
+                                                        </span>
+                                                    </div>
+                                                </label>
+                                            </div>
+                                        </div>
+
+                                        {/* 2. Xử lý khi quá số ngày nợ cho phép */}
+                                        <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '10px 14px' }}>
+                                            <label style={{ fontSize: '13px', fontWeight: 700, color: '#0f172a', display: 'block', marginBottom: '3px' }}>
+                                                2. Hành vi khi Đại lý CÓ NỢ QUÁ HẠN:
+                                            </label>
+                                            <p style={{ fontSize: '11.5px', color: '#64748b', margin: '0 0 8px 0' }}>
+                                                Áp dụng khi đại lý có bất kỳ hóa đơn nào quá số ngày nợ cho phép (tuổi nợ &gt; max_debt_days).
+                                            </p>
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                                <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', cursor: 'pointer', fontSize: '12.5px' }}>
+                                                    <input
+                                                        type="radio"
+                                                        name="overdue_action"
+                                                        value="BLOCK"
+                                                        checked={policyConfig.overdue_action === 'BLOCK'}
+                                                        onChange={() => setPolicyConfig(prev => ({ ...prev, overdue_action: 'BLOCK' }))}
+                                                        style={{ marginTop: '2px' }}
+                                                    />
+                                                    <div>
+                                                        <strong style={{ color: '#dc2626', fontSize: '12.5px' }}>Chặn tạo đơn hoàn toàn (BLOCK - Khuyến nghị)</strong>
+                                                        <span style={{ display: 'block', fontSize: '11.5px', color: '#64748b', lineHeight: 1.35 }}>
+                                                            Khóa bán tự động, chặn không cho tạo đơn mới đến khi các hóa đơn quá hạn được thanh toán.
+                                                        </span>
+                                                    </div>
+                                                </label>
+
+                                                <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', cursor: 'pointer', fontSize: '12.5px' }}>
+                                                    <input
+                                                        type="radio"
+                                                        name="overdue_action"
+                                                        value="REQUIRE_APPROVAL"
+                                                        checked={policyConfig.overdue_action === 'REQUIRE_APPROVAL'}
+                                                        onChange={() => setPolicyConfig(prev => ({ ...prev, overdue_action: 'REQUIRE_APPROVAL' }))}
+                                                        style={{ marginTop: '2px' }}
+                                                    />
+                                                    <div>
+                                                        <strong style={{ color: '#b45309', fontSize: '12.5px' }}>Chuyển sang Cần duyệt (REQUIRE_APPROVAL)</strong>
+                                                        <span style={{ display: 'block', fontSize: '11.5px', color: '#64748b', lineHeight: 1.35 }}>
+                                                            Cho phép gửi đơn nhưng chuyển sang Chờ duyệt kèm cảnh báo tuổi nợ quá hạn.
+                                                        </span>
+                                                    </div>
+                                                </label>
+                                            </div>
+                                        </div>
+
+                                        {/* 3. Tác vụ Cron Job & Thông tin tự động */}
+                                        <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', padding: '10px 14px' }}>
+                                            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '12.5px', fontWeight: 700, color: '#166534' }}>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={policyConfig.auto_eval_enabled}
+                                                    onChange={(e) => setPolicyConfig(prev => ({ ...prev, auto_eval_enabled: e.target.checked }))}
+                                                />
+                                                <span>Bật tác vụ tự động đánh giá công nợ định kỳ mỗi ngày (AC3)</span>
+                                            </label>
+                                            <p style={{ fontSize: '11.5px', color: '#15803d', margin: '3px 0 8px 22px', lineHeight: 1.35 }}>
+                                                Hệ thống tự động rà soát toàn bộ đại lý mỗi ngày 1 lần và gắn/gỡ cờ cảnh báo chính xác theo thực tế công nợ.
+                                            </p>
+
+                                            <div style={{ borderTop: '1px dashed #86efac', paddingTop: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                                                <div style={{ fontSize: '11.5px', color: '#334155', lineHeight: 1.4 }}>
+                                                    <div>• Đánh giá tự động gần nhất: <strong>{policyConfig.last_run_at ? new Date(policyConfig.last_run_at).toLocaleString('vi-VN') : 'Chưa chạy'}</strong></div>
+                                                    {policyConfig.updated_at && (
+                                                        <div>• Cập nhật lần cuối: <strong>{new Date(policyConfig.updated_at).toLocaleString('vi-VN')}</strong> ({policyConfig.updated_by || 'Hệ thống'})</div>
+                                                    )}
+                                                </div>
+
+                                                <button
+                                                    type="button"
+                                                    onClick={handleRunEvaluation}
+                                                    disabled={evaluatingPolicy}
+                                                    style={{
+                                                        background: '#16a34a',
+                                                        color: '#ffffff',
+                                                        border: 'none',
+                                                        borderRadius: '5px',
+                                                        padding: '5px 12px',
+                                                        fontSize: '12px',
+                                                        fontWeight: 600,
+                                                        cursor: evaluatingPolicy ? 'not-allowed' : 'pointer',
+                                                        display: 'inline-flex',
+                                                        alignItems: 'center',
+                                                        gap: '4px',
+                                                    }}
+                                                >
+                                                    <span>{evaluatingPolicy ? 'Đang đánh giá...' : 'Chạy đánh giá ngay'}</span>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="dealer-modal-footer" style={{ borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end', gap: '8px', padding: '10px 18px', flexShrink: 0 }}>
+                                <button
+                                    type="button"
+                                    className="dealer-btn-cancel"
+                                    onClick={() => setIsPolicyModalOpen(false)}
+                                    disabled={savingPolicy}
+                                    style={{ padding: '6px 14px', fontSize: '13px' }}
+                                >
+                                    Đóng
+                                </button>
+                                <button
+                                    type="button"
+                                    className="btn-search-primary"
+                                    onClick={handleSavePolicyConfig}
+                                    disabled={savingPolicy || loadingPolicy}
+                                    style={{ background: '#0284c7', borderColor: '#0284c7', padding: '6px 14px', fontSize: '13px' }}
+                                >
+                                    {savingPolicy ? 'Đang lưu...' : 'Lưu cấu hình'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </ModalPortal>
+            )}
+
+            {/* Modal Ghi nhận thanh toán & Đối trừ công nợ (S7-02 / S7-04) */}
+            {isPaymentModalOpen && paymentTargetDealer && (
+                <ModalPortal>
+                    <div className="dealer-modal-overlay" onClick={() => setIsPaymentModalOpen(false)}>
+                        <div
+                            className="dealer-modal-box"
+                            style={{
+                                maxWidth: '500px',
+                                width: '92%',
+                                maxHeight: 'min(90vh, 580px)',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                boxShadow: '0 20px 45px rgba(0, 0, 0, 0.28)',
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="dealer-modal-header" style={{ borderBottom: '1px solid #ccfbf1', background: '#f0fdfa', padding: '12px 18px', flexShrink: 0 }}>
+                                <div className="dealer-modal-title-wrap">
+                                    <div>
+                                        <h3 style={{ color: '#0f766e', fontSize: '15px', fontWeight: 700, margin: 0, lineHeight: 1.3 }}>
+                                            Ghi nhận thu tiền & đối trừ công nợ (S7-02)
+                                        </h3>
+                                        <p style={{ color: '#115e59', fontSize: '12px', margin: '2px 0 0 0' }}>
+                                            Thu tiền để trừ dần nợ và tự động gỡ cờ cảnh báo rủi ro (AC3)
+                                        </p>
+                                    </div>
+                                </div>
+                                <button type="button" className="dealer-modal-close-btn" onClick={() => setIsPaymentModalOpen(false)} title="Đóng">✕</button>
+                            </div>
+
+                            <form onSubmit={handleSubmitPayment} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+                                <div className="dealer-modal-body" style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '14px 18px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                    {/* Tóm tắt thông tin đại lý */}
+                                    <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '10px 14px', fontSize: '12.5px', lineHeight: '1.5' }}>
+                                        <div>• Đại lý: <strong style={{ color: '#0f172a' }}>{paymentTargetDealer.name}</strong> ({paymentTargetDealer.code})</div>
+                                        <div>• Dư nợ hiện tại: <strong style={{ color: '#dc2626' }}>{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(paymentTargetDealer.current_debt ?? 0)}</strong></div>
+                                        <div>• Hạn mức: <strong style={{ color: '#475569' }}>{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(paymentTargetDealer.credit_limit ?? 50000000)}</strong></div>
+                                        <div>• Trạng thái cờ: {paymentTargetDealer.credit_warning_flag ? (
+                                            <span style={{ color: '#dc2626', fontWeight: 700 }}>Đang bị gắn cờ cảnh báo ({paymentTargetDealer.credit_flag_reason || 'Vi phạm công nợ'})</span>
+                                        ) : (
+                                            <span style={{ color: '#16a34a', fontWeight: 600 }}>An toàn / Trong hạn mức</span>
+                                        )}</div>
+                                    </div>
+
+                                    <div className="dealer-field" style={{ marginBottom: 0 }}>
+                                        <label style={{ fontSize: '12.5px', fontWeight: 600, color: '#0f172a', marginBottom: '4px', display: 'block' }}>
+                                            Số tiền thu (VND) <span style={{ color: '#ef4444' }}>*</span>
+                                        </label>
+                                        <input
+                                            type="number"
+                                            min="1"
+                                            step="1000"
+                                            required
+                                            value={paymentAmount}
+                                            onChange={(e) => setPaymentAmount(e.target.value)}
+                                            placeholder="Nhập số tiền đã nhận..."
+                                            style={{ width: '100%', padding: '7px 10px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '13px' }}
+                                        />
+                                        {Number(paymentAmount) > 0 && (
+                                            <div style={{ fontSize: '11.5px', color: '#0284c7', marginTop: '3px' }}>
+                                                {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(Number(paymentAmount))}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className="dealer-field" style={{ marginBottom: 0 }}>
+                                        <label style={{ fontSize: '12.5px', fontWeight: 600, color: '#0f172a', marginBottom: '4px', display: 'block' }}>Phương thức thanh toán</label>
+                                        <select
+                                            value={paymentMethod}
+                                            onChange={(e) => setPaymentMethod(e.target.value)}
+                                            style={{ width: '100%', padding: '7px 10px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '13px' }}
+                                        >
+                                            <option value="Chuyển khoản">Chuyển khoản ngân hàng</option>
+                                            <option value="Tiền mặt">Tiền mặt tại quầy / thủ quỹ</option>
+                                            <option value="Ủy nhiệm chi">Ủy nhiệm chi (UNC)</option>
+                                            <option value="Ví điện tử / QR">Thanh toán điện tử / QR</option>
+                                        </select>
+                                    </div>
+
+                                    <div className="dealer-field" style={{ marginBottom: 0 }}>
+                                        <label style={{ fontSize: '12.5px', fontWeight: 600, color: '#0f172a', marginBottom: '4px', display: 'block' }}>Số tham chiếu / Mã giao dịch / UNC</label>
+                                        <input
+                                            type="text"
+                                            value={paymentRef}
+                                            onChange={(e) => setPaymentRef(e.target.value)}
+                                            placeholder="Ví dụ: UNC-20261015-001..."
+                                            style={{ width: '100%', padding: '7px 10px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '13px' }}
+                                        />
+                                    </div>
+
+                                    <div className="dealer-field" style={{ marginBottom: 0 }}>
+                                        <label style={{ fontSize: '12.5px', fontWeight: 600, color: '#0f172a', marginBottom: '4px', display: 'block' }}>Ghi chú thu tiền</label>
+                                        <textarea
+                                            rows={2}
+                                            value={paymentNote}
+                                            onChange={(e) => setPaymentNote(e.target.value)}
+                                            placeholder="Ghi chú chi tiết cho kế toán..."
+                                            style={{ width: '100%', padding: '7px 10px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '13px', fontFamily: 'inherit' }}
+                                        />
+                                    </div>
+
+                                    <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '6px', padding: '8px 10px', fontSize: '11.5px', color: '#166534', lineHeight: 1.4 }}>
+                                        <strong>Tự động hóa (AC3):</strong> Ngay sau khi lưu phiếu thu, hệ thống sẽ tự động đối trừ các đơn nợ cũ nhất (FIFO), tính toán lại dư nợ và tự động gỡ bỏ cờ cảnh báo nếu đại lý không còn vi phạm.
+                                    </div>
+                                </div>
+
+                                <div className="dealer-modal-footer" style={{ borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end', gap: '8px', padding: '10px 18px', flexShrink: 0 }}>
+                                    <button
+                                        type="button"
+                                        className="dealer-btn-cancel"
+                                        onClick={() => setIsPaymentModalOpen(false)}
+                                        disabled={submittingPayment}
+                                        style={{ padding: '6px 14px', fontSize: '13px' }}
+                                    >
+                                        Hủy
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        className="btn-search-primary"
+                                        disabled={submittingPayment}
+                                        style={{ background: '#0d9488', borderColor: '#0d9488', padding: '6px 14px', fontSize: '13px' }}
+                                    >
+                                        {submittingPayment ? 'Đang lưu...' : 'Xác nhận thu tiền & đối trừ'}
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </ModalPortal>
             )}
         </div>
     );

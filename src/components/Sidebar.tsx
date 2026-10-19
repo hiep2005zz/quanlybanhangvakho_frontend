@@ -29,6 +29,7 @@ export type TabType =
   | 'goods-receipt'
   | 'add-product'
   | 'products-import'
+  | 'stock-card'
   | 'agency-debts'
   | 'picking'
   | 'batches'
