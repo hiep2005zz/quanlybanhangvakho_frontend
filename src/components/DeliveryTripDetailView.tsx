@@ -1,5 +1,6 @@
 // frontend/src/components/DeliveryTripDetailView.tsx
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate, useLocation } from '../hooks/useLocation';
 import type { DeliveryTripDetail, DeliveryStopDetail, DeliveryStopItemDetail } from '../types/delivery';
 import {
@@ -837,11 +838,11 @@ export const DeliveryTripDetailView: React.FC<DeliveryTripDetailViewProps> = ({
       </div>
 
       {/* III. Modal Xác nhận Giao hàng thành công (SCRUM-85 - POD) */}
-      {confirmDeliveryStopModal && (
-        <div className="fixed inset-0 z-60 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto">
-          <div className="bg-white rounded-2xl w-full max-w-xl p-5 sm:p-6 shadow-2xl border border-slate-200 animate-in zoom-in-95 duration-150 my-auto">
+      {confirmDeliveryStopModal && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="bg-white rounded-2xl w-full max-w-xl shadow-2xl border border-slate-200 flex flex-col max-h-[88vh] overflow-hidden animate-in zoom-in-95 duration-150">
             {/* Header Modal */}
-            <div className="flex items-start justify-between gap-3 pb-3 border-b border-gray-100">
+            <div className="flex items-start justify-between gap-3 p-5 sm:p-6 pb-3 border-b border-gray-100 shrink-0">
               <div className="flex items-center gap-2.5">
                 <div>
                   <h3 className="text-base font-bold text-gray-900">Xác nhận Giao hàng thành công (POD)</h3>
@@ -861,7 +862,7 @@ export const DeliveryTripDetailView: React.FC<DeliveryTripDetailViewProps> = ({
             </div>
 
             {/* Form Content */}
-            <div className="py-3.5 space-y-3.5 text-xs max-h-[75vh] overflow-y-auto pr-1">
+            <div className="py-3.5 px-5 sm:px-6 space-y-3.5 text-xs overflow-y-auto flex-1 overscroll-contain">
               {/* 1. Họ tên người nhận & Thời điểm giao thực tế */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
@@ -1009,7 +1010,7 @@ export const DeliveryTripDetailView: React.FC<DeliveryTripDetailViewProps> = ({
             </div>
 
             {/* Footer Modal */}
-            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-gray-100">
+            <div className="flex items-center justify-end gap-2.5 p-4 sm:p-5 pt-3 border-t border-gray-100 shrink-0 bg-gray-50/50">
               <button
                 type="button"
                 onClick={() => setConfirmDeliveryStopModal(null)}
@@ -1035,12 +1036,13 @@ export const DeliveryTripDetailView: React.FC<DeliveryTripDetailViewProps> = ({
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* IV. Modal Báo giao thất bại (SCRUM-85) */}
-      {failedModalStop && (
-        <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+      {failedModalStop && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
           <div className="bg-white rounded-2xl w-full max-w-md p-5 sm:p-6 shadow-2xl border border-slate-200 animate-in zoom-in-95 duration-150">
             <div className="flex items-center gap-3 mb-3">
               <div className="w-10 h-10 rounded-full bg-rose-50 border border-rose-200 text-rose-600 flex items-center justify-center shrink-0 font-bold text-lg">
@@ -1132,12 +1134,13 @@ export const DeliveryTripDetailView: React.FC<DeliveryTripDetailViewProps> = ({
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* V. Modal Phóng to xem ảnh biên bản POD (Lightbox) */}
-      {viewingPodModal && (
-        <div className="fixed inset-0 z-70 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-xs animate-in fade-in duration-150">
+      {viewingPodModal && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-xs animate-in fade-in duration-150">
           <div className="bg-slate-900 rounded-2xl w-full max-w-3xl overflow-hidden shadow-2xl border border-slate-800 flex flex-col max-h-[90vh]">
             {/* Header */}
             <div className="p-3 sm:p-4 bg-slate-850 border-b border-slate-800 flex items-center justify-between text-white shrink-0">
@@ -1205,12 +1208,13 @@ export const DeliveryTripDetailView: React.FC<DeliveryTripDetailViewProps> = ({
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* VI. Modal Xác nhận Hoàn tất toàn bộ chuyến giao hàng (Không dùng window.confirm) */}
-      {showCompleteConfirmModal && trip && (
-        <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+      {showCompleteConfirmModal && trip && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
           <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl border border-slate-200 animate-in zoom-in-95 duration-150">
             <div className="flex items-center gap-3 mb-3">
               <div className="w-10 h-10 rounded-full bg-emerald-50 border border-emerald-200 text-[#0fad89] flex items-center justify-center shrink-0">
@@ -1261,7 +1265,8 @@ export const DeliveryTripDetailView: React.FC<DeliveryTripDetailViewProps> = ({
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
