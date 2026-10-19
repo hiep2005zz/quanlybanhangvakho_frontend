@@ -1864,3 +1864,19 @@
   }
 }
 
+/* Custom scrollbar cho danh sách sản phẩm gán vào kệ */
+.wh-custom-scrollbar::-webkit-scrollbar {
+  width: 7px;
+}
+.wh-custom-scrollbar::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 4px;
+}
+.wh-custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #94a3b8;
+  border-radius: 4px;
+}
+.wh-custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}
+

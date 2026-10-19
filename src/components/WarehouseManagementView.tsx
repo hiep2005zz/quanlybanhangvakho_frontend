@@ -227,7 +227,7 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
   });
   const [isAssignSubmitting, setIsAssignSubmitting] = useState<boolean>(false);
   const [assignProductSearch, setAssignProductSearch] = useState<string>('');
-  const [assignProductDisplayLimit, setAssignProductDisplayLimit] = useState<number>(20);
+  const [assignProductDisplayLimit, setAssignProductDisplayLimit] = useState<number>(4);
   const [assignAllocationStatus, setAssignAllocationStatus] = useState<ProductAllocationStatusResponse | null>(null);
   const [isFetchingAllocation, setIsFetchingAllocation] = useState<boolean>(false);
   const [selectedDropdownProduct, setSelectedDropdownProduct] = useState<any | null>(null);
@@ -969,6 +969,7 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
       quantity: existingQtyOnLoc > 0 ? existingQtyOnLoc : unassigned,
     });
     setAssignProductSearch('');
+    setAssignProductDisplayLimit(4);
     setIsAssignFormPageActive(true);
     setIsAssignModalOpen(false);
     if (selectedWarehouse) {
@@ -2032,7 +2033,7 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
     const displayedList = filteredList.slice(0, assignProductDisplayLimit);
 
     return (
-      <div className="wh-container wh-form-fullscreen-wrap" style={{ padding: '12px 16px', height: '100%', boxSizing: 'border-box' }}>
+      <div className="wh-container wh-form-fullscreen-wrap" style={{ padding: '16px 20px', minHeight: '100%', boxSizing: 'border-box' }}>
         <div
           className="wh-form-master-frame"
           style={{
@@ -2045,8 +2046,6 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
             background: '#ffffff',
             display: 'flex',
             flexDirection: 'column',
-            flex: 1,
-            minHeight: 'calc(100vh - 120px)',
             overflow: 'hidden',
           }}
         >
@@ -2101,10 +2100,8 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
             style={{
               display: 'grid',
               gridTemplateColumns: 'minmax(420px, 1.15fr) minmax(380px, 1fr)',
-              flex: 1,
               margin: 0,
               padding: 0,
-              minHeight: 0,
             }}
           >
             {/* CỘT 1 (BÊN TRÁI): CHỌN SẢN PHẨM */}
@@ -2119,89 +2116,106 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                 minHeight: 0,
               }}
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <h3 style={{ margin: 0, fontSize: '14px', fontWeight: '700', color: '#0f172a' }}>
+              <div style={{ width: '100%', textAlign: 'center' }}>
+                <h3 style={{ margin: 0, fontSize: '14px', fontWeight: '700', color: '#0f172a', textAlign: 'center' }}>
                   Chọn sản phẩm cần gán vào kệ <span style={{ color: '#ef4444' }}>*</span>
                 </h3>
-                <span style={{ fontSize: '11.5px', color: '#64748b' }}>
-                  Hiện 20 SP/lượt (cuộn để xem thêm)
-                </span>
               </div>
 
-              {/* Thanh tìm kiếm sản phẩm */}
-              <div style={{ position: 'relative' }}>
-                <input
-                  type="text"
-                  placeholder="Tìm theo tên hoặc mã sản phẩm (SP001, Polo...)..."
-                  value={assignProductSearch}
-                  onChange={(e) => {
-                    setAssignProductSearch(e.target.value);
-                    setAssignProductDisplayLimit(20);
-                  }}
-                  style={{
-                    width: '100%',
-                    padding: '8px 30px 8px 12px',
-                    fontSize: '13px',
-                    borderRadius: '7px',
-                    border: '1px solid #cbd5e1',
-                    outline: 'none',
-                    color: '#0f172a',
-                    background: '#ffffff',
-                    boxSizing: 'border-box',
-                    transition: 'border-color 0.15s ease',
-                  }}
-                />
-                {assignProductSearch && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setAssignProductSearch('');
-                      setAssignProductDisplayLimit(20);
-                    }}
-                    style={{
-                      position: 'absolute',
-                      right: '9px',
-                      top: '50%',
-                      transform: 'translateY(-50%)',
-                      background: 'transparent',
-                      border: 'none',
-                      cursor: 'pointer',
-                      color: '#94a3b8',
-                      fontSize: '12px',
-                      padding: '2px',
-                      lineHeight: 1,
-                    }}
-                    title="Xóa tìm kiếm"
-                  >
-                    ✕
-                  </button>
-                )}
-              </div>
-
-              {/* Danh sách thẻ sản phẩm cuộn */}
+              {/* Khung tìm kiếm chứa danh sách sản phẩm bên dưới */}
               <div
                 style={{
-                  height: 'calc(100vh - 310px)',
-                  minHeight: '440px',
-                  maxHeight: '620px',
-                  overflowY: 'auto',
+                  flex: 1,
+                  minHeight: 0,
+                  display: 'flex',
+                  flexDirection: 'column',
                   border: '1px solid #cbd5e1',
                   borderRadius: '8px',
                   background: '#ffffff',
-                  padding: '6px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '5px',
-                }}
-                onScroll={(e) => {
-                  const target = e.currentTarget;
-                  if (target.scrollHeight - target.scrollTop <= target.clientHeight + 40) {
-                    if (assignProductDisplayLimit < filteredList.length) {
-                      setAssignProductDisplayLimit((prev) => Math.min(prev + 20, filteredList.length));
-                    }
-                  }
+                  overflow: 'hidden',
                 }}
               >
+                {/* Ô tìm kiếm ở trên */}
+                <div
+                  style={{
+                    position: 'relative',
+                    padding: '8px 10px',
+                    borderBottom: '1px solid #e2e8f0',
+                    background: '#f8fafc',
+                  }}
+                >
+                  <input
+                    type="text"
+                    placeholder="Tìm theo tên hoặc mã sản phẩm (SP001, Polo...)..."
+                    value={assignProductSearch}
+                    onChange={(e) => {
+                      setAssignProductSearch(e.target.value);
+                      setAssignProductDisplayLimit(4);
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '8px 30px 8px 12px',
+                      fontSize: '13px',
+                      borderRadius: '6px',
+                      border: '1px solid #cbd5e1',
+                      outline: 'none',
+                      color: '#0f172a',
+                      background: '#ffffff',
+                      boxSizing: 'border-box',
+                      transition: 'border-color 0.15s ease',
+                    }}
+                  />
+                  {assignProductSearch && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAssignProductSearch('');
+                        setAssignProductDisplayLimit(4);
+                      }}
+                      style={{
+                        position: 'absolute',
+                        right: '18px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        background: 'transparent',
+                        border: 'none',
+                        cursor: 'pointer',
+                        color: '#94a3b8',
+                        fontSize: '12px',
+                        padding: '2px',
+                        lineHeight: 1,
+                      }}
+                      title="Xóa tìm kiếm"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+
+                {/* Danh sách thẻ sản phẩm cuộn lướt hiển thị theo đợt 4 sản phẩm/lần */}
+                <div
+                  className="wh-custom-scrollbar"
+                  onScroll={(e) => {
+                    const target = e.currentTarget;
+                    if (target.scrollHeight - target.scrollTop <= target.clientHeight + 60) {
+                      if (assignProductDisplayLimit < filteredList.length) {
+                        setAssignProductDisplayLimit((prev) => Math.min(prev + 4, filteredList.length));
+                      }
+                    }
+                  }}
+                  style={{
+                    flex: 1,
+                    minHeight: '260px',
+                    maxHeight: '260px',
+                    overflowY: 'auto',
+                    padding: '6px 8px 6px 6px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '5px',
+                    scrollbarWidth: 'thin',
+                    scrollbarColor: '#94a3b8 #f1f5f9',
+                  }}
+                >
                 {displayedList.length === 0 ? (
                   <div style={{ padding: '30px 16px', textAlign: 'center', color: '#94a3b8', fontSize: '13px' }}>
                     Không tìm thấy sản phẩm nào phù hợp với &quot;{assignProductSearch}&quot;
@@ -2303,30 +2317,12 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                     );
                   })
                 )}
-
-                {assignProductDisplayLimit < filteredList.length && (
-                  <div style={{ padding: '8px 6px', textAlign: 'center' }}>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setAssignProductDisplayLimit((prev) => Math.min(prev + 20, filteredList.length))
-                      }
-                      style={{
-                        background: '#f8fafc',
-                        border: '1px dashed #cbd5e1',
-                        borderRadius: '6px',
-                        padding: '6px 14px',
-                        fontSize: '12px',
-                        color: '#0284c7',
-                        fontWeight: '600',
-                        cursor: 'pointer',
-                        width: '100%',
-                      }}
-                    >
-                      Tải thêm 20 sản phẩm tiếp theo...
-                    </button>
+                {displayedList.length < filteredList.length && (
+                  <div style={{ textAlign: 'center', padding: '6px', fontSize: '11px', color: '#94a3b8' }}>
+                    Cuộn xuống để xem thêm ({displayedList.length}/{filteredList.length} sản phẩm)
                   </div>
                 )}
+                </div>
               </div>
             </div>
 
@@ -2341,9 +2337,11 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                 minHeight: 0,
               }}
             >
-              <h3 style={{ margin: 0, fontSize: '14px', fontWeight: '700', color: '#0f172a' }}>
-                Thông tin phân bổ & Vị trí kệ
-              </h3>
+              <div style={{ width: '100%', textAlign: 'center' }}>
+                <h3 style={{ margin: 0, fontSize: '14px', fontWeight: '700', color: '#0f172a', textAlign: 'center' }}>
+                  Thông tin phân bổ & Vị trí kệ
+                </h3>
+              </div>
 
               {/* Khung 4 ô tóm tắt tồn kho trên 1 hàng */}
               {currentSelectedProd && (
@@ -2529,14 +2527,14 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                 )}
               </div>
 
-              {/* Nút lưu căn ra chính giữa vùng trắng */}
+              {/* Nút lưu căn chỉnh độ rộng ngang với các ô nhập liệu và căn ngang tầm đáy khung chọn SP */}
               <div
                 style={{
-                  flex: 1,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  padding: '24px 0 16px 0',
+                  paddingTop: '6px',
+                  width: '100%',
                 }}
               >
                 <button
@@ -2544,6 +2542,7 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                   className="wh-btn wh-btn-primary"
                   disabled={isAssignSubmitting || isOverAssigned || Number(assignFormData.quantity) < 0 || !assignFormData.product_id || !assignFormData.location_id}
                   style={{
+                    width: '100%',
                     minWidth: '220px',
                     padding: '11px 32px',
                     fontWeight: '700',
@@ -4151,7 +4150,7 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                         Chọn sản phẩm <span className="wh-required-star">*</span>
                       </label>
                       <span style={{ fontSize: '11px', color: '#64748b' }}>
-                        {isFetchingAllocation ? 'Đang tải phân bổ...' : selectedDropdownProduct ? `Đang chọn: ${selectedDropdownProduct.name}` : 'Hiển thị 20 SP/lượt (cuộn xuống để xem thêm)'}
+                        {isFetchingAllocation ? 'Đang tải phân bổ...' : selectedDropdownProduct ? `Đang chọn: ${selectedDropdownProduct.name}` : 'Hiển thị 4 SP/lượt (cuộn xuống để xem thêm)'}
                       </span>
                     </div>
 
@@ -4163,7 +4162,7 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                         value={assignProductSearch}
                         onChange={(e) => {
                           setAssignProductSearch(e.target.value);
-                          setAssignProductDisplayLimit(20);
+                          setAssignProductDisplayLimit(4);
                         }}
                         style={{
                           width: '100%',
@@ -4182,7 +4181,7 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                           type="button"
                           onClick={() => {
                             setAssignProductSearch('');
-                            setAssignProductDisplayLimit(20);
+                            setAssignProductDisplayLimit(4);
                           }}
                           style={{
                             position: 'absolute',
@@ -4231,9 +4230,9 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                           }}
                           onScroll={(e) => {
                             const target = e.currentTarget;
-                            if (target.scrollHeight - target.scrollTop <= target.clientHeight + 30) {
+                            if (target.scrollHeight - target.scrollTop <= target.clientHeight + 80) {
                               if (assignProductDisplayLimit < filteredList.length) {
-                                setAssignProductDisplayLimit((prev) => Math.min(prev + 20, filteredList.length));
+                                setAssignProductDisplayLimit((prev) => Math.min(prev + 4, filteredList.length));
                               }
                             }
                           }}
@@ -4340,30 +4339,7 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                             })
                           )}
 
-                          {/* Dòng tải thêm nếu còn sản phẩm */}
-                          {assignProductDisplayLimit < filteredList.length && (
-                            <div style={{ padding: '6px', textAlign: 'center' }}>
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setAssignProductDisplayLimit((prev) => Math.min(prev + 20, filteredList.length))
-                                }
-                                style={{
-                                  background: '#f8fafc',
-                                  border: '1px dashed #cbd5e1',
-                                  borderRadius: '4px',
-                                  padding: '4px 12px',
-                                  fontSize: '11.5px',
-                                  color: '#0284c7',
-                                  fontWeight: '600',
-                                  cursor: 'pointer',
-                                  width: '100%',
-                                }}
-                              >
-                                Tải thêm 20 sản phẩm tiếp theo (Còn {filteredList.length - assignProductDisplayLimit} SP)...
-                              </button>
-                            </div>
-                          )}
+
                         </div>
                       );
                     })()}
