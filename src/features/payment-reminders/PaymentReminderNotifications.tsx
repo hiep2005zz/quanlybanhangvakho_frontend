@@ -89,7 +89,7 @@ export function PaymentReminderNotifications({
         <section
           id="payment-reminder-list"
           aria-label="Thông báo hạn thanh toán"
-          className="absolute right-0 z-50 mt-2 max-h-96 w-[min(90vw,24rem)] overflow-y-auto rounded-xl border border-slate-200 bg-white p-3 text-slate-900 shadow-lg"
+          className="table-hidden-scrollbar absolute right-0 z-50 mt-2 max-h-96 w-[min(90vw,24rem)] overflow-y-auto rounded-xl border border-slate-200 bg-white p-3 text-slate-900 shadow-lg"
         >
           <h2 className="mb-2 text-base font-bold">Nhắc hạn thanh toán</h2>
           {error && (
