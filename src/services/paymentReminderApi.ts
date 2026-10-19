@@ -59,6 +59,9 @@ export async function getPaymentRemindersApi(
   );
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
+    if (response.status === 404) {
+      throw new Error('Tính năng nhắc hạn thanh toán hiện chưa được bật trên máy chủ.');
+    }
     throw new Error(data.detail || `Lỗi tải thông báo (HTTP ${response.status})`);
   }
   return data as PaymentReminderListResponse;
@@ -75,6 +78,9 @@ export async function markPaymentReminderReadApi(
   );
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
+    if (response.status === 404) {
+      throw new Error('Tính năng nhắc hạn thanh toán hiện chưa được bật trên máy chủ.');
+    }
     throw new Error(data.detail || `Lỗi cập nhật thông báo (HTTP ${response.status})`);
   }
 }
