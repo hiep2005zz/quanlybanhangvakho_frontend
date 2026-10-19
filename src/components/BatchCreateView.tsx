@@ -53,9 +53,8 @@ export const BatchCreateView: React.FC<BatchCreateViewProps> = ({
     };
   }, [token]);
 
-  // Trạng thái xử lý & Lỗi
+  // Trạng thái xử lý
   const [submitting, setSubmitting] = useState<boolean>(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // Sinh mã lô tự động chuẩn WMS: LOT-YYYYMMDD-XXX
   const handleGenerateBatchNumber = () => {
@@ -117,34 +116,54 @@ export const BatchCreateView: React.FC<BatchCreateViewProps> = ({
   }, [mfgDate, expDate]);
 
   // Xử lý gửi biểu mẫu tạo lô
+  // Xử lý gửi biểu mẫu tạo lô
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setErrorMsg(null);
 
     if (!selectedProductId) {
-      setErrorMsg('Vui lòng chọn sản phẩm cần khởi tạo lô.');
+      emitStatusToast({
+        title: 'Thông báo hệ thống',
+        message: 'Vui lòng chọn sản phẩm cần khởi tạo lô.',
+        type: 'warning',
+      });
       return;
     }
 
     const cleanBatch = batchNumber.trim().toUpperCase();
     if (!cleanBatch) {
-      setErrorMsg('Vui lòng nhập số lô hàng (Batch Number).');
+      emitStatusToast({
+        title: 'Thông báo hệ thống',
+        message: 'Vui lòng nhập số lô hàng (Batch Number).',
+        type: 'warning',
+      });
       return;
     }
 
     if (!expDate) {
-      setErrorMsg('Vui lòng chọn hạn sử dụng (HSD).');
+      emitStatusToast({
+        title: 'Thông báo hệ thống',
+        message: 'Vui lòng chọn hạn sử dụng (HSD).',
+        type: 'warning',
+      });
       return;
     }
 
     if (mfgDate && expDate <= mfgDate) {
-      setErrorMsg('Hạn sử dụng bắt buộc phải sau Ngày sản xuất.');
+      emitStatusToast({
+        title: 'Thông báo hệ thống',
+        message: 'Hạn sử dụng bắt buộc phải sau Ngày sản xuất.',
+        type: 'error',
+      });
       return;
     }
 
     const parsedQty = parseFloat(initialQty);
     if (isNaN(parsedQty) || parsedQty < 0) {
-      setErrorMsg('Số lượng tồn kho ban đầu không được âm (>= 0).');
+      emitStatusToast({
+        title: 'Thông báo hệ thống',
+        message: 'Số lượng tồn kho ban đầu không được âm (>= 0).',
+        type: 'warning',
+      });
       return;
     }
 
@@ -161,14 +180,20 @@ export const BatchCreateView: React.FC<BatchCreateViewProps> = ({
       });
 
       emitStatusToast({
-        title: 'Khởi tạo lô thành công',
-        message: `Đã tạo số lô ${cleanBatch} cho sản phẩm ${selectedProduct?.name || ''}.`,
+        title: 'Thông báo hệ thống',
+        message: `Khởi tạo lô thành công! Đã tạo số lô ${cleanBatch} cho sản phẩm ${selectedProduct?.name || ''}.`,
+        type: 'success',
+        actionType: 'create',
       });
 
       onSuccess();
     } catch (err: any) {
       const msg = err?.message || 'Lỗi khi khởi tạo lô hàng.';
-      setErrorMsg(formatErrorMessage(msg));
+      emitStatusToast({
+        title: 'Thông báo hệ thống',
+        message: formatErrorMessage(msg),
+        type: 'error',
+      });
     } finally {
       setSubmitting(false);
     }
@@ -215,27 +240,7 @@ export const BatchCreateView: React.FC<BatchCreateViewProps> = ({
       {/* 2. Main Content & Form (2 Cột Responsive) */}
       {/* 2. Main Content & Form: Trải rộng toàn màn hình (full-width), loại bỏ 2 khoảng trắng thừa */}
       <form onSubmit={handleSubmit} className="flex-1 w-full px-4 sm:px-6 lg:px-8 py-5 pb-14">
-        {/* Thông báo lỗi nếu có */}
-        {errorMsg && (
-          <div className="mb-5 p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm flex items-start gap-3">
-            <svg className="w-5 h-5 text-red-500 shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10" />
-              <line x1="12" y1="8" x2="12" y2="12" />
-              <line x1="12" y1="16" x2="12.01" y2="16" />
-            </svg>
-            <div className="flex-1">
-              <p className="font-semibold text-red-800">Không thể khởi tạo lô hàng</p>
-              <p className="text-red-700 mt-0.5">{errorMsg}</p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setErrorMsg(null)}
-              className="text-red-400 hover:text-red-600 font-bold px-1"
-            >
-              ✕
-            </button>
-          </div>
-        )}
+
 
         {/* Khung Bảng Duy Nhất (Single Unified Card Container - Full Width) */}
         <div className="w-full bg-white rounded-xl border border-slate-200 shadow-2xs overflow-hidden divide-y divide-slate-200">
