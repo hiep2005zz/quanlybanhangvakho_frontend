@@ -453,7 +453,7 @@ export function getClientSession(): { user: User | null; token: string | null; e
     const userStr = sessionStorage.getItem(AUTH_STORAGE.USER);
     const token = sessionStorage.getItem(AUTH_STORAGE.TOKEN);
     const expiresAtStr = sessionStorage.getItem(AUTH_STORAGE.EXPIRES_AT);
-    const user = userStr ? JSON.parse(userStr) : null;
+    const user: User | null = userStr ? JSON.parse(userStr) : null;
     const expiresAt = expiresAtStr ? parseInt(expiresAtStr, 10) : null;
     return { user, token, expiresAt };
   } catch {
@@ -1309,7 +1309,7 @@ export async function getAdminContactApi(): Promise<{ admin_email: string; admin
   } catch {
     // fallback
   }
-  return { admin_email: 'daongochiep645@gmail.com', admin_name: 'Nguyễn Quản Trị' };
+  return { admin_email: 'daongochiep645@gmail.com', admin_name: 'Đào Ngọc Hiệp' };
 }
 
 

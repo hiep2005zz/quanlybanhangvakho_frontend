@@ -120,19 +120,21 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
         >
           <div className="relative w-7 h-7 sm:w-8 sm:h-8 shrink-0">
             <div
-              className="w-full h-full rounded-full flex items-center justify-center text-white font-bold text-xs sm:text-sm overflow-hidden border border-white/80"
+              className="w-full h-full rounded-full flex items-center justify-center text-white font-bold text-xs sm:text-sm overflow-hidden border border-white/80 relative"
               style={{
-                background: user.avatar_url ? '#f1f5f9' : `linear-gradient(135deg, ${currentBadgeColor} 0%, #2563eb 100%)`,
+                background: `linear-gradient(135deg, ${currentBadgeColor} 0%, #2563eb 100%)`,
               }}
             >
-              {user.avatar_url ? (
+              {(user.full_name || user.username).charAt(0).toUpperCase()}
+              {user.avatar_url && (
                 <img
                   src={getAvatarUrl(user.avatar_url)}
-                  alt={user.full_name || user.username}
-                  className="w-full h-full object-cover"
+                  alt=""
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none';
+                  }}
+                  className="absolute inset-0 w-full h-full object-cover"
                 />
-              ) : (
-                (user.full_name || user.username).charAt(0).toUpperCase()
               )}
             </div>
             <span

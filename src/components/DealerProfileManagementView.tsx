@@ -1,5 +1,6 @@
 // frontend/src/components/DealerProfileManagementView.tsx
 import { useEffect, useState, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import {
   DealerSearchItem,
   DealerStats,
@@ -28,6 +29,7 @@ interface DealerProfileManagementProps {
   currentUser?: User;
   token?: string;
   onBackToHome?: () => void;
+  onOpenDebtStatement?: (dealerId: number) => void;
 }
 
 const CUSTOMER_GROUP_OPTIONS = [
@@ -69,6 +71,7 @@ export default function DealerProfileManagementView({
   currentUser: _currentUser,
   token,
   onBackToHome,
+  onOpenDebtStatement,
 }: DealerProfileManagementProps) {
   // Data list & loading
   const [dealers, setDealers] = useState<DealerSearchItem[]>([]);
@@ -150,6 +153,51 @@ export default function DealerProfileManagementView({
   // Modal Cảnh báo không thể xóa (Đã phát sinh giao dịch)
   const [isCannotDeleteModalOpen, setIsCannotDeleteModalOpen] = useState(false);
   const [cannotDeleteTarget, setCannotDeleteTarget] = useState<DealerSearchItem | null>(null);
+
+  // Action Menu Popover (Nút 3 chấm thao tác)
+  const [actionMenuState, setActionMenuState] = useState<{
+    dealer: DealerSearchItem;
+    top: number;
+    right: number;
+    isDropup: boolean;
+  } | null>(null);
+
+  const handleToggleActionMenu = (e: React.MouseEvent<HTMLButtonElement>, dealer: DealerSearchItem) => {
+    e.stopPropagation();
+    if (actionMenuState?.dealer.id === dealer.id) {
+      setActionMenuState(null);
+    } else {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const isDropup = spaceBelow < 220;
+      setActionMenuState({
+        dealer,
+        top: isDropup ? rect.top - 6 : rect.bottom + 6,
+        right: Math.max(12, window.innerWidth - rect.right),
+        isDropup,
+      });
+    }
+  };
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('.dealer-action-menu-portal') && !target.closest('.btn-action-dots')) {
+        setActionMenuState(null);
+      }
+    };
+    const handleScrollOrResize = () => {
+      setActionMenuState(null);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    window.addEventListener('scroll', handleScrollOrResize, true);
+    window.addEventListener('resize', handleScrollOrResize);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener('scroll', handleScrollOrResize, true);
+      window.removeEventListener('resize', handleScrollOrResize);
+    };
+  }, []);
 
   // Modal Xác nhận xóa an toàn (Chưa phát sinh giao dịch)
   const [isConfirmDeleteModalOpen, setIsConfirmDeleteModalOpen] = useState(false);
@@ -1109,6 +1157,21 @@ export default function DealerProfileManagementView({
             {loading || isRefreshing ? 'Đang làm mới...' : 'Làm mới'}
           </button>
 
+          {onOpenDebtStatement && (
+            <button
+              type="button"
+              className="btn-secondary-white"
+              onClick={() => onOpenDebtStatement(dealers[0]?.id || 0)}
+              title="Xem Sổ chi tiết công nợ đại lý (Mẫu S31-DN)"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+                <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+              </svg>
+              Sổ chi tiết công nợ
+            </button>
+          )}
+
           <button
             className="btn-primary-gradient"
             id="btn-create-dealer-profile"
@@ -1567,62 +1630,21 @@ export default function DealerProfileManagementView({
                           </span>
                         </td>
 
-                        {/* 10. Thao tác: Sửa & Xóa sử dụng tooltip tự nhiên không bị tràn mép hay che chữ */}
+                        {/* 10. Thao tác: Gom toàn bộ chức năng vào nút 3 chấm */}
                         <td style={{ textAlign: 'center' }}>
-                          <div className="action-btn-group">
-                            {/* Nút Lập phiếu thu tiền */}
-                            <button
-                              type="button"
-                              className="btn-icon-action"
-                              style={{ color: '#16a34a', borderColor: '#bbf7d0', background: '#f0fdf4' }}
-                              onClick={() => handleOpenCreateReceipt(dealer)}
-                              title="Lập phiếu thu tiền / In phiếu thu chứng từ cho đại lý này"
-                            >
-                              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                                <polyline points="14 2 14 8 20 8"></polyline>
-                                <line x1="12" y1="18" x2="12" y2="12"></line>
-                                <line x1="9" y1="15" x2="15" y2="15"></line>
-                              </svg>
-                            </button>
-
-                            {/* Nút Chỉnh sửa */}
-                            <button
-                              type="button"
-                              className="btn-icon-action edit"
-                              onClick={() => handleOpenEditModal(dealer)}
-                              title="Chỉnh sửa hồ sơ đại lý"
-                            >
-                              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                              </svg>
-                            </button>
-
-                            {/* Nút Xóa (Khóa nếu đã có giao dịch) */}
-                            <button
-                              type="button"
-                              className={`btn-icon-action delete ${hasTx ? 'has-tx-locked' : ''}`}
-                              onClick={() => handleDeleteClick(dealer)}
-                              title={
-                                hasTx
-                                  ? `Đã có ${txCount} GD: Không thể xóa trực tiếp (chỉ cho chuyển sang Ngừng giao dịch)`
-                                  : 'Xóa đại lý khỏi hệ thống'
-                              }
-                            >
-                              {hasTx ? (
-                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-                                  <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-                                </svg>
-                              ) : (
-                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                                  <polyline points="3 6 5 6 21 6"></polyline>
-                                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                                </svg>
-                              )}
-                            </button>
-                          </div>
+                          <button
+                            type="button"
+                            className="btn-action-dots"
+                            onClick={(e) => handleToggleActionMenu(e, dealer)}
+                            title="Thao tác chức năng đại lý"
+                            aria-label="Thao tác"
+                          >
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                              <circle cx="12" cy="5" r="2.2" />
+                              <circle cx="12" cy="12" r="2.2" />
+                              <circle cx="12" cy="19" r="2.2" />
+                            </svg>
+                          </button>
                         </td>
                       </tr>
                     );
@@ -2133,6 +2155,27 @@ export default function DealerProfileManagementView({
                       >
                         Lập phiếu thu tại chỗ
                       </button>
+                      {onOpenDebtStatement && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsTxModalOpen(false);
+                            onOpenDebtStatement(txModalDealer.id);
+                          }}
+                          style={{
+                            padding: '5px 12px',
+                            borderRadius: '6px',
+                            border: '1px solid #2563eb',
+                            background: '#eff6ff',
+                            color: '#1d4ed8',
+                            fontSize: '12.5px',
+                            fontWeight: '600',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          📖 Sổ công nợ
+                        </button>
+                      )}
                     </div>
                   </div>
 
@@ -2265,6 +2308,126 @@ export default function DealerProfileManagementView({
           onSuccess={handleCreateReceiptSuccess}
         />
       )}
+
+      {/* Menu thao tác 3 chấm Popover qua Portal */}
+      {actionMenuState &&
+        createPortal(
+          <div
+            className="dealer-action-menu-portal"
+            style={{
+              position: 'fixed',
+              top: actionMenuState.isDropup ? undefined : `${actionMenuState.top}px`,
+              bottom: actionMenuState.isDropup ? `${window.innerHeight - actionMenuState.top}px` : undefined,
+              right: `${actionMenuState.right}px`,
+              zIndex: 999999,
+              backgroundColor: '#ffffff',
+              borderRadius: '8px',
+              border: '1px solid #e2e8f0',
+              boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.18), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+              minWidth: '220px',
+              padding: '6px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '2px',
+              textAlign: 'left',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* 1. Lập phiếu thu tiền */}
+            <button
+              type="button"
+              className="dealer-action-menu-item"
+              onClick={() => {
+                const d = actionMenuState.dealer;
+                setActionMenuState(null);
+                handleOpenCreateReceipt(d);
+              }}
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+                <line x1="12" y1="18" x2="12" y2="12"></line>
+                <line x1="9" y1="15" x2="15" y2="15"></line>
+              </svg>
+              <span>Lập phiếu thu tiền</span>
+            </button>
+
+            {/* 2. Sổ chi tiết công nợ */}
+            {onOpenDebtStatement && (
+              <button
+                type="button"
+                className="dealer-action-menu-item"
+                onClick={() => {
+                  const d = actionMenuState.dealer;
+                  setActionMenuState(null);
+                  onOpenDebtStatement(d.id);
+                }}
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2.2">
+                  <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+                  <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+                </svg>
+                <span>Sổ chi tiết công nợ</span>
+              </button>
+            )}
+
+            {/* 3. Chỉnh sửa */}
+            <button
+              type="button"
+              className="dealer-action-menu-item"
+              onClick={() => {
+                const d = actionMenuState.dealer;
+                setActionMenuState(null);
+                handleOpenEditModal(d);
+              }}
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth="2.2">
+                <path d="M11 4H4a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+              </svg>
+              <span>Chỉnh sửa hồ sơ</span>
+            </button>
+
+            {/* Divider */}
+            <div style={{ height: '1px', backgroundColor: '#e2e8f0', margin: '4px 0' }} />
+
+            {/* 4. Xóa hoặc Ngừng giao dịch */}
+            {(() => {
+              const d = actionMenuState.dealer;
+              const txCount = d.transaction_count ?? 0;
+              const hasTx = txCount > 0 || Boolean(d.has_transactions);
+              return (
+                <button
+                  type="button"
+                  className={`dealer-action-menu-item ${hasTx ? 'text-amber' : 'text-danger'}`}
+                  onClick={() => {
+                    setActionMenuState(null);
+                    handleDeleteClick(d);
+                  }}
+                >
+                  {hasTx ? (
+                    <>
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2.2">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                      </svg>
+                      <span>Ngừng giao dịch ({txCount} GD)</span>
+                    </>
+                  ) : (
+                    <>
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2.2">
+                        <polyline points="3 6 5 6 21 6"></polyline>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                      </svg>
+                      <span>Xóa đại lý</span>
+                    </>
+                  )}
+                </button>
+              );
+            })()}
+          </div>,
+          document.body
+        )}
     </div>
   );
 }
