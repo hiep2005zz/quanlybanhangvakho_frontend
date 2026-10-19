@@ -109,7 +109,7 @@
   color: #000000;
   width: 100%;
   max-width: 794px; /* Chuẩn A4 96dpi */
-  min-height: 1000px;
+  min-height: auto;
   padding: 40px 48px;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
   border-radius: 2px;
