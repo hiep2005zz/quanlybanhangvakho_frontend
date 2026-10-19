@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   getStockCardApi,
   getProductsApi,
@@ -46,6 +46,30 @@ export const StockCardView: React.FC<StockCardViewProps> = ({
   // Phân trang 20 dòng / sản phẩm mỗi trang theo đúng yêu cầu
   const [currentPage, setCurrentPage] = useState<number>(1);
   const pageSize = 20;
+
+  // Tìm kiếm và chọn sản phẩm linh hoạt - Phân đoạn lazy load 10 sản phẩm mỗi lần để tối ưu hiệu năng
+  const [productSearchTerm, setProductSearchTerm] = useState<string>('');
+  const [isProductDropdownOpen, setIsProductDropdownOpen] = useState<boolean>(false);
+  const [visibleProductsCount, setVisibleProductsCount] = useState<number>(10);
+  const productSelectRef = useRef<HTMLDivElement>(null);
+
+  // Khi đóng/mở dropdown hoặc tìm kiếm, reset số lượng sản phẩm hiển thị về 10
+  useEffect(() => {
+    setVisibleProductsCount(10);
+  }, [productSearchTerm, isProductDropdownOpen]);
+
+  // Lắng nghe click bên ngoài để đóng dropdown tìm kiếm sản phẩm
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (productSelectRef.current && !productSelectRef.current.contains(event.target as Node)) {
+        setIsProductDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   // Tải danh sách sản phẩm để cho phép chọn nhanh sản phẩm khác ngay trên trang này
   useEffect(() => {
@@ -237,6 +261,33 @@ export const StockCardView: React.FC<StockCardViewProps> = ({
   const displayProductCode = summary?.product_code || currentProductFromList?.code || initialProductCode || '';
   const displayCategory = summary?.category || currentProductFromList?.category || '';
   const displayUnit = summary?.base_unit || currentProductFromList?.base_unit || 'Cái';
+
+  // Lọc sản phẩm theo từ khóa tìm kiếm (hỗ trợ tìm cả mã SKU và tên)
+  const filteredProducts = useMemo(() => {
+    if (!productSearchTerm.trim()) return productsList;
+    const term = productSearchTerm.trim().toLowerCase();
+    return productsList.filter(
+      (p) =>
+        (p.name && p.name.toLowerCase().includes(term)) ||
+        (p.code && p.code.toLowerCase().includes(term)) ||
+        (p.category && p.category.toLowerCase().includes(term))
+    );
+  }, [productsList, productSearchTerm]);
+
+  // Chỉ lấy 10 sản phẩm mỗi lần để DOM không bị quá tải khi danh sách có hàng ngàn sản phẩm
+  const displayedProducts = useMemo(() => {
+    return filteredProducts.slice(0, visibleProductsCount);
+  }, [filteredProducts, visibleProductsCount]);
+
+  const hasMoreProducts = visibleProductsCount < filteredProducts.length;
+
+  // Xử lý cuộn xuống cuối danh sách thì tự động load tiếp 10 sản phẩm
+  const handleProductListScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+    if (scrollHeight - scrollTop - clientHeight < 40 && hasMoreProducts) {
+      setVisibleProductsCount((prev) => Math.min(prev + 10, filteredProducts.length));
+    }
+  };
 
   return (
     <div
@@ -517,35 +568,289 @@ export const StockCardView: React.FC<StockCardViewProps> = ({
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-              {/* Chọn sản phẩm trực tiếp (Nếu muốn chuyển sang xem sản phẩm khác) */}
+              {/* Chọn và tìm kiếm sản phẩm trực tiếp (Searchable Product Dropdown) */}
               {productsList.length > 0 && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', position: 'relative' }} ref={productSelectRef}>
                   <label style={{ fontSize: '11.5px', fontWeight: '600', color: '#475569', whiteSpace: 'nowrap' }}>
                     Sản phẩm:
                   </label>
-                  <select
-                    value={selectedProductId}
-                    onChange={(e) => setSelectedProductId(Number(e.target.value))}
+                  
+                  {/* Nút hiển thị sản phẩm đang chọn & mở menu tìm kiếm */}
+                  <div
+                    onClick={() => setIsProductDropdownOpen((prev) => !prev)}
                     style={{
                       height: '30px',
                       padding: '0 8px',
                       fontSize: '11.5px',
                       borderRadius: '6px',
-                      border: '1px solid #cbd5e1',
+                      border: isProductDropdownOpen ? '1px solid #3b82f6' : '1px solid #cbd5e1',
                       backgroundColor: '#ffffff',
                       color: '#1e293b',
                       fontWeight: '500',
                       outline: 'none',
                       cursor: 'pointer',
-                      maxWidth: '190px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '6px',
+                      minWidth: '180px',
+                      maxWidth: '240px',
+                      boxShadow: isProductDropdownOpen ? '0 0 0 2px rgba(59, 130, 246, 0.2)' : 'none',
+                      userSelect: 'none',
                     }}
+                    title={displayProductName}
                   >
-                    {productsList.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.code ? `[${p.code}] ` : ''}{p.name}
-                      </option>
-                    ))}
-                  </select>
+                    <span
+                      style={{
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        maxWidth: '200px',
+                      }}
+                    >
+                      {displayProductCode ? `[${displayProductCode}] ` : ''}
+                      {displayProductName}
+                    </span>
+                    <svg
+                      style={{
+                        width: '12px',
+                        height: '12px',
+                        flexShrink: 0,
+                        color: '#64748b',
+                        transform: isProductDropdownOpen ? 'rotate(180deg)' : 'none',
+                        transition: 'transform 0.15s ease',
+                      }}
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
+
+                  {/* Dropdown Menu có ô Search Bar & Danh sách sản phẩm kết quả */}
+                  {isProductDropdownOpen && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: '100%',
+                        left: 0,
+                        marginTop: '4px',
+                        width: '320px',
+                        backgroundColor: '#ffffff',
+                        border: '1px solid #cbd5e1',
+                        borderRadius: '8px',
+                        boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+                        zIndex: 100,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        overflow: 'hidden',
+                      }}
+                    >
+                      {/* Ô nhập từ khóa tìm kiếm */}
+                      <div
+                        style={{
+                          padding: '8px',
+                          borderBottom: '1px solid #f1f5f9',
+                          backgroundColor: '#f8fafc',
+                          position: 'relative',
+                          display: 'flex',
+                          alignItems: 'center',
+                        }}
+                      >
+                        <svg
+                          style={{
+                            width: '14px',
+                            height: '14px',
+                            color: '#94a3b8',
+                            position: 'absolute',
+                            left: '16px',
+                            pointerEvents: 'none',
+                          }}
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth="2"
+                            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                          />
+                        </svg>
+                        <input
+                          type="text"
+                          autoFocus
+                          value={productSearchTerm}
+                          onChange={(e) => setProductSearchTerm(e.target.value)}
+                          placeholder="Tìm mã SKU hoặc tên sản phẩm..."
+                          onClick={(e) => e.stopPropagation()}
+                          style={{
+                            width: '100%',
+                            height: '28px',
+                            padding: '0 24px 0 28px',
+                            fontSize: '11.5px',
+                            borderRadius: '5px',
+                            border: '1px solid #cbd5e1',
+                            outline: 'none',
+                            color: '#1e293b',
+                            backgroundColor: '#ffffff',
+                          }}
+                        />
+                        {productSearchTerm && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setProductSearchTerm('');
+                            }}
+                            style={{
+                              position: 'absolute',
+                              right: '14px',
+                              background: 'transparent',
+                              border: 'none',
+                              color: '#94a3b8',
+                              cursor: 'pointer',
+                              fontSize: '11px',
+                              padding: '2px',
+                            }}
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Danh sách các sản phẩm khớp tìm kiếm - Load 10 sản phẩm mỗi lần để tối ưu hiệu năng */}
+                      <div
+                        onScroll={handleProductListScroll}
+                        style={{
+                          maxHeight: '230px',
+                          overflowY: 'auto',
+                          padding: '4px',
+                        }}
+                      >
+                        {displayedProducts.length === 0 ? (
+                          <div
+                            style={{
+                              padding: '12px',
+                              fontSize: '11.5px',
+                              color: '#64748b',
+                              textAlign: 'center',
+                            }}
+                          >
+                            Không tìm thấy sản phẩm phù hợp
+                          </div>
+                        ) : (
+                          <>
+                            {displayedProducts.map((p) => {
+                              const isSelected = p.id === selectedProductId;
+                              return (
+                                <div
+                                  key={p.id}
+                                  onClick={() => {
+                                    setSelectedProductId(p.id);
+                                    setIsProductDropdownOpen(false);
+                                    setProductSearchTerm('');
+                                  }}
+                                  style={{
+                                    padding: '6px 8px',
+                                    fontSize: '11.5px',
+                                    borderRadius: '5px',
+                                    cursor: 'pointer',
+                                    backgroundColor: isSelected ? '#eff6ff' : 'transparent',
+                                    color: isSelected ? '#1d4ed8' : '#1e293b',
+                                    fontWeight: isSelected ? '600' : '400',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: '2px',
+                                    transition: 'background-color 0.1s',
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    if (!isSelected) (e.currentTarget.style.backgroundColor = '#f8fafc');
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    if (!isSelected) (e.currentTarget.style.backgroundColor = 'transparent');
+                                  }}
+                                >
+                                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '4px' }}>
+                                    <span style={{ fontWeight: '600', color: isSelected ? '#1d4ed8' : '#0f172a' }}>
+                                      {p.name}
+                                    </span>
+                                    {isSelected && (
+                                      <span style={{ fontSize: '10px', color: '#2563eb' }}>✓ Đang xem</span>
+                                    )}
+                                  </div>
+                                  <div style={{ fontSize: '10.5px', color: '#64748b', display: 'flex', gap: '8px' }}>
+                                    <span>Mã: <b style={{ color: '#475569' }}>{p.code || 'N/A'}</b></span>
+                                    {p.category && <span>Nhóm: {p.category}</span>}
+                                  </div>
+                                </div>
+                              );
+                            })}
+
+                            {/* Nút / Thông báo tải thêm 10 sản phẩm tiếp theo */}
+                            {hasMoreProducts && (
+                              <div style={{ padding: '6px 4px', textAlign: 'center' }}>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setVisibleProductsCount((prev) => Math.min(prev + 10, filteredProducts.length));
+                                  }}
+                                  style={{
+                                    width: '100%',
+                                    padding: '5px 0',
+                                    fontSize: '11px',
+                                    fontWeight: '500',
+                                    color: '#2563eb',
+                                    backgroundColor: '#f0fdf4',
+                                    border: '1px dashed #86efac',
+                                    borderRadius: '6px',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '4px',
+                                  }}
+                                >
+                                  <span>+ Tải thêm 10 sản phẩm tiếp theo</span>
+                                  <span style={{ color: '#64748b', fontSize: '10px' }}>
+                                    (còn {filteredProducts.length - displayedProducts.length})
+                                  </span>
+                                </button>
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </div>
+
+                      {/* Footer tổng số sản phẩm & tiến độ tải */}
+                      <div
+                        style={{
+                          padding: '4px 8px',
+                          backgroundColor: '#f8fafc',
+                          borderTop: '1px solid #f1f5f9',
+                          fontSize: '10px',
+                          color: '#64748b',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                        }}
+                      >
+                        <span>
+                          Đã hiển thị <b style={{ color: '#1e293b' }}>{displayedProducts.length}</b> / {filteredProducts.length} sản phẩm
+                        </span>
+                        {productSearchTerm && (
+                          <span
+                            onClick={() => setProductSearchTerm('')}
+                            style={{ color: '#2563eb', cursor: 'pointer', fontWeight: '500' }}
+                          >
+                            Xóa lọc
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
