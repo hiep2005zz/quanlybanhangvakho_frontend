@@ -2284,29 +2284,41 @@ const canAccessInventoryTurnover = Boolean(
         ) : activeTab === 'orders' ? (
           canReadOrders ? (
             isOrdersCreateSubpage ? (
-              <CreateOrderPage
-                token={token}
-                currentUser={user}
-                products={products}
-                initialDealerId={cloneOrderData?.dealerId || cloneOrderData?.dealer_id}
-                initialOrderItems={cloneOrderData?.items}
-                initialNote={cloneOrderData?.note}
-                onClose={() => {
-                  try {
-                    sessionStorage.removeItem('clone_order_draft');
-                  } catch { }
-                  setCloneOrderData(null);
-                  window.history.pushState({}, '', '/orders');
-                }}
-                onSuccess={() => {
-                  try {
-                    sessionStorage.removeItem('clone_order_draft');
-                  } catch { }
-                  setCloneOrderData(null);
-                  window.history.pushState({}, '', '/orders');
-                  fetchProducts();
-                }}
-              />
+              canCreateOrders ? (
+                <CreateOrderPage
+                  token={token}
+                  currentUser={user}
+                  products={products}
+                  initialDealerId={cloneOrderData?.dealerId || cloneOrderData?.dealer_id}
+                  initialOrderItems={cloneOrderData?.items}
+                  initialNote={cloneOrderData?.note}
+                  onClose={() => {
+                    try {
+                      sessionStorage.removeItem('clone_order_draft');
+                    } catch { }
+                    setCloneOrderData(null);
+                    window.history.pushState({}, '', '/orders');
+                  }}
+                  onSuccess={() => {
+                    try {
+                      sessionStorage.removeItem('clone_order_draft');
+                    } catch { }
+                    setCloneOrderData(null);
+                    window.history.pushState({}, '', '/orders');
+                    fetchProducts();
+                  }}
+                />
+              ) : (
+                <AccessDeniedView
+                  currentUser={user}
+                  requiredPermission="Quyền tạo đơn hàng (order:write)"
+                  onBackToWorkflow={() => {
+                    window.history.pushState({}, '', '/orders');
+                    setActiveTab('orders');
+                  }}
+                  onLogout={onLogout}
+                />
+              )
             ) : isOrderDetailSubpage ? (
               <OrderDetailPage
                 currentUser={user}
@@ -2314,13 +2326,13 @@ const canAccessInventoryTurnover = Boolean(
                 onBack={() => {
                   window.history.pushState({}, '', '/orders');
                 }}
-                onCloneOrder={(data) => {
+                onCloneOrder={canCreateOrders ? (data) => {
                   try {
                     sessionStorage.setItem('clone_order_draft', JSON.stringify(data));
                   } catch { }
                   setCloneOrderData(data);
                   window.history.pushState({}, '', '/orders/create');
-                }}
+                } : undefined}
                 onRefreshProducts={fetchProducts}
               />
             ) : (
@@ -2331,13 +2343,13 @@ const canAccessInventoryTurnover = Boolean(
                 onBackToHome={() => setActiveTab('inventory')}
                 onRefreshProducts={fetchProducts}
                 onNavigateToPriceBooks={canAccessPriceBooks ? () => setActiveTab('price-books') : undefined}
-                onCloneOrder={(data) => {
+                onCloneOrder={canCreateOrders ? (data) => {
                   try {
                     sessionStorage.setItem('clone_order_draft', JSON.stringify(data));
                   } catch { }
                   setCloneOrderData(data);
                   window.history.pushState({}, '', '/orders/create');
-                }}
+                } : undefined}
               />
             )
           ) : (

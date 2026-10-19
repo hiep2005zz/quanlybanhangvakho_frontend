@@ -8,6 +8,7 @@ import {
   ProductItem,
   User,
 } from '../services/api';
+import { ProductSelectDropdown } from './ProductSelectDropdown';
 import { emitStatusToast } from './StatusToast';
 import { useNavigate, useParams } from '../hooks/useLocation';
 
@@ -130,20 +131,23 @@ export const CreatePriceListPage: React.FC<CreatePriceListPageProps> = ({
     }
   }, [token, isEditMode, targetEditId]);
 
+  const [selectedProductObj, setSelectedProductObj] = useState<ProductItem | null>(null);
+
   // Chọn sản phẩm và tự động điền giá niêm yết / giá sàn đề xuất
-  const handleProductSelect = (productIdStr: string) => {
-    setNewProductId(productIdStr);
-    const pid = parseInt(productIdStr, 10);
-    const prod = products.find((p) => p.id === pid);
-    if (prod) {
-      const currentSellPrice = prod.sell_price != null ? prod.sell_price : 0;
+  const handleProductSelect = (product: ProductItem | null) => {
+    if (product) {
+      setNewProductId(product.id.toString());
+      setSelectedProductObj(product);
+      const currentSellPrice = product.sell_price != null ? product.sell_price : 0;
       setNewSalePrice(currentSellPrice > 0 ? currentSellPrice.toString() : '');
       const currentFloorPrice =
-        prod.floor_price != null && prod.floor_price > 0
-          ? prod.floor_price
+        product.floor_price != null && product.floor_price > 0
+          ? product.floor_price
           : Math.round(currentSellPrice * 0.85);
       setNewFloorPrice(currentFloorPrice > 0 ? currentFloorPrice.toString() : '');
     } else {
+      setNewProductId('');
+      setSelectedProductObj(null);
       setNewSalePrice('');
       setNewFloorPrice('');
     }
@@ -175,7 +179,7 @@ export const CreatePriceListPage: React.FC<CreatePriceListPageProps> = ({
       return;
     }
 
-    const prod = products.find((p) => p.id === pid);
+    const prod = selectedProductObj || products.find((p) => p.id === pid);
 
     setFormItems([
       {
@@ -191,6 +195,7 @@ export const CreatePriceListPage: React.FC<CreatePriceListPageProps> = ({
     ]);
 
     setNewProductId('');
+    setSelectedProductObj(null);
     setNewSalePrice('');
     setNewFloorPrice('');
   };
@@ -560,18 +565,19 @@ export const CreatePriceListPage: React.FC<CreatePriceListPageProps> = ({
                   <label className="block text-xs font-bold text-slate-600 mb-1">
                     Sản phẩm
                   </label>
-                  <select
-                    value={newProductId}
-                    onChange={(e) => handleProductSelect(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-sm font-medium text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 cursor-pointer"
-                  >
-                    <option value="">-- Chọn Sản phẩm --</option>
-                    {products.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.code} - {p.name} (Niêm yết: {(p.sell_price || 0).toLocaleString('vi-VN')} đồng)
-                      </option>
-                    ))}
-                  </select>
+                  <ProductSelectDropdown
+                    token={token}
+                    selectedProductId={newProductId ? parseInt(newProductId, 10) : 0}
+                    onSelectProduct={(p) => handleProductSelect(p)}
+                    placeholder="-- Chọn Sản phẩm --"
+                    autoSelectFirst={false}
+                    fallbackProduct={selectedProductObj ? {
+                      id: selectedProductObj.id,
+                      code: selectedProductObj.code,
+                      name: selectedProductObj.name,
+                      is_batch_managed: selectedProductObj.is_batch_managed,
+                    } : null}
+                  />
                 </div>
 
                 {/* Giá Niêm Yết (3 cột) */}

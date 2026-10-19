@@ -417,42 +417,16 @@ export const UserBulkImportView: React.FC<UserBulkImportViewProps> = ({
                 background: '#f8fafc',
                 borderRadius: '12px',
                 border: '1px solid #e2e8f0',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                flexWrap: 'wrap',
-                gap: '12px',
               }}
             >
-              <div>
-                <div style={{ fontWeight: '700', color: '#1e293b', fontSize: '13.5px', marginBottom: '3px' }}>
-                  Quy trình nhập dữ liệu người dùng từ Excel:
-                </div>
-                <div style={{ color: '#64748b', fontSize: '12.5px', lineHeight: '1.5' }}>
-                  1. Bấm <strong>Tải file Excel mẫu</strong> để có định dạng chuẩn (Họ tên, Email, SĐT, Vai trò, Chi nhánh, Mật khẩu).<br />
-                  2. Điền thông tin người dùng và tải file lên hệ thống để xem trước.<br />
-                  3. Kiểm tra danh sách phân trang (20 người/trang). Các dòng hợp lệ sẽ được tạo mới tài khoản.
-                </div>
+              <div style={{ fontWeight: '700', color: '#1e293b', fontSize: '13.5px', marginBottom: '3px' }}>
+                Quy trình nhập dữ liệu người dùng từ Excel:
               </div>
-              <button
-                type="button"
-                onClick={handleDownloadTemplate}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  padding: '7px 14px',
-                  background: '#ffffff',
-                  border: '1px solid #cbd5e1',
-                  borderRadius: '8px',
-                  color: '#2563eb',
-                  fontWeight: '600',
-                  fontSize: '12.5px',
-                  cursor: 'pointer',
-                }}
-              >
-                Tải file mẫu
-              </button>
+              <div style={{ color: '#64748b', fontSize: '12.5px', lineHeight: '1.5' }}>
+                1. Bấm <strong>Tải file Excel mẫu (.xlsx)</strong> ở góc trên bên phải để có định dạng chuẩn (Họ tên, Email, SĐT, Vai trò, Chi nhánh, Mật khẩu).<br />
+                2. Điền thông tin người dùng và tải file lên hệ thống để xem trước.<br />
+                3. Kiểm tra danh sách phân trang (20 người/trang). Các dòng hợp lệ sẽ được tạo mới tài khoản.
+              </div>
             </div>
 
             {/* Khung kéo thả chọn file */}
