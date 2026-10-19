@@ -58,6 +58,10 @@ export const ReturnOrdersManagementView: React.FC<ReturnOrdersManagementViewProp
 
   // Phân quyền
   const userRoles = currentUser.roles || [currentUser.role];
+  const isWarehouseManagerOrAdmin =
+    userRoles.includes('admin') ||
+    userRoles.includes('warehouse_manager');
+
   const isWarehouseOrAdmin =
     userRoles.includes('admin') ||
     userRoles.includes('warehouse') ||
@@ -527,37 +531,38 @@ export const ReturnOrdersManagementView: React.FC<ReturnOrdersManagementViewProp
                     >
                       <div
                         style={{
-                          display: 'grid',
-                          gridTemplateColumns: '76px 64px',
-                          gap: '6px',
+                          display: isWarehouseManagerOrAdmin ? 'grid' : 'flex',
+                          ...(isWarehouseManagerOrAdmin ? { gridTemplateColumns: '76px 64px', gap: '6px' } : {}),
                           justifyContent: 'center',
                           alignItems: 'center',
                         }}
                       >
-                        {/* Slot 1: Nút Nhập kho (đứng trước) */}
-                        {ro.status === 'PENDING_WAREHOUSE' && isWarehouseOrAdmin ? (
-                          <button
-                            type="button"
-                            onClick={() => handleQuickConfirm(ro)}
-                            style={{
-                              padding: '5px 0',
-                              width: '76px',
-                              borderRadius: '6px',
-                              border: 'none',
-                              background: '#16a34a',
-                              color: '#ffffff',
-                              fontSize: '12px',
-                              fontWeight: '700',
-                              cursor: 'pointer',
-                              textAlign: 'center',
-                              boxShadow: '0 1px 2px rgba(22, 163, 74, 0.2)',
-                            }}
-                            title="Xác nhận nhận hàng & cộng tồn kho"
-                          >
-                            Nhập kho
-                          </button>
-                        ) : (
-                          <div style={{ width: '76px' }} />
+                        {/* Slot 1: Nút Nhập kho (chỉ Quản lý kho hoặc Admin mới có quyền duyệt) */}
+                        {isWarehouseManagerOrAdmin && (
+                          ro.status === 'PENDING_WAREHOUSE' ? (
+                            <button
+                              type="button"
+                              onClick={() => handleQuickConfirm(ro)}
+                              style={{
+                                padding: '5px 0',
+                                width: '76px',
+                                borderRadius: '6px',
+                                border: 'none',
+                                background: '#16a34a',
+                                color: '#ffffff',
+                                fontSize: '12px',
+                                fontWeight: '700',
+                                cursor: 'pointer',
+                                textAlign: 'center',
+                                boxShadow: '0 1px 2px rgba(22, 163, 74, 0.2)',
+                              }}
+                              title="Xác nhận nhận hàng & cộng tồn kho"
+                            >
+                              Nhập kho
+                            </button>
+                          ) : (
+                            <div style={{ width: '76px' }} />
+                          )
                         )}
 
                         {/* Slot 2: Nút Chi tiết (luôn luôn ở slot 2, thẳng tắp cả cột) */}
@@ -654,7 +659,7 @@ export const ReturnOrdersManagementView: React.FC<ReturnOrdersManagementViewProp
         isOpen={Boolean(selectedOrderForDetail)}
         order={selectedOrderForDetail}
         token={token}
-        canConfirmWarehouse={isWarehouseOrAdmin}
+        canConfirmWarehouse={isWarehouseManagerOrAdmin}
         canCancel={canCreateReturnOrder}
         onClose={() => setSelectedOrderForDetail(null)}
         onSuccess={() => {
