@@ -17,6 +17,8 @@ import './agency-debt.css';
 interface AgencyDebtInvoiceViewProps {
   currentUser: User;
   token: string;
+  initialInvoiceCode?: string | null;
+  onInitialInvoiceOpened?: () => void;
   onBackToPortal?: () => void;
   onNavigateToOrders?: () => void;
 }
@@ -37,6 +39,8 @@ const formatDate = (dateStr?: string) => {
 export const AgencyDebtInvoiceView: React.FC<AgencyDebtInvoiceViewProps> = ({
   currentUser,
   token,
+  initialInvoiceCode,
+  onInitialInvoiceOpened,
   onBackToPortal: _onBackToPortal,
   onNavigateToOrders: _onNavigateToOrders,
 }) => {
@@ -59,6 +63,12 @@ export const AgencyDebtInvoiceView: React.FC<AgencyDebtInvoiceViewProps> = ({
   // Modal State
   const [selectedInvoiceCode, setSelectedInvoiceCode] = useState<string | null>(null);
   const [activeSubTab, setActiveSubTab] = useState<'invoices' | 'reconciliations'>('invoices');
+
+  useEffect(() => {
+    if (!initialInvoiceCode) return;
+    setSelectedInvoiceCode(initialInvoiceCode);
+    onInitialInvoiceOpened?.();
+  }, [initialInvoiceCode, onInitialInvoiceOpened]);
 
   // Debounce tìm kiếm 300ms
   useEffect(() => {
