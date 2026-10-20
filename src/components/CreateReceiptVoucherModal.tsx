@@ -25,16 +25,8 @@ export const CreateReceiptVoucherModal: React.FC<CreateReceiptVoucherModalProps>
   onClose,
   onSuccess,
 }) => {
-  // Định dạng số có dấu chấm ngăn cách hàng nghìn: 100000 -> "100.000"
-  const formatWithDots = (val: number | string): string => {
-    if (!val && val !== 0) return '';
-    const cleanDigits = String(val).replace(/\D/g, '');
-    if (!cleanDigits) return '';
-    return cleanDigits.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-  };
-
-  const [amountDisplay, setAmountDisplay] = useState<string>(
-    defaultAmount && defaultAmount > 0 ? formatWithDots(defaultAmount) : ''
+  const [amountStr, setAmountStr] = useState<string>(
+    defaultAmount && defaultAmount > 0 ? String(defaultAmount) : ''
   );
   const [paymentMethod, setPaymentMethod] = useState<string>('Tiền mặt');
   const [payerName, setPayerName] = useState<string>(dealer.name ? `Đại diện ${dealer.name}` : '');
@@ -55,10 +47,10 @@ export const CreateReceiptVoucherModal: React.FC<CreateReceiptVoucherModalProps>
 
   if (!isOpen) return null;
 
-  // Lấy giá trị số nguyên từ chuỗi hiển thị có dấu chấm
-  const rawDigits = amountDisplay.replace(/\D/g, '');
-  const numAmount = rawDigits ? parseInt(rawDigits, 10) : 0;
-  const isInvalidAmount = amountDisplay === '' || isNaN(numAmount) || numAmount <= 0;
+  // Lấy giá trị số nguyên từ chuỗi người dùng nhập (nhập số nào ra đúng số đấy)
+  const cleanDigits = amountStr.replace(/\D/g, '');
+  const numAmount = cleanDigits ? parseInt(cleanDigits, 10) : 0;
+  const isInvalidAmount = amountStr === '' || isNaN(numAmount) || numAmount <= 0;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -207,46 +199,40 @@ export const CreateReceiptVoucherModal: React.FC<CreateReceiptVoucherModalProps>
                 </label>
                 <div style={{ position: 'relative', width: '100%' }}>
                   <input
-                    type="text"
-                    inputMode="numeric"
+                    type="number"
+                    min="1"
+                    step="any"
                     autoFocus
                     required
-                    value={amountDisplay}
+                    value={amountStr}
                     onChange={(e) => {
-                      // Chỉ giữ lại chữ số
-                      const raw = e.target.value.replace(/\D/g, '');
-                      if (!raw) {
-                        setAmountDisplay('');
-                        return;
-                      }
-                      // Bỏ số 0 vô nghĩa ở đầu nếu có (trừ khi chỉ là "0")
-                      const trimmed = raw.replace(/^0+(?=\d)/, '').slice(0, 15);
-                      setAmountDisplay(formatWithDots(trimmed));
+                      setAmountStr(e.target.value);
                     }}
-                    placeholder="VD: 100.000"
+                    placeholder="VD: 100000"
                     style={{
                       width: '100%',
                       height: '38px',
                       padding: '0 48px 0 12px',
                       borderRadius: '7px',
-                      border: isInvalidAmount && amountDisplay !== '' ? '1.5px solid #ef4444' : '1px solid #cbd5e1',
-                      background: isInvalidAmount && amountDisplay !== '' ? '#fef2f2' : '#ffffff',
+                      border: isInvalidAmount && amountStr !== '' ? '1.5px solid #ef4444' : '1px solid #cbd5e1',
+                      background: isInvalidAmount && amountStr !== '' ? '#fef2f2' : '#ffffff',
                       fontSize: '14px',
                       fontWeight: '700',
-                      color: isInvalidAmount && amountDisplay !== '' ? '#b91c1c' : '#0f172a',
+                      color: isInvalidAmount && amountStr !== '' ? '#b91c1c' : '#0f172a',
                       outline: 'none',
                       boxShadow: 'none',
                       textAlign: 'left',
                       boxSizing: 'border-box',
                     }}
                     onFocus={(e) => {
-                      if (!isInvalidAmount || amountDisplay === '') {
+                      if (!isInvalidAmount || amountStr === '') {
                         e.currentTarget.style.borderColor = '#94a3b8';
                         e.currentTarget.style.boxShadow = '0 0 0 2px rgba(148, 163, 184, 0.2)';
                       }
+                      e.currentTarget.select();
                     }}
                     onBlur={(e) => {
-                      if (!isInvalidAmount || amountDisplay === '') {
+                      if (!isInvalidAmount || amountStr === '') {
                         e.currentTarget.style.borderColor = '#cbd5e1';
                         e.currentTarget.style.boxShadow = 'none';
                       }
@@ -267,7 +253,12 @@ export const CreateReceiptVoucherModal: React.FC<CreateReceiptVoucherModalProps>
                     VND
                   </span>
                 </div>
-                {isInvalidAmount && amountDisplay !== '' && (
+                {numAmount > 0 && (
+                  <div style={{ marginTop: '4px', fontSize: '12px', color: '#0f172a', fontWeight: '600' }}>
+                    Quy đổi: {numAmount.toLocaleString('vi-VN')} đ
+                  </div>
+                )}
+                {isInvalidAmount && amountStr !== '' && (
                   <div style={{ marginTop: '4px', fontSize: '12px', color: '#dc2626', fontWeight: '500' }}>
                     Số tiền thu phải lớn hơn 0
                   </div>
