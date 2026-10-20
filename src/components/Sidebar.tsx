@@ -139,7 +139,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   canAccessDebtPayments = false,
   canAccessDebtReconciliation = false,
   canAccessInventoryTurnover = false,
-  canAccessDebtStatement = false,
+  canAccessDebtStatement: _canAccessDebtStatement = false,
   canAccessDebtAdjustments = false,
   onLogout,
   isLoggingOut = false,

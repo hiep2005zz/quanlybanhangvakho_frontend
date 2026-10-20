@@ -1201,6 +1201,8 @@ export interface CustomerCreatePayload {
 
 export interface CustomerCreateResponse {
   user: UserAccount;
+  temporary_password?: string;
+  activation_code?: string;
   email_sent: boolean;
   message: string;
 }
