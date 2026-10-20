@@ -53,6 +53,10 @@ export const ExecutiveDashboardView: React.FC<ExecutiveDashboardViewProps> = ({
     window.addEventListener('INVENTORY_STOCK_UPDATED', handleSystemSync);
     window.addEventListener('debt-reconciliation-updated', handleSystemSync);
     window.addEventListener('DEALER_DATA_CHANGED', handleSystemSync);
+    window.addEventListener('BATCHES_UPDATED', handleSystemSync);
+    window.addEventListener('DELIVERY_TRIPS_UPDATED', handleSystemSync);
+    window.addEventListener('PAYMENT_COLLECTIONS_UPDATED', handleSystemSync);
+    window.addEventListener('SALES_TARGETS_UPDATED', handleSystemSync);
 
     // 2. Lắng nghe thay đổi giữa các tab/cửa sổ khác (cross-tab sync qua localStorage)
     const handleStorageChange = (e: StorageEvent) => {
@@ -60,7 +64,9 @@ export const ExecutiveDashboardView: React.FC<ExecutiveDashboardViewProps> = ({
         e.key === 'orders_last_updated' ||
         e.key === 'inventory_last_updated' ||
         e.key === 'debt_reconciliation_last_updated' ||
-        e.key === 'dealers_last_updated'
+        e.key === 'dealers_last_updated' ||
+        e.key === 'batches_last_updated' ||
+        e.key === 'sales_targets_last_updated'
       ) {
         loadData(false);
       }
@@ -87,6 +93,10 @@ export const ExecutiveDashboardView: React.FC<ExecutiveDashboardViewProps> = ({
       window.removeEventListener('INVENTORY_STOCK_UPDATED', handleSystemSync);
       window.removeEventListener('debt-reconciliation-updated', handleSystemSync);
       window.removeEventListener('DEALER_DATA_CHANGED', handleSystemSync);
+      window.removeEventListener('BATCHES_UPDATED', handleSystemSync);
+      window.removeEventListener('DELIVERY_TRIPS_UPDATED', handleSystemSync);
+      window.removeEventListener('PAYMENT_COLLECTIONS_UPDATED', handleSystemSync);
+      window.removeEventListener('SALES_TARGETS_UPDATED', handleSystemSync);
       window.removeEventListener('storage', handleStorageChange);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       clearInterval(intervalTimer);
@@ -216,8 +226,8 @@ export const ExecutiveDashboardView: React.FC<ExecutiveDashboardViewProps> = ({
         </div>
       </div>
 
-      {/* 2. 6 KPI Cards Grid (Gọn gàng & Tối ưu chiều cao) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
+      {/* 2. 6 KPI Cards Grid - Thiết kế gọn gàng, tiết kiệm diện tích (1 hàng trên màn hình lớn) */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-2.5">
         {/* KPI 1: Doanh số hôm nay */}
         <div
           onClick={() => {
@@ -227,29 +237,26 @@ export const ExecutiveDashboardView: React.FC<ExecutiveDashboardViewProps> = ({
             } catch {}
             onNavigateTab?.('sales-report');
           }}
-          className="bg-white p-3.5 rounded-xl border border-gray-200 shadow-xs hover:shadow-sm transition-all relative overflow-hidden flex flex-col justify-between cursor-pointer group"
-          title="Nhấn để mở Báo cáo doanh số chi tiết ngày hôm nay"
+          className="bg-white px-3 py-2 rounded-xl border border-gray-200 shadow-2xs hover:shadow-xs hover:-translate-y-0.5 transition-all relative overflow-hidden flex flex-col justify-between cursor-pointer group"
+          title={`Doanh số hôm nay: ${formatVND(kpis?.revenue_today || 0)} (Nhấn để xem chi tiết)`}
         >
-          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-400 to-teal-500"></div>
+          <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-emerald-400 to-teal-500"></div>
           <div>
-            <div className="flex items-center justify-between text-gray-500 mb-1">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500 truncate" title="Doanh số hôm nay">
+            <div className="flex items-center justify-between text-gray-500 mb-0.5">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500 truncate" title="Doanh số hôm nay">
                 Doanh số hôm nay
               </span>
-              <div className="w-6 h-6 rounded-md bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-                <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <div className="w-5 h-5 rounded-md bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+                <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
             </div>
-            <div className="text-lg font-black text-gray-900 tracking-tight leading-tight">
+            <div className="text-base xl:text-lg font-black text-gray-900 tracking-tight leading-tight">
               {formatCompactVND(kpis?.revenue_today || 0)}
             </div>
-            <div className="text-[11px] text-gray-500 truncate" title={formatVND(kpis?.revenue_today || 0)}>
-              {formatVND(kpis?.revenue_today || 0)}
-            </div>
           </div>
-          <div className="mt-2 pt-1.5 border-t border-gray-100 flex items-center justify-between text-[11px]">
+          <div className="mt-1 pt-1 border-t border-gray-100 flex items-center justify-between text-[10px]">
             <span className="text-gray-400">So hôm qua:</span>
             <span
               className={`font-semibold flex items-center gap-0.5 ${
@@ -264,132 +271,124 @@ export const ExecutiveDashboardView: React.FC<ExecutiveDashboardViewProps> = ({
 
         {/* KPI 2: Doanh số tháng này */}
         <div
-          onClick={() => {
-            try {
-              sessionStorage.setItem('sales_report_preset', 'this_month');
-              sessionStorage.setItem('sales_report_dimension', 'salesperson');
-            } catch {}
-            onNavigateTab?.('sales-report');
-          }}
-          className="bg-white p-3.5 rounded-xl border border-gray-200 shadow-xs hover:shadow-sm transition-all relative overflow-hidden flex flex-col justify-between cursor-pointer group"
-          title="Nhấn để mở Báo cáo doanh số đa chiều tháng này"
+          onClick={() => onNavigateTab?.('sales-targets')}
+          className="bg-white px-3 py-2 rounded-xl border border-blue-200/90 shadow-2xs hover:shadow-xs hover:-translate-y-0.5 transition-all relative overflow-hidden flex flex-col justify-between cursor-pointer group"
+          title={`Doanh số tháng này: ${formatVND(kpis?.revenue_this_month || 0)} (Mục tiêu: ${formatCompactVND(kpis?.monthly_sales_target || 0)})`}
         >
-          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 to-indigo-600"></div>
+          <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-500 to-indigo-600"></div>
           <div>
-            <div className="flex items-center justify-between text-gray-500 mb-1">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500 truncate" title="Doanh số tháng này">
+            <div className="flex items-center justify-between text-gray-500 mb-0.5">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-blue-900 truncate" title="Doanh số tháng này">
                 Doanh số tháng này
               </span>
-              <div className="w-6 h-6 rounded-md bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-                <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <div className="w-5 h-5 rounded-md bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+                <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
               </div>
             </div>
-            <div className="text-lg font-black text-blue-900 tracking-tight leading-tight">
+            <div className="text-base xl:text-lg font-black text-blue-900 tracking-tight leading-tight">
               {formatCompactVND(kpis?.revenue_this_month || 0)}
             </div>
-            <div className="text-[11px] text-gray-500 truncate" title={formatVND(kpis?.revenue_this_month || 0)}>
-              {formatVND(kpis?.revenue_this_month || 0)}
-            </div>
           </div>
-          <div className="mt-2 pt-1.5 border-t border-gray-100 flex items-center justify-between text-[11px]">
-            <span className="text-gray-400">So tháng trước:</span>
+          <div className="mt-1 pt-1 border-t border-blue-50 flex items-center justify-between text-[10px]">
+            <span className="text-gray-500 truncate" title={`Mục tiêu: ${formatCompactVND(kpis?.monthly_sales_target || 0)}`}>
+              MT: {formatCompactVND(kpis?.monthly_sales_target || 0)}
+            </span>
             <span
-              className={`font-semibold flex items-center gap-0.5 ${
-                (kpis?.revenue_this_month_growth || 0) >= 0 ? 'text-emerald-600' : 'text-red-500'
+              className={`font-bold px-1 rounded-sm ${
+                (kpis?.sales_target_completion_pct || 0) >= 100
+                  ? 'bg-emerald-100 text-emerald-800'
+                  : 'bg-blue-100 text-blue-800'
               }`}
             >
-              {(kpis?.revenue_this_month_growth || 0) >= 0 ? '▲ +' : '▼ '}
-              {kpis?.revenue_this_month_growth || 0}%
+              Đạt {kpis?.sales_target_completion_pct || 0}%
             </span>
           </div>
         </div>
 
-        {/* KPI 3: Đơn chờ duyệt */}
-        <div
-          onClick={() => onNavigateTab?.('orders')}
-          className="bg-white p-3.5 rounded-xl border border-amber-200/90 shadow-xs hover:shadow-sm transition-all relative overflow-hidden flex flex-col justify-between cursor-pointer group"
-        >
-          <div className="absolute top-0 left-0 right-0 h-1 bg-amber-500"></div>
-          <div>
-            <div className="flex items-center justify-between text-gray-500 mb-1">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-amber-800 truncate" title="Đơn chờ duyệt">
-                Đơn chờ duyệt
-              </span>
-              <div className="w-6 h-6 rounded-md bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
-                <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-            </div>
-            <div className="text-lg font-black text-amber-700 tracking-tight leading-tight">
-              {kpis?.pending_approval_orders_count || 0}{' '}
-              <span className="text-xs font-semibold text-amber-600">đơn</span>
-            </div>
-            <div className="text-[11px] text-amber-800/80 truncate">Cần Sales duyệt ngay</div>
-          </div>
-          <div className="mt-2 pt-1.5 border-t border-amber-100 flex items-center justify-between text-[11px] text-amber-700 font-medium group-hover:underline">
-            <span>Xử lý đơn hàng</span>
-            <span>&rarr;</span>
-          </div>
-        </div>
-
-        {/* KPI 4: Đơn chờ xuất */}
-        <div
-          onClick={() => onNavigateTab?.('orders')}
-          className="bg-white p-3.5 rounded-xl border border-sky-200/90 shadow-xs hover:shadow-sm transition-all relative overflow-hidden flex flex-col justify-between cursor-pointer group"
-        >
-          <div className="absolute top-0 left-0 right-0 h-1 bg-sky-500"></div>
-          <div>
-            <div className="flex items-center justify-between text-gray-500 mb-1">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-sky-800 truncate" title="Đơn chờ xuất">
-                Đơn chờ xuất
-              </span>
-              <div className="w-6 h-6 rounded-md bg-sky-50 text-sky-600 flex items-center justify-center shrink-0">
-                <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
-                </svg>
-              </div>
-            </div>
-            <div className="text-lg font-black text-sky-700 tracking-tight leading-tight">
-              {kpis?.pending_export_orders_count || 0}{' '}
-              <span className="text-xs font-semibold text-sky-600">đơn</span>
-            </div>
-            <div className="text-[11px] text-sky-800/80 truncate">Kho đang soạn hàng</div>
-          </div>
-          <div className="mt-2 pt-1.5 border-t border-sky-100 flex items-center justify-between text-[11px] text-sky-700 font-medium group-hover:underline">
-            <span>Tiến độ giao hàng</span>
-            <span>&rarr;</span>
-          </div>
-        </div>
-
-        {/* KPI 5: Công nợ quá hạn */}
+        {/* KPI 3: Công nợ quá hạn */}
         <div
           onClick={() => onNavigateTab?.('debt-ledger')}
-          className="bg-white p-3.5 rounded-xl border border-red-200/90 shadow-xs hover:shadow-sm transition-all relative overflow-hidden flex flex-col justify-between cursor-pointer group"
+          className="bg-white px-3 py-2 rounded-xl border border-red-200/90 shadow-2xs hover:shadow-xs hover:-translate-y-0.5 transition-all relative overflow-hidden flex flex-col justify-between cursor-pointer group"
+          title={`Công nợ quá hạn: ${formatVND(kpis?.total_overdue_debt || 0)} (Nhấn để xem sổ nợ)`}
         >
-          <div className="absolute top-0 left-0 right-0 h-1 bg-red-500"></div>
+          <div className="absolute top-0 left-0 right-0 h-0.5 bg-red-500"></div>
           <div>
-            <div className="flex items-center justify-between text-gray-500 mb-1">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-red-800 truncate" title="Công nợ quá hạn">
+            <div className="flex items-center justify-between text-gray-500 mb-0.5">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-red-800 truncate" title="Công nợ quá hạn">
                 Công nợ quá hạn
               </span>
-              <div className="w-6 h-6 rounded-md bg-red-50 text-red-600 flex items-center justify-center shrink-0">
-                <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <div className="w-5 h-5 rounded-md bg-red-50 text-red-600 flex items-center justify-center shrink-0">
+                <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
               </div>
             </div>
-            <div className="text-lg font-black text-red-600 tracking-tight leading-tight">
+            <div className="text-base xl:text-lg font-black text-red-600 tracking-tight leading-tight">
               {formatCompactVND(kpis?.total_overdue_debt || 0)}
             </div>
-            <div className="text-[11px] text-red-500 truncate" title={formatVND(kpis?.total_overdue_debt || 0)}>
-              {formatVND(kpis?.total_overdue_debt || 0)}
+          </div>
+          <div className="mt-1 pt-1 border-t border-red-100 flex items-center justify-between text-[10px] text-red-700 font-medium group-hover:underline">
+            <span>Xem tuổi nợ</span>
+            <span>&rarr;</span>
+          </div>
+        </div>
+
+        {/* KPI 4: Đơn chờ duyệt */}
+        <div
+          onClick={() => onNavigateTab?.('orders')}
+          className="bg-white px-3 py-2 rounded-xl border border-amber-200/90 shadow-2xs hover:shadow-xs hover:-translate-y-0.5 transition-all relative overflow-hidden flex flex-col justify-between cursor-pointer group"
+          title="Đơn hàng đang chờ Sales duyệt (Nhấn để mở đơn hàng)"
+        >
+          <div className="absolute top-0 left-0 right-0 h-0.5 bg-amber-500"></div>
+          <div>
+            <div className="flex items-center justify-between text-gray-500 mb-0.5">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-amber-800 truncate" title="Đơn chờ duyệt">
+                Đơn chờ duyệt
+              </span>
+              <div className="w-5 h-5 rounded-md bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
+                <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+            </div>
+            <div className="text-base xl:text-lg font-black text-amber-700 tracking-tight leading-tight">
+              {kpis?.pending_approval_orders_count || 0}{' '}
+              <span className="text-xs font-semibold text-amber-600">đơn</span>
             </div>
           </div>
-          <div className="mt-2 pt-1.5 border-t border-red-100 flex items-center justify-between text-[11px] text-red-700 font-medium group-hover:underline">
-            <span>Xem tuổi nợ</span>
+          <div className="mt-1 pt-1 border-t border-amber-100 flex items-center justify-between text-[10px] text-amber-700 font-medium group-hover:underline">
+            <span>Xử lý đơn</span>
+            <span>&rarr;</span>
+          </div>
+        </div>
+
+        {/* KPI 5: Đơn chờ xuất kho */}
+        <div
+          onClick={() => onNavigateTab?.('orders')}
+          className="bg-white px-3 py-2 rounded-xl border border-sky-200/90 shadow-2xs hover:shadow-xs hover:-translate-y-0.5 transition-all relative overflow-hidden flex flex-col justify-between cursor-pointer group"
+          title="Đơn hàng đang chờ xuất kho (Nhấn để mở đơn hàng)"
+        >
+          <div className="absolute top-0 left-0 right-0 h-0.5 bg-sky-500"></div>
+          <div>
+            <div className="flex items-center justify-between text-gray-500 mb-0.5">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-sky-800 truncate" title="Đơn chờ xuất kho">
+                Đơn chờ xuất kho
+              </span>
+              <div className="w-5 h-5 rounded-md bg-sky-50 text-sky-600 flex items-center justify-center shrink-0">
+                <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                </svg>
+              </div>
+            </div>
+            <div className="text-base xl:text-lg font-black text-sky-700 tracking-tight leading-tight">
+              {kpis?.pending_export_orders_count || 0}{' '}
+              <span className="text-xs font-semibold text-sky-600">đơn</span>
+            </div>
+          </div>
+          <div className="mt-1 pt-1 border-t border-sky-100 flex items-center justify-between text-[10px] text-sky-700 font-medium group-hover:underline">
+            <span>Xuất kho</span>
             <span>&rarr;</span>
           </div>
         </div>
@@ -397,30 +396,30 @@ export const ExecutiveDashboardView: React.FC<ExecutiveDashboardViewProps> = ({
         {/* KPI 6: SKU dưới tồn tối thiểu */}
         <div
           onClick={() => onNavigateTab?.('low-stock-alerts')}
-          className="bg-white p-3.5 rounded-xl border border-purple-200/90 shadow-xs hover:shadow-sm transition-all relative overflow-hidden flex flex-col justify-between cursor-pointer group"
+          className="bg-white px-3 py-2 rounded-xl border border-purple-200/90 shadow-2xs hover:shadow-xs hover:-translate-y-0.5 transition-all relative overflow-hidden flex flex-col justify-between cursor-pointer group"
+          title={`Số SKU dưới định mức tồn: ${(kpis?.low_stock_skus_count || 0).toLocaleString('vi-VN')} SKU`}
         >
-          <div className="absolute top-0 left-0 right-0 h-1 bg-purple-500"></div>
+          <div className="absolute top-0 left-0 right-0 h-0.5 bg-purple-500"></div>
           <div>
-            <div className="flex items-center justify-between text-gray-500 mb-1">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-purple-800 truncate" title="SKU dưới tồn tối thiểu">
-                SKU dưới tồn tối thiểu
+            <div className="flex items-center justify-between text-gray-500 mb-0.5">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-purple-800 truncate" title="Dưới tồn tối thiểu">
+                Dưới tồn tối thiểu
               </span>
-              <div className="w-6 h-6 rounded-md bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
-                <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <div className="w-5 h-5 rounded-md bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
+                <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                 </svg>
               </div>
             </div>
-            <div className="text-lg font-black text-purple-700 tracking-tight leading-tight truncate" title={`${(kpis?.low_stock_skus_count || 0).toLocaleString('vi-VN')} SKU`}>
+            <div className="text-base xl:text-lg font-black text-purple-700 tracking-tight leading-tight truncate">
               {(kpis?.low_stock_skus_count || 0) >= 1_000_000
                 ? ((kpis?.low_stock_skus_count || 0) / 1_000_000).toFixed(1) + ' tr'
                 : (kpis?.low_stock_skus_count || 0).toLocaleString('vi-VN')}{' '}
               <span className="text-xs font-semibold text-purple-600">SKU</span>
             </div>
-            <div className="text-[11px] text-purple-800/80 truncate">Cần lên kế hoạch nhập</div>
           </div>
-          <div className="mt-2 pt-1.5 border-t border-purple-100 flex items-center justify-between text-[11px] text-purple-700 font-medium group-hover:underline">
-            <span>Cảnh báo tồn kho</span>
+          <div className="mt-1 pt-1 border-t border-purple-100 flex items-center justify-between text-[10px] text-purple-700 font-medium group-hover:underline">
+            <span>Cảnh báo tồn</span>
             <span>&rarr;</span>
           </div>
         </div>
@@ -727,13 +726,13 @@ export const ExecutiveDashboardView: React.FC<ExecutiveDashboardViewProps> = ({
                         {dealer.phone || '---'}
                       </td>
                       <td className="px-5 py-4 text-center">
-                        {getOverdueBadge(dealer.overdue_days)}
+                        {getOverdueBadge(dealer.overdue_days ?? dealer.max_overdue_days ?? 0)}
                       </td>
                       <td className="px-5 py-4 text-right font-bold text-red-600">
-                        {formatVND(dealer.overdue_amount)}
+                        {formatVND(dealer.overdue_amount ?? dealer.total_overdue ?? 0)}
                       </td>
                       <td className="px-5 py-4 text-right font-medium text-gray-800">
-                        {formatVND(dealer.total_debt)}
+                        {formatVND(dealer.total_debt ?? dealer.current_debt ?? 0)}
                       </td>
                       <td className="px-5 py-4 text-right text-gray-500">
                         {formatVND(dealer.credit_limit)}

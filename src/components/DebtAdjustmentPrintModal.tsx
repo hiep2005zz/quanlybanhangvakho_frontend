@@ -3,7 +3,6 @@ import React, { useEffect, useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { DebtAdjustment, DebtAdjustmentPrintDocument } from '../types/debtAdjustment';
 import { getDebtAdjustmentPrintDocumentApi } from '../services/debtAdjustmentApi';
-import { downloadElementAsPdf } from '../utils/pdfExport';
 import './debt-adjustment-print.css';
 
 interface DebtAdjustmentPrintModalProps {
@@ -89,7 +88,6 @@ export const DebtAdjustmentPrintModal: React.FC<DebtAdjustmentPrintModalProps> =
   const [doc, setDoc] = useState<DebtAdjustmentPrintDocument | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [isExportingPdf, setIsExportingPdf] = useState<boolean>(false);
   const paperRef = useRef<HTMLDivElement>(null);
   const modalRoot = document.getElementById('modal-root') || document.body;
   const targetId = adjustmentId ?? adjustment?.id;
@@ -369,24 +367,6 @@ export const DebtAdjustmentPrintModal: React.FC<DebtAdjustmentPrintModalProps> =
     }, 200);
   };
 
-  // Tải file PDF trực tiếp về máy tính
-  const handleDownloadPdf = async () => {
-    const paperEl = paperRef.current;
-    if (!paperEl || isExportingPdf) return;
-    try {
-      setIsExportingPdf(true);
-      const fileName = doc?.adjustment_code
-        ? `Chung_Tu_Giam_No_${doc.adjustment_code}.pdf`
-        : 'Chung_Tu_Giam_No.pdf';
-      await downloadElementAsPdf(paperEl, fileName);
-    } catch (err) {
-      console.error('Lỗi khi xuất file PDF:', err);
-      // Fallback: nếu html2canvas lỗi, chuyển sang mở hộp thoại in
-      executeIframePrint();
-    } finally {
-      setIsExportingPdf(false);
-    }
-  };
 
   if (loading) {
     return createPortal(

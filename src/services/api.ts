@@ -1201,10 +1201,10 @@ export interface CustomerCreatePayload {
 
 export interface CustomerCreateResponse {
   user: UserAccount;
-  temporary_password?: string;
-  activation_code?: string;
   email_sent: boolean;
   message: string;
+  temporary_password?: string;
+  activation_code?: string;
 }
 
 export interface UserCreatePayload {
@@ -5819,6 +5819,11 @@ export interface ExecutiveKpiMetrics {
   pending_export_orders_count: number;
   total_overdue_debt: number;
   low_stock_skus_count: number;
+  monthly_sales_target?: number;
+  sales_target_completion_pct?: number;
+  expiring_batches_count?: number;
+  active_delivery_trips_count?: number;
+  actual_cash_collected_month?: number;
 }
 
 export interface ExecutiveDailyRevenueItem {
@@ -5838,11 +5843,16 @@ export interface ExecutiveOverdueDealerItem {
   dealer_id: number;
   dealer_code: string;
   dealer_name: string;
-  phone: string;
-  overdue_days: number;
-  overdue_amount: number;
-  total_debt: number;
+  phone?: string | null;
+  region?: string | null;
+  assigned_sale_name?: string | null;
+  overdue_days?: number;
+  overdue_amount?: number;
+  total_debt?: number;
   credit_limit: number;
+  current_debt?: number;
+  total_overdue?: number;
+  max_overdue_days?: number;
 }
 
 export interface ExecutiveDashboardResponse {

@@ -646,12 +646,8 @@ export const CustomerPortalView: React.FC<CustomerPortalViewProps> = ({
               </p>
             </div>
 
-            {/* Nút Giỏ Hàng ở góc trên bên phải */}
+            {/* Nút Giỏ Hàng (bên trái) và Chuông Thông Báo (bên phải) */}
             <div className="flex items-center gap-2 shrink-0">
-              <PaymentReminderNotifications
-                token={token}
-                onOpenInvoice={(invoiceCode) => onNavigateToDebt?.(invoiceCode)}
-              />
               <button
                 type="button"
                 id="btn-portal-cart"
@@ -690,6 +686,10 @@ export const CustomerPortalView: React.FC<CustomerPortalViewProps> = ({
                   </span>
                 )}
               </button>
+              <PaymentReminderNotifications
+                token={token}
+                onOpenInvoice={(invoiceCode) => onNavigateToDebt?.(invoiceCode)}
+              />
             </div>
           </div>
         </div>
