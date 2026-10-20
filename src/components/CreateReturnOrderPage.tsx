@@ -67,7 +67,15 @@ export const CreateReturnOrderPage: React.FC<CreateReturnOrderPageProps> = ({
   const [itemsState, setItemsState] = useState<SelectedReturnItemState[]>([]);
   const [generalNote, setGeneralNote] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const showErrorToast = (msg: string) => {
+    emitStatusToast({
+      title: 'Thông báo',
+      message: msg,
+      type: 'error',
+      durationMs: 3000,
+    });
+  };
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -94,7 +102,7 @@ export const CreateReturnOrderPage: React.FC<CreateReturnOrderPageProps> = ({
           }
         }
       } catch (err: any) {
-        if (isMounted) setErrorMsg(err.message || 'Không thể tải danh sách đơn hàng.');
+        if (isMounted) showErrorToast(err.message || 'Không thể tải danh sách đơn hàng.');
       } finally {
         if (isMounted) setIsLoadingOrders(false);
       }
@@ -129,7 +137,6 @@ export const CreateReturnOrderPage: React.FC<CreateReturnOrderPageProps> = ({
     setSelectedOrderId(orderId);
     setIsOrderDropdownOpen(false);
     setIsLoadingDetails(true);
-    setErrorMsg(null);
 
     try {
       const data = await getOrderReturnableItemsApi(token, orderId);
@@ -163,7 +170,7 @@ export const CreateReturnOrderPage: React.FC<CreateReturnOrderPageProps> = ({
 
       setItemsState(initItems);
     } catch (err: any) {
-      setErrorMsg(err.message || 'Lỗi khi tải chi tiết dòng hàng của đơn.');
+      showErrorToast(err.message || 'Lỗi khi tải chi tiết dòng hàng của đơn.');
     } finally {
       setIsLoadingDetails(false);
     }
@@ -277,13 +284,11 @@ export const CreateReturnOrderPage: React.FC<CreateReturnOrderPageProps> = ({
     e.preventDefault();
     const validationError = validateForm();
     if (validationError) {
-      setErrorMsg(validationError);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      showErrorToast(validationError);
       return;
     }
 
     setIsSubmitting(true);
-    setErrorMsg(null);
 
     try {
       const payload = {
@@ -306,11 +311,11 @@ export const CreateReturnOrderPage: React.FC<CreateReturnOrderPageProps> = ({
       emitStatusToast({
         title: 'Tạo phiếu thành công',
         message: `Phiếu trả hàng ${res.code} đã được tạo thành công.`,
+        durationMs: 3000,
       });
       onSuccess();
     } catch (err: any) {
-      setErrorMsg(err.message || 'Lỗi khi tạo phiếu trả hàng.');
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      showErrorToast(err.message || 'Lỗi khi tạo phiếu trả hàng.');
     } finally {
       setIsSubmitting(false);
     }
@@ -383,33 +388,6 @@ export const CreateReturnOrderPage: React.FC<CreateReturnOrderPageProps> = ({
           boxSizing: 'border-box',
         }}
       >
-        {/* Error Alert Banner */}
-        {errorMsg && (
-          <div
-            style={{
-              padding: '10px 14px',
-              borderRadius: '8px',
-              background: '#fef2f2',
-              border: '1px solid #fecaca',
-              color: '#dc2626',
-              fontSize: '13px',
-              fontWeight: '600',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-            }}
-          >
-            <div>{errorMsg}</div>
-            <button
-              type="button"
-              onClick={() => setErrorMsg(null)}
-              style={{ background: 'none', border: 'none', color: '#dc2626', cursor: 'pointer', fontWeight: 'bold' }}
-            >
-              Đóng
-            </button>
-          </div>
-        )}
-
         {/* SECTION 1: Chọn Đơn Hàng Gốc */}
         <div
           style={{
