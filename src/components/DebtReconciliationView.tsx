@@ -45,7 +45,6 @@ export const DebtReconciliationView: React.FC<DebtReconciliationViewProps> = ({
   const pageSize = 15;
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   // Bộ lọc
   const [search, setSearch] = useState<string>(() => {
@@ -158,8 +157,6 @@ export const DebtReconciliationView: React.FC<DebtReconciliationViewProps> = ({
       message: msg,
       type: 'success',
     });
-    setSuccessMessage(msg);
-    setTimeout(() => setSuccessMessage(null), 4000);
   };
 
   // Xem trước số liệu khi tạo mới
@@ -414,12 +411,6 @@ export const DebtReconciliationView: React.FC<DebtReconciliationViewProps> = ({
         </button>
       </div>
 
-      {/* Thông báo thành công */}
-      {successMessage && (
-        <div style={{ padding: '8px 14px', backgroundColor: '#dcfce7', border: '1px solid #86efac', borderRadius: '6px', color: '#166534', marginBottom: '8px', fontSize: '13px', fontWeight: '600', flexShrink: 0 }}>
-          {successMessage}
-        </div>
-      )}
 
       {/* Thông báo lỗi */}
       {errorMessage && (

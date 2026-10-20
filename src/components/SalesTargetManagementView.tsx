@@ -118,11 +118,10 @@ export const SalesTargetManagementView: React.FC<SalesTargetManagementViewProps>
     return [parts[0] || '2026', parts[1] || '10'];
   }, [createForm.month_year]);
 
-  // Dữ liệu đồng bộ từ các module khác
+  // Dữ liệu đồng bộ từ các module khác (chỉ bao gồm nhân sự kinh doanh, loại bỏ Admin)
   const [availableSalespersons, setAvailableSalespersons] = useState<SalespersonOption[]>([
     { id: 3, username: 'sales_user', full_name: 'Trần Bán Hàng', role: 'sales', role_label: 'Nhân viên kinh doanh' },
     { id: 2, username: 'sales_manager', full_name: 'Trưởng Phòng Kinh Doanh', role: 'sales_manager', role_label: 'Quản lý kinh doanh' },
-    { id: 1, username: 'admin', full_name: 'Đào Ngọc Hiệp', role: 'admin', role_label: 'Admin' },
   ]);
   const [availableRegions, setAvailableRegions] = useState<string[]>([
     'Hà Nội',
@@ -160,7 +159,13 @@ export const SalesTargetManagementView: React.FC<SalesTargetManagementViewProps>
       try {
         const meta = await fetchSalesTargetsMetadata(token);
         if (meta.salespersons && meta.salespersons.length > 0) {
-          setAvailableSalespersons(meta.salespersons);
+          const nonAdminSalespersons = meta.salespersons.filter(
+            (s) =>
+              (s.role || '').toLowerCase() !== 'admin' &&
+              (s.username || '').toLowerCase() !== 'admin' &&
+              (s.role_label || '').toLowerCase() !== 'admin'
+          );
+          setAvailableSalespersons(nonAdminSalespersons);
         }
         if (meta.regions && meta.regions.length > 0) {
           setAvailableRegions(meta.regions);
@@ -204,6 +209,7 @@ export const SalesTargetManagementView: React.FC<SalesTargetManagementViewProps>
     };
 
     window.addEventListener('ORDERS_UPDATED', handleSystemSync);
+    window.addEventListener('RETURN_ORDERS_UPDATED', handleSystemSync);
     window.addEventListener('DEALER_DATA_CHANGED', handleSystemSync);
     window.addEventListener('USER_ACCOUNTS_CHANGED', handleSystemSync);
     window.addEventListener('USER_ROLE_UPDATED', handleSystemSync);
@@ -212,6 +218,7 @@ export const SalesTargetManagementView: React.FC<SalesTargetManagementViewProps>
     const handleStorageChange = (e: StorageEvent) => {
       if (
         e.key === 'orders_last_updated' ||
+        e.key === 'return_orders_last_updated' ||
         e.key === 'dealers_last_updated' ||
         e.key === 'auth_user'
       ) {
@@ -237,6 +244,7 @@ export const SalesTargetManagementView: React.FC<SalesTargetManagementViewProps>
 
     return () => {
       window.removeEventListener('ORDERS_UPDATED', handleSystemSync);
+      window.removeEventListener('RETURN_ORDERS_UPDATED', handleSystemSync);
       window.removeEventListener('DEALER_DATA_CHANGED', handleSystemSync);
       window.removeEventListener('USER_ACCOUNTS_CHANGED', handleSystemSync);
       window.removeEventListener('USER_ROLE_UPDATED', handleSystemSync);
@@ -413,6 +421,16 @@ export const SalesTargetManagementView: React.FC<SalesTargetManagementViewProps>
             <button
               type="button"
               onClick={() => {
+                const firstSp = availableSalespersons[0];
+                setCreateForm((prev) => ({
+                  ...prev,
+                  employee_id: availableSalespersons.some((s) => s.id === prev.employee_id)
+                    ? prev.employee_id
+                    : (firstSp?.id ?? 3),
+                  employee_name:
+                    availableSalespersons.find((s) => s.id === prev.employee_id)?.full_name ||
+                    (firstSp?.full_name ?? 'Trần Bán Hàng'),
+                }));
                 setIsCreateModalOpen(true);
               }}
               className="inline-flex items-center px-4 py-2 text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-sm transition-colors cursor-pointer"
@@ -846,7 +864,7 @@ export const SalesTargetManagementView: React.FC<SalesTargetManagementViewProps>
               {createForm.target_type === 'salesperson' ? (
                 <div>
                   <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
-                    Nhân viên kinh doanh (Đồng bộ người dùng hệ thống)
+                    Nhân viên kinh doanh
                   </label>
                   <SalespersonSelectDropdown
                     options={availableSalespersons}
@@ -863,7 +881,7 @@ export const SalesTargetManagementView: React.FC<SalesTargetManagementViewProps>
               ) : (
                 <div>
                   <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
-                    Tên khu vực (Đồng bộ từ danh bạ đại lý)
+                    Tên khu vực
                   </label>
                   <RegionSelectDropdown
                     regions={availableRegions}
@@ -872,9 +890,6 @@ export const SalesTargetManagementView: React.FC<SalesTargetManagementViewProps>
                       setCreateForm({ ...createForm, region: reg });
                     }}
                   />
-                  <p className="text-[11px] text-slate-400 mt-1">
-                    Khu vực có sẵn trong hệ thống: {availableRegions.join(', ')}
-                  </p>
                 </div>
               )}
 

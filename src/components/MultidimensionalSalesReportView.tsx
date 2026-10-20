@@ -115,13 +115,17 @@ export const MultidimensionalSalesReportView: React.FC<MultidimensionalSalesRepo
     window.addEventListener('ORDERS_UPDATED', handleSystemSync);
     window.addEventListener('DEALER_DATA_CHANGED', handleSystemSync);
     window.addEventListener('INVENTORY_STOCK_UPDATED', handleSystemSync);
+    window.addEventListener('RETURN_ORDERS_UPDATED', handleSystemSync);
+    window.addEventListener('SALES_TARGETS_UPDATED', handleSystemSync);
 
     // 2. Lắng nghe thay đổi giữa các tab/cửa sổ khác (cross-tab sync qua localStorage)
     const handleStorageChange = (e: StorageEvent) => {
       if (
         e.key === 'orders_last_updated' ||
         e.key === 'dealers_last_updated' ||
-        e.key === 'inventory_last_updated'
+        e.key === 'inventory_last_updated' ||
+        e.key === 'return_orders_last_updated' ||
+        e.key === 'sales_targets_last_updated'
       ) {
         loadReport(false, true);
       }
@@ -147,6 +151,8 @@ export const MultidimensionalSalesReportView: React.FC<MultidimensionalSalesRepo
       window.removeEventListener('ORDERS_UPDATED', handleSystemSync);
       window.removeEventListener('DEALER_DATA_CHANGED', handleSystemSync);
       window.removeEventListener('INVENTORY_STOCK_UPDATED', handleSystemSync);
+      window.removeEventListener('RETURN_ORDERS_UPDATED', handleSystemSync);
+      window.removeEventListener('SALES_TARGETS_UPDATED', handleSystemSync);
       window.removeEventListener('storage', handleStorageChange);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       clearInterval(intervalTimer);
@@ -517,6 +523,11 @@ export const MultidimensionalSalesReportView: React.FC<MultidimensionalSalesRepo
               </span>
               <span className="text-slate-400">so với cùng kỳ trước</span>
             </div>
+            {(reportData.summary.total_return_quantity || 0) > 0 && (
+              <div className="mt-1 text-[11px] text-amber-600 font-medium">
+                Đã trừ {formatNumber(reportData.summary.total_return_quantity)} sp trả lại ({formatVND(reportData.summary.total_return_amount)})
+              </div>
+            )}
           </div>
 
           {/* Card 2: Tổng Sản lượng */}
@@ -637,6 +648,14 @@ export const MultidimensionalSalesReportView: React.FC<MultidimensionalSalesRepo
                     </div>
                   </th>
 
+                  {/* Cột Chỉ tiêu KPI (khi xem theo nhân viên hoặc khu vực) */}
+                  {(dimension === 'salesperson' || dimension === 'region') && (
+                    <>
+                      <th className="py-2.5 px-2 text-right text-indigo-700 font-semibold whitespace-nowrap">Chỉ tiêu KPI</th>
+                      <th className="py-2.5 px-2 text-center text-indigo-700 font-semibold whitespace-nowrap">% Đạt KPI</th>
+                    </>
+                  )}
+
                   {/* Cột so sánh cùng kỳ */}
                   {showComparison && (
                     <>
@@ -706,6 +725,32 @@ export const MultidimensionalSalesReportView: React.FC<MultidimensionalSalesRepo
                         {formatVND(item.revenue)}
                       </td>
 
+                      {/* Cột KPI cho nhân viên & khu vực */}
+                      {(dimension === 'salesperson' || dimension === 'region') && (
+                        <>
+                          <td className="py-2 px-2 text-right text-slate-600 text-xs whitespace-nowrap font-medium">
+                            {item.target_amount ? formatVND(item.target_amount) : <span className="text-slate-400">—</span>}
+                          </td>
+                          <td className="py-2 px-2 text-center text-xs whitespace-nowrap">
+                            {item.target_achievement_rate !== null && item.target_achievement_rate !== undefined ? (
+                              <span
+                                className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold ${
+                                  item.target_achievement_rate >= 100
+                                    ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                                    : item.target_achievement_rate >= 70
+                                    ? 'bg-amber-100 text-amber-800 border border-amber-200'
+                                    : 'bg-rose-100 text-rose-800 border border-rose-200'
+                                }`}
+                              >
+                                {item.target_achievement_rate.toFixed(1)}%
+                              </span>
+                            ) : (
+                              <span className="text-slate-400 text-[11px]">—</span>
+                            )}
+                          </td>
+                        </>
+                      )}
+
                       {/* Cột so sánh */}
                       {showComparison && (
                         <>
@@ -773,6 +818,24 @@ export const MultidimensionalSalesReportView: React.FC<MultidimensionalSalesRepo
                     <td className="py-2.5 px-2 text-right text-indigo-700 text-xs whitespace-nowrap">
                       {formatVND(reportData.summary.total_revenue)}
                     </td>
+
+                    {/* Tổng KPI */}
+                    {(dimension === 'salesperson' || dimension === 'region') && (
+                      <>
+                        <td className="py-2.5 px-2 text-right text-indigo-700 text-xs whitespace-nowrap font-bold">
+                          {reportData.summary.total_target_amount ? formatVND(reportData.summary.total_target_amount) : '—'}
+                        </td>
+                        <td className="py-2.5 px-2 text-center text-xs whitespace-nowrap">
+                          {reportData.summary.total_target_achievement_rate !== null && reportData.summary.total_target_achievement_rate !== undefined ? (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-indigo-100 text-indigo-800 border border-indigo-200">
+                              {reportData.summary.total_target_achievement_rate.toFixed(1)}%
+                            </span>
+                          ) : (
+                            '—'
+                          )}
+                        </td>
+                      </>
+                    )}
 
                     {showComparison && (
                       <>

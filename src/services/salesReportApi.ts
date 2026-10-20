@@ -17,6 +17,10 @@ export interface SalesReportItem {
   cost?: number | null;
   gross_profit?: number | null;
   gross_margin_pct?: number | null;
+  target_amount?: number | null;
+  target_achievement_rate?: number | null;
+  return_quantity?: number;
+  return_amount?: number;
 }
 
 export interface SalesReportSummary {
@@ -29,6 +33,10 @@ export interface SalesReportSummary {
   total_cost?: number | null;
   total_gross_profit?: number | null;
   average_gross_margin_pct?: number | null;
+  total_target_amount?: number | null;
+  total_target_achievement_rate?: number | null;
+  total_return_quantity?: number;
+  total_return_amount?: number;
 }
 
 export interface SalesMultidimensionalResponse {
