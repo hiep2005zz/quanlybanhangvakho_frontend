@@ -252,17 +252,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         boxShadow: 'none',
                         marginTop: 0,
                       }}
-                      className={`group w-full flex items-center justify-between gap-2.5 px-3 py-2 rounded-lg text-xs transition-all text-left border-0 cursor-pointer ${
-                        isActive
+                      className={`group w-full flex items-center justify-between gap-2.5 px-3 py-2 rounded-lg text-xs transition-all text-left border-0 cursor-pointer ${isActive
                           ? 'bg-emerald-50 text-emerald-800 font-bold border-l-3 border-emerald-600 pl-[9px]'
                           : 'bg-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-900 font-medium'
-                      }`}
+                        }`}
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
                         <span
-                          className={`flex-shrink-0 transition-colors ${
-                            isActive ? 'text-emerald-600' : 'text-slate-400 group-hover:text-slate-700'
-                          }`}
+                          className={`flex-shrink-0 transition-colors ${isActive ? 'text-emerald-600' : 'text-slate-400 group-hover:text-slate-700'
+                            }`}
                         >
                           {item.icon}
                         </span>
@@ -823,8 +821,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
     return isAnyPathMatched
       ? isPathMatched
       : activeTab
-      ? activeTab === item.tab
-      : isPathMatched;
+        ? activeTab === item.tab
+        : isPathMatched;
   };
 
   // Lọc các mục hiển thị trong menu
@@ -865,17 +863,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       boxShadow: 'none',
                       marginTop: 0,
                     }}
-                    className={`group w-full flex items-center justify-between gap-2.5 px-3 py-2 rounded-lg text-xs transition-all text-left border-0 cursor-pointer ${
-                      isActive
+                    className={`group w-full flex items-center justify-between gap-2.5 px-3 py-2 rounded-lg text-xs transition-all text-left border-0 cursor-pointer ${isActive
                         ? 'bg-emerald-50 text-emerald-800 font-bold border-l-3 border-emerald-600 pl-[9px]'
                         : 'bg-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-900 font-medium'
-                    }`}
+                      }`}
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
                       <span
-                        className={`flex-shrink-0 transition-colors ${
-                          isActive ? 'text-emerald-600' : 'text-slate-400 group-hover:text-slate-700'
-                        }`}
+                        className={`flex-shrink-0 transition-colors ${isActive ? 'text-emerald-600' : 'text-slate-400 group-hover:text-slate-700'
+                          }`}
                       >
                         {item.icon}
                       </span>

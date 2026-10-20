@@ -373,112 +373,10 @@ export const MultidimensionalSalesReportView: React.FC<MultidimensionalSalesRepo
   return (
     <div className="space-y-6 pb-12">
       {/* Header & Tiêu đề */}
-      <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-slate-800">Báo Cáo Doanh Số Đa Chiều</h1>
         </div>
-
-        <div className="flex flex-wrap items-center gap-3">
-          {/* Nút Làm mới */}
-          <button
-            onClick={() => loadReport(true)}
-            disabled={isRefreshing || isLoading}
-            className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium rounded-xl transition disabled:opacity-50"
-            title="Tải lại dữ liệu"
-          >
-            {isRefreshing ? 'Đang tải...' : 'Làm mới'}
-          </button>
-
-          {/* Nút Xuất Excel */}
-          <button
-            onClick={handleExportExcel}
-            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-xl transition shadow-sm hover:shadow"
-          >
-            Xuất Excel
-          </button>
-        </div>
-      </div>
-
-      {/* Tabs chọn Chiều phân tích (5 Dimensions) */}
-      <div className="bg-white rounded-2xl p-2 shadow-sm border border-slate-100">
-        <div className="flex flex-wrap gap-2">
-          {(Object.keys(dimensionLabels) as SalesDimension[]).map((dimKey) => {
-            const dimInfo = dimensionLabels[dimKey];
-            const isActive = dimension === dimKey;
-            return (
-              <button
-                key={dimKey}
-                onClick={() => setDimension(dimKey)}
-                className={`flex-1 min-w-[150px] py-3 px-4 rounded-xl font-medium text-sm transition-all text-center ${
-                  isActive
-                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-100 font-semibold'
-                    : 'bg-slate-50 text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-                }`}
-              >
-                <span>{dimInfo.title}</span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Thanh bộ lọc thời gian & tìm kiếm */}
-      <div
-        className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex items-center gap-3 overflow-x-auto"
-        style={{ flexWrap: 'nowrap' }}
-      >
-        {/* Ô tìm kiếm đưa lên trước chữ Tháng này */}
-        <div className="relative w-72 sm:w-80 md:w-96 shrink-0">
-          <input
-            type="text"
-            placeholder={`Tìm ${dimensionLabels[dimension].colName.toLowerCase()}...`}
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-3 pr-8 py-1.5 h-8 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-          />
-          {searchTerm && (
-            <button
-              type="button"
-              onClick={() => setSearchTerm('')}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-[11px] font-semibold"
-            >
-              Xóa
-            </button>
-          )}
-        </div>
-
-        {/* Preset thời gian */}
-        <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl text-xs font-medium text-slate-600 shrink-0">
-          {[
-            { key: 'this_month', label: 'Tháng này' },
-            { key: 'last_month', label: 'Tháng trước' },
-            { key: 'this_quarter', label: 'Quý này' },
-            { key: 'today', label: 'Hôm nay' },
-          ].map((p) => (
-            <button
-              key={p.key}
-              onClick={() => setTimePreset(p.key as SalesTimePreset)}
-              className={`px-3 py-1.5 rounded-lg transition whitespace-nowrap ${
-                timePreset === p.key
-                  ? 'bg-white text-indigo-600 shadow-sm font-semibold'
-                  : 'hover:text-slate-900'
-              }`}
-            >
-              {p.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Toggle so sánh cùng kỳ */}
-        <label className="flex items-center gap-2 text-xs font-medium text-slate-600 cursor-pointer shrink-0 ml-auto whitespace-nowrap">
-          <input
-            type="checkbox"
-            checked={showComparison}
-            onChange={(e) => setShowComparison(e.target.checked)}
-            className="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500"
-          />
-          <span>So sánh cùng kỳ trước</span>
-        </label>
       </div>
 
       {/* Hiển thị lỗi nếu có */}
@@ -496,7 +394,7 @@ export const MultidimensionalSalesReportView: React.FC<MultidimensionalSalesRepo
         </div>
       )}
 
-      {/* Summary KPI Cards */}
+      {/* 1. Summary KPI Cards (Được đưa lên trên theo yêu cầu) */}
       {reportData && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           {/* Card 1: Tổng Doanh số */}
@@ -588,6 +486,129 @@ export const MultidimensionalSalesReportView: React.FC<MultidimensionalSalesRepo
           )}
         </div>
       )}
+
+      {/* 2. Tabs chọn Chiều phân tích (5 Dimensions) - Đưa xuống dưới thẻ KPI */}
+      <div className="bg-white rounded-2xl p-2 shadow-sm border border-slate-100">
+        <div className="flex flex-wrap gap-2">
+          {(Object.keys(dimensionLabels) as SalesDimension[]).map((dimKey) => {
+            const dimInfo = dimensionLabels[dimKey];
+            const isActive = dimension === dimKey;
+            return (
+              <button
+                key={dimKey}
+                onClick={() => setDimension(dimKey)}
+                className={`flex-1 min-w-[150px] py-3 px-4 rounded-xl font-medium text-sm transition-all text-center ${
+                  isActive
+                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-100 font-semibold'
+                    : 'bg-slate-50 text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                }`}
+              >
+                <span>{dimInfo.title}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* 3. Thanh bộ lọc thời gian & tìm kiếm + Nút Làm mới & Xuất Excel vào khoảng trắng */}
+      <div
+        className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex items-center gap-3 overflow-x-auto"
+        style={{ flexWrap: 'nowrap' }}
+      >
+        {/* Ô tìm kiếm đưa lên trước chữ Tháng này */}
+        <div className="relative w-72 sm:w-80 md:w-96 shrink-0">
+          <input
+            type="text"
+            placeholder={`Tìm ${dimensionLabels[dimension].colName.toLowerCase()}...`}
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-3 pr-8 py-1.5 h-8 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+          />
+          {searchTerm && (
+            <button
+              type="button"
+              onClick={() => setSearchTerm('')}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-[11px] font-semibold"
+            >
+              Xóa
+            </button>
+          )}
+        </div>
+
+        {/* Preset thời gian */}
+        <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl text-xs font-medium text-slate-600 shrink-0">
+          {[
+            { key: 'this_month', label: 'Tháng này' },
+            { key: 'last_month', label: 'Tháng trước' },
+            { key: 'this_quarter', label: 'Quý này' },
+            { key: 'today', label: 'Hôm nay' },
+          ].map((p) => (
+            <button
+              key={p.key}
+              onClick={() => setTimePreset(p.key as SalesTimePreset)}
+              className={`px-3 py-1.5 rounded-lg transition whitespace-nowrap ${
+                timePreset === p.key
+                  ? 'bg-white text-indigo-600 shadow-sm font-semibold'
+                  : 'hover:text-slate-900'
+              }`}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Nút Làm mới & Nút Xuất Excel được đưa vào khoảng trắng */}
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={() => loadReport(true)}
+            disabled={isRefreshing || isLoading}
+            className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition disabled:opacity-50 inline-flex items-center gap-1.5 cursor-pointer border border-slate-200 shadow-2xs"
+            title="Tải lại dữ liệu"
+          >
+            <svg
+              width="13"
+              height="13"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.2"
+              className={isRefreshing ? 'animate-spin' : ''}
+            >
+              <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+              <path d="M3 3v5h5" />
+              <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
+              <path d="M16 21h5v-5" />
+            </svg>
+            <span>{isRefreshing ? 'Đang tải...' : 'Làm mới'}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleExportExcel}
+            className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg transition shadow-2xs hover:shadow-xs inline-flex items-center gap-1.5 cursor-pointer"
+            title="Xuất dữ liệu báo cáo ra file Excel"
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+            <span>Xuất Excel</span>
+          </button>
+        </div>
+
+        {/* Toggle so sánh cùng kỳ */}
+        <label className="flex items-center gap-2 text-xs font-medium text-slate-600 cursor-pointer shrink-0 ml-auto whitespace-nowrap">
+          <input
+            type="checkbox"
+            checked={showComparison}
+            onChange={(e) => setShowComparison(e.target.checked)}
+            className="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500"
+          />
+          <span>So sánh cùng kỳ trước</span>
+        </label>
+      </div>
 
       {/* Bảng dữ liệu chính */}
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">

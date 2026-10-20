@@ -176,10 +176,10 @@ export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
       const statusLabel = selectedStatus === 'all'
         ? 'Tất cả trạng thái'
         : selectedStatus === 'available'
-        ? 'Còn hàng (Khả dụng > 0)'
-        : selectedStatus === 'low_stock'
-        ? 'Thiếu hàng (Dưới định mức)'
-        : 'Hết hàng bán (Khả dụng = 0)';
+          ? 'Còn hàng (Khả dụng > 0)'
+          : selectedStatus === 'low_stock'
+            ? 'Thiếu hàng (Dưới định mức)'
+            : 'Hết hàng bán (Khả dụng = 0)';
 
       let totalActual = 0;
       let totalReserved = 0;
@@ -193,8 +193,8 @@ export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
         const statusText = item.status === 'out_of_stock'
           ? 'Hết hàng bán'
           : item.status === 'low_stock'
-          ? 'Thiếu hàng'
-          : 'Còn hàng';
+            ? 'Thiếu hàng'
+            : 'Còn hàng';
 
         return `
           <tr>
@@ -1087,100 +1087,100 @@ export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
               padding: '8px 18px',
               backgroundColor: '#ffffff',
               borderTop: '1px solid #e2e8f0',
-            display: 'flex',
-            justifyContent: 'flex-end',
-            alignItems: 'center',
-            fontSize: '12px',
-            color: '#64748b',
-            flexShrink: 0,
-            flexWrap: 'wrap',
-            gap: '12px',
-          }}
-        >
-          <div
-            style={{
-              display: 'inline-flex',
-              alignItems: 'stretch',
-              border: '1px solid #d1d5db',
-              borderRadius: '5px',
-              overflow: 'hidden',
-              background: '#ffffff',
-              boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
-              height: '24px',
+              display: 'flex',
+              justifyContent: 'flex-end',
+              alignItems: 'center',
+              fontSize: '12px',
+              color: '#64748b',
+              flexShrink: 0,
+              flexWrap: 'wrap',
+              gap: '12px',
             }}
           >
-            {/* Danh sách các số trang */}
-            {Array.from({ length: totalPages }, (_, i) => i + 1)
-              .filter((p) => p === 1 || p === totalPages || Math.abs(p - safePage) <= 1)
-              .reduce<(number | string)[]>((acc, p, idx, arr) => {
-                if (idx > 0 && typeof arr[idx - 1] === 'number' && (p as number) - (arr[idx - 1] as number) > 1) {
-                  acc.push('...');
-                }
-                acc.push(p);
-                return acc;
-              }, [])
-              .map((p, idx, arr) => {
-                const isLastItem = idx === arr.length - 1;
-                if (typeof p === 'string') {
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'stretch',
+                border: '1px solid #d1d5db',
+                borderRadius: '5px',
+                overflow: 'hidden',
+                background: '#ffffff',
+                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
+                height: '24px',
+              }}
+            >
+              {/* Danh sách các số trang */}
+              {Array.from({ length: totalPages }, (_, i) => i + 1)
+                .filter((p) => p === 1 || p === totalPages || Math.abs(p - safePage) <= 1)
+                .reduce<(number | string)[]>((acc, p, idx, arr) => {
+                  if (idx > 0 && typeof arr[idx - 1] === 'number' && (p as number) - (arr[idx - 1] as number) > 1) {
+                    acc.push('...');
+                  }
+                  acc.push(p);
+                  return acc;
+                }, [])
+                .map((p, idx, arr) => {
+                  const isLastItem = idx === arr.length - 1;
+                  if (typeof p === 'string') {
+                    return (
+                      <span
+                        key={`ellipsis-${idx}`}
+                        style={{
+                          minWidth: '22px',
+                          height: '100%',
+                          padding: '0 4px',
+                          borderRight: isLastItem ? 'none' : '1px solid #e5e7eb',
+                          background: '#ffffff',
+                          color: '#6b7280',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '11px',
+                          userSelect: 'none',
+                        }}
+                      >
+                        ...
+                      </span>
+                    );
+                  }
+
+                  const isActive = p === safePage;
                   return (
-                    <span
-                      key={`ellipsis-${idx}`}
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={() => setCurrentPage(p)}
                       style={{
-                        minWidth: '22px',
+                        minWidth: '24px',
                         height: '100%',
-                        padding: '0 4px',
+                        padding: '0 7px',
+                        border: 'none',
                         borderRight: isLastItem ? 'none' : '1px solid #e5e7eb',
-                        background: '#ffffff',
-                        color: '#6b7280',
+                        background: isActive ? '#2ba1f4' : '#ffffff',
+                        color: isActive ? '#ffffff' : '#374151',
+                        cursor: isActive ? 'default' : 'pointer',
+                        fontSize: '11.5px',
+                        fontWeight: isActive ? '700' : '500',
                         display: 'inline-flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        fontSize: '11px',
-                        userSelect: 'none',
+                        transition: 'background-color 0.15s ease',
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!isActive) e.currentTarget.style.backgroundColor = '#f9fafb';
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!isActive) e.currentTarget.style.backgroundColor = '#ffffff';
                       }}
                     >
-                      ...
-                    </span>
+                      {p}
+                    </button>
                   );
-                }
-
-                const isActive = p === safePage;
-                return (
-                  <button
-                    key={p}
-                    type="button"
-                    onClick={() => setCurrentPage(p)}
-                    style={{
-                      minWidth: '24px',
-                      height: '100%',
-                      padding: '0 7px',
-                      border: 'none',
-                      borderRight: isLastItem ? 'none' : '1px solid #e5e7eb',
-                      background: isActive ? '#2ba1f4' : '#ffffff',
-                      color: isActive ? '#ffffff' : '#374151',
-                      cursor: isActive ? 'default' : 'pointer',
-                      fontSize: '11.5px',
-                      fontWeight: isActive ? '700' : '500',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      transition: 'background-color 0.15s ease',
-                    }}
-                    onMouseEnter={(e) => {
-                      if (!isActive) e.currentTarget.style.backgroundColor = '#f9fafb';
-                    }}
-                    onMouseLeave={(e) => {
-                      if (!isActive) e.currentTarget.style.backgroundColor = '#ffffff';
-                    }}
-                  >
-                    {p}
-                  </button>
-                );
-              })}
+                })}
+            </div>
           </div>
-        </div>
-      )}
-    </div>
+        )}
+      </div>
 
       {/* Modal Thẻ kho chi tiết cho từng sản phẩm */}
       {selectedStockCardProduct && (
