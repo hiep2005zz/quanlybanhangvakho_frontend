@@ -13,6 +13,7 @@ import {
 } from '../services/api';
 import { emitStatusToast } from './StatusToast';
 import { getOrderStatusLabel } from '../utils/orderPermissions';
+import { PaymentReminderNotifications } from '../features/payment-reminders/PaymentReminderNotifications';
 
 interface CartItem {
   product: ProductItem;
@@ -26,7 +27,7 @@ interface CustomerPortalViewProps {
   appliedPriceBook?: string | null;
   onRefreshProducts?: () => void;
   onNavigateToOrders?: () => void;
-  onNavigateToDebt?: () => void;
+  onNavigateToDebt?: (invoiceCode: string | null) => void;
   activeView?: 'products' | 'cart';
   onViewChange?: (view: 'products' | 'cart') => void;
 }
@@ -43,7 +44,7 @@ export const CustomerPortalView: React.FC<CustomerPortalViewProps> = ({
   appliedPriceBook,
   onRefreshProducts,
   onNavigateToOrders,
-  onNavigateToDebt: _onNavigateToDebt,
+  onNavigateToDebt,
   activeView = 'products',
   onViewChange,
 }) => {
@@ -647,6 +648,10 @@ export const CustomerPortalView: React.FC<CustomerPortalViewProps> = ({
 
             {/* Nút Giỏ Hàng ở góc trên bên phải */}
             <div className="flex items-center gap-2 shrink-0">
+              <PaymentReminderNotifications
+                token={token}
+                onOpenInvoice={(invoiceCode) => onNavigateToDebt?.(invoiceCode)}
+              />
               <button
                 type="button"
                 id="btn-portal-cart"

@@ -68,7 +68,15 @@ export default function DeliveryPointsView({
   const [formDealerId, setFormDealerId] = useState<number | null>(null);
   const [form, setForm] = useState<DeliveryPointInput>(EMPTY_FORM);
   const [formSubmitting, setFormSubmitting] = useState(false);
-  const [formError, setFormError] = useState('');
+  const setFormError = useCallback((msg: string) => {
+    if (msg) {
+      emitStatusToast({
+        title: 'Thông báo hệ thống',
+        message: msg,
+        type: 'warning',
+      });
+    }
+  }, []);
 
   // Modal: delete dealer point
   const [deletingPoint, setDeletingPoint] = useState<DeliveryPoint | null>(null);
@@ -488,7 +496,11 @@ export default function DeliveryPointsView({
       } else if (typeof err === 'object' && err !== null) {
         msg = (err as any).message || (err as any).detail || JSON.stringify(err);
       }
-      setFormError(msg);
+      emitStatusToast({
+        title: 'Thông báo hệ thống',
+        message: msg,
+        type: 'error',
+      });
     } finally {
       setFormSubmitting(false);
     }
@@ -687,29 +699,6 @@ export default function DeliveryPointsView({
           </div>
 
           <form onSubmit={handleSubmitForm} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-            {formError && (
-              <div
-                style={{
-                  padding: '14px 18px',
-                  borderRadius: '10px',
-                  background: '#fef2f2',
-                  border: '1px solid #fecaca',
-                  color: '#dc2626',
-                  fontSize: '14px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                }}
-              >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <circle cx="12" cy="12" r="10" />
-                  <line x1="12" y1="8" x2="12" y2="12" />
-                  <line x1="12" y1="16" x2="12.01" y2="16" />
-                </svg>
-                <span>{formError}</span>
-              </div>
-            )}
-
             {/* Hàng 1: Đại lý & Tên điểm giao */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '24px' }}>
               <div>
@@ -2647,21 +2636,6 @@ export default function DeliveryPointsView({
                 gap: '12px',
               }}
             >
-              {formError && (
-                <div
-                  style={{
-                    padding: '8px 12px',
-                    borderRadius: '8px',
-                    background: '#fef2f2',
-                    border: '1px solid #fecaca',
-                    color: '#dc2626',
-                    fontSize: '12.5px',
-                  }}
-                >
-                  {formError}
-                </div>
-              )}
-
               {/* Hàng 1 (2 cột): Đại lý & Tên điểm giao */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div>

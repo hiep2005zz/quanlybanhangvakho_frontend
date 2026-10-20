@@ -88,8 +88,6 @@ export const SalesTargetManagementView: React.FC<SalesTargetManagementViewProps>
 
   // Dữ liệu API
   const [loading, setLoading] = useState<boolean>(true);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   const [items, setItems] = useState<SalesTargetItem[]>([]);
   const [summary, setSummary] = useState<SalesTargetSummary | null>(null);
@@ -137,14 +135,21 @@ export const SalesTargetManagementView: React.FC<SalesTargetManagementViewProps>
   const [editAmount, setEditAmount] = useState<number>(0);
   const [editNote, setEditNote] = useState<string>('');
   const [editReason, setEditReason] = useState<string>('');
-  const [editError, setEditError] = useState<string | null>(null);
+  const setEditError = (msg: string | null) => {
+    if (msg) {
+      emitStatusToast({
+        title: 'Thông báo hệ thống',
+        message: msg,
+        type: 'warning',
+      });
+    }
+  };
 
   // Tải dữ liệu từ máy chủ
   const loadData = async (isInitial: boolean = false) => {
     if (isInitial) {
       setLoading(true);
     }
-    setErrorMsg(null);
     try {
       const resp = await fetchSalesTargets(token, selectedMonth, targetTypeFilter, '');
       setItems(resp.items);
@@ -176,7 +181,11 @@ export const SalesTargetManagementView: React.FC<SalesTargetManagementViewProps>
         setMyProgress(null);
       }
     } catch (err: any) {
-      setErrorMsg(err.message || 'Lỗi kết nối máy chủ khi tải chỉ tiêu');
+      emitStatusToast({
+        title: 'Thông báo hệ thống',
+        message: err.message || 'Lỗi kết nối máy chủ khi tải chỉ tiêu',
+        type: 'error',
+      });
     } finally {
       setLoading(false);
     }
@@ -280,12 +289,19 @@ export const SalesTargetManagementView: React.FC<SalesTargetManagementViewProps>
         reason: editingTarget.is_locked ? editReason : undefined,
       });
 
-      setSuccessMsg('Đã cập nhật chỉ tiêu doanh số thành công.');
+      emitStatusToast({
+        title: 'Thông báo hệ thống',
+        message: 'Đã cập nhật chỉ tiêu doanh số thành công.',
+        type: 'success',
+      });
       setEditingTarget(null);
       loadData();
-      setTimeout(() => setSuccessMsg(null), 3500);
     } catch (err: any) {
-      setEditError(err.message || 'Lỗi khi cập nhật chỉ tiêu.');
+      emitStatusToast({
+        title: 'Thông báo hệ thống',
+        message: err.message || 'Lỗi khi cập nhật chỉ tiêu.',
+        type: 'error',
+      });
     }
   };
 
@@ -406,18 +422,6 @@ export const SalesTargetManagementView: React.FC<SalesTargetManagementViewProps>
           )}
         </div>
       </div>
-
-      {/* Thông báo Alert */}
-      {successMsg && (
-        <div className="mb-4 p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-sm font-medium">
-          {successMsg}
-        </div>
-      )}
-      {errorMsg && (
-        <div className="mb-4 p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl text-sm font-medium">
-          {errorMsg}
-        </div>
-      )}
 
       {/* Card Tiến độ Cá nhân (Dành cho nhân viên kinh doanh - ẩn đối với vai trò Admin) */}
       {!isAdmin && myProgress && (
@@ -993,12 +997,6 @@ export const SalesTargetManagementView: React.FC<SalesTargetManagementViewProps>
               {editingTarget.is_locked && (
                 <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800 font-medium">
                   <strong>Kỳ này đã qua và đã bị khóa sổ.</strong> Việc điều chỉnh chỉ tiêu bắt buộc phải nhập lý do và sẽ được hệ thống ghi vết nhật ký kiểm toán.
-                </div>
-              )}
-
-              {editError && (
-                <div className="p-2.5 bg-rose-50 border border-rose-200 text-rose-700 rounded-lg text-xs font-medium">
-                  {editError}
                 </div>
               )}
 

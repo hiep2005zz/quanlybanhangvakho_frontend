@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { OrderItem } from '../services/api';
+import { emitStatusToast } from './StatusToast';
 import './orders-view.css';
 
 interface OrderCancelConfirmModalProps {
@@ -16,7 +17,6 @@ export default function OrderCancelConfirmModal({
   onConfirm,
 }: OrderCancelConfirmModalProps) {
   const [reason, setReason] = useState('');
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -30,10 +30,13 @@ export default function OrderCancelConfirmModal({
     e.preventDefault();
     const clean = reason.trim();
     if (!clean) {
-      setError('Vui lòng nhập lý do hủy đơn hàng (* bắt buộc).');
+      emitStatusToast({
+        title: 'Thông báo hệ thống',
+        message: 'Vui lòng nhập lý do hủy đơn hàng (* bắt buộc).',
+        type: 'warning',
+      });
       return;
     }
-    setError(null);
     onConfirm(clean);
   };
 
@@ -73,27 +76,19 @@ export default function OrderCancelConfirmModal({
               id="cancel-reason-input"
               rows={3}
               value={reason}
-              onChange={(e) => {
-                setReason(e.target.value);
-                if (error) setError(null);
-              }}
+              onChange={(e) => setReason(e.target.value)}
               placeholder="Nhập lý do hủy đơn hàng..."
               disabled={isSubmitting}
               style={{
                 width: '100%',
                 padding: '8px 12px',
                 borderRadius: '6px',
-                border: error ? '1px solid #dc2626' : '1px solid #cbd5e1',
+                border: '1px solid #cbd5e1',
                 fontSize: '13px',
                 fontFamily: 'inherit',
                 boxSizing: 'border-box',
               }}
             />
-            {error && (
-              <div style={{ color: '#dc2626', fontSize: '12px', marginTop: '4px' }}>
-                {error}
-              </div>
-            )}
           </div>
 
           <div className="orders-confirm-actions">

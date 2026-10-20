@@ -93,7 +93,15 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
   const [isManualDiscount, setIsManualDiscount] = useState<boolean>(false);
   const [note, setNote] = useState<string>(() => initialNote || '');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const setErrorMsg = (msg: string | null) => {
+    if (msg) {
+      emitStatusToast({
+        title: 'Thông báo hệ thống',
+        message: msg,
+        type: 'warning',
+      });
+    }
+  };
 
   // SCRUM-52 / SCRUM-57: Lịch sử mua hàng của đại lý & gợi ý mặt hàng
   const [purchaseHistory, setPurchaseHistory] = useState<DealerPurchaseHistory | null>(null);
@@ -918,7 +926,6 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
       onClose();
     } catch (err: any) {
       const msg = err.message || 'Lỗi khi tạo đơn hàng';
-      setErrorMsg(msg);
       emitStatusToast({
         title: msg.includes('quá hạn') ? 'Chặn tạo đơn do nợ quá hạn' : (msg.includes('vượt quá tồn') ? 'Vượt tồn khả dụng' : 'Lỗi tạo đơn hàng'),
         message: msg,
@@ -951,20 +958,6 @@ export const OrderCreateModal: React.FC<OrderCreateModalProps> = ({
           gap: '16px',
         }}
       >
-            {errorMsg && (
-              <div
-                style={{
-                  padding: '10px 14px',
-                  borderRadius: '8px',
-                  background: '#fef2f2',
-                  border: '1px solid #fecaca',
-                  color: '#dc2626',
-                  fontSize: '13px',
-                }}
-              >
-                {errorMsg}
-              </div>
-            )}
           {/* 1. KHÁCH HÀNG & NHÓM KHÁCH HÀNG */}
           <div
             style={{
