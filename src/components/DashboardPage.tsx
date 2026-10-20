@@ -76,6 +76,8 @@ import { ReturnOrdersManagementView } from './ReturnOrdersManagementView';
 import SalesInvoiceFromDeliveriesView from './SalesInvoiceFromDeliveriesView';
 import { DebtPaymentReconciliationView } from './DebtPaymentReconciliationView';
 import { DebtReconciliationView } from './DebtReconciliationView';
+import { DealerDebtStatementView } from './DealerDebtStatementView';
+import { DebtAdjustmentManagementView } from './DebtAdjustmentManagementView';
 
 import './dashboard.css';
 import { Sidebar, type TabType } from './Sidebar';
@@ -137,6 +139,10 @@ export default function DashboardPage({
     user.role === 'sales' ||
     officialRoles.some((r) => DEALER_ROLES.includes(r))
   );
+  // Quyền xem Sổ chi tiết công nợ (Kế toán công nợ, Quản trị viên, Quản lý kinh doanh, hoặc Đại lý xem chính mình)
+  const canViewDebtStatement = Boolean(canManageDealerProfiles || isCustomer || isAdmin || isAccountant);
+  // Quyền lập & quản lý chứng từ điều chỉnh giảm trừ công nợ khi trả hàng (Kế toán công nợ, Admin)
+  const canAccessDebtAdjustments = Boolean(isAdmin || isAccountant);
   // Quyền xem Báo cáo tuổi nợ: Quản trị viên (admin), Quản lý kinh doanh (sales_manager), Kế toán công nợ (accountant)
   const canAccessDebtAging = !isCustomer && Boolean(isAdmin || isSalesManager || isAccountant);
   const canAccessExecutiveDashboard = !isCustomer && Boolean(isAdmin || isSalesManager);
@@ -360,6 +366,8 @@ export default function DashboardPage({
     const isDebtPaymentsPath = pathname === '/debt-payments' || pathname.startsWith('/debt-payments/');
     const isDebtReconciliationPath = pathname === '/debt-reconciliation' || pathname.startsWith('/debt-reconciliation');
     const isSalesInvoicesPath = pathname === '/sales-invoices' || pathname.startsWith('/sales-invoices/');
+    const isDebtAdjustmentsPath = pathname === '/debt-adjustments' || pathname.startsWith('/debt-adjustments/');
+    const isDebtStatementPath = pathname === '/debt-statement' || pathname.startsWith('/debt-statement/');
 
     const params = new URLSearchParams(window.location.search);
     const hasOldTabParam = params.has('tab') || params.has('view');
@@ -468,6 +476,24 @@ export default function DashboardPage({
       }
       try { window.history.replaceState({}, '', '/'); } catch { }
       return 'inventory';
+    }
+
+    if (isDebtAdjustmentsPath || oldTabVal === 'debt-adjustments') {
+      if (canAccessDebtAdjustments) {
+        if (hasOldTabParam || pathname !== '/debt-adjustments') {
+          try { window.history.replaceState({}, '', '/debt-adjustments'); } catch { }
+        }
+        return 'debt-adjustments';
+      }
+      try { window.history.replaceState({}, '', '/'); } catch { }
+      return 'inventory';
+    }
+
+    if (isDebtStatementPath || oldTabVal === 'debt-statement') {
+      if (hasOldTabParam || pathname !== '/debt-statement') {
+        try { window.history.replaceState({}, '', '/debt-statement'); } catch { }
+      }
+      return 'debt-statement';
     }
 
     if (isStockAdjustmentsPath || oldTabVal === 'stock-adjustments' || oldTabVal === 'stock-adjustment') {
@@ -983,6 +1009,25 @@ export default function DashboardPage({
       } catch {
         // ignore
       }
+    } else if (tab === 'debt-adjustments') {
+      if (!canAccessDebtAdjustments) {
+        setActiveTabState('inventory');
+        try { window.history.replaceState({}, '', '/'); } catch { }
+        return;
+      }
+      setActiveTabState('debt-adjustments');
+      try {
+        window.history.pushState({}, '', '/debt-adjustments');
+      } catch {
+        // ignore
+      }
+    } else if (tab === 'debt-statement') {
+      setActiveTabState('debt-statement');
+      try {
+        window.history.pushState({}, '', '/debt-statement');
+      } catch {
+        // ignore
+      }
     } else {
       setActiveTabState('inventory');
       window.history.replaceState({}, '', '/');
@@ -1349,6 +1394,30 @@ export default function DashboardPage({
         setActiveTabState('debt-reconciliation');
         return;
       }
+
+      const isDebtAdjustmentsPath = pathname === '/debt-adjustments' || pathname.startsWith('/debt-adjustments/');
+      if (isDebtAdjustmentsPath || tabParam === 'debt-adjustments') {
+        if (canAccessDebtAdjustments) {
+          if (pathname !== '/debt-adjustments' || tabParam) {
+            try {
+              window.history.replaceState({}, '', '/debt-adjustments');
+            } catch { }
+          }
+          setActiveTabState('debt-adjustments');
+          return;
+        }
+      }
+
+      const isDebtStatementPath = pathname === '/debt-statement' || pathname.startsWith('/debt-statement/');
+      if (isDebtStatementPath || tabParam === 'debt-statement') {
+        if (pathname !== '/debt-statement' || tabParam) {
+          try {
+            window.history.replaceState({}, '', '/debt-statement');
+          } catch { }
+        }
+        setActiveTabState('debt-statement');
+        return;
+      }
       const isDealersPath = pathname === '/dealers' || pathname.startsWith('/dealers/');
       if (isDealersPath || tabParam === 'dealers') {
         if (pathname !== '/dealers' || tabParam) {
@@ -1424,7 +1493,15 @@ export default function DashboardPage({
 
     window.addEventListener('popstate', syncFromUrl);
     return () => window.removeEventListener('popstate', syncFromUrl);
-  }, [canManageCategories, canManageSuppliers, canReadOrders, isAdmin, canAccessDiscounts, canAccessWarehouses, canAccessSalesTargets, canAccessDebtReconciliation, canAccessDebtPayments, canAccessPaymentCollections, canAccessSalesInvoices, isCustomer]);
+  }, [canManageCategories, canManageSuppliers, canReadOrders, isAdmin, canAccessDiscounts, canAccessWarehouses, canAccessSalesTargets, canAccessDebtReconciliation, canAccessDebtPayments, canAccessPaymentCollections, canAccessSalesInvoices, canAccessDebtAdjustments, canViewDebtStatement, isCustomer]);
+
+  // Đại lý được chọn để xem Sổ chi tiết công nợ (/debt-statement)
+  const [selectedDebtStatementDealerId, setSelectedDebtStatementDealerId] = useState<number | undefined>(() => {
+    const params = new URLSearchParams(window.location.search);
+    const d = params.get('dealer_id') || params.get('dealer');
+    return d ? Number(d) : undefined;
+  });
+
   const [products, setProducts] = useState<ProductItem[]>([]);
   const [appliedPriceBook, setAppliedPriceBook] = useState<string | null>(null);
   const [serverTotalCount, setServerTotalCount] = useState<number>(0);
@@ -1938,7 +2015,7 @@ export default function DashboardPage({
       }
       noScroll={!isCustomer && !isMobileScreen && isLockedScrollTab}
       mainClassName={
-        isOrderDetailEffective || isOrdersCreateSubpage || isReturnOrderCreatePage || isPriceListsCreateSubpage || isPriceBookDetailSubpage || isPriceBookEditSubpage || isGoodsReceiptPage || isStockTransferCreateSubpage || isBatchesCreateSubpage || isProductsImportPage || isUsersImportPage || isPaymentCollectionsSubpage || isPaymentCollectionsPage || isDeliveryTrackingPage || isStockAdjustmentsPage || activeTab === 'debt-payments' || activeTab === 'sales-invoices'
+        isOrderDetailEffective || isOrdersCreateSubpage || isReturnOrderCreatePage || isPriceListsCreateSubpage || isPriceBookDetailSubpage || isPriceBookEditSubpage || isGoodsReceiptPage || isStockTransferCreateSubpage || isBatchesCreateSubpage || isProductsImportPage || isUsersImportPage || isPaymentCollectionsSubpage || isPaymentCollectionsPage || isDeliveryTrackingPage || isStockAdjustmentsPage || activeTab === 'debt-payments' || activeTab === 'debt-adjustments' || activeTab === 'debt-statement' || activeTab === 'sales-invoices'
           ? 'flex-1 min-w-0 overflow-y-auto p-0 flex flex-col bg-slate-50'
           : activeTab === 'agency-debts'
             ? 'flex-1 min-w-0 overflow-hidden p-0 flex flex-col bg-slate-50 h-full'
@@ -1991,6 +2068,8 @@ export default function DashboardPage({
           canAccessPaymentCollections={canAccessPaymentCollections}
           canAccessSalesInvoices={canAccessSalesInvoices}
           canAccessDebtReconciliation={canAccessDebtReconciliation}
+          canAccessDebtStatement={canViewDebtStatement}
+          canAccessDebtAdjustments={canAccessDebtAdjustments}
           canAccessInventoryTurnover={canAccessInventoryTurnover}
           onLogout={() => {
             if (isLoggingOut) return;
@@ -2004,7 +2083,7 @@ export default function DashboardPage({
     >
       <div
         className="dashboard-main-container"
-        style={isCustomer || isOrdersCreateSubpage || isPriceListsCreateSubpage || isPriceBookDetailSubpage || isPriceBookEditSubpage || isOrderDetailEffective || isGoodsReceiptPage || isStockTransferCreateSubpage || isBatchesCreateSubpage || isProductsImportPage || isUsersImportPage || isDeliveryTrackingPage || isStockAdjustmentsPage || activeTab === 'payment-collections' || activeTab === 'debt-payments' || activeTab === 'sales-invoices' || isMobileScreen ? {
+        style={isCustomer || isOrdersCreateSubpage || isPriceListsCreateSubpage || isPriceBookDetailSubpage || isPriceBookEditSubpage || isOrderDetailEffective || isGoodsReceiptPage || isStockTransferCreateSubpage || isBatchesCreateSubpage || isProductsImportPage || isUsersImportPage || isDeliveryTrackingPage || isStockAdjustmentsPage || activeTab === 'payment-collections' || activeTab === 'debt-payments' || activeTab === 'debt-adjustments' || activeTab === 'debt-statement' || activeTab === 'sales-invoices' || isMobileScreen ? {
           width: '100%',
           display: 'flex',
           flexDirection: 'column',
@@ -2365,6 +2444,10 @@ export default function DashboardPage({
               currentUser={user}
               token={token}
               onBackToHome={() => setActiveTab('inventory')}
+              onOpenDebtStatement={(dealerId) => {
+                setSelectedDebtStatementDealerId(dealerId);
+                setActiveTab('debt-statement');
+              }}
             />
           ) : (
             <AccessDeniedView
@@ -2472,6 +2555,38 @@ export default function DashboardPage({
             <AccessDeniedView
               currentUser={user}
               requiredPermission="Đối chiếu công nợ (Kế toán công nợ / Quản lý kinh doanh / Quản trị viên)"
+              onBackToWorkflow={() => setActiveTab('inventory')}
+              onLogout={onLogout}
+            />
+          )
+        ) : activeTab === 'debt-adjustments' ? (
+          canAccessDebtAdjustments ? (
+            <DebtAdjustmentManagementView
+              token={token}
+              currentUserRole={user.role}
+              currentUserId={user.id}
+              currentUserName={user.full_name || user.username}
+            />
+          ) : (
+            <AccessDeniedView
+              currentUser={user}
+              requiredPermission="Giảm trừ công nợ khi trả hàng (Kế toán công nợ / Quản trị viên)"
+              onBackToWorkflow={() => setActiveTab('inventory')}
+              onLogout={onLogout}
+            />
+          )
+        ) : activeTab === 'debt-statement' ? (
+          canViewDebtStatement ? (
+            <DealerDebtStatementView
+              currentUser={user}
+              token={token}
+              initialDealerId={selectedDebtStatementDealerId}
+              onBack={() => setActiveTab('dealer-profiles')}
+            />
+          ) : (
+            <AccessDeniedView
+              currentUser={user}
+              requiredPermission="Sổ chi tiết công nợ (Kế toán công nợ / Quản trị viên / Quản lý kinh doanh)"
               onBackToWorkflow={() => setActiveTab('inventory')}
               onLogout={onLogout}
             />

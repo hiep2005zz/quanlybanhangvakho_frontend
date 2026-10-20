@@ -777,4 +777,146 @@ export async function getDealerReceiptVouchersApi(
     return response.json();
 }
 
+export interface DebtStatementItem {
+    id: string | number;
+    stt: number;
+    date: string;
+    doc_code: string;
+    doc_type: 'ORDER' | 'RECEIPT_VOUCHER' | string;
+    doc_type_label: string;
+    description: string;
+    increase_amount: number;
+    decrease_amount: number;
+    running_balance: number;
+    payment_method?: string | null;
+    status?: string | null;
+    created_by?: string | null;
+    note?: string | null;
+}
+
+export interface DebtStatementSummary {
+    opening_balance: number;
+    total_increase: number;
+    total_decrease: number;
+    closing_balance: number;
+    closing_balance_words: string;
+    transactions_count: number;
+}
+
+export interface DebtStatementData {
+    dealer: DealerSearchItem;
+    period: {
+        from_date?: string | null;
+        to_date?: string | null;
+    };
+    summary: DebtStatementSummary;
+    transactions: DebtStatementItem[];
+}
+
+export async function getDealerDebtStatementApi(
+    dealerId: number,
+    fromDate?: string,
+    toDate?: string,
+    token?: string
+): Promise<DebtStatementData> {
+    const authToken = getAuthToken(token);
+    const headers: Record<string, string> = {
+        Accept: 'application/json',
+    };
+    if (authToken) {
+        headers['Authorization'] = `Bearer ${authToken}`;
+    }
+
+    const params = new URLSearchParams();
+    if (fromDate) params.append('from_date', fromDate);
+    if (toDate) params.append('to_date', toDate);
+
+    const queryStr = params.toString() ? `?${params.toString()}` : '';
+    const response = await fetch(`${API_BASE_URL}/api/v1/dealers/${dealerId}/debt-statement${queryStr}`, {
+        method: 'GET',
+        headers,
+    });
+
+    if (!response.ok) {
+        let errorDetail = `Lỗi tải sổ chi tiết công nợ (HTTP ${response.status})`;
+        try {
+            const errData = await response.json();
+            if (errData && errData.detail) errorDetail = typeof errData.detail === 'string' ? errData.detail : JSON.stringify(errData.detail);
+        } catch {}
+        throw new Error(errorDetail);
+    }
+    return response.json();
+}
+
+export async function exportDealerDebtStatementExcelApi(
+    dealerId: number,
+    fromDate?: string,
+    toDate?: string,
+    token?: string
+): Promise<Blob> {
+    const authToken = getAuthToken(token);
+    const headers: Record<string, string> = {};
+    if (authToken) {
+        headers['Authorization'] = `Bearer ${authToken}`;
+    }
+
+    const params = new URLSearchParams();
+    if (fromDate) params.append('from_date', fromDate);
+    if (toDate) params.append('to_date', toDate);
+
+    const queryStr = params.toString() ? `?${params.toString()}` : '';
+    const response = await fetch(`${API_BASE_URL}/api/v1/dealers/${dealerId}/debt-statement/export-excel${queryStr}`, {
+        method: 'GET',
+        headers,
+    });
+
+    if (!response.ok) {
+        let errorDetail = `Lỗi xuất file Excel (HTTP ${response.status})`;
+        try {
+            const errData = await response.json();
+            if (errData && errData.detail) errorDetail = typeof errData.detail === 'string' ? errData.detail : JSON.stringify(errData.detail);
+        } catch {}
+        throw new Error(errorDetail);
+    }
+
+    return response.blob();
+}
+
+/**
+ * Yêu cầu máy chủ chạy logic / stored procedure đồng bộ lại dữ liệu công nợ SQL Server
+ */
+export async function resyncAllDealerDebts(dealerId?: number, token?: string): Promise<any> {
+    const authToken = getAuthToken(token);
+    const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+    };
+    if (authToken) {
+        headers['Authorization'] = `Bearer ${authToken}`;
+    }
+
+    const url = dealerId
+        ? `${API_BASE_URL}/api/v1/dealers/${dealerId}/sync-debt`
+        : `${API_BASE_URL}/api/v1/dealers/sync-debt`;
+
+    const response = await fetch(url, {
+        method: 'POST',
+        headers,
+    });
+
+    if (!response.ok) {
+        let errorDetail = `Lỗi đồng bộ công nợ (HTTP ${response.status})`;
+        try {
+            const errData = await response.json();
+            if (errData && errData.detail) {
+                errorDetail = typeof errData.detail === 'string' ? errData.detail : JSON.stringify(errData.detail);
+            }
+        } catch {}
+        throw new Error(errorDetail);
+    }
+
+    return response.json();
+}
+
+
 
