@@ -1627,8 +1627,10 @@ export const SalesInvoiceFromDeliveriesView: React.FC<SalesInvoiceFromDeliveries
                     </td>
                   </tr>
                 ) : (
-                  adjustmentsList.map((adj) => (
-                    <tr key={adj.id} className="hover:bg-amber-50/30 transition-colors">
+                  adjustmentsList.map((adj, idx) => {
+                    const openUpward = idx > 0 && (idx >= adjustmentsList.length - 1 || (adjustmentsList.length >= 4 && idx >= adjustmentsList.length - 2));
+                    return (
+                    <tr key={adj.id} className="hover:bg-amber-50/30 transition-colors" style={{ position: 'relative', zIndex: activeDropdownRowId === adj.id ? 50 : 1 }}>
                       <td className="px-3 py-2.5 whitespace-nowrap">
                         <span className="font-mono font-bold text-amber-800 text-xs bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
                           {adj.adjustment_code}
@@ -1664,7 +1666,7 @@ export const SalesInvoiceFromDeliveriesView: React.FC<SalesInvoiceFromDeliveries
                         <div className="font-medium">{adj.created_at || '—'}</div>
                         <div className="text-[10.5px] text-slate-400">{adj.created_by || '—'}</div>
                       </td>
-                      <td className="px-3 py-2 text-center whitespace-nowrap" style={{ position: 'relative', zIndex: activeDropdownRowId === adj.id ? 35 : 1 }}>
+                      <td className="px-3 py-2 text-center whitespace-nowrap" style={{ position: 'relative', zIndex: activeDropdownRowId === adj.id ? 60 : 1 }}>
                         <div className="wh-action-dropdown-container" style={{ position: 'relative', display: 'inline-block' }}>
                           <button
                             type="button"
@@ -1683,7 +1685,7 @@ export const SalesInvoiceFromDeliveriesView: React.FC<SalesInvoiceFromDeliveries
                           </button>
 
                           {activeDropdownRowId === adj.id && (
-                            <div className="wh-dropdown-menu open-down" style={{ minWidth: '150px' }}>
+                            <div className={`wh-dropdown-menu ${openUpward ? 'open-up' : 'open-down'}`} style={{ minWidth: '145px' }}>
                               <button
                                 type="button"
                                 className="wh-dropdown-item wh-dropdown-item-primary"
@@ -1714,7 +1716,8 @@ export const SalesInvoiceFromDeliveriesView: React.FC<SalesInvoiceFromDeliveries
                         </div>
                       </td>
                     </tr>
-                  ))
+                    );
+                  })
                 )
               ) : isLoading ? (
                 <tr>
@@ -1740,6 +1743,7 @@ export const SalesInvoiceFromDeliveriesView: React.FC<SalesInvoiceFromDeliveries
                       className={`hover:bg-slate-50/80 transition-colors ${
                         isChecked ? 'bg-emerald-50/40' : ''
                       }`}
+                      style={{ position: 'relative', zIndex: activeDropdownRowId === d.dispatch_id ? 50 : 1 }}
                     >
                       <td className="px-1.5 py-2 text-center whitespace-nowrap">
                         <input
@@ -1819,7 +1823,7 @@ export const SalesInvoiceFromDeliveriesView: React.FC<SalesInvoiceFromDeliveries
                       <td className="px-2.5 py-2 text-right font-bold text-slate-900 text-[11px] whitespace-nowrap">
                         {formatVND(d.total_amount)}
                       </td>
-                      <td className="px-2.5 py-2 text-center whitespace-nowrap" style={{ position: 'relative', zIndex: activeDropdownRowId === d.dispatch_id ? 35 : 1 }}>
+                      <td className="px-2.5 py-2 text-center whitespace-nowrap" style={{ position: 'relative', zIndex: activeDropdownRowId === d.dispatch_id ? 60 : 1 }}>
                         <div className="wh-action-dropdown-container" style={{ position: 'relative', display: 'inline-block' }}>
                           <button
                             type="button"
@@ -1838,9 +1842,9 @@ export const SalesInvoiceFromDeliveriesView: React.FC<SalesInvoiceFromDeliveries
                           </button>
 
                           {activeDropdownRowId === d.dispatch_id && (() => {
-                            const openUpward = dispatches.length > 3 && idx >= dispatches.length - 2;
+                            const openUpward = idx > 0 && (idx >= dispatches.length - 1 || (dispatches.length >= 4 && idx >= dispatches.length - 2));
                             return (
-                              <div className={`wh-dropdown-menu ${openUpward ? 'open-up' : 'open-down'}`} style={{ minWidth: '155px' }}>
+                              <div className={`wh-dropdown-menu ${openUpward ? 'open-up' : 'open-down'}`} style={{ minWidth: '145px' }}>
                                 <button
                                   type="button"
                                   className="wh-dropdown-item wh-dropdown-item-primary"

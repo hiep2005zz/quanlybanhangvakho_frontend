@@ -647,7 +647,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
       (isCustomer ? ['PENDING_APPROVAL', 'PENDING', 'DRAFT'].includes(order.status) : isFullAccess);
 
     const showApprovalActions = !isCustomer && !isApprovedOrConfirmed && canApprove;
-    const openUpward = typeof idx === 'number' && paginatedOrders.length > 2 && idx >= paginatedOrders.length - 2;
+    const openUpward = typeof idx === 'number' && idx > 0 && (idx >= paginatedOrders.length - 1 || (paginatedOrders.length >= 3 && idx >= paginatedOrders.length - 2));
 
     return (
       <div

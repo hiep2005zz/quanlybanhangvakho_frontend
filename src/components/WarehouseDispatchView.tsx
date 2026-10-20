@@ -1401,7 +1401,7 @@ export const WarehouseDispatchView: React.FC<WarehouseDispatchViewProps> = ({
         {/* BẢNG TAB 1: CHỜ XÁC NHẬN XUẤT KHO - ĐÃ CĂN CHỈNH TIÊU ĐỀ THẲNG HÀNG & CÂN ĐỐI */}
         {activeTab === 'dispatch' && (
           <>
-            <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}>
+            <div style={{ flex: 1, minHeight: '280px', overflowY: 'auto', overflowX: 'hidden' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '12px', tableLayout: 'fixed' }}>
                 <thead style={{ position: 'sticky', top: 0, zIndex: 10, background: '#f8fafc' }}>
                   <tr style={{ background: '#f8fafc', color: '#475569', borderBottom: '1px solid #cbd5e1' }}>
@@ -1424,7 +1424,7 @@ export const WarehouseDispatchView: React.FC<WarehouseDispatchViewProps> = ({
                     </tr>
                   ) : (
                     paginatedDispatchOrders.map((ord, idx) => (
-                      <tr key={ord.order_code} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background 0.15s ease' }}>
+                      <tr key={ord.order_code} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background 0.15s ease', position: 'relative', zIndex: activeDropdownId === ord.order_code ? 50 : 1 }}>
                         <td style={{ padding: '8px 12px 8px 16px', fontWeight: '700', color: '#0284c7', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                           {ord.order_code}
                         </td>
@@ -1445,7 +1445,7 @@ export const WarehouseDispatchView: React.FC<WarehouseDispatchViewProps> = ({
                             ĐÃ DUYỆT
                           </span>
                         </td>
-                        <td style={{ padding: '6px 16px 6px 10px', textAlign: 'center', whiteSpace: 'nowrap', position: 'relative', zIndex: activeDropdownId === ord.order_code ? 35 : 1 }}>
+                        <td style={{ padding: '6px 16px 6px 10px', textAlign: 'center', whiteSpace: 'nowrap', position: 'relative', zIndex: activeDropdownId === ord.order_code ? 60 : 1 }}>
                           <div className="wh-action-dropdown-container" style={{ position: 'relative', display: 'inline-block' }}>
                             <button
                               type="button"
@@ -1464,9 +1464,9 @@ export const WarehouseDispatchView: React.FC<WarehouseDispatchViewProps> = ({
                             </button>
 
                             {activeDropdownId === ord.order_code && (() => {
-                              const openUpward = paginatedDispatchOrders.length > 3 && idx >= paginatedDispatchOrders.length - 2;
+                              const openUpward = idx > 0 && (idx >= paginatedDispatchOrders.length - 1 || (paginatedDispatchOrders.length >= 4 && idx >= paginatedDispatchOrders.length - 2));
                               return (
-                                <div className={`wh-dropdown-menu ${openUpward ? 'open-up' : 'open-down'}`} style={{ minWidth: '155px' }}>
+                                <div className={`wh-dropdown-menu ${openUpward ? 'open-up' : 'open-down'}`} style={{ minWidth: '135px' }}>
                                   <button
                                     type="button"
                                     className="wh-dropdown-item wh-dropdown-item-primary"
@@ -1496,7 +1496,7 @@ export const WarehouseDispatchView: React.FC<WarehouseDispatchViewProps> = ({
         {/* BẢNG TAB 2: CHỜ GIAO BỔ SUNG - ĐÃ CĂN CHỈNH TIÊU ĐỀ THẲNG HÀNG & CÂN ĐỐI */}
         {activeTab === 'supplementary' && (
           <>
-            <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}>
+            <div style={{ flex: 1, minHeight: '280px', overflowY: 'auto', overflowX: 'hidden' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '12px', tableLayout: 'fixed' }}>
                 <thead style={{ position: 'sticky', top: 0, zIndex: 10, background: '#f8fafc' }}>
                   <tr style={{ background: '#f8fafc', color: '#475569', borderBottom: '1px solid #cbd5e1' }}>
@@ -1520,7 +1520,7 @@ export const WarehouseDispatchView: React.FC<WarehouseDispatchViewProps> = ({
                     </tr>
                   ) : (
                     paginatedSuppOrders.map((ord, idx) => (
-                      <tr key={ord.order_code} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background 0.15s ease' }}>
+                      <tr key={ord.order_code} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background 0.15s ease', position: 'relative', zIndex: activeDropdownId === ord.order_code ? 50 : 1 }}>
                         <td style={{ padding: '8px 12px 8px 16px', fontWeight: '700', color: '#d97706', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                           {ord.order_code}
                         </td>
@@ -1544,7 +1544,7 @@ export const WarehouseDispatchView: React.FC<WarehouseDispatchViewProps> = ({
                             Thiếu đợt {ord.dispatch_count || 1}
                           </span>
                         </td>
-                        <td style={{ padding: '6px 16px 6px 8px', textAlign: 'center', whiteSpace: 'nowrap', position: 'relative', zIndex: activeDropdownId === ord.order_code ? 35 : 1 }}>
+                        <td style={{ padding: '6px 16px 6px 8px', textAlign: 'center', whiteSpace: 'nowrap', position: 'relative', zIndex: activeDropdownId === ord.order_code ? 60 : 1 }}>
                           <div className="wh-action-dropdown-container" style={{ position: 'relative', display: 'inline-block' }}>
                             <button
                               type="button"
@@ -1563,9 +1563,9 @@ export const WarehouseDispatchView: React.FC<WarehouseDispatchViewProps> = ({
                             </button>
 
                             {activeDropdownId === ord.order_code && (() => {
-                              const openUpward = paginatedSuppOrders.length > 3 && idx >= paginatedSuppOrders.length - 2;
+                              const openUpward = idx > 0 && (idx >= paginatedSuppOrders.length - 1 || (paginatedSuppOrders.length >= 4 && idx >= paginatedSuppOrders.length - 2));
                               return (
-                                <div className={`wh-dropdown-menu ${openUpward ? 'open-up' : 'open-down'}`} style={{ minWidth: '150px' }}>
+                                <div className={`wh-dropdown-menu ${openUpward ? 'open-up' : 'open-down'}`} style={{ minWidth: '130px' }}>
                                   <button
                                     type="button"
                                     className="wh-dropdown-item"
@@ -1596,7 +1596,7 @@ export const WarehouseDispatchView: React.FC<WarehouseDispatchViewProps> = ({
         {/* BẢNG TAB 3: LỊCH SỬ PHIẾU XUẤT KHO - ĐÃ CĂN CHỈNH TIÊU ĐỀ THẲNG HÀNG & CÂN ĐỐI */}
         {activeTab === 'history' && (
           <>
-            <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}>
+            <div style={{ flex: 1, minHeight: '280px', overflowY: 'auto', overflowX: 'hidden' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '12px', tableLayout: 'fixed' }}>
                 <thead style={{ position: 'sticky', top: 0, zIndex: 10, background: '#f8fafc' }}>
                   <tr style={{ background: '#f8fafc', color: '#475569', borderBottom: '1px solid #cbd5e1' }}>
@@ -1676,7 +1676,7 @@ export const WarehouseDispatchView: React.FC<WarehouseDispatchViewProps> = ({
                             {dp.order_status === 'DELIVERED' ? 'HOÀN THÀNH' : dp.order_status === 'PARTIALLY_DELIVERED' ? 'GIAO THIẾU' : (dp.order_status || 'ĐÃ XUẤT')}
                           </span>
                         </td>
-                        <td style={{ padding: '6px 16px 6px 8px', textAlign: 'center', whiteSpace: 'nowrap', position: 'relative', zIndex: activeDropdownId === (dp.dispatch_code || String(dp.id)) ? 35 : 1 }}>
+                        <td style={{ padding: '6px 16px 6px 8px', textAlign: 'center', whiteSpace: 'nowrap', position: 'relative', zIndex: activeDropdownId === (dp.dispatch_code || String(dp.id)) ? 60 : 1 }}>
                           <div className="wh-action-dropdown-container" style={{ position: 'relative', display: 'inline-block' }}>
                             <button
                               type="button"
@@ -1695,9 +1695,9 @@ export const WarehouseDispatchView: React.FC<WarehouseDispatchViewProps> = ({
                             </button>
 
                             {activeDropdownId === (dp.dispatch_code || String(dp.id)) && (() => {
-                              const openUpward = paginatedAllDispatches.length > 3 && idx >= paginatedAllDispatches.length - 2;
+                              const openUpward = idx > 0 && (idx >= paginatedAllDispatches.length - 1 || (paginatedAllDispatches.length >= 4 && idx >= paginatedAllDispatches.length - 2));
                               return (
-                                <div className={`wh-dropdown-menu ${openUpward ? 'open-up' : 'open-down'}`} style={{ minWidth: '130px' }}>
+                                <div className={`wh-dropdown-menu ${openUpward ? 'open-up' : 'open-down'}`} style={{ minWidth: '110px' }}>
                                   <button
                                     type="button"
                                     className="wh-dropdown-item wh-dropdown-item-primary"
