@@ -52,6 +52,15 @@ export const DeliveryTripDetailView: React.FC<DeliveryTripDetailViewProps> = ({
   const [actionLoading, setActionLoading] = useState<boolean>(false);
   const [updatingStopId] = useState<number | null>(null);
 
+  // States phân trang (Pagination) - Mặc định 10 dòng trên 1 trang
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(10);
+
+  // Reset trang về 1 khi đổi chuyến giao
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [tripId]);
+
   // Helper lấy chuỗi ngày giờ địa phương cho input datetime-local
   const getNowDateTimeLocal = () => {
     const now = new Date();
@@ -461,6 +470,41 @@ export const DeliveryTripDetailView: React.FC<DeliveryTripDetailViewProps> = ({
     }
   };
 
+  // Tính toán logic Phân trang (Pagination) - Mặc định 10 bản ghi trên 1 trang
+  const totalStops = trip?.stops?.length || 0;
+  const totalPages = Math.max(1, Math.ceil(totalStops / pageSize));
+  const safeCurrentPage = Math.min(Math.max(1, currentPage), totalPages);
+
+  const startIndex = (safeCurrentPage - 1) * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, totalStops);
+
+  // Mảng điểm giao hiển thị trên trang hiện tại
+  const paginatedStops = useMemo(() => {
+    if (!trip?.stops) return [];
+    return trip.stops.slice(startIndex, endIndex);
+  }, [trip?.stops, startIndex, endIndex]);
+
+  // Danh sách các số trang hiển thị (hỗ trợ ellipsis nếu > 7 trang)
+  const paginationPages = useMemo(() => {
+    if (totalPages <= 7) {
+      return Array.from({ length: totalPages }, (_, i) => i + 1);
+    }
+    const pages: (number | string)[] = [1];
+    if (safeCurrentPage > 3) {
+      pages.push('...');
+    }
+    const start = Math.max(2, safeCurrentPage - 1);
+    const end = Math.min(totalPages - 1, safeCurrentPage + 1);
+    for (let i = start; i <= end; i++) {
+      pages.push(i);
+    }
+    if (safeCurrentPage < totalPages - 2) {
+      pages.push('...');
+    }
+    pages.push(totalPages);
+    return pages;
+  }, [totalPages, safeCurrentPage]);
+
   return (
     <div className="w-full flex-1 overflow-y-auto min-h-screen p-4 md:p-6 bg-slate-50 pb-20 text-slate-800 flex flex-col">
       <div className="flex flex-col gap-6 max-w-7xl mx-auto w-full">
@@ -641,7 +685,7 @@ export const DeliveryTripDetailView: React.FC<DeliveryTripDetailViewProps> = ({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 text-xs">
-                    {trip.stops?.map((stop: DeliveryStopDetail, index: number) => {
+                    {paginatedStops.map((stop: DeliveryStopDetail, index: number) => {
                       const isDelivered = stop.status === 'DELIVERED';
                       const isFailed = stop.status === 'FAILED';
                       const isUpdating = updatingStopId === stop.id;
@@ -655,7 +699,7 @@ export const DeliveryTripDetailView: React.FC<DeliveryTripDetailViewProps> = ({
                         >
                           {/* STT */}
                           <td className="py-3 px-3 text-center font-medium text-slate-500">
-                            {index + 1}
+                            {startIndex + index + 1}
                           </td>
 
                           {/* MÃ ĐƠN */}
@@ -818,9 +862,96 @@ export const DeliveryTripDetailView: React.FC<DeliveryTripDetailViewProps> = ({
                         </tr>
                       );
                     })}
+                    {/* Dòng đệm chân bảng hiển thị thông tin trang */}
+                    {totalStops > 0 && (
+                      <tr className="bg-slate-50/50 border-t border-slate-100">
+                        <td colSpan={9} className="py-2.5 px-4 text-center text-[11px] text-slate-400 select-none">
+                          — Trang {safeCurrentPage} / {totalPages} (Hiển thị {totalStops === 0 ? 0 : startIndex + 1} - {endIndex} trong {totalStops} điểm giao) —
+                        </td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>
+
+              {/* Thanh phân trang Pagination UI Chuẩn Enterprise */}
+              {totalStops > 0 && (
+                <div className="px-4 py-3 bg-white border-t border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs shrink-0 select-none">
+                  {/* Bên trái: Thông tin tổng kết & Chọn pageSize */}
+                  <div className="flex flex-wrap items-center gap-3 text-slate-600">
+                    <span>
+                      Hiển thị <span className="font-bold text-slate-800">{totalStops === 0 ? 0 : startIndex + 1}</span> -{' '}
+                      <span className="font-bold text-slate-800">{endIndex}</span> trong tổng số{' '}
+                      <span className="font-bold text-slate-800">{totalStops}</span> điểm giao
+                    </span>
+
+                    <div className="flex items-center gap-1.5 border-l border-slate-200 pl-3">
+                      <label htmlFor="select-page-size-trip-detail" className="text-slate-500 whitespace-nowrap">
+                        Số dòng:
+                      </label>
+                      <select
+                        id="select-page-size-trip-detail"
+                        value={pageSize}
+                        onChange={(e) => {
+                          setPageSize(Number(e.target.value));
+                          setCurrentPage(1);
+                        }}
+                        className="px-2 py-1 text-xs font-semibold text-slate-700 bg-white border border-slate-300 rounded-md focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 cursor-pointer shadow-2xs"
+                      >
+                        <option value={10}>10 / trang</option>
+                        <option value={20}>20 / trang</option>
+                        <option value={50}>50 / trang</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Bên phải: Nút chuyển trang (Trước, 1, 2, 3..., Sau) */}
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                      disabled={safeCurrentPage === 1}
+                      className="px-2.5 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-md border border-slate-300 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                    >
+                      ‹ Trước
+                    </button>
+
+                    {paginationPages.map((page, pIdx) => {
+                      if (page === '...') {
+                        return (
+                          <span key={`dots-${pIdx}`} className="px-1.5 py-1 text-xs text-slate-400 select-none">
+                            ...
+                          </span>
+                        );
+                      }
+                      const isCurrent = page === safeCurrentPage;
+                      return (
+                        <button
+                          key={page}
+                          type="button"
+                          onClick={() => setCurrentPage(Number(page))}
+                          className={`min-w-[28px] h-7 px-1.5 flex items-center justify-center text-xs rounded-md transition-all border ${
+                            isCurrent
+                              ? 'bg-emerald-600 border-emerald-600 text-white font-bold shadow-xs cursor-default'
+                              : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-100 font-medium cursor-pointer'
+                          }`}
+                        >
+                          {page}
+                        </button>
+                      );
+                    })}
+
+                    <button
+                      type="button"
+                      onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                      disabled={safeCurrentPage === totalPages}
+                      className="px-2.5 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-md border border-slate-300 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                    >
+                      Sau ›
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {/* Chân bảng (Table Footer): Dòng tóm tắt thông tin */}
               <div className="px-6 py-4 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs text-slate-600">
