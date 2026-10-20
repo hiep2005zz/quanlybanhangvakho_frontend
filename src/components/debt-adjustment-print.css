@@ -1,0 +1,424 @@
+/* frontend/src/components/debt-adjustment-print.css */
+
+.debt-adj-print-backdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(4px);
+  z-index: 100005;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  overflow: hidden;
+}
+
+.debt-adj-print-container {
+  background-color: #f8fafc;
+  width: 95%;
+  max-width: 900px;
+  max-height: 94vh;
+  height: 92vh;
+  border-radius: 12px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid #cbd5e1;
+}
+
+/* Toolbar phía trên chuẩn hệ thống */
+.debt-adj-print-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 20px;
+  background-color: #0f172a;
+  color: #f8fafc;
+  flex-shrink: 0;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.debt-adj-print-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+  font-weight: 700;
+  color: #f8fafc;
+  letter-spacing: -0.01em;
+}
+
+.debt-adj-print-title strong {
+  color: #2dd4bf;
+  font-family: monospace;
+  font-size: 15px;
+}
+
+.debt-adj-status-badge {
+  font-size: 11px;
+  background-color: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+  border: 1px solid rgba(52, 211, 153, 0.4);
+  padding: 2px 8px;
+  border-radius: 9999px;
+  font-weight: 600;
+}
+
+.debt-adj-print-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Các nút bấm Toolbar */
+.debt-adj-modal-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 7px 16px;
+  border-radius: 7px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease-in-out;
+  border: none;
+  outline: none;
+  line-height: 1.3;
+}
+
+.debt-adj-modal-btn.primary {
+  background-color: #0f766e;
+  color: #ffffff;
+}
+
+.debt-adj-modal-btn.primary:hover {
+  background-color: #115e59;
+}
+
+.debt-adj-modal-btn.pdf {
+  background-color: #059669;
+  color: #ffffff;
+}
+
+.debt-adj-modal-btn.pdf:hover {
+  background-color: #047857;
+}
+
+.debt-adj-modal-btn.pdf:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.debt-adj-modal-btn.secondary {
+  background-color: #475569;
+  color: #f8fafc;
+}
+
+.debt-adj-modal-btn.secondary:hover {
+  background-color: #334155;
+}
+
+/* Khung cuộn xem trước nền slate tối, giấy trắng nổi bật */
+.debt-adj-print-body {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: auto;
+  padding: 24px 16px;
+  background-color: #475569;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  box-sizing: border-box;
+}
+
+/* Khổ giấy A4 Mô phỏng */
+.debt-adj-paper {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+  width: 100%;
+  max-width: 800px;
+  min-height: auto;
+  height: auto;
+  margin: 0 auto;
+  padding: 32px 40px;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+.debt-adj-doc-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1.25rem;
+  border-bottom: 2px solid #0f172a;
+  padding-bottom: 0.75rem;
+}
+
+.debt-adj-company-info h3 {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0 0 0.2rem 0;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+.debt-adj-company-info p {
+  font-size: 0.8rem;
+  color: #475569;
+  margin: 0.15rem 0;
+  line-height: 1.35;
+}
+
+.debt-adj-meta-box {
+  text-align: right;
+  font-size: 0.85rem;
+}
+
+.debt-adj-meta-box .code {
+  font-size: 1rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.debt-adj-title-section {
+  text-align: center;
+  margin: 1.25rem 0 1rem 0;
+}
+
+.debt-adj-title-section h1 {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0 0 0.25rem 0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.debt-adj-title-section p {
+  font-size: 0.85rem;
+  color: #64748b;
+  font-style: italic;
+  margin: 0;
+}
+
+.debt-adj-info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.5rem 1.25rem;
+  margin-bottom: 1rem;
+  font-size: 0.85rem;
+  background-color: #f8fafc;
+  padding: 0.85rem 1rem;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+}
+
+.debt-adj-info-item {
+  display: flex;
+}
+
+.debt-adj-info-item .label {
+  width: 140px;
+  font-weight: 600;
+  color: #475569;
+  flex-shrink: 0;
+}
+
+.debt-adj-info-item .value {
+  color: #0f172a;
+  font-weight: 600;
+}
+
+.debt-adj-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.85rem 0;
+  font-size: 0.825rem;
+}
+
+.debt-adj-table th,
+.debt-adj-table td {
+  border: 1px solid #cbd5e1;
+  padding: 0.45rem 0.6rem;
+}
+
+.debt-adj-table th {
+  background-color: #f1f5f9;
+  font-weight: 700;
+  color: #1e293b;
+  text-align: center;
+}
+
+.debt-adj-totals {
+  margin-top: 0.85rem;
+  font-size: 0.875rem;
+}
+
+.debt-adj-total-row {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1.5rem;
+  padding: 0.25rem 0;
+}
+
+.debt-adj-grand-total {
+  font-weight: 800;
+  font-size: 0.95rem;
+  color: #0f172a;
+  border-top: 2px solid #0f172a;
+  padding-top: 0.45rem;
+  margin-top: 0.25rem;
+}
+
+.debt-adj-in-words {
+  font-style: italic;
+  color: #334155;
+  margin: 0.5rem 0 0.85rem 0;
+  font-size: 0.85rem;
+}
+
+.debt-adj-note-box {
+  font-size: 0.8rem;
+  color: #475569;
+  margin-bottom: 1rem;
+  padding: 0.55rem 0.75rem;
+  background-color: #f8fafc;
+  border: 1px dashed #cbd5e1;
+  border-radius: 4px;
+}
+
+.debt-adj-signatures {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.75rem;
+  text-align: center;
+  margin-top: 1.25rem;
+}
+
+.debt-adj-sig-box h4 {
+  font-size: 0.825rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 0.2rem 0;
+  text-transform: uppercase;
+}
+
+.debt-adj-sig-box p {
+  font-size: 0.75rem;
+  color: #64748b;
+  font-style: italic;
+  margin: 0 0 3.25rem 0;
+}
+
+.debt-adj-sig-box .name {
+  font-size: 0.825rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+/* Tối ưu in ấn (Print Media) */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 10mm 12mm;
+  }
+
+  /* Ẩn hoàn toàn ứng dụng web (#root) và các phần tử khác khi mở modal in */
+  body.has-debt-adj-print-modal #root,
+  body:has(.debt-adj-print-backdrop) #root {
+    display: none !important;
+    visibility: hidden !important;
+    height: 0 !important;
+    overflow: hidden !important;
+  }
+
+  html,
+  body.has-debt-adj-print-modal {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    height: auto !important;
+    min-height: auto !important;
+    overflow: visible !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .debt-adj-print-backdrop {
+    position: static !important;
+    display: block !important;
+    visibility: visible !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    backdrop-filter: none !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+    inset: auto !important;
+    z-index: auto !important;
+  }
+
+  .debt-adj-print-container {
+    position: static !important;
+    display: block !important;
+    visibility: visible !important;
+    box-shadow: none !important;
+    border: none !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: none !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    overflow: visible !important;
+  }
+
+  .debt-adj-print-header {
+    display: none !important;
+  }
+
+  .debt-adj-print-body {
+    background: #ffffff !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: visible !important;
+    display: block !important;
+  }
+
+  .debt-adj-paper {
+    border: none !important;
+    box-shadow: none !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+    box-sizing: border-box !important;
+  }
+
+  .debt-adj-table th,
+  .debt-adj-table td {
+    border: 1px solid #000000 !important;
+  }
+
+  .debt-adj-totals,
+  .debt-adj-in-words,
+  .debt-adj-note-box,
+  .debt-adj-signatures {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+}
