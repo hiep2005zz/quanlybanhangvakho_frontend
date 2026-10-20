@@ -1322,22 +1322,6 @@ export const DebtPaymentReconciliationView: React.FC<DebtPaymentReconciliationVi
                                 >
                                   {inv.status_label}
                                 </span>
-                                {isRecentlyPaid && (
-                                  <span
-                                    style={{
-                                      marginLeft: '6px',
-                                      fontSize: '11px',
-                                      color: '#15803d',
-                                      fontWeight: '700',
-                                      background: '#dcfce7',
-                                      padding: '2px 6px',
-                                      borderRadius: '4px',
-                                      display: 'inline-block',
-                                    }}
-                                  >
-                                    ✓ Vừa thu tiền
-                                  </span>
-                                )}
                               </td>
 
                               {/* Cột Trừ đợt này */}
