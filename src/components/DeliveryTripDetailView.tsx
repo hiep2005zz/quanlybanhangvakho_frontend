@@ -1,5 +1,6 @@
 // frontend/src/components/DeliveryTripDetailView.tsx
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate, useLocation } from '../hooks/useLocation';
 import type { DeliveryTripDetail, DeliveryStopDetail, DeliveryStopItemDetail } from '../types/delivery';
 import {
@@ -26,7 +27,7 @@ export const DeliveryTripDetailView: React.FC<DeliveryTripDetailViewProps> = ({
   tripId: propTripId,
   userRole = '',
   userRoles = [],
-  userName = '',
+  userName: _userName = '',
   canManage = true,
   onBack,
 }) => {
@@ -461,27 +462,28 @@ export const DeliveryTripDetailView: React.FC<DeliveryTripDetailViewProps> = ({
   };
 
   return (
-    <div className="w-full flex-1 min-h-0 overflow-y-auto p-4 md:p-6 bg-slate-50 pb-20 text-slate-800 flex flex-col">
-      {/* I. Thanh tiêu đề đầu trang (Top Header Bar) chuẩn StockAudit layout */}
-      <div className="mb-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-transparent shrink-0">
-        {/* Bên trái: Tiêu đề + Subtitle */}
-        <div>
-          <div className="flex flex-wrap items-center gap-2.5">
+    <div className="w-full flex-1 overflow-y-auto min-h-screen p-4 md:p-6 bg-slate-50 pb-20 text-slate-800 flex flex-col">
+      <div className="flex flex-col gap-6 max-w-7xl mx-auto w-full">
+        {/* 1. Thanh tiêu đề đầu trang (Header Bar) */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-transparent shrink-0">
+          {/* Bên trái: Tiêu đề + Subtitle */}
+          <div>
+            <div className="flex flex-wrap items-center gap-2.5">
               <h1 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight">
                 {trip ? `Chi tiết chuyến giao ${trip.trip_code}` : 'Đang tải chuyến giao...'}
               </h1>
 
               {trip && (
                 trip.status === 'COMPLETED' ? (
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200">
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200">
                     Đã hoàn tất
                   </span>
                 ) : trip.is_overdue ? (
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200">
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200">
                     Quá hạn {trip.overdue_minutes} phút
                   </span>
                 ) : (
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
                     Đang giao hàng
                   </span>
                 )
@@ -489,339 +491,226 @@ export const DeliveryTripDetailView: React.FC<DeliveryTripDetailViewProps> = ({
             </div>
 
             {trip && (
-              <p className="text-xs text-gray-500 mt-0.5">
-                Tuyến: <span className="font-medium text-gray-700">{trip.route_name || 'Tuyến mặc định'}</span>
+              <p className="text-xs text-gray-500 mt-1">
+                Tài xế: <span className="font-medium text-gray-700">{trip.driver_name || 'Chưa gán tài xế'}{trip.driver_phone ? ` (${trip.driver_phone})` : ''}</span>
+                {' • '}Tuyến: <span className="font-medium text-gray-700">{trip.route_name || 'Tuyến mặc định'}</span>
+                {' • '}Xe: <span className="font-medium text-gray-700 font-mono">{trip.vehicle_plate || '—'}</span>
                 {' • '}Kho xuất: <span className="font-medium text-gray-700">{trip.warehouse_name || 'Kho Tổng Hà Nội'}</span>
-                {' • '}Xuất phát: <span className="font-medium text-gray-700">{formatDateTime(trip.dispatched_at)}</span>
               </p>
             )}
           </div>
 
-        {/* Bên phải: Cụm nút hành động chính */}
-        <div className="flex items-center gap-2.5 self-end sm:self-auto">
-          <button
-            type="button"
-            onClick={handleBack}
-            className="px-4 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-100 rounded-lg cursor-pointer border border-gray-300 bg-white transition-colors"
-          >
-            Đóng
-          </button>
-
-          {trip && trip.status !== 'COMPLETED' && isAuthorizedManager && (
+          {/* Bên phải: Nút phụ "Quay lại" và Nút chính "✓ Hoàn tất toàn bộ chuyến" */}
+          <div className="flex items-center gap-2.5 self-end sm:self-auto shrink-0">
             <button
               type="button"
-              onClick={handleOpenCompleteModal}
-              disabled={actionLoading}
-              className="px-5 py-2 text-xs font-bold text-white bg-[#0fad89] hover:bg-[#0c8a6d] rounded-lg shadow-sm disabled:opacity-50 cursor-pointer border-0 transition-all flex items-center gap-2"
+              onClick={handleBack}
+              className="px-4 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 rounded-lg cursor-pointer border border-gray-300 bg-white shadow-xs transition-colors"
             >
-              {actionLoading ? (
-                <>
-                  <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  <span>Đang xử lý...</span>
-                </>
-              ) : (
-                <>
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-                  </svg>
-                  <span>Hoàn tất toàn bộ chuyến</span>
-                </>
-              )}
+              Quay lại
             </button>
-          )}
-        </div>
-      </div>
 
-      {/* Loading hoặc Error state */}
-      {loading ? (
-        <div className="py-24 text-center text-slate-400 flex flex-col items-center justify-center gap-3">
-          <div className="w-8 h-8 border-3 border-[#0fad89] border-t-transparent rounded-full animate-spin"></div>
-          <p className="text-sm font-medium">Đang tải chi tiết chuyến giao hàng...</p>
-        </div>
-      ) : error ? (
-        <div className="bg-white rounded-xl border border-rose-200 p-8 text-center max-w-lg mx-auto shadow-xs">
-          <div className="w-12 h-12 bg-rose-50 text-rose-600 rounded-full flex items-center justify-center mx-auto mb-3">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="12" cy="12" r="10" />
-              <line x1="12" y1="8" x2="12" y2="12" />
-              <line x1="12" y1="16" x2="12.01" y2="16" />
-            </svg>
-          </div>
-          <h3 className="text-base font-bold text-slate-900 mb-1">Không thể tải chuyến giao</h3>
-          <p className="text-xs text-slate-500 mb-4">{error}</p>
-          <button
-            type="button"
-            onClick={() => fetchTrip()}
-            className="px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-bold hover:bg-emerald-700 transition-all cursor-pointer shadow-xs"
-          >
-            Thử lại
-          </button>
-        </div>
-      ) : trip ? (
-        /* II. Bố cục 2 cột nội dung (Two-Column Layout 12 cột) */
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 flex-1 items-start">
-          {/* Cột trái (4/12 cột ~ 35%): 1. Thông tin chuyến giao */}
-          <div className="lg:col-span-4 flex flex-col gap-4 lg:sticky lg:top-4">
-            <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5 shadow-xs flex flex-col gap-4">
-              {/* Header mục */}
-              <div className="flex items-center justify-between pb-2.5 border-b border-gray-100">
-                <div className="flex items-center gap-2">
-                  <h3 className="text-sm font-bold text-gray-900">1. Thông tin chuyến giao</h3>
-                </div>
-                <span className="text-xs font-mono font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
-                  {trip.trip_code}
-                </span>
-              </div>
-
-              {/* Các dòng thông tin dạng nhãn - giá trị */}
-              <div className="flex flex-col gap-2.5 text-xs">
-                <div className="flex items-start justify-between gap-2">
-                  <span className="text-gray-500 shrink-0">Tài xế:</span>
-                  <span className="font-semibold text-gray-900 text-right">
-                    {trip.driver_name}{' '}
-                    {trip.driver_phone && <span className="text-gray-500 font-normal">({trip.driver_phone})</span>}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-gray-500 shrink-0">Biển số xe:</span>
-                  <span className="font-mono bg-slate-100 px-2 py-0.5 rounded text-slate-800 font-bold border border-slate-200">
-                    {trip.vehicle_plate}
-                  </span>
-                </div>
-                <div className="flex items-start justify-between gap-2">
-                  <span className="text-gray-500 shrink-0">Tuyến đường:</span>
-                  <span className="font-medium text-gray-800 text-right">{trip.route_name || 'Tuyến mặc định'}</span>
-                </div>
-                <div className="flex items-start justify-between gap-2">
-                  <span className="text-gray-500 shrink-0">Kho xuất:</span>
-                  <span className="font-medium text-gray-800 text-right">{trip.warehouse_name || 'Kho Tổng Hà Nội'}</span>
-                </div>
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-gray-500 shrink-0">Xuất kho:</span>
-                  <span className="font-medium text-gray-700">{formatDateTime(trip.dispatched_at)}</span>
-                </div>
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-gray-500 shrink-0">Dự kiến giao:</span>
-                  <span className={`font-semibold ${trip.is_overdue ? 'text-rose-600' : 'text-gray-800'}`}>
-                    {formatDateTime(trip.estimated_delivery_time)}
-                  </span>
-                </div>
-                {trip.note && (
-                  <div className="pt-2 border-t border-gray-100 text-gray-500 italic">
-                    Ghi chú: {trip.note}
-                  </div>
+            {trip && trip.status !== 'COMPLETED' && isAuthorizedManager && (
+              <button
+                type="button"
+                onClick={handleOpenCompleteModal}
+                disabled={actionLoading}
+                className="px-4 py-2 text-xs font-bold text-white bg-[#0fad89] hover:bg-[#0c8a6d] rounded-lg shadow-sm disabled:opacity-50 cursor-pointer border-0 transition-all flex items-center gap-2"
+              >
+                {actionLoading ? (
+                  <>
+                    <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <span>Đang xử lý...</span>
+                  </>
+                ) : (
+                  <span>Hoàn tất toàn bộ chuyến</span>
                 )}
-              </div>
-
-              {/* 4 Ô chỉ số tóm tắt gọn gàng (Mini KPI Cards) */}
-              <div className="grid grid-cols-2 gap-2.5 pt-1">
-                {/* Ô 1: Tiền hàng còn trên xe */}
-                <div className="bg-emerald-900 text-white p-3 rounded-xl shadow-xs border border-emerald-800 flex flex-col justify-between">
-                  <span className="text-[10.5px] font-bold uppercase tracking-wider text-emerald-200">
-                    Tiền trên xe
-                  </span>
-                  <div className="text-sm font-extrabold text-white mt-1">
-                    {formatVND(trip.remaining_value)}
-                  </div>
-                </div>
-
-                {/* Ô 2: Tổng giá trị chuyến */}
-                <div className="bg-gray-50 border border-gray-200 p-3 rounded-xl flex flex-col justify-between">
-                  <span className="text-[10.5px] font-bold uppercase tracking-wider text-gray-500">
-                    Tổng chuyến
-                  </span>
-                  <div className="text-sm font-extrabold text-gray-900 mt-1">
-                    {formatVND(trip.total_trip_value)}
-                  </div>
-                </div>
-
-                {/* Ô 3: Tiến độ điểm giao */}
-                <div className="bg-blue-50/70 border border-blue-200 p-3 rounded-xl flex flex-col justify-between">
-                  <span className="text-[10.5px] font-bold uppercase tracking-wider text-blue-700">
-                    Tiến độ giao
-                  </span>
-                  <div className="text-sm font-extrabold text-blue-800 mt-1">
-                    {trip.delivered_stops} / {trip.total_stops}{' '}
-                    <span className="text-[11px] font-medium text-slate-500">
-                      {trip.remaining_stops > 0 ? `(còn ${trip.remaining_stops})` : '(Xong)'}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Ô 4: Trạng thái thời gian */}
-                <div className={`p-3 rounded-xl border flex flex-col justify-between ${
-                  trip.is_overdue ? 'bg-rose-50 border-rose-200' : 'bg-gray-50 border-gray-200'
-                }`}>
-                  <span className={`text-[10.5px] font-bold uppercase tracking-wider ${
-                    trip.is_overdue ? 'text-rose-700' : 'text-gray-500'
-                  }`}>
-                    {trip.is_overdue ? 'Trễ hạn' : 'Thời gian'}
-                  </span>
-                  <div className={`text-xs font-bold mt-1 ${trip.is_overdue ? 'text-rose-700' : 'text-gray-800'}`}>
-                    {trip.is_overdue ? `Trễ ${trip.overdue_minutes}p` : 'Đúng hạn'}
-                  </div>
-                </div>
-              </div>
-
-              {/* Khối thông tin người giám sát */}
-              <div className="p-3 bg-gray-50 rounded-lg border border-gray-200 text-xs flex flex-col gap-1.5 text-gray-600">
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-500">Người giám sát:</span>
-                  <span className="font-semibold text-gray-900">{userName || 'Thủ kho'}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-500">Vai trò:</span>
-                  <span className="font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                    {userRole || 'Quản lý kho'}
-                  </span>
-                </div>
-              </div>
-            </div>
+              </button>
+            )}
           </div>
+        </div>
 
-          {/* Cột phải (8/12 cột ~ 65%): 2. Lịch trình & Trạng thái các điểm giao */}
-          <div className="lg:col-span-8 flex flex-col bg-white rounded-xl border border-gray-200 shadow-xs overflow-hidden">
-            {/* Header của bảng lịch trình */}
-            <div className="p-4 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-gray-50/60 shrink-0">
-              <div className="flex items-center gap-2.5">
-                <h3 className="text-sm font-bold text-gray-900">2. Lịch trình các điểm giao hàng</h3>
-                <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
-                  {trip.stops?.length || 0} điểm giao
-                </span>
+        {/* Loading hoặc Error state */}
+        {loading ? (
+          <div className="py-24 text-center text-slate-400 flex flex-col items-center justify-center gap-3">
+            <div className="w-8 h-8 border-3 border-[#0fad89] border-t-transparent rounded-full animate-spin"></div>
+            <p className="text-sm font-medium">Đang tải chi tiết chuyến giao hàng...</p>
+          </div>
+        ) : error ? (
+          <div className="bg-white rounded-xl border border-rose-200 p-8 text-center max-w-lg mx-auto shadow-xs">
+            <div className="w-12 h-12 bg-rose-50 text-rose-600 rounded-full flex items-center justify-center mx-auto mb-3">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+            </div>
+            <h3 className="text-base font-bold text-slate-900 mb-1">Không thể tải chuyến giao</h3>
+            <p className="text-xs text-slate-500 mb-4">{error}</p>
+            <button
+              type="button"
+              onClick={() => fetchTrip()}
+              className="px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-bold hover:bg-emerald-700 transition-all cursor-pointer shadow-xs"
+            >
+              Thử lại
+            </button>
+          </div>
+        ) : trip ? (
+          <>
+            {/* 2. Cụm 4 Thẻ KPI Chỉ số (Summary Cards) */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+              {/* Thẻ 1: Tiền hàng còn trên xe */}
+              <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm flex flex-col justify-between">
+                <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  Tiền hàng còn trên xe
+                </div>
+                <div className="text-xl sm:text-2xl font-bold text-emerald-600 mt-2">
+                  {formatVND(trip.remaining_value)}
+                </div>
+                <div className="text-xs text-slate-400 mt-1">
+                  Giá trị hàng chưa giao xong
+                </div>
               </div>
-              <p className="text-xs text-gray-500 hidden sm:block">
-                Xác nhận giao hàng cho từng đại lý theo lộ trình vận chuyển
-              </p>
+
+              {/* Thẻ 2: Tổng giá trị chuyến */}
+              <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm flex flex-col justify-between">
+                <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  Tổng giá trị chuyến
+                </div>
+                <div className="text-xl sm:text-2xl font-bold text-slate-800 mt-2">
+                  {formatVND(trip.total_trip_value)}
+                </div>
+                <div className="text-xs text-slate-400 mt-1">
+                  Toàn bộ điểm giao
+                </div>
+              </div>
+
+              {/* Thẻ 3: Tiến độ điểm giao */}
+              <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm flex flex-col justify-between">
+                <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  Tiến độ điểm giao
+                </div>
+                <div className="text-xl sm:text-2xl font-bold text-slate-800 mt-2 flex items-baseline gap-1.5">
+                  <span>{trip.delivered_stops}/{trip.total_stops} điểm</span>
+                  {trip.remaining_stops > 0 && (
+                    <span className="text-xs font-medium text-slate-500">
+                      (còn {trip.remaining_stops})
+                    </span>
+                  )}
+                </div>
+                <div className="text-xs text-slate-400 mt-1">
+                  Tỷ lệ hoàn thành {trip.total_stops > 0 ? `(${Math.round((trip.delivered_stops / trip.total_stops) * 100)}%)` : ''}
+                </div>
+              </div>
+
+              {/* Thẻ 4: Cảnh báo thời gian */}
+              <div className={`rounded-xl border p-4 shadow-sm flex flex-col justify-between ${
+                trip.is_overdue ? 'bg-rose-50/60 border-rose-200' : 'bg-white border-slate-200'
+              }`}>
+                <div className={`text-xs font-semibold uppercase tracking-wider ${
+                  trip.is_overdue ? 'text-rose-600' : 'text-slate-500'
+                }`}>
+                  Cảnh báo thời gian
+                </div>
+                <div className={`text-xl sm:text-2xl font-bold mt-2 ${
+                  trip.is_overdue ? 'text-rose-600' : 'text-slate-800'
+                }`}>
+                  {trip.is_overdue ? `Quá hạn ${trip.overdue_minutes} phút` : 'Đúng tiến độ'}
+                </div>
+                <div className="text-xs text-slate-400 mt-1">
+                  Thời gian dự kiến: {formatDateTime(trip.estimated_delivery_time)}
+                </div>
+              </div>
             </div>
 
-            {/* Danh sách các điểm giao có khung cuộn roles-grid-scroll */}
-            <div
-              className="overflow-y-auto roles-grid-scroll overscroll-contain flex-1"
-              style={{
-                maxHeight: 'min(520px, calc(100vh - 340px))',
-                minHeight: '260px',
-              }}
-            >
-              <div className="divide-y divide-gray-100">
-                {trip.stops?.map((stop: DeliveryStopDetail, index: number) => {
-                  const isDelivered = stop.status === 'DELIVERED';
-                  const isFailed = stop.status === 'FAILED';
-                  const isUpdating = updatingStopId === stop.id;
+            {/* 3. Khối Bảng Dữ Liệu Các Điểm Giao Hàng (Data Table - KHÔNG CÓ BỘ LỌC) */}
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col w-full">
+              <div className="overflow-x-auto w-full">
+                <table className="w-full text-left border-collapse">
+                  <thead className="bg-slate-50 border-b border-slate-200">
+                    <tr className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                      <th className="py-3 px-3 text-center w-10">STT</th>
+                      <th className="py-3 px-3 whitespace-nowrap">MÃ ĐƠN</th>
+                      <th className="py-3 px-3">KHÁCH HÀNG / ĐẠI LÝ</th>
+                      <th className="py-3 px-3">ĐỊA CHỈ NHẬN HÀNG</th>
+                      <th className="py-3 px-3 whitespace-nowrap">NGƯỜI NHẬN & SĐT</th>
+                      <th className="py-3 px-3 text-right whitespace-nowrap">TIỀN HÀNG</th>
+                      <th className="py-3 px-3 whitespace-nowrap">TRẠNG THÁI GIAO</th>
+                      <th className="py-3 px-3">GHI CHÚ</th>
+                      <th className="py-3 px-3 text-right whitespace-nowrap">THAO TÁC</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-xs">
+                    {trip.stops?.map((stop: DeliveryStopDetail, index: number) => {
+                      const isDelivered = stop.status === 'DELIVERED';
+                      const isFailed = stop.status === 'FAILED';
+                      const isUpdating = updatingStopId === stop.id;
 
-                  return (
-                    <div
-                      key={stop.id}
-                      className={`p-4 md:p-5 transition-colors ${
-                        isDelivered
-                          ? 'bg-emerald-50/20'
-                          : isFailed
-                          ? 'bg-rose-50/20'
-                          : 'hover:bg-slate-50/60'
-                      }`}
-                    >
-                      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                        {/* Cột trái: Thông tin chi tiết điểm giao */}
-                        <div className="flex items-start gap-3.5 flex-1">
-                          <div
-                            className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5 ${
-                              isDelivered
-                                ? 'bg-emerald-600 text-white'
-                                : isFailed
-                                ? 'bg-rose-600 text-white'
-                                : 'bg-slate-200 text-slate-700'
-                            }`}
-                          >
-                            {isDelivered ? '✓' : isFailed ? '✕' : index + 1}
-                          </div>
+                      return (
+                        <tr
+                          key={stop.id}
+                          className={`hover:bg-slate-50/70 transition-colors ${
+                            isDelivered ? 'bg-emerald-50/15' : isFailed ? 'bg-rose-50/15' : ''
+                          }`}
+                        >
+                          {/* STT */}
+                          <td className="py-3 px-3 text-center font-medium text-slate-500">
+                            {index + 1}
+                          </td>
 
-                          <div className="space-y-1 flex-1">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <span className="font-bold text-slate-900 text-sm md:text-base">
-                                {stop.dealer_name}
-                              </span>
-                              <span className="font-mono text-xs px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-semibold border border-slate-200">
-                                {stop.order_code}
-                              </span>
-                              {isDelivered && (
-                                <span className="text-[11px] font-semibold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-200">
-                                  ✓ Đã giao thành công
-                                </span>
-                              )}
-                              {isFailed && (
-                                <div className="flex items-center gap-1.5 flex-wrap">
-                                  <span className="text-[11px] font-semibold px-2 py-0.5 rounded bg-rose-100 text-rose-800 border border-rose-200">
-                                    ✕ Giao thất bại
-                                  </span>
-                                  <span className="text-[11px] font-semibold px-2 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-300">
-                                    📦 Chờ hoàn kho
-                                  </span>
-                                </div>
-                              )}
-                              {!isDelivered && !isFailed && (
-                                <span className="text-[11px] font-semibold px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200">
-                                  Đang vận chuyển
-                                </span>
-                              )}
+                          {/* MÃ ĐƠN */}
+                          <td className="py-3 px-3 font-mono font-semibold text-blue-600 whitespace-nowrap">
+                            {stop.order_code}
+                          </td>
+
+                          {/* KHÁCH HÀNG / ĐẠI LÝ */}
+                          <td className="py-3 px-3">
+                            <div className="font-bold text-slate-900">{stop.dealer_name}</div>
+                          </td>
+
+                          {/* ĐỊA CHỈ NHẬN HÀNG */}
+                          <td className="py-3 px-3 text-slate-600">
+                            <div className="line-clamp-2" title={stop.delivery_point}>
+                              {stop.delivery_point}
                             </div>
+                          </td>
 
-                            <div className="text-xs text-slate-600 flex items-center gap-1.5">
-                              <span className="text-slate-400 font-medium">Địa chỉ:</span>
-                              <span>{stop.delivery_point}</span>
+                          {/* NGƯỜI NHẬN & SĐT */}
+                          <td className="py-3 px-3 whitespace-nowrap">
+                            <div className="font-medium text-slate-800">
+                              {stop.receiver_name || 'Khách nhận'}
                             </div>
-
-                            {(stop.receiver_name || stop.receiver_phone) && (
-                              <div className="text-xs text-slate-500">
-                                Người nhận:{' '}
-                                <span className="font-semibold text-slate-700">
-                                  {stop.receiver_name || 'Khách nhận'}
-                                </span>{' '}
-                                {stop.receiver_phone && `(${stop.receiver_phone})`}
+                            {stop.receiver_phone ? (
+                              <div className="text-slate-500 mt-0.5">
+                                {stop.receiver_phone}
                               </div>
-                            )}
+                            ) : null}
+                          </td>
 
-                            {(stop.actual_delivery_time || stop.delivered_at) && (
-                              <div className="text-xs text-emerald-700 font-medium flex items-center gap-1">
-                                <span>🕒 Thời gian giao:</span>
-                                <strong>{formatDateTime(stop.actual_delivery_time || stop.delivered_at)}</strong>
-                              </div>
-                            )}
+                          {/* TIỀN HÀNG ĐIỂM NÀY */}
+                          <td className="py-3 px-3 text-right whitespace-nowrap">
+                            <span
+                              className={`font-bold ${
+                                isDelivered ? 'text-slate-400 line-through' : 'text-emerald-700'
+                              }`}
+                            >
+                              {formatVND(stop.amount)}
+                            </span>
+                          </td>
 
-                            {isFailed && (stop.failure_reason || stop.failed_reason) && (
-                              <div className="text-xs text-rose-700 font-semibold bg-rose-100/70 p-2 rounded-lg mt-1 border border-rose-200">
-                                Lý do thất bại: {stop.failure_reason || stop.failed_reason}
-                              </div>
-                            )}
-
-                            {/* Bằng chứng giao hàng POD thumbnail & nút xem */}
-                            {stop.pod_image_url && (
-                              <div className="pt-1.5 flex items-center gap-2.5">
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    setViewingPodModal({
-                                      imageUrl: stop.pod_image_url!,
-                                      dealerName: stop.dealer_name,
-                                      orderCode: stop.order_code,
-                                      receiverName: stop.receiver_name,
-                                      deliveredAt: stop.actual_delivery_time || stop.delivered_at,
-                                    })
-                                  }
-                                  className="group relative cursor-pointer"
-                                  title="Bấm để phóng to biên bản bàn giao POD"
-                                >
-                                  <img
-                                    src={stop.pod_image_url}
-                                    alt="POD"
-                                    className="w-12 h-12 object-cover rounded-lg border-2 border-emerald-400 group-hover:scale-105 transition-all shadow-xs"
-                                  />
-                                  <div className="absolute inset-0 bg-black/40 rounded-lg flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-white text-[9px] font-bold">
-                                    🔍 Xem
-                                  </div>
-                                </button>
-                                <div className="text-xs space-y-0.5">
-                                  <div className="font-semibold text-emerald-800 flex items-center gap-1">
-                                    <span>✓ Đã có ảnh biên bản giao nhận (POD)</span>
-                                  </div>
+                          {/* TRẠNG THÁI GIAO */}
+                          <td className="py-3 px-3 whitespace-nowrap">
+                            {isDelivered && (
+                              <div className="flex flex-col gap-1 items-start">
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                  Đã giao
+                                </span>
+                                {(stop.actual_delivery_time || stop.delivered_at) && (
+                                  <span className="text-[10px] text-slate-400">
+                                    {formatDateTime(stop.actual_delivery_time || stop.delivered_at)}
+                                  </span>
+                                )}
+                                {stop.pod_image_url && (
                                   <button
                                     type="button"
                                     onClick={() =>
@@ -833,125 +722,128 @@ export const DeliveryTripDetailView: React.FC<DeliveryTripDetailViewProps> = ({
                                         deliveredAt: stop.actual_delivery_time || stop.delivered_at,
                                       })
                                     }
-                                    className="text-[11px] text-blue-600 hover:text-blue-800 underline font-semibold cursor-pointer"
+                                    className="text-[10px] text-blue-600 hover:text-blue-800 underline font-medium cursor-pointer"
                                   >
-                                    Xem chi tiết biên bản có chữ ký
+                                    Xem ảnh POD
                                   </button>
-                                </div>
+                                )}
                               </div>
                             )}
 
-                            {stop.note && (
-                              <div className="text-xs text-slate-500 italic">
-                                Ghi chú: {stop.note}
+                            {isFailed && (
+                              <div className="flex flex-col gap-1 items-start">
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-rose-100 text-rose-800 border border-rose-200">
+                                  Thất bại
+                                </span>
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-50 text-amber-800 border border-amber-300">
+                                  Chờ hoàn kho
+                                </span>
+                                {(stop.failure_reason || stop.failed_reason) && (
+                                  <span
+                                    className="text-[10px] text-rose-600 line-clamp-1 max-w-[160px]"
+                                    title={(stop.failure_reason || stop.failed_reason) || undefined}
+                                  >
+                                    {stop.failure_reason || stop.failed_reason}
+                                  </span>
+                                )}
                               </div>
                             )}
-                          </div>
-                        </div>
 
-                        {/* Cột phải: Tiền hàng & Nút thao tác */}
-                        <div className="flex sm:flex-row lg:flex-col items-center lg:items-end justify-between lg:justify-center gap-3 pt-3 lg:pt-0 border-t lg:border-t-0 border-slate-100">
-                          <div className="text-left lg:text-right">
-                            <div className="text-xs text-slate-400">Tiền hàng điểm này:</div>
-                            <div
-                              className={`text-base md:text-lg font-extrabold ${
-                                isDelivered ? 'text-slate-400 line-through' : 'text-emerald-700'
-                              }`}
-                            >
-                              {formatVND(stop.amount)}
+                            {!isDelivered && !isFailed && (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                                Đang vận chuyển
+                              </span>
+                            )}
+                          </td>
+
+                          {/* GHI CHÚ */}
+                          <td className="py-3 px-3 text-slate-500 italic">
+                            <div className="max-w-[140px] truncate" title={stop.note || ''}>
+                              {stop.note || '—'}
                             </div>
-                          </div>
+                          </td>
 
-                          {isAuthorizedManager && (
-                            <div className="flex items-center gap-2">
-                              {!isDelivered && !isFailed && (
-                                <>
+                          {/* THAO TÁC */}
+                          <td className="py-3 px-3 text-right whitespace-nowrap">
+                            {isAuthorizedManager && (
+                              <div className="flex items-center justify-end gap-1.5">
+                                {!isDelivered && !isFailed && (
+                                  <>
+                                    <button
+                                      type="button"
+                                      disabled={isUpdating}
+                                      onClick={() => handleOpenConfirmDeliveryModal(stop)}
+                                      className="px-2.5 py-1.5 rounded-lg bg-[#0fad89] hover:bg-[#0c8a6d] text-white text-xs font-semibold shadow-xs transition-all cursor-pointer disabled:opacity-50"
+                                      title="Xác nhận giao thành công (kèm POD)"
+                                    >
+                                      <span>Giao thành công</span>
+                                    </button>
+
+                                    <button
+                                      type="button"
+                                      disabled={isUpdating}
+                                      onClick={() => handlePromptStopFailed(stop)}
+                                      className="px-2.5 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-semibold transition-all cursor-pointer disabled:opacity-50"
+                                      title="Giao hàng thất bại"
+                                    >
+                                      Thất bại
+                                    </button>
+                                  </>
+                                )}
+
+                                {isDelivered && (
                                   <button
                                     type="button"
-                                    disabled={isUpdating}
                                     onClick={() => handleOpenConfirmDeliveryModal(stop)}
-                                    className="px-3 py-1.5 rounded-lg bg-[#0fad89] hover:bg-[#0c8a6d] text-white text-xs font-bold shadow-xs transition-all cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
-                                    title="Xác nhận người nhận và lưu ảnh chứng từ giao nhận (POD)"
+                                    className="px-2.5 py-1 text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-lg text-xs font-medium transition-all cursor-pointer border border-slate-300"
+                                    title="Cập nhật lại ảnh POD hoặc thông tin người nhận"
                                   >
-                                    <span>✓ Giao thành công</span>
+                                    Cập nhật POD
                                   </button>
+                                )}
 
+                                {isFailed && (
                                   <button
                                     type="button"
-                                    disabled={isUpdating}
-                                    onClick={() => handlePromptStopFailed(stop)}
-                                    className="px-3 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold transition-all cursor-pointer disabled:opacity-50"
-                                    title="Báo không giao được hoặc khách hẹn lại"
+                                    onClick={() => handleOpenConfirmDeliveryModal(stop)}
+                                    className="px-2.5 py-1.5 rounded-lg bg-[#0fad89] hover:bg-[#0c8a6d] text-white text-xs font-semibold shadow-xs transition-all cursor-pointer"
+                                    title="Giao lại thành công và ký biên bản nhận hàng"
                                   >
-                                    ✕ Thất bại
+                                    Giao lại / Ký POD
                                   </button>
-                                </>
-                              )}
-
-                              {isDelivered && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleOpenConfirmDeliveryModal(stop)}
-                                  className="px-2.5 py-1 text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-lg text-xs font-semibold transition-all cursor-pointer border border-slate-300"
-                                  title="Cập nhật lại ảnh chứng từ POD hoặc người nhận"
-                                >
-                                  ✏️ Cập nhật POD
-                                </button>
-                              )}
-
-                              {isFailed && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleOpenConfirmDeliveryModal(stop)}
-                                  className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition-all cursor-pointer"
-                                  title="Giao lại thành công và ký biên bản nhận hàng"
-                                >
-                                  ✓ Giao lại / Ký POD
-                                </button>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
+                                )}
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
 
-              {/* Dòng đệm chân lịch trình */}
-              <div className="py-4 px-5 text-center text-xs text-slate-400 bg-slate-50/50 border-t border-slate-100 select-none">
-                <div className="flex items-center justify-center gap-2 text-slate-400">
-                  <span className="w-8 h-[1px] bg-slate-200 inline-block" />
-                  <span>Đã hiển thị toàn bộ {trip.stops?.length || 0} điểm giao hàng</span>
-                  <span className="w-8 h-[1px] bg-slate-200 inline-block" />
+              {/* Chân bảng (Table Footer): Dòng tóm tắt thông tin */}
+              <div className="px-6 py-4 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs text-slate-600">
+                <div className="font-medium">
+                  Tổng số: <span className="font-bold text-slate-900">{trip.stops?.length || 0}</span> điểm giao
+                  {' • '}Tiền hàng còn lại trên xe: <span className="font-bold text-emerald-700">{formatVND(trip.remaining_value)}</span>
+                </div>
+                <div className="text-slate-400">
+                  Đã hoàn tất: <span className="font-semibold text-emerald-700">{trip.delivered_stops}</span>/{trip.total_stops} điểm
                 </div>
               </div>
             </div>
-
-            {/* Footer chân bảng lịch trình */}
-            <div className="p-3.5 bg-gray-50 border-t border-gray-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs text-gray-600 shrink-0">
-              <div>
-                Tổng số điểm giao: <span className="font-bold text-gray-800">{trip.stops?.length || 0}</span> điểm
-                {' • '}Đã hoàn tất: <span className="font-bold text-emerald-700">{trip.delivered_stops}</span> điểm
-              </div>
-              <div className="text-[11px] text-gray-400">
-                Xuất phát lúc {formatDateTime(trip.dispatched_at)}
-              </div>
-            </div>
-          </div>
-        </div>
-      ) : null}
+          </>
+        ) : null}
+      </div>
 
       {/* III. Modal Xác nhận Giao hàng thành công (SCRUM-85 - POD) */}
-      {confirmDeliveryStopModal && (
-        <div className="fixed inset-0 z-60 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto">
-          <div className="bg-white rounded-2xl w-full max-w-xl p-5 sm:p-6 shadow-2xl border border-slate-200 animate-in zoom-in-95 duration-150 my-auto">
+      {confirmDeliveryStopModal && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="bg-white rounded-2xl w-full max-w-xl shadow-2xl border border-slate-200 flex flex-col max-h-[88vh] overflow-hidden animate-in zoom-in-95 duration-150">
             {/* Header Modal */}
-            <div className="flex items-start justify-between gap-3 pb-3 border-b border-gray-100">
+            <div className="flex items-start justify-between gap-3 p-5 sm:p-6 pb-3 border-b border-gray-100 shrink-0">
               <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center font-bold text-lg shrink-0">
-                  ✓
-                </div>
                 <div>
                   <h3 className="text-base font-bold text-gray-900">Xác nhận Giao hàng thành công (POD)</h3>
                   <p className="text-xs text-gray-500">
@@ -970,7 +862,7 @@ export const DeliveryTripDetailView: React.FC<DeliveryTripDetailViewProps> = ({
             </div>
 
             {/* Form Content */}
-            <div className="py-3.5 space-y-3.5 text-xs max-h-[75vh] overflow-y-auto pr-1">
+            <div className="py-3.5 px-5 sm:px-6 space-y-3.5 text-xs overflow-y-auto flex-1 overscroll-contain">
               {/* 1. Họ tên người nhận & Thời điểm giao thực tế */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
@@ -1017,7 +909,7 @@ export const DeliveryTripDetailView: React.FC<DeliveryTripDetailViewProps> = ({
                       />
                       <div className="flex items-center gap-2.5 mt-2">
                         <span className="text-[11px] text-emerald-700 font-semibold flex items-center gap-1">
-                          ✓ Đã đính kèm ảnh biên bản bàn giao
+                          Đã đính kèm ảnh biên bản bàn giao
                         </span>
                         <button
                           type="button"
@@ -1066,7 +958,7 @@ export const DeliveryTripDetailView: React.FC<DeliveryTripDetailViewProps> = ({
                 <label className="block text-xs font-bold text-gray-700">
                   Rà soát chi tiết hàng hóa thực giao
                 </label>
-                <div className="border border-gray-200 rounded-xl overflow-hidden bg-white max-h-36 overflow-y-auto">
+                <div className="border border-gray-200 rounded-xl overflow-hidden bg-white shadow-2xs">
                   <table className="w-full text-left text-xs border-collapse">
                     <thead className="bg-gray-50 border-b border-gray-200 text-gray-500 font-semibold sticky top-0">
                       <tr>
@@ -1118,7 +1010,7 @@ export const DeliveryTripDetailView: React.FC<DeliveryTripDetailViewProps> = ({
             </div>
 
             {/* Footer Modal */}
-            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-gray-100">
+            <div className="flex items-center justify-end gap-2.5 p-4 sm:p-5 pt-3 border-t border-gray-100 shrink-0 bg-gray-50/50">
               <button
                 type="button"
                 onClick={() => setConfirmDeliveryStopModal(null)}
@@ -1139,17 +1031,18 @@ export const DeliveryTripDetailView: React.FC<DeliveryTripDetailViewProps> = ({
                     <span>Đang lưu POD...</span>
                   </>
                 ) : (
-                  <span>✓ Xác nhận hoàn tất</span>
+                  <span>Xác nhận hoàn tất</span>
                 )}
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* IV. Modal Báo giao thất bại (SCRUM-85) */}
-      {failedModalStop && (
-        <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+      {failedModalStop && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
           <div className="bg-white rounded-2xl w-full max-w-md p-5 sm:p-6 shadow-2xl border border-slate-200 animate-in zoom-in-95 duration-150">
             <div className="flex items-center gap-3 mb-3">
               <div className="w-10 h-10 rounded-full bg-rose-50 border border-rose-200 text-rose-600 flex items-center justify-center shrink-0 font-bold text-lg">
@@ -1241,12 +1134,13 @@ export const DeliveryTripDetailView: React.FC<DeliveryTripDetailViewProps> = ({
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* V. Modal Phóng to xem ảnh biên bản POD (Lightbox) */}
-      {viewingPodModal && (
-        <div className="fixed inset-0 z-70 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-xs animate-in fade-in duration-150">
+      {viewingPodModal && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-xs animate-in fade-in duration-150">
           <div className="bg-slate-900 rounded-2xl w-full max-w-3xl overflow-hidden shadow-2xl border border-slate-800 flex flex-col max-h-[90vh]">
             {/* Header */}
             <div className="p-3 sm:p-4 bg-slate-850 border-b border-slate-800 flex items-center justify-between text-white shrink-0">
@@ -1314,12 +1208,13 @@ export const DeliveryTripDetailView: React.FC<DeliveryTripDetailViewProps> = ({
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* VI. Modal Xác nhận Hoàn tất toàn bộ chuyến giao hàng (Không dùng window.confirm) */}
-      {showCompleteConfirmModal && trip && (
-        <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+      {showCompleteConfirmModal && trip && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
           <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl border border-slate-200 animate-in zoom-in-95 duration-150">
             <div className="flex items-center gap-3 mb-3">
               <div className="w-10 h-10 rounded-full bg-emerald-50 border border-emerald-200 text-[#0fad89] flex items-center justify-center shrink-0">
@@ -1365,17 +1260,13 @@ export const DeliveryTripDetailView: React.FC<DeliveryTripDetailViewProps> = ({
                     <span>Đang hoàn tất...</span>
                   </>
                 ) : (
-                  <>
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-                    </svg>
-                    <span>Xác nhận hoàn tất</span>
-                  </>
+                  <span>Xác nhận hoàn tất</span>
                 )}
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

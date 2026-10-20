@@ -313,7 +313,7 @@ export const DeliveryTrackingView: React.FC<DeliveryTrackingViewProps> = ({
                   <th className="py-3 px-4 bg-slate-50">Thời gian</th>
                   <th className="py-3 px-4 bg-slate-50">Tiến độ điểm giao</th>
                   <th className="py-3 px-4 bg-slate-50">Tiền hàng trên xe</th>
-                  <th className="py-3 px-4 bg-slate-50 text-right whitespace-nowrap">Thao tác</th>
+                  <th className="py-3 px-4 bg-slate-50 text-right whitespace-nowrap w-[135px]">Thao tác</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-sm">
@@ -421,7 +421,7 @@ export const DeliveryTrackingView: React.FC<DeliveryTrackingViewProps> = ({
                         <button
                           type="button"
                           onClick={() => navigate(`/delivery-tracking/${trip.id}`)}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-bold transition-all cursor-pointer border border-emerald-200 shadow-2xs whitespace-nowrap shrink-0"
+                          className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-bold transition-all cursor-pointer border border-emerald-200 shadow-2xs whitespace-nowrap shrink-0"
                         >
                           <span className="whitespace-nowrap">Xem chi tiết</span>
                           <svg className="shrink-0" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
