@@ -47,6 +47,15 @@ export const CreateDeliveryTripView: React.FC<CreateDeliveryTripViewProps> = ({
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [orderSearchTerm, setOrderSearchTerm] = useState<string>('');
 
+  // 3. Phân trang danh sách đơn hàng (mặc định 10 dòng/trang)
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(10);
+
+  // Reset về trang 1 khi thay đổi từ khóa tìm kiếm
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [orderSearchTerm]);
+
   // Kiểm tra quyền hạn
   const isAuthorizedManager = useMemo(() => {
     const allRoles = [...userRoles, userRole].filter(Boolean);
@@ -90,6 +99,39 @@ export const CreateDeliveryTripView: React.FC<CreateDeliveryTripViewProps> = ({
         (o.delivery_point && o.delivery_point.toLowerCase().includes(term))
     );
   }, [readyOrders, orderSearchTerm]);
+
+  // Tính toán phân trang mảng đơn hàng (mặc định 10 đơn hàng/trang)
+  const totalOrders = filteredOrders.length;
+  const totalPages = Math.max(1, Math.ceil(totalOrders / pageSize));
+  const safeCurrentPage = Math.min(Math.max(1, currentPage), totalPages);
+  const startIndex = (safeCurrentPage - 1) * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, totalOrders);
+
+  // Mảng đơn hàng hiển thị trên trang hiện tại
+  const paginatedOrders = useMemo(() => {
+    return filteredOrders.slice(startIndex, endIndex);
+  }, [filteredOrders, startIndex, endIndex]);
+
+  // Danh sách các số trang hiển thị (hỗ trợ ellipsis nếu > 7 trang)
+  const paginationPages = useMemo(() => {
+    if (totalPages <= 7) {
+      return Array.from({ length: totalPages }, (_, i) => i + 1);
+    }
+    const pages: (number | string)[] = [1];
+    if (safeCurrentPage > 3) {
+      pages.push('...');
+    }
+    const start = Math.max(2, safeCurrentPage - 1);
+    const end = Math.min(totalPages - 1, safeCurrentPage + 1);
+    for (let i = start; i <= end; i++) {
+      pages.push(i);
+    }
+    if (safeCurrentPage < totalPages - 2) {
+      pages.push('...');
+    }
+    pages.push(totalPages);
+    return pages;
+  }, [totalPages, safeCurrentPage]);
 
   // Danh sách các đơn đã chọn (tính toán reactive)
   const selectedOrders = useMemo(() => {
@@ -602,7 +644,7 @@ export const CreateDeliveryTripView: React.FC<CreateDeliveryTripViewProps> = ({
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {filteredOrders.map((order, idx) => {
+                      {paginatedOrders.map((order, idx) => {
                         const isSelected = selectedOrderIds.includes(order.id);
 
                         return (
@@ -622,7 +664,7 @@ export const CreateDeliveryTripView: React.FC<CreateDeliveryTripViewProps> = ({
                               />
                             </td>
                             <td className="py-3 px-3.5 text-center text-slate-400 font-medium">
-                              {idx + 1}
+                              {startIndex + idx + 1}
                             </td>
                             <td className="py-3 px-3.5">
                               <span className="font-mono font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200">
@@ -647,14 +689,95 @@ export const CreateDeliveryTripView: React.FC<CreateDeliveryTripViewProps> = ({
                       })}
                       {/* Dòng đệm chân bảng */}
                       <tr className="bg-slate-50/50 border-t border-slate-100">
-                        <td colSpan={6} className="py-3 px-4 text-center text-[11px] text-slate-400 select-none">
-                          — Đã hiển thị toàn bộ {filteredOrders.length} đơn hàng sẵn sàng xuất chuyến —
+                        <td colSpan={6} className="py-2.5 px-4 text-center text-[11px] text-slate-400 select-none">
+                          — Trang {safeCurrentPage} / {totalPages} (Hiển thị {totalOrders === 0 ? 0 : startIndex + 1} - {endIndex} trong {totalOrders} đơn hàng) —
                         </td>
                       </tr>
                     </tbody>
                   </table>
                 )}
               </div>
+
+              {/* Thanh phân trang Pagination UI Chuẩn Enterprise */}
+              {totalOrders > 0 && (
+                <div className="px-4 py-3 bg-white border-t border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs shrink-0 select-none">
+                  {/* Bên trái: Thông tin tổng kết & Chọn pageSize */}
+                  <div className="flex flex-wrap items-center gap-3 text-slate-600">
+                    <span>
+                      Hiển thị <span className="font-bold text-slate-800">{totalOrders === 0 ? 0 : startIndex + 1}</span> -{' '}
+                      <span className="font-bold text-slate-800">{endIndex}</span> trong tổng số{' '}
+                      <span className="font-bold text-slate-800">{totalOrders}</span> đơn hàng
+                    </span>
+
+                    <div className="flex items-center gap-1.5 border-l border-slate-200 pl-3">
+                      <label htmlFor="select-page-size" className="text-slate-500 whitespace-nowrap">
+                        Số dòng:
+                      </label>
+                      <select
+                        id="select-page-size"
+                        value={pageSize}
+                        onChange={(e) => {
+                          setPageSize(Number(e.target.value));
+                          setCurrentPage(1);
+                        }}
+                        className="px-2 py-1 text-xs font-semibold text-slate-700 bg-white border border-slate-300 rounded-md focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 cursor-pointer shadow-2xs"
+                      >
+                        <option value={10}>10 / trang</option>
+                        <option value={20}>20 / trang</option>
+                        <option value={50}>50 / trang</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Bên phải: Nút chuyển trang (Trước, 1, 2, 3..., Sau) */}
+                  {totalPages > 1 && (
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                        disabled={safeCurrentPage === 1}
+                        className="px-2.5 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-md border border-slate-300 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                      >
+                        ‹ Trước
+                      </button>
+
+                      {paginationPages.map((page, pIdx) => {
+                        if (page === '...') {
+                          return (
+                            <span key={`dots-${pIdx}`} className="px-1.5 py-1 text-xs text-slate-400 select-none">
+                              ...
+                            </span>
+                          );
+                        }
+                        const isCurrent = page === safeCurrentPage;
+                        return (
+                          <button
+                            key={page}
+                            type="button"
+                            onClick={() => setCurrentPage(Number(page))}
+                            className={`min-w-[28px] h-7 px-1.5 flex items-center justify-center text-xs rounded-md transition-all border ${
+                              isCurrent
+                                ? 'bg-emerald-600 border-emerald-600 text-white font-bold shadow-xs cursor-default'
+                                : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-100 font-medium cursor-pointer'
+                            }`}
+                          >
+                            {page}
+                          </button>
+                        );
+                      })}
+
+                      <button
+                        type="button"
+                        onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                        disabled={safeCurrentPage === totalPages}
+                        className="px-2.5 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-md border border-slate-300 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                      >
+                        Sau ›
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Dưới đáy bảng: Thống kê số đơn đã chọn và tổng tiền hàng tạm tính */}
               <div className="p-3.5 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs shrink-0">
