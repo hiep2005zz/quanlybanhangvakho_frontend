@@ -1,8 +1,9 @@
 // frontend/src/components/DebtAdjustmentPrintModal.tsx
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { DebtAdjustment, DebtAdjustmentPrintDocument } from '../types/debtAdjustment';
 import { getDebtAdjustmentPrintDocumentApi } from '../services/debtAdjustmentApi';
+import { downloadElementAsPdf } from '../utils/pdfExport';
 import './debt-adjustment-print.css';
 
 interface DebtAdjustmentPrintModalProps {
@@ -25,7 +26,7 @@ const formatDate = (dateStr?: string) => {
   return Number.isNaN(d.getTime()) ? dateStr : d.toLocaleDateString('vi-VN');
 };
 
-// Hàm chuyển số thành chữ tiếng Việt đơn giản cho phiếu kế toán
+// Hàm chuyển số thành chữ tiếng Việt chuẩn kế toán
 function numberToVietnameseWords(num: number): string {
   if (!num || num === 0) return 'Không đồng';
   const units = ['', 'một', 'hai', 'ba', 'bốn', 'năm', 'sáu', 'bảy', 'tám', 'chín'];
@@ -57,11 +58,12 @@ function numberToVietnameseWords(num: number): string {
     return res.trim();
   }
 
-  let n = Math.abs(Math.round(num));
+  const n = Math.abs(Math.round(num));
   const groups: number[] = [];
-  while (n > 0) {
-    groups.push(n % 1000);
-    n = Math.floor(n / 1000);
+  let temp = n;
+  while (temp > 0) {
+    groups.push(temp % 1000);
+    temp = Math.floor(temp / 1000);
   }
 
   const parts: string[] = [];
@@ -87,6 +89,8 @@ export const DebtAdjustmentPrintModal: React.FC<DebtAdjustmentPrintModalProps> =
   const [doc, setDoc] = useState<DebtAdjustmentPrintDocument | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [isExportingPdf, setIsExportingPdf] = useState<boolean>(false);
+  const paperRef = useRef<HTMLDivElement>(null);
   const modalRoot = document.getElementById('modal-root') || document.body;
   const targetId = adjustmentId ?? adjustment?.id;
 
@@ -118,17 +122,269 @@ export const DebtAdjustmentPrintModal: React.FC<DebtAdjustmentPrintModalProps> =
       .finally(() => setLoading(false));
   }, [token, targetId]);
 
-  const handlePrint = () => {
-    const originalTitle = document.title;
-    try {
-      if (doc) {
-        document.title = `Chung_Tu_Giam_No_${doc.adjustment_code}`;
-      }
+  // In chứng từ qua iframe độc lập - Loại bỏ 100% rủi ro in lẫn ứng dụng web hoặc lỗi CSS
+  const executeIframePrint = () => {
+    const paperEl = paperRef.current;
+    if (!paperEl) {
       window.print();
+      return;
+    }
+
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    iframe.style.visibility = 'hidden';
+    iframe.setAttribute('aria-hidden', 'true');
+    document.body.appendChild(iframe);
+
+    const frameDoc = iframe.contentWindow?.document || iframe.contentDocument;
+    if (!frameDoc) {
+      if (document.body.contains(iframe)) document.body.removeChild(iframe);
+      window.print();
+      return;
+    }
+
+    const docTitle = doc ? `Chung_Tu_Giam_No_${doc.adjustment_code}` : 'Chung_Tu_Giam_No';
+    const printStyles = `
+      @page {
+        size: A4 portrait;
+        margin: 10mm 12mm;
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      html, body {
+        width: 100%;
+        background-color: #ffffff;
+        color: #000000;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        font-size: 12px;
+        line-height: 1.45;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+      .debt-adj-paper {
+        width: 100%;
+        max-width: 100%;
+        padding: 0;
+        margin: 0 auto;
+        background: #ffffff;
+        color: #000000;
+      }
+      .debt-adj-doc-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 12px;
+        border-bottom: 1.5px solid #0f172a;
+        padding-bottom: 8px;
+      }
+      .debt-adj-company-info h3 {
+        font-size: 13px;
+        font-weight: 800;
+        text-transform: uppercase;
+        color: #0f172a;
+        margin-bottom: 3px;
+        letter-spacing: -0.01em;
+      }
+      .debt-adj-company-info p {
+        font-size: 10.5px;
+        color: #334155;
+        margin: 1px 0;
+        line-height: 1.35;
+      }
+      .debt-adj-meta-box {
+        text-align: right;
+        font-size: 11px;
+      }
+      .debt-adj-meta-box .code {
+        font-size: 13px;
+        font-weight: 800;
+        color: #0f172a;
+      }
+      .debt-adj-title-section {
+        text-align: center;
+        margin: 10px 0 14px 0;
+      }
+      .debt-adj-title-section h1 {
+        font-size: 18px;
+        font-weight: 900;
+        color: #0f172a;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 3px;
+      }
+      .debt-adj-title-section p {
+        font-size: 11px;
+        color: #475569;
+        font-style: italic;
+      }
+      .debt-adj-info-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 6px 16px;
+        margin-bottom: 12px;
+        font-size: 11.5px;
+        background-color: #f8fafc;
+        padding: 8px 12px;
+        border-radius: 4px;
+        border: 1px solid #cbd5e1;
+      }
+      .debt-adj-info-item {
+        display: flex;
+        gap: 8px;
+      }
+      .debt-adj-info-item .label {
+        width: 140px;
+        font-weight: 600;
+        color: #475569;
+        flex-shrink: 0;
+      }
+      .debt-adj-info-item .value {
+        color: #0f172a;
+        font-weight: 600;
+      }
+      .debt-adj-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 8px 0 10px 0;
+        font-size: 11px;
+      }
+      .debt-adj-table th, .debt-adj-table td {
+        border: 1px solid #94a3b8;
+        padding: 5px 8px;
+      }
+      .debt-adj-table th {
+        background-color: #f1f5f9;
+        font-weight: 700;
+        color: #0f172a;
+        text-align: center;
+      }
+      .debt-adj-totals {
+        margin-top: 8px;
+        font-size: 11.5px;
+        page-break-inside: avoid;
+        break-inside: avoid;
+      }
+      .debt-adj-total-row {
+        display: flex;
+        justify-content: flex-end;
+        gap: 16px;
+        padding: 2px 0;
+      }
+      .debt-adj-grand-total {
+        font-weight: 800;
+        font-size: 13px;
+        color: #0f172a;
+        border-top: 1.5px solid #0f172a;
+        padding-top: 4px;
+        margin-top: 2px;
+      }
+      .debt-adj-in-words {
+        font-style: italic;
+        color: #1e293b;
+        margin: 6px 0 8px 0;
+        font-size: 11.5px;
+        page-break-inside: avoid;
+        break-inside: avoid;
+      }
+      .debt-adj-note-box {
+        font-size: 10.5px;
+        color: #475569;
+        margin-bottom: 12px;
+        padding: 6px 10px;
+        background-color: #f8fafc;
+        border: 1px dashed #cbd5e1;
+        border-radius: 4px;
+        page-break-inside: avoid;
+        break-inside: avoid;
+      }
+      .debt-adj-signatures {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 10px;
+        text-align: center;
+        margin-top: 14px;
+        page-break-inside: avoid;
+        break-inside: avoid;
+      }
+      .debt-adj-sig-box h4 {
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        color: #0f172a;
+        margin-bottom: 2px;
+      }
+      .debt-adj-sig-box p {
+        font-size: 10px;
+        color: #64748b;
+        font-style: italic;
+        margin-bottom: 45px;
+      }
+      .debt-adj-sig-box .name {
+        font-size: 11.5px;
+        font-weight: 700;
+        color: #0f172a;
+      }
+    `;
+
+    frameDoc.open();
+    frameDoc.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <title>${docTitle}</title>
+          <style>${printStyles}</style>
+        </head>
+        <body>
+          <div class="debt-adj-paper">
+            ${paperEl.innerHTML}
+          </div>
+        </body>
+      </html>
+    `);
+    frameDoc.close();
+
+    setTimeout(() => {
+      try {
+        iframe.contentWindow?.focus();
+        iframe.contentWindow?.print();
+      } catch (err) {
+        console.error('Lỗi khi in qua iframe:', err);
+        window.print();
+      } finally {
+        setTimeout(() => {
+          if (document.body.contains(iframe)) {
+            document.body.removeChild(iframe);
+          }
+        }, 1500);
+      }
+    }, 200);
+  };
+
+  // Tải file PDF trực tiếp về máy tính
+  const handleDownloadPdf = async () => {
+    const paperEl = paperRef.current;
+    if (!paperEl || isExportingPdf) return;
+    try {
+      setIsExportingPdf(true);
+      const fileName = doc?.adjustment_code
+        ? `Chung_Tu_Giam_No_${doc.adjustment_code}.pdf`
+        : 'Chung_Tu_Giam_No.pdf';
+      await downloadElementAsPdf(paperEl, fileName);
+    } catch (err) {
+      console.error('Lỗi khi xuất file PDF:', err);
+      // Fallback: nếu html2canvas lỗi, chuyển sang mở hộp thoại in
+      executeIframePrint();
     } finally {
-      setTimeout(() => {
-        document.title = originalTitle;
-      }, 1000);
+      setIsExportingPdf(false);
     }
   };
 
@@ -162,7 +418,7 @@ export const DebtAdjustmentPrintModal: React.FC<DebtAdjustmentPrintModalProps> =
   }
 
   const renderDocument = () => (
-    <div className="debt-adj-paper">
+    <div className="debt-adj-paper" ref={paperRef}>
       {/* 1. Header Công ty & Số Chứng Từ */}
       <div className="debt-adj-doc-header">
         <div className="debt-adj-company-info">
@@ -260,7 +516,7 @@ export const DebtAdjustmentPrintModal: React.FC<DebtAdjustmentPrintModalProps> =
         <strong>Số tiền viết bằng chữ:</strong> {numberToVietnameseWords(doc.financials.total_adjusted_amount)}
       </div>
 
-      <div className="text-xs text-gray-500 mb-4 p-2.5 bg-slate-50 border border-slate-200 rounded">
+      <div className="debt-adj-note-box">
         <strong>Ghi chú kế toán:</strong> Hóa đơn gốc {doc.references.original_invoice_code} bảo toàn tổng giá trị xuất bán ban đầu. Số dư còn nợ của hóa đơn này sau khi giảm trừ còn lại: <strong>{formatCurrency(doc.references.invoice_remaining_debt_after)}</strong>.
       </div>
 
@@ -269,7 +525,7 @@ export const DebtAdjustmentPrintModal: React.FC<DebtAdjustmentPrintModalProps> =
         <div className="debt-adj-sig-box">
           <h4>Người Lập Biểu</h4>
           <p>Ký, họ tên</p>
-          <div className="name">{doc.created_by_name}</div>
+          <div className="name">{doc.created_by_name || 'Người lập'}</div>
         </div>
         <div className="debt-adj-sig-box">
           <h4>Kế Toán Trưởng</h4>
@@ -307,21 +563,38 @@ export const DebtAdjustmentPrintModal: React.FC<DebtAdjustmentPrintModalProps> =
           <div className="debt-adj-print-actions">
             <button
               type="button"
-              onClick={handlePrint}
-              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md text-xs font-semibold flex items-center gap-1.5 shadow-sm border-0 cursor-pointer"
+              onClick={executeIframePrint}
+              className="px-3.5 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-md text-xs font-semibold flex items-center gap-1.5 shadow-sm border-0 cursor-pointer transition-colors"
+              title="In trực tiếp ra máy in hoặc Lưu dưới dạng PDF qua trình duyệt"
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <polyline points="6 9 6 2 18 2 18 9" />
                 <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
                 <rect x="6" y="14" width="12" height="8" />
               </svg>
-              <span>In / Tải PDF</span>
+              <span>In chứng từ</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleDownloadPdf}
+              disabled={isExportingPdf}
+              className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md text-xs font-semibold flex items-center gap-1.5 shadow-sm border-0 cursor-pointer disabled:opacity-50 transition-colors"
+              title="Tải tệp PDF sắc nét trực tiếp về máy tính"
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
+                <line x1="12" y1="18" x2="12" y2="12" />
+                <line x1="9" y1="15" x2="15" y2="15" />
+              </svg>
+              <span>{isExportingPdf ? 'Đang tạo PDF...' : 'Tải PDF'}</span>
             </button>
 
             <button
               type="button"
               onClick={onClose}
-              className="px-3.5 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md text-xs font-semibold border-0 cursor-pointer"
+              className="px-3.5 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md text-xs font-semibold border-0 cursor-pointer transition-colors"
             >
               Đóng
             </button>
