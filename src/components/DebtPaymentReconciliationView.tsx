@@ -538,6 +538,21 @@ export const DebtPaymentReconciliationView: React.FC<DebtPaymentReconciliationVi
     return map;
   }, [fifoPreview]);
 
+  // Phân trang danh sách hoá đơn đối trừ (ảnh 5)
+  const [invoicePage, setInvoicePage] = useState<number>(1);
+  const [invoicePageSize, setInvoicePageSize] = useState<number>(5);
+
+  useEffect(() => {
+    setInvoicePage(1);
+  }, [selectedDealerId]);
+
+  const totalInvoicePages = Math.max(1, Math.ceil(invoices.length / invoicePageSize));
+  const safeInvoicePage = Math.min(Math.max(1, invoicePage), totalInvoicePages);
+  const paginatedInvoices = useMemo(() => {
+    const start = (safeInvoicePage - 1) * invoicePageSize;
+    return invoices.slice(start, start + invoicePageSize);
+  }, [invoices, safeInvoicePage, invoicePageSize]);
+
   return (
     <div className="debt-payment-container">
       {/* HEADER SECTION - Đã khôi phục 2 tab, không dùng icon và không có nút về trang chủ */}
@@ -592,10 +607,55 @@ export const DebtPaymentReconciliationView: React.FC<DebtPaymentReconciliationVi
 
       {activeTab === 'record' ? (
         <>
-          {/* DEALER SELECTOR & SUMMARY CARDS */}
-          <div className="debt-panel" style={{ padding: '12px 16px', marginBottom: '12px' }}>
-            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: '1 1 380px', maxWidth: '520px' }}>
+          {/* ẢNH 2: 3 THẺ TỔNG HỢP CÔNG NỢ ĐƯA LÊN ĐẦU */}
+          <div className="debt-summary-grid">
+            <div className="debt-summary-card card-indigo">
+              <div className="debt-card-header">
+                <span className="debt-card-title">Tổng phát sinh phải thu</span>
+              </div>
+              <div className="debt-card-value">{formatVND(dealerSummary?.total_receivable)}</div>
+              <div className="debt-card-sub">Tổng giá trị tất cả hoá đơn đã phát hành</div>
+            </div>
+
+            <div className="debt-summary-card card-emerald">
+              <div className="debt-card-header">
+                <span className="debt-card-title">Tổng tiền đã thu</span>
+              </div>
+              <div className="debt-card-value">{formatVND(dealerSummary?.total_paid)}</div>
+              <div className="debt-card-sub">Đã thanh toán thực tế vào tài khoản / quỹ</div>
+            </div>
+
+            <div className="debt-summary-card card-rose">
+              <div className="debt-card-header">
+                <span className="debt-card-title">Tổng công nợ còn lại</span>
+              </div>
+              <div className="debt-card-value" style={{ color: '#e11d48' }}>
+                {formatVND(dealerSummary?.total_remaining_debt)}
+              </div>
+              <div className="debt-card-sub">
+                {dealerSummary?.open_invoices_count || 0} hoá đơn chưa thanh toán hết{' '}
+                {dealerSummary?.overdue_invoices_count ? `(${dealerSummary.overdue_invoices_count} quá hạn)` : ''}
+              </div>
+            </div>
+          </div>
+
+          {/* FORM GHI NHẬN THANH TOÁN (ẢNH 3 GỘP VÀO ẢNH 4 THÀNH 1 BẢNG) */}
+          <form onSubmit={handleSubmitPayment} noValidate>
+            <div className="debt-panel">
+              <div className="debt-panel-header">
+                <div className="debt-panel-title">
+                  <span>1. Thông tin khoản thanh toán / Phiếu thu</span>
+                </div>
+                {numAmount > 0 && (
+                  <span style={{ fontSize: '13px', fontStyle: 'italic', color: '#475569' }}>
+                    {convertNumberToVietnameseWords(numAmount)}
+                  </span>
+                )}
+              </div>
+
+              {/* ẢNH 3: KHU VỰC CHỌN ĐẠI LÝ / KHÁCH HÀNG (GỘP VÀO TRONG BẢNG THÔNG TIN PHIẾU THU) */}
+              <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '12px', padding: '10px 14px', marginBottom: '16px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: '1 1 380px', maxWidth: '520px' }}>
                 <label
                   htmlFor="dealer-dropdown-trigger"
                   style={{ fontSize: '13px', fontWeight: '700', color: '#1e293b', whiteSpace: 'nowrap' }}
@@ -993,53 +1053,6 @@ export const DebtPaymentReconciliationView: React.FC<DebtPaymentReconciliationVi
                   )}
                 </div>
               )}
-            </div>
-          </div>
-
-          {/* 3 SUMMARY CARDS - Không icon */}
-          <div className="debt-summary-grid">
-            <div className="debt-summary-card card-indigo">
-              <div className="debt-card-header">
-                <span className="debt-card-title">Tổng phát sinh phải thu</span>
-              </div>
-              <div className="debt-card-value">{formatVND(dealerSummary?.total_receivable)}</div>
-              <div className="debt-card-sub">Tổng giá trị tất cả hoá đơn đã phát hành</div>
-            </div>
-
-            <div className="debt-summary-card card-emerald">
-              <div className="debt-card-header">
-                <span className="debt-card-title">Tổng tiền đã thu</span>
-              </div>
-              <div className="debt-card-value">{formatVND(dealerSummary?.total_paid)}</div>
-              <div className="debt-card-sub">Đã thanh toán thực tế vào tài khoản / quỹ</div>
-            </div>
-
-            <div className="debt-summary-card card-rose">
-              <div className="debt-card-header">
-                <span className="debt-card-title">Tổng công nợ còn lại</span>
-              </div>
-              <div className="debt-card-value" style={{ color: '#e11d48' }}>
-                {formatVND(dealerSummary?.total_remaining_debt)}
-              </div>
-              <div className="debt-card-sub">
-                {dealerSummary?.open_invoices_count || 0} hoá đơn chưa thanh toán hết{' '}
-                {dealerSummary?.overdue_invoices_count ? `(${dealerSummary.overdue_invoices_count} quá hạn)` : ''}
-              </div>
-            </div>
-          </div>
-
-          {/* FORM GHI NHẬN THANH TOÁN */}
-          <form onSubmit={handleSubmitPayment} noValidate>
-            <div className="debt-panel">
-              <div className="debt-panel-header">
-                <div className="debt-panel-title">
-                  <span>1. Thông tin khoản thanh toán / Phiếu thu</span>
-                </div>
-                {numAmount > 0 && (
-                  <span style={{ fontSize: '13px', fontStyle: 'italic', color: '#475569' }}>
-                    {convertNumberToVietnameseWords(numAmount)}
-                  </span>
-                )}
               </div>
 
               {/* Alert lỗi vượt hạn mức - Không dùng icon */}
@@ -1241,7 +1254,8 @@ export const DebtPaymentReconciliationView: React.FC<DebtPaymentReconciliationVi
                     Đại lý này hiện không có hoá đơn nào trong hệ thống.
                   </div>
                 ) : (
-                  <div className="debt-table-wrapper">
+                  <>
+                    <div className="debt-table-wrapper">
                     <table className="debt-table">
                       <thead>
                         <tr>
@@ -1258,7 +1272,7 @@ export const DebtPaymentReconciliationView: React.FC<DebtPaymentReconciliationVi
                         </tr>
                       </thead>
                       <tbody>
-                        {invoices.map((inv) => {
+                        {paginatedInvoices.map((inv) => {
                           const fifoItem = fifoMap.get(inv.id);
                           const manualAllocVal = manualAllocations[inv.id] || 0;
                           const isAllocated = allocationMode === 'AUTO_FIFO' ? Boolean(fifoItem) : manualAllocVal > 0;
@@ -1322,22 +1336,6 @@ export const DebtPaymentReconciliationView: React.FC<DebtPaymentReconciliationVi
                                 >
                                   {inv.status_label}
                                 </span>
-                                {isRecentlyPaid && (
-                                  <span
-                                    style={{
-                                      marginLeft: '6px',
-                                      fontSize: '11px',
-                                      color: '#15803d',
-                                      fontWeight: '700',
-                                      background: '#dcfce7',
-                                      padding: '2px 6px',
-                                      borderRadius: '4px',
-                                      display: 'inline-block',
-                                    }}
-                                  >
-                                    ✓ Vừa thu tiền
-                                  </span>
-                                )}
                               </td>
 
                               {/* Cột Trừ đợt này */}
@@ -1404,6 +1402,150 @@ export const DebtPaymentReconciliationView: React.FC<DebtPaymentReconciliationVi
                       </tbody>
                     </table>
                   </div>
+
+                  {/* Phân trang danh sách hoá đơn (ảnh 5) */}
+                  {invoices.length > 0 && (
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '10px 14px',
+                        borderTop: '1px solid #f1f5f9',
+                        background: '#f8fafc',
+                        borderRadius: '0 0 10px 10px',
+                        flexWrap: 'wrap',
+                        gap: '8px',
+                      }}
+                    >
+                      <div style={{ fontSize: '12.5px', color: '#64748b' }}>
+                        Hiển thị{' '}
+                        <strong style={{ color: '#0f172a' }}>
+                          {(safeInvoicePage - 1) * invoicePageSize + 1} -{' '}
+                          {Math.min(safeInvoicePage * invoicePageSize, invoices.length)}
+                        </strong>{' '}
+                        / <strong style={{ color: '#0f172a' }}>{invoices.length}</strong> hoá đơn
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', color: '#64748b' }}>
+                          <span>Hiển thị:</span>
+                          <select
+                            value={invoicePageSize}
+                            onChange={(e) => {
+                              setInvoicePageSize(Number(e.target.value));
+                              setInvoicePage(1);
+                            }}
+                            style={{
+                              padding: '2px 8px',
+                              borderRadius: '4px',
+                              border: '1px solid #cbd5e1',
+                              background: '#ffffff',
+                              fontSize: '12px',
+                              color: '#334155',
+                              cursor: 'pointer',
+                              outline: 'none',
+                            }}
+                          >
+                            <option value={3}>3 / trang</option>
+                            <option value={5}>5 / trang</option>
+                            <option value={10}>10 / trang</option>
+                            <option value={20}>20 / trang</option>
+                          </select>
+                        </div>
+
+                        {/* Nút bấm chuyển trang */}
+                        <div
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            border: '1px solid #cbd5e1',
+                            borderRadius: '6px',
+                            overflow: 'hidden',
+                            background: '#ffffff',
+                            boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+                            height: '28px',
+                          }}
+                        >
+                          <button
+                            type="button"
+                            disabled={safeInvoicePage <= 1}
+                            onClick={() => setInvoicePage((p) => Math.max(1, p - 1))}
+                            style={{
+                              minWidth: '28px',
+                              height: '100%',
+                              padding: '0 6px',
+                              border: 'none',
+                              borderRight: '1px solid #e2e8f0',
+                              background: '#ffffff',
+                              color: safeInvoicePage <= 1 ? '#cbd5e1' : '#475569',
+                              cursor: safeInvoicePage <= 1 ? 'not-allowed' : 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                            }}
+                            title="Trang trước"
+                          >
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="15 18 9 12 15 6" />
+                            </svg>
+                          </button>
+
+                          {Array.from({ length: totalInvoicePages }, (_, i) => i + 1).map((p) => {
+                            const isActive = p === safeInvoicePage;
+                            return (
+                              <button
+                                key={p}
+                                type="button"
+                                onClick={() => setInvoicePage(p)}
+                                style={{
+                                  minWidth: '26px',
+                                  height: '100%',
+                                  padding: '0 8px',
+                                  border: 'none',
+                                  borderRight: p === totalInvoicePages ? 'none' : '1px solid #e2e8f0',
+                                  background: isActive ? '#059669' : '#ffffff',
+                                  color: isActive ? '#ffffff' : '#334155',
+                                  cursor: isActive ? 'default' : 'pointer',
+                                  fontSize: '12px',
+                                  fontWeight: isActive ? '700' : '500',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                }}
+                              >
+                                {p}
+                              </button>
+                            );
+                          })}
+
+                          <button
+                            type="button"
+                            disabled={safeInvoicePage >= totalInvoicePages}
+                            onClick={() => setInvoicePage((p) => Math.min(totalInvoicePages, p + 1))}
+                            style={{
+                              minWidth: '28px',
+                              height: '100%',
+                              padding: '0 6px',
+                              border: 'none',
+                              background: '#ffffff',
+                              color: safeInvoicePage >= totalInvoicePages ? '#cbd5e1' : '#475569',
+                              cursor: safeInvoicePage >= totalInvoicePages ? 'not-allowed' : 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                            }}
+                            title="Trang sau"
+                          >
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="9 18 15 12 9 6" />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  </>
                 )}
               </div>
 

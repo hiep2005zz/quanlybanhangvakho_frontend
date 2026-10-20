@@ -960,7 +960,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                               width: '38px',
                               height: '38px',
                               borderRadius: '10px',
-                              background: u.avatar_url ? '#f1f5f9' : (u.badge_color ? `linear-gradient(135deg, ${u.badge_color} 0%, #2563eb 100%)` : '#2563eb'),
+                              background: u.badge_color ? `linear-gradient(135deg, ${u.badge_color} 0%, #2563eb 100%)` : '#2563eb',
                               color: '#ffffff',
                               display: 'flex',
                               alignItems: 'center',
@@ -971,16 +971,19 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                               boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
                               border: '1px solid rgba(255, 255, 255, 0.4)',
                               overflow: 'hidden',
+                              position: 'relative',
                               transition: 'transform 0.15s ease',
                             }}>
-                              {u.avatar_url ? (
+                              {(u.full_name ? u.full_name.charAt(0).toUpperCase() : u.username.charAt(0).toUpperCase())}
+                              {u.avatar_url && (
                                 <img
                                   src={getAvatarUrl(u.avatar_url)}
-                                  alt={u.full_name || u.username}
-                                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                  alt=""
+                                  onError={(e) => {
+                                    e.currentTarget.style.display = 'none';
+                                  }}
+                                  style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }}
                                 />
-                              ) : (
-                                (u.full_name ? u.full_name.charAt(0).toUpperCase() : u.username.charAt(0).toUpperCase())
                               )}
                             </div>
                             <div>

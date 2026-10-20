@@ -112,7 +112,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
   const [openActionDropdownCode, setOpenActionDropdownCode] = useState<string | null>(null);
   const dropdownCloseTimerRef = useRef<any>(null);
 
-  // Tự động đóng menu trạng thái khi nhấn chuột ra ngoài
+  // Tự động đóng menu trạng thái khi nhấn chuột ra ngoài hoặc ấn ESC
   useEffect(() => {
     const handleDocumentClick = (event: MouseEvent) => {
       const target = event.target as HTMLElement | null;
@@ -120,31 +120,22 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
         setOpenActionDropdownCode(null);
       }
     };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setOpenActionDropdownCode(null);
+      }
+    };
     document.addEventListener('mousedown', handleDocumentClick);
+    document.addEventListener('keydown', handleKeyDown);
     return () => {
       document.removeEventListener('mousedown', handleDocumentClick);
+      document.removeEventListener('keydown', handleKeyDown);
       if (dropdownCloseTimerRef.current) {
         clearTimeout(dropdownCloseTimerRef.current);
       }
     };
   }, []);
 
-  const handleDropdownOpen = (orderCode: string) => {
-    if (dropdownCloseTimerRef.current) {
-      clearTimeout(dropdownCloseTimerRef.current);
-      dropdownCloseTimerRef.current = null;
-    }
-    setOpenActionDropdownCode(orderCode);
-  };
-
-  const handleDropdownCloseWithDelay = () => {
-    if (dropdownCloseTimerRef.current) {
-      clearTimeout(dropdownCloseTimerRef.current);
-    }
-    dropdownCloseTimerRef.current = setTimeout(() => {
-      setOpenActionDropdownCode(null);
-    }, 280);
-  };
 
   const handleDropdownToggle = (e: React.MouseEvent, orderCode: string) => {
     e.stopPropagation();
@@ -642,7 +633,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
     );
   };
 
-  const renderOrderActions = (order: OrderResponseData) => {
+  const renderOrderActions = (order: OrderResponseData, idx?: number) => {
     const isPending = order.status === 'PENDING_APPROVAL';
     const isApprovedOrConfirmed = ['CONFIRMED', 'APPROVED'].includes(order.status);
     const isDropdownOpen = openActionDropdownCode === order.order_code;
@@ -655,321 +646,276 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
       isOrderCancelable(order.status) &&
       (isCustomer ? ['PENDING_APPROVAL', 'PENDING', 'DRAFT'].includes(order.status) : isFullAccess);
 
-    // Dropdown thao tác duyệt chỉ hiển thị khi đơn chờ duyệt và có quyền duyệt (Duyệt, Từ chối)
-    // Khi đơn đã duyệt: Bỏ menu Thao tác, thay bằng nút Hủy trực tiếp
-    const showApprovalDropdown = !isCustomer && !isApprovedOrConfirmed && canApprove;
-
-    // Hiển thị nút Hủy trực tiếp khi có quyền hủy và:
-    // 1. Đơn đã duyệt (isApprovedOrConfirmed)
-    // 2. Hoặc đơn không có menu dropdown duyệt (isCustomer hoặc nhân viên không có quyền duyệt)
-    const showDirectCancel = canCancel && (!showApprovalDropdown || isApprovedOrConfirmed);
+    const showApprovalActions = !isCustomer && !isApprovedOrConfirmed && canApprove;
+    const openUpward = typeof idx === 'number' && paginatedOrders.length > 2 && idx >= paginatedOrders.length - 2;
 
     return (
-      <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', gap: '5px', whiteSpace: 'nowrap' }}>
-        {/* Menu Thao tác Duyệt Dropdown khi đơn chờ duyệt và có quyền duyệt */}
-        {showApprovalDropdown && (
-          <div
-            className="order-action-dropdown-container order-status-dropdown-details relative inline-block text-left"
-            style={{ position: 'relative', display: 'inline-block' }}
-            onMouseEnter={() => handleDropdownOpen(order.order_code)}
-            onMouseLeave={handleDropdownCloseWithDelay}
-          >
-            <button
-              type="button"
-              id={`btn-status-dropdown-${order.order_code}`}
-              onClick={(e) => handleDropdownToggle(e, order.order_code)}
-              style={{
-                listStyle: 'none',
-                padding: '4px 8px',
-                background: isDropdownOpen ? '#15803d' : '#16a34a',
-                border: 'none',
-                borderRadius: '6px',
-                color: '#ffffff',
-                fontSize: '12px',
-                fontWeight: '600',
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '4px',
-                height: '28px',
-                boxSizing: 'border-box',
-                userSelect: 'none',
-                outline: 'none',
-                transition: 'all 0.15s ease',
-                boxShadow: isDropdownOpen ? '0 0 0 2px rgba(22, 163, 74, 0.35)' : 'none',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = '#15803d';
-              }}
-              onMouseLeave={(e) => {
-                if (!isDropdownOpen) {
-                  e.currentTarget.style.background = '#16a34a';
-                }
-              }}
-            >
-              <span>Thao tác duyệt</span>
-              <span
-                style={{
-                  fontSize: '9px',
-                  display: 'inline-block',
-                  transform: isDropdownOpen ? 'rotate(180deg)' : 'none',
-                  transition: 'transform 0.15s ease',
-                }}
-              >
-                ▼
-              </span>
-            </button>
-
-            {/* Menu Dropdown mượt mà */}
-            {isDropdownOpen && (
-              <div
-                style={{
-                  position: 'absolute',
-                  right: 0,
-                  top: '100%',
-                  paddingTop: '4px',
-                  zIndex: 100,
-                  minWidth: '140px',
-                }}
-                onMouseEnter={() => handleDropdownOpen(order.order_code)}
-                onMouseLeave={handleDropdownCloseWithDelay}
-              >
-                <div
-                  style={{
-                    background: '#ffffff',
-                    border: '1px solid #e2e8f0',
-                    borderRadius: '8px',
-                    boxShadow: '0 10px 25px -3px rgba(0, 0, 0, 0.15), 0 4px 6px -4px rgba(0, 0, 0, 0.1)',
-                    padding: '5px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '2px',
-                  }}
-                >
-                  {/* Duyệt đơn */}
-                  <button
-                    type="button"
-                    id={`btn-approve-order-${order.order_code}`}
-                    onClick={() => {
-                      setOpenActionDropdownCode(null);
-                      setApprovingOrder(order);
-                    }}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '7px',
-                      width: '100%',
-                      padding: '7px 12px',
-                      borderRadius: '6px',
-                      border: 'none',
-                      background: 'transparent',
-                      color: '#16a34a',
-                      fontSize: '12.5px',
-                      fontWeight: '600',
-                      textAlign: 'left',
-                      cursor: 'pointer',
-                      whiteSpace: 'nowrap',
-                      transition: 'all 0.15s ease',
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = '#f0fdf4';
-                      e.currentTarget.style.color = '#15803d';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = 'transparent';
-                      e.currentTarget.style.color = '#16a34a';
-                    }}
-                  >
-                    <span style={{ fontSize: '13px', lineHeight: 1 }}>✓</span>
-                    <span>Duyệt đơn</span>
-                  </button>
-
-                  {/* Từ chối */}
-                  <button
-                    type="button"
-                    id={`btn-reject-order-${order.order_code}`}
-                    onClick={() => {
-                      setOpenActionDropdownCode(null);
-                      setRejectingOrder(order);
-                    }}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '7px',
-                      width: '100%',
-                      padding: '7px 12px',
-                      borderRadius: '6px',
-                      border: 'none',
-                      background: 'transparent',
-                      color: '#dc2626',
-                      fontSize: '12.5px',
-                      fontWeight: '600',
-                      textAlign: 'left',
-                      cursor: 'pointer',
-                      whiteSpace: 'nowrap',
-                      transition: 'all 0.15s ease',
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = '#fef2f2';
-                      e.currentTarget.style.color = '#b91c1c';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = 'transparent';
-                      e.currentTarget.style.color = '#dc2626';
-                    }}
-                  >
-                    <span style={{ fontSize: '12px', lineHeight: 1 }}>✕</span>
-                    <span>Từ chối</span>
-                  </button>
-
-                  {/* Trả lại sửa */}
-                  <button
-                    type="button"
-                    id={`btn-return-order-${order.order_code}`}
-                    onClick={() => {
-                      setOpenActionDropdownCode(null);
-                      setReturningOrder(order);
-                    }}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '7px',
-                      width: '100%',
-                      padding: '7px 12px',
-                      borderRadius: '6px',
-                      border: 'none',
-                      background: 'transparent',
-                      color: '#d97706',
-                      fontSize: '12.5px',
-                      fontWeight: '600',
-                      textAlign: 'left',
-                      cursor: 'pointer',
-                      whiteSpace: 'nowrap',
-                      transition: 'all 0.15s ease',
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = '#fffbeb';
-                      e.currentTarget.style.color = '#b45309';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = 'transparent';
-                      e.currentTarget.style.color = '#d97706';
-                    }}
-                  >
-                    <span style={{ fontSize: '13px', lineHeight: 1 }}>↩</span>
-                    <span>Trả lại sửa</span>
-                  </button>
-
-
-                  {/* Hủy đơn trong dropdown */}
-                  {canCancel && (
-                    <button
-                      type="button"
-                      id={`btn-dropdown-cancel-order-${order.order_code}`}
-                      onClick={() => {
-                        setOpenActionDropdownCode(null);
-                        setCancellingOrder(order);
-                      }}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '7px',
-                        width: '100%',
-                        padding: '7px 12px',
-                        borderRadius: '6px',
-                        border: 'none',
-                        background: 'transparent',
-                        color: '#ea580c',
-                        fontSize: '12.5px',
-                        fontWeight: '600',
-                        textAlign: 'left',
-                        cursor: 'pointer',
-                        whiteSpace: 'nowrap',
-                        transition: 'all 0.15s ease',
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.background = '#fff7ed';
-                        e.currentTarget.style.color = '#c2410c';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.background = 'transparent';
-                        e.currentTarget.style.color = '#ea580c';
-                      }}
-                    >
-                      <span style={{ fontSize: '12px', lineHeight: 1 }}>⊘</span>
-                      <span>Hủy đơn</span>
-                    </button>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Nút Hủy hiển thị trực tiếp khi đã duyệt (hoặc khi không có menu duyệt mà có quyền hủy) */}
-        {showDirectCancel && (
-          <button
-            type="button"
-            id={`btn-cancel-order-${order.order_code}`}
-            onClick={() => setCancellingOrder(order)}
-            style={{
-              padding: '4px 10px',
-              background: '#fff1f2',
-              border: '1px solid #fecdd3',
-              borderRadius: '6px',
-              color: '#e11d48',
-              fontSize: '12px',
-              fontWeight: '600',
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '4px',
-              height: '28px',
-              boxSizing: 'border-box',
-              transition: 'all 0.15s ease',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = '#ffe4e6';
-              e.currentTarget.style.color = '#be123c';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = '#fff1f2';
-              e.currentTarget.style.color = '#e11d48';
-            }}
-            title="Hủy đơn hàng này"
-          >
-            Hủy
-          </button>
-        )}
-
-        <Link
-          to={`/orders/${order.order_code}`}
+      <div
+        className="order-action-dropdown-container"
+        style={{ position: 'relative', display: 'inline-block' }}
+      >
+        <button
+          type="button"
+          id={`btn-order-actions-${order.order_code}`}
+          onClick={(e) => handleDropdownToggle(e, order.order_code)}
+          title="Tùy chọn thao tác"
+          aria-label="Thao tác"
           style={{
-            padding: '5px 10px',
-            background: '#f1f5f9',
-            border: '1px solid #cbd5e1',
-            borderRadius: '6px',
-            color: '#334155',
-            fontSize: '12px',
-            fontWeight: '600',
+            width: '32px',
+            height: '32px',
+            borderRadius: '8px',
+            border: isDropdownOpen ? '1.5px solid #0fad89' : '1px solid #cbd5e1',
+            background: isDropdownOpen ? '#f0fdf4' : '#ffffff',
+            color: isDropdownOpen ? '#0fad89' : '#64748b',
             cursor: 'pointer',
-            whiteSpace: 'nowrap',
             display: 'inline-flex',
             alignItems: 'center',
             justifyContent: 'center',
-            height: '28px',
-            boxSizing: 'border-box',
             transition: 'all 0.15s ease',
-            textDecoration: 'none',
+            boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
+            boxSizing: 'border-box',
           }}
-          title="Xem trang chi tiết đơn hàng"
+          onMouseEnter={(e) => {
+            if (!isDropdownOpen) {
+              e.currentTarget.style.background = '#f8fafc';
+              e.currentTarget.style.color = '#0f172a';
+              e.currentTarget.style.borderColor = '#94a3b8';
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (!isDropdownOpen) {
+              e.currentTarget.style.background = '#ffffff';
+              e.currentTarget.style.color = '#64748b';
+              e.currentTarget.style.borderColor = '#cbd5e1';
+            }
+          }}
         >
-          Chi tiết
-        </Link>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+            <circle cx="12" cy="5" r="2.2" />
+            <circle cx="12" cy="12" r="2.2" />
+            <circle cx="12" cy="19" r="2.2" />
+          </svg>
+        </button>
+
+        {isDropdownOpen && (
+          <div
+            style={{
+              position: 'absolute',
+              right: 0,
+              ...(openUpward
+                ? { bottom: 'calc(100% + 6px)' }
+                : { top: 'calc(100% + 6px)' }),
+              background: '#ffffff',
+              border: '1px solid #e2e8f0',
+              borderRadius: '10px',
+              boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.08)',
+              minWidth: '160px',
+              zIndex: 9999,
+              padding: '6px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '2px',
+              textAlign: 'left',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* 1. Xem Chi Tiết */}
+            <Link
+              to={`/orders/${order.order_code}`}
+              onClick={() => setOpenActionDropdownCode(null)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                width: '100%',
+                padding: '7px 10px',
+                borderRadius: '6px',
+                color: '#334155',
+                fontSize: '12.5px',
+                fontWeight: '600',
+                textDecoration: 'none',
+                boxSizing: 'border-box',
+                transition: 'all 0.15s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = '#f1f5f9';
+                e.currentTarget.style.color = '#0f172a';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'transparent';
+                e.currentTarget.style.color = '#334155';
+              }}
+              title="Xem trang chi tiết đơn hàng"
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+              <span>Chi tiết</span>
+            </Link>
+
+            {/* 2. Thao tác Duyệt (Duyệt đơn, Từ chối, Trả lại sửa) */}
+            {showApprovalActions && (
+              <>
+                <button
+                  type="button"
+                  id={`btn-approve-order-${order.order_code}`}
+                  onClick={() => {
+                    setOpenActionDropdownCode(null);
+                    setApprovingOrder(order);
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    width: '100%',
+                    padding: '7px 10px',
+                    borderRadius: '6px',
+                    border: 'none',
+                    background: 'transparent',
+                    color: '#16a34a',
+                    fontSize: '12.5px',
+                    fontWeight: '600',
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                    transition: 'all 0.15s ease',
+                    boxSizing: 'border-box',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = '#f0fdf4';
+                    e.currentTarget.style.color = '#15803d';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'transparent';
+                    e.currentTarget.style.color = '#16a34a';
+                  }}
+                >
+                  <span style={{ fontSize: '14px', lineHeight: 1 }}>✓</span>
+                  <span>Duyệt đơn</span>
+                </button>
+
+                <button
+                  type="button"
+                  id={`btn-reject-order-${order.order_code}`}
+                  onClick={() => {
+                    setOpenActionDropdownCode(null);
+                    setRejectingOrder(order);
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    width: '100%',
+                    padding: '7px 10px',
+                    borderRadius: '6px',
+                    border: 'none',
+                    background: 'transparent',
+                    color: '#dc2626',
+                    fontSize: '12.5px',
+                    fontWeight: '600',
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                    transition: 'all 0.15s ease',
+                    boxSizing: 'border-box',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = '#fef2f2';
+                    e.currentTarget.style.color = '#b91c1c';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'transparent';
+                    e.currentTarget.style.color = '#dc2626';
+                  }}
+                >
+                  <span style={{ fontSize: '13px', lineHeight: 1 }}>✕</span>
+                  <span>Từ chối</span>
+                </button>
+
+                <button
+                  type="button"
+                  id={`btn-return-order-${order.order_code}`}
+                  onClick={() => {
+                    setOpenActionDropdownCode(null);
+                    setReturningOrder(order);
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    width: '100%',
+                    padding: '7px 10px',
+                    borderRadius: '6px',
+                    border: 'none',
+                    background: 'transparent',
+                    color: '#d97706',
+                    fontSize: '12.5px',
+                    fontWeight: '600',
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                    transition: 'all 0.15s ease',
+                    boxSizing: 'border-box',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = '#fffbeb';
+                    e.currentTarget.style.color = '#b45309';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'transparent';
+                    e.currentTarget.style.color = '#d97706';
+                  }}
+                >
+                  <span style={{ fontSize: '13px', lineHeight: 1 }}>↩</span>
+                  <span>Trả lại sửa</span>
+                </button>
+              </>
+            )}
+
+            {/* 3. Hủy đơn */}
+            {canCancel && (
+              <button
+                type="button"
+                id={`btn-cancel-order-${order.order_code}`}
+                onClick={() => {
+                  setOpenActionDropdownCode(null);
+                  setCancellingOrder(order);
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  width: '100%',
+                  padding: '7px 10px',
+                  borderRadius: '6px',
+                  border: 'none',
+                  background: 'transparent',
+                  color: '#e11d48',
+                  fontSize: '12.5px',
+                  fontWeight: '600',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                  transition: 'all 0.15s ease',
+                  boxSizing: 'border-box',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = '#fff1f2';
+                  e.currentTarget.style.color = '#be123c';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'transparent';
+                  e.currentTarget.style.color = '#e11d48';
+                }}
+                title="Hủy đơn hàng này"
+              >
+                <span style={{ fontSize: '13px', lineHeight: 1 }}>⊘</span>
+                <span>Hủy đơn</span>
+              </button>
+            )}
+          </div>
+        )}
       </div>
     );
   };
@@ -1030,45 +976,45 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
       </div>
 
       {/* Thẻ thống kê */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3 md:gap-4 mb-3 sm:mb-4 shrink-0">
-        <div className="bg-white border border-slate-200 rounded-xl p-2.5 sm:p-3.5 md:p-4 shadow-xs">
-          <div className="text-xs sm:text-[13px] text-slate-500 font-semibold truncate">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-2.5 md:gap-3 mb-2.5 sm:mb-3 shrink-0">
+        <div className="bg-white border border-slate-200 rounded-lg px-3 py-2 sm:px-3.5 sm:py-2.5 shadow-2xs">
+          <div className="text-[11.5px] sm:text-xs text-slate-500 font-semibold truncate">
             {isCustomer ? 'Đơn hàng của tôi' : 'Tổng số đơn hàng'}
           </div>
-          <div className="text-lg sm:text-xl md:text-2xl font-extrabold text-slate-900 mt-0.5 sm:mt-1">{totalOrdersCount} đơn</div>
-          <div className="text-[11px] sm:text-xs text-slate-400 mt-0.5 truncate hidden sm:block">
+          <div className="text-base sm:text-lg md:text-xl font-extrabold text-slate-900 mt-0.5 leading-tight">{totalOrdersCount} đơn</div>
+          <div className="text-[10.5px] sm:text-[11px] text-slate-400 mt-0.5 truncate hidden sm:block">
             {isCustomer ? 'Toàn bộ đơn đặt hàng của đại lý' : 'Toàn bộ đơn hàng trên hệ thống'}
           </div>
         </div>
 
-        <div id="stat-card-pending-orders" className="bg-amber-50/80 border border-amber-200 rounded-xl p-2.5 sm:p-3.5 md:p-4 shadow-xs">
-          <div className="text-xs sm:text-[13px] text-amber-700 font-bold truncate">
+        <div id="stat-card-pending-orders" className="bg-amber-50/80 border border-amber-200 rounded-lg px-3 py-2 sm:px-3.5 sm:py-2.5 shadow-2xs">
+          <div className="text-[11.5px] sm:text-xs text-amber-700 font-bold truncate">
             {isCustomer ? 'Đang chờ xử lý' : 'Đơn chờ quản lý duyệt'}
           </div>
-          <div className="text-lg sm:text-xl md:text-2xl font-extrabold text-amber-700 mt-0.5 sm:mt-1">{pendingOrdersCount} đơn</div>
-          <div className="text-[11px] sm:text-xs text-amber-600 mt-0.5 truncate hidden sm:block">
+          <div className="text-base sm:text-lg md:text-xl font-extrabold text-amber-700 mt-0.5 leading-tight">{pendingOrdersCount} đơn</div>
+          <div className="text-[10.5px] sm:text-[11px] text-amber-600 mt-0.5 truncate hidden sm:block">
             {isCustomer ? 'Đơn đặt hàng đang chờ duyệt' : 'Bán dưới giá sàn cần phê duyệt'}
           </div>
         </div>
 
-        <div className="bg-emerald-50/80 border border-emerald-200 rounded-xl p-2.5 sm:p-3.5 md:p-4 shadow-xs">
-          <div className="text-xs sm:text-[13px] text-emerald-700 font-bold truncate">
+        <div className="bg-emerald-50/80 border border-emerald-200 rounded-lg px-3 py-2 sm:px-3.5 sm:py-2.5 shadow-2xs">
+          <div className="text-[11.5px] sm:text-xs text-emerald-700 font-bold truncate">
             {isCustomer ? 'Đang giao & Vận chuyển' : 'Đơn đã xác nhận'}
           </div>
-          <div className="text-lg sm:text-xl md:text-2xl font-extrabold text-emerald-700 mt-0.5 sm:mt-1">{confirmedOrdersCount} đơn</div>
-          <div className="text-[11px] sm:text-xs text-emerald-600 mt-0.5 truncate hidden sm:block">
+          <div className="text-base sm:text-lg md:text-xl font-extrabold text-emerald-700 mt-0.5 leading-tight">{confirmedOrdersCount} đơn</div>
+          <div className="text-[10.5px] sm:text-[11px] text-emerald-600 mt-0.5 truncate hidden sm:block">
             {isCustomer ? 'Đang chuẩn bị hàng và vận chuyển' : 'Đủ điều kiện xuất kho bán hàng'}
           </div>
         </div>
 
-        <div className={`border rounded-xl p-2.5 sm:p-3.5 md:p-4 shadow-xs ${isCustomer ? 'bg-blue-50/80 border-blue-200' : 'bg-white border-slate-200'}`}>
-          <div className={`text-xs sm:text-[13px] truncate ${isCustomer ? 'text-blue-700 font-bold' : 'text-slate-500 font-semibold'}`}>
+        <div className={`border rounded-lg px-3 py-2 sm:px-3.5 sm:py-2.5 shadow-2xs ${isCustomer ? 'bg-blue-50/80 border-blue-200' : 'bg-white border-slate-200'}`}>
+          <div className={`text-[11.5px] sm:text-xs truncate ${isCustomer ? 'text-blue-700 font-bold' : 'text-slate-500 font-semibold'}`}>
             {isCustomer ? 'Đã giao thành công' : 'Tổng doanh thu bán hàng'}
           </div>
-          <div className={`text-base sm:text-lg md:text-2xl font-extrabold mt-0.5 sm:mt-1 truncate ${isCustomer ? 'text-blue-700' : 'text-blue-600'}`}>
+          <div className={`text-sm sm:text-base md:text-xl font-extrabold mt-0.5 truncate leading-tight ${isCustomer ? 'text-blue-700' : 'text-blue-600'}`}>
             {isCustomer ? `${deliveredOrdersCount} đơn` : `${totalRevenue.toLocaleString('vi-VN')} đ`}
           </div>
-          <div className="text-[11px] sm:text-xs text-slate-400 mt-0.5 truncate hidden sm:block">
+          <div className="text-[10.5px] sm:text-[11px] text-slate-400 mt-0.5 truncate hidden sm:block">
             {isCustomer ? `Tổng tiền mua: ${totalRevenue.toLocaleString('vi-VN')} đ` : 'Giá trị lũy kế các đơn hàng'}
           </div>
         </div>
@@ -1521,7 +1467,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                       className="flex items-center justify-end gap-2 pt-1.5 border-t border-slate-100"
                       style={{ position: 'relative', zIndex: openActionDropdownCode === order.order_code ? 35 : 'auto' }}
                     >
-                      {renderOrderActions(order)}
+                      {renderOrderActions(order, idx)}
                     </div>
                   </div>
                 );
@@ -1547,7 +1493,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                     <th style={{ padding: '9px 12px', fontWeight: '700', textAlign: 'right', background: '#f8fafc', whiteSpace: 'nowrap' }}>Tổng Giá Trị</th>
                     <th style={{ padding: '9px 12px', fontWeight: '700', textAlign: 'center', background: '#f8fafc', whiteSpace: 'nowrap', minWidth: '155px' }}>Trạng Thái Duyệt</th>
                     <th style={{ padding: '9px 12px', fontWeight: '700', background: '#f8fafc' }}>Lý Do Cảnh Báo</th>
-                    <th style={{ padding: '9px 14px', fontWeight: '700', textAlign: 'right', background: '#f8fafc', whiteSpace: 'nowrap', minWidth: '220px' }}>Thao Tác</th>
+                    <th style={{ padding: '9px 12px', fontWeight: '700', textAlign: 'center', background: '#f8fafc', whiteSpace: 'nowrap', width: '90px' }}>Thao Tác</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1578,12 +1524,16 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
 
                         <td style={{ padding: '9px 12px' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                            <span style={{ fontWeight: '600', color: '#0f172a', fontSize: '12.5px', lineHeight: '1.3' }}>{order.dealer_name}</span>
+                            <span style={{ fontWeight: '600', color: '#0f172a', fontSize: '12.5px', lineHeight: '1.3' }}>
+                              {order.dealer_name || (order.dealer_id ? `Đại lý #${order.dealer_id}` : 'Khách hàng')}
+                            </span>
                             {Boolean(
                               order.dealer_status &&
                               (order.dealer_status.toLowerCase().includes('khóa') ||
+                               order.dealer_status.toLowerCase().includes('khoá') ||
                                order.dealer_status.toLowerCase().includes('lock') ||
-                               order.dealer_status.toLowerCase().includes('ngừng'))
+                               order.dealer_status.toLowerCase().includes('ngừng') ||
+                               order.dealer_status.includes('Đ?'))
                             ) && (
                               <span
                                 style={{
@@ -1697,8 +1647,8 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                           })()}
                         </td>
 
-                        <td style={{ padding: '9px 14px', textAlign: 'right', whiteSpace: 'nowrap', position: 'relative', zIndex: openActionDropdownCode === order.order_code ? 40 : 'auto' }}>
-                          {renderOrderActions(order)}
+                        <td style={{ padding: '7px 12px', textAlign: 'center', whiteSpace: 'nowrap', position: 'relative', zIndex: openActionDropdownCode === order.order_code ? 40 : 'auto' }}>
+                          {renderOrderActions(order, idx)}
                         </td>
                       </tr>
                     );

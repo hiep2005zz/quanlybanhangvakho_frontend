@@ -357,9 +357,6 @@ export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
           <h1 style={{ fontSize: '22px', fontWeight: '800', color: '#0f172a', margin: 0, letterSpacing: '-0.02em' }}>
             Hàng Tồn Kho Theo Kho & SKU
           </h1>
-          <div style={{ fontSize: '12.5px', color: '#64748b', marginTop: '2px' }}>
-            Theo dõi tồn kho thực tế, tồn khả dụng và lịch sử biến động Thẻ kho
-          </div>
         </div>
 
         {/* Nút Chuyển sang Trang Điều chỉnh tồn kho: Hiển thị cho Admin, Quản lý kho và Thủ kho */}
@@ -483,281 +480,6 @@ export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
         </div>
       </div>
 
-      {/* Thanh bộ lọc dữ liệu */}
-      <div
-        style={{
-          backgroundColor: '#ffffff',
-          borderRadius: '10px',
-          padding: '10px 16px',
-          border: '1px solid #e2e8f0',
-          marginBottom: '12px',
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: '12px',
-          alignItems: 'center',
-          boxShadow: '0 1px 2px rgba(0,0,0,0.02)',
-          flexShrink: 0,
-        }}
-      >
-        {/* 1. Lọc theo Kho */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', minWidth: '180px', flex: '1 1 180px' }}>
-          <label style={{ fontSize: '11.5px', fontWeight: '700', color: '#475569' }}>
-            Kho lưu trữ
-          </label>
-          <select
-            value={selectedWarehouse}
-            onChange={(e) => {
-              setSelectedWarehouse(e.target.value);
-              setCurrentPage(1);
-            }}
-            style={{
-              padding: '7px 10px',
-              borderRadius: '8px',
-              border: '1px solid #cbd5e1',
-              fontSize: '13px',
-              color: '#1e293b',
-              backgroundColor: '#f8fafc',
-              outline: 'none',
-              cursor: 'pointer',
-            }}
-          >
-            <option value="all">Tất cả các kho</option>
-            {warehouses.map((w) => (
-              <option key={w.warehouse_id} value={w.warehouse_id}>
-                {w.warehouse_name} ({w.warehouse_id})
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* 2. Lọc theo Nhóm ngành hàng */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', minWidth: '160px', flex: '1 1 160px' }}>
-          <label style={{ fontSize: '11.5px', fontWeight: '700', color: '#475569' }}>
-            Nhóm hàng / Ngành hàng
-          </label>
-          <select
-            value={selectedCategory}
-            onChange={(e) => {
-              setSelectedCategory(e.target.value);
-              setCurrentPage(1);
-            }}
-            style={{
-              padding: '7px 10px',
-              borderRadius: '8px',
-              border: '1px solid #cbd5e1',
-              fontSize: '13px',
-              color: '#1e293b',
-              backgroundColor: '#f8fafc',
-              outline: 'none',
-              cursor: 'pointer',
-            }}
-          >
-            <option value="all">Tất cả ngành hàng</option>
-            {categories.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* 3. Lọc theo Trạng thái tồn */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', minWidth: '180px', flex: '1 1 180px' }}>
-          <label style={{ fontSize: '11.5px', fontWeight: '700', color: '#475569' }}>
-            Trạng thái tồn kho
-          </label>
-          <select
-            value={selectedStatus}
-            onChange={(e) => {
-              setSelectedStatus(e.target.value);
-              setCurrentPage(1);
-            }}
-            style={{
-              padding: '7px 10px',
-              borderRadius: '8px',
-              border: '1px solid #cbd5e1',
-              fontSize: '13px',
-              color: '#1e293b',
-              backgroundColor: '#f8fafc',
-              outline: 'none',
-              cursor: 'pointer',
-            }}
-          >
-            <option value="all">Tất cả trạng thái</option>
-            <option value="available">Còn hàng (Khả dụng &gt; 0)</option>
-            <option value="low_stock">Thiếu hàng (Dưới định mức)</option>
-            <option value="out_of_stock">Hết hàng bán (Khả dụng = 0)</option>
-          </select>
-        </div>
-
-        {/* 4. Tìm kiếm SKU hoặc Tên sản phẩm */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', minWidth: '220px', flex: '2 1 220px' }}>
-          <label style={{ fontSize: '11.5px', fontWeight: '700', color: '#475569' }}>
-            Tìm kiếm mã SKU / Tên sản phẩm
-          </label>
-          <div style={{ position: 'relative' }}>
-            <input
-              type="text"
-              placeholder="Nhập mã SP (SP001, ...) hoặc tên..."
-              value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value);
-                setCurrentPage(1);
-              }}
-              style={{
-                width: '100%',
-                padding: '7px 10px 7px 32px',
-                borderRadius: '8px',
-                border: '1px solid #cbd5e1',
-                fontSize: '13px',
-                color: '#1e293b',
-                backgroundColor: '#f8fafc',
-                outline: 'none',
-                boxSizing: 'border-box',
-              }}
-            />
-            <svg
-              width="15"
-              height="15"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="#94a3b8"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              style={{ position: 'absolute', left: '9px', top: '9px' }}
-            >
-              <circle cx="11" cy="11" r="8" />
-              <line x1="21" y1="21" x2="16.65" y2="16.65" />
-            </svg>
-            {searchTerm && (
-              <button
-                type="button"
-                onClick={() => {
-                  setSearchTerm('');
-                  setCurrentPage(1);
-                }}
-                style={{
-                  position: 'absolute',
-                  right: '8px',
-                  top: '7px',
-                  background: 'none',
-                  border: 'none',
-                  color: '#94a3b8',
-                  cursor: 'pointer',
-                  fontSize: '13px',
-                }}
-              >
-                ✕
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Nút Làm mới & Xuất Excel */}
-        <div style={{ alignSelf: 'flex-end', display: 'flex', gap: '8px' }}>
-          <button
-            type="button"
-            onClick={() => loadStockBook(true)}
-            disabled={isRefreshing}
-            style={{
-              padding: '0 16px',
-              height: '35px',
-              backgroundColor: '#2563eb',
-              color: '#ffffff',
-              border: 'none',
-              borderRadius: '8px',
-              fontSize: '13px',
-              fontWeight: '600',
-              cursor: isRefreshing ? 'not-allowed' : 'pointer',
-              opacity: isRefreshing ? 0.7 : 1,
-              boxShadow: '0 2px 4px rgba(37,99,235,0.2)',
-              transition: 'background-color 0.15s ease',
-              whiteSpace: 'nowrap',
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            {isRefreshing ? 'Đang cập nhật...' : 'Làm mới'}
-          </button>
-
-          {canExportExcel && (
-            <button
-              id="btn-export-stock-book-excel"
-              type="button"
-              onClick={handleExportExcel}
-              disabled={isExporting}
-              title="Xuất báo cáo tồn kho ra file Excel theo bộ lọc hiện tại (Dành cho Quản lý kho & Admin)"
-              style={{
-                padding: '0 16px',
-                height: '35px',
-                backgroundColor: '#16a34a',
-                color: '#ffffff',
-                border: 'none',
-                borderRadius: '8px',
-                fontSize: '13px',
-                fontWeight: '600',
-                cursor: isExporting ? 'not-allowed' : 'pointer',
-                opacity: isExporting ? 0.7 : 1,
-                boxShadow: '0 2px 4px rgba(22,163,74,0.2)',
-                transition: 'background-color 0.15s ease',
-                whiteSpace: 'nowrap',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                justifyContent: 'center',
-              }}
-            >
-              <svg
-                width="15"
-                height="15"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                <polyline points="7 10 12 15 17 10" />
-                <line x1="12" y1="15" x2="12" y2="3" />
-              </svg>
-              {isExporting ? 'Đang xuất Excel...' : 'Xuất Excel'}
-            </button>
-          )}
-        </div>
-
-        {/* Nút đặt lại bộ lọc */}
-        {(selectedWarehouse !== 'all' || selectedCategory !== 'all' || selectedStatus !== 'all' || searchTerm !== '') && (
-          <div style={{ alignSelf: 'flex-end', paddingBottom: '2px' }}>
-            <button
-              type="button"
-              onClick={() => {
-                setSelectedWarehouse('all');
-                setSelectedCategory('all');
-                setSelectedStatus('all');
-                setSearchTerm('');
-                setDebouncedSearch('');
-                setCurrentPage(1);
-              }}
-              style={{
-                padding: '7px 12px',
-                backgroundColor: '#f1f5f9',
-                border: '1px solid #cbd5e1',
-                borderRadius: '8px',
-                fontSize: '12px',
-                color: '#64748b',
-                fontWeight: '600',
-                cursor: 'pointer',
-              }}
-            >
-              Xóa lọc
-            </button>
-          </div>
-        )}
-      </div>
-
       {/* Thông báo lỗi nếu có */}
       {error && (
         <div
@@ -784,7 +506,7 @@ export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
         </div>
       )}
 
-      {/* Bảng Sổ tồn kho chi tiết */}
+      {/* Bảng Sổ tồn kho chi tiết (ĐÃ GỘP BỘ LỌC VÀO CHUNG BẢNG) */}
       <div
         style={{
           backgroundColor: '#ffffff',
@@ -798,6 +520,278 @@ export const WarehouseStockBookView: React.FC<WarehouseStockBookViewProps> = ({
           overflow: 'hidden',
         }}
       >
+        {/* Thanh bộ lọc dữ liệu (Gộp trên đỉnh bảng) */}
+        <div
+          style={{
+            backgroundColor: '#ffffff',
+            padding: '10px 16px',
+            borderBottom: '1px solid #e2e8f0',
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: '12px',
+            alignItems: 'center',
+            flexShrink: 0,
+          }}
+        >
+          {/* 1. Tìm kiếm SKU hoặc Tên sản phẩm */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', minWidth: '220px', flex: '2 1 220px' }}>
+            <label style={{ fontSize: '11.5px', fontWeight: '700', color: '#475569' }}>
+              Tìm kiếm mã SKU / Tên sản phẩm
+            </label>
+            <div style={{ position: 'relative' }}>
+              <input
+                type="text"
+                placeholder="Nhập mã SP (SP001, ...) hoặc tên..."
+                value={searchTerm}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setCurrentPage(1);
+                }}
+                style={{
+                  width: '100%',
+                  padding: '7px 10px 7px 32px',
+                  borderRadius: '8px',
+                  border: '1px solid #cbd5e1',
+                  fontSize: '13px',
+                  color: '#1e293b',
+                  backgroundColor: '#f8fafc',
+                  outline: 'none',
+                  boxSizing: 'border-box',
+                }}
+              />
+              <svg
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="#94a3b8"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                style={{ position: 'absolute', left: '9px', top: '9px' }}
+              >
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+              {searchTerm && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchTerm('');
+                    setCurrentPage(1);
+                  }}
+                  style={{
+                    position: 'absolute',
+                    right: '8px',
+                    top: '7px',
+                    background: 'none',
+                    border: 'none',
+                    color: '#94a3b8',
+                    cursor: 'pointer',
+                    fontSize: '13px',
+                  }}
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* 2. Lọc theo Kho */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', minWidth: '180px', flex: '1 1 180px' }}>
+            <label style={{ fontSize: '11.5px', fontWeight: '700', color: '#475569' }}>
+              Kho lưu trữ
+            </label>
+            <select
+              value={selectedWarehouse}
+              onChange={(e) => {
+                setSelectedWarehouse(e.target.value);
+                setCurrentPage(1);
+              }}
+              style={{
+                padding: '7px 10px',
+                borderRadius: '8px',
+                border: '1px solid #cbd5e1',
+                fontSize: '13px',
+                color: '#1e293b',
+                backgroundColor: '#f8fafc',
+                outline: 'none',
+                cursor: 'pointer',
+              }}
+            >
+              <option value="all">Tất cả các kho</option>
+              {warehouses.map((w) => (
+                <option key={w.warehouse_id} value={w.warehouse_id}>
+                  {w.warehouse_name} ({w.warehouse_id})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* 3. Lọc theo Nhóm ngành hàng */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', minWidth: '160px', flex: '1 1 160px' }}>
+            <label style={{ fontSize: '11.5px', fontWeight: '700', color: '#475569' }}>
+              Nhóm hàng / Ngành hàng
+            </label>
+            <select
+              value={selectedCategory}
+              onChange={(e) => {
+                setSelectedCategory(e.target.value);
+                setCurrentPage(1);
+              }}
+              style={{
+                padding: '7px 10px',
+                borderRadius: '8px',
+                border: '1px solid #cbd5e1',
+                fontSize: '13px',
+                color: '#1e293b',
+                backgroundColor: '#f8fafc',
+                outline: 'none',
+                cursor: 'pointer',
+              }}
+            >
+              <option value="all">Tất cả ngành hàng</option>
+              {categories.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* 4. Lọc theo Trạng thái tồn */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', minWidth: '180px', flex: '1 1 180px' }}>
+            <label style={{ fontSize: '11.5px', fontWeight: '700', color: '#475569' }}>
+              Trạng thái tồn kho
+            </label>
+            <select
+              value={selectedStatus}
+              onChange={(e) => {
+                setSelectedStatus(e.target.value);
+                setCurrentPage(1);
+              }}
+              style={{
+                padding: '7px 10px',
+                borderRadius: '8px',
+                border: '1px solid #cbd5e1',
+                fontSize: '13px',
+                color: '#1e293b',
+                backgroundColor: '#f8fafc',
+                outline: 'none',
+                cursor: 'pointer',
+              }}
+            >
+              <option value="all">Tất cả trạng thái</option>
+              <option value="available">Còn hàng (Khả dụng &gt; 0)</option>
+              <option value="low_stock">Thiếu hàng (Dưới định mức)</option>
+              <option value="out_of_stock">Hết hàng bán (Khả dụng = 0)</option>
+            </select>
+          </div>
+
+          {/* Nút Làm mới & Xuất Excel */}
+          <div style={{ alignSelf: 'flex-end', display: 'flex', gap: '8px' }}>
+            <button
+              type="button"
+              onClick={() => loadStockBook(true)}
+              disabled={isRefreshing}
+              style={{
+                padding: '0 16px',
+                height: '35px',
+                backgroundColor: '#2563eb',
+                color: '#ffffff',
+                border: 'none',
+                borderRadius: '8px',
+                fontSize: '13px',
+                fontWeight: '600',
+                cursor: isRefreshing ? 'not-allowed' : 'pointer',
+                opacity: isRefreshing ? 0.7 : 1,
+                boxShadow: '0 2px 4px rgba(37,99,235,0.2)',
+                transition: 'background-color 0.15s ease',
+                whiteSpace: 'nowrap',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              {isRefreshing ? 'Đang cập nhật...' : 'Làm mới'}
+            </button>
+
+            {canExportExcel && (
+              <button
+                id="btn-export-stock-book-excel"
+                type="button"
+                onClick={handleExportExcel}
+                disabled={isExporting}
+                title="Xuất báo cáo tồn kho ra file Excel theo bộ lọc hiện tại (Dành cho Quản lý kho & Admin)"
+                style={{
+                  padding: '0 16px',
+                  height: '35px',
+                  backgroundColor: '#16a34a',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontSize: '13px',
+                  fontWeight: '600',
+                  cursor: isExporting ? 'not-allowed' : 'pointer',
+                  opacity: isExporting ? 0.7 : 1,
+                  boxShadow: '0 2px 4px rgba(22,163,74,0.2)',
+                  transition: 'background-color 0.15s ease',
+                  whiteSpace: 'nowrap',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  justifyContent: 'center',
+                }}
+              >
+                <svg
+                  width="15"
+                  height="15"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+                {isExporting ? 'Đang xuất Excel...' : 'Xuất Excel'}
+              </button>
+            )}
+          </div>
+
+          {/* Nút đặt lại bộ lọc */}
+          {(selectedWarehouse !== 'all' || selectedCategory !== 'all' || selectedStatus !== 'all' || searchTerm !== '') && (
+            <div style={{ alignSelf: 'flex-end', paddingBottom: '2px' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedWarehouse('all');
+                  setSelectedCategory('all');
+                  setSelectedStatus('all');
+                  setSearchTerm('');
+                  setDebouncedSearch('');
+                  setCurrentPage(1);
+                }}
+                style={{
+                  padding: '7px 12px',
+                  backgroundColor: '#f1f5f9',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: '8px',
+                  fontSize: '12px',
+                  color: '#64748b',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                }}
+              >
+                Xóa lọc
+              </button>
+            </div>
+          )}
+        </div>
+
         <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'auto' }}>
           <table style={{ width: '100%', minWidth: '1060px', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13.5px' }}>
             <thead style={{ position: 'sticky', top: 0, zIndex: 10 }}>

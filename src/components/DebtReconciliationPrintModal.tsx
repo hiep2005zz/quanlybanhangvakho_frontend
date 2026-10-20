@@ -396,9 +396,7 @@ export const DebtReconciliationPrintModal: React.FC<DebtReconciliationPrintModal
               <div style={{ fontWeight: 'bold', textTransform: 'uppercase' }}>ĐẠI DIỆN BÊN B</div>
               <div style={{ fontSize: '12px', fontStyle: 'italic' }}>(Ký, ghi rõ họ tên và đóng dấu)</div>
 
-              <div style={{ height: '90px' }} />
-
-              <div style={{ fontWeight: 'bold', marginTop: '6px' }}>{reconciliation.dealer_name}</div>
+              <div style={{ height: '100px' }} />
             </div>
 
             {/* Đại diện bên A */}
@@ -406,9 +404,7 @@ export const DebtReconciliationPrintModal: React.FC<DebtReconciliationPrintModal
               <div style={{ fontWeight: 'bold', textTransform: 'uppercase' }}>ĐẠI DIỆN BÊN A</div>
               <div style={{ fontSize: '12px', fontStyle: 'italic' }}>(Kế toán công nợ / Giám đốc ký)</div>
 
-              <div style={{ height: '90px' }} />
-
-              <div style={{ fontWeight: 'bold', marginTop: '6px' }}>{companyInfo.representative}</div>
+              <div style={{ height: '100px' }} />
             </div>
           </div>
         </div>

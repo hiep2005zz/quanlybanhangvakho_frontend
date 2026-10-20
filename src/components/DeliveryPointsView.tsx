@@ -54,6 +54,8 @@ export default function DeliveryPointsView({
   const [allPoints, setAllPoints] = useState<AllDeliveryPointItem[]>([]);
   const [loadingAllPoints, setLoadingAllPoints] = useState(false);
   const [allPointsSearch, setAllPointsSearch] = useState('');
+  const [allPointsPage, setAllPointsPage] = useState<number>(1);
+  const allPointsPageSize = 20;
 
   // Modal: Chọn điểm giao có sẵn cho đại lý
   const [isSelectPointModalOpen, setIsSelectPointModalOpen] = useState(false);
@@ -86,6 +88,30 @@ export default function DeliveryPointsView({
   const [isEditingMaster, setIsEditingMaster] = useState(false);
   const [deletingMasterPoint, setDeletingMasterPoint] = useState<AllDeliveryPointItem | null>(null);
   const [isDeletingMaster, setIsDeletingMaster] = useState(false);
+
+  // Dropdown menu 3 chấm Thao tác trong bảng toàn bộ điểm giao
+  const [activeDropdownMasterPointId, setActiveDropdownMasterPointId] = useState<number | null>(null);
+
+  // Đóng dropdown khi click ra ngoài hoặc bấm Escape
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('.delivery-point-action-dropdown-container')) {
+        setActiveDropdownMasterPointId(null);
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setActiveDropdownMasterPointId(null);
+      }
+    };
+    window.addEventListener('click', handleOutsideClick);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('click', handleOutsideClick);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
 
   // Load dealers
   const loadDealers = useCallback(async () => {
@@ -190,6 +216,36 @@ export default function DeliveryPointsView({
     );
   }, [allPoints, allPointsSearch]);
 
+  const allPointsTotalPages = Math.ceil(filteredAllPoints.length / allPointsPageSize) || 1;
+
+  const paginatedAllPoints = useMemo(() => {
+    const startIndex = (allPointsPage - 1) * allPointsPageSize;
+    return filteredAllPoints.slice(startIndex, startIndex + allPointsPageSize);
+  }, [filteredAllPoints, allPointsPage]);
+
+  useEffect(() => {
+    setAllPointsPage(1);
+  }, [allPointsSearch]);
+
+  useEffect(() => {
+    if (allPointsPage > allPointsTotalPages && allPointsTotalPages > 0) {
+      setAllPointsPage(1);
+    }
+  }, [allPointsTotalPages, allPointsPage]);
+
+  const getAllPointsPaginationList = (current: number, total: number): (number | '...')[] => {
+    if (total <= 5) {
+      return Array.from({ length: total }, (_, i) => i + 1);
+    }
+    if (current <= 2) {
+      return [1, 2, '...', total];
+    }
+    if (current >= total - 1) {
+      return [1, '...', total - 1, total];
+    }
+    return [1, '...', current, '...', total];
+  };
+
   // Danh sách các điểm giao có sẵn (lọc trùng theo label + address) để chọn cho đại lý
   const availablePointsToSelect = useMemo(() => {
     const q = selectPointSearch.trim().toLowerCase();
@@ -281,6 +337,15 @@ export default function DeliveryPointsView({
   // Bỏ chọn điểm giao khỏi đại lý đang chọn
   const handleDeselectPointFromDealer = async (item: AllDeliveryPointItem, assignedId: number) => {
     if (!selectedDealerId) return;
+    const assigned = points.find((p) => p.id === assignedId);
+    if (assigned && assigned.is_default) {
+      emitStatusToast({
+        title: 'Không thể bỏ chọn',
+        message: 'Điểm giao hàng mặc định của đại lý không thể xóa hoặc bỏ chọn. Vui lòng thiết lập điểm giao khác làm mặc định trước.',
+        type: 'warning',
+      });
+      return;
+    }
     setDeselectingPointId(item.id);
     try {
       await deleteDeliveryPointApi(token, selectedDealerId, assignedId);
@@ -509,6 +574,15 @@ export default function DeliveryPointsView({
   // Delete from dealer (only unlinks from dealer, does NOT remove from master list)
   const handleDelete = async () => {
     if (!deletingPoint) return;
+    if (deletingPoint.is_default) {
+      emitStatusToast({
+        title: 'Không thể xóa',
+        message: 'Điểm giao hàng mặc định của đại lý không thể xóa. Vui lòng thiết lập điểm giao khác làm mặc định trước khi xóa.',
+        type: 'warning',
+      });
+      setDeletingPoint(null);
+      return;
+    }
     const targetDealerId = deletingPoint.dealer_id || selectedDealerId;
     if (!targetDealerId) return;
     const targetPointId = deletingPoint.id;
@@ -1192,10 +1266,6 @@ export default function DeliveryPointsView({
                   Xóa tìm kiếm
                 </button>
               )}
-
-              <div style={{ marginLeft: 'auto', fontSize: '13px', color: '#64748b' }}>
-                Tìm thấy <strong>{filteredAllPoints.length}</strong> / <strong>{allPoints.length}</strong> điểm giao
-              </div>
             </div>
 
             {/* Table Container */}
@@ -1230,11 +1300,12 @@ export default function DeliveryPointsView({
                       <th style={{ padding: '12px 16px', width: '25%' }}>Tên điểm giao</th>
                       <th style={{ padding: '12px 16px', width: '35%' }}>Địa chỉ nhận</th>
                       <th style={{ padding: '12px 16px', width: '22%' }}>Người nhận / SĐT</th>
-                      <th style={{ padding: '12px 16px', width: '150px', textAlign: 'center' }}>Thao tác</th>
+                      <th style={{ padding: '12px 16px', width: '80px', textAlign: 'center' }}>Thao tác</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredAllPoints.map((item, idx) => {
+                    {paginatedAllPoints.map((item, idx) => {
+                      const globalIdx = (allPointsPage - 1) * allPointsPageSize + idx + 1;
                       const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(item.address)}`;
                       return (
                         <tr
@@ -1248,7 +1319,7 @@ export default function DeliveryPointsView({
                         >
                           {/* STT */}
                           <td style={{ padding: '14px 16px', verticalAlign: 'top', textAlign: 'center', color: '#94a3b8', fontWeight: '500' }}>
-                            {idx + 1}
+                            {globalIdx}
                           </td>
 
                           {/* Tên điểm giao */}
@@ -1322,57 +1393,155 @@ export default function DeliveryPointsView({
                           </td>
 
                           {/* Thao tác */}
-                          <td style={{ padding: '14px 16px', verticalAlign: 'top', textAlign: 'center' }}>
-                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                          <td style={{ padding: '14px 16px', verticalAlign: 'middle', textAlign: 'center', position: 'relative' }}>
+                            <div className="delivery-point-action-dropdown-container" style={{ position: 'relative', display: 'inline-block' }}>
                               <button
                                 type="button"
-                                onClick={() => handleOpenEditMasterModal(item)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setActiveDropdownMasterPointId((prev) => (prev === item.id ? null : item.id));
+                                }}
+                                title="Thao tác"
                                 style={{
-                                  padding: '5px 12px',
-                                  borderRadius: '7px',
-                                  background: '#f8fafc',
-                                  border: '1px solid #cbd5e1',
-                                  color: '#1e293b',
-                                  fontSize: '12.5px',
-                                  fontWeight: '600',
+                                  width: '32px',
+                                  height: '32px',
+                                  borderRadius: '8px',
+                                  border: activeDropdownMasterPointId === item.id ? '1px solid #0fad89' : '1px solid #cbd5e1',
+                                  background: activeDropdownMasterPointId === item.id ? '#ecfdf5' : '#ffffff',
+                                  color: activeDropdownMasterPointId === item.id ? '#0fad89' : '#64748b',
                                   cursor: 'pointer',
                                   display: 'inline-flex',
                                   alignItems: 'center',
-                                  gap: '4px',
+                                  justifyContent: 'center',
+                                  transition: 'all 0.15s ease',
+                                  boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
                                 }}
-                                title="Chỉnh sửa thông tin điểm giao trong danh sách chung"
+                                onMouseEnter={(e) => {
+                                  if (activeDropdownMasterPointId !== item.id) {
+                                    e.currentTarget.style.background = '#f8fafc';
+                                    e.currentTarget.style.color = '#0f172a';
+                                    e.currentTarget.style.borderColor = '#94a3b8';
+                                  }
+                                }}
+                                onMouseLeave={(e) => {
+                                  if (activeDropdownMasterPointId !== item.id) {
+                                    e.currentTarget.style.background = '#ffffff';
+                                    e.currentTarget.style.color = '#64748b';
+                                    e.currentTarget.style.borderColor = '#cbd5e1';
+                                  }
+                                }}
                               >
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                  <path d="M12 20h9" />
-                                  <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
-                                </svg>
-                                <span>Sửa</span>
+                                <span style={{ display: 'flex', flexDirection: 'column', gap: '3px', pointerEvents: 'none', margin: 'auto' }}>
+                                  <span style={{ width: '3.5px', height: '3.5px', borderRadius: '50%', background: 'currentColor' }} />
+                                  <span style={{ width: '3.5px', height: '3.5px', borderRadius: '50%', background: 'currentColor' }} />
+                                  <span style={{ width: '3.5px', height: '3.5px', borderRadius: '50%', background: 'currentColor' }} />
+                                </span>
                               </button>
 
-                              <button
-                                type="button"
-                                onClick={() => setDeletingMasterPoint(item)}
-                                style={{
-                                  padding: '5px 12px',
-                                  borderRadius: '7px',
-                                  background: '#fff1f2',
-                                  border: '1px solid #fecdd3',
-                                  color: '#e11d48',
-                                  fontSize: '12.5px',
-                                  fontWeight: '600',
-                                  cursor: 'pointer',
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '4px',
-                                }}
-                                title="Xóa khỏi danh sách điểm giao chung"
-                              >
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                  <polyline points="3 6 5 6 21 6" />
-                                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                                </svg>
-                                <span>Xóa</span>
-                              </button>
+                              {/* Dropdown Menu */}
+                              {activeDropdownMasterPointId === item.id && (() => {
+                                const openUpward = paginatedAllPoints.length > 2 && idx >= paginatedAllPoints.length - 2;
+                                return (
+                                  <div
+                                    style={{
+                                      position: 'absolute',
+                                      right: 0,
+                                      ...(openUpward
+                                        ? { bottom: 'calc(100% + 6px)' }
+                                        : { top: 'calc(100% + 6px)' }),
+                                      background: '#ffffff',
+                                      border: '1px solid #e2e8f0',
+                                      borderRadius: '10px',
+                                      boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.12), 0 8px 10px -6px rgba(0, 0, 0, 0.08)',
+                                      minWidth: '145px',
+                                      zIndex: 100,
+                                      padding: '5px',
+                                      display: 'flex',
+                                      flexDirection: 'column',
+                                      gap: '2px',
+                                      textAlign: 'left',
+                                    }}
+                                  >
+                                    {/* Sửa thông tin */}
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setActiveDropdownMasterPointId(null);
+                                        handleOpenEditMasterModal(item);
+                                      }}
+                                      style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '8px',
+                                        width: '100%',
+                                        padding: '8px 12px',
+                                        borderRadius: '6px',
+                                        border: 'none',
+                                        background: 'transparent',
+                                        color: '#1e293b',
+                                        fontSize: '13px',
+                                        fontWeight: '500',
+                                        cursor: 'pointer',
+                                        transition: 'all 0.15s ease',
+                                      }}
+                                      onMouseEnter={(e) => {
+                                        e.currentTarget.style.background = '#eff6ff';
+                                        e.currentTarget.style.color = '#1d4ed8';
+                                      }}
+                                      onMouseLeave={(e) => {
+                                        e.currentTarget.style.background = 'transparent';
+                                        e.currentTarget.style.color = '#1e293b';
+                                      }}
+                                    >
+                                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M12 20h9" />
+                                        <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                                      </svg>
+                                      <span>Sửa</span>
+                                    </button>
+
+                                    {/* Xóa điểm giao */}
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setActiveDropdownMasterPointId(null);
+                                        setDeletingMasterPoint(item);
+                                      }}
+                                      style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '8px',
+                                        width: '100%',
+                                        padding: '8px 12px',
+                                        borderRadius: '6px',
+                                        border: 'none',
+                                        background: 'transparent',
+                                        color: '#dc2626',
+                                        fontSize: '13px',
+                                        fontWeight: '500',
+                                        cursor: 'pointer',
+                                        transition: 'all 0.15s ease',
+                                      }}
+                                      onMouseEnter={(e) => {
+                                        e.currentTarget.style.background = '#fef2f2';
+                                        e.currentTarget.style.color = '#b91c1c';
+                                      }}
+                                      onMouseLeave={(e) => {
+                                        e.currentTarget.style.background = 'transparent';
+                                        e.currentTarget.style.color = '#dc2626';
+                                      }}
+                                    >
+                                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <polyline points="3 6 5 6 21 6" />
+                                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                      </svg>
+                                      <span>Xóa</span>
+                                    </button>
+                                  </div>
+                                );
+                              })()}
                             </div>
                           </td>
                         </tr>
@@ -1386,35 +1555,150 @@ export default function DeliveryPointsView({
             {/* Table Footer */}
             <div
               style={{
-                padding: '12px 20px',
+                padding: '10px 18px',
                 borderTop: '1px solid #f1f5f9',
                 display: 'flex',
-                justifyContent: 'space-between',
+                justifyContent: 'flex-end',
                 alignItems: 'center',
                 background: '#f8fafc',
                 flexShrink: 0,
+                flexWrap: 'wrap',
+                gap: '12px',
               }}
             >
-              <span style={{ fontSize: '13px', color: '#64748b' }}>
-                Hiển thị <strong>{filteredAllPoints.length}</strong> / <strong>{allPoints.length}</strong> điểm giao hàng
-              </span>
+              {/* Cụm phân trang nhỏ gọn */}
+              {filteredAllPoints.length > 0 && (
+                <div
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'stretch',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '5px',
+                    overflow: 'hidden',
+                    background: '#ffffff',
+                    boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
+                    height: '24px',
+                  }}
+                >
+                  {/* Nút trang trước (<) */}
+                  {allPointsPage > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => setAllPointsPage((p) => Math.max(1, p - 1))}
+                      style={{
+                        minWidth: '24px',
+                        height: '100%',
+                        padding: '0 6px',
+                        border: 'none',
+                        borderRight: '1px solid #e5e7eb',
+                        background: '#ffffff',
+                        color: '#4b5563',
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        transition: 'background-color 0.15s ease',
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f9fafb')}
+                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#ffffff')}
+                      title="Trang trước"
+                    >
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="15 18 9 12 15 6" />
+                      </svg>
+                    </button>
+                  )}
 
-              <button
-                type="button"
-                onClick={handleCloseAllPointsPage}
-                style={{
-                  padding: '7px 16px',
-                  borderRadius: '8px',
-                  border: '1px solid #cbd5e1',
-                  background: '#ffffff',
-                  color: '#475569',
-                  fontSize: '13px',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                }}
-              >
-                Đóng / Quay lại
-              </button>
+                  {/* Danh sách các số trang */}
+                  {getAllPointsPaginationList(allPointsPage, allPointsTotalPages).map((item, idx, arr) => {
+                    const hasNext = allPointsPage < allPointsTotalPages;
+                    const isLastItem = idx === arr.length - 1 && !hasNext;
+
+                    if (item === '...') {
+                      return (
+                        <span
+                          key={`dots-${idx}`}
+                          style={{
+                            minWidth: '22px',
+                            height: '100%',
+                            padding: '0 4px',
+                            borderRight: isLastItem ? 'none' : '1px solid #e5e7eb',
+                            background: '#ffffff',
+                            color: '#6b7280',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '11px',
+                            userSelect: 'none',
+                          }}
+                        >
+                          ...
+                        </span>
+                      );
+                    }
+                    const isActive = item === allPointsPage;
+                    return (
+                      <button
+                        key={item}
+                        type="button"
+                        onClick={() => setAllPointsPage(item)}
+                        style={{
+                          minWidth: '24px',
+                          height: '100%',
+                          padding: '0 7px',
+                          border: 'none',
+                          borderRight: isLastItem ? 'none' : '1px solid #e5e7eb',
+                          background: isActive ? '#2ba1f4' : '#ffffff',
+                          color: isActive ? '#ffffff' : '#374151',
+                          cursor: isActive ? 'default' : 'pointer',
+                          fontSize: '11.5px',
+                          fontWeight: isActive ? '700' : '500',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          transition: 'background-color 0.15s ease',
+                        }}
+                        onMouseEnter={(e) => {
+                          if (!isActive) e.currentTarget.style.backgroundColor = '#f9fafb';
+                        }}
+                        onMouseLeave={(e) => {
+                          if (!isActive) e.currentTarget.style.backgroundColor = '#ffffff';
+                        }}
+                      >
+                        {item}
+                      </button>
+                    );
+                  })}
+
+                  {/* Nút trang sau (>) */}
+                  {allPointsPage < allPointsTotalPages && (
+                    <button
+                      type="button"
+                      onClick={() => setAllPointsPage((p) => Math.min(allPointsTotalPages, p + 1))}
+                      style={{
+                        minWidth: '24px',
+                        height: '100%',
+                        padding: '0 6px',
+                        border: 'none',
+                        background: '#ffffff',
+                        color: '#4b5563',
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        transition: 'background-color 0.15s ease',
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f9fafb')}
+                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#ffffff')}
+                      title="Trang sau"
+                    >
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="9 18 15 12 9 6" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -2109,20 +2393,33 @@ export default function DeliveryPointsView({
 
                           <button
                             type="button"
-                            onClick={() => setDeletingPoint(p)}
+                            disabled={p.is_default}
+                            onClick={() => {
+                              if (p.is_default) {
+                                emitStatusToast({
+                                  title: 'Không thể xóa',
+                                  message: 'Điểm giao hàng mặc định của đại lý không thể xóa. Vui lòng thiết lập điểm giao khác làm mặc định trước khi xóa.',
+                                  type: 'warning',
+                                });
+                                return;
+                              }
+                              setDeletingPoint(p);
+                            }}
                             style={{
                               padding: '4px 10px',
                               borderRadius: '7px',
-                              background: '#fef2f2',
-                              border: '1px solid #fecaca',
-                              color: '#dc2626',
+                              background: p.is_default ? '#f1f5f9' : '#fef2f2',
+                              border: p.is_default ? '1px solid #e2e8f0' : '1px solid #fecaca',
+                              color: p.is_default ? '#94a3b8' : '#dc2626',
                               fontSize: '11.5px',
                               fontWeight: '600',
-                              cursor: 'pointer',
+                              cursor: p.is_default ? 'not-allowed' : 'pointer',
                               display: 'inline-flex',
                               alignItems: 'center',
                               gap: '4px',
+                              opacity: p.is_default ? 0.6 : 1,
                             }}
+                            title={p.is_default ? 'Không thể xóa điểm giao hàng mặc định của đại lý' : 'Xóa điểm giao'}
                           >
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                               <polyline points="3 6 5 6 21 6" />
@@ -2416,36 +2713,37 @@ export default function DeliveryPointsView({
                             {assignedPoint ? (
                               <button
                                 type="button"
-                                disabled={isDeselecting}
+                                disabled={isDeselecting || assignedPoint.is_default}
                                 onClick={() => handleDeselectPointFromDealer(item, assignedPoint.id)}
                                 style={{
                                   padding: '6px 16px',
                                   borderRadius: '8px',
-                                  background: '#fff1f2',
-                                  color: '#e11d48',
-                                  border: '1px solid #fecdd3',
+                                  background: assignedPoint.is_default ? '#f1f5f9' : '#fff1f2',
+                                  color: assignedPoint.is_default ? '#94a3b8' : '#e11d48',
+                                  border: assignedPoint.is_default ? '1px solid #e2e8f0' : '1px solid #fecdd3',
                                   fontSize: '12.5px',
                                   fontWeight: '600',
-                                  cursor: isDeselecting ? 'not-allowed' : 'pointer',
+                                  cursor: (isDeselecting || assignedPoint.is_default) ? 'not-allowed' : 'pointer',
                                   display: 'inline-flex',
                                   alignItems: 'center',
                                   gap: '5px',
                                   transition: 'all 0.15s ease',
                                   whiteSpace: 'nowrap',
+                                  opacity: assignedPoint.is_default ? 0.6 : 1,
                                 }}
                                 onMouseEnter={(e) => {
-                                  if (!isDeselecting) {
+                                  if (!isDeselecting && !assignedPoint.is_default) {
                                     e.currentTarget.style.backgroundColor = '#ffe4e6';
                                     e.currentTarget.style.borderColor = '#fda4af';
                                   }
                                 }}
                                 onMouseLeave={(e) => {
-                                  if (!isDeselecting) {
+                                  if (!isDeselecting && !assignedPoint.is_default) {
                                     e.currentTarget.style.backgroundColor = '#fff1f2';
                                     e.currentTarget.style.borderColor = '#fecdd3';
                                   }
                                 }}
-                                title="Bỏ điểm giao này khỏi đại lý"
+                                title={assignedPoint.is_default ? 'Điểm giao mặc định của đại lý không thể bỏ chọn' : 'Bỏ điểm giao này khỏi đại lý'}
                               >
                                 {isDeselecting ? (
                                   'Đang bỏ...'

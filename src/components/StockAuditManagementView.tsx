@@ -53,6 +53,22 @@ export function StockAuditManagementView({ token, currentUser, initialSearchCode
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
 
+  // Danh sách các số trang theo phong cách segmented pill: 1, 2, ... totalPages
+  const paginationItems = useMemo(() => {
+    if (totalPages <= 5) {
+      return Array.from({ length: totalPages }, (_, index) => index + 1);
+    }
+    return Array.from({ length: totalPages }, (_, index) => index + 1)
+      .filter((p) => p === 1 || p === totalPages || Math.abs(p - page) <= 1)
+      .reduce<(number | string)[]>((acc, p, idx, arr) => {
+        if (idx > 0 && typeof arr[idx - 1] === 'number' && (p as number) - (arr[idx - 1] as number) > 1) {
+          acc.push('...');
+        }
+        acc.push(p);
+        return acc;
+      }, []);
+  }, [totalPages, page]);
+
   // Bộ lọc
   const [searchCode, setSearchCode] = useState(initialSearchCode || '');
   const [filterWarehouse, setFilterWarehouse] = useState('');
@@ -94,6 +110,7 @@ export function StockAuditManagementView({ token, currentUser, initialSearchCode
   const [detailLoading, setDetailLoading] = useState(false);
   const [auditItemsState, setAuditItemsState] = useState<StockAuditItem[]>([]);
   const [detailSearchProduct, setDetailSearchProduct] = useState('');
+  const [detailPage, setDetailPage] = useState(1);
   const [isSavingDraft, setIsSavingDraft] = useState(false);
 
   // Modal Xác nhận kiểm kê
@@ -304,6 +321,7 @@ export function StockAuditManagementView({ token, currentUser, initialSearchCode
   const handleOpenDetail = async (auditId: number, filterProduct?: string) => {
     setDetailLoading(true);
     setViewMode('detail');
+    setDetailPage(1);
     if (filterProduct !== undefined) {
       setDetailSearchProduct(filterProduct);
     }
@@ -564,6 +582,31 @@ export function StockAuditManagementView({ token, currentUser, initialSearchCode
         (it.category_name && it.category_name.toLowerCase().includes(kw))
     );
   }, [auditItemsState, detailSearchProduct]);
+
+  const detailPageSize = 10;
+  const detailTotalPages = Math.max(1, Math.ceil(filteredDetailItems.length / detailPageSize));
+  const safeDetailPage = Math.min(detailPage, detailTotalPages);
+
+  const paginatedDetailItems = useMemo(() => {
+    const start = (safeDetailPage - 1) * detailPageSize;
+    return filteredDetailItems.slice(start, start + detailPageSize);
+  }, [filteredDetailItems, safeDetailPage]);
+
+  // Phân trang segmented pill trong chi tiết phiếu
+  const detailPaginationItems = useMemo(() => {
+    if (detailTotalPages <= 5) {
+      return Array.from({ length: detailTotalPages }, (_, index) => index + 1);
+    }
+    return Array.from({ length: detailTotalPages }, (_, index) => index + 1)
+      .filter((p) => p === 1 || p === detailTotalPages || Math.abs(p - safeDetailPage) <= 1)
+      .reduce<(number | string)[]>((acc, p, idx, arr) => {
+        if (idx > 0 && typeof arr[idx - 1] === 'number' && (p as number) - (arr[idx - 1] as number) > 1) {
+          acc.push('...');
+        }
+        acc.push(p);
+        return acc;
+      }, []);
+  }, [detailTotalPages, safeDetailPage]);
 
   // Thống kê trong modal chi tiết
   const detailStats = useMemo(() => {
@@ -1107,44 +1150,60 @@ export function StockAuditManagementView({ token, currentUser, initialSearchCode
           </div>
         </div>
 
-        {/* Thẻ tóm tắt nhanh kết quả & Ô tìm kiếm */}
-        <div className="bg-white p-3.5 rounded-xl border border-gray-200 shadow-xs flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs shrink-0">
-          <div className="flex items-center flex-wrap gap-x-4 gap-y-1">
-            <span className="font-semibold text-gray-700">
-              Tổng: <strong>{detailStats.total} SP</strong>
-            </span>
-            <span className="text-green-600 font-semibold">
-              Khớp: <strong>{detailStats.matchCount}</strong>
-            </span>
-            <span className="text-rose-600 font-semibold">
-              Thiếu: <strong>{detailStats.deficitCount} SP</strong> ({detailStats.totalDeficitQty} ĐVT)
-            </span>
-            <span className="text-blue-600 font-semibold">
-              Thừa: <strong>{detailStats.surplusCount} SP</strong> (+{detailStats.totalSurplusQty} ĐVT)
-            </span>
-            {detailStats.pendingCount > 0 && (
-              <span className="text-amber-600 font-bold">
-                Chưa đếm: {detailStats.pendingCount} SP
-              </span>
-            )}
-          </div>
-
-          <div className="relative w-full sm:w-72">
-            <input
-              type="text"
-              placeholder="Tìm kiếm sản phẩm trong phiếu..."
-              value={detailSearchProduct}
-              onChange={(e) => setDetailSearchProduct(e.target.value)}
-              className="w-full pl-8 pr-3 py-1.5 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0fad89] bg-white"
-            />
-            <svg className="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-          </div>
-        </div>
-
-        {/* Bảng chi tiết sản phẩm kiểm đếm */}
+        {/* Khung nội dung chi tiết: Thanh tìm kiếm/thống kê và Bảng kiểm đếm gộp chung 1 khối */}
         <div className="flex-1 min-h-0 bg-white rounded-xl border border-gray-200 shadow-xs overflow-hidden flex flex-col">
+          {/* Thanh tìm kiếm sản phẩm & Thẻ tóm tắt nhanh kết quả */}
+          <div className="p-3 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs shrink-0 bg-white">
+            {/* Ô tìm kiếm được đưa lên trước */}
+            <div className="relative w-full sm:w-80 shrink-0">
+              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
+              <input
+                type="text"
+                placeholder="Tìm kiếm sản phẩm trong phiếu..."
+                value={detailSearchProduct}
+                onChange={(e) => setDetailSearchProduct(e.target.value)}
+                style={{ paddingLeft: '36px' }}
+                className="w-full h-9 pr-8 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0fad89] focus:border-transparent bg-white text-gray-800 placeholder-gray-400 transition-all shadow-2xs"
+              />
+              {detailSearchProduct && (
+                <button
+                  type="button"
+                  onClick={() => setDetailSearchProduct('')}
+                  className="absolute inset-y-0 right-0 flex items-center pr-2.5 text-gray-400 hover:text-gray-600 cursor-pointer"
+                  title="Xóa tìm kiếm"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              )}
+            </div>
+
+            {/* Thẻ tóm tắt nhanh kết quả */}
+            <div className="flex items-center flex-wrap gap-x-4 gap-y-1 sm:justify-end">
+              <span className="font-semibold text-gray-700">
+                Tổng: <strong>{detailStats.total} SP</strong>
+              </span>
+              <span className="text-green-600 font-semibold">
+                Khớp: <strong>{detailStats.matchCount}</strong>
+              </span>
+              <span className="text-rose-600 font-semibold">
+                Thiếu: <strong>{detailStats.deficitCount} SP</strong> ({detailStats.totalDeficitQty} ĐVT)
+              </span>
+              <span className="text-blue-600 font-semibold">
+                Thừa: <strong>{detailStats.surplusCount} SP</strong> (+{detailStats.totalSurplusQty} ĐVT)
+              </span>
+              {detailStats.pendingCount > 0 && (
+                <span className="text-amber-600 font-bold">
+                  Chưa đếm: {detailStats.pendingCount} SP
+                </span>
+              )}
+            </div>
+          </div>
           <div className="flex-1 min-h-0 overflow-y-auto">
             {detailLoading ? (
               <div className="py-16 text-center text-gray-500 flex flex-col items-center justify-center h-full">
@@ -1166,7 +1225,7 @@ export function StockAuditManagementView({ token, currentUser, initialSearchCode
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {filteredDetailItems.map((itm) => {
+                  {paginatedDetailItems.map((itm) => {
                     const isDeficit = typeof itm.discrepancy === 'number' && itm.discrepancy < 0;
                     const isSurplus = typeof itm.discrepancy === 'number' && itm.discrepancy > 0;
                     const isMatch = itm.discrepancy === 0;
@@ -1306,18 +1365,65 @@ export function StockAuditManagementView({ token, currentUser, initialSearchCode
               )}
             </div>
 
-            <div className="flex items-center gap-2.5">
-              <button
-                type="button"
-                onClick={() => {
-                  setViewMode('list');
-                  setSelectedAudit(null);
-                  setDetailSearchProduct('');
-                }}
-                className="px-4 py-2 text-xs font-semibold text-gray-700 bg-white border border-gray-300 hover:bg-gray-100 rounded-lg cursor-pointer"
-              >
-                Quay lại danh sách
-              </button>
+            <div className="flex items-center gap-3">
+              {/* Phân trang segmented pill trong chi tiết phiếu */}
+              {filteredDetailItems.length > 0 && (
+                <div className="inline-flex items-stretch border border-gray-300 rounded-[5px] overflow-hidden bg-white shadow-2xs divide-x divide-gray-200 h-7 text-xs">
+                  {/* Nút lùi trang (<) - Chỉ hiện khi safeDetailPage > 1 */}
+                  {safeDetailPage > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => setDetailPage((p) => Math.max(1, p - 1))}
+                      title="Trang trước"
+                      className="px-2.5 min-w-[28px] bg-white text-gray-600 hover:bg-gray-50 hover:text-gray-900 flex items-center justify-center transition-colors cursor-pointer border-0 font-medium text-xs select-none"
+                    >
+                      &lt;
+                    </button>
+                  )}
+
+                  {/* Danh sách các số trang */}
+                  {detailPaginationItems.map((p, idx) => {
+                    if (typeof p === 'string') {
+                      return (
+                        <span
+                          key={`ellipsis-${idx}`}
+                          className="px-2 min-w-[26px] bg-white text-gray-500 flex items-center justify-center text-xs select-none"
+                        >
+                          ...
+                        </span>
+                      );
+                    }
+
+                    const isActive = p === safeDetailPage;
+                    return (
+                      <button
+                        key={p}
+                        type="button"
+                        onClick={() => setDetailPage(p as number)}
+                        className={`px-2.5 min-w-[28px] flex items-center justify-center transition-colors border-0 text-xs ${
+                          isActive
+                            ? 'bg-[#0fad89] text-white font-bold cursor-default'
+                            : 'bg-white text-gray-800 hover:bg-gray-50 hover:text-gray-900 font-medium cursor-pointer'
+                        }`}
+                      >
+                        {p}
+                      </button>
+                    );
+                  })}
+
+                  {/* Nút tiến trang (>) - Chỉ hiện khi safeDetailPage < detailTotalPages */}
+                  {safeDetailPage < detailTotalPages && (
+                    <button
+                      type="button"
+                      onClick={() => setDetailPage((p) => Math.min(detailTotalPages, p + 1))}
+                      title="Trang sau"
+                      className="px-2.5 min-w-[28px] bg-white text-gray-600 hover:bg-gray-50 hover:text-gray-900 flex items-center justify-center transition-colors cursor-pointer border-0 font-medium text-xs select-none"
+                    >
+                      &gt;
+                    </button>
+                  )}
+                </div>
+              )}
 
               {selectedAudit.status === 'IN_PROGRESS' && (
                 <>
@@ -1598,93 +1704,94 @@ export function StockAuditManagementView({ token, currentUser, initialSearchCode
         </div>
       </div>
 
-      {/* Thanh tìm kiếm & bộ lọc */}
-      <div className="bg-white p-3 rounded-xl border border-gray-200 shadow-sm shrink-0">
-        <div className="flex flex-wrap items-center gap-3">
-          {/* 1. Tìm kiếm mã phiếu */}
-          <div className="relative flex-1 min-w-[240px]">
-            <input
-              type="text"
-              id="input-search-audit-code"
-              placeholder="Tìm kiếm theo mã phiếu..."
-              value={searchCode}
-              onChange={(e) => {
-                setSearchCode(e.target.value);
-                setPage(1);
-              }}
-              className="w-full h-10 px-3 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0fad89] focus:border-transparent bg-white text-gray-800 placeholder-gray-400 transition-all"
-            />
-          </div>
-
-          {/* 2. Lọc theo kho */}
-          <div className="w-full sm:w-auto min-w-[170px]">
-            <select
-              id="select-filter-warehouse"
-              value={filterWarehouse}
-              onChange={(e) => {
-                setFilterWarehouse(e.target.value);
-                setPage(1);
-              }}
-              className="w-full h-10 px-3 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0fad89] focus:border-transparent bg-white text-gray-700 cursor-pointer transition-all"
-            >
-              <option value="">Tất cả các kho</option>
-              {warehouses.map((wh) => (
-                <option key={wh.id} value={wh.id}>
-                  {wh.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* 3. Lọc theo trạng thái */}
-          <div className="w-full sm:w-auto min-w-[160px]">
-            <select
-              id="select-filter-status"
-              value={filterStatus}
-              onChange={(e) => {
-                setFilterStatus(e.target.value);
-                setPage(1);
-              }}
-              className="w-full h-10 px-3 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0fad89] focus:border-transparent bg-white text-gray-700 cursor-pointer transition-all"
-            >
-              <option value="">Tất cả trạng thái</option>
-              <option value="IN_PROGRESS">Đang kiểm kê</option>
-              <option value="CONFIRMED">Hoàn tất</option>
-              <option value="CANCELLED">Đã hủy</option>
-            </select>
-          </div>
-
-          {/* 4. Lọc theo phạm vi */}
-          <div className="w-full sm:w-auto min-w-[160px]">
-            <select
-              id="select-filter-scope"
-              value={filterScope}
-              onChange={(e) => {
-                setFilterScope(e.target.value);
-                setPage(1);
-              }}
-              className="w-full h-10 px-3 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0fad89] focus:border-transparent bg-white text-gray-700 cursor-pointer transition-all"
-            >
-              <option value="">Tất cả phạm vi</option>
-              <option value="WAREHOUSE">Kiểm kê theo kho</option>
-              <option value="CATEGORY">Kiểm kê theo nhóm hàng</option>
-            </select>
-          </div>
-
-          {/* 5. Nút Làm mới */}
-          <button
-            type="button"
-            onClick={() => fetchAudits()}
-            title="Làm mới danh sách phiếu kiểm kê"
-            className="h-10 px-4 text-sm font-medium rounded-lg border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 flex items-center justify-center cursor-pointer transition-colors shrink-0 shadow-2xs"
-          >
-            <span>{loading ? 'Đang tải...' : 'Làm mới'}</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Bảng danh sách phiếu kiểm kê */}
+      {/* Khung danh sách phiếu kiểm kê: Gộp Bộ lọc và Bảng dữ liệu thành 1 khối duy nhất */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col flex-1 min-h-0">
+        {/* Thanh tìm kiếm & bộ lọc ở đầu khung */}
+        <div className="p-3 border-b border-gray-200 shrink-0 bg-white">
+          <div className="flex flex-wrap items-center gap-3">
+            {/* 1. Tìm kiếm mã phiếu */}
+            <div className="relative flex-1 min-w-[240px]">
+              <input
+                type="text"
+                id="input-search-audit-code"
+                placeholder="Tìm kiếm theo mã phiếu..."
+                value={searchCode}
+                onChange={(e) => {
+                  setSearchCode(e.target.value);
+                  setPage(1);
+                }}
+                className="w-full h-10 px-3 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0fad89] focus:border-transparent bg-white text-gray-800 placeholder-gray-400 transition-all"
+              />
+            </div>
+
+            {/* 2. Lọc theo kho */}
+            <div className="w-full sm:w-auto min-w-[170px]">
+              <select
+                id="select-filter-warehouse"
+                value={filterWarehouse}
+                onChange={(e) => {
+                  setFilterWarehouse(e.target.value);
+                  setPage(1);
+                }}
+                className="w-full h-10 px-3 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0fad89] focus:border-transparent bg-white text-gray-700 cursor-pointer transition-all"
+              >
+                <option value="">Tất cả các kho</option>
+                {warehouses.map((wh) => (
+                  <option key={wh.id} value={wh.id}>
+                    {wh.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* 3. Lọc theo trạng thái */}
+            <div className="w-full sm:w-auto min-w-[160px]">
+              <select
+                id="select-filter-status"
+                value={filterStatus}
+                onChange={(e) => {
+                  setFilterStatus(e.target.value);
+                  setPage(1);
+                }}
+                className="w-full h-10 px-3 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0fad89] focus:border-transparent bg-white text-gray-700 cursor-pointer transition-all"
+              >
+                <option value="">Tất cả trạng thái</option>
+                <option value="IN_PROGRESS">Đang kiểm kê</option>
+                <option value="CONFIRMED">Hoàn tất</option>
+                <option value="CANCELLED">Đã hủy</option>
+              </select>
+            </div>
+
+            {/* 4. Lọc theo phạm vi */}
+            <div className="w-full sm:w-auto min-w-[160px]">
+              <select
+                id="select-filter-scope"
+                value={filterScope}
+                onChange={(e) => {
+                  setFilterScope(e.target.value);
+                  setPage(1);
+                }}
+                className="w-full h-10 px-3 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0fad89] focus:border-transparent bg-white text-gray-700 cursor-pointer transition-all"
+              >
+                <option value="">Tất cả phạm vi</option>
+                <option value="WAREHOUSE">Kiểm kê theo kho</option>
+                <option value="CATEGORY">Kiểm kê theo nhóm hàng</option>
+              </select>
+            </div>
+
+            {/* 5. Nút Làm mới */}
+            <button
+              type="button"
+              onClick={() => fetchAudits()}
+              title="Làm mới danh sách phiếu kiểm kê"
+              className="h-10 px-4 text-sm font-medium rounded-lg border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 flex items-center justify-center cursor-pointer transition-colors shrink-0 shadow-2xs"
+            >
+              <span>{loading ? 'Đang tải...' : 'Làm mới'}</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Bảng danh sách phiếu kiểm kê */}
         <div className="overflow-x-auto overflow-y-auto flex-1 min-h-0">
           <table className="w-full divide-y divide-gray-200 text-xs whitespace-nowrap">
             <thead className="bg-gray-50 text-gray-700 font-bold uppercase tracking-wider text-[11px] whitespace-nowrap sticky top-0 z-20 shadow-xs">
@@ -1858,29 +1965,63 @@ export function StockAuditManagementView({ token, currentUser, initialSearchCode
           </table>
         </div>
 
-        {/* Phân trang */}
-        {totalPages > 1 && (
-          <div className="p-3 border-t border-gray-200 flex items-center justify-between text-sm shrink-0 bg-gray-50/50">
-            <span className="text-gray-500">
-              Hiển thị trang {page} / {totalPages} (Tổng {totalCount} phiếu)
-            </span>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={page <= 1}
-                className="px-3 py-1 rounded border border-gray-300 disabled:opacity-40 cursor-pointer bg-white"
-              >
-                Trang trước
-              </button>
-              <button
-                type="button"
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                disabled={page >= totalPages}
-                className="px-3 py-1 rounded border border-gray-300 disabled:opacity-40 cursor-pointer bg-white"
-              >
-                Trang sau
-              </button>
+        {/* Phân trang segmented pill: 1, 2, ... totalPages */}
+        {totalCount > 0 && (
+          <div className="p-3 border-t border-gray-200 flex items-center justify-end text-sm shrink-0 bg-white">
+            <div className="inline-flex items-stretch border border-gray-300 rounded-[5px] overflow-hidden bg-white shadow-2xs divide-x divide-gray-200 h-7 text-xs">
+              {/* Nút lùi trang (<) - Chỉ hiện khi page > 1 */}
+              {page > 1 && (
+                <button
+                  type="button"
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  title="Trang trước"
+                  className="px-2.5 min-w-[28px] bg-white text-gray-600 hover:bg-gray-50 hover:text-gray-900 flex items-center justify-center transition-colors cursor-pointer border-0 font-medium text-xs select-none"
+                >
+                  &lt;
+                </button>
+              )}
+
+              {/* Danh sách các số trang */}
+              {paginationItems.map((p, idx) => {
+                if (typeof p === 'string') {
+                  return (
+                    <span
+                      key={`ellipsis-${idx}`}
+                      className="px-2 min-w-[26px] bg-white text-gray-500 flex items-center justify-center text-xs select-none"
+                    >
+                      ...
+                    </span>
+                  );
+                }
+
+                const isActive = p === page;
+                return (
+                  <button
+                    key={p}
+                    type="button"
+                    onClick={() => setPage(p)}
+                    className={`px-2.5 min-w-[28px] flex items-center justify-center transition-colors border-0 text-xs ${
+                      isActive
+                        ? 'bg-[#0fad89] text-white font-bold cursor-default'
+                        : 'bg-white text-gray-800 hover:bg-gray-50 hover:text-gray-900 font-medium cursor-pointer'
+                    }`}
+                  >
+                    {p}
+                  </button>
+                );
+              })}
+
+              {/* Nút tiến trang (>) - Chỉ hiện khi page < totalPages */}
+              {page < totalPages && (
+                <button
+                  type="button"
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  title="Trang sau"
+                  className="px-2.5 min-w-[28px] bg-white text-gray-600 hover:bg-gray-50 hover:text-gray-900 flex items-center justify-center transition-colors cursor-pointer border-0 font-medium text-xs select-none"
+                >
+                  &gt;
+                </button>
+              )}
             </div>
           </div>
         )}

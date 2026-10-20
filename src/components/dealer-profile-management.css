@@ -837,6 +837,89 @@
   pointer-events: none;
 }
 
+/* Action 3-dots Button & Action Menu Portal */
+.btn-action-dots {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.15s ease-in-out;
+  padding: 0;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.btn-action-dots:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+  border-color: #94a3b8;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+}
+
+.btn-action-dots:active {
+  transform: translateY(0);
+}
+
+.dealer-action-menu-portal {
+  animation: fadeInMenu 0.12s ease-out;
+}
+
+@keyframes fadeInMenu {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.dealer-action-menu-item {
+  width: 100%;
+  padding: 7px 10px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #334155;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-weight: 500;
+  transition: all 0.12s ease;
+  text-align: left;
+  user-select: none;
+}
+
+.dealer-action-menu-item:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.dealer-action-menu-item.text-amber {
+  color: #b45309;
+}
+.dealer-action-menu-item.text-amber:hover {
+  background: #fffbeb;
+  color: #92400e;
+}
+
+.dealer-action-menu-item.text-danger {
+  color: #dc2626;
+}
+.dealer-action-menu-item.text-danger:hover {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
 /* Action Icon Buttons & Custom Tooltip System */
 .action-btn-group {
   display: flex;

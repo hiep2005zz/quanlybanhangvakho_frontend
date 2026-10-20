@@ -40,6 +40,15 @@ export const DeliveryTrackingView: React.FC<DeliveryTrackingViewProps> = ({
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'IN_TRANSIT' | 'OVERDUE' | 'COMPLETED'>('IN_TRANSIT');
 
+  // States phân trang (Pagination) - Mặc định 10 bản ghi trên 1 trang
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(10);
+
+  // Reset về trang 1 khi thay đổi tìm kiếm hoặc bộ lọc trạng thái
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, statusFilter]);
+
 
 
   // Kiểm tra quyền hạn
@@ -113,6 +122,40 @@ export const DeliveryTrackingView: React.FC<DeliveryTrackingViewProps> = ({
     }
   };
 
+  // Tính toán logic Phân trang (Pagination) - Mặc định 10 dòng / trang
+  const totalTrips = trips.length;
+  const totalPages = Math.max(1, Math.ceil(totalTrips / pageSize));
+  const safeCurrentPage = Math.min(Math.max(1, currentPage), totalPages);
+
+  const startIndex = (safeCurrentPage - 1) * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, totalTrips);
+
+  // Mảng chuyến giao hiển thị trên trang hiện tại
+  const paginatedTrips = useMemo(() => {
+    return trips.slice(startIndex, endIndex);
+  }, [trips, startIndex, endIndex]);
+
+  // Danh sách các số trang hiển thị (hỗ trợ ellipsis nếu > 7 trang)
+  const paginationPages = useMemo(() => {
+    if (totalPages <= 7) {
+      return Array.from({ length: totalPages }, (_, i) => i + 1);
+    }
+    const pages: (number | string)[] = [1];
+    if (safeCurrentPage > 3) {
+      pages.push('...');
+    }
+    const start = Math.max(2, safeCurrentPage - 1);
+    const end = Math.min(totalPages - 1, safeCurrentPage + 1);
+    for (let i = start; i <= end; i++) {
+      pages.push(i);
+    }
+    if (safeCurrentPage < totalPages - 2) {
+      pages.push('...');
+    }
+    pages.push(totalPages);
+    return pages;
+  }, [totalPages, safeCurrentPage]);
+
   return (
     <div className="w-full flex-1 flex flex-col p-4 md:p-6 bg-slate-50 pb-16 text-slate-800">
       {/* 1. Header Trang & Thao tác */}
@@ -126,7 +169,8 @@ export const DeliveryTrackingView: React.FC<DeliveryTrackingViewProps> = ({
             <button
               type="button"
               onClick={() => navigate('/delivery-tracking/create')}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-sm font-semibold shadow-sm shadow-emerald-600/30 active:scale-95 transition-all cursor-pointer"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#0faf8a] hover:bg-[#0c9877] active:bg-[#0a8568] text-white text-sm font-semibold shadow-sm shadow-[#0faf8a]/30 active:scale-95 transition-all cursor-pointer"
+              style={{ backgroundColor: '#0faf8a' }}
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="12" y1="5" x2="12" y2="19" />
@@ -141,11 +185,11 @@ export const DeliveryTrackingView: React.FC<DeliveryTrackingViewProps> = ({
       {/* 2. Thẻ chỉ số tổng quan (4 KPI Cards / Summary Widgets - Compact) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 mb-4">
         {/* Card 1: Tổng tiền hàng trên đường */}
-        <div className="bg-emerald-900 rounded-xl px-4 py-3.5 text-white shadow-xs border border-emerald-800 flex flex-col justify-between">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-200 mb-1">
+        <div className="bg-white rounded-xl px-4 py-3.5 border border-slate-200 shadow-xs flex flex-col justify-between">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">
             Tiền hàng trên đường
           </span>
-          <div className="text-xl lg:text-2xl font-extrabold tracking-tight text-white">
+          <div className="text-xl lg:text-2xl font-extrabold tracking-tight text-slate-900">
             {formatVND(summary.total_in_transit_value)}
           </div>
         </div>
@@ -200,7 +244,18 @@ export const DeliveryTrackingView: React.FC<DeliveryTrackingViewProps> = ({
 
       {/* 3. Bảng điều khiển bộ lọc & Tìm kiếm */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-xs mb-6 overflow-hidden">
-        <div className="p-4 border-b border-slate-100 flex flex-col md:flex-row items-center justify-between gap-4">
+        <div className="p-4 border-b border-slate-100 flex flex-col md:flex-row items-center justify-start gap-4">
+          {/* Ô tìm kiếm */}
+          <div className="w-full md:w-80">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Tìm theo mã chuyến, tài xế, xe, tuyến..."
+              className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all placeholder:text-slate-400"
+            />
+          </div>
+
           {/* Tabs Trạng thái */}
           <div className="flex items-center bg-slate-100 p-1 rounded-xl text-xs font-semibold w-full md:w-auto">
             <button
@@ -248,27 +303,10 @@ export const DeliveryTrackingView: React.FC<DeliveryTrackingViewProps> = ({
               Tất cả
             </button>
           </div>
-
-          {/* Ô tìm kiếm */}
-          <div className="w-full md:w-80">
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Tìm theo mã chuyến, tài xế, xe, tuyến..."
-              className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all placeholder:text-slate-400"
-            />
-          </div>
         </div>
 
-        {/* 4. Bảng danh sách chuyến giao hàng (Cuộn dọc & ngang) */}
-        <div
-          className="overflow-x-auto overflow-y-auto roles-grid-scroll overscroll-contain"
-          style={{
-            maxHeight: 'min(560px, calc(100vh - 290px))',
-            minHeight: '280px',
-          }}
-        >
+        {/* 4. Bảng danh sách chuyến giao hàng (Cuộn ngang nếu tràn) */}
+        <div className="overflow-x-auto w-full">
           {loading ? (
             <div className="py-16 text-center text-slate-400 flex flex-col items-center justify-center gap-3">
               <div className="w-8 h-8 border-3 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
@@ -317,7 +355,7 @@ export const DeliveryTrackingView: React.FC<DeliveryTrackingViewProps> = ({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-sm">
-                {trips.map((trip) => {
+                {paginatedTrips.map((trip) => {
                   const percentDelivered =
                     trip.total_stops > 0 ? Math.round((trip.delivered_stops / trip.total_stops) * 100) : 0;
 
@@ -433,28 +471,97 @@ export const DeliveryTrackingView: React.FC<DeliveryTrackingViewProps> = ({
                   );
                 })}
                 {/* Dòng đệm chân bảng giúp chuyến giao cuối cùng luôn hiển thị trọn vẹn 100% */}
-                <tr className="bg-slate-50/50 border-t border-slate-100">
-                  <td colSpan={7} className="py-4 px-4 text-center text-xs text-slate-400 font-medium select-none">
-                    <div className="flex items-center justify-center gap-2 text-slate-400">
-                      <span className="w-8 h-[1px] bg-slate-200 inline-block" />
-                      <span>Đã hiển thị toàn bộ {trips.length} chuyến giao hàng</span>
-                      <span className="w-8 h-[1px] bg-slate-200 inline-block" />
-                    </div>
-                  </td>
-                </tr>
+                {totalTrips > 0 && (
+                  <tr className="bg-slate-50/50 border-t border-slate-100">
+                    <td colSpan={7} className="py-3 px-4 text-center text-xs text-slate-400 font-medium select-none">
+                      <div className="flex items-center justify-center gap-2 text-slate-400">
+                        <span className="w-8 h-[1px] bg-slate-200 inline-block" />
+                        <span>— Trang {safeCurrentPage} / {totalPages} (Hiển thị {totalTrips === 0 ? 0 : startIndex + 1} - {endIndex} trong {totalTrips} chuyến giao hàng) —</span>
+                        <span className="w-8 h-[1px] bg-slate-200 inline-block" />
+                      </div>
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           )}
         </div>
 
-        {/* Footer hiển thị số lượng và trạng thái cuộn */}
-        {!loading && trips.length > 0 && (
-          <div className="px-4 py-3 bg-slate-50/80 border-t border-slate-200 text-xs text-slate-500 flex flex-col sm:flex-row items-center justify-between gap-2">
-            <div>
-              Hiển thị <span className="font-bold text-slate-700">{trips.length}</span> chuyến giao hàng
+        {/* Footer phân trang Pagination UI Chuẩn Enterprise */}
+        {!loading && totalTrips > 0 && (
+          <div className="px-4 py-3 bg-white border-t border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs shrink-0 select-none">
+            {/* Bên trái: Thông tin tổng kết & Chọn pageSize */}
+            <div className="flex flex-wrap items-center gap-3 text-slate-600">
+              <span>
+                Hiển thị <span className="font-bold text-slate-800">{totalTrips === 0 ? 0 : startIndex + 1}</span> -{' '}
+                <span className="font-bold text-slate-800">{endIndex}</span> trong tổng số{' '}
+                <span className="font-bold text-slate-800">{totalTrips}</span> chuyến giao hàng
+              </span>
+
+              <div className="flex items-center gap-1.5 border-l border-slate-200 pl-3">
+                <label htmlFor="select-page-size-tracking" className="text-slate-500 whitespace-nowrap">
+                  Số dòng:
+                </label>
+                <select
+                  id="select-page-size-tracking"
+                  value={pageSize}
+                  onChange={(e) => {
+                    setPageSize(Number(e.target.value));
+                    setCurrentPage(1);
+                  }}
+                  className="px-2 py-1 text-xs font-semibold text-slate-700 bg-white border border-slate-300 rounded-md focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 cursor-pointer shadow-2xs"
+                >
+                  <option value={10}>10 / trang</option>
+                  <option value={20}>20 / trang</option>
+                  <option value={50}>50 / trang</option>
+                </select>
+              </div>
             </div>
-            <div className="text-[11px] text-slate-400">
-              Dữ liệu được cập nhật theo thời gian thực
+
+            {/* Bên phải: Nút chuyển trang (Trước, 1, 2, 3..., Sau) */}
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={safeCurrentPage === 1}
+                className="px-2.5 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-md border border-slate-300 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
+              >
+                ‹ Trước
+              </button>
+
+              {paginationPages.map((page, pIdx) => {
+                if (page === '...') {
+                  return (
+                    <span key={`dots-${pIdx}`} className="px-1.5 py-1 text-xs text-slate-400 select-none">
+                      ...
+                    </span>
+                  );
+                }
+                const isCurrent = page === safeCurrentPage;
+                return (
+                  <button
+                    key={page}
+                    type="button"
+                    onClick={() => setCurrentPage(Number(page))}
+                    className={`min-w-[28px] h-7 px-1.5 flex items-center justify-center text-xs rounded-md transition-all border ${
+                      isCurrent
+                        ? 'bg-emerald-600 border-emerald-600 text-white font-bold shadow-xs cursor-default'
+                        : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-100 font-medium cursor-pointer'
+                    }`}
+                  >
+                    {page}
+                  </button>
+                );
+              })}
+
+              <button
+                type="button"
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                disabled={safeCurrentPage === totalPages}
+                className="px-2.5 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-md border border-slate-300 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
+              >
+                Sau ›
+              </button>
             </div>
           </div>
         )}
