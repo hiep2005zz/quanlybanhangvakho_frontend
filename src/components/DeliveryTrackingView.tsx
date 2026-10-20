@@ -244,7 +244,18 @@ export const DeliveryTrackingView: React.FC<DeliveryTrackingViewProps> = ({
 
       {/* 3. Bảng điều khiển bộ lọc & Tìm kiếm */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-xs mb-6 overflow-hidden">
-        <div className="p-4 border-b border-slate-100 flex flex-col md:flex-row items-center justify-between gap-4">
+        <div className="p-4 border-b border-slate-100 flex flex-col md:flex-row items-center justify-start gap-4">
+          {/* Ô tìm kiếm */}
+          <div className="w-full md:w-80">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Tìm theo mã chuyến, tài xế, xe, tuyến..."
+              className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all placeholder:text-slate-400"
+            />
+          </div>
+
           {/* Tabs Trạng thái */}
           <div className="flex items-center bg-slate-100 p-1 rounded-xl text-xs font-semibold w-full md:w-auto">
             <button
@@ -291,17 +302,6 @@ export const DeliveryTrackingView: React.FC<DeliveryTrackingViewProps> = ({
             >
               Tất cả
             </button>
-          </div>
-
-          {/* Ô tìm kiếm */}
-          <div className="w-full md:w-80">
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Tìm theo mã chuyến, tài xế, xe, tuyến..."
-              className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all placeholder:text-slate-400"
-            />
           </div>
         </div>
 
