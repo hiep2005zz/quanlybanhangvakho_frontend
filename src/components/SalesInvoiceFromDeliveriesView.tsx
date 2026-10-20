@@ -6,7 +6,6 @@ import {
   SalesInvoiceDetail,
   InvoiceAdjustmentItem,
   getDeliveryDispatchesForInvoicingApi,
-  getWarehousesApi,
   previewSalesInvoiceApi,
   issueSalesInvoiceApi,
   getSalesInvoiceDetailApi,
@@ -17,6 +16,7 @@ import {
 } from '../services/api';
 import { ModalPortal } from './ModalPortal';
 import { InvoiceAdjustmentDetailModal } from './InvoiceAdjustmentDetailModal';
+import './warehouse-management.css';
 
 export interface FilterComboboxOptionItem {
   value: string;
@@ -42,7 +42,7 @@ interface FilterComboboxProps {
  * Độ rộng vừa khít 100% ô nhập, chiều cao giới hạn cuộn gọn gàng,
  * hỗ trợ gõ lọc tức thì, nút xóa nhanh ✕, hiển thị thẻ chi tiết và tự động tải thêm 5 đơn/lượt khi cuộn.
  */
-const FilterCombobox: React.FC<FilterComboboxProps> = ({
+export const FilterCombobox: React.FC<FilterComboboxProps> = ({
   value,
   onChange,
   options,
@@ -249,14 +249,13 @@ export const SalesInvoiceFromDeliveriesView: React.FC<SalesInvoiceFromDeliveries
   const [toDateFilter, setToDateFilter] = useState('');
   const [quickSearchText, setQuickSearchText] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(5);
+  const pageSize = 10;
 
   // 2. Dữ liệu bảng & Thống kê
   const [isLoading, setIsLoading] = useState(false);
   const [dispatches, setDispatches] = useState<DeliveryDispatchItem[]>([]);
   const [adjustmentsList, setAdjustmentsList] = useState<InvoiceAdjustmentItem[]>([]);
   const [selectedAdjustmentDetail, setSelectedAdjustmentDetail] = useState<InvoiceAdjustmentItem | null>(null);
-  const [warehousesList, setWarehousesList] = useState<{ id: number; name: string }[]>([]);
   const [quickStats, setQuickStats] = useState({
     total_pending_invoices: 0,
     total_issued_invoices: 0,
@@ -269,119 +268,10 @@ export const SalesInvoiceFromDeliveriesView: React.FC<SalesInvoiceFromDeliveries
   // 3. Selection
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
 
-  // Tải danh sách kho hàng để gợi ý tìm kiếm
-  useEffect(() => {
-    let isMounted = true;
-    getWarehousesApi(token)
-      .then((res) => {
-        if (isMounted && Array.isArray(res)) {
-          setWarehousesList(res.map((w: any) => ({ id: w.id, name: w.name })));
-        }
-      })
-      .catch(() => {});
-    return () => {
-      isMounted = false;
-    };
-  }, [token]);
-
   // Format currency
   const formatVND = useCallback((amount: number) => {
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount || 0);
   }, []);
-
-  // Gợi ý danh sách hiển thị dạng thẻ chi tiết (chuẩn 5 đơn/lượt cuộn)
-  const dispatchCodeOptions: FilterComboboxOption[] = useMemo(() => {
-    if (activeTab === 'ADJUSTMENTS') {
-      return adjustmentsList.map((a) => ({
-        value: a.adjustment_code,
-        label: a.adjustment_code,
-        subLabel: `${a.dealer_name || 'Khách lẻ'} • HĐ gốc: ${a.invoice_code}`,
-        badge: a.adjustment_type === 'INCREASE' ? '+ Tăng' : a.adjustment_type === 'DECREASE' ? '- Giảm' : 'Thông tin',
-      }));
-    }
-    return dispatches.map((d) => ({
-      value: d.dispatch_code,
-      label: d.dispatch_code,
-      subLabel: `${d.dealer_name || 'Khách lẻ'} • Đơn: ${d.order_code} • ${formatVND(d.total_amount)}`,
-      badge: d.delivery_status === 'DELIVERED' ? 'Đã giao' : d.delivery_status === 'FAILED' ? 'Thất bại' : 'Chờ giao',
-    }));
-  }, [activeTab, adjustmentsList, dispatches, formatVND]);
-
-  const orderCodeOptions: FilterComboboxOption[] = useMemo(() => {
-    if (activeTab === 'ADJUSTMENTS') {
-      const map = new Map<string, FilterComboboxOptionItem>();
-      adjustmentsList.forEach((a) => {
-        if (a.invoice_code && !map.has(a.invoice_code)) {
-          map.set(a.invoice_code, {
-            value: a.invoice_code,
-            label: a.invoice_code,
-            subLabel: `${a.dealer_name || 'Khách lẻ'} • Điều chỉnh: ${a.adjustment_code}`,
-          });
-        }
-      });
-      return Array.from(map.values());
-    }
-    const map = new Map<string, FilterComboboxOptionItem>();
-    dispatches.forEach((d) => {
-      if (d.order_code && !map.has(d.order_code)) {
-        map.set(d.order_code, {
-          value: d.order_code,
-          label: d.order_code,
-          subLabel: `${d.dealer_name || 'Khách lẻ'} • Phiếu: ${d.dispatch_code} • ${formatVND(d.total_amount)}`,
-        });
-      }
-    });
-    return Array.from(map.values());
-  }, [activeTab, adjustmentsList, dispatches, formatVND]);
-
-  const dealerOptions: FilterComboboxOption[] = useMemo(() => {
-    const map = new Map<string, FilterComboboxOptionItem>();
-    if (activeTab === 'ADJUSTMENTS') {
-      adjustmentsList.forEach((a) => {
-        if (a.dealer_name && !map.has(a.dealer_name)) {
-          map.set(a.dealer_name, {
-            value: a.dealer_name,
-            label: a.dealer_name,
-            subLabel: `Mã điều chỉnh: ${a.adjustment_code}`,
-          });
-        }
-      });
-    } else {
-      dispatches.forEach((d) => {
-        if (d.dealer_name && !map.has(d.dealer_name)) {
-          map.set(d.dealer_name, {
-            value: d.dealer_name,
-            label: d.dealer_name,
-            subLabel: `${d.dealer_phone ? `SĐT: ${d.dealer_phone} • ` : ''}Đơn: ${d.order_code}`,
-          });
-        }
-      });
-    }
-    return Array.from(map.values());
-  }, [activeTab, adjustmentsList, dispatches]);
-
-  const warehouseOptions: FilterComboboxOption[] = useMemo(() => {
-    const map = new Map<string, FilterComboboxOptionItem>();
-    warehousesList.forEach((w) => {
-      if (w.name && !map.has(w.name)) {
-        map.set(w.name, {
-          value: w.name,
-          label: w.name,
-          subLabel: `Kho hàng ID: ${w.id}`,
-        });
-      }
-    });
-    dispatches.forEach((d) => {
-      if (d.warehouse_name && !map.has(d.warehouse_name)) {
-        map.set(d.warehouse_name, {
-          value: d.warehouse_name,
-          label: d.warehouse_name,
-          subLabel: `Xuất đơn: ${d.order_code}`,
-        });
-      }
-    });
-    return Array.from(map.values());
-  }, [warehousesList, dispatches]);
 
   const handleResetFilters = () => {
     setQuickSearchText('');
@@ -394,13 +284,6 @@ export const SalesInvoiceFromDeliveriesView: React.FC<SalesInvoiceFromDeliveries
     setFromDateFilter('');
     setToDateFilter('');
     setCurrentPage(1);
-  };
-
-  const handleKeyDown = (e?: React.KeyboardEvent<HTMLInputElement>) => {
-    if (!e || e.key === 'Enter') {
-      setCurrentPage(1);
-      fetchDispatches();
-    }
   };
 
   // 4. Modals
@@ -436,6 +319,20 @@ export const SalesInvoiceFromDeliveriesView: React.FC<SalesInvoiceFromDeliveries
   // Dispatch Detail Drawer & Sub-pages
   const [viewingDispatch, setViewingDispatch] = useState<DeliveryDispatchItem | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'dispatch_detail' | 'adjustment'>('list');
+
+  // State menu 3 chấm thao tác từng dòng
+  const [activeDropdownRowId, setActiveDropdownRowId] = useState<number | string | null>(null);
+
+  useEffect(() => {
+    const handleGlobalClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('.wh-action-dropdown-container')) {
+        setActiveDropdownRowId(null);
+      }
+    };
+    document.addEventListener('click', handleGlobalClick);
+    return () => document.removeEventListener('click', handleGlobalClick);
+  }, []);
 
   // Toast / Thông báo
   const [toastMessage, setToMessage] = useState<{ type: 'success' | 'error' | 'warning'; text: string } | null>(null);
@@ -722,6 +619,158 @@ export const SalesInvoiceFromDeliveriesView: React.FC<SalesInvoiceFromDeliveries
     } finally {
       setIsSubmittingAdjustment(false);
     }
+  };
+
+  const renderPaginationBar = (
+    currentPage: number,
+    totalPages: number,
+    totalItems: number,
+    onPageChange: (page: number) => void
+  ) => {
+    if (totalItems <= pageSize && totalPages <= 1) return null;
+
+    let pageList: (number | string)[] = [];
+    if (totalPages <= 5) {
+      pageList = Array.from({ length: totalPages }, (_, i) => i + 1);
+    } else {
+      if (currentPage <= 3) {
+        pageList = [1, 2, 3, '...', totalPages];
+      } else if (currentPage >= totalPages - 2) {
+        pageList = [1, '...', totalPages - 2, totalPages - 1, totalPages];
+      } else {
+        pageList = [1, '...', currentPage - 1, currentPage, currentPage + 1, '...', totalPages];
+      }
+    }
+
+    return (
+      <div
+        style={{
+          padding: '8px 14px',
+          borderTop: '1px solid #e2e8f0',
+          backgroundColor: '#ffffff',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: '10px',
+          flexShrink: 0,
+        }}
+      >
+        <div style={{ fontSize: '12px', color: '#64748b' }}>
+          Tổng số: <strong style={{ color: '#0f172a' }}>{totalItems}</strong> {activeTab === 'ADJUSTMENTS' ? 'chứng từ' : 'phiếu giao hàng'} | Trang <strong style={{ color: '#0f172a' }}>{currentPage}</strong> / {totalPages}
+        </div>
+
+        <div
+          style={{
+            display: 'inline-flex',
+            alignItems: 'stretch',
+            border: '1px solid #cbd5e1',
+            borderRadius: '6px',
+            overflow: 'hidden',
+            backgroundColor: '#ffffff',
+            height: '30px',
+            boxShadow: '0 1px 2px rgba(0, 0, 0, 0.04)',
+          }}
+        >
+          {currentPage > 1 && (
+            <button
+              type="button"
+              onClick={() => onPageChange(currentPage - 1)}
+              style={{
+                width: '30px',
+                height: '100%',
+                border: 'none',
+                borderRight: '1px solid #e2e8f0',
+                backgroundColor: '#ffffff',
+                color: '#374151',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '14px',
+              }}
+              title="Trang trước"
+            >
+              ‹
+            </button>
+          )}
+
+          {pageList.map((p, idx) => {
+            if (p === '...') {
+              return (
+                <span
+                  key={`ellipsis-${idx}`}
+                  style={{
+                    padding: '0 8px',
+                    height: '100%',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#94a3b8',
+                    fontSize: '12px',
+                    borderRight: '1px solid #e2e8f0',
+                    backgroundColor: '#ffffff',
+                    userSelect: 'none',
+                  }}
+                >
+                  ...
+                </span>
+              );
+            }
+
+            const pageNum = p as number;
+            const isActive = pageNum === currentPage;
+
+            return (
+              <button
+                key={pageNum}
+                type="button"
+                onClick={() => onPageChange(pageNum)}
+                style={{
+                  minWidth: '30px',
+                  padding: '0 6px',
+                  height: '100%',
+                  border: 'none',
+                  borderRight: idx === pageList.length - 1 && currentPage === totalPages ? 'none' : '1px solid #e2e8f0',
+                  backgroundColor: isActive ? '#059669' : '#ffffff',
+                  color: isActive ? '#ffffff' : '#374151',
+                  fontWeight: isActive ? 700 : 500,
+                  fontSize: '12px',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                {pageNum}
+              </button>
+            );
+          })}
+
+          {currentPage < totalPages && (
+            <button
+              type="button"
+              onClick={() => onPageChange(currentPage + 1)}
+              style={{
+                width: '30px',
+                height: '100%',
+                border: 'none',
+                backgroundColor: '#ffffff',
+                color: '#374151',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '14px',
+              }}
+              title="Trang tiếp"
+            >
+              ›
+            </button>
+          )}
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -1163,39 +1212,118 @@ export const SalesInvoiceFromDeliveriesView: React.FC<SalesInvoiceFromDeliveries
               ========================================================================= */}
           {/* 1. KHUNG GỘP TIÊU ĐỀ, THỐNG KÊ, TABS & BỘ LỌC TÌM KIẾM */}
           <div className="bg-white rounded-xl shadow-xs border border-slate-200 p-3 mb-2.5 space-y-2.5">
-        {/* Hàng trên: Tiêu đề bên trái & 3 Thẻ thống kê bên phải */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-          <div>
-            <h1 className="text-xl md:text-2xl font-bold text-slate-900 leading-tight m-0">
-              Xuất Hóa Đơn Bán Hàng
-            </h1>
+        {/* Tiêu đề trang */}
+        <div className="flex items-center justify-between pb-1">
+          <h1 className="text-xl md:text-2xl font-bold text-slate-900 leading-tight m-0">
+            Xuất Hóa Đơn Bán Hàng
+          </h1>
+        </div>
+
+        {/* 4 Ô màu to vừa với khung như ở trang đối chiếu công nợ đại lý */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 w-full">
+          {/* Card 1: Chờ xuất HĐ */}
+          <div
+            style={{
+              background: '#fffbeb',
+              border: '1px solid #fde68a',
+              borderLeft: '4px solid #f59e0b',
+              borderRadius: '10px',
+              padding: '12px 16px',
+              boxShadow: '0 1px 2px rgba(0, 0, 0, 0.03)',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+            }}
+          >
+            <div style={{ fontSize: '12px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.04em', color: '#b45309' }}>
+              Chờ xuất hóa đơn
+            </div>
+            <div style={{ fontSize: '22px', fontWeight: '800', color: '#92400e', marginTop: '6px', lineHeight: 1.2 }}>
+              {quickStats.total_pending_invoices.toLocaleString()}{' '}
+              <span style={{ fontSize: '13px', fontWeight: '600', color: '#b45309' }}>phiếu</span>
+            </div>
+            <div style={{ fontSize: '11px', color: '#78350f', marginTop: '4px' }}>
+              Phiếu giao đủ điều kiện xuất hóa đơn
+            </div>
           </div>
 
-          {/* 4 Thẻ thống kê nhanh */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-1.5 md:min-w-[500px]">
-            <div className="bg-amber-50 border border-amber-200 rounded-lg py-1.5 px-2 flex flex-col justify-center">
-              <span className="text-[10px] font-semibold text-amber-700 uppercase tracking-wide">Chờ xuất HĐ</span>
-              <div className="text-base font-bold text-amber-900 mt-0.5">
-                {quickStats.total_pending_invoices.toLocaleString()} <span className="text-[11px] font-normal">phiếu</span>
-              </div>
+          {/* Card 2: Đã xuất HĐ */}
+          <div
+            style={{
+              background: '#ecfdf5',
+              border: '1px solid #a7f3d0',
+              borderLeft: '4px solid #10b981',
+              borderRadius: '10px',
+              padding: '12px 16px',
+              boxShadow: '0 1px 2px rgba(0, 0, 0, 0.03)',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+            }}
+          >
+            <div style={{ fontSize: '12px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.04em', color: '#047857' }}>
+              Đã xuất hóa đơn
             </div>
-            <div className="bg-emerald-50 border border-emerald-200 rounded-lg py-1.5 px-2 flex flex-col justify-center">
-              <span className="text-[10px] font-semibold text-emerald-700 uppercase tracking-wide">Đã xuất HĐ</span>
-              <div className="text-base font-bold text-emerald-900 mt-0.5">
-                {quickStats.total_issued_invoices.toLocaleString()} <span className="text-[11px] font-normal">phiếu</span>
-              </div>
+            <div style={{ fontSize: '22px', fontWeight: '800', color: '#065f46', marginTop: '6px', lineHeight: 1.2 }}>
+              {quickStats.total_issued_invoices.toLocaleString()}{' '}
+              <span style={{ fontSize: '13px', fontWeight: '600', color: '#047857' }}>phiếu</span>
             </div>
-            <div className="bg-indigo-50 border border-indigo-200 rounded-lg py-1.5 px-2 flex flex-col justify-center">
-              <span className="text-[10px] font-semibold text-indigo-700 uppercase tracking-wide">Chứng từ điều chỉnh</span>
-              <div className="text-base font-bold text-indigo-900 mt-0.5">
-                {(quickStats.total_adjustments || 0).toLocaleString()} <span className="text-[11px] font-normal">chứng từ</span>
-              </div>
+            <div style={{ fontSize: '11px', color: '#064e3b', marginTop: '4px' }}>
+              Đã phát hành hóa đơn tài chính
             </div>
-            <div className="bg-blue-50 border border-blue-200 rounded-lg py-1.5 px-2 flex flex-col justify-center">
-              <span className="text-[10px] font-semibold text-blue-700 uppercase tracking-wide">Tổng tiền dự kiến</span>
-              <div className="text-xs sm:text-sm font-bold text-blue-900 mt-0.5 truncate" title={formatVND(quickStats.total_pending_amount)}>
-                {formatVND(quickStats.total_pending_amount)}
-              </div>
+          </div>
+
+          {/* Card 3: Chứng từ điều chỉnh */}
+          <div
+            style={{
+              background: '#eef2ff',
+              border: '1px solid #c7d2fe',
+              borderLeft: '4px solid #6366f1',
+              borderRadius: '10px',
+              padding: '12px 16px',
+              boxShadow: '0 1px 2px rgba(0, 0, 0, 0.03)',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+            }}
+          >
+            <div style={{ fontSize: '12px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.04em', color: '#4338ca' }}>
+              Chứng từ điều chỉnh
+            </div>
+            <div style={{ fontSize: '22px', fontWeight: '800', color: '#3730a3', marginTop: '6px', lineHeight: 1.2 }}>
+              {(quickStats.total_adjustments || 0).toLocaleString()}{' '}
+              <span style={{ fontSize: '13px', fontWeight: '600', color: '#4338ca' }}>chứng từ</span>
+            </div>
+            <div style={{ fontSize: '11px', color: '#312e81', marginTop: '4px' }}>
+              Lịch sử điều chỉnh sai sót hóa đơn
+            </div>
+          </div>
+
+          {/* Card 4: Tổng tiền dự kiến */}
+          <div
+            style={{
+              background: '#eff6ff',
+              border: '1px solid #bfdbfe',
+              borderLeft: '4px solid #3b82f6',
+              borderRadius: '10px',
+              padding: '12px 16px',
+              boxShadow: '0 1px 2px rgba(0, 0, 0, 0.03)',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+            }}
+          >
+            <div style={{ fontSize: '12px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.04em', color: '#0369a1' }}>
+              Tổng tiền dự kiến
+            </div>
+            <div
+              style={{ fontSize: '20px', fontWeight: '800', color: '#1e40af', marginTop: '6px', lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+              title={formatVND(quickStats.total_pending_amount)}
+            >
+              {formatVND(quickStats.total_pending_amount)}
+            </div>
+            <div style={{ fontSize: '11px', color: '#1e3a8a', marginTop: '4px' }}>
+              Doanh số tất cả phiếu chờ xuất
             </div>
           </div>
         </div>
@@ -1242,65 +1370,9 @@ export const SalesInvoiceFromDeliveriesView: React.FC<SalesInvoiceFromDeliveries
           </div>
         </div>
 
-        {/* Bộ lọc lưới 4x2 chi tiết, mỗi combobox hiển thị chuẩn 5 đơn/lượt cuộn */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 items-end pt-2 border-t border-slate-100">
-          {/* Cột 1: Mã phiếu giao hoặc Mã chứng từ điều chỉnh */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">
-              {activeTab === 'ADJUSTMENTS' ? 'Mã chứng từ điều chỉnh' : 'Mã phiếu giao'}
-            </label>
-            <FilterCombobox
-              value={dispatchCodeFilter}
-              onChange={setDispatchCodeFilter}
-              options={dispatchCodeOptions}
-              unitLabel={activeTab === 'ADJUSTMENTS' ? 'chứng từ' : 'phiếu'}
-              placeholder={activeTab === 'ADJUSTMENTS' ? 'Chọn hoặc nhập mã DC-...' : 'Chọn hoặc nhập mã phiếu...'}
-              onEnter={handleKeyDown}
-            />
-          </div>
-
-          {/* Cột 2: Mã đơn hàng hoặc Mã hóa đơn gốc */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">
-              {activeTab === 'ADJUSTMENTS' ? 'Mã hóa đơn gốc' : 'Mã đơn hàng'}
-            </label>
-            <FilterCombobox
-              value={orderCodeFilter}
-              onChange={setOrderCodeFilter}
-              options={orderCodeOptions}
-              unitLabel={activeTab === 'ADJUSTMENTS' ? 'hóa đơn' : 'đơn'}
-              placeholder={activeTab === 'ADJUSTMENTS' ? 'Chọn hoặc nhập mã HD-...' : 'Chọn hoặc nhập mã đơn...'}
-              onEnter={handleKeyDown}
-            />
-          </div>
-
-          {/* Cột 3: Đại lý / Khách */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">Đại lý / Khách hàng</label>
-            <FilterCombobox
-              value={dealerNameFilter}
-              onChange={setDealerNameFilter}
-              options={dealerOptions}
-              unitLabel="đại lý"
-              placeholder="Chọn hoặc nhập đại lý..."
-              onEnter={handleKeyDown}
-            />
-          </div>
-
-          {/* Cột 4: Kho xuất */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">Kho xuất</label>
-            <FilterCombobox
-              value={warehouseIdFilter}
-              onChange={setWarehouseIdFilter}
-              options={warehouseOptions}
-              unitLabel="kho"
-              placeholder="Chọn hoặc nhập kho xuất..."
-              onEnter={handleKeyDown}
-            />
-          </div>
-
-          {/* Cột 5: Trạng thái giao hoặc Loại điều chỉnh */}
+        {/* Bộ lọc lưới 4 cột gọn gàng vừa vặn */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 items-end pt-2 border-t border-slate-100">
+          {/* Cột 1: Trạng thái giao hoặc Loại điều chỉnh */}
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1">
               {activeTab === 'ADJUSTMENTS' ? 'Loại điều chỉnh' : 'Trạng thái giao'}
@@ -1330,7 +1402,7 @@ export const SalesInvoiceFromDeliveriesView: React.FC<SalesInvoiceFromDeliveries
             )}
           </div>
 
-          {/* Cột 6: Từ ngày */}
+          {/* Cột 2: Từ ngày */}
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1">Từ ngày</label>
             <input
@@ -1341,7 +1413,7 @@ export const SalesInvoiceFromDeliveriesView: React.FC<SalesInvoiceFromDeliveries
             />
           </div>
 
-          {/* Cột 7: Đến ngày */}
+          {/* Cột 3: Đến ngày */}
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1">Đến ngày</label>
             <input
@@ -1352,7 +1424,7 @@ export const SalesInvoiceFromDeliveriesView: React.FC<SalesInvoiceFromDeliveries
             />
           </div>
 
-          {/* Cột 8: Nút Lọc và Đặt lại */}
+          {/* Cột 4: Nút Lọc và Đặt lại */}
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1 invisible select-none">
               Thao tác
@@ -1532,7 +1604,7 @@ export const SalesInvoiceFromDeliveriesView: React.FC<SalesInvoiceFromDeliveries
                     <th className="px-3 py-2.5 whitespace-nowrap text-center">Trạng thái giao</th>
                     <th className="px-3 py-2.5 whitespace-nowrap text-left">Sản phẩm thực giao (SL)</th>
                     <th className="px-3 py-2.5 whitespace-nowrap text-right">Tổng tiền dự kiến</th>
-                    <th className="px-3 py-2.5 whitespace-nowrap text-center">Hóa đơn & Thao tác</th>
+                    <th className="px-3 py-2.5 whitespace-nowrap text-center">Thao tác</th>
                   </>
                 )}
               </tr>
@@ -1592,16 +1664,53 @@ export const SalesInvoiceFromDeliveriesView: React.FC<SalesInvoiceFromDeliveries
                         <div className="font-medium">{adj.created_at || '—'}</div>
                         <div className="text-[10.5px] text-slate-400">{adj.created_by || '—'}</div>
                       </td>
-                      <td className="px-3 py-2.5 text-center whitespace-nowrap">
-                        <div className="flex items-center justify-center gap-1.5">
+                      <td className="px-3 py-2 text-center whitespace-nowrap" style={{ position: 'relative', zIndex: activeDropdownRowId === adj.id ? 35 : 1 }}>
+                        <div className="wh-action-dropdown-container" style={{ position: 'relative', display: 'inline-block' }}>
                           <button
                             type="button"
-                            onClick={() => setSelectedAdjustmentDetail(adj)}
-                            className="px-2.5 py-1 text-[11px] font-bold text-amber-800 bg-amber-100 hover:bg-amber-200 rounded border border-amber-300 transition-colors cursor-pointer"
-                            title="Xem chi tiết chứng từ điều chỉnh"
+                            className={`wh-action-dots-btn ${activeDropdownRowId === adj.id ? 'active' : ''}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveDropdownRowId((prev) => (prev === adj.id ? null : adj.id));
+                            }}
+                            title="Tùy chọn thao tác"
                           >
-                            Chi tiết
+                            <span className="wh-action-dots-icon">
+                              <span />
+                              <span />
+                              <span />
+                            </span>
                           </button>
+
+                          {activeDropdownRowId === adj.id && (
+                            <div className="wh-dropdown-menu open-down" style={{ minWidth: '150px' }}>
+                              <button
+                                type="button"
+                                className="wh-dropdown-item wh-dropdown-item-primary"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setActiveDropdownRowId(null);
+                                  setSelectedAdjustmentDetail(adj);
+                                }}
+                              >
+                                <span>Chi tiết</span>
+                              </button>
+                              {adj.invoice_id && (
+                                <button
+                                  type="button"
+                                  className="wh-dropdown-item"
+                                  style={{ color: '#0284c7', fontWeight: 600 }}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setActiveDropdownRowId(null);
+                                    handleOpenInvoiceDetail(adj.invoice_id);
+                                  }}
+                                >
+                                  <span>Xem hóa đơn gốc</span>
+                                </button>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -1621,7 +1730,7 @@ export const SalesInvoiceFromDeliveriesView: React.FC<SalesInvoiceFromDeliveries
                   </td>
                 </tr>
               ) : (
-                dispatches.map((d) => {
+                dispatches.map((d, idx) => {
                   const isChecked = selectedIds.includes(d.dispatch_id);
                   const canCheck = d.is_eligible;
 
@@ -1710,39 +1819,71 @@ export const SalesInvoiceFromDeliveriesView: React.FC<SalesInvoiceFromDeliveries
                       <td className="px-2.5 py-2 text-right font-bold text-slate-900 text-[11px] whitespace-nowrap">
                         {formatVND(d.total_amount)}
                       </td>
-                      <td className="px-2.5 py-2 text-center whitespace-nowrap">
-                        <div className="flex items-center justify-center gap-1.5">
-                          {d.invoice_status === 'INVOICED' ? (
-                            <button
-                              type="button"
-                              onClick={() => d.invoice_info?.invoice_id && handleOpenInvoiceDetail(d.invoice_info.invoice_id)}
-                              className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 cursor-pointer whitespace-nowrap"
-                              title="Xem hóa đơn đã xuất"
-                            >
-                              {d.invoice_info?.invoice_code || 'Xem HĐ'}
-                            </button>
-                          ) : d.is_eligible ? (
-                            <button
-                              type="button"
-                              onClick={() => handleSingleDispatchIssue(d)}
-                              className="px-2 py-0.5 text-[10.5px] font-bold text-white bg-emerald-600 hover:bg-emerald-500 rounded shadow-xs transition-colors cursor-pointer border-0"
-                              title="Xuất hóa đơn ngay cho phiếu giao hàng này"
-                            >
-                              Xuất HĐ
-                            </button>
-                          ) : (
-                            <span className="text-[10px] text-slate-400 px-1 font-medium">Chưa xuất HĐ</span>
-                          )}
+                      <td className="px-2.5 py-2 text-center whitespace-nowrap" style={{ position: 'relative', zIndex: activeDropdownRowId === d.dispatch_id ? 35 : 1 }}>
+                        <div className="wh-action-dropdown-container" style={{ position: 'relative', display: 'inline-block' }}>
                           <button
                             type="button"
-                            onClick={() => {
-                              setViewingDispatch(d);
-                              setViewMode('dispatch_detail');
+                            className={`wh-action-dots-btn ${activeDropdownRowId === d.dispatch_id ? 'active' : ''}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveDropdownRowId((prev) => (prev === d.dispatch_id ? null : d.dispatch_id));
                             }}
-                            className="px-2 py-0.5 text-[10.5px] font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded border border-slate-300 transition-colors cursor-pointer"
+                            title="Tùy chọn thao tác"
                           >
-                            Chi tiết
+                            <span className="wh-action-dots-icon">
+                              <span />
+                              <span />
+                              <span />
+                            </span>
                           </button>
+
+                          {activeDropdownRowId === d.dispatch_id && (() => {
+                            const openUpward = dispatches.length > 3 && idx >= dispatches.length - 2;
+                            return (
+                              <div className={`wh-dropdown-menu ${openUpward ? 'open-up' : 'open-down'}`} style={{ minWidth: '155px' }}>
+                                <button
+                                  type="button"
+                                  className="wh-dropdown-item wh-dropdown-item-primary"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setActiveDropdownRowId(null);
+                                    setViewingDispatch(d);
+                                    setViewMode('dispatch_detail');
+                                  }}
+                                >
+                                  <span>Chi tiết</span>
+                                </button>
+                                {d.invoice_status === 'INVOICED' && d.invoice_info?.invoice_id && (
+                                  <button
+                                    type="button"
+                                    className="wh-dropdown-item"
+                                    style={{ color: '#0284c7', fontWeight: 600 }}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setActiveDropdownRowId(null);
+                                      handleOpenInvoiceDetail(d.invoice_info!.invoice_id);
+                                    }}
+                                  >
+                                    <span>Xem hóa đơn ({d.invoice_info?.invoice_code || 'HĐ'})</span>
+                                  </button>
+                                )}
+                                {d.invoice_status !== 'INVOICED' && d.is_eligible && (
+                                  <button
+                                    type="button"
+                                    className="wh-dropdown-item"
+                                    style={{ color: '#16a34a', fontWeight: 600 }}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setActiveDropdownRowId(null);
+                                      handleSingleDispatchIssue(d);
+                                    }}
+                                  >
+                                    <span>Xuất hóa đơn</span>
+                                  </button>
+                                )}
+                              </div>
+                            );
+                          })()}
                         </div>
                       </td>
                     </tr>
@@ -1753,55 +1894,8 @@ export const SalesInvoiceFromDeliveriesView: React.FC<SalesInvoiceFromDeliveries
           </table>
         </div>
 
-        {/* Phân trang (chuẩn 5 đơn/lượt) */}
-        {totalRecords > 0 && (
-          <div className="py-2 px-3 border-t border-slate-200 bg-slate-50/50 flex flex-wrap items-center justify-between text-[11px] text-slate-500 gap-2">
-            <div className="flex items-center gap-2">
-              <span>
-                Hiển thị <strong className="text-slate-800">{activeTab === 'ADJUSTMENTS' ? adjustmentsList.length : dispatches.length}</strong> / {totalRecords} {activeTab === 'ADJUSTMENTS' ? 'chứng từ' : 'phiếu giao hàng'}
-              </span>
-              <span className="text-slate-300">|</span>
-              <div className="flex items-center gap-1.5">
-                <span>Số lượng hiển thị:</span>
-                <select
-                  value={pageSize}
-                  onChange={(e) => {
-                    setPageSize(Number(e.target.value));
-                    setCurrentPage(1);
-                  }}
-                  className="h-6 px-1.5 text-[11px] font-semibold text-slate-700 bg-white border border-slate-300 rounded cursor-pointer"
-                >
-                  <option value={5}>5 đơn / lượt</option>
-                  <option value={10}>10 đơn / lượt</option>
-                  <option value={15}>15 đơn / lượt</option>
-                  <option value={20}>20 đơn / lượt</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                disabled={currentPage <= 1}
-                className="px-2 py-0.5 rounded border border-slate-300 bg-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-100 cursor-pointer text-[11px]"
-              >
-                Trước
-              </button>
-              <span className="px-1.5 font-semibold text-slate-700">
-                {currentPage} / {totalPages}
-              </span>
-              <button
-                type="button"
-                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                disabled={currentPage >= totalPages}
-                className="px-2 py-0.5 rounded border border-slate-300 bg-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-100 cursor-pointer text-[11px]"
-              >
-                Sau
-              </button>
-            </div>
-          </div>
-        )}
+        {/* Phân trang */}
+        {renderPaginationBar(currentPage, totalPages, totalRecords, setCurrentPage)}
       </div>
     </>
   )}

@@ -78,6 +78,11 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
 
   // Kho đang chọn để xem vị trí / gán sản phẩm
   const [selectedWarehouse, setSelectedWarehouse] = useState<WarehouseItem | null>(null);
+  const [activeDropdownWhId, setActiveDropdownWhId] = useState<number | null>(null);
+  const [activeDropdownLocId, setActiveDropdownLocId] = useState<number | null>(null);
+  const [activeDropdownZoneId, setActiveDropdownZoneId] = useState<number | null>(null);
+  const [activeDropdownRackId, setActiveDropdownRackId] = useState<number | null>(null);
+  const [activeDropdownProdLocId, setActiveDropdownProdLocId] = useState<number | null>(null);
   const [subTab, setSubTab] = useState<'locations' | 'master-data' | 'products' | 'picking'>('locations');
   const [isGlobalPickingOpen, setIsGlobalPickingOpen] = useState<boolean>(false);
 
@@ -268,6 +273,24 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
     fetchWarehouses();
   }, [fetchWarehouses]);
 
+  // Đóng menu thao tác 3 chấm khi bấm ra ngoài
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('.wh-action-dropdown-container')) {
+        setActiveDropdownWhId(null);
+        setActiveDropdownLocId(null);
+        setActiveDropdownZoneId(null);
+        setActiveDropdownRackId(null);
+        setActiveDropdownProdLocId(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
   // Tải danh mục sản phẩm dùng khi gán vị trí
   const fetchProductsList = useCallback(async () => {
     try {
@@ -378,18 +401,30 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
     return Array.from(s).sort((a, b) => a.localeCompare(b, 'vi'));
   }, [zonesList, masterData, locations]);
 
-  // --- TÍNH TOÁN PHÂN TRANG ---
+  // --- TÍNH TOÁN PHÂN TRANG & BỘ ĐẾM TRANG ---
+  const [whPage, setWhPage] = useState<number>(1);
+  const whPageSize = 10;
+  const whTotalPages = Math.max(1, Math.ceil(warehouses.length / whPageSize));
   const paginatedWarehouses = useMemo(() => {
-    return warehouses;
-  }, [warehouses]);
+    const start = (whPage - 1) * whPageSize;
+    return warehouses.slice(start, start + whPageSize);
+  }, [warehouses, whPage, whPageSize]);
 
+  const [locPage, setLocPage] = useState<number>(1);
+  const locPageSize = 10;
+  const locTotalPages = Math.max(1, Math.ceil(locations.length / locPageSize));
   const paginatedLocations = useMemo(() => {
-    return locations;
-  }, [locations]);
+    const start = (locPage - 1) * locPageSize;
+    return locations.slice(start, start + locPageSize);
+  }, [locations, locPage, locPageSize]);
 
+  const [prodPage, setProdPage] = useState<number>(1);
+  const prodPageSize = 10;
+  const prodTotalPages = Math.max(1, Math.ceil(locationProducts.length / prodPageSize));
   const paginatedLocationProducts = useMemo(() => {
-    return locationProducts;
-  }, [locationProducts]);
+    const start = (prodPage - 1) * prodPageSize;
+    return locationProducts.slice(start, start + prodPageSize);
+  }, [locationProducts, prodPage, prodPageSize]);
 
   // Master data lọc và tìm kiếm
   const filteredZones = useMemo(() => {
@@ -444,6 +479,196 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
         (r.zone_name && r.zone_name.toLowerCase() === activeZone.zone_name.toLowerCase())
     );
   }, [filteredRacks, activeZone]);
+
+  const [rackPage, setRackPage] = useState<number>(1);
+  const rackPageSize = 10;
+  const rackTotalPages = Math.max(1, Math.ceil(detailRacks.length / rackPageSize));
+  const paginatedDetailRacks = useMemo(() => {
+    const start = (rackPage - 1) * rackPageSize;
+    return detailRacks.slice(start, start + rackPageSize);
+  }, [detailRacks, rackPage, rackPageSize]);
+
+  // Reset trang về 1 khi thay đổi tìm kiếm hoặc bộ lọc
+  useEffect(() => {
+    setWhPage(1);
+  }, [whSearch, whStatusFilter]);
+
+  useEffect(() => {
+    setLocPage(1);
+  }, [locSearch, locZoneFilter, selectedWarehouse]);
+
+  useEffect(() => {
+    setProdPage(1);
+  }, [prodSearch, selectedWarehouse]);
+
+  useEffect(() => {
+    setRackPage(1);
+  }, [selectedZoneIdForDetail, masterRackFilter, masterSearch, selectedWarehouse]);
+
+  // Thanh phân trang liền khối bo góc chuẩn ERP (Đúng mẫu [ 1 | 2 | 3 | > ])
+  const renderPaginationBar = (
+    currentPage: number,
+    totalPages: number,
+    totalItems: number,
+    _pageSize: number,
+    _itemName: string,
+    onPageChange: (page: number) => void
+  ) => {
+    // Chỉ sang trang khi có hơn 1 trang (hơn 10 sản phẩm / mục)
+    if (totalItems === 0 || totalPages <= 1) return null;
+
+    let pageList: (number | string)[] = [];
+    if (totalPages <= 5) {
+      pageList = Array.from({ length: totalPages }, (_, i) => i + 1);
+    } else {
+      if (currentPage <= 3) {
+        pageList = [1, 2, 3, '...', totalPages];
+      } else if (currentPage >= totalPages - 2) {
+        pageList = [1, '...', totalPages - 2, totalPages - 1, totalPages];
+      } else {
+        pageList = [1, '...', currentPage - 1, currentPage, currentPage + 1, '...', totalPages];
+      }
+    }
+
+    return (
+      <div
+        style={{
+          padding: '10px 18px',
+          borderTop: '1px solid #e2e8f0',
+          backgroundColor: '#ffffff',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'flex-end',
+          flexWrap: 'wrap',
+          gap: '10px',
+          flexShrink: 0,
+        }}
+      >
+        <div
+          style={{
+            display: 'inline-flex',
+            alignItems: 'stretch',
+            border: '1px solid #cbd5e1',
+            borderRadius: '6px',
+            overflow: 'hidden',
+            backgroundColor: '#ffffff',
+            height: '32px',
+            boxShadow: '0 1px 2px rgba(0, 0, 0, 0.04)',
+          }}
+        >
+          {currentPage > 1 && (
+            <button
+              type="button"
+              onClick={() => onPageChange(currentPage - 1)}
+              style={{
+                width: '32px',
+                height: '100%',
+                border: 'none',
+                borderRight: '1px solid #e2e8f0',
+                backgroundColor: '#ffffff',
+                color: '#374151',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'background-color 0.15s ease',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f8fafc')}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#ffffff')}
+              title="Trang trước"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="15 18 9 12 15 6" />
+              </svg>
+            </button>
+          )}
+
+          {pageList.map((p, idx) => {
+            if (typeof p === 'string') {
+              return (
+                <span
+                  key={`dots-${idx}`}
+                  style={{
+                    minWidth: '32px',
+                    height: '100%',
+                    padding: '0 6px',
+                    borderRight: '1px solid #e2e8f0',
+                    backgroundColor: '#ffffff',
+                    color: '#94a3b8',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '13px',
+                    userSelect: 'none',
+                  }}
+                >
+                  ...
+                </span>
+              );
+            }
+            const isActive = p === currentPage;
+            return (
+              <button
+                key={p}
+                type="button"
+                onClick={() => onPageChange(p)}
+                style={{
+                  minWidth: '34px',
+                  height: '100%',
+                  padding: '0 8px',
+                  border: 'none',
+                  borderRight: idx < pageList.length - 1 || currentPage < totalPages ? '1px solid #e2e8f0' : 'none',
+                  backgroundColor: isActive ? '#1e88e5' : '#ffffff',
+                  color: isActive ? '#ffffff' : '#1e293b',
+                  cursor: isActive ? 'default' : 'pointer',
+                  fontSize: '13px',
+                  fontWeight: isActive ? '700' : '600',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'background-color 0.15s ease',
+                }}
+                onMouseEnter={(e) => {
+                  if (!isActive) e.currentTarget.style.backgroundColor = '#f8fafc';
+                }}
+                onMouseLeave={(e) => {
+                  if (!isActive) e.currentTarget.style.backgroundColor = '#ffffff';
+                }}
+              >
+                {p}
+              </button>
+            );
+          })}
+
+          {currentPage < totalPages && (
+            <button
+              type="button"
+              onClick={() => onPageChange(currentPage + 1)}
+              style={{
+                width: '32px',
+                height: '100%',
+                border: 'none',
+                backgroundColor: '#ffffff',
+                color: '#374151',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'background-color 0.15s ease',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f8fafc')}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#ffffff')}
+              title="Trang sau"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="9 18 15 12 9 6" />
+              </svg>
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  };
 
   // Đếm số lượng kệ trực thuộc khu vực
   const getZoneRacksCount = useCallback(
@@ -2582,30 +2807,17 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
   return (
     <div className="wh-container">
 
-      {/* Main Header */}
-      <div className="wh-header">
-        <div className="wh-header-title-group">
-          <h1>
-            Quản Lý Danh Sách Kho Hàng & Vị Trí Kệ
-            <span className="wh-header-badge">Quản lý kho</span>
-          </h1>
-          <p>Hệ thống quản lý cấu trúc kho hàng, phân bổ vị trí kệ và theo dõi tồn kho theo từng vị trí chi tiết</p>
-        </div>
+      {/* Main Header (Chỉ hiển thị ở danh sách kho tổng) */}
+      {!selectedWarehouse && (
+        <div className="wh-header">
+          <div className="wh-header-title-group">
+            <h1>
+              Quản Lý Danh Sách Kho Hàng & Vị Trí Kệ
+            </h1>
+            <p>Hệ thống quản lý cấu trúc kho hàng, phân bổ vị trí kệ và theo dõi tồn kho theo từng vị trí chi tiết</p>
+          </div>
 
-        <div className="wh-header-actions">
-          {selectedWarehouse ? (
-            <button
-              type="button"
-              className="wh-btn wh-btn-secondary"
-              onClick={() => setSelectedWarehouse(null)}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-            >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="15 18 9 12 15 6" />
-              </svg>
-              Quay lại danh sách kho
-            </button>
-          ) : (
+          <div className="wh-header-actions">
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
               {canManage && (
                 <button
@@ -2632,9 +2844,9 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                 </button>
               )}
             </div>
-          )}
+          </div>
         </div>
-      </div>
+      )}
 
 
       {/* Bố cục: Nếu chưa chọn kho -> Xem bảng danh sách kho */}
@@ -2701,12 +2913,18 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                         <th>Địa chỉ</th>
                         <th>Người phụ trách</th>
                         <th style={{ textAlign: 'center', width: '150px' }}>Trạng thái</th>
-                        <th style={{ textAlign: 'center', width: '280px', minWidth: '280px' }}>Thao tác</th>
+                        <th style={{ textAlign: 'center', width: '80px', minWidth: '80px' }}>Thao tác</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {paginatedWarehouses.map((wh) => (
-                        <tr key={wh.id}>
+                      {paginatedWarehouses.map((wh, idx) => (
+                        <tr
+                          key={wh.id}
+                          style={{
+                            position: activeDropdownWhId === wh.id ? 'relative' : undefined,
+                            zIndex: activeDropdownWhId === wh.id ? 30 : undefined,
+                          }}
+                        >
                           <td>
                             <span className="wh-badge wh-badge-code">{wh.code}</span>
                           </td>
@@ -2732,42 +2950,101 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                               {wh.status || (wh.is_active ? 'Đang hoạt động' : 'Ngừng hoạt động')}
                             </span>
                           </td>
-                          <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
-                            <div className="wh-action-group" style={{ flexWrap: 'nowrap', whiteSpace: 'nowrap' }}>
+                          <td
+                            style={{
+                              textAlign: 'center',
+                              verticalAlign: 'middle',
+                              width: '80px',
+                              position: 'relative',
+                              zIndex: activeDropdownWhId === wh.id ? 30 : undefined,
+                            }}
+                          >
+                            <div className="wh-action-dropdown-container">
                               <button
                                 type="button"
-                                className="wh-action-btn-manage"
-                                style={{ whiteSpace: 'nowrap' }}
-                                title="Quản lý sơ đồ vị trí kệ và phân bổ sản phẩm"
-                                onClick={() => {
-                                  setSelectedWarehouse(wh);
-                                  setLocZoneFilter('all');
-                                  setLocSearch('');
-                                  setSubTab('locations');
+                                className={`wh-action-dots-btn ${activeDropdownWhId === wh.id ? 'active' : ''}`}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setActiveDropdownWhId((prev) => (prev === wh.id ? null : wh.id));
                                 }}
+                                title="Tùy chọn thao tác"
                               >
-                                Quản lý vị trí
+                                <span className="wh-action-dots-icon">
+                                  <span />
+                                  <span />
+                                  <span />
+                                </span>
                               </button>
-                              {canManage && (
-                                <>
-                                  <button
-                                    type="button"
-                                    className="wh-action-btn-edit"
-                                    title="Chỉnh sửa thông tin kho"
-                                    onClick={() => handleOpenEditWarehouse(wh)}
-                                  >
-                                    Sửa
-                                  </button>
-                                  <button
-                                    type="button"
-                                    className="wh-action-btn-delete"
-                                    title="Xóa kho hàng"
-                                    onClick={() => setDeletingWarehouse(wh)}
-                                  >
-                                    Xóa
-                                  </button>
-                                </>
-                              )}
+
+                              {/* Dropdown Menu */}
+                              {activeDropdownWhId === wh.id && (() => {
+                                const openUpward = paginatedWarehouses.length > 3 && idx >= paginatedWarehouses.length - 2;
+                                return (
+                                  <div className={`wh-dropdown-menu ${openUpward ? 'open-up' : 'open-down'}`}>
+                                    {/* 1. Quản lý vị trí */}
+                                    <button
+                                      type="button"
+                                      className="wh-dropdown-item wh-dropdown-item-primary"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setActiveDropdownWhId(null);
+                                        setSelectedWarehouse(wh);
+                                        setLocZoneFilter('all');
+                                        setLocSearch('');
+                                        setSubTab('locations');
+                                      }}
+                                    >
+                                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <rect x="3" y="3" width="7" height="7" />
+                                        <rect x="14" y="3" width="7" height="7" />
+                                        <rect x="14" y="14" width="7" height="7" />
+                                        <rect x="3" y="14" width="7" height="7" />
+                                      </svg>
+                                      <span>Quản lý vị trí</span>
+                                    </button>
+
+                                    {canManage && (
+                                      <>
+                                        {/* 2. Sửa kho */}
+                                        <button
+                                          type="button"
+                                          className="wh-dropdown-item"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setActiveDropdownWhId(null);
+                                            handleOpenEditWarehouse(wh);
+                                          }}
+                                        >
+                                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                                          </svg>
+                                          <span>Chỉnh sửa thông tin</span>
+                                        </button>
+
+                                        <div className="wh-dropdown-divider" />
+
+                                        {/* 3. Xóa kho */}
+                                        <button
+                                          type="button"
+                                          className="wh-dropdown-item wh-dropdown-item-danger"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setActiveDropdownWhId(null);
+                                            setDeletingWarehouse(wh);
+                                          }}
+                                        >
+                                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                            <polyline points="3 6 5 6 21 6" />
+                                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                          </svg>
+                                          <span>Xóa kho</span>
+                                        </button>
+                                      </>
+                                    )}
+                                  </div>
+                                );
+                              })()}
                             </div>
                           </td>
                         </tr>
@@ -2775,6 +3052,9 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                     </tbody>
                   </table>
                 </div>
+
+                {/* Phân trang Danh sách kho hàng */}
+                {renderPaginationBar(whPage, whTotalPages, warehouses.length, whPageSize, 'kho hàng', setWhPage)}
 
                 {/* Mobile Card View cho Danh sách kho hàng */}
                 <div className="wh-mobile-card-list">
@@ -2858,73 +3138,108 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
       ) : (
         /* Màn hình Chi tiết: Quản lý Vị trí lưu trữ & Phân bổ hàng hóa của Kho được chọn */
         <>
-          {/* Breadcrumb & Kho Info Card */}
-          <div className="wh-info-card">
-            <div className="wh-info-card-left">
-              <div className="wh-info-subtitle">
-                DANH MỤC VỊ TRÍ LƯU KHO & SOẠN ĐƠN
-              </div>
-              <div className="wh-info-title-row">
-                <h2 className="wh-info-title">{selectedWarehouse.name}</h2>
-                {selectedWarehouse.code && (
-                  <span className="wh-badge wh-badge-code">{selectedWarehouse.code}</span>
-                )}
-                <span className={`wh-badge ${selectedWarehouse.is_active ? 'wh-badge-active' : 'wh-badge-inactive'}`}>
-                  <span className={selectedWarehouse.is_active ? 'wh-dot' : 'wh-dot-gray'} />
-                  {selectedWarehouse.status || (selectedWarehouse.is_active ? 'Đang hoạt động' : 'Ngừng hoạt động')}
-                </span>
-              </div>
-              <div className="wh-info-meta-row">
-                <span className="wh-info-meta-item">
-                  {selectedWarehouse.address || 'Chưa cập nhật địa chỉ'}
-                </span>
-                <span className="wh-info-meta-item">
-                  {selectedWarehouse.manager_name || 'Chưa chỉ định quản lý'}
-                </span>
-                {selectedWarehouse.phone && (
-                  <span className="wh-info-meta-item">
-                    {selectedWarehouse.phone}
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Sub Navigation Tabs */}
-          <div className="wh-tabs">
-            <button
-              type="button"
-              className={`wh-tab-btn ${subTab === 'locations' ? 'active' : ''}`}
-              onClick={() => setSubTab('locations')}
-            >
-              <span>Vị trí kệ</span>
-              <span className="wh-tab-count">{locations.length}</span>
-            </button>
-            <button
-              type="button"
-              className={`wh-tab-btn ${subTab === 'master-data' ? 'active' : ''}`}
-              onClick={() => setSubTab('master-data')}
-            >
-              <span>Kệ & Khu vực</span>
-              <span className="wh-tab-count">{racksList.length}</span>
-            </button>
-            <button
-              type="button"
-              className={`wh-tab-btn ${subTab === 'products' ? 'active' : ''}`}
-              onClick={() => setSubTab('products')}
-            >
-              <span>Sản phẩm theo kệ</span>
-              <span className="wh-tab-count">{locationProducts.length}</span>
-            </button>
-            {canManage && (
+          {/* Ô gộp thống nhất (Header + Nút quay lại bên trái + Thông tin Kho + Tab điều hướng) */}
+          <div className="wh-unified-card">
+            {/* Hàng 1: Nút quay lại bên trái + Tiêu đề trang */}
+            <div className="wh-unified-header">
               <button
                 type="button"
-                className={`wh-tab-btn ${subTab === 'picking' ? 'active' : ''}`}
-                onClick={() => setSubTab('picking')}
+                className="wh-btn wh-btn-secondary"
+                onClick={() => setSelectedWarehouse(null)}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  fontWeight: 600,
+                  padding: '7px 14px',
+                  flexShrink: 0,
+                  cursor: 'pointer',
+                }}
               >
-                <span>Phiếu soạn hàng</span>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="15 18 9 12 15 6" />
+                </svg>
+                Quay lại danh sách kho
               </button>
-            )}
+              <div className="wh-header-v-divider" />
+              <div className="wh-header-title-group">
+                <h1 style={{ margin: 0, fontSize: '18px', fontWeight: 700, color: 'var(--wh-slate-900)' }}>
+                  Quản Lý Danh Sách Kho Hàng & Vị Trí Kệ
+                </h1>
+                <p style={{ margin: '3px 0 0', fontSize: '13px', color: 'var(--wh-slate-500)' }}>
+                  Hệ thống quản lý cấu trúc kho hàng, phân bổ vị trí kệ và theo dõi tồn kho theo từng vị trí chi tiết
+                </p>
+              </div>
+            </div>
+
+            {/* Hàng 2: Thông tin chi tiết kho hàng đang chọn */}
+            <div className="wh-info-card-inner">
+              <div className="wh-info-card-left">
+                <div className="wh-info-subtitle">
+                  DANH MỤC VỊ TRÍ LƯU KHO & SOẠN ĐƠN
+                </div>
+                <div className="wh-info-title-row">
+                  <h2 className="wh-info-title">{selectedWarehouse.name}</h2>
+                  {selectedWarehouse.code && (
+                    <span className="wh-badge wh-badge-code">{selectedWarehouse.code}</span>
+                  )}
+                  <span className={`wh-badge ${selectedWarehouse.is_active ? 'wh-badge-active' : 'wh-badge-inactive'}`}>
+                    <span className={selectedWarehouse.is_active ? 'wh-dot' : 'wh-dot-gray'} />
+                    {selectedWarehouse.status || (selectedWarehouse.is_active ? 'Đang hoạt động' : 'Ngừng hoạt động')}
+                  </span>
+                </div>
+                <div className="wh-info-meta-row">
+                  <span className="wh-info-meta-item">
+                    {selectedWarehouse.address || 'Chưa cập nhật địa chỉ'}
+                  </span>
+                  <span className="wh-info-meta-item">
+                    {selectedWarehouse.manager_name || 'Chưa chỉ định quản lý'}
+                  </span>
+                  {selectedWarehouse.phone && (
+                    <span className="wh-info-meta-item">
+                      {selectedWarehouse.phone}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Hàng 3: Tab điều hướng phân hệ trong kho */}
+            <div className="wh-tabs" style={{ margin: 0 }}>
+              <button
+                type="button"
+                className={`wh-tab-btn ${subTab === 'locations' ? 'active' : ''}`}
+                onClick={() => setSubTab('locations')}
+              >
+                <span>Vị trí kệ</span>
+                <span className="wh-tab-count">{locations.length}</span>
+              </button>
+              <button
+                type="button"
+                className={`wh-tab-btn ${subTab === 'master-data' ? 'active' : ''}`}
+                onClick={() => setSubTab('master-data')}
+              >
+                <span>Kệ & Khu vực</span>
+                <span className="wh-tab-count">{racksList.length}</span>
+              </button>
+              <button
+                type="button"
+                className={`wh-tab-btn ${subTab === 'products' ? 'active' : ''}`}
+                onClick={() => setSubTab('products')}
+              >
+                <span>Sản phẩm theo kệ</span>
+                <span className="wh-tab-count">{locationProducts.length}</span>
+              </button>
+              {canManage && (
+                <button
+                  type="button"
+                  className={`wh-tab-btn ${subTab === 'picking' ? 'active' : ''}`}
+                  onClick={() => setSubTab('picking')}
+                >
+                  <span>Phiếu soạn hàng</span>
+                </button>
+              )}
+            </div>
           </div>
 
 
@@ -3029,18 +3344,24 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                             <th style={{ minWidth: '180px' }}>Sức chứa & Tải trọng</th>
                             <th style={{ textAlign: 'center', width: '100px' }}>Mặt hàng</th>
                             <th style={{ textAlign: 'center', width: '130px' }}>Trạng thái</th>
-                            {canManage && <th style={{ textAlign: 'center', width: '100px' }}>Thao tác</th>}
+                            {canManage && <th style={{ textAlign: 'center', width: '80px', minWidth: '80px' }}>Thao tác</th>}
                           </tr>
                         </thead>
                         <tbody>
-                          {paginatedLocations.map((loc) => {
+                          {paginatedLocations.map((loc, idx) => {
                             const maxCap = loc.max_capacity || 0;
                             const currQty = loc.total_quantity || 0;
                             const percent = maxCap > 0 ? Math.min(Math.round((currQty / maxCap) * 100), 100) : 0;
                             const barColor = percent >= 100 ? '#ef4444' : percent >= 80 ? '#f59e0b' : '#10b981';
 
                             return (
-                              <tr key={loc.id}>
+                              <tr
+                                key={loc.id}
+                                style={{
+                                  position: activeDropdownLocId === loc.id ? 'relative' : undefined,
+                                  zIndex: activeDropdownLocId === loc.id ? 30 : undefined,
+                                }}
+                              >
                                 <td>
                                   <span className="wh-badge wh-badge-location">{loc.location_code}</span>
                                 </td>
@@ -3079,24 +3400,75 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                                   </span>
                                 </td>
                                 {canManage && (
-                                  <td style={{ textAlign: 'center' }}>
-                                    <div className="wh-action-group" style={{ justifyContent: 'center' }}>
+                                  <td
+                                    style={{
+                                      textAlign: 'center',
+                                      verticalAlign: 'middle',
+                                      width: '80px',
+                                      position: 'relative',
+                                      zIndex: activeDropdownLocId === loc.id ? 30 : undefined,
+                                    }}
+                                  >
+                                    <div className="wh-action-dropdown-container">
                                       <button
                                         type="button"
-                                        className="wh-action-btn-edit"
-                                        title="Chỉnh sửa vị trí"
-                                        onClick={() => handleOpenEditLocation(loc)}
+                                        className={`wh-action-dots-btn ${activeDropdownLocId === loc.id ? 'active' : ''}`}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setActiveDropdownLocId((prev) => (prev === loc.id ? null : loc.id));
+                                        }}
+                                        title="Tùy chọn thao tác"
                                       >
-                                        Sửa
+                                        <span className="wh-action-dots-icon">
+                                          <span />
+                                          <span />
+                                          <span />
+                                        </span>
                                       </button>
-                                      <button
-                                        type="button"
-                                        className="wh-action-btn-delete"
-                                        title="Xóa vị trí"
-                                        onClick={() => setDeletingLocation(loc)}
-                                      >
-                                        Xóa
-                                      </button>
+
+                                      {/* Dropdown Menu */}
+                                      {activeDropdownLocId === loc.id && (() => {
+                                        const openUpward = paginatedLocations.length > 3 && idx >= paginatedLocations.length - 2;
+                                        return (
+                                          <div className={`wh-dropdown-menu ${openUpward ? 'open-up' : 'open-down'}`}>
+                                            {/* Sửa vị trí */}
+                                            <button
+                                              type="button"
+                                              className="wh-dropdown-item"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                setActiveDropdownLocId(null);
+                                                handleOpenEditLocation(loc);
+                                              }}
+                                            >
+                                              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                                              </svg>
+                                              <span>Chỉnh sửa vị trí</span>
+                                            </button>
+
+                                            <div className="wh-dropdown-divider" />
+
+                                            {/* Xóa vị trí */}
+                                            <button
+                                              type="button"
+                                              className="wh-dropdown-item wh-dropdown-item-danger"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                setActiveDropdownLocId(null);
+                                                setDeletingLocation(loc);
+                                              }}
+                                            >
+                                              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                <polyline points="3 6 5 6 21 6" />
+                                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                              </svg>
+                                              <span>Xóa vị trí</span>
+                                            </button>
+                                          </div>
+                                        );
+                                      })()}
                                     </div>
                                   </td>
                                 )}
@@ -3106,6 +3478,9 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                         </tbody>
                       </table>
                     </div>
+
+                    {/* Phân trang Vị trí kệ */}
+                    {renderPaginationBar(locPage, locTotalPages, locations.length, locPageSize, 'vị trí kệ', setLocPage)}
 
                     {/* Mobile Card View cho Danh sách vị trí kệ */}
                     <div className="loc-mobile-card-list">
@@ -3255,11 +3630,11 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                             <th style={{ width: '90px' }}>Mã KV</th>
                             <th>Tên khu vực</th>
                             <th style={{ textAlign: 'center', width: '110px' }}>Số lượng kệ</th>
-                            {canManage && <th style={{ textAlign: 'center', width: '90px' }}>Thao tác</th>}
+                            {canManage && <th style={{ textAlign: 'center', width: '80px', minWidth: '80px' }}>Thao tác</th>}
                           </tr>
                         </thead>
                         <tbody>
-                          {filteredZones.map((z) => {
+                          {filteredZones.map((z, idx) => {
                             const isSelected = activeZone?.id === z.id;
                             const racksCount = getZoneRacksCount(z);
 
@@ -3269,6 +3644,10 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                                 className={`wh-master-row ${isSelected ? 'wh-master-row--active' : ''}`}
                                 onClick={() => setSelectedZoneIdForDetail(z.id)}
                                 title="Click để xem các kệ thuộc khu vực này"
+                                style={{
+                                  position: activeDropdownZoneId === z.id ? 'relative' : undefined,
+                                  zIndex: activeDropdownZoneId === z.id ? 30 : undefined,
+                                }}
                               >
                                 <td><span className="wh-badge wh-badge-code">{z.zone_code}</span></td>
                                 <td>
@@ -3280,30 +3659,75 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                                   </span>
                                 </td>
                                 {canManage && (
-                                  <td style={{ textAlign: 'center' }}>
-                                    <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
+                                  <td
+                                    style={{
+                                      textAlign: 'center',
+                                      verticalAlign: 'middle',
+                                      width: '80px',
+                                      position: 'relative',
+                                      zIndex: activeDropdownZoneId === z.id ? 30 : undefined,
+                                    }}
+                                  >
+                                    <div className="wh-action-dropdown-container">
                                       <button
                                         type="button"
-                                        className="wh-action-btn-edit"
-                                        title="Sửa khu vực"
+                                        className={`wh-action-dots-btn ${activeDropdownZoneId === z.id ? 'active' : ''}`}
                                         onClick={(e) => {
                                           e.stopPropagation();
-                                          handleOpenEditZone(z);
+                                          setActiveDropdownZoneId((prev) => (prev === z.id ? null : z.id));
                                         }}
+                                        title="Tùy chọn thao tác"
                                       >
-                                        Sửa
+                                        <span className="wh-action-dots-icon">
+                                          <span />
+                                          <span />
+                                          <span />
+                                        </span>
                                       </button>
-                                      <button
-                                        type="button"
-                                        className="wh-action-btn-delete"
-                                        title="Xóa khu vực"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setDeletingZone(z);
-                                        }}
-                                      >
-                                        Xóa
-                                      </button>
+
+                                      {/* Dropdown Menu */}
+                                      {activeDropdownZoneId === z.id && (() => {
+                                        const openUpward = filteredZones.length > 3 && idx >= filteredZones.length - 2;
+                                        return (
+                                          <div className={`wh-dropdown-menu ${openUpward ? 'open-up' : 'open-down'}`}>
+                                            {/* Sửa khu vực */}
+                                            <button
+                                              type="button"
+                                              className="wh-dropdown-item"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                setActiveDropdownZoneId(null);
+                                                handleOpenEditZone(z);
+                                              }}
+                                            >
+                                              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                                              </svg>
+                                              <span>Chỉnh sửa khu vực</span>
+                                            </button>
+
+                                            <div className="wh-dropdown-divider" />
+
+                                            {/* Xóa khu vực */}
+                                            <button
+                                              type="button"
+                                              className="wh-dropdown-item wh-dropdown-item-danger"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                setActiveDropdownZoneId(null);
+                                                setDeletingZone(z);
+                                              }}
+                                            >
+                                              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                <polyline points="3 6 5 6 21 6" />
+                                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                              </svg>
+                                              <span>Xóa khu vực</span>
+                                            </button>
+                                          </div>
+                                        );
+                                      })()}
                                     </div>
                                   </td>
                                 )}
@@ -3397,12 +3821,18 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                             <th>Tên kệ / dãy</th>
                             <th style={{ width: '120px' }}>Phân loại</th>
                             <th style={{ textAlign: 'right', width: '140px' }}>Sức chứa tối đa</th>
-                            {canManage && <th style={{ textAlign: 'center', width: '120px' }}>Thao tác</th>}
+                            {canManage && <th style={{ textAlign: 'center', width: '80px', minWidth: '80px' }}>Thao tác</th>}
                           </tr>
                         </thead>
                         <tbody>
-                          {detailRacks.map((r) => (
-                            <tr key={r.id}>
+                          {paginatedDetailRacks.map((r, idx) => (
+                            <tr
+                              key={r.id}
+                              style={{
+                                position: activeDropdownRackId === r.id ? 'relative' : undefined,
+                                zIndex: activeDropdownRackId === r.id ? 30 : undefined,
+                              }}
+                            >
                               <td><span className="wh-badge wh-badge-code">{r.rack_code}</span></td>
                               <td><strong style={{ color: '#0f172a' }}>{r.rack_name}</strong></td>
                               <td>
@@ -3416,24 +3846,75 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                                 </span>
                               </td>
                               {canManage && (
-                                <td style={{ textAlign: 'center' }}>
-                                  <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
+                                <td
+                                  style={{
+                                    textAlign: 'center',
+                                    verticalAlign: 'middle',
+                                    width: '80px',
+                                    position: 'relative',
+                                    zIndex: activeDropdownRackId === r.id ? 30 : undefined,
+                                  }}
+                                >
+                                  <div className="wh-action-dropdown-container">
                                     <button
                                       type="button"
-                                      className="wh-action-btn-edit"
-                                      title="Sửa kệ"
-                                      onClick={() => handleOpenEditRack(r)}
+                                      className={`wh-action-dots-btn ${activeDropdownRackId === r.id ? 'active' : ''}`}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setActiveDropdownRackId((prev) => (prev === r.id ? null : r.id));
+                                      }}
+                                      title="Tùy chọn thao tác"
                                     >
-                                      Sửa
+                                      <span className="wh-action-dots-icon">
+                                        <span />
+                                        <span />
+                                        <span />
+                                      </span>
                                     </button>
-                                    <button
-                                      type="button"
-                                      className="wh-action-btn-delete"
-                                      title="Xóa kệ"
-                                      onClick={() => setDeletingRack(r)}
-                                    >
-                                      Xóa
-                                    </button>
+
+                                    {/* Dropdown Menu */}
+                                    {activeDropdownRackId === r.id && (() => {
+                                      const openUpward = paginatedDetailRacks.length > 3 && idx >= paginatedDetailRacks.length - 2;
+                                      return (
+                                        <div className={`wh-dropdown-menu ${openUpward ? 'open-up' : 'open-down'}`}>
+                                          {/* Sửa kệ */}
+                                          <button
+                                            type="button"
+                                            className="wh-dropdown-item"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              setActiveDropdownRackId(null);
+                                              handleOpenEditRack(r);
+                                            }}
+                                          >
+                                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                                              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                                            </svg>
+                                            <span>Chỉnh sửa kệ</span>
+                                          </button>
+
+                                          <div className="wh-dropdown-divider" />
+
+                                          {/* Xóa kệ */}
+                                          <button
+                                            type="button"
+                                            className="wh-dropdown-item wh-dropdown-item-danger"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              setActiveDropdownRackId(null);
+                                              setDeletingRack(r);
+                                            }}
+                                          >
+                                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                              <polyline points="3 6 5 6 21 6" />
+                                              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                            </svg>
+                                            <span>Xóa kệ</span>
+                                          </button>
+                                        </div>
+                                      );
+                                    })()}
                                   </div>
                                 </td>
                               )}
@@ -3442,6 +3923,9 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                         </tbody>
                       </table>
                     )}
+
+                    {/* Phân trang Kệ & Dãy */}
+                    {renderPaginationBar(rackPage, rackTotalPages, detailRacks.length, rackPageSize, 'kệ / dãy', setRackPage)}
 
                     {/* Mobile Card List cho Kệ & Dãy */}
                     {!isMasterLoading && detailRacks.length > 0 && (
@@ -3549,12 +4033,18 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                             <th>Khu vực / Dãy</th>
                             <th style={{ textAlign: 'right', width: '150px' }}>Số lượng tại kệ này</th>
                             <th style={{ textAlign: 'right', width: '150px' }}>Tổng tồn tại kho</th>
-                            {canManage && <th style={{ textAlign: 'center', width: '220px' }}>Thao tác</th>}
+                            {canManage && <th style={{ textAlign: 'center', width: '80px', minWidth: '80px' }}>Thao tác</th>}
                           </tr>
                         </thead>
                         <tbody>
-                          {paginatedLocationProducts.map((item) => (
-                            <tr key={item.id}>
+                          {paginatedLocationProducts.map((item, idx) => (
+                            <tr
+                              key={item.id}
+                              style={{
+                                position: activeDropdownProdLocId === item.id ? 'relative' : undefined,
+                                zIndex: activeDropdownProdLocId === item.id ? 30 : undefined,
+                              }}
+                            >
                               <td>
                                 <span className="wh-badge wh-badge-code">{item.product_code}</span>
                               </td>
@@ -3586,24 +4076,77 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                                 <span className="wh-quantity-unit">{item.base_unit}</span>
                               </td>
                               {canManage && (
-                                <td style={{ textAlign: 'center' }}>
-                                  <div style={{ display: 'inline-flex', gap: '6px', alignItems: 'center', justifyContent: 'center' }}>
+                                <td
+                                  style={{
+                                    textAlign: 'center',
+                                    verticalAlign: 'middle',
+                                    width: '80px',
+                                    position: 'relative',
+                                    zIndex: activeDropdownProdLocId === item.id ? 30 : undefined,
+                                  }}
+                                >
+                                  <div className="wh-action-dropdown-container">
                                     <button
                                       type="button"
-                                      className="wh-action-btn-add-stock"
-                                      title="Nhập thêm hàng vào vị trí kệ này"
-                                      onClick={() => handleOpenAddStock(item)}
+                                      className={`wh-action-dots-btn ${activeDropdownProdLocId === item.id ? 'active' : ''}`}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setActiveDropdownProdLocId((prev) => (prev === item.id ? null : item.id));
+                                      }}
+                                      title="Tùy chọn thao tác"
                                     >
-                                      Thêm hàng
+                                      <span className="wh-action-dots-icon">
+                                        <span />
+                                        <span />
+                                        <span />
+                                      </span>
                                     </button>
-                                    <button
-                                      type="button"
-                                      className="wh-action-btn-transfer"
-                                      title="Chuyển một phần hoặc toàn bộ sang vị trí kệ khác"
-                                      onClick={() => handleOpenTransferProduct(item)}
-                                    >
-                                      Chuyển kệ
-                                    </button>
+
+                                    {/* Dropdown Menu */}
+                                    {activeDropdownProdLocId === item.id && (() => {
+                                      const openUpward = paginatedLocationProducts.length > 3 && idx >= paginatedLocationProducts.length - 2;
+                                      return (
+                                        <div className={`wh-dropdown-menu ${openUpward ? 'open-up' : 'open-down'}`}>
+                                          {/* Thêm hàng */}
+                                          <button
+                                            type="button"
+                                            className="wh-dropdown-item wh-dropdown-item-primary"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              setActiveDropdownProdLocId(null);
+                                              handleOpenAddStock(item);
+                                            }}
+                                          >
+                                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                              <line x1="12" y1="5" x2="12" y2="19" />
+                                              <line x1="5" y1="12" x2="19" y2="12" />
+                                            </svg>
+                                            <span>Thêm hàng vào kệ</span>
+                                          </button>
+
+                                          <div className="wh-dropdown-divider" />
+
+                                          {/* Chuyển kệ */}
+                                          <button
+                                            type="button"
+                                            className="wh-dropdown-item"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              setActiveDropdownProdLocId(null);
+                                              handleOpenTransferProduct(item);
+                                            }}
+                                          >
+                                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                              <polyline points="17 1 21 5 17 9" />
+                                              <path d="M3 11V9a4 4 0 0 1 4-4h14" />
+                                              <polyline points="7 23 3 19 7 15" />
+                                              <path d="M21 13v2a4 4 0 0 1-4 4H3" />
+                                            </svg>
+                                            <span>Chuyển sang kệ khác</span>
+                                          </button>
+                                        </div>
+                                      );
+                                    })()}
                                   </div>
                                 </td>
                               )}
@@ -3612,6 +4155,9 @@ export const WarehouseManagementView: React.FC<WarehouseManagementViewProps> = (
                         </tbody>
                       </table>
                     </div>
+
+                    {/* Phân trang Sản phẩm theo kệ */}
+                    {renderPaginationBar(prodPage, prodTotalPages, locationProducts.length, prodPageSize, 'mặt hàng', setProdPage)}
 
                     {/* Mobile Card View cho Sản phẩm theo vị trí kệ */}
                     <div className="prod-mobile-card-list">
