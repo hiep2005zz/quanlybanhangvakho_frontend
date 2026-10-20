@@ -450,81 +450,7 @@ export const DebtReconciliationView: React.FC<DebtReconciliationViewProps> = ({
         </div>
       </div>
 
-      {/* Thanh lọc & Tìm kiếm */}
-      <div
-        style={{
-          backgroundColor: '#ffffff',
-          padding: '8px 14px',
-          borderRadius: '8px',
-          border: '1px solid #e2e8f0',
-          marginBottom: '10px',
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: '10px',
-          alignItems: 'center',
-          flexShrink: 0,
-        }}
-      >
-        <div style={{ flex: 1, minWidth: '220px' }}>
-          <input
-            type="text"
-            placeholder="Tìm theo mã biên bản, tên hoặc mã đại lý..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full h-8 px-3 text-xs rounded-md border border-slate-300 bg-white text-slate-800 shadow-2xs placeholder:text-slate-400 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 transition-all box-border"
-          />
-        </div>
-
-        <div style={{ width: '220px' }}>
-          <DealerSelectDropdown
-            dealers={dealers}
-            selectedId={selectedDealerId}
-            onSelectId={(id) => setSelectedDealerId(id)}
-            allowAll={true}
-            allLabel="-- Tất cả đại lý --"
-            compact={true}
-          />
-        </div>
-
-        <div style={{ width: '170px' }} className="relative flex items-center">
-          <select
-            value={selectedStatus}
-            onChange={(e) => setSelectedStatus(e.target.value)}
-            className="w-full h-8 pl-2.5 pr-7 text-xs rounded-md border border-slate-300 bg-white text-slate-800 shadow-2xs cursor-pointer appearance-none focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 font-medium transition-all"
-          >
-            <option value="all">-- Tất cả trạng thái --</option>
-            <option value="SENT">Chờ đại lý xác nhận</option>
-            <option value="CONFIRMED">Đã đối chiếu khớp</option>
-            <option value="DISPUTED">Báo lệch / Khiếu nại</option>
-            <option value="DRAFT">Bản nháp</option>
-          </select>
-          <svg
-            width="13"
-            height="13"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="text-slate-400 pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2"
-          >
-            <polyline points="6 9 12 15 18 9" />
-          </svg>
-        </div>
-
-        <button
-          onClick={() => {
-            setPage(1);
-            loadReconciliations();
-          }}
-          className="h-8 px-3.5 text-xs font-semibold rounded-md border border-slate-300 bg-slate-100 hover:bg-slate-200 text-slate-700 shadow-2xs cursor-pointer transition-all flex items-center justify-center shrink-0"
-        >
-          Làm mới
-        </button>
-      </div>
-
-      {/* Bảng danh sách Biên bản đối chiếu */}
+      {/* Bảng danh sách Biên bản đối chiếu (Gộp thanh tìm kiếm & lọc vào chung bảng) */}
       <div
         style={{
           flex: 1,
@@ -538,6 +464,78 @@ export const DebtReconciliationView: React.FC<DebtReconciliationViewProps> = ({
           overflow: 'hidden',
         }}
       >
+        {/* Thanh lọc & Tìm kiếm (Gộp vào đầu bảng) */}
+        <div
+          style={{
+            backgroundColor: '#ffffff',
+            padding: '8px 14px',
+            borderBottom: '1px solid #e2e8f0',
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: '10px',
+            alignItems: 'center',
+            flexShrink: 0,
+          }}
+        >
+          <div style={{ flex: 1, minWidth: '220px' }}>
+            <input
+              type="text"
+              placeholder="Tìm theo mã biên bản, tên hoặc mã đại lý..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full h-8 px-3 text-xs rounded-md border border-slate-300 bg-white text-slate-800 shadow-2xs placeholder:text-slate-400 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 transition-all box-border"
+            />
+          </div>
+
+          <div style={{ width: '220px' }}>
+            <DealerSelectDropdown
+              dealers={dealers}
+              selectedId={selectedDealerId}
+              onSelectId={(id) => setSelectedDealerId(id)}
+              allowAll={true}
+              allLabel="-- Tất cả đại lý --"
+              compact={true}
+            />
+          </div>
+
+          <div style={{ width: '170px' }} className="relative flex items-center">
+            <select
+              value={selectedStatus}
+              onChange={(e) => setSelectedStatus(e.target.value)}
+              className="w-full h-8 pl-2.5 pr-7 text-xs rounded-md border border-slate-300 bg-white text-slate-800 shadow-2xs cursor-pointer appearance-none focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 font-medium transition-all"
+            >
+              <option value="all">-- Tất cả trạng thái --</option>
+              <option value="SENT">Chờ đại lý xác nhận</option>
+              <option value="CONFIRMED">Đã đối chiếu khớp</option>
+              <option value="DISPUTED">Báo lệch / Khiếu nại</option>
+              <option value="DRAFT">Bản nháp</option>
+            </select>
+            <svg
+              width="13"
+              height="13"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="text-slate-400 pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2"
+            >
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </div>
+
+          <button
+            onClick={() => {
+              setPage(1);
+              loadReconciliations();
+            }}
+            className="h-8 px-3.5 text-xs font-semibold rounded-md border border-slate-300 bg-slate-100 hover:bg-slate-200 text-slate-700 shadow-2xs cursor-pointer transition-all flex items-center justify-center shrink-0"
+          >
+            Làm mới
+          </button>
+        </div>
+
         <div
           ref={(el) => {
             if (el && el.scrollLeft !== 0) el.scrollLeft = 0;
