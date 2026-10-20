@@ -898,25 +898,52 @@ export const SupplierManagementView: React.FC<SupplierManagementViewProps> = ({ 
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '3px' }}>
                         <span style={{ lineHeight: 1.35 }}>{s.name}</span>
                         {s.has_receipts && (
-                          <span
-                            title="Nhà cung cấp đã có phiếu nhập kho hàng hóa"
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              try {
+                                sessionStorage.setItem('goods_receipt_search_query', s.name || s.code);
+                                window.history.pushState({}, '', '/goods-receipt');
+                                window.dispatchEvent(new Event('popstate'));
+                              } catch { }
+                            }}
+                            title={`Bấm để xem lịch sử phiếu nhập kho của nhà cung cấp [${s.code}] ${s.name}`}
                             style={{
                               display: 'inline-flex',
                               alignItems: 'center',
-                              gap: '3px',
+                              gap: '4px',
                               fontSize: '11px',
-                              fontWeight: '600',
+                              fontWeight: '700',
                               color: '#1d4ed8',
                               background: '#eff6ff',
                               border: '1px solid #bfdbfe',
-                              padding: '1.5px 7px',
+                              padding: '2px 8px',
                               borderRadius: '999px',
                               whiteSpace: 'nowrap',
                               lineHeight: '1.2',
+                              cursor: 'pointer',
+                              boxShadow: '0 1px 2px rgba(37, 99, 235, 0.08)',
+                              transition: 'all 0.15s ease',
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.background = '#dbeafe';
+                              e.currentTarget.style.borderColor = '#93c5fd';
+                              e.currentTarget.style.transform = 'translateY(-1px)';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.background = '#eff6ff';
+                              e.currentTarget.style.borderColor = '#bfdbfe';
+                              e.currentTarget.style.transform = 'none';
                             }}
                           >
-                            Đã có phiếu nhập
-                          </span>
+                            <span>Đã có phiếu nhập</span>
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                              <polyline points="15 3 21 3 21 9" />
+                              <line x1="10" y1="14" x2="21" y2="3" />
+                            </svg>
+                          </button>
                         )}
                       </div>
                     </td>
