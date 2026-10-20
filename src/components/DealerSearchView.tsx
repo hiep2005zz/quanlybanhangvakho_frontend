@@ -127,6 +127,26 @@ const getDealerCreditStatusInfo = (dealer: DealerSearchItem) => {
     };
 };
 
+export const formatDealerStatus = (status?: string | null): string => {
+    const s = (status || '').trim();
+    if (!s || s.includes('ho?t') || s === 'Đang hoạt động' || s.toUpperCase() === 'ACTIVE' || s.includes('Ðang')) {
+        return 'Đang hoạt động';
+    }
+    const lower = s.toLowerCase();
+    if (lower.includes('khóa') || lower.includes('khoá') || s.includes('Đ?') || lower.includes('lock')) {
+        return 'Đã khóa';
+    }
+    if (lower.includes('tạm') || lower.includes('ngừng') || lower.includes('ngung') || lower.includes('inactive')) {
+        return 'Tạm ngừng';
+    }
+    return s;
+};
+
+export const isDealerStatusLocked = (status?: string | null): boolean => {
+    const s = (status || '').toLowerCase();
+    return s.includes('khóa') || s.includes('khoá') || s.includes('đ?') || s.includes('lock') || s.includes('ngừng') || s.includes('ngung') || s.includes('inactive');
+};
+
 const DEFAULT_STATUSES = [
     'Đang hoạt động',
     'Tạm ngừng',
@@ -504,10 +524,7 @@ export default function DealerSearchView({
             return;
         }
 
-        const isCurrentlyLocked = (dealer.status || '').toLowerCase().includes('khóa')
-            || (dealer.status || '').toLowerCase().includes('ngừng')
-            || (dealer.status || '').toLowerCase().includes('lock')
-            || (dealer.status || '').toLowerCase().includes('inactive');
+        const isCurrentlyLocked = isDealerStatusLocked(dealer.status);
 
         if (isCurrentlyLocked) {
             setUnlockTargetDealer(dealer);
@@ -570,12 +587,7 @@ export default function DealerSearchView({
     };
 
     const handleCustomerCreateOrder = async (dealer: DealerSearchItem) => {
-        const isLocked = Boolean(
-            (dealer.status || '').toLowerCase().includes('khóa') ||
-            (dealer.status || '').toLowerCase().includes('ngừng') ||
-            (dealer.status || '').toLowerCase().includes('lock') ||
-            (dealer.status || '').toLowerCase().includes('inactive')
-        );
+        const isLocked = isDealerStatusLocked(dealer.status);
         if (isLocked) {
             emitStatusToast({
                 title: 'Giao dịch bị khóa',
@@ -1140,12 +1152,7 @@ export default function DealerSearchView({
                         </div>
                     ) : (
                         dealers.slice(0, 1).map((dealer) => {
-                            const isLocked = Boolean(
-                                (dealer.status || '').toLowerCase().includes('khóa') ||
-                                (dealer.status || '').toLowerCase().includes('ngừng') ||
-                                (dealer.status || '').toLowerCase().includes('lock') ||
-                                (dealer.status || '').toLowerCase().includes('inactive')
-                            );
+                            const isLocked = isDealerStatusLocked(dealer.status);
                             return (
                                 <div key={dealer.id} className="dealer-card-item" style={{ maxWidth: '680px', margin: '0 auto', background: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', padding: '24px' }}>
                                     <div className="dealer-card-header" style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '16px', marginBottom: '16px' }}>
@@ -1472,32 +1479,24 @@ export default function DealerSearchView({
                                                     {canManageStatus ? (
                                                         <button
                                                             type="button"
-                                                            className={`dealer-status-toggle-btn ${(dealer.status || '').toLowerCase().includes('khóa') || (dealer.status || '').toLowerCase().includes('ngừng') ||
-                                                                (dealer.status || '').toLowerCase().includes('inactive')
-                                                                ? 'status-inactive'
-                                                                : 'status-active'
-                                                                }`}
+                                                            className={`dealer-status-toggle-btn ${isDealerStatusLocked(dealer.status) ? 'status-inactive' : 'status-active'}`}
                                                             onClick={() => handleOpenStatusModal(dealer)}
                                                             disabled={isSubmitting}
                                                             title={
-                                                                (dealer.status || '').toLowerCase().includes('khóa') || (dealer.status || '').toLowerCase().includes('ngừng')
+                                                                isDealerStatusLocked(dealer.status)
                                                                     ? 'Bấm để mở khóa giao dịch'
                                                                     : 'Bấm để khóa giao dịch'
                                                             }
                                                         >
                                                             <span>
-                                                                {dealer.status || 'Đang hoạt động'}
+                                                                {formatDealerStatus(dealer.status)}
                                                             </span>
                                                         </button>
                                                     ) : (
                                                         <span
-                                                            className={`dealer-status-toggle-btn read-only ${(dealer.status || '').toLowerCase().includes('khóa') || (dealer.status || '').toLowerCase().includes('ngừng') ||
-                                                                (dealer.status || '').toLowerCase().includes('inactive')
-                                                                ? 'status-inactive'
-                                                                : 'status-active'
-                                                                }`}
+                                                            className={`dealer-status-toggle-btn read-only ${isDealerStatusLocked(dealer.status) ? 'status-inactive' : 'status-active'}`}
                                                         >
-                                                            <span>{dealer.status || 'Đang hoạt động'}</span>
+                                                            <span>{formatDealerStatus(dealer.status)}</span>
                                                         </span>
                                                     )}
                                                 </div>
@@ -1652,32 +1651,24 @@ export default function DealerSearchView({
                                             {canManageStatus ? (
                                                 <button
                                                     type="button"
-                                                    className={`dealer-status-toggle-btn ${(dealer.status || '').toLowerCase().includes('khóa') || (dealer.status || '').toLowerCase().includes('ngừng') ||
-                                                        (dealer.status || '').toLowerCase().includes('inactive')
-                                                        ? 'status-inactive'
-                                                        : 'status-active'
-                                                        }`}
+                                                    className={`dealer-status-toggle-btn ${isDealerStatusLocked(dealer.status) ? 'status-inactive' : 'status-active'}`}
                                                     onClick={() => handleOpenStatusModal(dealer)}
                                                     disabled={isSubmitting}
                                                     title={
-                                                        (dealer.status || '').toLowerCase().includes('khóa') || (dealer.status || '').toLowerCase().includes('ngừng')
+                                                        isDealerStatusLocked(dealer.status)
                                                             ? 'Bấm để mở khóa giao dịch'
                                                             : 'Bấm để khóa giao dịch'
                                                     }
                                                 >
                                                     <span>
-                                                        {dealer.status || 'Đang hoạt động'}
+                                                        {formatDealerStatus(dealer.status)}
                                                     </span>
                                                 </button>
                                             ) : (
                                                 <span
-                                                    className={`dealer-status-toggle-btn read-only ${(dealer.status || '').toLowerCase().includes('khóa') || (dealer.status || '').toLowerCase().includes('ngừng') ||
-                                                        (dealer.status || '').toLowerCase().includes('inactive')
-                                                        ? 'status-inactive'
-                                                        : 'status-active'
-                                                        }`}
+                                                    className={`dealer-status-toggle-btn read-only ${isDealerStatusLocked(dealer.status) ? 'status-inactive' : 'status-active'}`}
                                                 >
-                                                    <span>{dealer.status || 'Đang hoạt động'}</span>
+                                                    <span>{formatDealerStatus(dealer.status)}</span>
                                                 </span>
                                             )}
                                         </div>

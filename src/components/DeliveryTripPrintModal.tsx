@@ -286,20 +286,9 @@ export const DeliveryTripPrintModal: React.FC<DeliveryTripPrintModalProps> = ({
               type="button"
               onClick={executeIframePrint}
               className="receipt-btn receipt-btn-primary"
-              title="Mở hộp thoại in phiếu giao hàng"
+              title="In phiếu giao hàng hoặc lưu dưới dạng PDF qua trình duyệt"
             >
-              In phiếu chuyến
-            </button>
-
-            <button
-              type="button"
-              onClick={handleDownloadPdf}
-              disabled={isExportingPdf}
-              className="receipt-btn receipt-btn-pdf"
-              title="Tải trực tiếp phiếu giao hàng dạng tệp PDF"
-              style={{ opacity: isExportingPdf ? 0.7 : 1, cursor: isExportingPdf ? 'wait' : 'pointer' }}
-            >
-              {isExportingPdf ? 'Đang tạo PDF...' : 'Tải PDF'}
+              In PDF
             </button>
 
             <button

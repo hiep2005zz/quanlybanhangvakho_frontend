@@ -405,7 +405,80 @@ export const DealerDebtStatementView: React.FC<DealerDebtStatementViewProps> = (
         </div>
       </div>
 
-      {/* 2. Interactive Filter Bar */}
+      {/* 2. 4 Thẻ KPI Tài Chính (Đã chuyển lên đầu sổ chi tiết công nợ) */}
+      <div className="statement-kpi-grid">
+        {/* KPI 1: Số dư đầu kỳ */}
+        <div className="stmt-kpi-card">
+          <span className="stmt-kpi-title">1. Số dư nợ đầu kỳ</span>
+          <div className="stmt-kpi-value">
+            {summary ? formatCurrency(summary.opening_balance) : (isLoading ? '...' : '0 đ')}
+          </div>
+          <span className="stmt-kpi-sub">Số nợ luỹ kế chuyển từ các kỳ trước</span>
+        </div>
+
+        {/* KPI 2: Tổng phát sinh Tăng (Bán hàng) */}
+        <div className="stmt-kpi-card">
+          <span className="stmt-kpi-title">2. Phát sinh Tăng trong kỳ (Tiền hàng mua)</span>
+          <div className="stmt-kpi-value inc">
+            {summary ? `+ ${formatCurrency(summary.total_increase)}` : (isLoading ? '...' : '+ 0 đ')}
+          </div>
+          <span className="stmt-kpi-sub">Tổng giá trị đơn hàng / hóa đơn xuất bán</span>
+        </div>
+
+        {/* KPI 3: Tổng phát sinh Giảm (Đã thu) */}
+        <div className="stmt-kpi-card">
+          <span className="stmt-kpi-title">3. Phát sinh Giảm trong kỳ (Đã thanh toán)</span>
+          <div className="stmt-kpi-value dec">
+            {summary ? `- ${formatCurrency(summary.total_decrease)}` : (isLoading ? '...' : '- 0 đ')}
+          </div>
+          <span className="stmt-kpi-sub">Tổng tiền mặt / chuyển khoản đại lý đã trả</span>
+        </div>
+
+        {/* KPI 4: Số dư nợ cuối kỳ */}
+        <div
+          className={`stmt-kpi-card closing ${
+            currentDealer?.credit_limit && summary && summary.closing_balance > currentDealer.credit_limit
+              ? 'overdue'
+              : ''
+          }`}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span className="stmt-kpi-title" style={{ fontWeight: 700 }}>
+              4. Số dư nợ cuối kỳ (Phải thu)
+            </span>
+            {currentDealer?.credit_limit && summary && summary.closing_balance > currentDealer.credit_limit && (
+              <span
+                style={{
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  padding: '2px 6px',
+                  borderRadius: '4px',
+                  backgroundColor: '#fee2e2',
+                  color: '#b91c1c',
+                }}
+              >
+                Vượt hạn mức
+              </span>
+            )}
+          </div>
+          <div
+            className={`stmt-kpi-value ${
+              currentDealer?.credit_limit && summary && summary.closing_balance > currentDealer.credit_limit
+                ? 'overdue'
+                : 'closing'
+            }`}
+          >
+            {summary ? formatCurrency(summary.closing_balance) : (isLoading ? '...' : '0 đ')}
+          </div>
+          <span className="stmt-kpi-sub">
+            {summary?.closing_balance && summary.closing_balance > 0
+              ? 'Đại lý cần đối chiếu và thanh toán'
+              : 'Đại lý đã thanh toán đủ số dư'}
+          </span>
+        </div>
+      </div>
+
+      {/* 3. Interactive Filter Bar */}
       <div className="statement-filter-card">
         <div className="statement-filter-row">
           {/* Dropdown Chọn Đại lý có Tìm kiếm (Searchable Combobox) */}
@@ -639,73 +712,6 @@ export const DealerDebtStatementView: React.FC<DealerDebtStatementViewProps> = (
         </div>
       )}
 
-      {/* 4. 4 Thẻ KPI Tài Chính */}
-      {summary && (
-        <div className="statement-kpi-grid">
-          {/* KPI 1: Số dư đầu kỳ */}
-          <div className="stmt-kpi-card">
-            <span className="stmt-kpi-title">1. Số dư nợ đầu kỳ</span>
-            <div className="stmt-kpi-value">{formatCurrency(summary.opening_balance)}</div>
-            <span className="stmt-kpi-sub">Số nợ luỹ kế chuyển từ các kỳ trước</span>
-          </div>
-
-          {/* KPI 2: Tổng phát sinh Tăng (Bán hàng) */}
-          <div className="stmt-kpi-card">
-            <span className="stmt-kpi-title">2. Phát sinh Tăng trong kỳ (Tiền hàng mua)</span>
-            <div className="stmt-kpi-value inc">+ {formatCurrency(summary.total_increase)}</div>
-            <span className="stmt-kpi-sub">Tổng giá trị đơn hàng / hóa đơn xuất bán</span>
-          </div>
-
-          {/* KPI 3: Tổng phát sinh Giảm (Đã thu) */}
-          <div className="stmt-kpi-card">
-            <span className="stmt-kpi-title">3. Phát sinh Giảm trong kỳ (Đã thanh toán)</span>
-            <div className="stmt-kpi-value dec">- {formatCurrency(summary.total_decrease)}</div>
-            <span className="stmt-kpi-sub">Tổng tiền mặt / chuyển khoản đại lý đã trả</span>
-          </div>
-
-          {/* KPI 4: Số dư nợ cuối kỳ */}
-          <div
-            className={`stmt-kpi-card closing ${
-              currentDealer?.credit_limit && summary.closing_balance > currentDealer.credit_limit
-                ? 'overdue'
-                : ''
-            }`}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span className="stmt-kpi-title" style={{ fontWeight: 700 }}>
-                4. Số dư nợ cuối kỳ (Phải thu)
-              </span>
-              {currentDealer?.credit_limit && summary.closing_balance > currentDealer.credit_limit && (
-                <span
-                  style={{
-                    fontSize: '11px',
-                    fontWeight: 700,
-                    padding: '2px 6px',
-                    borderRadius: '4px',
-                    backgroundColor: '#fee2e2',
-                    color: '#b91c1c',
-                  }}
-                >
-                  Vượt hạn mức
-                </span>
-              )}
-            </div>
-            <div
-              className={`stmt-kpi-value ${
-                currentDealer?.credit_limit && summary.closing_balance > currentDealer.credit_limit
-                  ? 'overdue'
-                  : 'closing'
-              }`}
-            >
-              {formatCurrency(summary.closing_balance)}
-            </div>
-            <span className="stmt-kpi-sub">
-              {summary.closing_balance > 0 ? 'Đại lý cần đối chiếu và thanh toán' : 'Đại lý đã thanh toán đủ số dư'}
-            </span>
-          </div>
-        </div>
-      )}
-
       {/* 5. Detailed Table Card */}
       <div className="statement-table-card">
         <div className="stmt-table-header-bar">
@@ -742,15 +748,15 @@ export const DealerDebtStatementView: React.FC<DealerDebtStatementViewProps> = (
               <table className="stmt-table">
                 <thead>
                   <tr>
-                    <th style={{ width: '45px', textAlign: 'center' }}>STT</th>
-                    <th style={{ width: '135px', textAlign: 'center' }}>Ngày chứng từ</th>
-                    <th style={{ width: '135px', textAlign: 'center' }}>Số chứng từ</th>
-                    <th style={{ width: '135px', textAlign: 'center' }}>Loại chứng từ</th>
-                    <th style={{ minWidth: '240px' }}>Diễn giải nghiệp vụ kinh tế</th>
-                    <th style={{ width: '145px', textAlign: 'right' }}>Phát sinh Tăng (Nợ)</th>
-                    <th style={{ width: '145px', textAlign: 'right' }}>Phát sinh Giảm (Có)</th>
-                    <th style={{ width: '155px', textAlign: 'right' }}>Số dư nợ luỹ kế</th>
-                    <th style={{ width: '130px', textAlign: 'center' }}>Hình thức / Ghi chú</th>
+                    <th style={{ width: '36px', textAlign: 'center' }}>STT</th>
+                    <th style={{ width: '110px', textAlign: 'center', whiteSpace: 'nowrap' }}>Ngày chứng từ</th>
+                    <th style={{ width: '85px', textAlign: 'center', whiteSpace: 'nowrap' }}>Số chứng từ</th>
+                    <th style={{ width: '115px', textAlign: 'center', whiteSpace: 'nowrap' }}>Loại chứng từ</th>
+                    <th style={{ textAlign: 'left', paddingLeft: '8px' }}>Diễn giải nghiệp vụ kinh tế</th>
+                    <th style={{ width: '115px', textAlign: 'right', whiteSpace: 'nowrap' }}>Phát sinh Tăng (Nợ)</th>
+                    <th style={{ width: '115px', textAlign: 'right', whiteSpace: 'nowrap' }}>Phát sinh Giảm (Có)</th>
+                    <th style={{ width: '120px', textAlign: 'right', whiteSpace: 'nowrap' }}>Số dư nợ luỹ kế</th>
+                    <th style={{ width: '95px', textAlign: 'center', whiteSpace: 'nowrap' }}>Hình thức / Ghi chú</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -759,29 +765,31 @@ export const DealerDebtStatementView: React.FC<DealerDebtStatementViewProps> = (
                     <td style={{ textAlign: 'center' }}>1</td>
                     <td style={{ textAlign: 'center' }}></td>
                     <td style={{ textAlign: 'center' }}></td>
-                    <td style={{ textAlign: 'center' }}>
+                    <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
                       <span
                         style={{
-                          fontSize: '11px',
+                          fontSize: '10.5px',
                           fontWeight: 700,
                           padding: '2px 6px',
                           borderRadius: '4px',
                           background: '#e2e8f0',
                           color: '#334155',
+                          whiteSpace: 'nowrap',
+                          display: 'inline-block',
                         }}
                       >
                         ĐẦU KỲ
                       </span>
                     </td>
-                    <td>
+                    <td style={{ textAlign: 'left', paddingLeft: '8px' }}>
                       <strong>Số dư công nợ phải thu chuyển sang từ kỳ trước</strong>
                     </td>
                     <td style={{ textAlign: 'right' }}></td>
                     <td style={{ textAlign: 'right' }}></td>
-                    <td className="stmt-num-bal" style={{ fontSize: '14px' }}>
+                    <td className="stmt-num-bal" style={{ fontSize: '13px', whiteSpace: 'nowrap' }}>
                       {formatCurrency(summary?.opening_balance)}
                     </td>
-                    <td style={{ textAlign: 'center', fontSize: '11.5px', color: '#64748b' }}>Đầu kỳ</td>
+                    <td style={{ textAlign: 'center', fontSize: '11.5px', color: '#64748b', whiteSpace: 'nowrap' }}>Đầu kỳ</td>
                   </tr>
 
                   {/* Danh sách các dòng nghiệp vụ phát sinh */}
@@ -799,25 +807,26 @@ export const DealerDebtStatementView: React.FC<DealerDebtStatementViewProps> = (
                       <tr key={tx.id || idx}>
                         <td style={{ textAlign: 'center', color: '#64748b', fontWeight: 600 }}>{idx + 2}</td>
                         <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>{formatDate(tx.date)}</td>
-                        <td style={{ textAlign: 'center', fontFamily: 'monospace', fontWeight: 700, color: '#1e40af' }}>
+                        <td style={{ textAlign: 'center', fontFamily: 'monospace', fontWeight: 700, color: '#1e40af', whiteSpace: 'nowrap' }}>
                           {tx.doc_code}
                         </td>
-                        <td style={{ textAlign: 'center' }}>
+                        <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
                           <span
                             className={tx.doc_type === 'ORDER' ? 'badge-doc-order' : 'badge-doc-voucher'}
+                            style={{ whiteSpace: 'nowrap' }}
                           >
                             {tx.doc_type_label}
                           </span>
                         </td>
-                        <td style={{ wordBreak: 'break-word' }}>{tx.description}</td>
-                        <td className="stmt-num-inc">
+                        <td style={{ textAlign: 'left', paddingLeft: '8px', wordBreak: 'break-word' }}>{tx.description}</td>
+                        <td className="stmt-num-inc" style={{ whiteSpace: 'nowrap' }}>
                           {tx.increase_amount > 0 ? `+ ${formatCurrency(tx.increase_amount)}` : ''}
                         </td>
-                        <td className="stmt-num-dec">
+                        <td className="stmt-num-dec" style={{ whiteSpace: 'nowrap' }}>
                           {tx.decrease_amount > 0 ? `- ${formatCurrency(tx.decrease_amount)}` : ''}
                         </td>
-                        <td className="stmt-num-bal">{formatCurrency(tx.running_balance)}</td>
-                        <td style={{ textAlign: 'center', fontSize: '12px', color: '#64748b' }}>
+                        <td className="stmt-num-bal" style={{ whiteSpace: 'nowrap' }}>{formatCurrency(tx.running_balance)}</td>
+                        <td style={{ textAlign: 'center', fontSize: '11.5px', color: '#64748b', whiteSpace: 'nowrap' }}>
                           {tx.payment_method || tx.status || ''}
                         </td>
                       </tr>
@@ -826,13 +835,13 @@ export const DealerDebtStatementView: React.FC<DealerDebtStatementViewProps> = (
 
                   {/* Dòng Tổng cộng phát sinh trong kỳ */}
                   <tr className="stmt-tr-subtotal">
-                    <td colSpan={5} style={{ textAlign: 'center', fontWeight: 800 }}>
+                    <td colSpan={5} style={{ textAlign: 'left', paddingLeft: '8px', fontWeight: 800 }}>
                       TỔNG CỘNG PHÁT SINH TRONG KỲ
                     </td>
-                    <td className="stmt-num-inc" style={{ fontSize: '13.5px', fontWeight: 800 }}>
+                    <td className="stmt-num-inc" style={{ fontSize: '12.5px', fontWeight: 800, whiteSpace: 'nowrap' }}>
                       + {formatCurrency(summary?.total_increase)}
                     </td>
-                    <td className="stmt-num-dec" style={{ fontSize: '13.5px', fontWeight: 800 }}>
+                    <td className="stmt-num-dec" style={{ fontSize: '12.5px', fontWeight: 800, whiteSpace: 'nowrap' }}>
                       - {formatCurrency(summary?.total_decrease)}
                     </td>
                     <td style={{ textAlign: 'center', color: '#94a3b8' }}></td>
@@ -841,18 +850,18 @@ export const DealerDebtStatementView: React.FC<DealerDebtStatementViewProps> = (
 
                   {/* Dòng Số dư nợ cuối kỳ */}
                   <tr className="stmt-tr-closing">
-                    <td colSpan={5} style={{ textAlign: 'center', fontWeight: 800, color: '#0f766e' }}>
+                    <td colSpan={5} style={{ textAlign: 'left', paddingLeft: '8px', fontWeight: 800, color: '#0f766e' }}>
                       SỐ DƯ NỢ CUỐI KỲ PHẢI THU (TÍNH ĐẾN NGÀY {statementData?.period.to_date || 'HIỆN TẠI'})
                     </td>
                     <td style={{ textAlign: 'center' }}></td>
                     <td style={{ textAlign: 'center' }}></td>
                     <td
                       className="stmt-num-bal"
-                      style={{ color: '#b91c1c', fontSize: '15px', fontWeight: 900 }}
+                      style={{ color: '#b91c1c', fontSize: '14px', fontWeight: 900, whiteSpace: 'nowrap' }}
                     >
                       {formatCurrency(summary?.closing_balance)}
                     </td>
-                    <td style={{ textAlign: 'center', color: '#0f766e', fontWeight: 700 }}>Chốt kỳ</td>
+                    <td style={{ textAlign: 'center', color: '#0f766e', fontWeight: 700, whiteSpace: 'nowrap' }}>Chốt kỳ</td>
                   </tr>
                 </tbody>
               </table>

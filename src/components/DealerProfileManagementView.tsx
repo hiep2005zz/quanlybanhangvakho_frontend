@@ -715,17 +715,21 @@ export default function DealerProfileManagementView({
   };
 
   const getStatusBadgeInfo = (st?: string | null) => {
-    const s = st || 'Đang hoạt động';
-    if (s === 'Đang hoạt động') {
-      return { className: 'status-pill-active', dotColor: '#16a34a', text: 'Đang hoạt động' };
+    const raw = (st || '').trim();
+    if (!raw || raw.includes('ho?t') || raw === 'Đang hoạt động' || raw.toUpperCase() === 'ACTIVE' || raw.includes('Ðang')) {
+      return { className: 'status-pill-active', dotColor: '#16a34a', text: 'Đang hoạt động', bg: '#dcfce7', color: '#15803d', border: '#86efac' };
     }
-    if (s === 'Tạm ngừng') {
-      return { className: 'status-pill-paused', dotColor: '#d97706', text: 'Tạm ngừng' };
+    const lower = raw.toLowerCase();
+    if (lower.includes('khóa') || lower.includes('khoá') || raw.includes('Đ?') || lower.includes('lock')) {
+      return { className: 'status-pill-stopped', dotColor: '#dc2626', text: 'Đã khóa', bg: '#fee2e2', color: '#b91c1c', border: '#fca5a5' };
     }
-    if (s === 'Ngừng giao dịch') {
-      return { className: 'status-pill-stopped', dotColor: '#dc2626', text: 'Ngừng giao dịch' };
+    if (lower.includes('ngừng giao dịch')) {
+      return { className: 'status-pill-stopped', dotColor: '#dc2626', text: 'Ngừng giao dịch', bg: '#fee2e2', color: '#b91c1c', border: '#fca5a5' };
     }
-    return { className: 'status-pill-pending', dotColor: '#64748b', text: 'Chưa kích hoạt' };
+    if (lower.includes('tạm') || lower.includes('ngừng') || lower.includes('ngung') || lower.includes('inactive')) {
+      return { className: 'status-pill-paused', dotColor: '#d97706', text: 'Tạm ngừng', bg: '#fef3c7', color: '#b45309', border: '#fde68a' };
+    }
+    return { className: 'status-pill-pending', dotColor: '#64748b', text: raw || 'Chưa kích hoạt', bg: '#f1f5f9', color: '#475569', border: '#cbd5e1' };
   };
 
 
@@ -1545,7 +1549,7 @@ export default function DealerProfileManagementView({
                               <div className="sale-avatar-mini">
                                 {dealer.assigned_sale_name.charAt(0)}
                               </div>
-                              <span className="sale-staff-name" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '75px' }}>
+                              <span className="sale-staff-name" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '160px' }}>
                                 {dealer.assigned_sale_name}
                               </span>
                             </div>
@@ -1571,31 +1575,9 @@ export default function DealerProfileManagementView({
                         <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
                           <span
                             style={{
-                              background:
-                                dealer.status === 'Đang hoạt động'
-                                  ? '#dcfce7'
-                                  : dealer.status === 'Tạm ngừng'
-                                  ? '#fef3c7'
-                                  : dealer.status === 'Ngừng giao dịch'
-                                  ? '#fee2e2'
-                                  : '#f1f5f9',
-                              color:
-                                dealer.status === 'Đang hoạt động'
-                                  ? '#15803d'
-                                  : dealer.status === 'Tạm ngừng'
-                                  ? '#b45309'
-                                  : dealer.status === 'Ngừng giao dịch'
-                                  ? '#b91c1c'
-                                  : '#475569',
-                              border: `1.5px solid ${
-                                dealer.status === 'Đang hoạt động'
-                                  ? '#86efac'
-                                  : dealer.status === 'Tạm ngừng'
-                                  ? '#fde68a'
-                                  : dealer.status === 'Ngừng giao dịch'
-                                  ? '#fca5a5'
-                                  : '#cbd5e1'
-                              }`,
+                              background: statusInfo.bg,
+                              color: statusInfo.color,
+                              border: `1.5px solid ${statusInfo.border}`,
                               display: 'inline-flex',
                               alignItems: 'center',
                               gap: '6px',
@@ -1616,7 +1598,7 @@ export default function DealerProfileManagementView({
                                 flexShrink: 0,
                               }}
                             />
-                            <span>{dealer.status || 'Đang hoạt động'}</span>
+                            <span>{statusInfo.text}</span>
                           </span>
                         </td>
 

@@ -329,20 +329,9 @@ export const ReceiptVoucherPrintModal: React.FC<ReceiptVoucherPrintModalProps> =
               type="button"
               onClick={handlePrint}
               className="receipt-btn receipt-btn-primary"
-              title="Mở hộp thoại in chứng từ"
+              title="In phiếu thu hoặc lưu dưới dạng PDF qua trình duyệt"
             >
-              In phiếu thu
-            </button>
-
-            <button
-              type="button"
-              onClick={handleDownloadPdf}
-              disabled={isExportingPdf}
-              className="receipt-btn receipt-btn-pdf"
-              title="Tải trực tiếp chứng từ dạng tệp PDF"
-              style={{ opacity: isExportingPdf ? 0.7 : 1, cursor: isExportingPdf ? 'wait' : 'pointer' }}
-            >
-              {isExportingPdf ? 'Đang tạo PDF...' : 'Tải PDF'}
+              In PDF
             </button>
 
             <button

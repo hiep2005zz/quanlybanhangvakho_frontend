@@ -642,7 +642,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
     );
   };
 
-  const renderOrderActions = (order: OrderResponseData) => {
+  const renderOrderActions = (order: OrderResponseData, isLastRows: boolean = false) => {
     const isPending = order.status === 'PENDING_APPROVAL';
     const isApprovedOrConfirmed = ['CONFIRMED', 'APPROVED'].includes(order.status);
     const isDropdownOpen = openActionDropdownCode === order.order_code;
@@ -666,7 +666,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
 
     return (
       <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', gap: '5px', whiteSpace: 'nowrap' }}>
-        {/* Menu Thao tác Duyệt Dropdown khi đơn chờ duyệt và có quyền duyệt */}
+        {/* Menu Thao tác Duyệt Dropdown dạng 3 chấm khi đơn chờ duyệt và có quyền duyệt */}
         {showApprovalDropdown && (
           <div
             className="order-action-dropdown-container order-status-dropdown-details relative inline-block text-left"
@@ -678,48 +678,47 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
               type="button"
               id={`btn-status-dropdown-${order.order_code}`}
               onClick={(e) => handleDropdownToggle(e, order.order_code)}
+              title="Thao tác duyệt đơn hàng"
+              aria-label="Thao tác duyệt"
               style={{
-                listStyle: 'none',
-                padding: '4px 8px',
-                background: isDropdownOpen ? '#15803d' : '#16a34a',
-                border: 'none',
+                width: '28px',
+                height: '28px',
                 borderRadius: '6px',
-                color: '#ffffff',
-                fontSize: '12px',
-                fontWeight: '600',
+                border: isDropdownOpen ? '1px solid #0f766e' : '1px solid #cbd5e1',
+                background: isDropdownOpen ? '#f0fdf4' : '#ffffff',
+                color: isDropdownOpen ? '#0f766e' : '#475569',
                 cursor: 'pointer',
-                whiteSpace: 'nowrap',
                 display: 'inline-flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: '4px',
-                height: '28px',
+                padding: 0,
                 boxSizing: 'border-box',
-                userSelect: 'none',
                 outline: 'none',
                 transition: 'all 0.15s ease',
-                boxShadow: isDropdownOpen ? '0 0 0 2px rgba(22, 163, 74, 0.35)' : 'none',
+                boxShadow: isDropdownOpen ? '0 0 0 2px rgba(15, 118, 110, 0.2)' : '0 1px 2px rgba(0, 0, 0, 0.04)',
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.background = '#15803d';
+                e.currentTarget.style.background = '#f0fdf4';
+                e.currentTarget.style.color = '#0f766e';
+                e.currentTarget.style.borderColor = '#5eead4';
               }}
               onMouseLeave={(e) => {
                 if (!isDropdownOpen) {
-                  e.currentTarget.style.background = '#16a34a';
+                  e.currentTarget.style.background = '#ffffff';
+                  e.currentTarget.style.color = '#475569';
+                  e.currentTarget.style.borderColor = '#cbd5e1';
+                } else {
+                  e.currentTarget.style.background = '#f0fdf4';
+                  e.currentTarget.style.color = '#0f766e';
+                  e.currentTarget.style.borderColor = '#0f766e';
                 }
               }}
             >
-              <span>Thao tác duyệt</span>
-              <span
-                style={{
-                  fontSize: '9px',
-                  display: 'inline-block',
-                  transform: isDropdownOpen ? 'rotate(180deg)' : 'none',
-                  transition: 'transform 0.15s ease',
-                }}
-              >
-                ▼
-              </span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <circle cx="12" cy="5" r="2.2" />
+                <circle cx="12" cy="12" r="2.2" />
+                <circle cx="12" cy="19" r="2.2" />
+              </svg>
             </button>
 
             {/* Menu Dropdown mượt mà */}
@@ -728,10 +727,12 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                 style={{
                   position: 'absolute',
                   right: 0,
-                  top: '100%',
-                  paddingTop: '4px',
+                  top: isLastRows ? 'auto' : '100%',
+                  bottom: isLastRows ? '100%' : 'auto',
+                  paddingTop: isLastRows ? '0' : '4px',
+                  paddingBottom: isLastRows ? '4px' : '0',
                   zIndex: 100,
-                  minWidth: '140px',
+                  minWidth: '145px',
                 }}
                 onMouseEnter={() => handleDropdownOpen(order.order_code)}
                 onMouseLeave={handleDropdownCloseWithDelay}
@@ -748,6 +749,21 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                     gap: '2px',
                   }}
                 >
+                  <div
+                    style={{
+                      padding: '4px 8px 3px 8px',
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      color: '#94a3b8',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.04em',
+                      borderBottom: '1px solid #f1f5f9',
+                      marginBottom: '2px',
+                    }}
+                  >
+                    Thao tác duyệt
+                  </div>
+
                   {/* Duyệt đơn */}
                   <button
                     type="button"
@@ -1521,7 +1537,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                       className="flex items-center justify-end gap-2 pt-1.5 border-t border-slate-100"
                       style={{ position: 'relative', zIndex: openActionDropdownCode === order.order_code ? 35 : 'auto' }}
                     >
-                      {renderOrderActions(order)}
+                      {renderOrderActions(order, paginatedOrders.length > 3 && idx >= paginatedOrders.length - 2)}
                     </div>
                   </div>
                 );
@@ -1578,12 +1594,16 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
 
                         <td style={{ padding: '9px 12px' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                            <span style={{ fontWeight: '600', color: '#0f172a', fontSize: '12.5px', lineHeight: '1.3' }}>{order.dealer_name}</span>
+                            <span style={{ fontWeight: '600', color: '#0f172a', fontSize: '12.5px', lineHeight: '1.3' }}>
+                              {order.dealer_name || (order.dealer_id ? `Đại lý #${order.dealer_id}` : 'Khách hàng')}
+                            </span>
                             {Boolean(
                               order.dealer_status &&
                               (order.dealer_status.toLowerCase().includes('khóa') ||
+                               order.dealer_status.toLowerCase().includes('khoá') ||
                                order.dealer_status.toLowerCase().includes('lock') ||
-                               order.dealer_status.toLowerCase().includes('ngừng'))
+                               order.dealer_status.toLowerCase().includes('ngừng') ||
+                               order.dealer_status.includes('Đ?'))
                             ) && (
                               <span
                                 style={{
@@ -1698,7 +1718,7 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
                         </td>
 
                         <td style={{ padding: '9px 14px', textAlign: 'right', whiteSpace: 'nowrap', position: 'relative', zIndex: openActionDropdownCode === order.order_code ? 40 : 'auto' }}>
-                          {renderOrderActions(order)}
+                          {renderOrderActions(order, paginatedOrders.length > 3 && idx >= paginatedOrders.length - 2)}
                         </td>
                       </tr>
                     );

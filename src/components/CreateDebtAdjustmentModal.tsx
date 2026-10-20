@@ -280,7 +280,7 @@ export const CreateDebtAdjustmentModal: React.FC<CreateDebtAdjustmentModalProps>
                       <tbody>
                         {pendingReturns.map((item) => (
                           <tr key={item.id}>
-                            <td style={{ fontWeight: 600, color: '#0284c7' }}>{item.return_code}</td>
+                            <td style={{ fontWeight: 600, color: '#0f766e' }}>{item.return_code}</td>
                             <td>
                               <span style={{ fontFamily: 'monospace', fontWeight: 600, color: '#334155' }}>
                                 {item.original_invoice_code}
@@ -293,8 +293,8 @@ export const CreateDebtAdjustmentModal: React.FC<CreateDebtAdjustmentModalProps>
                                 style={{
                                   padding: '0.2rem 0.5rem',
                                   borderRadius: '9999px',
-                                  backgroundColor: '#e0f2fe',
-                                  color: '#0369a1',
+                                  backgroundColor: '#ccfbf1',
+                                  color: '#0f766e',
                                   fontSize: '0.75rem',
                                   fontWeight: 600,
                                 }}
@@ -426,7 +426,7 @@ export const CreateDebtAdjustmentModal: React.FC<CreateDebtAdjustmentModalProps>
                         justifyContent: 'space-between',
                         fontSize: '1rem',
                         fontWeight: 700,
-                        color: '#0369a1',
+                        color: '#0f766e',
                         borderTop: '1px dashed #cbd5e1',
                         paddingTop: '0.5rem',
                         marginTop: '0.5rem',
@@ -491,7 +491,7 @@ export const CreateDebtAdjustmentModal: React.FC<CreateDebtAdjustmentModalProps>
                     </div>
                     <div className="debt-comp-row highlight">
                       <span>Nợ lũy kế mới:</span>
-                      <span style={{ color: '#0284c7' }}>{formatCurrency(dealerDebtAfter)}</span>
+                      <span style={{ color: '#0f766e' }}>{formatCurrency(dealerDebtAfter)}</span>
                     </div>
                     <div style={{ marginTop: '0.5rem', fontSize: '0.75rem', color: '#64748b' }}>
                       Ghi Sổ chi tiết công nợ Mẫu S31-DN: Cột Phát sinh Có

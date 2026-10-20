@@ -390,9 +390,10 @@ export const DebtAdjustmentPrintModal: React.FC<DebtAdjustmentPrintModalProps> =
 
   if (loading) {
     return createPortal(
-      <div className="debt-adj-print-backdrop">
-        <div className="bg-white p-6 rounded-lg text-center text-sm font-medium text-gray-700">
-          Đang tải dữ liệu chứng từ giảm trừ công nợ...
+      <div className="debt-adj-print-backdrop" role="dialog" aria-modal="true">
+        <div style={{ background: '#ffffff', padding: '28px 36px', borderRadius: '12px', textAlign: 'center', fontSize: '14px', fontWeight: 600, color: '#334155', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.3)', border: '1px solid #cbd5e1' }}>
+          <div style={{ fontSize: '24px', marginBottom: '8px' }}>⏳</div>
+          Đang nạp dữ liệu chứng từ giảm trừ công nợ...
         </div>
       </div>,
       modalRoot
@@ -401,13 +402,14 @@ export const DebtAdjustmentPrintModal: React.FC<DebtAdjustmentPrintModalProps> =
 
   if (error || !doc) {
     return createPortal(
-      <div className="debt-adj-print-backdrop">
-        <div className="bg-white p-6 rounded-lg max-w-md text-center">
-          <p className="text-red-600 text-sm mb-4 font-semibold">{error || 'Không tìm thấy chứng từ'}</p>
+      <div className="debt-adj-print-backdrop" role="dialog" aria-modal="true">
+        <div style={{ background: '#ffffff', padding: '28px 36px', borderRadius: '12px', maxWidth: '420px', textAlign: 'center', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.3)', border: '1px solid #cbd5e1' }}>
+          <div style={{ fontSize: '24px', marginBottom: '8px' }}>⚠️</div>
+          <p style={{ color: '#dc2626', fontSize: '14px', marginBottom: '18px', fontWeight: 600 }}>{error || 'Không tìm thấy chứng từ'}</p>
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 bg-gray-200 text-gray-800 rounded text-xs font-semibold cursor-pointer border-0"
+            className="debt-adj-modal-btn secondary"
           >
             Đóng
           </button>
@@ -547,15 +549,13 @@ export const DebtAdjustmentPrintModal: React.FC<DebtAdjustmentPrintModalProps> =
   );
 
   return createPortal(
-    <div className="debt-adj-print-backdrop">
+    <div className="debt-adj-print-backdrop" role="dialog" aria-modal="true">
       <div className="debt-adj-print-container">
         {/* Thanh công cụ Modal */}
         <div className="debt-adj-print-header">
-          <div className="flex items-center gap-2">
-            <span className="font-bold text-gray-800 text-sm">
-              Chứng từ giảm trừ công nợ: {doc.adjustment_code}
-            </span>
-            <span className="text-xs bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-semibold">
+          <div className="debt-adj-print-title">
+            <span>Chứng từ giảm trừ công nợ: <strong>{doc.adjustment_code}</strong></span>
+            <span className="debt-adj-status-badge">
               {doc.status === 'POSTED' ? 'Đã ghi sổ' : doc.status}
             </span>
           </div>
@@ -564,37 +564,22 @@ export const DebtAdjustmentPrintModal: React.FC<DebtAdjustmentPrintModalProps> =
             <button
               type="button"
               onClick={executeIframePrint}
-              className="px-3.5 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-md text-xs font-semibold flex items-center gap-1.5 shadow-sm border-0 cursor-pointer transition-colors"
-              title="In trực tiếp ra máy in hoặc Lưu dưới dạng PDF qua trình duyệt"
+              className="debt-adj-modal-btn primary"
+              title="In ra máy in hoặc Lưu dưới dạng PDF qua trình duyệt"
             >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="6 9 6 2 18 2 18 9" />
                 <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
                 <rect x="6" y="14" width="12" height="8" />
               </svg>
-              <span>In chứng từ</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={handleDownloadPdf}
-              disabled={isExportingPdf}
-              className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md text-xs font-semibold flex items-center gap-1.5 shadow-sm border-0 cursor-pointer disabled:opacity-50 transition-colors"
-              title="Tải tệp PDF sắc nét trực tiếp về máy tính"
-            >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                <polyline points="14 2 14 8 20 8" />
-                <line x1="12" y1="18" x2="12" y2="12" />
-                <line x1="9" y1="15" x2="15" y2="15" />
-              </svg>
-              <span>{isExportingPdf ? 'Đang tạo PDF...' : 'Tải PDF'}</span>
+              <span>In PDF</span>
             </button>
 
             <button
               type="button"
               onClick={onClose}
-              className="px-3.5 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md text-xs font-semibold border-0 cursor-pointer transition-colors"
+              className="debt-adj-modal-btn secondary"
+              title="Đóng cửa sổ xem trước"
             >
               Đóng
             </button>

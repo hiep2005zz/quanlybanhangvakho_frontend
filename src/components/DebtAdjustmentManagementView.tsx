@@ -113,7 +113,7 @@ export const DebtAdjustmentManagementView: React.FC<DebtAdjustmentManagementView
       <div className="debt-adj-header">
         <div className="debt-adj-title-group">
           <h1>
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: '#0284c7' }}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: '#0f766e' }}>
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
               <polyline points="14 2 14 8 20 8" />
               <line x1="9" y1="15" x2="15" y2="15" />
@@ -136,6 +136,11 @@ export const DebtAdjustmentManagementView: React.FC<DebtAdjustmentManagementView
             }}
             title="Làm mới danh sách"
           >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="23 4 23 10 17 10" />
+              <polyline points="1 20 1 14 7 14" />
+              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+            </svg>
             Làm mới
           </button>
 
@@ -299,14 +304,14 @@ export const DebtAdjustmentManagementView: React.FC<DebtAdjustmentManagementView
                   <th style={{ textAlign: 'right' }}>Tổng Giảm Trừ</th>
                   <th style={{ textAlign: 'center' }}>Trạng Thái</th>
                   <th>Người Lập</th>
-                  <th style={{ textAlign: 'right' }}>Hành Động</th>
+                  <th style={{ textAlign: 'center', width: '135px' }}>Thao tác</th>
                 </tr>
               </thead>
               <tbody>
                 {items.map((row) => (
                   <tr key={row.id}>
                     <td>
-                      <span style={{ fontWeight: 700, color: '#0284c7', fontFamily: 'monospace' }}>
+                      <span style={{ fontWeight: 700, color: '#0f766e', fontFamily: 'monospace' }}>
                         {row.adjustment_code}
                       </span>
                     </td>
@@ -333,15 +338,19 @@ export const DebtAdjustmentManagementView: React.FC<DebtAdjustmentManagementView
                       </span>
                     </td>
                     <td>{row.created_by_name}</td>
-                    <td style={{ textAlign: 'right' }}>
+                    <td style={{ textAlign: 'center' }}>
                       <button
                         type="button"
-                        className="debt-adj-btn-secondary"
-                        style={{ padding: '0.35rem 0.75rem', fontSize: '0.8125rem' }}
+                        className="debt-adj-action-btn"
                         onClick={() => setSelectedForPrint(row)}
                         title="Xem chi tiết & In biên bản điều chỉnh A4"
                       >
-                        🖨 In / Xem PDF
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="6 9 6 2 18 2 18 9" />
+                          <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+                          <rect x="6" y="14" width="12" height="8" />
+                        </svg>
+                        <span>In / Xem PDF</span>
                       </button>
                     </td>
                   </tr>
