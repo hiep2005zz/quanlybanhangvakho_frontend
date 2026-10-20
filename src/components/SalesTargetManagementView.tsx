@@ -101,6 +101,9 @@ export const SalesTargetManagementView: React.FC<SalesTargetManagementViewProps>
   const [targetToDelete, setTargetToDelete] = useState<SalesTargetItem | null>(null);
   const [isDeleting, setIsDeleting] = useState<boolean>(false);
 
+  // Dropdown menu 3 chấm Thao tác
+  const [activeDropdownTargetId, setActiveDropdownTargetId] = useState<number | null>(null);
+
   // Form Create State
   const [createForm, setCreateForm] = useState<SalesTargetCreatePayload>({
     target_type: 'salesperson',
@@ -254,6 +257,31 @@ export const SalesTargetManagementView: React.FC<SalesTargetManagementViewProps>
     };
   }, [selectedMonth, targetTypeFilter]);
 
+  // Đóng dropdown 3 chấm khi bấm ra ngoài hoặc nhấn phím Escape
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('.target-action-dropdown-container')) {
+        setActiveDropdownTargetId(null);
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setActiveDropdownTargetId(null);
+      }
+    };
+    window.addEventListener('click', handleOutsideClick);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('click', handleOutsideClick);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
+
+  // Phân trang danh sách chỉ tiêu (20 bản ghi / trang)
+  const pageSize = 20;
+  const [currentPage, setCurrentPage] = useState<number>(1);
+
   // Tìm kiếm tức thì trong bộ nhớ (Zero latency, không giật nháy màn hình)
   const filteredItems = useMemo(() => {
     if (!searchTerm.trim()) return items;
@@ -265,6 +293,18 @@ export const SalesTargetManagementView: React.FC<SalesTargetManagementViewProps>
       return name.includes(term) || reg.includes(term) || note.includes(term);
     });
   }, [items, searchTerm]);
+
+  // Reset trang về 1 khi thay đổi điều kiện tìm kiếm hoặc bộ lọc
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, selectedMonth, targetTypeFilter]);
+
+  const totalItems = filteredItems.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const safePage = Math.min(Math.max(1, currentPage), totalPages);
+  const startIndex = (safePage - 1) * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, totalItems);
+  const pageItems = filteredItems.slice(startIndex, endIndex);
 
   // Mở modal sửa
   const handleOpenEdit = (target: SalesTargetItem) => {
@@ -383,62 +423,10 @@ export const SalesTargetManagementView: React.FC<SalesTargetManagementViewProps>
   return (
     <div className="w-full flex flex-col -mt-3 sm:-mt-4 md:-mt-6 pt-2 md:pt-2.5 pb-6 bg-gray-50 min-h-screen text-slate-800">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-            Chỉ tiêu doanh số & Tiến độ kinh doanh
-          </h1>
-        </div>
-
-        <div className="flex items-center gap-2.5">
-          <button
-            type="button"
-            onClick={async () => {
-              setIsRefreshing(true);
-              try {
-                await loadData(false);
-              } finally {
-                setIsRefreshing(false);
-              }
-            }}
-            disabled={isRefreshing || loading}
-            className="flex items-center gap-2 px-3 py-2 text-xs font-semibold rounded-lg bg-white hover:bg-slate-50 text-slate-700 transition-colors border border-slate-300 disabled:opacity-50 cursor-pointer shadow-sm"
-            title="Làm mới số liệu ngay lập tức"
-          >
-            <svg
-              className={`w-4 h-4 ${isRefreshing ? 'animate-spin text-emerald-600' : 'text-slate-500'}`}
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              viewBox="0 0 24 24"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-            <span>{isRefreshing ? 'Đang tải...' : 'Làm mới'}</span>
-          </button>
-
-          {canManage && (
-            <button
-              type="button"
-              onClick={() => {
-                const firstSp = availableSalespersons[0];
-                setCreateForm((prev) => ({
-                  ...prev,
-                  employee_id: availableSalespersons.some((s) => s.id === prev.employee_id)
-                    ? prev.employee_id
-                    : (firstSp?.id ?? 3),
-                  employee_name:
-                    availableSalespersons.find((s) => s.id === prev.employee_id)?.full_name ||
-                    (firstSp?.full_name ?? 'Trần Bán Hàng'),
-                }));
-                setIsCreateModalOpen(true);
-              }}
-              className="inline-flex items-center px-4 py-2 text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-sm transition-colors cursor-pointer"
-            >
-              <span>Thiết lập chỉ tiêu mới</span>
-            </button>
-          )}
-        </div>
+      <div className="mb-4">
+        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+          Chỉ tiêu doanh số & Tiến độ kinh doanh
+        </h1>
       </div>
 
       {/* Card Tiến độ Cá nhân (Dành cho nhân viên kinh doanh - ẩn đối với vai trò Admin) */}
@@ -543,10 +531,10 @@ export const SalesTargetManagementView: React.FC<SalesTargetManagementViewProps>
       )}
 
       {/* Khối Bảng danh sách gộp chung thanh điều khiển */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden mb-6">
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm mb-6">
         {/* Control Bar (Lọc tháng, loại chỉ tiêu, tìm kiếm) */}
         <div
-          className="px-4 py-3 border-b border-slate-200 flex items-center justify-between gap-4 overflow-x-auto bg-white"
+          className="px-4 py-3 border-b border-slate-200 flex items-center justify-between gap-4 overflow-x-auto bg-white rounded-t-xl"
           style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', flexWrap: 'nowrap' }}
         >
           <form
@@ -633,16 +621,63 @@ export const SalesTargetManagementView: React.FC<SalesTargetManagementViewProps>
             </div>
           </form>
 
+          {/* 2 nút thao tác đưa vào vị trí của Kỳ tháng hiện tại */}
           <div
-            className="flex items-center gap-1.5 text-xs text-slate-500 whitespace-nowrap shrink-0"
-            style={{ whiteSpace: 'nowrap' }}
+            className="flex items-center gap-2 shrink-0 ml-auto"
+            style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', flexWrap: 'nowrap' }}
           >
-            <span>Kỳ tháng hiện tại: <strong className="text-slate-800">2026-10</strong></span>
+            <button
+              type="button"
+              onClick={async () => {
+                setIsRefreshing(true);
+                try {
+                  await loadData(false);
+                } finally {
+                  setIsRefreshing(false);
+                }
+              }}
+              disabled={isRefreshing || loading}
+              className="h-8 flex items-center gap-1.5 px-3 text-xs font-semibold rounded-lg bg-white hover:bg-slate-50 text-slate-700 transition-colors border border-slate-300 disabled:opacity-50 cursor-pointer shadow-xs whitespace-nowrap"
+              title="Làm mới số liệu ngay lập tức"
+            >
+              <svg
+                className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-emerald-600' : 'text-slate-500'}`}
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              <span>{isRefreshing ? 'Đang tải...' : 'Làm mới'}</span>
+            </button>
+
+            {canManage && (
+              <button
+                type="button"
+                onClick={() => {
+                  const firstSp = availableSalespersons[0];
+                  setCreateForm((prev) => ({
+                    ...prev,
+                    employee_id: availableSalespersons.some((s) => s.id === prev.employee_id)
+                      ? prev.employee_id
+                      : (firstSp?.id ?? 3),
+                    employee_name:
+                      availableSalespersons.find((s) => s.id === prev.employee_id)?.full_name ||
+                      (firstSp?.full_name ?? 'Trần Bán Hàng'),
+                  }));
+                  setIsCreateModalOpen(true);
+                }}
+                className="h-8 inline-flex items-center px-3 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-xs transition-colors cursor-pointer whitespace-nowrap"
+              >
+                <span>Thiết lập chỉ tiêu mới</span>
+              </button>
+            )}
           </div>
         </div>
 
         {/* Table danh sách chỉ tiêu */}
-        <div className="w-full overflow-hidden">
+        <div className="w-full">
           <table className="w-full table-fixed text-left border-collapse">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200 text-xs font-bold text-slate-600 uppercase tracking-wider">
@@ -672,11 +707,12 @@ export const SalesTargetManagementView: React.FC<SalesTargetManagementViewProps>
                   </td>
                 </tr>
               ) : (
-                filteredItems.map((item) => {
+                pageItems.map((item, index) => {
                   const targetName =
                     item.target_type === 'salesperson'
                       ? item.employee_name || `Nhân viên #${item.employee_id}`
                       : item.region || 'Chưa đặt khu vực';
+                  const openUpward = pageItems.length > 3 && index >= pageItems.length - 2;
 
                   return (
                     <tr key={item.id} className="hover:bg-slate-50 transition-colors">
@@ -794,34 +830,96 @@ export const SalesTargetManagementView: React.FC<SalesTargetManagementViewProps>
                       {/* Thao tác */}
                       {canManage && (
                         <td className="py-3 px-2 text-center whitespace-nowrap">
-                          <div className="inline-flex items-center justify-center gap-2.5">
+                          <div className="relative inline-block text-left target-action-dropdown-container">
                             <button
                               type="button"
-                              onClick={() => handleOpenEdit(item)}
-                              className="text-xs font-semibold text-blue-600 hover:text-blue-800 transition-colors cursor-pointer"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveDropdownTargetId((prev) => (prev === item.id ? null : item.id));
+                              }}
+                              className={`w-7 h-7 inline-flex items-center justify-center rounded-lg border transition-all cursor-pointer ${
+                                activeDropdownTargetId === item.id
+                                  ? 'bg-slate-100 border-slate-300 text-slate-800 shadow-xs'
+                                  : 'bg-white border-slate-200 hover:bg-slate-50 hover:border-slate-300 text-slate-500 hover:text-slate-700'
+                              }`}
+                              title="Thao tác"
                             >
-                              Sửa
+                              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z" />
+                              </svg>
                             </button>
 
-                            {!item.is_locked && (
-                              <button
-                                type="button"
-                                onClick={() => handleDelete(item)}
-                                className="text-xs font-semibold text-rose-600 hover:text-rose-800 transition-colors cursor-pointer"
+                            {/* Dropdown Menu */}
+                            {activeDropdownTargetId === item.id && (
+                              <div
+                                style={{
+                                  position: 'absolute',
+                                  right: 0,
+                                  ...(openUpward
+                                    ? { bottom: 'calc(100% + 4px)' }
+                                    : { top: 'calc(100% + 4px)' }),
+                                  minWidth: '155px',
+                                  zIndex: 50,
+                                }}
+                                className="bg-white border border-slate-200 rounded-xl shadow-lg p-1 text-left"
                               >
-                                Xóa
-                              </button>
-                            )}
+                                {/* Nút Sửa */}
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setActiveDropdownTargetId(null);
+                                    handleOpenEdit(item);
+                                  }}
+                                  className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+                                >
+                                  <svg className="w-3.5 h-3.5 text-blue-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                  </svg>
+                                  <span>Sửa</span>
+                                </button>
 
-                            {item.audit_logs && item.audit_logs.length > 0 && (
-                              <button
-                                type="button"
-                                onClick={() => setViewingLogsTarget(item)}
-                                className="text-xs font-semibold text-slate-500 hover:text-slate-700 transition-colors cursor-pointer"
-                                title="Xem nhật ký điều chỉnh"
-                              >
-                                Log ({item.audit_logs.length})
-                              </button>
+                                {/* Nút Xóa */}
+                                {!item.is_locked ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setActiveDropdownTargetId(null);
+                                      handleDelete(item);
+                                    }}
+                                    className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                                  >
+                                    <svg className="w-3.5 h-3.5 text-rose-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                    <span>Xóa</span>
+                                  </button>
+                                ) : (
+                                  <div className="px-2.5 py-1 text-[11px] text-slate-400 italic">
+                                    Đã khóa (không thể xóa)
+                                  </div>
+                                )}
+
+                                {/* Nút Xem log nếu có */}
+                                {item.audit_logs && item.audit_logs.length > 0 && (
+                                  <>
+                                    <div className="h-px bg-slate-100 my-1" />
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setActiveDropdownTargetId(null);
+                                        setViewingLogsTarget(item);
+                                      }}
+                                      className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-lg transition-colors cursor-pointer"
+                                      title="Xem nhật ký điều chỉnh"
+                                    >
+                                      <svg className="w-3.5 h-3.5 text-slate-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                      </svg>
+                                      <span>Nhật ký ({item.audit_logs.length})</span>
+                                    </button>
+                                  </>
+                                )}
+                              </div>
                             )}
                           </div>
                         </td>
@@ -833,6 +931,166 @@ export const SalesTargetManagementView: React.FC<SalesTargetManagementViewProps>
             </tbody>
           </table>
         </div>
+
+        {/* Khối phân trang chuẩn giao diện liền thanh */}
+        {totalItems > 0 && (
+          <div
+            style={{
+              padding: '8px 18px',
+              display: 'flex',
+              justifyContent: 'flex-end',
+              alignItems: 'center',
+              borderTop: '1px solid #e2e8f0',
+              background: '#f8fafc',
+              fontSize: '12px',
+              color: '#64748b',
+              flexShrink: 0,
+              borderBottomLeftRadius: '0.75rem',
+              borderBottomRightRadius: '0.75rem',
+            }}
+          >
+            {/* Khối phân trang liền thanh */}
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'stretch',
+                border: '1px solid #d1d5db',
+                borderRadius: '5px',
+                overflow: 'hidden',
+                background: '#ffffff',
+                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
+                height: '24px',
+              }}
+            >
+              {/* Nút trang trước (<) - hiển thị khi trang > 1 */}
+              {safePage > 1 && (
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage(Math.max(1, safePage - 1))}
+                  style={{
+                    minWidth: '24px',
+                    height: '100%',
+                    padding: '0 6px',
+                    border: 'none',
+                    borderRight: '1px solid #e5e7eb',
+                    background: '#ffffff',
+                    color: '#4b5563',
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transition: 'background-color 0.15s ease',
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f9fafb')}
+                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#ffffff')}
+                  title="Trang trước"
+                >
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="15 18 9 12 15 6" />
+                  </svg>
+                </button>
+              )}
+
+              {/* Danh sách các số trang */}
+              {Array.from({ length: totalPages }, (_, i) => i + 1)
+                .filter((p) => p === 1 || p === totalPages || Math.abs(p - safePage) <= 1)
+                .reduce<(number | string)[]>((acc, p, idx, arr) => {
+                  if (idx > 0 && typeof arr[idx - 1] === 'number' && (p as number) - (arr[idx - 1] as number) > 1) {
+                    acc.push('...');
+                  }
+                  acc.push(p);
+                  return acc;
+                }, [])
+                .map((p, idx, arr) => {
+                  const hasNext = safePage < totalPages;
+                  const isLastItem = idx === arr.length - 1 && !hasNext;
+                  if (typeof p === 'string') {
+                    return (
+                      <span
+                        key={`ellipsis-${idx}`}
+                        style={{
+                          minWidth: '22px',
+                          height: '100%',
+                          padding: '0 4px',
+                          borderRight: isLastItem ? 'none' : '1px solid #e5e7eb',
+                          background: '#ffffff',
+                          color: '#6b7280',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '11px',
+                          userSelect: 'none',
+                        }}
+                      >
+                        ...
+                      </span>
+                    );
+                  }
+
+                  const isActive = p === safePage;
+                  return (
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={() => setCurrentPage(p)}
+                      style={{
+                        minWidth: '24px',
+                        height: '100%',
+                        padding: '0 7px',
+                        border: 'none',
+                        borderRight: isLastItem ? 'none' : '1px solid #e5e7eb',
+                        background: isActive ? '#2ba1f4' : '#ffffff',
+                        color: isActive ? '#ffffff' : '#374151',
+                        cursor: isActive ? 'default' : 'pointer',
+                        fontSize: '11.5px',
+                        fontWeight: isActive ? '700' : '500',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        transition: 'background-color 0.15s ease',
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!isActive) e.currentTarget.style.backgroundColor = '#f9fafb';
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!isActive) e.currentTarget.style.backgroundColor = '#ffffff';
+                      }}
+                    >
+                      {p}
+                    </button>
+                  );
+                })}
+
+              {/* Nút trang sau (>) - hiển thị khi chưa tới trang cuối */}
+              {safePage < totalPages && (
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage(Math.min(totalPages, safePage + 1))}
+                  style={{
+                    minWidth: '24px',
+                    height: '100%',
+                    padding: '0 6px',
+                    border: 'none',
+                    background: '#ffffff',
+                    color: '#4b5563',
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transition: 'background-color 0.15s ease',
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f9fafb')}
+                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#ffffff')}
+                  title="Trang sau"
+                >
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="9 18 15 12 9 6" />
+                  </svg>
+                </button>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Modal Thiết lập Chỉ Tiêu Mới */}

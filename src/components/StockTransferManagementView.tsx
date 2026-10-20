@@ -511,6 +511,14 @@ export function StockTransferManagementView({
     return { total, inTransit, completed, cancelled, withDiscrepancy };
   }, [transfers, getTransferCompensationStatus]);
 
+  // Cắt ngắn lý do hiển thị gọn gàng kèm dấu ...
+  const truncateText = (text: string | null | undefined, maxChars: number = 22): string => {
+    if (!text) return '';
+    const trimmed = text.trim();
+    if (trimmed.length <= maxChars) return trimmed;
+    return trimmed.slice(0, maxChars) + '...';
+  };
+
   // Lọc theo từ khóa tìm kiếm
   const filteredTransfers = useMemo(() => {
     if (!searchTerm.trim()) return transfers;
@@ -1665,7 +1673,7 @@ export function StockTransferManagementView({
       }}
     >
       {/* HEADER SECTION */}
-      <div className="bg-white rounded-xl p-4 border border-slate-200/80 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-3 shrink-0">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 shrink-0">
         <div>
           <h1 className="text-xl font-bold text-slate-800 tracking-tight">
             Chuyển kho nội bộ
@@ -1724,100 +1732,100 @@ export function StockTransferManagementView({
         </div>
       </div>
 
-      {/* FILTER & SEARCH BAR */}
-      <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row gap-3 items-center justify-between shrink-0">
-        <div className="flex-1 w-full md:w-auto relative">
-          <input
-            type="text"
-            placeholder="Tìm theo mã phiếu, tên kho, sản phẩm hoặc người lập..."
-            title="Tìm theo mã phiếu, tên kho, sản phẩm hoặc người lập..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            style={{
-              paddingLeft: '34px',
-              paddingRight: '12px',
-              height: '34px',
-              fontSize: '12px',
-              fontFamily: 'inherit',
-              color: '#334155',
-              backgroundColor: '#ffffff',
-              borderColor: '#e2e8f0',
-              borderRadius: '8px',
-              boxSizing: 'border-box',
-            }}
-            className="w-full border focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          <svg
-            className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
-            width="15"
-            height="15"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <circle cx="11" cy="11" r="8" />
-            <line x1="21" y1="21" x2="16.65" y2="16.65" />
-          </svg>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto shrink-0">
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            style={{
-              minWidth: '170px',
-              height: '34px',
-              fontSize: '12px',
-              fontFamily: 'inherit',
-              color: '#334155',
-              backgroundColor: '#ffffff',
-              borderColor: '#e2e8f0',
-              borderRadius: '8px',
-              padding: '0 12px',
-              boxSizing: 'border-box',
-              outline: 'none',
-            }}
-            className="border focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
-          >
-            <option value="ALL">Tất cả trạng thái</option>
-            <option value="IN_TRANSIT">Đang trên đường</option>
-            <option value="COMPLETED">Hoàn tất</option>
-            <option value="CANCELLED">Đã hủy</option>
-          </select>
-
-          <select
-            value={warehouseFilter}
-            onChange={(e) => setWarehouseFilter(e.target.value)}
-            style={{
-              minWidth: '170px',
-              height: '34px',
-              fontSize: '12px',
-              fontFamily: 'inherit',
-              color: '#334155',
-              backgroundColor: '#ffffff',
-              borderColor: '#e2e8f0',
-              borderRadius: '8px',
-              padding: '0 12px',
-              boxSizing: 'border-box',
-              outline: 'none',
-            }}
-            className="border focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
-          >
-            <option value="ALL">Tất cả các kho</option>
-            {warehouses.map((w) => (
-              <option key={w.id} value={w.id}>
-                {w.name}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      {/* TRANSFERS DATA TABLE */}
+      {/* TRANSFERS DATA TABLE (ĐÃ GỘP THANH TÌM KIẾM & BỘ LỌC) */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col flex-1 min-h-0 overflow-hidden">
+        {/* FILTER & SEARCH BAR (GỘP TRÊN ĐỈNH BẢNG) */}
+        <div className="p-3 border-b border-slate-200 flex flex-col md:flex-row gap-3 items-center justify-between shrink-0 bg-white">
+          <div className="flex-1 w-full md:w-auto relative">
+            <input
+              type="text"
+              placeholder="Tìm theo mã phiếu, tên kho, sản phẩm hoặc người lập..."
+              title="Tìm theo mã phiếu, tên kho, sản phẩm hoặc người lập..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              style={{
+                paddingLeft: '34px',
+                paddingRight: '12px',
+                height: '34px',
+                fontSize: '12px',
+                fontFamily: 'inherit',
+                color: '#334155',
+                backgroundColor: '#ffffff',
+                borderColor: '#e2e8f0',
+                borderRadius: '8px',
+                boxSizing: 'border-box',
+              }}
+              className="w-full border focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <svg
+              className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+              width="15"
+              height="15"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3 w-full md:w-auto shrink-0">
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              style={{
+                minWidth: '170px',
+                height: '34px',
+                fontSize: '12px',
+                fontFamily: 'inherit',
+                color: '#334155',
+                backgroundColor: '#ffffff',
+                borderColor: '#e2e8f0',
+                borderRadius: '8px',
+                padding: '0 12px',
+                boxSizing: 'border-box',
+                outline: 'none',
+              }}
+              className="border focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+            >
+              <option value="ALL">Tất cả trạng thái</option>
+              <option value="IN_TRANSIT">Đang trên đường</option>
+              <option value="COMPLETED">Hoàn tất</option>
+              <option value="CANCELLED">Đã hủy</option>
+            </select>
+
+            <select
+              value={warehouseFilter}
+              onChange={(e) => setWarehouseFilter(e.target.value)}
+              style={{
+                minWidth: '170px',
+                height: '34px',
+                fontSize: '12px',
+                fontFamily: 'inherit',
+                color: '#334155',
+                backgroundColor: '#ffffff',
+                borderColor: '#e2e8f0',
+                borderRadius: '8px',
+                padding: '0 12px',
+                boxSizing: 'border-box',
+                outline: 'none',
+              }}
+              className="border focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+            >
+              <option value="ALL">Tất cả các kho</option>
+              {warehouses.map((w) => (
+                <option key={w.id} value={w.id}>
+                  {w.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
         <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
           <table className="w-full table-fixed text-left text-xs">
             <colgroup>
@@ -1937,8 +1945,11 @@ export function StockTransferManagementView({
                               )}
 
                               {t.discrepancy_reason && (
-                                <div className="text-slate-600 mt-0.5 italic text-[11px] truncate max-w-full" title={t.discrepancy_reason}>
-                                  "{t.discrepancy_reason}"
+                                <div
+                                  className="text-slate-600 mt-0.5 italic text-[11px] max-w-[140px] truncate"
+                                  title={`Lý do: ${t.discrepancy_reason}`}
+                                >
+                                  "{truncateText(t.discrepancy_reason, 20)}"
                                 </div>
                               )}
                             </div>
@@ -1948,6 +1959,28 @@ export function StockTransferManagementView({
                         <span className="text-xs text-amber-600 italic whitespace-nowrap">
                           Chờ kiểm đếm
                         </span>
+                      ) : t.status === 'CANCELLED' ? (
+                        <div className="text-xs flex flex-col gap-0.5 items-start">
+                          <span className="text-xs text-rose-600 font-medium whitespace-nowrap">
+                            Đã hủy
+                          </span>
+                          {(() => {
+                            const cancelReason =
+                              (t as any).cancel_reason ||
+                              (t.note?.includes('[Hủy:')
+                                ? t.note.split('[Hủy:')[1]?.replace(/\]$/, '').trim()
+                                : null);
+                            if (!cancelReason) return null;
+                            return (
+                              <div
+                                className="text-slate-500 mt-0.5 italic text-[11px] max-w-[140px] truncate"
+                                title={`Lý do hủy: ${cancelReason}`}
+                              >
+                                "{truncateText(cancelReason, 20)}"
+                              </div>
+                            );
+                          })()}
+                        </div>
                       ) : (
                         <span className="text-xs text-slate-400">-</span>
                       )}
@@ -2344,8 +2377,23 @@ export function StockTransferManagementView({
                     </div>
                   )}
                   {detailTransfer.discrepancy_reason && (
-                    <div className="col-span-2 md:col-span-4 p-2.5 bg-rose-50 border border-rose-200 rounded-lg text-rose-800">
+                    <div className="col-span-2 md:col-span-4 p-2.5 bg-rose-50 border border-rose-200 rounded-lg text-rose-800 break-words">
                       <b>Lý do chênh lệch khi nhận:</b> "{detailTransfer.discrepancy_reason}"
+                    </div>
+                  )}
+                  {detailTransfer.status === 'CANCELLED' && (
+                    <div className="col-span-2 md:col-span-4 p-2.5 bg-rose-50 border border-rose-200 rounded-lg text-rose-800 break-words">
+                      <b>Trạng thái:</b> Phiếu chuyển kho đã hủy
+                      {(() => {
+                        const cancelReason =
+                          (detailTransfer as any).cancel_reason ||
+                          (detailTransfer.note?.includes('[Hủy:')
+                            ? detailTransfer.note.split('[Hủy:')[1]?.replace(/\]$/, '').trim()
+                            : null);
+                        return cancelReason ? (
+                          <span> — <b>Lý do hủy:</b> "{cancelReason}"</span>
+                        ) : null;
+                      })()}
                     </div>
                   )}
 
@@ -2384,6 +2432,9 @@ export function StockTransferManagementView({
                           </td>
                           <td className="py-2.5 px-3 text-center">
                             {(() => {
+                              if (detailTransfer.status === 'CANCELLED') {
+                                return <span className="text-xs text-rose-600 font-medium whitespace-nowrap">Đã hủy</span>;
+                              }
                               if (it.received_qty === null || it.received_qty === undefined) {
                                 return <span className="text-slate-400">-</span>;
                               }

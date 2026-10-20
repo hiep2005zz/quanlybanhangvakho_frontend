@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 import {
   Supplier,
@@ -37,27 +38,6 @@ const controlStyle: React.CSSProperties = {
   outline: 'none',
 };
 
-const smallBtn = (color: string, bg: string, border: string, width?: string): React.CSSProperties => ({
-  height: '32px',
-  width: width,
-  minWidth: width,
-  padding: '0 10px',
-  borderRadius: '8px',
-  border: `1px solid ${border}`,
-  background: bg,
-  color,
-  fontSize: '12px',
-  fontWeight: '600',
-  lineHeight: '1',
-  cursor: 'pointer',
-  whiteSpace: 'nowrap',
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  boxSizing: 'border-box',
-  textAlign: 'center',
-  transition: 'all 0.15s ease',
-});
 
 export const SupplierManagementView: React.FC<SupplierManagementViewProps> = ({ token, onBackToHome: _onBackToHome }) => {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
@@ -133,6 +113,40 @@ export const SupplierManagementView: React.FC<SupplierManagementViewProps> = ({ 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCreatePageOpen, setIsCreatePageOpen] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
+
+  // Dropdown 3 chấm (Action Menu) theo từng hàng
+  const [dropdownMenu, setDropdownMenu] = useState<{
+    supplier: Supplier;
+    rect: DOMRect;
+    openUpward: boolean;
+  } | null>(null);
+
+  // Đóng dropdown khi click ra ngoài, cuộn trang hoặc bấm Escape
+  useEffect(() => {
+    if (!dropdownMenu) return;
+    const handleScrollOrResize = () => setDropdownMenu(null);
+    const handleOutsideClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('.supplier-action-menu-portal') && !target.closest('.supplier-action-dropdown-btn')) {
+        setDropdownMenu(null);
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setDropdownMenu(null);
+      }
+    };
+    window.addEventListener('scroll', handleScrollOrResize, true);
+    window.addEventListener('resize', handleScrollOrResize);
+    window.addEventListener('click', handleOutsideClick);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('scroll', handleScrollOrResize, true);
+      window.removeEventListener('resize', handleScrollOrResize);
+      window.removeEventListener('click', handleOutsideClick);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [dropdownMenu]);
 
   // Form tạo nhà cung cấp mới trên trang riêng
   const [createForm, setCreateForm] = useState({
@@ -702,16 +716,15 @@ export const SupplierManagementView: React.FC<SupplierManagementViewProps> = ({ 
         fontFamily: 'inherit',
       }}
     >
-      {/* Tiêu đề + nút thêm */}
+      {/* Tiêu đề + nút thêm (Đã bỏ khung hộp bao quanh) */}
       <div
         style={{
-          ...cardStyle,
-          padding: '16px 22px',
           display: 'flex',
           flexWrap: 'wrap',
           justifyContent: 'space-between',
           alignItems: 'center',
           gap: '16px',
+          padding: '4px 0',
           flexShrink: 0,
         }}
       >
@@ -756,63 +769,7 @@ export const SupplierManagementView: React.FC<SupplierManagementViewProps> = ({ 
         </div>
       )}
 
-      {/* Thanh tìm kiếm + lọc */}
-      <div
-        style={{
-          ...cardStyle,
-          padding: '12px 18px',
-          display: 'flex',
-          flexWrap: 'wrap',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: '12px',
-          flexShrink: 0,
-        }}
-      >
-        <input
-          type="text"
-          placeholder="Tìm theo mã, tên, mã số thuế, người liên hệ..."
-          value={searchTerm}
-          onChange={(e) => {
-            setSearchTerm(e.target.value);
-            setCurrentPage(1);
-          }}
-          style={{ ...controlStyle, minWidth: '300px', flex: 1, boxSizing: 'border-box' }}
-        />
-        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
-          <label style={{ fontSize: '13px', color: '#64748b', fontWeight: '500' }}>Trạng thái:</label>
-          <select
-            value={statusFilter}
-            onChange={(e) => {
-              setStatusFilter(e.target.value as 'all' | 'active' | 'inactive');
-              setCurrentPage(1);
-            }}
-            style={{ ...controlStyle, cursor: 'pointer' }}
-          >
-            <option value="all">Tất cả ({suppliers.length})</option>
-            <option value="active">Đang giao dịch ({activeCount})</option>
-            <option value="inactive">Ngừng giao dịch ({suppliers.length - activeCount})</option>
-          </select>
-          <button
-            type="button"
-            onClick={() => {
-              loadSuppliers();
-              setCurrentPage(1);
-            }}
-            style={{
-              ...controlStyle,
-              marginTop: 0,
-              fontWeight: '600',
-              cursor: 'pointer',
-              background: '#f8fafc',
-            }}
-          >
-            Làm mới
-          </button>
-        </div>
-      </div>
-
-      {/* Bảng danh sách */}
+      {/* Bảng danh sách (Gộp thanh tìm kiếm & lọc vào chung bảng) */}
       <div
         style={{
           ...cardStyle,
@@ -823,6 +780,63 @@ export const SupplierManagementView: React.FC<SupplierManagementViewProps> = ({ 
           overflow: 'hidden',
         }}
       >
+        {/* Thanh tìm kiếm + lọc (Gộp trên đỉnh bảng) */}
+        <div
+          style={{
+            padding: '12px 18px',
+            borderBottom: '1px solid #e2e8f0',
+            display: 'flex',
+            flexWrap: 'wrap',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '12px',
+            flexShrink: 0,
+            background: '#ffffff',
+          }}
+        >
+          <input
+            type="text"
+            placeholder="Tìm theo mã, tên, mã số thuế, người liên hệ..."
+            value={searchTerm}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              setCurrentPage(1);
+            }}
+            style={{ ...controlStyle, minWidth: '300px', flex: 1, boxSizing: 'border-box' }}
+          />
+          <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+            <label style={{ fontSize: '13px', color: '#64748b', fontWeight: '500' }}>Trạng thái:</label>
+            <select
+              value={statusFilter}
+              onChange={(e) => {
+                setStatusFilter(e.target.value as 'all' | 'active' | 'inactive');
+                setCurrentPage(1);
+              }}
+              style={{ ...controlStyle, cursor: 'pointer' }}
+            >
+              <option value="all">Tất cả ({suppliers.length})</option>
+              <option value="active">Đang giao dịch ({activeCount})</option>
+              <option value="inactive">Ngừng giao dịch ({suppliers.length - activeCount})</option>
+            </select>
+            <button
+              type="button"
+              onClick={() => {
+                loadSuppliers();
+                setCurrentPage(1);
+              }}
+              style={{
+                ...controlStyle,
+                marginTop: 0,
+                fontWeight: '600',
+                cursor: 'pointer',
+                background: '#f8fafc',
+              }}
+            >
+              Làm mới
+            </button>
+          </div>
+        </div>
+
         {isLoading ? (
           <div style={{ padding: '60px 20px', textAlign: 'center', color: '#64748b', fontSize: '14px' }}>
             ⏳ Đang tải danh sách nhà cung cấp...
@@ -868,7 +882,7 @@ export const SupplierManagementView: React.FC<SupplierManagementViewProps> = ({ 
                     <th style={{ ...thStyle, width: '130px', background: '#f8fafc' }}>Người liên hệ</th>
                     <th style={{ ...thStyle, width: '160px', background: '#f8fafc' }}>Điều khoản thanh toán</th>
                     <th style={{ ...thStyle, textAlign: 'center', width: '145px', whiteSpace: 'nowrap', background: '#f8fafc' }}>Trạng thái</th>
-                    <th style={{ ...thStyle, textAlign: 'center', width: '180px', background: '#f8fafc' }}>Thao tác</th>
+                    <th style={{ ...thStyle, textAlign: 'center', width: '80px', background: '#f8fafc' }}>Thao tác</th>
                   </tr>
                 </thead>
               <tbody>
@@ -1034,48 +1048,62 @@ export const SupplierManagementView: React.FC<SupplierManagementViewProps> = ({ 
                         </div>
                       )}
                     </td>
-                    <td style={{ ...tdStyle, textAlign: 'center' }}>
-                      <div
-                        style={{
-                          display: 'inline-grid',
-                          gridTemplateColumns: '58px 112px',
-                          gap: '8px',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                        }}
-                      >
+                    <td style={{ ...tdStyle, textAlign: 'center', position: 'relative' }}>
+                      <div className="supplier-action-dropdown-container" style={{ display: 'inline-block' }}>
                         <button
                           type="button"
-                          onClick={() => openEdit(s)}
-                          style={smallBtn('#1d4ed8', '#eff6ff', '#bfdbfe', '58px')}
+                          className="supplier-action-dropdown-btn"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (dropdownMenu?.supplier.id === s.id) {
+                              setDropdownMenu(null);
+                            } else {
+                              const rect = e.currentTarget.getBoundingClientRect();
+                              const spaceBelow = window.innerHeight - rect.bottom;
+                              const openUpward = spaceBelow < 140;
+                              setDropdownMenu({
+                                supplier: s,
+                                rect,
+                                openUpward,
+                              });
+                            }
+                          }}
+                          title="Thao tác"
+                          style={{
+                            width: '32px',
+                            height: '32px',
+                            borderRadius: '8px',
+                            border: dropdownMenu?.supplier.id === s.id ? '1px solid #0fad89' : '1px solid #cbd5e1',
+                            background: dropdownMenu?.supplier.id === s.id ? '#ecfdf5' : '#ffffff',
+                            color: dropdownMenu?.supplier.id === s.id ? '#0fad89' : '#64748b',
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            transition: 'all 0.15s ease',
+                            boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
+                          }}
+                          onMouseEnter={(e) => {
+                            if (dropdownMenu?.supplier.id !== s.id) {
+                              e.currentTarget.style.background = '#f8fafc';
+                              e.currentTarget.style.color = '#0f172a';
+                              e.currentTarget.style.borderColor = '#94a3b8';
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            if (dropdownMenu?.supplier.id !== s.id) {
+                              e.currentTarget.style.background = '#ffffff';
+                              e.currentTarget.style.color = '#64748b';
+                              e.currentTarget.style.borderColor = '#cbd5e1';
+                            }
+                          }}
                         >
-                          Sửa
+                          <span style={{ display: 'flex', flexDirection: 'column', gap: '3px', pointerEvents: 'none', margin: 'auto' }}>
+                            <span style={{ width: '3.5px', height: '3.5px', borderRadius: '50%', background: 'currentColor' }} />
+                            <span style={{ width: '3.5px', height: '3.5px', borderRadius: '50%', background: 'currentColor' }} />
+                            <span style={{ width: '3.5px', height: '3.5px', borderRadius: '50%', background: 'currentColor' }} />
+                          </span>
                         </button>
-                        {s.has_receipts ? (
-                          <button
-                            type="button"
-                            disabled
-                            title="Nhà cung cấp đã có phiếu nhập thì không xoá được. Bạn có thể bấm vào 'Đang giao dịch' để ngừng giao dịch."
-                            style={{
-                              ...smallBtn('#94a3b8', '#f8fafc', '#e2e8f0', '112px'),
-                              cursor: 'not-allowed',
-                              opacity: 0.85,
-                            }}
-                          >
-                            Không thể xóa
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setSupplierToDelete(s);
-                              setDeleteError(null);
-                            }}
-                            style={smallBtn('#dc2626', '#fef2f2', '#fecaca', '112px')}
-                          >
-                            Xóa
-                          </button>
-                        )}
                       </div>
                     </td>
                   </tr>
@@ -1579,6 +1607,139 @@ export const SupplierManagementView: React.FC<SupplierManagementViewProps> = ({ 
         </div>
         </ModalPortal>
       )}
+
+      {/* Dropdown Menu Portal gắn vào document.body tránh bị che khuất bởi thanh cuộn/bảng */}
+      {dropdownMenu &&
+        createPortal(
+          <div
+            className="supplier-action-menu-portal"
+            style={{
+              position: 'fixed',
+              ...(dropdownMenu.openUpward
+                ? { bottom: `${Math.max(10, window.innerHeight - dropdownMenu.rect.top + 6)}px` }
+                : { top: `${dropdownMenu.rect.bottom + 6}px` }),
+              right: `${Math.max(12, window.innerWidth - dropdownMenu.rect.right)}px`,
+              background: '#ffffff',
+              border: '1px solid #e2e8f0',
+              borderRadius: '10px',
+              boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.16), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+              minWidth: '165px',
+              zIndex: 99999,
+              padding: '5px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '2px',
+              textAlign: 'left',
+            }}
+          >
+            {/* Sửa thông tin */}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                const s = dropdownMenu.supplier;
+                setDropdownMenu(null);
+                openEdit(s);
+              }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                width: '100%',
+                padding: '8px 12px',
+                borderRadius: '6px',
+                border: 'none',
+                background: 'transparent',
+                color: '#1e293b',
+                fontSize: '13px',
+                fontWeight: '500',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = '#eff6ff';
+                e.currentTarget.style.color = '#1d4ed8';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'transparent';
+                e.currentTarget.style.color = '#1e293b';
+              }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+              </svg>
+              <span>Sửa thông tin</span>
+            </button>
+
+            {/* Xóa nhà cung cấp hoặc Không thể xóa */}
+            {dropdownMenu.supplier.has_receipts ? (
+              <div
+                title="Nhà cung cấp đã có phiếu nhập thì không thể xóa. Bạn có thể bấm vào 'Đang giao dịch' để ngừng giao dịch."
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  width: '100%',
+                  padding: '8px 12px',
+                  borderRadius: '6px',
+                  color: '#94a3b8',
+                  fontSize: '13px',
+                  fontWeight: '500',
+                  cursor: 'not-allowed',
+                  boxSizing: 'border-box',
+                }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="3 6 5 6 21 6" />
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                </svg>
+                <span>Không thể xóa</span>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const s = dropdownMenu.supplier;
+                  setDropdownMenu(null);
+                  setSupplierToDelete(s);
+                  setDeleteError(null);
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  width: '100%',
+                  padding: '8px 12px',
+                  borderRadius: '6px',
+                  border: 'none',
+                  background: 'transparent',
+                  color: '#dc2626',
+                  fontSize: '13px',
+                  fontWeight: '500',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = '#fef2f2';
+                  e.currentTarget.style.color = '#b91c1c';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'transparent';
+                  e.currentTarget.style.color = '#dc2626';
+                }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="3 6 5 6 21 6" />
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                </svg>
+                <span>Xóa nhà cung cấp</span>
+              </button>
+            )}
+          </div>,
+          document.body
+        )}
     </div>
   );
 };

@@ -136,22 +136,6 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
     };
   }, []);
 
-  const handleDropdownOpen = (orderCode: string) => {
-    if (dropdownCloseTimerRef.current) {
-      clearTimeout(dropdownCloseTimerRef.current);
-      dropdownCloseTimerRef.current = null;
-    }
-    setOpenActionDropdownCode(orderCode);
-  };
-
-  const handleDropdownCloseWithDelay = () => {
-    if (dropdownCloseTimerRef.current) {
-      clearTimeout(dropdownCloseTimerRef.current);
-    }
-    dropdownCloseTimerRef.current = setTimeout(() => {
-      setOpenActionDropdownCode(null);
-    }, 280);
-  };
 
   const handleDropdownToggle = (e: React.MouseEvent, orderCode: string) => {
     e.stopPropagation();
