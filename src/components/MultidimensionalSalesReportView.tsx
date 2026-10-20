@@ -403,10 +403,6 @@ export const MultidimensionalSalesReportView: React.FC<MultidimensionalSalesRepo
         <h1 className="text-xl font-extrabold text-slate-800 tracking-tight">Báo Cáo Doanh Số Đa Chiều</h1>
       </div>
 
-
-
-
-
       {/* Hiển thị lỗi nếu có */}
       {error && (
         <div className="p-4 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl text-sm flex items-center justify-between">
