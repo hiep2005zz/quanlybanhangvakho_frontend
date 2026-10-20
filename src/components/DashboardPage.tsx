@@ -270,7 +270,9 @@ export default function DashboardPage({
     officialRoles.includes('warehouse_manager') ||
     officialRoles.includes('warehouse_mgr')
   );
-  const canAccessSalesInvoices = !isCustomer;
+
+  // Quyền xuất hóa đơn bán hàng từ phiếu giao hàng: Quản trị viên, Kế toán, Quản lý kinh doanh
+  const canAccessSalesInvoices = !isCustomer && Boolean(isAdmin || isAccountant || isSalesManager);
 
   // 2. Khởi tạo State với Clean URL
   const location = useLocation();
@@ -2616,7 +2618,7 @@ export default function DashboardPage({
             />
           )
         ) : activeTab === 'warehouse-dispatch' ? (
-          canAccessWarehouses || canWriteInventory || isAdmin ? (
+          canWriteInventory || isWarehouseOrAdmin || isAdmin ? (
             <WarehouseDispatchView
               token={token}
               currentUser={user}
@@ -2639,7 +2641,7 @@ export default function DashboardPage({
             />
           )
         ) : activeTab === 'delivery-trips' ? (
-          canAccessWarehouses || canWriteInventory || isAdmin ? (
+          canWriteInventory || isWarehouseOrAdmin || isAdmin ? (
             <DeliveryTripsView
               token={token}
               currentUser={user}
@@ -2771,7 +2773,7 @@ export default function DashboardPage({
           ) : (
             <AccessDeniedView
               currentUser={user}
-              requiredPermission="Xuất hóa đơn bán hàng từ phiếu giao hàng (Nhân viên nội bộ)"
+              requiredPermission="Xuất hóa đơn bán hàng từ phiếu giao hàng (Kế toán công nợ / Quản lý kinh doanh / Quản trị viên)"
               onBackToWorkflow={() => setActiveTab('inventory')}
               onLogout={onLogout}
             />
