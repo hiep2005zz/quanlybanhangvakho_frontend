@@ -1524,12 +1524,16 @@ export const OrderManagementView: React.FC<OrderManagementViewProps> = ({
 
                         <td style={{ padding: '9px 12px' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                            <span style={{ fontWeight: '600', color: '#0f172a', fontSize: '12.5px', lineHeight: '1.3' }}>{order.dealer_name}</span>
+                            <span style={{ fontWeight: '600', color: '#0f172a', fontSize: '12.5px', lineHeight: '1.3' }}>
+                              {order.dealer_name || (order.dealer_id ? `Đại lý #${order.dealer_id}` : 'Khách hàng')}
+                            </span>
                             {Boolean(
                               order.dealer_status &&
                               (order.dealer_status.toLowerCase().includes('khóa') ||
+                               order.dealer_status.toLowerCase().includes('khoá') ||
                                order.dealer_status.toLowerCase().includes('lock') ||
-                               order.dealer_status.toLowerCase().includes('ngừng'))
+                               order.dealer_status.toLowerCase().includes('ngừng') ||
+                               order.dealer_status.includes('Đ?'))
                             ) && (
                               <span
                                 style={{
