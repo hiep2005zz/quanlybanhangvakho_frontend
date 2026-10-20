@@ -2163,7 +2163,7 @@ export default function DealerProfileManagementView({
                             cursor: 'pointer',
                           }}
                         >
-                          📖 Sổ công nợ
+                          Sổ công nợ
                         </button>
                       )}
                     </div>
