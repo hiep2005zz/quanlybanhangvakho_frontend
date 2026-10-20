@@ -12,6 +12,7 @@ import {
   getWarehouseAllDispatchesApi,
 } from '../services/api';
 import { emitStatusToast } from './StatusToast';
+import './warehouse-management.css';
 
 interface WarehouseDispatchViewProps {
   token: string;
@@ -139,7 +140,205 @@ export const WarehouseDispatchView: React.FC<WarehouseDispatchViewProps> = ({
     );
   }, [allDispatches, searchTerm]);
 
+  // Phân trang danh sách (10 bản ghi / trang)
+  const [dispatchPage, setDispatchPage] = useState(1);
+  const [suppPage, setSuppPage] = useState(1);
+  const [historyPage, setHistoryPage] = useState(1);
+  const pageSize = 10;
 
+  useEffect(() => {
+    setDispatchPage(1);
+    setSuppPage(1);
+    setHistoryPage(1);
+  }, [searchTerm, activeTab]);
+
+  const dispatchTotalPages = Math.max(1, Math.ceil(filteredDispatchOrders.length / pageSize));
+  const paginatedDispatchOrders = useMemo(() => {
+    return filteredDispatchOrders.slice((dispatchPage - 1) * pageSize, dispatchPage * pageSize);
+  }, [filteredDispatchOrders, dispatchPage, pageSize]);
+
+  const suppTotalPages = Math.max(1, Math.ceil(filteredSuppOrders.length / pageSize));
+  const paginatedSuppOrders = useMemo(() => {
+    return filteredSuppOrders.slice((suppPage - 1) * pageSize, suppPage * pageSize);
+  }, [filteredSuppOrders, suppPage, pageSize]);
+
+  const historyTotalPages = Math.max(1, Math.ceil(filteredAllDispatches.length / pageSize));
+  const paginatedAllDispatches = useMemo(() => {
+    return filteredAllDispatches.slice((historyPage - 1) * pageSize, historyPage * pageSize);
+  }, [filteredAllDispatches, historyPage, pageSize]);
+
+  // State menu 3 chấm thao tác từng dòng
+  const [activeDropdownId, setActiveDropdownId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handleGlobalClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('.wh-action-dropdown-container')) {
+        setActiveDropdownId(null);
+      }
+    };
+    document.addEventListener('click', handleGlobalClick);
+    return () => document.removeEventListener('click', handleGlobalClick);
+  }, []);
+
+  // Thanh phân trang chuẩn UI đồng bộ toàn hệ thống
+  const renderPaginationBar = (
+    currentPage: number,
+    totalPages: number,
+    totalItems: number,
+    onPageChange: (p: number) => void
+  ) => {
+    if (totalItems <= pageSize && totalPages <= 1) return null;
+
+    const getPageNumbers = () => {
+      const pages: (number | string)[] = [];
+      if (totalPages <= 7) {
+        for (let i = 1; i <= totalPages; i++) pages.push(i);
+      } else {
+        pages.push(1);
+        if (currentPage > 3) pages.push('...');
+        const start = Math.max(2, currentPage - 1);
+        const end = Math.min(totalPages - 1, currentPage + 1);
+        for (let i = start; i <= end; i++) pages.push(i);
+        if (currentPage < totalPages - 2) pages.push('...');
+        pages.push(totalPages);
+      }
+      return pages;
+    };
+
+    const pageList = getPageNumbers();
+
+    return (
+      <div
+        style={{
+          padding: '8px 14px',
+          borderTop: '1px solid #e2e8f0',
+          backgroundColor: '#ffffff',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: '10px',
+          flexShrink: 0,
+        }}
+      >
+        <div style={{ fontSize: '12px', color: '#64748b' }}>
+          Tổng số: <strong style={{ color: '#0f172a' }}>{totalItems}</strong> bản ghi | Trang <strong style={{ color: '#0f172a' }}>{currentPage}</strong> / {totalPages}
+        </div>
+
+        <div
+          style={{
+            display: 'inline-flex',
+            alignItems: 'stretch',
+            border: '1px solid #cbd5e1',
+            borderRadius: '6px',
+            overflow: 'hidden',
+            backgroundColor: '#ffffff',
+            height: '30px',
+            boxShadow: '0 1px 2px rgba(0, 0, 0, 0.04)',
+          }}
+        >
+          {currentPage > 1 && (
+            <button
+              type="button"
+              onClick={() => onPageChange(currentPage - 1)}
+              style={{
+                width: '30px',
+                height: '100%',
+                border: 'none',
+                borderRight: '1px solid #e2e8f0',
+                backgroundColor: '#ffffff',
+                color: '#374151',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '14px',
+              }}
+              title="Trang trước"
+            >
+              ‹
+            </button>
+          )}
+
+          {pageList.map((p, idx) => {
+            if (p === '...') {
+              return (
+                <span
+                  key={`ellipsis-${idx}`}
+                  style={{
+                    padding: '0 8px',
+                    height: '100%',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#94a3b8',
+                    fontSize: '12px',
+                    borderRight: '1px solid #e2e8f0',
+                    backgroundColor: '#ffffff',
+                    userSelect: 'none',
+                  }}
+                >
+                  ...
+                </span>
+              );
+            }
+
+            const pageNum = p as number;
+            const isActive = pageNum === currentPage;
+
+            return (
+              <button
+                key={pageNum}
+                type="button"
+                onClick={() => onPageChange(pageNum)}
+                style={{
+                  minWidth: '30px',
+                  padding: '0 6px',
+                  height: '100%',
+                  border: 'none',
+                  borderRight: idx === pageList.length - 1 && currentPage === totalPages ? 'none' : '1px solid #e2e8f0',
+                  backgroundColor: isActive ? '#0284c7' : '#ffffff',
+                  color: isActive ? '#ffffff' : '#374151',
+                  fontSize: '12px',
+                  fontWeight: isActive ? 700 : 500,
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                {pageNum}
+              </button>
+            );
+          })}
+
+          {currentPage < totalPages && (
+            <button
+              type="button"
+              onClick={() => onPageChange(currentPage + 1)}
+              style={{
+                width: '30px',
+                height: '100%',
+                border: 'none',
+                backgroundColor: '#ffffff',
+                color: '#374151',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '14px',
+              }}
+              title="Trang tiếp"
+            >
+              ›
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  };
 
   // Chuyển sang Trang Xác nhận xuất kho
   const handleOpenDispatchPage = (order: WarehouseDispatchOrder) => {
@@ -1068,50 +1267,24 @@ export const WarehouseDispatchView: React.FC<WarehouseDispatchViewProps> = ({
         }}
       >
         {/* Header tích hợp: Tiêu đề + Chỉ số nhanh + Nút Làm mới */}
+        {/* Tiêu đề */}
         <div
           style={{
-            padding: '8px 14px',
+            padding: '10px 16px',
             borderBottom: '1px solid #e2e8f0',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
+            background: '#ffffff',
             flexShrink: 0,
-            gap: '12px',
-            flexWrap: 'nowrap',
           }}
         >
-          <div>
-            <h1 style={{ margin: 0, fontSize: '16px', fontWeight: '800', color: '#0f172a', whiteSpace: 'nowrap' }}>
-              Xác Nhận Xuất Kho & Xử Lý Giao Thiếu
-            </h1>
-            <span style={{ fontSize: '11px', color: '#64748b', whiteSpace: 'nowrap' }}>
-              Chuyển tồn giữ chỗ thành xuất thực tế, tự động theo dõi nợ hàng và lưu trữ phiếu xuất bất biến
-            </span>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-            <button
-              type="button"
-              onClick={loadData}
-              disabled={isLoading}
-              style={{
-                padding: '5px 12px',
-                background: '#ffffff',
-                border: '1px solid #cbd5e1',
-                borderRadius: '6px',
-                fontSize: '12px',
-                fontWeight: '600',
-                color: '#334155',
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              {isLoading ? 'Đang tải...' : 'Làm mới'}
-            </button>
-          </div>
+          <h1 style={{ margin: 0, fontSize: '16px', fontWeight: '800', color: '#0f172a', whiteSpace: 'nowrap' }}>
+            Xác Nhận Xuất Kho & Xử Lý Giao Thiếu
+          </h1>
+          <span style={{ fontSize: '11px', color: '#64748b', whiteSpace: 'nowrap' }}>
+            Chuyển tồn giữ chỗ thành xuất thực tế, tự động theo dõi nợ hàng và lưu trữ phiếu xuất bất biến
+          </span>
         </div>
 
-        {/* Thanh Tabs & Ô tìm kiếm (Nằm ngang trong cùng 1 khung) */}
+        {/* Thanh Tabs & Ô tìm kiếm + Làm mới (Nằm ngang cạnh nhau bên dưới tiêu đề) */}
         <div
           style={{
             display: 'flex',
@@ -1180,7 +1353,7 @@ export const WarehouseDispatchView: React.FC<WarehouseDispatchViewProps> = ({
             </button>
           </div>
 
-          <div style={{ padding: '6px 0' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 0', flexShrink: 0 }}>
             <input
               type="text"
               value={searchTerm}
@@ -1188,278 +1361,367 @@ export const WarehouseDispatchView: React.FC<WarehouseDispatchViewProps> = ({
               placeholder="Tìm theo mã đơn, mã phiếu, khách hàng..."
               style={{
                 width: '300px',
-                padding: '6px 12px',
+                height: '32px',
+                padding: '0 12px',
                 borderRadius: '6px',
                 border: '1px solid #cbd5e1',
                 fontSize: '12px',
                 outline: 'none',
                 color: '#0f172a',
                 boxSizing: 'border-box',
+                background: '#ffffff',
               }}
             />
+            <button
+              type="button"
+              onClick={loadData}
+              disabled={isLoading}
+              style={{
+                height: '32px',
+                padding: '0 12px',
+                background: '#ffffff',
+                border: '1px solid #cbd5e1',
+                borderRadius: '6px',
+                fontSize: '12px',
+                fontWeight: '600',
+                color: '#334155',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxSizing: 'border-box',
+              }}
+            >
+              {isLoading ? 'Đang tải...' : 'Làm mới'}
+            </button>
           </div>
         </div>
 
         {/* BẢNG TAB 1: CHỜ XÁC NHẬN XUẤT KHO - ĐÃ CĂN CHỈNH TIÊU ĐỀ THẲNG HÀNG & CÂN ĐỐI */}
         {activeTab === 'dispatch' && (
-          <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '12px', tableLayout: 'fixed' }}>
-              <thead style={{ position: 'sticky', top: 0, zIndex: 10, background: '#f8fafc' }}>
-                <tr style={{ background: '#f8fafc', color: '#475569', borderBottom: '1px solid #cbd5e1' }}>
-                  <th style={{ padding: '9px 12px 9px 16px', fontWeight: '700', whiteSpace: 'nowrap', width: '16%' }}>Mã đơn hàng</th>
-                  <th style={{ padding: '9px 12px', fontWeight: '700', whiteSpace: 'nowrap', width: '23%' }}>Khách hàng / Đại lý</th>
-                  <th style={{ padding: '9px 12px', fontWeight: '700', whiteSpace: 'nowrap', width: '16%' }}>Kho phụ trách</th>
-                  <th style={{ padding: '9px 10px', fontWeight: '700', whiteSpace: 'nowrap', width: '11%', textAlign: 'center' }}>Ngày đặt</th>
-                  <th style={{ padding: '9px 10px', fontWeight: '700', whiteSpace: 'nowrap', width: '10%', textAlign: 'center' }}>Số loại SP</th>
-                  <th style={{ padding: '9px 10px', fontWeight: '700', whiteSpace: 'nowrap', width: '11%', textAlign: 'center' }}>Trạng thái</th>
-                  <th style={{ padding: '9px 16px 9px 10px', fontWeight: '700', whiteSpace: 'nowrap', width: '13%', textAlign: 'center' }}>Thao tác</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredDispatchOrders.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} style={{ padding: '30px', textAlign: 'center', color: '#64748b' }}>
-                      <div style={{ fontWeight: '600', color: '#0f172a' }}>Không có đơn hàng nào chờ xuất kho</div>
-                      <div style={{ fontSize: '11.5px', marginTop: '4px' }}>Các đơn hàng mới được duyệt sẽ xuất hiện tại đây.</div>
-                    </td>
+          <>
+            <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '12px', tableLayout: 'fixed' }}>
+                <thead style={{ position: 'sticky', top: 0, zIndex: 10, background: '#f8fafc' }}>
+                  <tr style={{ background: '#f8fafc', color: '#475569', borderBottom: '1px solid #cbd5e1' }}>
+                    <th style={{ padding: '9px 12px 9px 16px', fontWeight: '700', whiteSpace: 'nowrap', width: '16%' }}>Mã đơn hàng</th>
+                    <th style={{ padding: '9px 12px', fontWeight: '700', whiteSpace: 'nowrap', width: '23%' }}>Khách hàng / Đại lý</th>
+                    <th style={{ padding: '9px 12px', fontWeight: '700', whiteSpace: 'nowrap', width: '16%' }}>Kho phụ trách</th>
+                    <th style={{ padding: '9px 10px', fontWeight: '700', whiteSpace: 'nowrap', width: '11%', textAlign: 'center' }}>Ngày đặt</th>
+                    <th style={{ padding: '9px 10px', fontWeight: '700', whiteSpace: 'nowrap', width: '10%', textAlign: 'center' }}>Số loại SP</th>
+                    <th style={{ padding: '9px 10px', fontWeight: '700', whiteSpace: 'nowrap', width: '11%', textAlign: 'center' }}>Trạng thái</th>
+                    <th style={{ padding: '9px 16px 9px 10px', fontWeight: '700', whiteSpace: 'nowrap', width: '13%', textAlign: 'center' }}>Thao tác</th>
                   </tr>
-                ) : (
-                  filteredDispatchOrders.map((ord) => (
-                    <tr key={ord.order_code} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background 0.15s ease' }}>
-                      <td style={{ padding: '8px 12px 8px 16px', fontWeight: '700', color: '#0284c7', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {ord.order_code}
-                      </td>
-                      <td title={ord.dealer_name} style={{ padding: '8px 12px', fontWeight: '600', color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {ord.dealer_name}
-                      </td>
-                      <td title={ord.warehouse_name || 'Kho Tổng Hà Nội'} style={{ padding: '8px 12px', color: '#475569', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {ord.warehouse_name || 'Kho Tổng Hà Nội'}
-                      </td>
-                      <td style={{ padding: '8px 10px', textAlign: 'center', color: '#64748b', whiteSpace: 'nowrap' }}>
-                        {ord.created_at ? new Date(ord.created_at).toLocaleDateString('vi-VN') : '—'}
-                      </td>
-                      <td style={{ padding: '8px 10px', textAlign: 'center', fontWeight: '700', color: '#334155', whiteSpace: 'nowrap' }}>
-                        {ord.items?.length || 0}
-                      </td>
-                      <td style={{ padding: '8px 10px', textAlign: 'center', whiteSpace: 'nowrap' }}>
-                        <span style={{ display: 'inline-block', padding: '2.5px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: '700', background: '#dcfce7', color: '#166534', whiteSpace: 'nowrap' }}>
-                          ĐÃ DUYỆT
-                        </span>
-                      </td>
-                      <td style={{ padding: '8px 16px 8px 10px', textAlign: 'center', whiteSpace: 'nowrap' }}>
-                        <button
-                          type="button"
-                          onClick={() => handleOpenDispatchPage(ord)}
-                          style={{
-                            padding: '5px 12px',
-                            background: '#0284c7',
-                            border: 'none',
-                            borderRadius: '5px',
-                            fontSize: '11.5px',
-                            fontWeight: '700',
-                            color: '#ffffff',
-                            cursor: 'pointer',
-                            whiteSpace: 'nowrap',
-                            boxShadow: '0 1px 2px rgba(2,132,199,0.2)',
-                          }}
-                        >
-                          Xác nhận xuất kho
-                        </button>
+                </thead>
+                <tbody>
+                  {filteredDispatchOrders.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} style={{ padding: '30px', textAlign: 'center', color: '#64748b' }}>
+                        <div style={{ fontWeight: '600', color: '#0f172a' }}>Không có đơn hàng nào chờ xuất kho</div>
+                        <div style={{ fontSize: '11.5px', marginTop: '4px' }}>Các đơn hàng mới được duyệt sẽ xuất hiện tại đây.</div>
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+                  ) : (
+                    paginatedDispatchOrders.map((ord, idx) => (
+                      <tr key={ord.order_code} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background 0.15s ease' }}>
+                        <td style={{ padding: '8px 12px 8px 16px', fontWeight: '700', color: '#0284c7', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {ord.order_code}
+                        </td>
+                        <td title={ord.dealer_name} style={{ padding: '8px 12px', fontWeight: '600', color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {ord.dealer_name}
+                        </td>
+                        <td title={ord.warehouse_name || 'Kho Tổng Hà Nội'} style={{ padding: '8px 12px', color: '#475569', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {ord.warehouse_name || 'Kho Tổng Hà Nội'}
+                        </td>
+                        <td style={{ padding: '8px 10px', textAlign: 'center', color: '#64748b', whiteSpace: 'nowrap' }}>
+                          {ord.created_at ? new Date(ord.created_at).toLocaleDateString('vi-VN') : '—'}
+                        </td>
+                        <td style={{ padding: '8px 10px', textAlign: 'center', fontWeight: '700', color: '#334155', whiteSpace: 'nowrap' }}>
+                          {ord.items?.length || 0}
+                        </td>
+                        <td style={{ padding: '8px 10px', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                          <span style={{ display: 'inline-block', padding: '2.5px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: '700', background: '#dcfce7', color: '#166534', whiteSpace: 'nowrap' }}>
+                            ĐÃ DUYỆT
+                          </span>
+                        </td>
+                        <td style={{ padding: '6px 16px 6px 10px', textAlign: 'center', whiteSpace: 'nowrap', position: 'relative', zIndex: activeDropdownId === ord.order_code ? 35 : 1 }}>
+                          <div className="wh-action-dropdown-container" style={{ position: 'relative', display: 'inline-block' }}>
+                            <button
+                              type="button"
+                              className={`wh-action-dots-btn ${activeDropdownId === ord.order_code ? 'active' : ''}`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveDropdownId((prev) => (prev === ord.order_code ? null : ord.order_code));
+                              }}
+                              title="Tùy chọn thao tác"
+                            >
+                              <span className="wh-action-dots-icon">
+                                <span />
+                                <span />
+                                <span />
+                              </span>
+                            </button>
+
+                            {activeDropdownId === ord.order_code && (() => {
+                              const openUpward = paginatedDispatchOrders.length > 3 && idx >= paginatedDispatchOrders.length - 2;
+                              return (
+                                <div className={`wh-dropdown-menu ${openUpward ? 'open-up' : 'open-down'}`} style={{ minWidth: '155px' }}>
+                                  <button
+                                    type="button"
+                                    className="wh-dropdown-item wh-dropdown-item-primary"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setActiveDropdownId(null);
+                                      handleOpenDispatchPage(ord);
+                                    }}
+                                  >
+                                    <span>Xác nhận xuất kho</span>
+                                  </button>
+                                </div>
+                              );
+                            })()}
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+            {renderPaginationBar(dispatchPage, dispatchTotalPages, filteredDispatchOrders.length, setDispatchPage)}
+          </>
         )}
 
         {/* BẢNG TAB 2: CHỜ GIAO BỔ SUNG - ĐÃ CĂN CHỈNH TIÊU ĐỀ THẲNG HÀNG & CÂN ĐỐI */}
         {activeTab === 'supplementary' && (
-          <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '12px', tableLayout: 'fixed' }}>
-              <thead style={{ position: 'sticky', top: 0, zIndex: 10, background: '#f8fafc' }}>
-                <tr style={{ background: '#f8fafc', color: '#475569', borderBottom: '1px solid #cbd5e1' }}>
-                  <th style={{ padding: '9px 12px 9px 16px', fontWeight: '700', whiteSpace: 'nowrap', width: '15%' }}>Mã đơn hàng</th>
-                  <th style={{ padding: '9px 12px', fontWeight: '700', whiteSpace: 'nowrap', width: '21%' }}>Khách hàng / Đại lý</th>
-                  <th style={{ padding: '9px 12px', fontWeight: '700', whiteSpace: 'nowrap', width: '15%' }}>Kho phụ trách</th>
-                  <th style={{ padding: '9px 8px', fontWeight: '700', whiteSpace: 'nowrap', width: '9%', textAlign: 'center' }}>SP còn thiếu</th>
-                  <th style={{ padding: '9px 8px', fontWeight: '700', whiteSpace: 'nowrap', width: '9%', textAlign: 'center' }}>Tổng SL thiếu</th>
-                  <th style={{ padding: '9px 8px', fontWeight: '700', whiteSpace: 'nowrap', width: '10%', textAlign: 'center' }}>Lần xuất trước</th>
-                  <th style={{ padding: '9px 8px', fontWeight: '700', whiteSpace: 'nowrap', width: '10%', textAlign: 'center' }}>Trạng thái</th>
-                  <th style={{ padding: '9px 16px 9px 8px', fontWeight: '700', whiteSpace: 'nowrap', width: '11%', textAlign: 'center' }}>Thao tác</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredSuppOrders.length === 0 ? (
-                  <tr>
-                    <td colSpan={8} style={{ padding: '30px', textAlign: 'center', color: '#64748b' }}>
-                      <div style={{ fontWeight: '600', color: '#0f172a' }}>Không có đơn hàng nào còn nợ hàng</div>
-                      <div style={{ fontSize: '11.5px', marginTop: '4px' }}>Tất cả các đơn đã xuất đều đã được giao đủ 100%.</div>
-                    </td>
+          <>
+            <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '12px', tableLayout: 'fixed' }}>
+                <thead style={{ position: 'sticky', top: 0, zIndex: 10, background: '#f8fafc' }}>
+                  <tr style={{ background: '#f8fafc', color: '#475569', borderBottom: '1px solid #cbd5e1' }}>
+                    <th style={{ padding: '9px 12px 9px 16px', fontWeight: '700', whiteSpace: 'nowrap', width: '15%' }}>Mã đơn hàng</th>
+                    <th style={{ padding: '9px 12px', fontWeight: '700', whiteSpace: 'nowrap', width: '21%' }}>Khách hàng / Đại lý</th>
+                    <th style={{ padding: '9px 12px', fontWeight: '700', whiteSpace: 'nowrap', width: '15%' }}>Kho phụ trách</th>
+                    <th style={{ padding: '9px 8px', fontWeight: '700', whiteSpace: 'nowrap', width: '9%', textAlign: 'center' }}>SP còn thiếu</th>
+                    <th style={{ padding: '9px 8px', fontWeight: '700', whiteSpace: 'nowrap', width: '9%', textAlign: 'center' }}>Tổng SL thiếu</th>
+                    <th style={{ padding: '9px 8px', fontWeight: '700', whiteSpace: 'nowrap', width: '10%', textAlign: 'center' }}>Lần xuất trước</th>
+                    <th style={{ padding: '9px 8px', fontWeight: '700', whiteSpace: 'nowrap', width: '10%', textAlign: 'center' }}>Trạng thái</th>
+                    <th style={{ padding: '9px 16px 9px 8px', fontWeight: '700', whiteSpace: 'nowrap', width: '11%', textAlign: 'center' }}>Thao tác</th>
                   </tr>
-                ) : (
-                  filteredSuppOrders.map((ord) => (
-                    <tr key={ord.order_code} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background 0.15s ease' }}>
-                      <td style={{ padding: '8px 12px 8px 16px', fontWeight: '700', color: '#d97706', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {ord.order_code}
-                      </td>
-                      <td title={ord.dealer_name} style={{ padding: '8px 12px', fontWeight: '600', color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {ord.dealer_name}
-                      </td>
-                      <td title={ord.warehouse_name || 'Kho Tổng Hà Nội'} style={{ padding: '8px 12px', color: '#475569', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {ord.warehouse_name || 'Kho Tổng Hà Nội'}
-                      </td>
-                      <td style={{ padding: '8px 8px', textAlign: 'center', fontWeight: '700', color: '#b45309', whiteSpace: 'nowrap' }}>
-                        {ord.shortage_items_count || ord.items?.length || 0} loại
-                      </td>
-                      <td style={{ padding: '8px 8px', textAlign: 'center', fontWeight: '800', color: '#dc2626', whiteSpace: 'nowrap' }}>
-                        {ord.total_shortage_quantity || 0}
-                      </td>
-                      <td style={{ padding: '8px 8px', textAlign: 'center', color: '#64748b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {ord.last_dispatch_date ? new Date(ord.last_dispatch_date).toLocaleDateString('vi-VN') : '—'}
-                      </td>
-                      <td style={{ padding: '8px 8px', textAlign: 'center', whiteSpace: 'nowrap' }}>
-                        <span style={{ display: 'inline-block', padding: '2.5px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: '700', background: '#fef3c7', color: '#b45309', whiteSpace: 'nowrap' }}>
-                          Thiếu đợt {ord.dispatch_count || 1}
-                        </span>
-                      </td>
-                      <td style={{ padding: '8px 16px 8px 8px', textAlign: 'center', whiteSpace: 'nowrap' }}>
-                        <button
-                          type="button"
-                          onClick={() => handleOpenSupplementaryPage(ord)}
-                          style={{
-                            padding: '5px 10px',
-                            background: '#d97706',
-                            border: 'none',
-                            borderRadius: '5px',
-                            fontSize: '11.5px',
-                            fontWeight: '700',
-                            color: '#ffffff',
-                            cursor: 'pointer',
-                            whiteSpace: 'nowrap',
-                            boxShadow: '0 1px 2px rgba(217,119,6,0.2)',
-                          }}
-                        >
-                          Giao bổ sung
-                        </button>
+                </thead>
+                <tbody>
+                  {filteredSuppOrders.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} style={{ padding: '30px', textAlign: 'center', color: '#64748b' }}>
+                        <div style={{ fontWeight: '600', color: '#0f172a' }}>Không có đơn hàng nào còn nợ hàng</div>
+                        <div style={{ fontSize: '11.5px', marginTop: '4px' }}>Tất cả các đơn đã xuất đều đã được giao đủ 100%.</div>
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+                  ) : (
+                    paginatedSuppOrders.map((ord, idx) => (
+                      <tr key={ord.order_code} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background 0.15s ease' }}>
+                        <td style={{ padding: '8px 12px 8px 16px', fontWeight: '700', color: '#d97706', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {ord.order_code}
+                        </td>
+                        <td title={ord.dealer_name} style={{ padding: '8px 12px', fontWeight: '600', color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {ord.dealer_name}
+                        </td>
+                        <td title={ord.warehouse_name || 'Kho Tổng Hà Nội'} style={{ padding: '8px 12px', color: '#475569', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {ord.warehouse_name || 'Kho Tổng Hà Nội'}
+                        </td>
+                        <td style={{ padding: '8px 8px', textAlign: 'center', fontWeight: '700', color: '#b45309', whiteSpace: 'nowrap' }}>
+                          {ord.shortage_items_count || ord.items?.length || 0} loại
+                        </td>
+                        <td style={{ padding: '8px 8px', textAlign: 'center', fontWeight: '800', color: '#dc2626', whiteSpace: 'nowrap' }}>
+                          {ord.total_shortage_quantity || 0}
+                        </td>
+                        <td style={{ padding: '8px 8px', textAlign: 'center', color: '#64748b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {ord.last_dispatch_date ? new Date(ord.last_dispatch_date).toLocaleDateString('vi-VN') : '—'}
+                        </td>
+                        <td style={{ padding: '8px 8px', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                          <span style={{ display: 'inline-block', padding: '2.5px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: '700', background: '#fef3c7', color: '#b45309', whiteSpace: 'nowrap' }}>
+                            Thiếu đợt {ord.dispatch_count || 1}
+                          </span>
+                        </td>
+                        <td style={{ padding: '6px 16px 6px 8px', textAlign: 'center', whiteSpace: 'nowrap', position: 'relative', zIndex: activeDropdownId === ord.order_code ? 35 : 1 }}>
+                          <div className="wh-action-dropdown-container" style={{ position: 'relative', display: 'inline-block' }}>
+                            <button
+                              type="button"
+                              className={`wh-action-dots-btn ${activeDropdownId === ord.order_code ? 'active' : ''}`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveDropdownId((prev) => (prev === ord.order_code ? null : ord.order_code));
+                              }}
+                              title="Tùy chọn thao tác"
+                            >
+                              <span className="wh-action-dots-icon">
+                                <span />
+                                <span />
+                                <span />
+                              </span>
+                            </button>
+
+                            {activeDropdownId === ord.order_code && (() => {
+                              const openUpward = paginatedSuppOrders.length > 3 && idx >= paginatedSuppOrders.length - 2;
+                              return (
+                                <div className={`wh-dropdown-menu ${openUpward ? 'open-up' : 'open-down'}`} style={{ minWidth: '150px' }}>
+                                  <button
+                                    type="button"
+                                    className="wh-dropdown-item"
+                                    style={{ color: '#d97706', fontWeight: 600 }}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setActiveDropdownId(null);
+                                      handleOpenSupplementaryPage(ord);
+                                    }}
+                                  >
+                                    <span>Giao bổ sung</span>
+                                  </button>
+                                </div>
+                              );
+                            })()}
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+            {renderPaginationBar(suppPage, suppTotalPages, filteredSuppOrders.length, setSuppPage)}
+          </>
         )}
 
         {/* BẢNG TAB 3: LỊCH SỬ PHIẾU XUẤT KHO - ĐÃ CĂN CHỈNH TIÊU ĐỀ THẲNG HÀNG & CÂN ĐỐI */}
         {activeTab === 'history' && (
-          <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '12px', tableLayout: 'fixed' }}>
-              <thead style={{ position: 'sticky', top: 0, zIndex: 10, background: '#f8fafc' }}>
-                <tr style={{ background: '#f8fafc', color: '#475569', borderBottom: '1px solid #cbd5e1' }}>
-                  <th style={{ padding: '9px 10px 9px 16px', fontWeight: '700', whiteSpace: 'nowrap', width: '14%' }}>Mã phiếu xuất</th>
-                  <th style={{ padding: '9px 10px', fontWeight: '700', whiteSpace: 'nowrap', width: '11%' }}>Mã đơn hàng</th>
-                  <th style={{ padding: '9px 10px', fontWeight: '700', whiteSpace: 'nowrap', width: '17%' }}>Khách hàng / Đại lý</th>
-                  <th style={{ padding: '9px 10px', fontWeight: '700', whiteSpace: 'nowrap', width: '12%' }}>Kho xuất</th>
-                  <th style={{ padding: '9px 8px', fontWeight: '700', whiteSpace: 'nowrap', width: '8%', textAlign: 'center' }}>Đợt xuất</th>
-                  <th style={{ padding: '9px 8px', fontWeight: '700', whiteSpace: 'nowrap', width: '7%', textAlign: 'center' }}>SL xuất</th>
-                  <th style={{ padding: '9px 10px', fontWeight: '700', whiteSpace: 'nowrap', width: '10%' }}>Người thực hiện</th>
-                  <th style={{ padding: '9px 8px', fontWeight: '700', whiteSpace: 'nowrap', width: '11%', textAlign: 'center' }}>Thời gian</th>
-                  <th style={{ padding: '9px 8px', fontWeight: '700', whiteSpace: 'nowrap', width: '8%', textAlign: 'center' }}>Trạng thái</th>
-                  <th style={{ padding: '9px 16px 9px 8px', fontWeight: '700', whiteSpace: 'nowrap', width: '7%', textAlign: 'center' }}>Thao tác</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredAllDispatches.length === 0 ? (
-                  <tr>
-                    <td colSpan={10} style={{ padding: '30px', textAlign: 'center', color: '#64748b' }}>
-                      <div style={{ fontWeight: '600', color: '#0f172a' }}>Chưa có phiếu xuất kho nào</div>
-                      <div style={{ fontSize: '11.5px', marginTop: '4px' }}>Mọi phiếu xuất kho sau khi xác nhận sẽ được lưu trữ vĩnh viễn tại đây mà không bị ẩn đi.</div>
-                    </td>
+          <>
+            <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '12px', tableLayout: 'fixed' }}>
+                <thead style={{ position: 'sticky', top: 0, zIndex: 10, background: '#f8fafc' }}>
+                  <tr style={{ background: '#f8fafc', color: '#475569', borderBottom: '1px solid #cbd5e1' }}>
+                    <th style={{ padding: '9px 10px 9px 16px', fontWeight: '700', whiteSpace: 'nowrap', width: '14%' }}>Mã phiếu xuất</th>
+                    <th style={{ padding: '9px 10px', fontWeight: '700', whiteSpace: 'nowrap', width: '11%' }}>Mã đơn hàng</th>
+                    <th style={{ padding: '9px 10px', fontWeight: '700', whiteSpace: 'nowrap', width: '17%' }}>Khách hàng / Đại lý</th>
+                    <th style={{ padding: '9px 10px', fontWeight: '700', whiteSpace: 'nowrap', width: '12%' }}>Kho xuất</th>
+                    <th style={{ padding: '9px 8px', fontWeight: '700', whiteSpace: 'nowrap', width: '8%', textAlign: 'center' }}>Đợt xuất</th>
+                    <th style={{ padding: '9px 8px', fontWeight: '700', whiteSpace: 'nowrap', width: '7%', textAlign: 'center' }}>SL xuất</th>
+                    <th style={{ padding: '9px 10px', fontWeight: '700', whiteSpace: 'nowrap', width: '10%' }}>Người thực hiện</th>
+                    <th style={{ padding: '9px 8px', fontWeight: '700', whiteSpace: 'nowrap', width: '11%', textAlign: 'center' }}>Thời gian</th>
+                    <th style={{ padding: '9px 8px', fontWeight: '700', whiteSpace: 'nowrap', width: '8%', textAlign: 'center' }}>Trạng thái</th>
+                    <th style={{ padding: '9px 16px 9px 8px', fontWeight: '700', whiteSpace: 'nowrap', width: '7%', textAlign: 'center' }}>Thao tác</th>
                   </tr>
-                ) : (
-                  filteredAllDispatches.map((dp) => (
-                    <tr key={dp.dispatch_code || dp.id} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background 0.15s ease' }}>
-                      <td style={{ padding: '8px 10px 8px 16px', fontWeight: '700', color: '#0284c7', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {dp.dispatch_code}
-                      </td>
-                      <td style={{ padding: '8px 10px', fontWeight: '700', color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {dp.order_code}
-                      </td>
-                      <td title={dp.dealer_name} style={{ padding: '8px 10px', fontWeight: '600', color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {dp.dealer_name || 'Khách Mua Hàng'}
-                      </td>
-                      <td title={dp.warehouse_name || 'Kho Tổng'} style={{ padding: '8px 10px', color: '#475569', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {dp.warehouse_name || 'Kho Tổng'}
-                      </td>
-                      <td style={{ padding: '8px 8px', textAlign: 'center', whiteSpace: 'nowrap' }}>
-                        <span
-                          style={{
-                            display: 'inline-block',
-                            padding: '2.5px 6px',
-                            borderRadius: '4px',
-                            fontSize: '11px',
-                            fontWeight: '700',
-                            background: dp.round_number === 1 ? '#e0f2fe' : '#fef3c7',
-                            color: dp.round_number === 1 ? '#0369a1' : '#b45309',
-                            whiteSpace: 'nowrap',
-                          }}
-                        >
-                          {dp.round_number === 1 ? 'Lần đầu' : `Đợt ${dp.round_number}`}
-                        </span>
-                      </td>
-                      <td style={{ padding: '8px 8px', textAlign: 'center', fontWeight: '700', color: '#16a34a', whiteSpace: 'nowrap' }}>
-                        +{dp.total_dispatched_qty} sp
-                      </td>
-                      <td title={dp.performed_by} style={{ padding: '8px 10px', color: '#334155', fontWeight: '600', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {dp.performed_by}
-                      </td>
-                      <td style={{ padding: '8px 8px', textAlign: 'center', color: '#64748b', fontSize: '11px', whiteSpace: 'nowrap' }}>
-                        {dp.created_at ? new Date(dp.created_at).toLocaleDateString('vi-VN') + ' ' + new Date(dp.created_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '—'}
-                      </td>
-                      <td style={{ padding: '8px 8px', textAlign: 'center', whiteSpace: 'nowrap' }}>
-                        <span
-                          style={{
-                            display: 'inline-block',
-                            padding: '2.5px 6px',
-                            borderRadius: '4px',
-                            fontSize: '10.5px',
-                            fontWeight: '700',
-                            background: dp.order_status === 'DELIVERED' ? '#dcfce7' : dp.order_status === 'PARTIALLY_DELIVERED' ? '#fef3c7' : '#e0f2fe',
-                            color: dp.order_status === 'DELIVERED' ? '#166534' : dp.order_status === 'PARTIALLY_DELIVERED' ? '#b45309' : '#0369a1',
-                            whiteSpace: 'nowrap',
-                          }}
-                        >
-                          {dp.order_status === 'DELIVERED' ? 'HOÀN THÀNH' : dp.order_status === 'PARTIALLY_DELIVERED' ? 'GIAO THIẾU' : (dp.order_status || 'ĐÃ XUẤT')}
-                        </span>
-                      </td>
-                      <td style={{ padding: '8px 16px 8px 8px', textAlign: 'center', whiteSpace: 'nowrap' }}>
-                        <button
-                          type="button"
-                          onClick={() => handleViewDispatchHistoryPage(dp.order_code)}
-                          style={{
-                            padding: '4px 8px',
-                            background: '#059669',
-                            border: 'none',
-                            borderRadius: '4px',
-                            fontSize: '11px',
-                            fontWeight: '700',
-                            color: '#ffffff',
-                            cursor: 'pointer',
-                            whiteSpace: 'nowrap',
-                            boxShadow: '0 1px 2px rgba(5,150,105,0.2)',
-                          }}
-                        >
-                          Chi tiết
-                        </button>
+                </thead>
+                <tbody>
+                  {filteredAllDispatches.length === 0 ? (
+                    <tr>
+                      <td colSpan={10} style={{ padding: '30px', textAlign: 'center', color: '#64748b' }}>
+                        <div style={{ fontWeight: '600', color: '#0f172a' }}>Chưa có phiếu xuất kho nào</div>
+                        <div style={{ fontSize: '11.5px', marginTop: '4px' }}>Mọi phiếu xuất kho sau khi xác nhận sẽ được lưu trữ vĩnh viễn tại đây mà không bị ẩn đi.</div>
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+                  ) : (
+                    paginatedAllDispatches.map((dp, idx) => (
+                      <tr key={dp.dispatch_code || dp.id} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background 0.15s ease' }}>
+                        <td style={{ padding: '8px 10px 8px 16px', fontWeight: '700', color: '#0284c7', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {dp.dispatch_code}
+                        </td>
+                        <td style={{ padding: '8px 10px', fontWeight: '700', color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {dp.order_code}
+                        </td>
+                        <td title={dp.dealer_name} style={{ padding: '8px 10px', fontWeight: '600', color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {dp.dealer_name || 'Khách Mua Hàng'}
+                        </td>
+                        <td title={dp.warehouse_name || 'Kho Tổng'} style={{ padding: '8px 10px', color: '#475569', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {dp.warehouse_name || 'Kho Tổng'}
+                        </td>
+                        <td style={{ padding: '8px 8px', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                          <span
+                            style={{
+                              display: 'inline-block',
+                              padding: '2.5px 6px',
+                              borderRadius: '4px',
+                              fontSize: '11px',
+                              fontWeight: '700',
+                              background: dp.round_number === 1 ? '#e0f2fe' : '#fef3c7',
+                              color: dp.round_number === 1 ? '#0369a1' : '#b45309',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            {dp.round_number === 1 ? 'Lần đầu' : `Đợt ${dp.round_number}`}
+                          </span>
+                        </td>
+                        <td style={{ padding: '8px 8px', textAlign: 'center', fontWeight: '700', color: '#16a34a', whiteSpace: 'nowrap' }}>
+                          +{dp.total_dispatched_qty} sp
+                        </td>
+                        <td title={dp.performed_by} style={{ padding: '8px 10px', color: '#334155', fontWeight: '600', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {dp.performed_by}
+                        </td>
+                        <td style={{ padding: '8px 8px', textAlign: 'center', color: '#64748b', fontSize: '11px', whiteSpace: 'nowrap' }}>
+                          {dp.created_at ? new Date(dp.created_at).toLocaleDateString('vi-VN') + ' ' + new Date(dp.created_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '—'}
+                        </td>
+                        <td style={{ padding: '8px 8px', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                          <span
+                            style={{
+                              display: 'inline-block',
+                              padding: '2.5px 6px',
+                              borderRadius: '4px',
+                              fontSize: '10.5px',
+                              fontWeight: '700',
+                              background: dp.order_status === 'DELIVERED' ? '#dcfce7' : dp.order_status === 'PARTIALLY_DELIVERED' ? '#fef3c7' : '#e0f2fe',
+                              color: dp.order_status === 'DELIVERED' ? '#166534' : dp.order_status === 'PARTIALLY_DELIVERED' ? '#b45309' : '#0369a1',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            {dp.order_status === 'DELIVERED' ? 'HOÀN THÀNH' : dp.order_status === 'PARTIALLY_DELIVERED' ? 'GIAO THIẾU' : (dp.order_status || 'ĐÃ XUẤT')}
+                          </span>
+                        </td>
+                        <td style={{ padding: '6px 16px 6px 8px', textAlign: 'center', whiteSpace: 'nowrap', position: 'relative', zIndex: activeDropdownId === (dp.dispatch_code || String(dp.id)) ? 35 : 1 }}>
+                          <div className="wh-action-dropdown-container" style={{ position: 'relative', display: 'inline-block' }}>
+                            <button
+                              type="button"
+                              className={`wh-action-dots-btn ${activeDropdownId === (dp.dispatch_code || String(dp.id)) ? 'active' : ''}`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveDropdownId((prev) => (prev === (dp.dispatch_code || String(dp.id)) ? null : (dp.dispatch_code || String(dp.id))));
+                              }}
+                              title="Tùy chọn thao tác"
+                            >
+                              <span className="wh-action-dots-icon">
+                                <span />
+                                <span />
+                                <span />
+                              </span>
+                            </button>
+
+                            {activeDropdownId === (dp.dispatch_code || String(dp.id)) && (() => {
+                              const openUpward = paginatedAllDispatches.length > 3 && idx >= paginatedAllDispatches.length - 2;
+                              return (
+                                <div className={`wh-dropdown-menu ${openUpward ? 'open-up' : 'open-down'}`} style={{ minWidth: '130px' }}>
+                                  <button
+                                    type="button"
+                                    className="wh-dropdown-item wh-dropdown-item-primary"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setActiveDropdownId(null);
+                                      handleViewDispatchHistoryPage(dp.order_code);
+                                    }}
+                                  >
+                                    <span>Chi tiết</span>
+                                  </button>
+                                </div>
+                              );
+                            })()}
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+            {renderPaginationBar(historyPage, historyTotalPages, filteredAllDispatches.length, setHistoryPage)}
+          </>
         )}
       </div>
     </div>

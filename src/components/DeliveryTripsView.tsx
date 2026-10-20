@@ -19,6 +19,7 @@ import {
 } from '../services/api';
 import { emitStatusToast } from './StatusToast';
 import { DeliveryTripPrintModal } from './DeliveryTripPrintModal';
+import './warehouse-management.css';
 
 // Component Combobox tìm kiếm kết hợp vừa nhập vừa chọn từ database
 interface ComboboxOption {
@@ -269,6 +270,175 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [dateFilter, setDateFilter] = useState('');
 
+  // Phân trang danh sách chuyến (Mặc định 10 chuyến mỗi trang)
+  const [tripPage, setTripPage] = useState<number>(1);
+  const tripPageSize = 10;
+  const tripTotalPages = Math.max(1, Math.ceil(trips.length / tripPageSize));
+  const paginatedTrips = useMemo(() => {
+    const start = (tripPage - 1) * tripPageSize;
+    return trips.slice(start, start + tripPageSize);
+  }, [trips, tripPage, tripPageSize]);
+
+  // Tự động về trang 1 khi lọc hoặc tìm kiếm
+  useEffect(() => {
+    setTripPage(1);
+  }, [searchTerm, dateFilter, statusFilter]);
+
+  // Thanh phân trang chuẩn ERP [ 1 | 2 | 3 | > ] (Mặc định 10 dòng mới sang trang)
+  const renderPaginationBar = (
+    currentPage: number,
+    totalPages: number,
+    totalItems: number,
+    onPageChange: (page: number) => void
+  ) => {
+    if (totalItems === 0 || totalPages <= 1) return null;
+
+    let pageList: (number | string)[] = [];
+    if (totalPages <= 5) {
+      pageList = Array.from({ length: totalPages }, (_, i) => i + 1);
+    } else {
+      if (currentPage <= 3) {
+        pageList = [1, 2, 3, '...', totalPages];
+      } else if (currentPage >= totalPages - 2) {
+        pageList = [1, '...', totalPages - 2, totalPages - 1, totalPages];
+      } else {
+        pageList = [1, '...', currentPage - 1, currentPage, currentPage + 1, '...', totalPages];
+      }
+    }
+
+    return (
+      <div
+        style={{
+          padding: '10px 18px',
+          borderTop: '1px solid #e2e8f0',
+          backgroundColor: '#ffffff',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'flex-end',
+          flexWrap: 'wrap',
+          gap: '10px',
+          flexShrink: 0,
+        }}
+      >
+        <div
+          style={{
+            display: 'inline-flex',
+            alignItems: 'stretch',
+            border: '1px solid #cbd5e1',
+            borderRadius: '6px',
+            overflow: 'hidden',
+            backgroundColor: '#ffffff',
+            height: '32px',
+            boxShadow: '0 1px 2px rgba(0, 0, 0, 0.04)',
+          }}
+        >
+          {currentPage > 1 && (
+            <button
+              type="button"
+              onClick={() => onPageChange(currentPage - 1)}
+              style={{
+                width: '32px',
+                height: '100%',
+                border: 'none',
+                borderRight: '1px solid #e2e8f0',
+                backgroundColor: '#ffffff',
+                color: '#374151',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'background-color 0.15s ease',
+              }}
+              title="Trang trước"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="15 18 9 12 15 6" />
+              </svg>
+            </button>
+          )}
+
+          {pageList.map((p, idx) => {
+            if (p === '...') {
+              return (
+                <span
+                  key={`ellipsis-${idx}`}
+                  style={{
+                    padding: '0 10px',
+                    height: '100%',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#94a3b8',
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    borderRight: '1px solid #e2e8f0',
+                    backgroundColor: '#ffffff',
+                    userSelect: 'none',
+                  }}
+                >
+                  ...
+                </span>
+              );
+            }
+
+            const pageNum = p as number;
+            const isActive = pageNum === currentPage;
+
+            return (
+              <button
+                key={pageNum}
+                type="button"
+                onClick={() => onPageChange(pageNum)}
+                style={{
+                  minWidth: '34px',
+                  padding: '0 8px',
+                  height: '100%',
+                  border: 'none',
+                  borderRight: idx === pageList.length - 1 && currentPage === totalPages ? 'none' : '1px solid #e2e8f0',
+                  backgroundColor: isActive ? '#0284c7' : '#ffffff',
+                  color: isActive ? '#ffffff' : '#374151',
+                  fontSize: '13px',
+                  fontWeight: isActive ? 700 : 500,
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                {pageNum}
+              </button>
+            );
+          })}
+
+          {currentPage < totalPages && (
+            <button
+              type="button"
+              onClick={() => onPageChange(currentPage + 1)}
+              style={{
+                width: '32px',
+                height: '100%',
+                border: 'none',
+                backgroundColor: '#ffffff',
+                color: '#374151',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'background-color 0.15s ease',
+              }}
+              title="Trang tiếp"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="9 18 15 12 9 6" />
+              </svg>
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   // Chuyến được chọn xem chi tiết hoặc in
   const [selectedTrip, setSelectedTrip] = useState<DeliveryTrip | null>(null);
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
@@ -310,6 +480,23 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
   const [activeFailureStopId, setActiveFailureStopId] = useState<number | null>(null);
   const [failureReasonInput, setFailureReasonInput] = useState('');
   const [isUpdatingStop, setIsUpdatingStop] = useState(false);
+  const [activeDropdownStopId, setActiveDropdownStopId] = useState<number | null>(null);
+  const [activeDropdownOuterTripId, setActiveDropdownOuterTripId] = useState<number | null>(null);
+
+  // Đóng dropdown khi bấm ra ngoài
+  useEffect(() => {
+    const handleGlobalClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('.wh-action-dropdown-container')) {
+        setActiveDropdownStopId(null);
+        setActiveDropdownOuterTripId(null);
+      }
+    };
+    document.addEventListener('click', handleGlobalClick);
+    return () => {
+      document.removeEventListener('click', handleGlobalClick);
+    };
+  }, []);
 
   // State xác nhận xóa chuyến nháp qua Popup thay vì window.confirm
   const [tripToDeleteId, setTripToDeleteId] = useState<number | null>(null);
@@ -631,11 +818,11 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
     }
   };
 
-  // 5. Cập nhật trạng thái chuyến (Bắt đầu, Hoàn tất, Hủy)
-  const handleUpdateTripStatus = async (newStatus: string) => {
-    if (!selectedTrip) return;
+
+  // Cập nhật trạng thái chuyến theo ID trực tiếp từ danh sách bên ngoài
+  const handleUpdateTripStatusById = async (tripId: number, newStatus: string) => {
     try {
-      const res = await updateDeliveryTripStatusApi(token, selectedTrip.id, {
+      const res = await updateDeliveryTripStatusApi(token, tripId, {
         status: newStatus,
       });
       emitStatusToast({
@@ -643,9 +830,11 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
         title: 'Cập nhật trạng thái',
         message: res.message,
       });
-      // Tải lại chi tiết chuyến
-      const refreshed = await getDeliveryTripDetailApi(token, selectedTrip.id);
-      setSelectedTrip(refreshed);
+      if (selectedTrip && selectedTrip.id === tripId) {
+        const refreshed = await getDeliveryTripDetailApi(token, tripId);
+        setSelectedTrip(refreshed);
+      }
+      await loadTrips();
     } catch (err: any) {
       emitStatusToast({
         type: 'error',
@@ -655,8 +844,8 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
     }
   };
 
-  // 6. Cập nhật kết quả điểm dừng (Thành công / Thất bại)
-  const handleUpdateStopResult = async (stopId: number, statusVal: 'DELIVERED' | 'FAILED', reason?: string) => {
+  // 6. Cập nhật kết quả điểm dừng (Thành công / Thất bại / Chờ giao)
+  const handleUpdateStopResult = async (stopId: number, statusVal: 'DELIVERED' | 'FAILED' | 'PENDING', reason?: string) => {
     if (!selectedTrip) return;
     setIsUpdatingStop(true);
     try {
@@ -802,6 +991,29 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setViewMode('list');
+                  loadTrips();
+                }}
+                style={{
+                  padding: '5px 12px',
+                  background: '#f8fafc',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: '6px',
+                  fontSize: '12px',
+                  fontWeight: '600',
+                  color: '#334155',
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                  transition: 'all 0.15s ease',
+                }}
+                title="Đóng chi tiết và quay lại danh sách chuyến"
+              >
+                Đóng
+              </button>
+
               <h1 style={{ margin: 0, fontSize: '15.5px', fontWeight: '800', color: '#0f172a', whiteSpace: 'nowrap' }}>
                 Chuyến Giao Hàng {selectedTrip.trip_code}
               </h1>
@@ -820,125 +1032,7 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
               </span>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-              <button
-                type="button"
-                onClick={() => {
-                  setViewMode('list');
-                  loadTrips();
-                }}
-                style={{
-                  padding: '5px 12px',
-                  background: '#f8fafc',
-                  border: '1px solid #cbd5e1',
-                  borderRadius: '6px',
-                  fontSize: '12px',
-                  fontWeight: '600',
-                  color: '#334155',
-                  cursor: 'pointer',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                Đóng
-              </button>
-              <button
-                type="button"
-                onClick={() => handleOpenPrint(selectedTrip.id)}
-                style={{
-                  padding: '5px 12px',
-                  background: '#ffffff',
-                  border: '1px solid #0284c7',
-                  borderRadius: '6px',
-                  fontSize: '12px',
-                  fontWeight: '700',
-                  color: '#0284c7',
-                  cursor: 'pointer',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                In danh sách
-              </button>
-
-              {selectedTrip.status === 'ASSIGNED' && (
-                <button
-                  type="button"
-                  onClick={() => handleUpdateTripStatus('IN_PROGRESS')}
-                  style={{
-                    padding: '5px 14px',
-                    background: '#0284c7',
-                    border: 'none',
-                    borderRadius: '6px',
-                    fontSize: '12px',
-                    fontWeight: '700',
-                    color: '#ffffff',
-                    cursor: 'pointer',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  Bắt đầu giao hàng
-                </button>
-              )}
-
-              {selectedTrip.status === 'IN_PROGRESS' && (
-                <button
-                  type="button"
-                  onClick={() => handleUpdateTripStatus('COMPLETED')}
-                  style={{
-                    padding: '5px 14px',
-                    background: '#16a34a',
-                    border: 'none',
-                    borderRadius: '6px',
-                    fontSize: '12px',
-                    fontWeight: '700',
-                    color: '#ffffff',
-                    cursor: 'pointer',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  Hoàn tất toàn bộ chuyến
-                </button>
-              )}
-
-              {selectedTrip.status !== 'COMPLETED' && selectedTrip.status !== 'CANCELLED' && (
-                <button
-                  type="button"
-                  onClick={() => handleUpdateTripStatus('CANCELLED')}
-                  style={{
-                    padding: '5px 12px',
-                    background: '#ffffff',
-                    border: '1px solid #dc2626',
-                    borderRadius: '6px',
-                    fontSize: '12px',
-                    fontWeight: '600',
-                    color: '#dc2626',
-                    cursor: 'pointer',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  Hủy chuyến
-                </button>
-              )}
-
-              {selectedTrip.status === 'DRAFT' && (
-                <button
-                  type="button"
-                  onClick={() => handleRequestDeleteDraftTrip(selectedTrip.id)}
-                  style={{
-                    padding: '5px 12px',
-                    background: '#fee2e2',
-                    border: '1px solid #fca5a5',
-                    borderRadius: '6px',
-                    fontSize: '12px',
-                    fontWeight: '600',
-                    color: '#b91c1c',
-                    cursor: 'pointer',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  Xóa nháp
-                </button>
-              )}
-            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }} />
           </div>
 
           {/* Dòng thông tin chuyến (1 dòng gọn gàng, không xuống dòng) */}
@@ -983,23 +1077,25 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
                   }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'nowrap', gap: '10px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: 1 }}>
-                      <span style={{ display: 'inline-block', width: '24px', height: '24px', minWidth: '24px', lineHeight: '24px', textAlign: 'center', background: '#0284c7', color: '#ffffff', borderRadius: '50%', fontWeight: '800', fontSize: '11.5px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: 1, overflow: 'hidden' }}>
+                      <span style={{ display: 'inline-block', width: '24px', height: '24px', minWidth: '24px', lineHeight: '24px', textAlign: 'center', background: '#0284c7', color: '#ffffff', borderRadius: '50%', fontWeight: '800', fontSize: '11.5px', flexShrink: 0 }}>
                         {st.stop_order}
                       </span>
-                      <strong style={{ fontSize: '12.5px', color: '#0f172a', whiteSpace: 'nowrap' }}>{st.receiver_name}</strong>
-                      <span style={{ fontSize: '12px', color: '#475569', whiteSpace: 'nowrap' }}>
+                      <strong style={{ fontSize: '12.5px', color: '#0f172a', whiteSpace: 'nowrap', flexShrink: 0 }}>{st.receiver_name}</strong>
+                      <span style={{ fontSize: '12px', color: '#475569', whiteSpace: 'nowrap', flexShrink: 0 }}>
                         - ĐT: <strong>{st.receiver_phone}</strong> ({st.dealer_name})
                       </span>
-                      <span style={{ fontSize: '12px', color: '#64748b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        | Địa chỉ: <strong>{st.address}</strong>
-                      </span>
-                      <span style={{ fontSize: '11px', color: '#0284c7', whiteSpace: 'nowrap' }}>
+                      {st.address && (
+                        <span style={{ fontSize: '12px', color: '#64748b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flexShrink: 1 }}>
+                          | Địa chỉ: <strong>{st.address}</strong>
+                        </span>
+                      )}
+                      <span style={{ fontSize: '11px', color: '#0284c7', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flexShrink: 2 }}>
                         | Gom {st.dispatches?.length || 0} phiếu: {(st.dispatches || []).map((d: any) => d.dispatch_code).join(', ')}
                       </span>
                     </div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0, position: 'relative' }}>
                       <span
                         style={{
                           padding: '2px 8px',
@@ -1014,44 +1110,64 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
                         {isDelivered ? 'Đã giao thành công' : isFailed ? 'Giao thất bại' : 'Chờ giao hàng'}
                       </span>
 
-                      {isPending && (
-                        <div style={{ display: 'flex', gap: '4px' }}>
+                      {selectedTrip.status !== 'COMPLETED' && selectedTrip.status !== 'CANCELLED' && (
+                        <div className="wh-action-dropdown-container" style={{ position: 'relative', display: 'inline-block' }}>
                           <button
                             type="button"
-                            onClick={() => handleUpdateStopResult(st.id, 'DELIVERED')}
-                            disabled={isUpdatingStop}
-                            style={{
-                              padding: '4px 10px',
-                              background: '#16a34a',
-                              border: 'none',
-                              borderRadius: '4px',
-                              fontSize: '11px',
-                              fontWeight: '700',
-                              color: '#ffffff',
-                              cursor: 'pointer',
-                              whiteSpace: 'nowrap',
+                            className={`wh-action-dots-btn ${activeDropdownStopId === st.id ? 'active' : ''}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveDropdownStopId((prev) => (prev === st.id ? null : st.id));
                             }}
+                            title="Tùy chọn trạng thái điểm dừng"
                           >
-                            Đã giao xong
+                            <span className="wh-action-dots-icon">
+                              <span />
+                              <span />
+                              <span />
+                            </span>
                           </button>
-                          <button
-                            type="button"
-                            onClick={() => setActiveFailureStopId(activeFailureStopId === st.id ? null : st.id)}
-                            disabled={isUpdatingStop}
-                            style={{
-                              padding: '4px 10px',
-                              background: '#ffffff',
-                              border: '1px solid #dc2626',
-                              borderRadius: '4px',
-                              fontSize: '11px',
-                              fontWeight: '600',
-                              color: '#dc2626',
-                              cursor: 'pointer',
-                              whiteSpace: 'nowrap',
-                            }}
-                          >
-                            Báo thất bại
-                          </button>
+
+                          {activeDropdownStopId === st.id && (
+                            <div className="wh-dropdown-menu open-down" style={{ minWidth: '145px', zIndex: 100 }}>
+                                <button
+                                type="button"
+                                className="wh-dropdown-item"
+                                style={{ color: '#16a34a', fontWeight: isDelivered ? 700 : 500 }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setActiveDropdownStopId(null);
+                                  handleUpdateStopResult(st.id, 'DELIVERED');
+                                }}
+                              >
+                                Đã giao xong
+                              </button>
+                              <button
+                                type="button"
+                                className="wh-dropdown-item"
+                                style={{ color: '#dc2626', fontWeight: isFailed ? 700 : 500 }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setActiveDropdownStopId(null);
+                                  setActiveFailureStopId(activeFailureStopId === st.id ? null : st.id);
+                                }}
+                              >
+                                Báo thất bại
+                              </button>
+                              <button
+                                type="button"
+                                className="wh-dropdown-item"
+                                style={{ color: '#d97706', fontWeight: isPending ? 700 : 500 }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setActiveDropdownStopId(null);
+                                  handleUpdateStopResult(st.id, 'PENDING');
+                                }}
+                              >
+                                Chờ giao hàng
+                              </button>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
@@ -1727,25 +1843,6 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
             <button
               type="button"
-              onClick={loadTrips}
-              disabled={isLoading}
-              style={{
-                padding: '5px 12px',
-                background: '#ffffff',
-                border: '1px solid #cbd5e1',
-                borderRadius: '6px',
-                fontSize: '12px',
-                fontWeight: '600',
-                color: '#334155',
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              {isLoading ? 'Đang tải...' : 'Làm mới'}
-            </button>
-
-            <button
-              type="button"
               onClick={handleOpenCreatePage}
               style={{
                 padding: '5px 14px',
@@ -1765,7 +1862,7 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
           </div>
         </div>
 
-        {/* Thanh Bộ lọc tìm kiếm (Nằm ngang trong cùng 1 khung) */}
+        {/* Thanh Bộ lọc tìm kiếm & Làm mới (Nằm ngang trong cùng 1 khung) */}
         <div
           style={{
             padding: '8px 14px',
@@ -1892,116 +1989,216 @@ export const DeliveryTripsView: React.FC<DeliveryTripsViewProps> = ({
               ✕ Xóa lọc
             </button>
           )}
+
+          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+            <button
+              type="button"
+              onClick={loadTrips}
+              disabled={isLoading}
+              style={{
+                padding: '5px 12px',
+                background: '#ffffff',
+                border: '1px solid #cbd5e1',
+                borderRadius: '6px',
+                fontSize: '12px',
+                fontWeight: '600',
+                color: '#334155',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+              }}
+              title="Làm mới dữ liệu từ hệ thống"
+            >
+              {isLoading ? 'Đang tải...' : 'Làm mới'}
+            </button>
+          </div>
         </div>
 
-        {/* Bảng danh sách chuyến - Tiêu đề đứng yên, không xuống dòng */}
-        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '12px' }}>
-            <thead style={{ position: 'sticky', top: 0, zIndex: 10, background: '#f8fafc' }}>
-              <tr style={{ background: '#f8fafc', color: '#475569', borderBottom: '1px solid #cbd5e1' }}>
-                <th style={{ padding: '7px 12px', fontWeight: '700', whiteSpace: 'nowrap', width: '120px' }}>Mã chuyến</th>
-                <th style={{ padding: '7px 12px', fontWeight: '700', whiteSpace: 'nowrap', width: '100px' }}>Ngày giao</th>
-                <th style={{ padding: '7px 12px', fontWeight: '700', whiteSpace: 'nowrap' }}>Tài xế phụ trách</th>
-                <th style={{ padding: '7px 12px', fontWeight: '700', whiteSpace: 'nowrap', width: '180px' }}>Phương tiện / Biển số</th>
-                <th style={{ padding: '7px 12px', fontWeight: '700', whiteSpace: 'nowrap', width: '90px', textAlign: 'center' }}>Điểm giao</th>
-                <th style={{ padding: '7px 12px', fontWeight: '700', whiteSpace: 'nowrap', width: '100px', textAlign: 'center' }}>Số phiếu xuất</th>
-                <th style={{ padding: '7px 12px', fontWeight: '700', whiteSpace: 'nowrap', width: '120px' }}>Trạng thái</th>
-                <th style={{ padding: '7px 12px', fontWeight: '700', whiteSpace: 'nowrap', width: '130px', textAlign: 'right' }}>Thao tác</th>
-              </tr>
-            </thead>
-            <tbody>
-              {trips.length === 0 ? (
-                <tr>
-                  <td colSpan={8} style={{ padding: '30px', textAlign: 'center', color: '#64748b' }}>
-                    <div style={{ fontWeight: '600', color: '#0f172a' }}>Không có chuyến giao hàng nào</div>
-                    <div style={{ fontSize: '11.5px', marginTop: '4px' }}>Bấm nút "Tạo chuyến giao hàng" ở trên để phân tuyến chuyến mới.</div>
-                  </td>
+        {/* Bảng danh sách chuyến */}
+        <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <div style={{ flex: 1, minHeight: '260px', overflowY: 'auto', overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '12px' }}>
+              <thead style={{ position: 'sticky', top: 0, zIndex: 40, background: '#f8fafc' }}>
+                <tr style={{ background: '#f8fafc', color: '#475569', borderBottom: '1px solid #cbd5e1' }}>
+                  <th style={{ padding: '7px 12px', fontWeight: '700', whiteSpace: 'nowrap', width: '120px' }}>Mã chuyến</th>
+                  <th style={{ padding: '7px 12px', fontWeight: '700', whiteSpace: 'nowrap', width: '100px' }}>Ngày giao</th>
+                  <th style={{ padding: '7px 12px', fontWeight: '700', whiteSpace: 'nowrap' }}>Tài xế phụ trách</th>
+                  <th style={{ padding: '7px 12px', fontWeight: '700', whiteSpace: 'nowrap', width: '180px' }}>Phương tiện / Biển số</th>
+                  <th style={{ padding: '7px 12px', fontWeight: '700', whiteSpace: 'nowrap', width: '90px', textAlign: 'center' }}>Điểm giao</th>
+                  <th style={{ padding: '7px 12px', fontWeight: '700', whiteSpace: 'nowrap', width: '100px', textAlign: 'center' }}>Số phiếu xuất</th>
+                  <th style={{ padding: '7px 12px', fontWeight: '700', whiteSpace: 'nowrap', width: '120px' }}>Trạng thái</th>
+                  <th style={{ padding: '7px 12px', fontWeight: '700', whiteSpace: 'nowrap', width: '80px', textAlign: 'center' }}>Thao tác</th>
                 </tr>
-              ) : (
-                trips.map((t) => {
-                  const badge = getTripStatusBadge(t.status);
-                  return (
-                    <tr key={t.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                      <td style={{ padding: '6px 12px', fontWeight: '700', color: '#0284c7', whiteSpace: 'nowrap' }}>
-                        {t.trip_code}
-                      </td>
-                      <td style={{ padding: '6px 12px', fontWeight: '600', color: '#0f172a', whiteSpace: 'nowrap' }}>
-                        {t.delivery_date}
-                      </td>
-                      <td style={{ padding: '6px 12px', color: '#334155', whiteSpace: 'nowrap' }}>
-                        <strong>{t.driver_name || 'Chưa phân công'}</strong>
-                        {t.driver_phone && <span style={{ fontSize: '11px', color: '#64748b', marginLeft: '6px' }}>({t.driver_phone})</span>}
-                      </td>
-                      <td style={{ padding: '6px 12px', color: '#334155', whiteSpace: 'nowrap' }}>
-                        <strong>{t.vehicle_plate || 'Chưa gán xe'}</strong>
-                        {t.vehicle_type && <span style={{ fontSize: '11px', color: '#64748b', marginLeft: '6px' }}>({t.vehicle_type})</span>}
-                      </td>
-                      <td style={{ padding: '6px 12px', textAlign: 'center', fontWeight: '700', color: '#0f172a', whiteSpace: 'nowrap' }}>
-                        {t.total_stops} điểm
-                      </td>
-                      <td style={{ padding: '6px 12px', textAlign: 'center', fontWeight: '700', color: '#0284c7', whiteSpace: 'nowrap' }}>
-                        {t.total_dispatches} phiếu
-                      </td>
-                      <td style={{ padding: '6px 12px', whiteSpace: 'nowrap' }}>
-                        <span
-                          style={{
-                            padding: '2px 8px',
-                            borderRadius: '4px',
-                            fontSize: '11px',
-                            fontWeight: '700',
-                            background: badge.bg,
-                            color: badge.color,
-                            whiteSpace: 'nowrap',
-                          }}
-                        >
-                          {badge.text}
-                        </span>
-                      </td>
-                      <td style={{ padding: '6px 12px', textAlign: 'right', whiteSpace: 'nowrap' }}>
-                        <div style={{ display: 'inline-flex', gap: '6px' }}>
-                          <button
-                            type="button"
-                            onClick={() => handleOpenPrint(t.id)}
+              </thead>
+              <tbody>
+                {trips.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} style={{ padding: '30px', textAlign: 'center', color: '#64748b' }}>
+                      <div style={{ fontWeight: '600', color: '#0f172a' }}>Không có chuyến giao hàng nào</div>
+                      <div style={{ fontSize: '11.5px', marginTop: '4px' }}>Bấm nút "Tạo chuyến giao hàng" ở trên để phân tuyến chuyến mới.</div>
+                    </td>
+                  </tr>
+                ) : (
+                  paginatedTrips.map((t, idx) => {
+                    const badge = getTripStatusBadge(t.status);
+                    return (
+                      <tr
+                        key={t.id}
+                        style={{
+                          borderBottom: '1px solid #f1f5f9',
+                        }}
+                      >
+                        <td style={{ padding: '6px 12px', fontWeight: '700', color: '#0284c7', whiteSpace: 'nowrap' }}>
+                          {t.trip_code}
+                        </td>
+                        <td style={{ padding: '6px 12px', fontWeight: '600', color: '#0f172a', whiteSpace: 'nowrap' }}>
+                          {t.delivery_date}
+                        </td>
+                        <td style={{ padding: '6px 12px', color: '#334155', whiteSpace: 'nowrap' }}>
+                          <strong>{t.driver_name || 'Chưa phân công'}</strong>
+                          {t.driver_phone && <span style={{ fontSize: '11px', color: '#64748b', marginLeft: '6px' }}>({t.driver_phone})</span>}
+                        </td>
+                        <td style={{ padding: '6px 12px', color: '#334155', whiteSpace: 'nowrap' }}>
+                          <strong>{t.vehicle_plate || 'Chưa gán xe'}</strong>
+                          {t.vehicle_type && <span style={{ fontSize: '11px', color: '#64748b', marginLeft: '6px' }}>({t.vehicle_type})</span>}
+                        </td>
+                        <td style={{ padding: '6px 12px', textAlign: 'center', fontWeight: '700', color: '#0f172a', whiteSpace: 'nowrap' }}>
+                          {t.total_stops} điểm
+                        </td>
+                        <td style={{ padding: '6px 12px', textAlign: 'center', fontWeight: '700', color: '#0284c7', whiteSpace: 'nowrap' }}>
+                          {t.total_dispatches} phiếu
+                        </td>
+                        <td style={{ padding: '6px 12px', whiteSpace: 'nowrap' }}>
+                          <span
                             style={{
-                              padding: '4px 8px',
-                              background: '#f1f5f9',
-                              border: '1px solid #cbd5e1',
+                              padding: '2px 8px',
                               borderRadius: '4px',
-                              fontSize: '11.5px',
-                              fontWeight: '600',
-                              color: '#475569',
-                              cursor: 'pointer',
-                              whiteSpace: 'nowrap',
-                            }}
-                          >
-                            In phiếu
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleOpenDetail(t.id)}
-                            style={{
-                              padding: '4px 10px',
-                              background: '#0284c7',
-                              border: 'none',
-                              borderRadius: '4px',
-                              fontSize: '11.5px',
+                              fontSize: '11px',
                               fontWeight: '700',
-                              color: '#ffffff',
-                              cursor: 'pointer',
+                              background: badge.bg,
+                              color: badge.color,
                               whiteSpace: 'nowrap',
-                              boxShadow: '0 1px 2px rgba(2,132,199,0.2)',
                             }}
                           >
-                            Chi tiết
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
+                            {badge.text}
+                          </span>
+                        </td>
+                        <td style={{ padding: '6px 12px', textAlign: 'center', whiteSpace: 'nowrap', position: 'relative', zIndex: activeDropdownOuterTripId === t.id ? 35 : 1 }}>
+                          <div className="wh-action-dropdown-container" style={{ position: 'relative', display: 'inline-block' }}>
+                            <button
+                              type="button"
+                              className={`wh-action-dots-btn ${activeDropdownOuterTripId === t.id ? 'active' : ''}`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveDropdownOuterTripId((prev) => (prev === t.id ? null : t.id));
+                              }}
+                              title="Tùy chọn thao tác chuyến"
+                            >
+                              <span className="wh-action-dots-icon">
+                                <span />
+                                <span />
+                                <span />
+                              </span>
+                            </button>
+
+                            {activeDropdownOuterTripId === t.id && (() => {
+                              const openUpward = paginatedTrips.length > 3 && idx >= paginatedTrips.length - 2;
+                              return (
+                                <div className={`wh-dropdown-menu ${openUpward ? 'open-up' : 'open-down'}`} style={{ minWidth: '175px' }}>
+                                  <button
+                                    type="button"
+                                    className="wh-dropdown-item wh-dropdown-item-primary"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setActiveDropdownOuterTripId(null);
+                                      handleOpenDetail(t.id);
+                                    }}
+                                  >
+                                    <span>Chi tiết</span>
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    className="wh-dropdown-item"
+                                    style={{ color: '#0284c7', fontWeight: 600 }}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setActiveDropdownOuterTripId(null);
+                                      handleOpenPrint(t.id);
+                                    }}
+                                  >
+                                    <span>In danh sách</span>
+                                  </button>
+
+                                  {t.status === 'ASSIGNED' && (
+                                    <button
+                                      type="button"
+                                      className="wh-dropdown-item"
+                                      style={{ color: '#0284c7', fontWeight: 600 }}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setActiveDropdownOuterTripId(null);
+                                        handleUpdateTripStatusById(t.id, 'IN_PROGRESS');
+                                      }}
+                                    >
+                                      <span>Bắt đầu giao hàng</span>
+                                    </button>
+                                  )}
+
+                                  {t.status === 'IN_PROGRESS' && (
+                                    <button
+                                      type="button"
+                                      className="wh-dropdown-item"
+                                      style={{ color: '#16a34a', fontWeight: 600 }}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setActiveDropdownOuterTripId(null);
+                                        handleUpdateTripStatusById(t.id, 'COMPLETED');
+                                      }}
+                                    >
+                                      <span>Hoàn tất toàn bộ chuyến</span>
+                                    </button>
+                                  )}
+
+                                  {t.status !== 'COMPLETED' && t.status !== 'CANCELLED' && (
+                                    <button
+                                      type="button"
+                                      className="wh-dropdown-item wh-dropdown-item-danger"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setActiveDropdownOuterTripId(null);
+                                        handleUpdateTripStatusById(t.id, 'CANCELLED');
+                                      }}
+                                    >
+                                      <span>Hủy chuyến</span>
+                                    </button>
+                                  )}
+
+                                  {t.status === 'DRAFT' && (
+                                    <button
+                                      type="button"
+                                      className="wh-dropdown-item wh-dropdown-item-danger"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setActiveDropdownOuterTripId(null);
+                                        handleRequestDeleteDraftTrip(t.id);
+                                      }}
+                                    >
+                                      <span>Xóa nháp</span>
+                                    </button>
+                                  )}
+                                </div>
+                              );
+                            })()}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+          {renderPaginationBar(tripPage, tripTotalPages, trips.length, setTripPage)}
         </div>
       </div>
 
