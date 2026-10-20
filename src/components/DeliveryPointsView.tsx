@@ -281,6 +281,15 @@ export default function DeliveryPointsView({
   // Bỏ chọn điểm giao khỏi đại lý đang chọn
   const handleDeselectPointFromDealer = async (item: AllDeliveryPointItem, assignedId: number) => {
     if (!selectedDealerId) return;
+    const assigned = points.find((p) => p.id === assignedId);
+    if (assigned && assigned.is_default) {
+      emitStatusToast({
+        title: 'Không thể bỏ chọn',
+        message: 'Điểm giao hàng mặc định của đại lý không thể xóa hoặc bỏ chọn. Vui lòng thiết lập điểm giao khác làm mặc định trước.',
+        type: 'warning',
+      });
+      return;
+    }
     setDeselectingPointId(item.id);
     try {
       await deleteDeliveryPointApi(token, selectedDealerId, assignedId);
@@ -509,6 +518,15 @@ export default function DeliveryPointsView({
   // Delete from dealer (only unlinks from dealer, does NOT remove from master list)
   const handleDelete = async () => {
     if (!deletingPoint) return;
+    if (deletingPoint.is_default) {
+      emitStatusToast({
+        title: 'Không thể xóa',
+        message: 'Điểm giao hàng mặc định của đại lý không thể xóa. Vui lòng thiết lập điểm giao khác làm mặc định trước khi xóa.',
+        type: 'warning',
+      });
+      setDeletingPoint(null);
+      return;
+    }
     const targetDealerId = deletingPoint.dealer_id || selectedDealerId;
     if (!targetDealerId) return;
     const targetPointId = deletingPoint.id;
@@ -2109,20 +2127,33 @@ export default function DeliveryPointsView({
 
                           <button
                             type="button"
-                            onClick={() => setDeletingPoint(p)}
+                            disabled={p.is_default}
+                            onClick={() => {
+                              if (p.is_default) {
+                                emitStatusToast({
+                                  title: 'Không thể xóa',
+                                  message: 'Điểm giao hàng mặc định của đại lý không thể xóa. Vui lòng thiết lập điểm giao khác làm mặc định trước khi xóa.',
+                                  type: 'warning',
+                                });
+                                return;
+                              }
+                              setDeletingPoint(p);
+                            }}
                             style={{
                               padding: '4px 10px',
                               borderRadius: '7px',
-                              background: '#fef2f2',
-                              border: '1px solid #fecaca',
-                              color: '#dc2626',
+                              background: p.is_default ? '#f1f5f9' : '#fef2f2',
+                              border: p.is_default ? '1px solid #e2e8f0' : '1px solid #fecaca',
+                              color: p.is_default ? '#94a3b8' : '#dc2626',
                               fontSize: '11.5px',
                               fontWeight: '600',
-                              cursor: 'pointer',
+                              cursor: p.is_default ? 'not-allowed' : 'pointer',
                               display: 'inline-flex',
                               alignItems: 'center',
                               gap: '4px',
+                              opacity: p.is_default ? 0.6 : 1,
                             }}
+                            title={p.is_default ? 'Không thể xóa điểm giao hàng mặc định của đại lý' : 'Xóa điểm giao'}
                           >
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                               <polyline points="3 6 5 6 21 6" />
@@ -2416,36 +2447,37 @@ export default function DeliveryPointsView({
                             {assignedPoint ? (
                               <button
                                 type="button"
-                                disabled={isDeselecting}
+                                disabled={isDeselecting || assignedPoint.is_default}
                                 onClick={() => handleDeselectPointFromDealer(item, assignedPoint.id)}
                                 style={{
                                   padding: '6px 16px',
                                   borderRadius: '8px',
-                                  background: '#fff1f2',
-                                  color: '#e11d48',
-                                  border: '1px solid #fecdd3',
+                                  background: assignedPoint.is_default ? '#f1f5f9' : '#fff1f2',
+                                  color: assignedPoint.is_default ? '#94a3b8' : '#e11d48',
+                                  border: assignedPoint.is_default ? '1px solid #e2e8f0' : '1px solid #fecdd3',
                                   fontSize: '12.5px',
                                   fontWeight: '600',
-                                  cursor: isDeselecting ? 'not-allowed' : 'pointer',
+                                  cursor: (isDeselecting || assignedPoint.is_default) ? 'not-allowed' : 'pointer',
                                   display: 'inline-flex',
                                   alignItems: 'center',
                                   gap: '5px',
                                   transition: 'all 0.15s ease',
                                   whiteSpace: 'nowrap',
+                                  opacity: assignedPoint.is_default ? 0.6 : 1,
                                 }}
                                 onMouseEnter={(e) => {
-                                  if (!isDeselecting) {
+                                  if (!isDeselecting && !assignedPoint.is_default) {
                                     e.currentTarget.style.backgroundColor = '#ffe4e6';
                                     e.currentTarget.style.borderColor = '#fda4af';
                                   }
                                 }}
                                 onMouseLeave={(e) => {
-                                  if (!isDeselecting) {
+                                  if (!isDeselecting && !assignedPoint.is_default) {
                                     e.currentTarget.style.backgroundColor = '#fff1f2';
                                     e.currentTarget.style.borderColor = '#fecdd3';
                                   }
                                 }}
-                                title="Bỏ điểm giao này khỏi đại lý"
+                                title={assignedPoint.is_default ? 'Điểm giao mặc định của đại lý không thể bỏ chọn' : 'Bỏ điểm giao này khỏi đại lý'}
                               >
                                 {isDeselecting ? (
                                   'Đang bỏ...'

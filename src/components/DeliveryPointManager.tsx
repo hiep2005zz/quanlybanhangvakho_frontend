@@ -118,7 +118,17 @@ export default function DeliveryPointManager({ token, dealerId, onChanged, onCre
                                     Đặt mặc định
                                 </button>
                             )}
-                            <button type="button" className="text-red-600" onClick={() => setDeletingPoint(p)}>Xóa</button>
+                            <button
+                                type="button"
+                                disabled={p.is_default}
+                                className={p.is_default ? "text-slate-400 cursor-not-allowed opacity-50" : "text-red-600 cursor-pointer"}
+                                title={p.is_default ? "Không thể xóa điểm giao mặc định của đại lý" : "Xóa"}
+                                onClick={() => {
+                                    if (!p.is_default) setDeletingPoint(p);
+                                }}
+                            >
+                                Xóa
+                            </button>
                         </div>
                     </li>
                 ))}

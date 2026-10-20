@@ -16,6 +16,7 @@ import {
 import { ModalPortal } from './ModalPortal';
 import { emitStatusToast } from './StatusToast';
 import { ProductSelectDropdown } from './ProductSelectDropdown';
+import { SupplierSelectDropdown } from './SupplierSelectDropdown';
 
 interface GoodsReceiptModalProps {
   isOpen: boolean;
@@ -154,10 +155,34 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
   isPage = false,
 }) => {
   // Tab điều hướng chính: 'form' (Lập / Xem chi tiết phiếu) hoặc 'list' (Danh sách phiếu)
-  const [activeTab, setActiveTab] = useState<'form' | 'list'>(initialSearchCode ? 'list' : initialTab);
-  const [listSearchQuery, setListSearchQuery] = useState(initialSearchCode || '');
+  const [activeTab, setActiveTab] = useState<'form' | 'list'>(() => {
+    try {
+      const stored = sessionStorage.getItem('goods_receipt_search_query');
+      if (stored) return 'list';
+    } catch { }
+    return initialSearchCode ? 'list' : initialTab;
+  });
+  const [listSearchQuery, setListSearchQuery] = useState(() => {
+    try {
+      const stored = sessionStorage.getItem('goods_receipt_search_query');
+      if (stored) {
+        sessionStorage.removeItem('goods_receipt_search_query');
+        return stored;
+      }
+    } catch { }
+    return initialSearchCode || '';
+  });
 
   useEffect(() => {
+    try {
+      const stored = sessionStorage.getItem('goods_receipt_search_query');
+      if (stored) {
+        sessionStorage.removeItem('goods_receipt_search_query');
+        setActiveTab('list');
+        setListSearchQuery(stored);
+        return;
+      }
+    } catch { }
     if (isOpen) {
       if (initialSearchCode) {
         setActiveTab('list');
@@ -205,9 +230,10 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
         const q = listSearchQuery.trim().toLowerCase();
         const codeMatch = (rc.code || '').toLowerCase().includes(q);
         const suppMatch = (rc.supplier_name || '').toLowerCase().includes(q);
+        const suppCodeMatch = (rc.supplier_code || '').toLowerCase().includes(q);
         const whMatch = (rc.warehouse_name || '').toLowerCase().includes(q);
         const refMatch = (rc.reference_number || '').toLowerCase().includes(q);
-        if (!codeMatch && !suppMatch && !whMatch && !refMatch) return false;
+        if (!codeMatch && !suppMatch && !suppCodeMatch && !whMatch && !refMatch) return false;
       }
       return true;
     });
@@ -1816,11 +1842,15 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
                   <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '600', color: '#334155', marginBottom: '6px' }}>
                     Nhà cung cấp <span style={{ color: '#ef4444' }}>*</span>
                   </label>
-                  <select
-                    value={supplierId}
-                    onChange={(e) => {
+                  <SupplierSelectDropdown
+                    suppliers={suppliers}
+                    selectedSupplierId={supplierId}
+                    disabled={isConfirmed || isLoadingMeta}
+                    hasError={Boolean(fieldErrors['supplier_id'])}
+                    placeholder="-- Chọn nhà cung cấp --"
+                    onSelectSupplier={(s) => {
                       if (isConfirmed) return;
-                      setSupplierId(Number(e.target.value) || '');
+                      setSupplierId(s ? s.id : '');
                       if (fieldErrors['supplier_id']) {
                         setFieldErrors((prev) => {
                           const copy = { ...prev };
@@ -1829,26 +1859,36 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
                         });
                       }
                     }}
-                    disabled={isConfirmed || isLoadingMeta}
-                    style={{
-                      width: '100%',
-                      padding: '8px 10px',
-                      borderRadius: '7px',
-                      border: fieldErrors['supplier_id'] ? '1.5px solid #ef4444' : '1px solid #cbd5e1',
-                      background: isConfirmed ? '#f1f5f9' : fieldErrors['supplier_id'] ? '#fef2f2' : '#ffffff',
-                      fontSize: '13px',
-                      color: '#0f172a',
-                      cursor: isConfirmed ? 'not-allowed' : 'pointer',
-                      outline: 'none',
-                    }}
-                  >
-                    <option value="">-- Chọn nhà cung cấp --</option>
-                    {suppliers.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        [{s.code}] {s.name}
-                      </option>
-                    ))}
-                  </select>
+                  />
+                  {(() => {
+                    const selectedSupplier = suppliers.find((s) => s.id === supplierId);
+                    if (!selectedSupplier) return null;
+                    return (
+                      <div
+                        style={{
+                          marginTop: '8px',
+                          padding: '7px 10px',
+                          borderRadius: '8px',
+                          background: '#f0fdf4',
+                          border: '1px solid #bbf7d0',
+                          fontSize: '11.5px',
+                          color: '#166534',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '3px',
+                          boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
+                        }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' }}>
+                          <span>MST: <strong>{selectedSupplier.tax_code || 'Chưa cập nhật'}</strong></span>
+                          <span>Người liên hệ: <strong>{selectedSupplier.contact_person || 'Chưa cập nhật'}</strong></span>
+                        </div>
+                        <div style={{ borderTop: '1px dashed #bbf7d0', paddingTop: '3px', marginTop: '1px' }}>
+                          <span>Điều khoản TT: <strong style={{ color: '#15803d' }}>{selectedSupplier.payment_terms || 'Thanh toán thông thường'}</strong></span>
+                        </div>
+                      </div>
+                    );
+                  })()}
                   {fieldErrors['supplier_id'] && (
                     <div style={{ fontSize: '11px', color: '#dc2626', marginTop: '4px', fontWeight: '500' }}>
                       {fieldErrors['supplier_id']}
