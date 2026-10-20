@@ -248,9 +248,8 @@ export default function DashboardPage({
     officialRoles.includes('warehouse_mgr')
   );
 
-  // Quyền truy cập Báo cáo Tồn kho & Vòng quay hàng hóa: CHỈ Quản lý kho và Quản trị hệ thống (admin). Ẩn hoàn toàn với các vai trò khác.
-    // Quyen xuat hoa don ban hang tu phieu giao hang: Cho phep tat ca nhan vien noi bo
-  const canAccessSalesInvoices = !isCustomer;
+  // Quyền xuất hóa đơn bán hàng từ phiếu giao hàng: Quản trị viên, Kế toán, Quản lý kinh doanh
+  const canAccessSalesInvoices = !isCustomer && Boolean(isAdmin || isAccountant || isSalesManager);
 
   const canAccessStockCard = Boolean(
     isAdmin ||
@@ -1085,8 +1084,8 @@ const canAccessInventoryTurnover = Boolean(
                   : activeTab === 'product-history' ? (isAdmin || isSalesManager || canWriteInventory)
                     : activeTab === 'stock-audits' ? canAccessStockAudit
                       : activeTab === 'stock-adjustments' ? canAccessStockAdjustments
-                      : activeTab === 'delivery-trips' ? (canAccessWarehouses || canWriteInventory || isAdmin)
-                      : activeTab === 'warehouse-dispatch' ? (canAccessWarehouses || canWriteInventory || isAdmin)
+                      : activeTab === 'delivery-trips' ? (canWriteInventory || isWarehouseOrAdmin || isAdmin)
+                      : activeTab === 'warehouse-dispatch' ? (canWriteInventory || isWarehouseOrAdmin || isAdmin)
                       : activeTab === 'sales-invoices' ? canAccessSalesInvoices
     : activeTab === 'return-orders' ? (!isCustomer)
     : activeTab === 'stock-card' ? canAccessStockCard
@@ -2836,7 +2835,7 @@ const canAccessInventoryTurnover = Boolean(
             />
           )
                 ) : activeTab === 'warehouse-dispatch' ? (
-          canAccessWarehouses || canWriteInventory || isAdmin ? (
+          canWriteInventory || isWarehouseOrAdmin || isAdmin ? (
             <WarehouseDispatchView
               token={token}
               currentUser={user}
@@ -2855,7 +2854,7 @@ const canAccessInventoryTurnover = Boolean(
             />
           )
         ) : activeTab === 'delivery-trips' ? (
-          canAccessWarehouses || canWriteInventory || isAdmin ? (
+          canWriteInventory || isWarehouseOrAdmin || isAdmin ? (
             <DeliveryTripsView
               token={token}
               currentUser={user}

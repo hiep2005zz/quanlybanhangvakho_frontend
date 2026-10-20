@@ -108,9 +108,9 @@ const FilterCombobox: React.FC<FilterComboboxProps> = ({
               setIsOpen(false);
             }
           }}
-          className="w-full h-8 pl-2.5 pr-11 text-xs rounded-md border border-slate-300 bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 transition-colors placeholder:text-slate-400 text-slate-800"
+          className={`w-full h-8 pl-2 ${value ? 'pr-7' : 'pr-5'} text-xs rounded-md border border-slate-300 bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 transition-colors placeholder:text-slate-400 text-slate-800`}
         />
-        <div className="absolute right-1.5 flex items-center gap-0.5 text-slate-400">
+        <div className="absolute right-1 flex items-center gap-0.5 text-slate-400">
           {value && (
             <button
               type="button"
@@ -725,7 +725,7 @@ export const SalesInvoiceFromDeliveriesView: React.FC<SalesInvoiceFromDeliveries
   };
 
   return (
-    <div className="sales-invoice-view min-h-screen bg-slate-50 flex flex-col p-3 sm:p-4 md:p-5 text-slate-800">
+    <div className="sales-invoice-view min-h-full bg-slate-50 flex flex-col p-3 sm:p-4 md:p-5 text-slate-800">
       {/* Toast Host: Đặt ở góc dưới bên phải màn hình không bị thanh menu che khuất */}
       {toastMessage && (
         <div
@@ -830,7 +830,7 @@ export const SalesInvoiceFromDeliveriesView: React.FC<SalesInvoiceFromDeliveries
               {/* Cột 2: Trạng thái & Hóa đơn */}
               <div className="p-4 sm:p-5 space-y-2.5 text-xs">
                 <h3 className="text-xs font-bold text-slate-700 pb-2 border-b border-slate-100 flex items-center gap-2 m-0">
-                  <span>🧾</span> Trạng thái & hóa đơn bán hàng
+                  Trạng thái & hóa đơn bán hàng
                 </h3>
                 <div className="flex justify-between items-center py-1 border-b border-slate-50">
                   <span className="text-slate-500">Trạng thái giao:</span>
@@ -858,7 +858,6 @@ export const SalesInvoiceFromDeliveriesView: React.FC<SalesInvoiceFromDeliveries
                       title="Bấm để xem chi tiết hóa đơn bán hàng"
                     >
                       <span>{viewingDispatch.invoice_info.invoice_code}</span>
-                      <span className="text-[10px]">↗</span>
                     </button>
                   </div>
                 )}
@@ -1163,7 +1162,7 @@ export const SalesInvoiceFromDeliveriesView: React.FC<SalesInvoiceFromDeliveries
               MÀN HÌNH CHÍNH: DANH SÁCH XUẤT HÓA ĐƠN BÁN HÀNG
               ========================================================================= */}
           {/* 1. KHUNG GỘP TIÊU ĐỀ, THỐNG KÊ, TABS & BỘ LỌC TÌM KIẾM */}
-          <div className="bg-white rounded-xl shadow-xs border border-slate-200 p-3.5 mb-3 space-y-3">
+          <div className="bg-white rounded-xl shadow-xs border border-slate-200 p-3 mb-2.5 space-y-2.5">
         {/* Hàng trên: Tiêu đề bên trái & 3 Thẻ thống kê bên phải */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
           <div>
@@ -1173,28 +1172,28 @@ export const SalesInvoiceFromDeliveriesView: React.FC<SalesInvoiceFromDeliveries
           </div>
 
           {/* 4 Thẻ thống kê nhanh */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 md:min-w-[560px]">
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-2.5 flex flex-col justify-center">
-              <span className="text-[10.5px] font-semibold text-amber-700 uppercase tracking-wide">Chờ xuất HĐ</span>
-              <div className="text-lg font-bold text-amber-900 mt-0.5">
-                {quickStats.total_pending_invoices.toLocaleString()} <span className="text-xs font-normal">phiếu</span>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-1.5 md:min-w-[500px]">
+            <div className="bg-amber-50 border border-amber-200 rounded-lg py-1.5 px-2 flex flex-col justify-center">
+              <span className="text-[10px] font-semibold text-amber-700 uppercase tracking-wide">Chờ xuất HĐ</span>
+              <div className="text-base font-bold text-amber-900 mt-0.5">
+                {quickStats.total_pending_invoices.toLocaleString()} <span className="text-[11px] font-normal">phiếu</span>
               </div>
             </div>
-            <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-2.5 flex flex-col justify-center">
-              <span className="text-[10.5px] font-semibold text-emerald-700 uppercase tracking-wide">Đã xuất HĐ</span>
-              <div className="text-lg font-bold text-emerald-900 mt-0.5">
-                {quickStats.total_issued_invoices.toLocaleString()} <span className="text-xs font-normal">phiếu</span>
+            <div className="bg-emerald-50 border border-emerald-200 rounded-lg py-1.5 px-2 flex flex-col justify-center">
+              <span className="text-[10px] font-semibold text-emerald-700 uppercase tracking-wide">Đã xuất HĐ</span>
+              <div className="text-base font-bold text-emerald-900 mt-0.5">
+                {quickStats.total_issued_invoices.toLocaleString()} <span className="text-[11px] font-normal">phiếu</span>
               </div>
             </div>
-            <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-2.5 flex flex-col justify-center">
-              <span className="text-[10.5px] font-semibold text-indigo-700 uppercase tracking-wide">Chứng từ điều chỉnh</span>
-              <div className="text-lg font-bold text-indigo-900 mt-0.5">
-                {(quickStats.total_adjustments || 0).toLocaleString()} <span className="text-xs font-normal">chứng từ</span>
+            <div className="bg-indigo-50 border border-indigo-200 rounded-lg py-1.5 px-2 flex flex-col justify-center">
+              <span className="text-[10px] font-semibold text-indigo-700 uppercase tracking-wide">Chứng từ điều chỉnh</span>
+              <div className="text-base font-bold text-indigo-900 mt-0.5">
+                {(quickStats.total_adjustments || 0).toLocaleString()} <span className="text-[11px] font-normal">chứng từ</span>
               </div>
             </div>
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-2.5 flex flex-col justify-center">
-              <span className="text-[10.5px] font-semibold text-blue-700 uppercase tracking-wide">Tổng tiền dự kiến</span>
-              <div className="text-sm font-bold text-blue-900 mt-0.5 truncate" title={formatVND(quickStats.total_pending_amount)}>
+            <div className="bg-blue-50 border border-blue-200 rounded-lg py-1.5 px-2 flex flex-col justify-center">
+              <span className="text-[10px] font-semibold text-blue-700 uppercase tracking-wide">Tổng tiền dự kiến</span>
+              <div className="text-xs sm:text-sm font-bold text-blue-900 mt-0.5 truncate" title={formatVND(quickStats.total_pending_amount)}>
                 {formatVND(quickStats.total_pending_amount)}
               </div>
             </div>
@@ -1225,11 +1224,8 @@ export const SalesInvoiceFromDeliveriesView: React.FC<SalesInvoiceFromDeliveries
                   fetchDispatches();
                 }
               }}
-              className="w-full h-8 pl-8 pr-8 text-xs rounded-md border border-slate-300 bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 transition-colors text-slate-800 placeholder:text-slate-400"
+              className="w-full h-8 px-2.5 pr-7 text-xs rounded-md border border-slate-300 bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 transition-colors text-slate-800 placeholder:text-slate-400"
             />
-            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs pointer-events-none">
-              🔍
-            </span>
             {quickSearchText && (
               <button
                 type="button"
@@ -1237,7 +1233,7 @@ export const SalesInvoiceFromDeliveriesView: React.FC<SalesInvoiceFromDeliveries
                   setQuickSearchText('');
                   setCurrentPage(1);
                 }}
-                className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 flex items-center justify-center text-[11px] text-slate-400 hover:text-slate-600 bg-transparent border-0 cursor-pointer"
+                className="absolute right-1.5 top-1/2 -translate-y-1/2 w-4 h-4 flex items-center justify-center text-[11px] text-slate-400 hover:text-slate-600 bg-transparent border-0 cursor-pointer"
                 title="Xóa tìm kiếm"
               >
                 ✕
@@ -1247,7 +1243,7 @@ export const SalesInvoiceFromDeliveriesView: React.FC<SalesInvoiceFromDeliveries
         </div>
 
         {/* Bộ lọc lưới 4x2 chi tiết, mỗi combobox hiển thị chuẩn 5 đơn/lượt cuộn */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 items-end pt-2 border-t border-slate-100">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 items-end pt-2 border-t border-slate-100">
           {/* Cột 1: Mã phiếu giao hoặc Mã chứng từ điều chỉnh */}
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1">
@@ -1313,7 +1309,7 @@ export const SalesInvoiceFromDeliveriesView: React.FC<SalesInvoiceFromDeliveries
               <select
                 value={adjustmentTypeFilter}
                 onChange={(e) => setAdjustmentTypeFilter(e.target.value)}
-                className="w-full h-8 px-2.5 text-xs rounded-md border border-slate-300 bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 cursor-pointer transition-colors text-slate-800"
+                className="w-full h-8 px-2 text-xs rounded-md border border-slate-300 bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 cursor-pointer transition-colors text-slate-800"
               >
                 <option value="">Tất cả loại điều chỉnh</option>
                 <option value="INCREASE">Điều chỉnh tăng (+)</option>
@@ -1324,7 +1320,7 @@ export const SalesInvoiceFromDeliveriesView: React.FC<SalesInvoiceFromDeliveries
               <select
                 value={deliveryStatusFilter}
                 onChange={(e) => setDeliveryStatusFilter(e.target.value)}
-                className="w-full h-8 px-2.5 text-xs rounded-md border border-slate-300 bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 cursor-pointer transition-colors text-slate-800"
+                className="w-full h-8 px-2 text-xs rounded-md border border-slate-300 bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 cursor-pointer transition-colors text-slate-800"
               >
                 <option value="">Tất cả trạng thái</option>
                 <option value="DELIVERED">Đã giao thành công</option>
@@ -1341,7 +1337,7 @@ export const SalesInvoiceFromDeliveriesView: React.FC<SalesInvoiceFromDeliveries
               type="date"
               value={fromDateFilter}
               onChange={(e) => setFromDateFilter(e.target.value)}
-              className="w-full h-8 px-2.5 text-xs rounded-md border border-slate-300 bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 transition-colors text-slate-700"
+              className="w-full h-8 px-2 text-xs rounded-md border border-slate-300 bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 transition-colors text-slate-700"
             />
           </div>
 
@@ -1352,7 +1348,7 @@ export const SalesInvoiceFromDeliveriesView: React.FC<SalesInvoiceFromDeliveries
               type="date"
               value={toDateFilter}
               onChange={(e) => setToDateFilter(e.target.value)}
-              className="w-full h-8 px-2.5 text-xs rounded-md border border-slate-300 bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 transition-colors text-slate-700"
+              className="w-full h-8 px-2 text-xs rounded-md border border-slate-300 bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 transition-colors text-slate-700"
             />
           </div>
 
@@ -1385,9 +1381,9 @@ export const SalesInvoiceFromDeliveriesView: React.FC<SalesInvoiceFromDeliveries
 
         {/* Thanh ngang gộp đặt bên trong ô tìm kiếm với màu nền sáng trang nhã, chiều cao h-7 */}
         {activeTab === 'ADJUSTMENTS' ? (
-          <div className="bg-amber-50/80 border border-amber-200/90 rounded py-1.5 px-2.5 flex flex-wrap items-center justify-between gap-2 text-amber-900 text-xs">
+          <div className="bg-amber-50/80 border border-amber-200/90 rounded py-1 px-2 flex flex-wrap items-center justify-between gap-1.5 text-amber-900 text-xs">
             <div className="flex items-center gap-2">
-              <span className="font-bold uppercase tracking-wider text-[11px] bg-amber-200 text-amber-900 px-2 py-0.5 rounded">
+              <span className="font-bold uppercase tracking-wider text-[11px] bg-amber-200 text-amber-900 px-1.5 py-0.5 rounded">
                 Sổ Lưu Vết Kế Toán
               </span>
               <span className="text-slate-700 font-medium">
@@ -1399,7 +1395,7 @@ export const SalesInvoiceFromDeliveriesView: React.FC<SalesInvoiceFromDeliveries
             </div>
           </div>
         ) : (
-          <div className="bg-slate-50/90 border border-slate-200/90 rounded py-1.5 px-2.5 flex flex-wrap items-center justify-between gap-2 text-slate-800">
+          <div className="bg-slate-50/90 border border-slate-200/90 rounded py-1 px-2 flex flex-wrap items-center justify-between gap-1.5 text-slate-800">
             <div className="flex items-center gap-2">
               <label className="flex items-center gap-1.5 cursor-pointer select-none">
                 <input
@@ -1511,11 +1507,11 @@ export const SalesInvoiceFromDeliveriesView: React.FC<SalesInvoiceFromDeliveries
       </div>
 
       {/* 5. Bảng danh sách phiếu giao hàng */}
-      <div className="bg-white rounded-xl shadow-xs border border-slate-200 overflow-hidden">
-        <div className="overflow-x-auto w-full">
+      <div className="bg-white rounded-xl shadow-xs border border-slate-200 overflow-hidden flex flex-col">
+        <div className="overflow-x-auto overflow-y-auto w-full max-h-[520px] min-h-[300px]">
           <table className="w-full text-left text-xs border-collapse">
-            <thead>
-              <tr className="bg-slate-100/90 text-slate-600 font-semibold uppercase text-[11px] border-b border-slate-200 tracking-wider">
+            <thead className="sticky top-0 z-10 bg-slate-100 shadow-xs">
+              <tr className="bg-slate-100/95 text-slate-700 font-semibold uppercase text-[11px] border-b border-slate-200 tracking-wider">
                 {activeTab === 'ADJUSTMENTS' ? (
                   <>
                     <th className="px-3 py-2.5 whitespace-nowrap">Mã điều chỉnh</th>
@@ -1534,7 +1530,7 @@ export const SalesInvoiceFromDeliveriesView: React.FC<SalesInvoiceFromDeliveries
                     <th className="px-3 py-2.5">Đại lý / Kho xuất</th>
                     <th className="px-3 py-2.5 whitespace-nowrap">Ngày giao</th>
                     <th className="px-3 py-2.5 whitespace-nowrap text-center">Trạng thái giao</th>
-                    <th className="px-3 py-2.5 whitespace-nowrap text-right">SL thực (Mặt hàng)</th>
+                    <th className="px-3 py-2.5 whitespace-nowrap text-left">Sản phẩm thực giao (SL)</th>
                     <th className="px-3 py-2.5 whitespace-nowrap text-right">Tổng tiền dự kiến</th>
                     <th className="px-3 py-2.5 whitespace-nowrap text-center">Hóa đơn & Thao tác</th>
                   </>
@@ -1574,7 +1570,6 @@ export const SalesInvoiceFromDeliveriesView: React.FC<SalesInvoiceFromDeliveries
                           title="Bấm để mở xem hóa đơn gốc"
                         >
                           <span>{adj.invoice_code}</span>
-                          <span className="text-[10px] text-blue-400">↗</span>
                         </button>
                       </td>
                       <td className="px-3 py-2.5 min-w-[180px]">
@@ -1684,13 +1679,33 @@ export const SalesInvoiceFromDeliveriesView: React.FC<SalesInvoiceFromDeliveries
                           </span>
                         )}
                       </td>
-                      <td className="px-2.5 py-2 text-right whitespace-nowrap">
-                        <div className="font-bold text-slate-900 text-[11px]">
-                          {d.total_delivered_quantity.toLocaleString()}
+                      <td className="px-3 py-2 text-left min-w-[220px]">
+                        <div className="flex items-center justify-between gap-1 mb-1">
+                          <span className="font-bold text-slate-900 text-[11.5px]">
+                            {d.total_delivered_quantity.toLocaleString()} SP
+                          </span>
+                          <span className="text-slate-500 text-[10px] font-medium">
+                            ({d.items_count} mặt hàng)
+                          </span>
                         </div>
-                        <div className="text-slate-400 text-[10px]">
-                          {d.items_count} mặt hàng
-                        </div>
+                        {d.items && d.items.length > 0 ? (
+                          <div className="max-h-20 overflow-y-auto space-y-0.5 pr-1 text-[10.5px]">
+                            {d.items.map((prod, pIdx) => (
+                              <div
+                                key={pIdx}
+                                className="text-slate-700 truncate"
+                                title={`${prod.product_name} (${prod.product_code}) - SL: ${prod.delivered_quantity} ${prod.unit_name || ''}`}
+                              >
+                                • <span className="font-medium text-slate-800">{prod.product_name}</span>{' '}
+                                <span className="text-slate-500">x{prod.delivered_quantity} {prod.unit_name || ''}</span>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-[10px] text-slate-400">
+                            {d.items_count} mặt hàng
+                          </div>
+                        )}
                       </td>
                       <td className="px-2.5 py-2 text-right font-bold text-slate-900 text-[11px] whitespace-nowrap">
                         {formatVND(d.total_amount)}
