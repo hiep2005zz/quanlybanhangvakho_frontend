@@ -322,6 +322,7 @@ export const SalesInvoiceFromDeliveriesView: React.FC<SalesInvoiceFromDeliveries
 
   // State menu 3 chấm thao tác từng dòng
   const [activeDropdownRowId, setActiveDropdownRowId] = useState<number | string | null>(null);
+  const [dropdownOpenUpwardMap, setDropdownOpenUpwardMap] = useState<Record<string | number, boolean>>({});
 
   useEffect(() => {
     const handleGlobalClick = (e: MouseEvent) => {
@@ -627,7 +628,7 @@ export const SalesInvoiceFromDeliveriesView: React.FC<SalesInvoiceFromDeliveries
     totalItems: number,
     onPageChange: (page: number) => void
   ) => {
-    if (totalItems <= pageSize && totalPages <= 1) return null;
+    if (totalItems <= 0) return null;
 
     let pageList: (number | string)[] = [];
     if (totalPages <= 5) {
@@ -1530,59 +1531,59 @@ export const SalesInvoiceFromDeliveriesView: React.FC<SalesInvoiceFromDeliveries
             </div>
           </div>
         )}
-      </div>
 
-      {/* Tabs chuyển trạng thái đặt ngay bên dưới ô tiêu đề và tìm kiếm */}
-      <div className="flex items-center gap-2 mb-3">
-        <button
-          type="button"
-          onClick={() => {
-            setActiveTab('PENDING');
-            setCurrentPage(1);
-          }}
-          className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-            activeTab === 'PENDING'
-              ? 'bg-emerald-600 text-white shadow-xs border border-emerald-600'
-              : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-300'
-          }`}
-        >
-          Chờ xuất hóa đơn ({quickStats.total_pending_invoices})
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            setActiveTab('INVOICED');
-            setCurrentPage(1);
-          }}
-          className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-            activeTab === 'INVOICED'
-              ? 'bg-emerald-600 text-white shadow-xs border border-emerald-600'
-              : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-300'
-          }`}
-        >
-          Đã xuất hóa đơn ({quickStats.total_issued_invoices})
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            setActiveTab('ADJUSTMENTS');
-            setCurrentPage(1);
-          }}
-          className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-            activeTab === 'ADJUSTMENTS'
-              ? 'bg-emerald-600 text-white shadow-xs border border-emerald-600'
-              : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-300'
-          }`}
-        >
-          Lịch sử chứng từ điều chỉnh ({quickStats.total_adjustments || 0})
-        </button>
+        {/* 3 nút chuyển trạng thái đặt bên dưới cùng ô bên trên */}
+        <div className="pt-2.5 border-t border-slate-100 flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab('PENDING');
+              setCurrentPage(1);
+            }}
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+              activeTab === 'PENDING'
+                ? 'bg-emerald-600 text-white shadow-xs border border-emerald-600'
+                : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-300'
+            }`}
+          >
+            Chờ xuất hóa đơn ({quickStats.total_pending_invoices})
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab('INVOICED');
+              setCurrentPage(1);
+            }}
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+              activeTab === 'INVOICED'
+                ? 'bg-emerald-600 text-white shadow-xs border border-emerald-600'
+                : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-300'
+            }`}
+          >
+            Đã xuất hóa đơn ({quickStats.total_issued_invoices})
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab('ADJUSTMENTS');
+              setCurrentPage(1);
+            }}
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+              activeTab === 'ADJUSTMENTS'
+                ? 'bg-emerald-600 text-white shadow-xs border border-emerald-600'
+                : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-300'
+            }`}
+          >
+            Lịch sử chứng từ điều chỉnh ({quickStats.total_adjustments || 0})
+          </button>
+        </div>
       </div>
 
       {/* 5. Bảng danh sách phiếu giao hàng */}
-      <div className="bg-white rounded-xl shadow-xs border border-slate-200 overflow-hidden flex flex-col">
-        <div className="overflow-x-auto overflow-y-auto w-full max-h-[520px] min-h-[300px]">
+      <div className="bg-white rounded-xl shadow-xs border border-slate-200 flex flex-col" style={{ overflow: 'visible' }}>
+        <div className="overflow-x-auto w-full" style={{ minHeight: '260px', overflowY: 'visible' }}>
           <table className="w-full text-left text-xs border-collapse">
-            <thead className="sticky top-0 z-10 bg-slate-100 shadow-xs">
+            <thead className="bg-slate-100 shadow-xs">
               <tr className="bg-slate-100/95 text-slate-700 font-semibold uppercase text-[11px] border-b border-slate-200 tracking-wider">
                 {activeTab === 'ADJUSTMENTS' ? (
                   <>
@@ -1627,8 +1628,7 @@ export const SalesInvoiceFromDeliveriesView: React.FC<SalesInvoiceFromDeliveries
                     </td>
                   </tr>
                 ) : (
-                  adjustmentsList.map((adj, idx) => {
-                    const openUpward = idx > 0 && (idx >= adjustmentsList.length - 1 || (adjustmentsList.length >= 4 && idx >= adjustmentsList.length - 2));
+                  adjustmentsList.map((adj) => {
                     return (
                     <tr key={adj.id} className="hover:bg-amber-50/30 transition-colors" style={{ position: 'relative', zIndex: activeDropdownRowId === adj.id ? 50 : 1 }}>
                       <td className="px-3 py-2.5 whitespace-nowrap">
@@ -1673,6 +1673,10 @@ export const SalesInvoiceFromDeliveriesView: React.FC<SalesInvoiceFromDeliveries
                             className={`wh-action-dots-btn ${activeDropdownRowId === adj.id ? 'active' : ''}`}
                             onClick={(e) => {
                               e.stopPropagation();
+                              const rect = e.currentTarget.getBoundingClientRect();
+                              const spaceBelow = window.innerHeight - rect.bottom;
+                              const shouldOpenUp = spaceBelow < 190;
+                              setDropdownOpenUpwardMap((prev) => ({ ...prev, [adj.id]: shouldOpenUp }));
                               setActiveDropdownRowId((prev) => (prev === adj.id ? null : adj.id));
                             }}
                             title="Tùy chọn thao tác"
@@ -1685,7 +1689,7 @@ export const SalesInvoiceFromDeliveriesView: React.FC<SalesInvoiceFromDeliveries
                           </button>
 
                           {activeDropdownRowId === adj.id && (
-                            <div className={`wh-dropdown-menu ${openUpward ? 'open-up' : 'open-down'}`} style={{ minWidth: '145px' }}>
+                            <div className={`wh-dropdown-menu ${dropdownOpenUpwardMap[adj.id] ? 'open-up' : 'open-down'}`} style={{ minWidth: '145px' }}>
                               <button
                                 type="button"
                                 className="wh-dropdown-item wh-dropdown-item-primary"
@@ -1733,7 +1737,7 @@ export const SalesInvoiceFromDeliveriesView: React.FC<SalesInvoiceFromDeliveries
                   </td>
                 </tr>
               ) : (
-                dispatches.map((d, idx) => {
+                dispatches.map((d) => {
                   const isChecked = selectedIds.includes(d.dispatch_id);
                   const canCheck = d.is_eligible;
 
@@ -1830,6 +1834,10 @@ export const SalesInvoiceFromDeliveriesView: React.FC<SalesInvoiceFromDeliveries
                             className={`wh-action-dots-btn ${activeDropdownRowId === d.dispatch_id ? 'active' : ''}`}
                             onClick={(e) => {
                               e.stopPropagation();
+                              const rect = e.currentTarget.getBoundingClientRect();
+                              const spaceBelow = window.innerHeight - rect.bottom;
+                              const shouldOpenUp = spaceBelow < 190;
+                              setDropdownOpenUpwardMap((prev) => ({ ...prev, [d.dispatch_id]: shouldOpenUp }));
                               setActiveDropdownRowId((prev) => (prev === d.dispatch_id ? null : d.dispatch_id));
                             }}
                             title="Tùy chọn thao tác"
@@ -1842,7 +1850,7 @@ export const SalesInvoiceFromDeliveriesView: React.FC<SalesInvoiceFromDeliveries
                           </button>
 
                           {activeDropdownRowId === d.dispatch_id && (() => {
-                            const openUpward = idx > 0 && (idx >= dispatches.length - 1 || (dispatches.length >= 4 && idx >= dispatches.length - 2));
+                            const openUpward = !!dropdownOpenUpwardMap[d.dispatch_id];
                             return (
                               <div className={`wh-dropdown-menu ${openUpward ? 'open-up' : 'open-down'}`} style={{ minWidth: '145px' }}>
                                 <button

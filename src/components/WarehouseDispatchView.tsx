@@ -1284,17 +1284,71 @@ export const WarehouseDispatchView: React.FC<WarehouseDispatchViewProps> = ({
           </span>
         </div>
 
-        {/* Thanh Tabs & Ô tìm kiếm + Làm mới (Nằm ngang cạnh nhau bên dưới tiêu đề) */}
+        {/* Thanh Tìm kiếm & Làm mới (Bên dưới tiêu đề và bên trên chờ xác nhận) */}
         <div
           style={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
+            gap: '8px',
+            padding: '10px 16px',
+            background: '#ffffff',
+            borderBottom: '1px solid #f1f5f9',
+            flexShrink: 0,
+          }}
+        >
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Tìm theo mã đơn, mã phiếu, khách hàng..."
+            style={{
+              width: '320px',
+              height: '34px',
+              padding: '0 12px',
+              borderRadius: '6px',
+              border: '1px solid #cbd5e1',
+              fontSize: '12.5px',
+              outline: 'none',
+              color: '#0f172a',
+              boxSizing: 'border-box',
+              background: '#ffffff',
+            }}
+          />
+          <button
+            type="button"
+            onClick={loadData}
+            disabled={isLoading}
+            style={{
+              height: '34px',
+              padding: '0 14px',
+              background: '#ffffff',
+              border: '1px solid #cbd5e1',
+              borderRadius: '6px',
+              fontSize: '12.5px',
+              fontWeight: '600',
+              color: '#334155',
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxSizing: 'border-box',
+            }}
+          >
+            {isLoading ? 'Đang tải...' : 'Làm mới'}
+          </button>
+        </div>
+
+        {/* Thanh Tabs (Chờ xác nhận xuất kho, Chờ giao bổ sung, Lịch sử xuất kho) */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
             borderBottom: '1px solid #e2e8f0',
             background: '#f8fafc',
             padding: '0 14px',
             flexShrink: 0,
-            gap: '12px',
           }}
         >
           <div style={{ display: 'flex' }}>
@@ -1350,50 +1404,6 @@ export const WarehouseDispatchView: React.FC<WarehouseDispatchViewProps> = ({
               }}
             >
               Lịch sử xuất kho ({allDispatches.length})
-            </button>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 0', flexShrink: 0 }}>
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Tìm theo mã đơn, mã phiếu, khách hàng..."
-              style={{
-                width: '300px',
-                height: '32px',
-                padding: '0 12px',
-                borderRadius: '6px',
-                border: '1px solid #cbd5e1',
-                fontSize: '12px',
-                outline: 'none',
-                color: '#0f172a',
-                boxSizing: 'border-box',
-                background: '#ffffff',
-              }}
-            />
-            <button
-              type="button"
-              onClick={loadData}
-              disabled={isLoading}
-              style={{
-                height: '32px',
-                padding: '0 12px',
-                background: '#ffffff',
-                border: '1px solid #cbd5e1',
-                borderRadius: '6px',
-                fontSize: '12px',
-                fontWeight: '600',
-                color: '#334155',
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                boxSizing: 'border-box',
-              }}
-            >
-              {isLoading ? 'Đang tải...' : 'Làm mới'}
             </button>
           </div>
         </div>
