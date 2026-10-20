@@ -186,36 +186,21 @@ export const PriceBookDetailPage: React.FC<PriceBookDetailPageProps> = ({
       {/* 1. Header Trang Độc Lập - Full Width */}
       <div className="sticky top-0 z-20 bg-white border-b border-slate-200 px-4 sm:px-8 py-3.5 shadow-2xs">
         <div className="w-full flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3 flex-wrap">
-            <button
-              type="button"
-              onClick={handleBack}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs sm:text-sm font-semibold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-lg transition-colors cursor-pointer"
-              title="Quay lại danh sách bảng giá"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="m15 18-6-6 6-6" />
-              </svg>
-              <span>Quay lại</span>
-            </button>
-
-            <div>
-              <div className="flex items-center gap-2.5 flex-wrap">
-                <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
-                  {book.name}
-                </h1>
-                <span className="font-mono bg-slate-100 text-slate-800 text-xs sm:text-sm px-2.5 py-0.5 rounded-md border border-slate-200 font-bold">
-                  {book.code}
-                </span>
-                <span className="text-xs font-bold px-2.5 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200">
-                  Phiên bản {book.version || 1}
-                </span>
-                {renderStatusBadge(book)}
-              </div>
-            </div>
+          {/* Tiêu đề & Thông tin bảng giá - Bên trái */}
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+              {book.name}
+            </h1>
+            <span className="font-mono bg-slate-100 text-slate-800 text-xs sm:text-sm px-2.5 py-0.5 rounded-md border border-slate-200 font-bold">
+              {book.code}
+            </span>
+            <span className="text-xs font-bold px-2.5 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200">
+              Phiên bản {book.version || 1}
+            </span>
+            {renderStatusBadge(book)}
           </div>
 
-          {/* Action buttons */}
+          {/* Action buttons & Nút Quay lại - Bên phải */}
           <div className="flex items-center gap-2.5 flex-wrap">
             {canManagePriceBooks && (
               <>
@@ -231,7 +216,7 @@ export const PriceBookDetailPage: React.FC<PriceBookDetailPageProps> = ({
                 ) : (
                   <Link
                     to={`/price-books/${book.id}/edit`}
-                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs sm:text-sm rounded-xl shadow-xs transition-colors cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#0fad89] hover:bg-[#0c9576] text-white font-bold text-xs sm:text-sm rounded-xl shadow-xs transition-colors cursor-pointer"
                     title="Chỉnh sửa bảng giá này trên trang riêng"
                   >
                     <span>Sửa Bảng Giá</span>
@@ -249,6 +234,18 @@ export const PriceBookDetailPage: React.FC<PriceBookDetailPageProps> = ({
                 </button>
               </>
             )}
+
+            <button
+              type="button"
+              onClick={handleBack}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs sm:text-sm font-semibold text-slate-700 hover:text-slate-900 bg-white hover:bg-slate-50 border border-slate-300 rounded-xl transition-colors cursor-pointer shadow-xs"
+              title="Quay lại danh sách bảng giá"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="m15 18-6-6 6-6" />
+              </svg>
+              <span>Quay lại</span>
+            </button>
           </div>
         </div>
       </div>
@@ -306,25 +303,92 @@ export const PriceBookDetailPage: React.FC<PriceBookDetailPageProps> = ({
 
         {/* Thẻ 2: Danh sách sản phẩm trong bảng giá */}
         <div className="w-full bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
-          <div className="p-5 sm:p-6 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 bg-slate-50/50">
-            <div>
+          <div className="p-4 sm:p-5 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 bg-slate-50/50">
+            {/* Ô tìm kiếm nhanh trong bảng giá - Bên trái */}
+            <div style={{ position: 'relative', width: '100%', maxWidth: '320px' }}>
+              <span
+                style={{
+                  position: 'absolute',
+                  left: '11px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  pointerEvents: 'none',
+                  color: '#94a3b8',
+                  zIndex: 2,
+                }}
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="11" cy="11" r="8" />
+                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                </svg>
+              </span>
+              <input
+                type="text"
+                value={searchProduct}
+                onChange={(e) => setSearchProduct(e.target.value)}
+                placeholder="Tìm mã hoặc tên sản phẩm..."
+                style={{
+                  width: '100%',
+                  paddingLeft: '35px',
+                  paddingRight: searchProduct ? '30px' : '12px',
+                  paddingTop: '8px',
+                  paddingBottom: '8px',
+                  borderRadius: '10px',
+                  border: '1px solid #cbd5e1',
+                  background: '#ffffff',
+                  fontSize: '13px',
+                  outline: 'none',
+                  boxSizing: 'border-box',
+                  boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+                  transition: 'border-color 0.15s ease, box-shadow 0.15s ease',
+                }}
+                onFocus={(e) => {
+                  e.currentTarget.style.borderColor = '#0fad89';
+                  e.currentTarget.style.boxShadow = '0 0 0 3px rgba(15, 173, 137, 0.15)';
+                }}
+                onBlur={(e) => {
+                  e.currentTarget.style.borderColor = '#cbd5e1';
+                  e.currentTarget.style.boxShadow = '0 1px 2px 0 rgba(0, 0, 0, 0.05)';
+                }}
+              />
+              {searchProduct && (
+                <button
+                  type="button"
+                  onClick={() => setSearchProduct('')}
+                  style={{
+                    position: 'absolute',
+                    right: '10px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'transparent',
+                    border: 'none',
+                    color: '#94a3b8',
+                    cursor: 'pointer',
+                    padding: '3px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                  title="Xoá tìm kiếm"
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                </button>
+              )}
+            </div>
+
+            {/* Tiêu đề & mô tả - Bên phải */}
+            <div className="text-left sm:text-right">
               <h2 className="text-base sm:text-lg font-bold text-slate-900">
                 Danh sách sản phẩm áp dụng ({book.items?.length || 0})
               </h2>
               <p className="text-xs text-slate-500 mt-0.5">
                 Các sản phẩm thuộc bảng giá kèm đơn giá niêm yết và giá sàn tối thiểu
               </p>
-            </div>
-
-            {/* Ô tìm kiếm nhanh trong bảng giá */}
-            <div className="w-full sm:w-72">
-              <input
-                type="text"
-                value={searchProduct}
-                onChange={(e) => setSearchProduct(e.target.value)}
-                placeholder="Tìm mã hoặc tên sản phẩm..."
-                className="w-full px-3.5 py-2 text-xs sm:text-sm rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
-              />
             </div>
           </div>
 

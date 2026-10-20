@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { DealerSearchItem, ReceiptVoucherData, createReceiptVoucherApi } from '../services/dealerSearchApi';
 import { User, formatErrorMessage } from '../services/api';
-import { convertNumberToVietnameseWords } from '../utils/numberToWords';
 import { ModalPortal } from './ModalPortal';
 import { emitStatusToast } from './StatusToast';
 
@@ -48,9 +47,10 @@ export const CreateReceiptVoucherModal: React.FC<CreateReceiptVoucherModalProps>
 
   if (!isOpen) return null;
 
-  const numAmount = parseFloat(amountStr) || 0;
+  // Lấy giá trị số nguyên từ chuỗi người dùng nhập (nhập số nào ra đúng số đấy)
+  const cleanDigits = amountStr.replace(/\D/g, '');
+  const numAmount = cleanDigits ? parseInt(cleanDigits, 10) : 0;
   const isInvalidAmount = amountStr === '' || isNaN(numAmount) || numAmount <= 0;
-  const words = numAmount > 0 ? convertNumberToVietnameseWords(numAmount) : '';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -197,42 +197,65 @@ export const CreateReceiptVoucherModal: React.FC<CreateReceiptVoucherModalProps>
                 >
                   Số tiền thu (VNĐ) <span style={{ color: '#dc2626' }}>*</span>
                 </label>
-                <input
-                  type="number"
-                  min="1"
-                  step="any"
-                  autoFocus
-                  required
-                  value={amountStr}
-                  onChange={(e) => {
-                    setAmountStr(e.target.value);
-                  }}
-                  placeholder="Nhập số tiền..."
-                  style={{
-                    width: '100%',
-                    padding: '8px 12px',
-                    borderRadius: '7px',
-                    border: isInvalidAmount && amountStr !== '' ? '1.5px solid #ef4444' : '1px solid #cbd5e1',
-                    background: isInvalidAmount && amountStr !== '' ? '#fef2f2' : '#ffffff',
-                    fontSize: '15px',
-                    fontWeight: '800',
-                    color: isInvalidAmount && amountStr !== '' ? '#b91c1c' : '#1e40af',
-                    outline: 'none',
-                    textAlign: 'left',
-                    boxSizing: 'border-box',
-                  }}
-                />
-                {numAmount > 0 && (
-                  <div
+                <div style={{ position: 'relative', width: '100%' }}>
+                  <input
+                    type="number"
+                    min="1"
+                    step="any"
+                    autoFocus
+                    required
+                    value={amountStr}
+                    onChange={(e) => {
+                      setAmountStr(e.target.value);
+                    }}
+                    placeholder="VD: 100000"
                     style={{
-                      marginTop: '4px',
-                      fontSize: '12px',
-                      color: '#15803d',
-                      fontStyle: 'italic',
+                      width: '100%',
+                      height: '38px',
+                      padding: '0 48px 0 12px',
+                      borderRadius: '7px',
+                      border: isInvalidAmount && amountStr !== '' ? '1.5px solid #ef4444' : '1px solid #cbd5e1',
+                      background: isInvalidAmount && amountStr !== '' ? '#fef2f2' : '#ffffff',
+                      fontSize: '14px',
+                      fontWeight: '700',
+                      color: isInvalidAmount && amountStr !== '' ? '#b91c1c' : '#0f172a',
+                      outline: 'none',
+                      boxShadow: 'none',
+                      textAlign: 'left',
+                      boxSizing: 'border-box',
+                    }}
+                    onFocus={(e) => {
+                      if (!isInvalidAmount || amountStr === '') {
+                        e.currentTarget.style.borderColor = '#94a3b8';
+                        e.currentTarget.style.boxShadow = '0 0 0 2px rgba(148, 163, 184, 0.2)';
+                      }
+                      e.currentTarget.select();
+                    }}
+                    onBlur={(e) => {
+                      if (!isInvalidAmount || amountStr === '') {
+                        e.currentTarget.style.borderColor = '#cbd5e1';
+                        e.currentTarget.style.boxShadow = 'none';
+                      }
+                    }}
+                  />
+                  <span
+                    style={{
+                      position: 'absolute',
+                      right: '12px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      fontSize: '12.5px',
                       fontWeight: '600',
+                      color: '#64748b',
+                      pointerEvents: 'none',
                     }}
                   >
-                    Bằng chữ: {words}
+                    VND
+                  </span>
+                </div>
+                {numAmount > 0 && (
+                  <div style={{ marginTop: '4px', fontSize: '12px', color: '#0f172a', fontWeight: '600' }}>
+                    Quy đổi: {numAmount.toLocaleString('vi-VN')} đ
                   </div>
                 )}
                 {isInvalidAmount && amountStr !== '' && (

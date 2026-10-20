@@ -50,6 +50,28 @@ export function PriceBookManagementView({
   const [loading, setLoading] = useState(true);
   const [cloningId, setCloningId] = useState<number | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [activeDropdownId, setActiveDropdownId] = useState<number | null>(null);
+
+  // Đóng dropdown khi bấm ra ngoài hoặc nhấn phím ESC
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target && !target.closest('.price-book-action-menu')) {
+        setActiveDropdownId(null);
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setActiveDropdownId(null);
+      }
+    };
+    document.addEventListener('click', handleOutsideClick);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('click', handleOutsideClick);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
 
   // Đồng bộ products khi props initialProducts thay đổi
   useEffect(() => {
@@ -570,11 +592,11 @@ export function PriceBookManagementView({
                     {/* Cột Phiên bản: Chỉ hiển thị chữ thuần túy, không có icon (Yêu cầu đề bài) */}
                     <th style={{ padding: '14px 16px', textAlign: 'center', fontWeight: '700', color: '#475569', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.04em', background: '#f8fafc' }}>Phiên bản</th>
                     <th style={{ padding: '14px 16px', textAlign: 'center', fontWeight: '700', color: '#475569', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap', background: '#f8fafc' }}>Trạng thái</th>
-                    <th style={{ padding: '14px 16px', textAlign: 'right', fontWeight: '700', color: '#475569', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap', background: '#f8fafc' }}>Thao tác</th>
+                    <th style={{ padding: '14px 16px', textAlign: 'center', fontWeight: '700', color: '#475569', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap', background: '#f8fafc', width: '90px' }}>Thao tác</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {paginatedBooks.map(pb => {
+                  {paginatedBooks.map((pb, idx) => {
                     const isLocked = Boolean(pb.is_locked);
                     return (
                       <tr key={pb.id} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background-color 0.15s' }}>
@@ -640,114 +662,217 @@ export function PriceBookManagementView({
                           {renderStatusBadge(pb)}
                         </td>
 
-                        <td style={{ padding: '14px 16px', textAlign: 'right', whiteSpace: 'nowrap' }}>
-                          <div style={{ display: 'inline-flex', gap: '6px', alignItems: 'center', justifyContent: 'flex-end' }}>
-
-                            {/* Nút Xem Chi Tiết bằng chữ thuần túy */}
-                            <Link
-                              to={`/price-books/${pb.id}`}
+                        <td style={{ padding: '10px 16px', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                          <div className="price-book-action-menu" style={{ position: 'relative', display: 'inline-block' }}>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveDropdownId(prev => prev === pb.id ? null : pb.id);
+                              }}
+                              title="Thao tác"
+                              aria-label="Thao tác"
                               style={{
-                                border: '1px solid #cbd5e1',
-                                background: '#fff',
-                                color: '#475569',
-                                width: '60px',
-                                height: '27px',
+                                width: '34px',
+                                height: '34px',
+                                borderRadius: '8px',
+                                border: activeDropdownId === pb.id ? '1.5px solid #0fad89' : '1px solid #cbd5e1',
+                                background: activeDropdownId === pb.id ? '#f0fdf4' : '#ffffff',
+                                color: activeDropdownId === pb.id ? '#0fad89' : '#64748b',
+                                cursor: 'pointer',
                                 display: 'inline-flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
-                                boxSizing: 'border-box',
-                                padding: 0,
-                                borderRadius: '5px',
-                                cursor: 'pointer',
-                                fontSize: '11.5px',
-                                fontWeight: '600',
-                                textDecoration: 'none',
+                                transition: 'all 0.15s ease',
+                                boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
                               }}
-                              title="Xem chi tiết bảng giá trên trang riêng"
+                              onMouseEnter={(e) => {
+                                if (activeDropdownId !== pb.id) {
+                                  e.currentTarget.style.background = '#f8fafc';
+                                  e.currentTarget.style.color = '#0f172a';
+                                  e.currentTarget.style.borderColor = '#94a3b8';
+                                }
+                              }}
+                              onMouseLeave={(e) => {
+                                if (activeDropdownId !== pb.id) {
+                                  e.currentTarget.style.background = '#ffffff';
+                                  e.currentTarget.style.color = '#64748b';
+                                  e.currentTarget.style.borderColor = '#cbd5e1';
+                                }
+                              }}
                             >
-                              Chi tiết
-                            </Link>
+                              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                                <circle cx="12" cy="5" r="2.2" />
+                                <circle cx="12" cy="12" r="2.2" />
+                                <circle cx="12" cy="19" r="2.2" />
+                              </svg>
+                            </button>
 
-                            {/* Nút Sửa và Nhân bản bằng chữ thuần túy: Chỉ admin và sales_manager */}
-                            {canManagePriceBooks && (
-                              <>
-                                {isLocked ? (
-                                  <button
-                                    type="button"
-                                    disabled
-                                    style={{
-                                      border: '1px solid #cbd5e1',
-                                      background: '#f1f5f9',
-                                      color: '#94a3b8',
-                                      width: '60px',
-                                      height: '27px',
-                                      display: 'inline-flex',
-                                      alignItems: 'center',
-                                      justifyContent: 'center',
-                                      boxSizing: 'border-box',
-                                      padding: 0,
-                                      borderRadius: '5px',
-                                      cursor: 'not-allowed',
-                                      fontSize: '11.5px',
-                                      fontWeight: '600',
-                                    }}
-                                    title="Bảng giá đã phát sinh đơn hàng, không thể chỉnh sửa"
-                                  >
-                                    Sửa
-                                  </button>
-                                ) : (
-                                  <Link
-                                    to={`/price-books/${pb.id}/edit`}
-                                    style={{
-                                      border: '1px solid #cbd5e1',
-                                      background: '#eff6ff',
-                                      color: '#2563eb',
-                                      width: '60px',
-                                      height: '27px',
-                                      display: 'inline-flex',
-                                      alignItems: 'center',
-                                      justifyContent: 'center',
-                                      boxSizing: 'border-box',
-                                      padding: 0,
-                                      borderRadius: '5px',
-                                      cursor: 'pointer',
-                                      fontSize: '11.5px',
-                                      fontWeight: '600',
-                                      textDecoration: 'none',
-                                    }}
-                                    title="Chỉnh sửa bảng giá trên trang riêng"
-                                  >
-                                    Sửa
-                                  </Link>
-                                )}
-
-                                <button
-                                  type="button"
-                                  onClick={() => handleClonePriceBook(pb)}
-                                  disabled={cloningId === pb.id}
+                            {activeDropdownId === pb.id && (() => {
+                              const openUpward = paginatedBooks.length > 2 && idx >= paginatedBooks.length - 2;
+                              return (
+                                <div
                                   style={{
-                                    border: '1px solid #86efac',
-                                    background: '#f0fdf4',
-                                    color: '#16a34a',
-                                    width: '60px',
-                                    height: '27px',
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    boxSizing: 'border-box',
-                                    padding: 0,
-                                    borderRadius: '5px',
-                                    cursor: cloningId === pb.id ? 'wait' : 'pointer',
-                                    fontSize: '11.5px',
-                                    fontWeight: '600'
+                                    position: 'absolute',
+                                    right: 0,
+                                    ...(openUpward
+                                      ? { bottom: 'calc(100% + 6px)' }
+                                      : { top: 'calc(100% + 6px)' }),
+                                    background: '#ffffff',
+                                    border: '1px solid #e2e8f0',
+                                    borderRadius: '10px',
+                                    boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.12), 0 8px 10px -6px rgba(0, 0, 0, 0.06)',
+                                    minWidth: '165px',
+                                    zIndex: 9999,
+                                    padding: '6px',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: '2px',
+                                    textAlign: 'left',
                                   }}
-                                  title="Tạo phiên bản mới từ bảng giá này"
+                                  onClick={(e) => e.stopPropagation()}
                                 >
-                                  {cloningId === pb.id ? 'Đang tạo...' : 'Nhân bản'}
-                                </button>
-                              </>
-                            )}
+                                  {/* Xem chi tiết */}
+                                  <Link
+                                    to={`/price-books/${pb.id}`}
+                                    onClick={() => setActiveDropdownId(null)}
+                                    style={{
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      gap: '9px',
+                                      width: '100%',
+                                      padding: '8px 12px',
+                                      borderRadius: '6px',
+                                      color: '#334155',
+                                      fontSize: '13px',
+                                      fontWeight: '500',
+                                      textDecoration: 'none',
+                                      boxSizing: 'border-box',
+                                      transition: 'all 0.15s ease',
+                                    }}
+                                    onMouseEnter={(e) => {
+                                      e.currentTarget.style.background = '#f1f5f9';
+                                      e.currentTarget.style.color = '#0f172a';
+                                    }}
+                                    onMouseLeave={(e) => {
+                                      e.currentTarget.style.background = 'transparent';
+                                      e.currentTarget.style.color = '#334155';
+                                    }}
+                                  >
+                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                                      <circle cx="12" cy="12" r="3" />
+                                    </svg>
+                                    <span>Chi tiết</span>
+                                  </Link>
 
+                                  {/* Chỉnh sửa */}
+                                  {canManagePriceBooks && (
+                                    isLocked ? (
+                                      <div
+                                        title="Bảng giá đã phát sinh đơn hàng, không thể chỉnh sửa"
+                                        style={{
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          gap: '9px',
+                                          width: '100%',
+                                          padding: '8px 12px',
+                                          borderRadius: '6px',
+                                          color: '#94a3b8',
+                                          fontSize: '13px',
+                                          fontWeight: '500',
+                                          cursor: 'not-allowed',
+                                          boxSizing: 'border-box',
+                                          background: '#f8fafc',
+                                        }}
+                                      >
+                                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                                          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                                        </svg>
+                                        <span>Sửa (Đã khóa)</span>
+                                      </div>
+                                    ) : (
+                                      <Link
+                                        to={`/price-books/${pb.id}/edit`}
+                                        onClick={() => setActiveDropdownId(null)}
+                                        style={{
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          gap: '9px',
+                                          width: '100%',
+                                          padding: '8px 12px',
+                                          borderRadius: '6px',
+                                          color: '#2563eb',
+                                          fontSize: '13px',
+                                          fontWeight: '500',
+                                          textDecoration: 'none',
+                                          boxSizing: 'border-box',
+                                          transition: 'all 0.15s ease',
+                                        }}
+                                        onMouseEnter={(e) => {
+                                          e.currentTarget.style.background = '#eff6ff';
+                                        }}
+                                        onMouseLeave={(e) => {
+                                          e.currentTarget.style.background = 'transparent';
+                                        }}
+                                      >
+                                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                                          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                                        </svg>
+                                        <span>Chỉnh sửa</span>
+                                      </Link>
+                                    )
+                                  )}
+
+                                  {/* Nhân bản */}
+                                  {canManagePriceBooks && (
+                                    <button
+                                      type="button"
+                                      disabled={cloningId === pb.id}
+                                      onClick={() => {
+                                        setActiveDropdownId(null);
+                                        handleClonePriceBook(pb);
+                                      }}
+                                      style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '9px',
+                                        width: '100%',
+                                        padding: '8px 12px',
+                                        borderRadius: '6px',
+                                        border: 'none',
+                                        background: 'transparent',
+                                        color: cloningId === pb.id ? '#94a3b8' : '#16a34a',
+                                        fontSize: '13px',
+                                        fontWeight: '500',
+                                        cursor: cloningId === pb.id ? 'wait' : 'pointer',
+                                        textAlign: 'left',
+                                        boxSizing: 'border-box',
+                                        transition: 'all 0.15s ease',
+                                      }}
+                                      onMouseEnter={(e) => {
+                                        if (cloningId !== pb.id) {
+                                          e.currentTarget.style.background = '#f0fdf4';
+                                        }
+                                      }}
+                                      onMouseLeave={(e) => {
+                                        if (cloningId !== pb.id) {
+                                          e.currentTarget.style.background = 'transparent';
+                                        }
+                                      }}
+                                    >
+                                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                                      </svg>
+                                      <span>{cloningId === pb.id ? 'Đang tạo...' : 'Nhân bản'}</span>
+                                    </button>
+                                  )}
+                                </div>
+                              );
+                            })()}
                           </div>
                         </td>
                       </tr>

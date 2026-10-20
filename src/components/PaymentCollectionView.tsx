@@ -791,7 +791,7 @@ export const PaymentCollectionView: React.FC<PaymentCollectionViewProps> = ({
                   onClick={handleOpenCreateView}
                   style={{
                     padding: '10px 18px',
-                    backgroundColor: '#2563eb',
+                    backgroundColor: '#0faf8a',
                     color: '#ffffff',
                     border: 'none',
                     borderRadius: '8px',
@@ -800,8 +800,11 @@ export const PaymentCollectionView: React.FC<PaymentCollectionViewProps> = ({
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
-                    boxShadow: '0 4px 6px -1px rgba(37, 99, 235, 0.25)',
+                    boxShadow: '0 4px 6px -1px rgba(15, 175, 138, 0.25)',
+                    transition: 'all 0.15s ease',
                   }}
+                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#0c9877')}
+                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#0faf8a')}
                 >
                   Ghi nhận khoản thu mới
                 </button>
@@ -869,25 +872,24 @@ export const PaymentCollectionView: React.FC<PaymentCollectionViewProps> = ({
                 backgroundColor: '#ffffff',
                 borderRadius: '8px',
                 padding: '10px 14px',
-                border: '1px solid #fef3c7',
-                borderLeft: '3px solid #f59e0b',
+                border: '1px solid #e2e8f0',
                 boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
               }}
             >
-              <div style={{ fontSize: '11px', fontWeight: 700, color: '#b45309', textTransform: 'uppercase', letterSpacing: '0.02em' }}>
+              <div style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.02em' }}>
                 Chờ nộp về công ty (Còn ở NVKD)
               </div>
               <div
                 style={{
                   fontSize: '17px',
                   fontWeight: 800,
-                  color: '#b45309',
+                  color: '#0f172a',
                   marginTop: '2px',
                 }}
               >
                 {formatMoney(summary?.grand_total_pending_remittance ?? listData?.total_pending_remittance ?? 0)}
               </div>
-              <div style={{ fontSize: '11px', color: '#92400e', marginTop: '2px' }}>
+              <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
                 NVKD chưa chuyển tiền về thủ quỹ
               </div>
             </div>
@@ -897,25 +899,24 @@ export const PaymentCollectionView: React.FC<PaymentCollectionViewProps> = ({
                 backgroundColor: '#ffffff',
                 borderRadius: '8px',
                 padding: '10px 14px',
-                border: '1px solid #bae6fd',
-                borderLeft: '3px solid #0284c7',
+                border: '1px solid #e2e8f0',
                 boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
               }}
             >
-              <div style={{ fontSize: '11px', fontWeight: 700, color: '#0369a1', textTransform: 'uppercase', letterSpacing: '0.02em' }}>
+              <div style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.02em' }}>
                 Đã nộp (Chờ KT xác nhận)
               </div>
               <div
                 style={{
                   fontSize: '17px',
                   fontWeight: 800,
-                  color: '#0284c7',
+                  color: '#0f172a',
                   marginTop: '2px',
                 }}
               >
                 {formatMoney(summary?.grand_total_submitted ?? listData?.total_submitted ?? 0)}
               </div>
-              <div style={{ fontSize: '11px', color: '#0369a1', marginTop: '2px' }}>
+              <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
                 NVKD đã nộp, chờ Kế toán khớp
               </div>
             </div>
@@ -925,25 +926,24 @@ export const PaymentCollectionView: React.FC<PaymentCollectionViewProps> = ({
                 backgroundColor: '#ffffff',
                 borderRadius: '8px',
                 padding: '10px 14px',
-                border: '1px solid #bbf7d0',
-                borderLeft: '3px solid #16a34a',
+                border: '1px solid #e2e8f0',
                 boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
               }}
             >
-              <div style={{ fontSize: '11px', fontWeight: 700, color: '#15803d', textTransform: 'uppercase', letterSpacing: '0.02em' }}>
+              <div style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.02em' }}>
                 Đã khớp tiền vào quỹ công ty
               </div>
               <div
                 style={{
                   fontSize: '17px',
                   fontWeight: 800,
-                  color: '#15803d',
+                  color: '#0f172a',
                   marginTop: '2px',
                 }}
               >
                 {formatMoney(summary?.grand_total_confirmed ?? listData?.total_confirmed ?? 0)}
               </div>
-              <div style={{ fontSize: '11px', color: '#15803d', marginTop: '2px' }}>
+              <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
                 Đã kiểm đếm và ghi sổ quỹ cty
               </div>
             </div>
@@ -1370,187 +1370,170 @@ export const PaymentCollectionView: React.FC<PaymentCollectionViewProps> = ({
         )
       )}
 
-      {/* 2. THANH TAB CHUYỂN ĐỔI: Chỉ hiện khi ở chế độ danh sách chính (Đảm bảo chỉ có 1 bảng xuất hiện) */}
-      {!selectedBatch && (
-        <div
-          style={{
-            display: 'flex',
-            gap: '8px',
-            marginBottom: '16px',
-          }}
-        >
-          {canViewDailyReconciliation && (
-            <button
-              type="button"
-              onClick={() => setActiveTab('reconciliation')}
-              style={{
-                padding: '9px 18px',
-                borderRadius: '8px',
-                border: activeTab === 'reconciliation' ? '2px solid #2563eb' : '1px solid #cbd5e1',
-                backgroundColor: activeTab === 'reconciliation' ? '#eff6ff' : '#ffffff',
-                color: activeTab === 'reconciliation' ? '#1d4ed8' : '#64748b',
-                fontWeight: 700,
-                fontSize: '13.5px',
-                cursor: 'pointer',
-              }}
-            >
-              Bảng Tổng Hợp Đối Chiếu
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={() => setActiveTab('all_collections')}
-            style={{
-              padding: '9px 18px',
-              borderRadius: '8px',
-              border: activeTab === 'all_collections' ? '2px solid #2563eb' : '1px solid #cbd5e1',
-              backgroundColor: activeTab === 'all_collections' ? '#eff6ff' : '#ffffff',
-              color: activeTab === 'all_collections' ? '#1d4ed8' : '#64748b',
-              fontWeight: 700,
-              fontSize: '13.5px',
-              cursor: 'pointer',
-            }}
-          >
-            Danh Sách Tất Cả Khoản Thu
-          </button>
-        </div>
-      )}
-
-      {/* 3. THANH FILTER TOOLBAR: NẰM NGAY TRÊN CÁC BẢNG, Ô TÌM KIẾM ĐỨNG ĐẦU TIÊN */}
+      {/* 2 & 3. KHỐI TỔNG HỢP: GỘP THANH TAB, BỘ LỌC VÀ BẢNG DỮ LIỆU VÀO CHUNG 1 BẢNG DUY NHẤT */}
       {!selectedBatch && (
         <div
           style={{
             backgroundColor: '#ffffff',
-            borderRadius: '8px',
-            padding: '10px 14px',
+            borderRadius: '12px',
             border: '1px solid #e2e8f0',
-            marginBottom: '16px',
-            display: 'flex',
-            flexWrap: 'wrap',
-            gap: '10px',
-            alignItems: 'center',
+            overflow: 'hidden',
+            boxShadow: '0 2px 4px rgba(0,0,0,0.04)',
+            marginBottom: '32px',
           }}
         >
-          {/* Ô 1: TÌM KIẾM ĐỨNG ĐẦU TIÊN */}
-          <div>
-            <label style={{ fontSize: '11px', fontWeight: 600, color: '#64748b', display: 'block', marginBottom: '2px' }}>
-              Tìm kiếm
-            </label>
-            <input
-              type="text"
-              placeholder="Mã thu, tên đại lý, mã đơn..."
-              value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                setReconPage(1);
-                setCollectionsPage(1);
-              }}
-              style={{
-                padding: '5px 10px',
-                borderRadius: '6px',
-                border: '1px solid #cbd5e1',
-                fontSize: '12px',
-                color: '#0f172a',
-                minWidth: '220px',
-                height: '32px',
-                boxSizing: 'border-box',
-              }}
-            />
+          {/* Header 1: Thanh Tab Chuyển Đổi (nằm ở đầu card) */}
+          <div
+            style={{
+              padding: '12px 18px',
+              backgroundColor: '#ffffff',
+              borderBottom: '1px solid #f1f5f9',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '12px',
+              flexWrap: 'wrap',
+            }}
+          >
+            <div style={{ display: 'flex', gap: '8px' }}>
+              {canViewDailyReconciliation && (
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('reconciliation')}
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: '8px',
+                    border: activeTab === 'reconciliation' ? '2px solid #0faf8a' : '1px solid #cbd5e1',
+                    backgroundColor: activeTab === 'reconciliation' ? '#ecfdf5' : '#ffffff',
+                    color: activeTab === 'reconciliation' ? '#047857' : '#64748b',
+                    fontWeight: 700,
+                    fontSize: '13px',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  Bảng Tổng Hợp Đối Chiếu
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setActiveTab('all_collections')}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '8px',
+                  border: activeTab === 'all_collections' ? '2px solid #0faf8a' : '1px solid #cbd5e1',
+                  backgroundColor: activeTab === 'all_collections' ? '#ecfdf5' : '#ffffff',
+                  color: activeTab === 'all_collections' ? '#047857' : '#64748b',
+                  fontWeight: 700,
+                  fontSize: '13px',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                Danh Sách Tất Cả Khoản Thu
+              </button>
+            </div>
           </div>
 
-          {/* Ô 2: TỪ NGÀY */}
-          <div>
-            <label style={{ fontSize: '11px', fontWeight: 600, color: '#64748b', display: 'block', marginBottom: '2px' }}>
-              Từ ngày
-            </label>
-            <input
-              type="date"
-              value={fromDate}
-              onChange={(e) => {
-                setFromDate(e.target.value);
-                setReconPage(1);
-                setCollectionsPage(1);
-              }}
-              style={{
-                padding: '5px 8px',
-                borderRadius: '6px',
-                border: '1px solid #cbd5e1',
-                fontSize: '12px',
-                color: '#0f172a',
-                height: '32px',
-                boxSizing: 'border-box',
-              }}
-            />
-          </div>
-
-          {/* Ô 3: ĐẾN NGÀY */}
-          <div>
-            <label style={{ fontSize: '11px', fontWeight: 600, color: '#64748b', display: 'block', marginBottom: '2px' }}>
-              Đến ngày
-            </label>
-            <input
-              type="date"
-              value={toDate}
-              onChange={(e) => {
-                setToDate(e.target.value);
-                setReconPage(1);
-                setCollectionsPage(1);
-              }}
-              style={{
-                padding: '5px 8px',
-                borderRadius: '6px',
-                border: '1px solid #cbd5e1',
-                fontSize: '12px',
-                color: '#0f172a',
-                height: '32px',
-                boxSizing: 'border-box',
-              }}
-            />
-          </div>
-
-          {/* Ô 4: TRẠNG THÁI KHOẢN THU */}
-          <div>
-            <label style={{ fontSize: '11px', fontWeight: 600, color: '#64748b', display: 'block', marginBottom: '2px' }}>
-              Trạng thái khoản thu
-            </label>
-            <select
-              value={statusFilter}
-              onChange={(e) => {
-                setStatusFilter(e.target.value);
-                setCollectionsPage(1);
-              }}
-              style={{
-                padding: '5px 8px',
-                borderRadius: '6px',
-                border: '1px solid #cbd5e1',
-                fontSize: '12px',
-                color: '#0f172a',
-                backgroundColor: '#ffffff',
-                height: '32px',
-                boxSizing: 'border-box',
-              }}
-            >
-              <option value="all">Tất cả trạng thái</option>
-              <option value="PENDING_REMITTANCE">Chờ nộp về công ty</option>
-              <option value="SUBMITTED">Đã nộp (Chờ KT duyệt)</option>
-              <option value="CONFIRMED">Đã khớp quỹ</option>
-              <option value="REJECTED">Bị từ chối / Lệch</option>
-            </select>
-          </div>
-
-          {/* Ô 5: TRẠNG THÁI ĐỐI CHIẾU (Chỉ hiện khi ở tab đối chiếu và có quyền) */}
-          {canViewDailyReconciliation && activeTab === 'reconciliation' && (
+          {/* Header 2: Thanh Filter Toolbar (Nằm liền mạch ngay bên dưới Tabs) */}
+          <div
+            style={{
+              backgroundColor: '#f8fafc',
+              padding: '12px 18px',
+              borderBottom: '1px solid #e2e8f0',
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: '12px',
+              alignItems: 'center',
+            }}
+          >
+            {/* Ô 1: TÌM KIẾM ĐỨNG ĐẦU TIÊN */}
             <div>
               <label style={{ fontSize: '11px', fontWeight: 600, color: '#64748b', display: 'block', marginBottom: '2px' }}>
-                Trạng thái đối chiếu
+                Tìm kiếm
+              </label>
+              <input
+                type="text"
+                placeholder="Mã thu, tên đại lý, mã đơn..."
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setReconPage(1);
+                  setCollectionsPage(1);
+                }}
+                style={{
+                  padding: '5px 10px',
+                  borderRadius: '6px',
+                  border: '1px solid #cbd5e1',
+                  fontSize: '12px',
+                  color: '#0f172a',
+                  minWidth: '220px',
+                  height: '32px',
+                  boxSizing: 'border-box',
+                }}
+              />
+            </div>
+
+            {/* Ô 2: TỪ NGÀY */}
+            <div>
+              <label style={{ fontSize: '11px', fontWeight: 600, color: '#64748b', display: 'block', marginBottom: '2px' }}>
+                Từ ngày
+              </label>
+              <input
+                type="date"
+                value={fromDate}
+                onChange={(e) => {
+                  setFromDate(e.target.value);
+                  setReconPage(1);
+                  setCollectionsPage(1);
+                }}
+                style={{
+                  padding: '5px 8px',
+                  borderRadius: '6px',
+                  border: '1px solid #cbd5e1',
+                  fontSize: '12px',
+                  color: '#0f172a',
+                  height: '32px',
+                  boxSizing: 'border-box',
+                }}
+              />
+            </div>
+
+            {/* Ô 3: ĐẾN NGÀY */}
+            <div>
+              <label style={{ fontSize: '11px', fontWeight: 600, color: '#64748b', display: 'block', marginBottom: '2px' }}>
+                Đến ngày
+              </label>
+              <input
+                type="date"
+                value={toDate}
+                onChange={(e) => {
+                  setToDate(e.target.value);
+                  setReconPage(1);
+                  setCollectionsPage(1);
+                }}
+                style={{
+                  padding: '5px 8px',
+                  borderRadius: '6px',
+                  border: '1px solid #cbd5e1',
+                  fontSize: '12px',
+                  color: '#0f172a',
+                  height: '32px',
+                  boxSizing: 'border-box',
+                }}
+              />
+            </div>
+
+            {/* Ô 4: TRẠNG THÁI KHOẢN THU */}
+            <div>
+              <label style={{ fontSize: '11px', fontWeight: 600, color: '#64748b', display: 'block', marginBottom: '2px' }}>
+                Trạng thái khoản thu
               </label>
               <select
-                value={balancedOnly === undefined ? 'all' : balancedOnly ? 'balanced' : 'unbalanced'}
+                value={statusFilter}
                 onChange={(e) => {
-                  if (e.target.value === 'all') setBalancedOnly(undefined);
-                  else if (e.target.value === 'balanced') setBalancedOnly(true);
-                  else setBalancedOnly(false);
-                  setReconPage(1);
+                  setStatusFilter(e.target.value);
+                  setCollectionsPage(1);
                 }}
                 style={{
                   padding: '5px 8px',
@@ -1563,63 +1546,86 @@ export const PaymentCollectionView: React.FC<PaymentCollectionViewProps> = ({
                   boxSizing: 'border-box',
                 }}
               >
-                <option value="all">Tất cả bản ghi đối chiếu</option>
-                <option value="unbalanced">Có chênh lệch / Chưa khớp 100%</option>
-                <option value="balanced">Đã khớp 100% không lệch</option>
+                <option value="all">Tất cả trạng thái</option>
+                <option value="PENDING_REMITTANCE">Chờ nộp về công ty</option>
+                <option value="SUBMITTED">Đã nộp (Chờ KT duyệt)</option>
+                <option value="CONFIRMED">Đã khớp quỹ</option>
+                <option value="REJECTED">Bị từ chối / Lệch</option>
               </select>
             </div>
-          )}
 
-          {/* NÚT XÓA BỘ LỌC KHI ĐANG CÓ LỌC */}
-          {(fromDate || toDate || searchQuery || statusFilter !== 'all' || balancedOnly !== undefined) && (
-            <div style={{ display: 'flex', alignItems: 'flex-end', height: '100%', alignSelf: 'flex-end' }}>
-              <button
-                type="button"
-                onClick={() => {
-                  setFromDate('');
-                  setToDate('');
-                  setSearchQuery('');
-                  setStatusFilter('all');
-                  setBalancedOnly(undefined);
-                  setReconPage(1);
-                  setCollectionsPage(1);
-                }}
-                style={{
-                  padding: '5px 12px',
-                  borderRadius: '6px',
-                  border: '1px solid #cbd5e1',
-                  backgroundColor: '#f1f5f9',
-                  fontSize: '12px',
-                  color: '#475569',
-                  cursor: 'pointer',
-                  height: '32px',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  fontWeight: 600,
-                }}
-                title="Đặt lại bộ lọc để xem toàn bộ ngày"
-              >
-                ✕ Xóa lọc
-              </button>
-            </div>
-          )}
-        </div>
-      )}
+            {/* Ô 5: TRẠNG THÁI ĐỐI CHIẾU (Chỉ hiện khi ở tab đối chiếu và có quyền) */}
+            {canViewDailyReconciliation && activeTab === 'reconciliation' && (
+              <div>
+                <label style={{ fontSize: '11px', fontWeight: 600, color: '#64748b', display: 'block', marginBottom: '2px' }}>
+                  Trạng thái đối chiếu
+                </label>
+                <select
+                  value={balancedOnly === undefined ? 'all' : balancedOnly ? 'balanced' : 'unbalanced'}
+                  onChange={(e) => {
+                    if (e.target.value === 'all') setBalancedOnly(undefined);
+                    else if (e.target.value === 'balanced') setBalancedOnly(true);
+                    else setBalancedOnly(false);
+                    setReconPage(1);
+                  }}
+                  style={{
+                    padding: '5px 8px',
+                    borderRadius: '6px',
+                    border: '1px solid #cbd5e1',
+                    fontSize: '12px',
+                    color: '#0f172a',
+                    backgroundColor: '#ffffff',
+                    height: '32px',
+                    boxSizing: 'border-box',
+                  }}
+                >
+                  <option value="all">Tất cả bản ghi đối chiếu</option>
+                  <option value="unbalanced">Có chênh lệch / Chưa khớp 100%</option>
+                  <option value="balanced">Đã khớp 100% không lệch</option>
+                </select>
+              </div>
+            )}
 
-      {/* KHỐI 1: BẢNG TỔNG HỢP ĐỐI CHIẾU TIỀN THU - TIỀN NỘP THEO NGÀY & NHÂN VIÊN */}
-      {!selectedBatch && activeTab === 'reconciliation' && (
-        canViewDailyReconciliation ? (
-        <div
-          style={{
-            backgroundColor: '#ffffff',
-            borderRadius: '12px',
-            border: '1px solid #e2e8f0',
-            overflow: 'hidden',
-            boxShadow: '0 2px 4px rgba(0,0,0,0.04)',
-            marginBottom: '32px',
-          }}
-        >
+            {/* NÚT XÓA BỘ LỌC KHI ĐANG CÓ LỌC */}
+            {(fromDate || toDate || searchQuery || statusFilter !== 'all' || balancedOnly !== undefined) && (
+              <div style={{ display: 'flex', alignItems: 'flex-end', height: '100%', alignSelf: 'flex-end' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFromDate('');
+                    setToDate('');
+                    setSearchQuery('');
+                    setStatusFilter('all');
+                    setBalancedOnly(undefined);
+                    setReconPage(1);
+                    setCollectionsPage(1);
+                  }}
+                  style={{
+                    padding: '5px 12px',
+                    borderRadius: '6px',
+                    border: '1px solid #cbd5e1',
+                    backgroundColor: '#f1f5f9',
+                    fontSize: '12px',
+                    color: '#475569',
+                    cursor: 'pointer',
+                    height: '32px',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    fontWeight: 600,
+                  }}
+                  title="Đặt lại bộ lọc để xem toàn bộ ngày"
+                >
+                  ✕ Xóa lọc
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* KHỐI 1: BẢNG TỔNG HỢP ĐỐI CHIẾU TIỀN THU - TIỀN NỘP THEO NGÀY & NHÂN VIÊN */}
+          {activeTab === 'reconciliation' && (
+            canViewDailyReconciliation ? (
+            <div>
           <div
             style={{
               padding: '14px 20px',
@@ -1826,18 +1832,9 @@ export const PaymentCollectionView: React.FC<PaymentCollectionViewProps> = ({
         )
       )}
 
-      {/* KHỐI 2: DANH SÁCH CÁC KHOẢN THU TIỀN TUYẾN & DUYỆT NỘP */}
-      {!selectedBatch && activeTab === 'all_collections' && (
-        <div
-          style={{
-            backgroundColor: '#ffffff',
-            borderRadius: '12px',
-            border: '1px solid #e2e8f0',
-            overflow: 'hidden',
-            boxShadow: '0 2px 4px rgba(0,0,0,0.04)',
-            marginBottom: '32px',
-          }}
-        >
+          {/* KHỐI 2: DANH SÁCH CÁC KHOẢN THU TIỀN TUYẾN & DUYỆT NỘP */}
+          {activeTab === 'all_collections' && (
+            <div>
           <div
             style={{
               padding: '14px 20px',
@@ -2176,6 +2173,8 @@ export const PaymentCollectionView: React.FC<PaymentCollectionViewProps> = ({
             10,
             setCollectionsPage,
             'khoản thu'
+          )}
+            </div>
           )}
         </div>
       )}
