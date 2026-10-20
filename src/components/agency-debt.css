@@ -318,13 +318,14 @@
 }
 
 @media print {
-  body * {
+  body:has(.agency-invoice-paper) * {
     visibility: hidden;
   }
-  .agency-invoice-paper, .agency-invoice-paper * {
+  body:has(.agency-invoice-paper) .agency-invoice-paper,
+  body:has(.agency-invoice-paper) .agency-invoice-paper * {
     visibility: visible;
   }
-  .agency-invoice-paper {
+  body:has(.agency-invoice-paper) .agency-invoice-paper {
     position: absolute;
     left: 0;
     top: 0;

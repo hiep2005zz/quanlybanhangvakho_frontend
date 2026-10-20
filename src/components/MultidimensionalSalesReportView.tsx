@@ -62,9 +62,9 @@ export const MultidimensionalSalesReportView: React.FC<MultidimensionalSalesRepo
   const [sortField, setSortField] = useState<string>('revenue');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
 
-  // Phân trang
+  // Phân trang (Mỗi trang hiển thị 20 dòng theo yêu cầu)
   const [currentPage, setCurrentPage] = useState<number>(1);
-  const pageSize = 15;
+  const pageSize = 20;
 
   // Tải dữ liệu báo cáo
   const loadReport = useCallback(
@@ -115,13 +115,17 @@ export const MultidimensionalSalesReportView: React.FC<MultidimensionalSalesRepo
     window.addEventListener('ORDERS_UPDATED', handleSystemSync);
     window.addEventListener('DEALER_DATA_CHANGED', handleSystemSync);
     window.addEventListener('INVENTORY_STOCK_UPDATED', handleSystemSync);
+    window.addEventListener('RETURN_ORDERS_UPDATED', handleSystemSync);
+    window.addEventListener('SALES_TARGETS_UPDATED', handleSystemSync);
 
     // 2. Lắng nghe thay đổi giữa các tab/cửa sổ khác (cross-tab sync qua localStorage)
     const handleStorageChange = (e: StorageEvent) => {
       if (
         e.key === 'orders_last_updated' ||
         e.key === 'dealers_last_updated' ||
-        e.key === 'inventory_last_updated'
+        e.key === 'inventory_last_updated' ||
+        e.key === 'return_orders_last_updated' ||
+        e.key === 'sales_targets_last_updated'
       ) {
         loadReport(false, true);
       }
@@ -147,6 +151,8 @@ export const MultidimensionalSalesReportView: React.FC<MultidimensionalSalesRepo
       window.removeEventListener('ORDERS_UPDATED', handleSystemSync);
       window.removeEventListener('DEALER_DATA_CHANGED', handleSystemSync);
       window.removeEventListener('INVENTORY_STOCK_UPDATED', handleSystemSync);
+      window.removeEventListener('RETURN_ORDERS_UPDATED', handleSystemSync);
+      window.removeEventListener('SALES_TARGETS_UPDATED', handleSystemSync);
       window.removeEventListener('storage', handleStorageChange);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       clearInterval(intervalTimer);
@@ -215,6 +221,26 @@ export const MultidimensionalSalesReportView: React.FC<MultidimensionalSalesRepo
   }, [sortedItems, currentPage]);
 
   const totalPages = Math.ceil(sortedItems.length / pageSize) || 1;
+
+  // Danh sách trang hiển thị dạng [1, 2, '...', 10] đúng chuẩn Hình 2
+  const getPaginationList = (current: number, total: number): (number | '...')[] => {
+    if (total <= 5) {
+      return Array.from({ length: total }, (_, i) => i + 1);
+    }
+    if (current <= 2) {
+      return [1, 2, '...', total];
+    }
+    if (current >= total - 1) {
+      return [1, '...', total - 1, total];
+    }
+    return [1, '...', current, '...', total];
+  };
+
+  useEffect(() => {
+    if (currentPage > totalPages && totalPages > 0) {
+      setCurrentPage(1);
+    }
+  }, [totalPages, currentPage]);
 
   // Xử lý click header để sắp xếp
   const handleSort = (field: string) => {
@@ -371,115 +397,15 @@ export const MultidimensionalSalesReportView: React.FC<MultidimensionalSalesRepo
   };
 
   return (
-    <div className="space-y-6 pb-12">
+    <div className="space-y-4 pb-12">
       {/* Header & Tiêu đề */}
-      <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-bold text-slate-800">Báo Cáo Doanh Số Đa Chiều</h1>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-3">
-          {/* Nút Làm mới */}
-          <button
-            onClick={() => loadReport(true)}
-            disabled={isRefreshing || isLoading}
-            className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium rounded-xl transition disabled:opacity-50"
-            title="Tải lại dữ liệu"
-          >
-            {isRefreshing ? 'Đang tải...' : 'Làm mới'}
-          </button>
-
-          {/* Nút Xuất Excel */}
-          <button
-            onClick={handleExportExcel}
-            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-xl transition shadow-sm hover:shadow"
-          >
-            Xuất Excel
-          </button>
-        </div>
+      <div className="flex items-center justify-between py-1">
+        <h1 className="text-xl font-extrabold text-slate-800 tracking-tight">Báo Cáo Doanh Số Đa Chiều</h1>
       </div>
 
-      {/* Tabs chọn Chiều phân tích (5 Dimensions) */}
-      <div className="bg-white rounded-2xl p-2 shadow-sm border border-slate-100">
-        <div className="flex flex-wrap gap-2">
-          {(Object.keys(dimensionLabels) as SalesDimension[]).map((dimKey) => {
-            const dimInfo = dimensionLabels[dimKey];
-            const isActive = dimension === dimKey;
-            return (
-              <button
-                key={dimKey}
-                onClick={() => setDimension(dimKey)}
-                className={`flex-1 min-w-[150px] py-3 px-4 rounded-xl font-medium text-sm transition-all text-center ${
-                  isActive
-                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-100 font-semibold'
-                    : 'bg-slate-50 text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-                }`}
-              >
-                <span>{dimInfo.title}</span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
 
-      {/* Thanh bộ lọc thời gian & tìm kiếm */}
-      <div
-        className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex items-center gap-3 overflow-x-auto"
-        style={{ flexWrap: 'nowrap' }}
-      >
-        {/* Ô tìm kiếm đưa lên trước chữ Tháng này */}
-        <div className="relative w-72 sm:w-80 md:w-96 shrink-0">
-          <input
-            type="text"
-            placeholder={`Tìm ${dimensionLabels[dimension].colName.toLowerCase()}...`}
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-3 pr-8 py-1.5 h-8 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-          />
-          {searchTerm && (
-            <button
-              type="button"
-              onClick={() => setSearchTerm('')}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-[11px] font-semibold"
-            >
-              Xóa
-            </button>
-          )}
-        </div>
 
-        {/* Preset thời gian */}
-        <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl text-xs font-medium text-slate-600 shrink-0">
-          {[
-            { key: 'this_month', label: 'Tháng này' },
-            { key: 'last_month', label: 'Tháng trước' },
-            { key: 'this_quarter', label: 'Quý này' },
-            { key: 'today', label: 'Hôm nay' },
-          ].map((p) => (
-            <button
-              key={p.key}
-              onClick={() => setTimePreset(p.key as SalesTimePreset)}
-              className={`px-3 py-1.5 rounded-lg transition whitespace-nowrap ${
-                timePreset === p.key
-                  ? 'bg-white text-indigo-600 shadow-sm font-semibold'
-                  : 'hover:text-slate-900'
-              }`}
-            >
-              {p.label}
-            </button>
-          ))}
-        </div>
 
-        {/* Toggle so sánh cùng kỳ */}
-        <label className="flex items-center gap-2 text-xs font-medium text-slate-600 cursor-pointer shrink-0 ml-auto whitespace-nowrap">
-          <input
-            type="checkbox"
-            checked={showComparison}
-            onChange={(e) => setShowComparison(e.target.checked)}
-            className="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500"
-          />
-          <span>So sánh cùng kỳ trước</span>
-        </label>
-      </div>
 
       {/* Hiển thị lỗi nếu có */}
       {error && (
@@ -496,66 +422,73 @@ export const MultidimensionalSalesReportView: React.FC<MultidimensionalSalesRepo
         </div>
       )}
 
-      {/* Summary KPI Cards */}
+      {/* Summary KPI Cards (Gọn gàng & Hiện đại) */}
       {reportData && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 shrink-0">
           {/* Card 1: Tổng Doanh số */}
-          <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
-            <div>
-              <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Doanh số kỳ này</span>
-            </div>
-            <div className="mt-2 text-xl font-bold text-slate-800">
-              {formatVND(reportData.summary.total_revenue)}
-            </div>
-            <div className="mt-2 flex items-center gap-1.5 text-xs">
+          <div className="bg-white p-3.5 rounded-xl border border-slate-200/90 shadow-2xs flex flex-col justify-between">
+            <div className="flex items-center justify-between gap-1.5">
+              <span className="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider">Doanh số kỳ này</span>
               <span
-                className={`font-semibold ${
-                  reportData.summary.total_growth_rate >= 0 ? 'text-emerald-600' : 'text-rose-600'
+                className={`px-1.5 py-0.5 rounded text-[10.5px] font-bold leading-none ${
+                  reportData.summary.total_growth_rate >= 0
+                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/60'
+                    : 'bg-rose-50 text-rose-700 border border-rose-200/60'
                 }`}
               >
                 {formatPercent(reportData.summary.total_growth_rate)}
               </span>
-              <span className="text-slate-400">so với cùng kỳ trước</span>
             </div>
+            <div className="mt-1 text-lg sm:text-[18px] font-extrabold text-slate-900 tracking-tight">
+              {formatVND(reportData.summary.total_revenue)}
+            </div>
+            <div className="mt-1 flex items-center justify-between text-[11px] text-slate-400">
+              <span>so với cùng kỳ trước</span>
+            </div>
+            {(reportData.summary.total_return_quantity || 0) > 0 && (
+              <div className="mt-0.5 text-[10.5px] text-amber-600 font-medium truncate" title={`Đã trừ ${formatNumber(reportData.summary.total_return_quantity)} sp trả lại (${formatVND(reportData.summary.total_return_amount)})`}>
+                Đã trừ {formatNumber(reportData.summary.total_return_quantity)} sp trả
+              </div>
+            )}
           </div>
 
           {/* Card 2: Tổng Sản lượng */}
-          <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
+          <div className="bg-white p-3.5 rounded-xl border border-slate-200/90 shadow-2xs flex flex-col justify-between">
             <div>
-              <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Sản lượng bán</span>
+              <span className="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider">Sản lượng bán</span>
             </div>
-            <div className="mt-2 text-xl font-bold text-slate-800">
+            <div className="mt-1 text-lg sm:text-[18px] font-extrabold text-slate-900 tracking-tight">
               {formatNumber(reportData.summary.total_quantity)}{' '}
-              <span className="text-xs font-normal text-slate-400">sản phẩm</span>
+              <span className="text-xs font-medium text-slate-400">sản phẩm</span>
             </div>
-            <div className="mt-2 text-xs text-slate-400">
+            <div className="mt-1 text-[11px] text-slate-400 truncate">
               {reportData.summary.total_orders_count} đơn hàng hoàn tất
             </div>
           </div>
 
           {/* Card 3: Doanh số cùng kỳ trước */}
-          <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
+          <div className="bg-white p-3.5 rounded-xl border border-slate-200/90 shadow-2xs flex flex-col justify-between">
             <div>
-              <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Doanh số cùng kỳ</span>
+              <span className="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider">Doanh số cùng kỳ</span>
             </div>
-            <div className="mt-2 text-xl font-bold text-slate-700">
+            <div className="mt-1 text-lg sm:text-[18px] font-extrabold text-slate-700 tracking-tight">
               {formatVND(reportData.summary.previous_total_revenue)}
             </div>
-            <div className="mt-2 text-xs text-slate-400 truncate">
+            <div className="mt-1 text-[11px] text-slate-400 truncate">
               Kỳ trước: {reportData.previous_start_date}
             </div>
           </div>
 
           {/* Card 4: Tổng Lãi Gộp (Chỉ hiển thị khi có quyền) */}
           {canViewProfit && (
-            <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
+            <div className="bg-white p-3.5 rounded-xl border border-slate-200/90 shadow-2xs flex flex-col justify-between">
               <div>
-                <span className="text-xs font-medium text-emerald-600 uppercase tracking-wider">Tổng Lãi Gộp</span>
+                <span className="text-[10.5px] font-bold text-emerald-700 uppercase tracking-wider">Tổng Lãi Gộp</span>
               </div>
-              <div className="mt-2 text-xl font-bold text-emerald-600">
+              <div className="mt-1 text-lg sm:text-[18px] font-extrabold text-emerald-600 tracking-tight">
                 {formatVND(reportData.summary.total_gross_profit)}
               </div>
-              <div className="mt-2 text-xs text-slate-400">
+              <div className="mt-1 text-[11px] text-slate-400 truncate">
                 Giá vốn: {formatVND(reportData.summary.total_cost)}
               </div>
             </div>
@@ -563,14 +496,14 @@ export const MultidimensionalSalesReportView: React.FC<MultidimensionalSalesRepo
 
           {/* Card 5: Biên Lợi Nhuận TB (Chỉ hiển thị khi có quyền) */}
           {canViewProfit && (
-            <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
+            <div className="bg-white p-3.5 rounded-xl border border-slate-200/90 shadow-2xs flex flex-col justify-between">
               <div>
-                <span className="text-xs font-medium text-emerald-600 uppercase tracking-wider">Biên Lợi Nhuận TB</span>
+                <span className="text-[10.5px] font-bold text-emerald-700 uppercase tracking-wider">Biên Lợi Nhuận TB</span>
               </div>
-              <div className="mt-2 text-xl font-bold text-slate-800">
+              <div className="mt-1 text-lg sm:text-[18px] font-extrabold text-slate-900 tracking-tight">
                 {(reportData.summary.average_gross_margin_pct || 0).toFixed(1)}%
               </div>
-              <div className="mt-2 w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+              <div className="mt-1.5 w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
                 <div
                   className={`h-full rounded-full ${
                     (reportData.summary.average_gross_margin_pct || 0) >= 30
@@ -589,8 +522,130 @@ export const MultidimensionalSalesReportView: React.FC<MultidimensionalSalesRepo
         </div>
       )}
 
-      {/* Bảng dữ liệu chính */}
+      {/* Bảng dữ liệu chính (Tích hợp Chiều phân tích, Tìm kiếm & Bộ lọc) */}
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+        {/* Hàng 1: Tabs chọn Chiều phân tích (Gọn gàng, tích hợp trực tiếp trên đầu bảng) */}
+        <div className="px-4 py-2.5 bg-slate-50/70 border-b border-slate-100 flex items-center justify-between gap-3 overflow-x-auto">
+          <div className="flex items-center gap-1.5 overflow-x-auto">
+            {(Object.keys(dimensionLabels) as SalesDimension[]).map((dimKey) => {
+              const dimInfo = dimensionLabels[dimKey];
+              const isActive = dimension === dimKey;
+              return (
+                <button
+                  key={dimKey}
+                  type="button"
+                  onClick={() => setDimension(dimKey)}
+                  className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
+                    isActive
+                      ? 'bg-indigo-600 text-white shadow-xs font-bold'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 bg-white border border-slate-200/70'
+                  }`}
+                >
+                  <span>{dimInfo.title}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Cụm nút Thao tác: Làm mới & Xuất Excel */}
+          <div className="flex items-center gap-2 shrink-0 ml-auto">
+            {/* Nút Làm mới */}
+            <button
+              onClick={() => loadReport(true)}
+              disabled={isRefreshing || isLoading}
+              className="px-3 py-1.5 bg-white hover:bg-slate-100 text-slate-700 text-xs font-semibold rounded-lg border border-slate-200 shadow-2xs transition disabled:opacity-50 inline-flex items-center gap-1.5 cursor-pointer"
+              title="Tải lại dữ liệu"
+            >
+              <svg
+                width="13"
+                height="13"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.4"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className={isRefreshing ? 'animate-spin' : ''}
+              >
+                <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2" />
+              </svg>
+              <span>{isRefreshing ? 'Đang tải...' : 'Làm mới'}</span>
+            </button>
+
+            {/* Nút Xuất Excel */}
+            <button
+              onClick={handleExportExcel}
+              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg transition shadow-xs hover:shadow inline-flex items-center gap-1.5 cursor-pointer"
+              title="Xuất dữ liệu báo cáo hiện tại ra file Excel"
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+              <span>Xuất Excel</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Hàng 2: Thanh bộ lọc thời gian & tìm kiếm */}
+        <div
+          className="p-3.5 sm:px-4 sm:py-3 border-b border-slate-100 flex items-center gap-3 overflow-x-auto bg-white"
+          style={{ flexWrap: 'nowrap' }}
+        >
+          {/* Ô tìm kiếm */}
+          <div className="relative w-72 sm:w-80 md:w-96 shrink-0">
+            <input
+              type="text"
+              placeholder={`Tìm ${dimensionLabels[dimension].colName.toLowerCase()}...`}
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-3 pr-8 py-1.5 h-8 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+            />
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={() => setSearchTerm('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-[11px] font-semibold"
+              >
+                Xóa
+              </button>
+            )}
+          </div>
+
+          {/* Preset thời gian */}
+          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl text-xs font-medium text-slate-600 shrink-0">
+            {[
+              { key: 'this_month', label: 'Tháng này' },
+              { key: 'last_month', label: 'Tháng trước' },
+              { key: 'this_quarter', label: 'Quý này' },
+              { key: 'today', label: 'Hôm nay' },
+            ].map((p) => (
+              <button
+                key={p.key}
+                onClick={() => setTimePreset(p.key as SalesTimePreset)}
+                className={`px-3 py-1.5 rounded-lg transition whitespace-nowrap ${
+                  timePreset === p.key
+                    ? 'bg-white text-indigo-600 shadow-sm font-semibold'
+                    : 'hover:text-slate-900'
+                }`}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Toggle so sánh cùng kỳ */}
+          <label className="flex items-center gap-2 text-xs font-medium text-slate-600 cursor-pointer shrink-0 ml-auto whitespace-nowrap">
+            <input
+              type="checkbox"
+              checked={showComparison}
+              onChange={(e) => setShowComparison(e.target.checked)}
+              className="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500"
+            />
+            <span>So sánh cùng kỳ trước</span>
+          </label>
+        </div>
         {isLoading ? (
           <div className="py-20 flex flex-col items-center justify-center gap-3">
             <div className="w-10 h-10 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
@@ -636,6 +691,14 @@ export const MultidimensionalSalesReportView: React.FC<MultidimensionalSalesRepo
                       {renderSortIcon('revenue')}
                     </div>
                   </th>
+
+                  {/* Cột Chỉ tiêu KPI (khi xem theo nhân viên hoặc khu vực) */}
+                  {(dimension === 'salesperson' || dimension === 'region') && (
+                    <>
+                      <th className="py-2.5 px-2 text-right text-indigo-700 font-semibold whitespace-nowrap">Chỉ tiêu KPI</th>
+                      <th className="py-2.5 px-2 text-center text-indigo-700 font-semibold whitespace-nowrap">% Đạt KPI</th>
+                    </>
+                  )}
 
                   {/* Cột so sánh cùng kỳ */}
                   {showComparison && (
@@ -706,6 +769,32 @@ export const MultidimensionalSalesReportView: React.FC<MultidimensionalSalesRepo
                         {formatVND(item.revenue)}
                       </td>
 
+                      {/* Cột KPI cho nhân viên & khu vực */}
+                      {(dimension === 'salesperson' || dimension === 'region') && (
+                        <>
+                          <td className="py-2 px-2 text-right text-slate-600 text-xs whitespace-nowrap font-medium">
+                            {item.target_amount ? formatVND(item.target_amount) : <span className="text-slate-400">—</span>}
+                          </td>
+                          <td className="py-2 px-2 text-center text-xs whitespace-nowrap">
+                            {item.target_achievement_rate !== null && item.target_achievement_rate !== undefined ? (
+                              <span
+                                className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold ${
+                                  item.target_achievement_rate >= 100
+                                    ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                                    : item.target_achievement_rate >= 70
+                                    ? 'bg-amber-100 text-amber-800 border border-amber-200'
+                                    : 'bg-rose-100 text-rose-800 border border-rose-200'
+                                }`}
+                              >
+                                {item.target_achievement_rate.toFixed(1)}%
+                              </span>
+                            ) : (
+                              <span className="text-slate-400 text-[11px]">—</span>
+                            )}
+                          </td>
+                        </>
+                      )}
+
                       {/* Cột so sánh */}
                       {showComparison && (
                         <>
@@ -774,6 +863,24 @@ export const MultidimensionalSalesReportView: React.FC<MultidimensionalSalesRepo
                       {formatVND(reportData.summary.total_revenue)}
                     </td>
 
+                    {/* Tổng KPI */}
+                    {(dimension === 'salesperson' || dimension === 'region') && (
+                      <>
+                        <td className="py-2.5 px-2 text-right text-indigo-700 text-xs whitespace-nowrap font-bold">
+                          {reportData.summary.total_target_amount ? formatVND(reportData.summary.total_target_amount) : '—'}
+                        </td>
+                        <td className="py-2.5 px-2 text-center text-xs whitespace-nowrap">
+                          {reportData.summary.total_target_achievement_rate !== null && reportData.summary.total_target_achievement_rate !== undefined ? (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-indigo-100 text-indigo-800 border border-indigo-200">
+                              {reportData.summary.total_target_achievement_rate.toFixed(1)}%
+                            </span>
+                          ) : (
+                            '—'
+                          )}
+                        </td>
+                      </>
+                    )}
+
                     {showComparison && (
                       <>
                         <td className="py-2.5 px-2 text-right text-slate-400 font-normal text-xs">—</td>
@@ -817,30 +924,151 @@ export const MultidimensionalSalesReportView: React.FC<MultidimensionalSalesRepo
         )}
 
         {/* Phân trang */}
-        {sortedItems.length > pageSize && (
-          <div className="py-3.5 px-6 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-            <div>
-              Hiển thị {(currentPage - 1) * pageSize + 1} -{' '}
-              {Math.min(currentPage * pageSize, sortedItems.length)} trên tổng {sortedItems.length} dòng
-            </div>
-            <div className="flex items-center gap-1">
-              <button
-                disabled={currentPage === 1}
-                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                className="px-2.5 py-1 rounded-md border border-slate-200 hover:bg-slate-50 disabled:opacity-40"
-              >
-                Trước
-              </button>
-              <span className="px-2">
-                Trang {currentPage} / {totalPages}
-              </span>
-              <button
-                disabled={currentPage >= totalPages}
-                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                className="px-2.5 py-1 rounded-md border border-slate-200 hover:bg-slate-50 disabled:opacity-40"
-              >
-                Sau
-              </button>
+        {sortedItems.length > 0 && (
+          <div
+            style={{
+              padding: '8px 18px',
+              display: 'flex',
+              justifyContent: 'flex-end',
+              alignItems: 'center',
+              borderTop: '1px solid #e2e8f0',
+              background: '#f8fafc',
+              fontSize: '12px',
+              color: '#64748b',
+              flexShrink: 0,
+              borderBottomLeftRadius: '0.75rem',
+              borderBottomRightRadius: '0.75rem',
+            }}
+          >
+            {/* Khối phân trang liền thanh nhỏ gọn */}
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'stretch',
+                border: '1px solid #d1d5db',
+                borderRadius: '5px',
+                overflow: 'hidden',
+                background: '#ffffff',
+                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
+                height: '24px',
+              }}
+            >
+              {/* Nút trang trước (<) - hiển thị khi trang > 1 */}
+              {currentPage > 1 && (
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  style={{
+                    minWidth: '24px',
+                    height: '100%',
+                    padding: '0 6px',
+                    border: 'none',
+                    borderRight: '1px solid #e5e7eb',
+                    background: '#ffffff',
+                    color: '#4b5563',
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transition: 'background-color 0.15s ease',
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f9fafb')}
+                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#ffffff')}
+                  title="Trang trước"
+                >
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="15 18 9 12 15 6" />
+                  </svg>
+                </button>
+              )}
+
+              {/* Danh sách các số trang */}
+              {getPaginationList(currentPage, totalPages).map((item, idx, arr) => {
+                const hasNext = currentPage < totalPages;
+                const isLastItem = idx === arr.length - 1 && !hasNext;
+                if (item === '...') {
+                  return (
+                    <span
+                      key={`dots-${idx}`}
+                      style={{
+                        minWidth: '22px',
+                        height: '100%',
+                        padding: '0 4px',
+                        borderRight: isLastItem ? 'none' : '1px solid #e5e7eb',
+                        background: '#ffffff',
+                        color: '#6b7280',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '11px',
+                        userSelect: 'none',
+                      }}
+                    >
+                      ...
+                    </span>
+                  );
+                }
+                const isActive = item === currentPage;
+                return (
+                  <button
+                    key={item}
+                    type="button"
+                    onClick={() => setCurrentPage(item)}
+                    style={{
+                      minWidth: '24px',
+                      height: '100%',
+                      padding: '0 7px',
+                      border: 'none',
+                      borderRight: isLastItem ? 'none' : '1px solid #e5e7eb',
+                      background: isActive ? '#2ba1f4' : '#ffffff',
+                      color: isActive ? '#ffffff' : '#374151',
+                      cursor: isActive ? 'default' : 'pointer',
+                      fontSize: '11.5px',
+                      fontWeight: isActive ? '700' : '500',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      transition: 'background-color 0.15s ease',
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isActive) e.currentTarget.style.backgroundColor = '#f9fafb';
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isActive) e.currentTarget.style.backgroundColor = '#ffffff';
+                    }}
+                  >
+                    {item}
+                  </button>
+                );
+              })}
+
+              {/* Nút trang sau (>) - hiển thị khi chưa tới trang cuối */}
+              {currentPage < totalPages && (
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  style={{
+                    minWidth: '24px',
+                    height: '100%',
+                    padding: '0 6px',
+                    border: 'none',
+                    background: '#ffffff',
+                    color: '#4b5563',
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transition: 'background-color 0.15s ease',
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f9fafb')}
+                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#ffffff')}
+                  title="Trang sau"
+                >
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="9 18 15 12 9 6" />
+                  </svg>
+                </button>
+              )}
             </div>
           </div>
         )}
